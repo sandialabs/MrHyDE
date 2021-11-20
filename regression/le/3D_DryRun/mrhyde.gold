@@ -14,7 +14,7 @@ DOFManager Field Information:
  - Processor 0 max element size: 0.001
  - Processor 0 has 600 boundary elements
  - Processor 0 min boundary element size: 0.01
- - Processor 0 max bondary element size: 0.01
+ - Processor 0 max boundary element size: 0.01
  - Processor 0 is using 2.304 MB to store cell volumetric data
  - Processor 0 is using 0 MB to store cell face data
  - Processor 0 is using 0.8064 MB to store boundary cell data

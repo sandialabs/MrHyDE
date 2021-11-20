@@ -417,7 +417,7 @@ namespace MrHyDE {
     // Analysis block
     //----------------------------------------
     
-    settings->sublist("Analysis").set<string>("analysis type","forward");
+    settings->sublist("Analysis").set<string>("analysis type",mirage_settings->sublist("MrHyDE Options").get<string>("analysis mode","forward"));
     
     //----------------------------------------
     // Postprocess block

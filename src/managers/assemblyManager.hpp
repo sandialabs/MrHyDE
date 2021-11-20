@@ -85,20 +85,20 @@ namespace MrHyDE {
     void updateJacDBC(matrix_RCP & J, const std::vector<LO> & dofs, const bool & compute_disc_sens);
     
     
-    void setDirichlet(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+    void setDirichlet(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                       const ScalarT & time, const bool & lumpmass=false);
     
     // ========================================================================================
     // ========================================================================================
     
-    void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+    void setInitial(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                     const bool & lumpmass=false, const ScalarT & scale = 1.0);
     
-    void setInitial(vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+    void setInitial(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                     const bool & lumpmass, const ScalarT & scale,
                     const size_t & block, const size_t & cellblock);
     
-    void setInitial(vector_RCP & initial, const bool & useadjoint);
+    void setInitial(const size_t & set, vector_RCP & initial, const bool & useadjoint);
 
     // TODO BWR -- finish when appropriate
     /* @brief Create the mass matrix and RHS for an L2 projection of the initial
@@ -115,16 +115,16 @@ namespace MrHyDE {
      * I think some combination of the two should work, but need to better understand.
      */
     
-    void setInitialFace(vector_RCP & rhs, matrix_RCP & mass,const bool & lumpmass=false);
+    void setInitialFace(const size_t & set, vector_RCP & rhs, matrix_RCP & mass,const bool & lumpmass=false);
 
-    void getWeightedMass(matrix_RCP & mass, vector_RCP & massdiag);
+    void getWeightedMass(const size_t & set, matrix_RCP & mass, vector_RCP & massdiag);
     
-    void getWeightVector(vector_RCP & wts);
+    void getWeightVector(const size_t & set, vector_RCP & wts);
     
     // ========================================================================================
     // ========================================================================================
     
-    void assembleJacRes(vector_RCP & u, vector_RCP & phi,
+    void assembleJacRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
                         const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
@@ -135,7 +135,7 @@ namespace MrHyDE {
                         const ScalarT & deltat);
     
     
-    void assembleJacRes(const bool & compute_jacobian, const bool & compute_sens,
+    void assembleJacRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                         const ScalarT & current_time, const bool & useadjoint,
@@ -148,47 +148,50 @@ namespace MrHyDE {
     //
     // ========================================================================================
     
-    void dofConstraints(matrix_RCP & J, vector_RCP & res, const ScalarT & current_time,
+    void dofConstraints(const size_t & set, matrix_RCP & J, vector_RCP & res, const ScalarT & current_time,
                         const bool & compute_jacobian, const bool & compute_disc_sens);
     
     // ========================================================================================
     //
     // ========================================================================================
     
-    void resetPrevSoln();
+    void resetPrevSoln(const size_t & set);
     
-    void resetStageSoln();
+    void resetStageSoln(const size_t & set);
     
     void updateStageNumber(const int & stage);
     
-    void updateStageSoln();
+    void updateStageSoln(const size_t & set);
+    
+    void updatePhysicsSet(const size_t & set);
     
     // ========================================================================================
     // Gather (TpetraMV -> cell solns)
     // ========================================================================================
     
-    void performGather(const vector_RCP & vec, const int & type, const size_t & index);
+    void performGather(const size_t & set, const vector_RCP & vec, const int & type, const size_t & index);
     
     template<class ViewType>
-    void performGather(ViewType vec_dev, const int & type);
+    void performGather(const size_t & set, ViewType vec_dev, const int & type);
         
     template<class ViewType>
-    void performBoundaryGather(ViewType vec_dev, const int & type);
+    void performBoundaryGather(const size_t & set, ViewType vec_dev, const int & type);
     
     // ========================================================================================
     // Scatter (local data structures -> TpetraMV and TpetraCRS)
     // ========================================================================================
     
     template<class MatType, class LocalViewType, class LIDViewType>
-    void scatterJac(MatType J_kcrs, LocalViewType local_J,
+    void scatterJac(const size_t & set, MatType J_kcrs, LocalViewType local_J,
                     LIDViewType LIDs, LIDViewType paramLIDs,
                     const bool & compute_disc_sens);
 
     template<class VecViewType, class LocalViewType, class LIDViewType>
-    void scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs);
+    void scatterRes(VecViewType res_view,
+                    LocalViewType local_res, LIDViewType LIDs);
 
     template<class MatType, class VecViewType, class LIDViewType>
-    void scatter(MatType J_kcrs, VecViewType res_view,
+    void scatter(const size_t & set,MatType J_kcrs, VecViewType res_view,
                  LIDViewType LIDs, LIDViewType paramLIDs,
                  const int & block,
                  const bool & compute_jacobian,
@@ -210,8 +213,7 @@ namespace MrHyDE {
     
     // Need
     std::vector<std::string> blocknames;
-    std::vector<std::vector<std::string> > varlist;
-    std::vector<LO> numVars;
+    std::vector<std::vector<std::vector<std::string> > > varlist; // [set][block][var]
     
     Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
@@ -220,6 +222,7 @@ namespace MrHyDE {
     size_t globalParamUnknowns;
     int verbosity, debug_level;
     
+    // Cells and worksets are unique to each block, but span the physics sets
     std::vector<Teuchos::RCP<CellMetaData> > cellData;
     std::vector<std::vector<Teuchos::RCP<cell> > > cells;
     std::vector<std::vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
@@ -228,10 +231,10 @@ namespace MrHyDE {
     bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass;
     
     std::string assembly_partitioning;
-    std::vector<bool> assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly
-    std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function
-    Kokkos::View<bool*,LA_device> isFixedDOF;
-    vector<vector<Kokkos::View<LO*,LA_device> > > fixedDOF;
+    std::vector<std::vector<bool> > assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly [block][set]
+    std::vector<bool> build_volume_terms, build_boundary_terms, build_face_terms; // set up basis function [block]
+    std::vector<Kokkos::View<bool*,LA_device> > isFixedDOF; // [set]
+    std::vector<vector<vector<Kokkos::View<LO*,LA_device> > > > fixedDOF; // [set][block][var]
     Teuchos::RCP<ParameterManager<Node> > params;
       
     Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - total assembly");

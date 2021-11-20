@@ -71,10 +71,13 @@ namespace MrHyDE {
     
     workset() {};
     
-    workset(const vector<int> & cellinfo, const bool & isTransient_,
+    workset(const vector<int> & cellinfo,
+            const vector<size_t> & numVars_, 
+            const bool & isTransient_,
             const vector<string> & basis_types_,
             const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-            const topo_RCP & topo, Kokkos::View<string**,HostDevice> & var_bcs_);
+            const topo_RCP & topo,
+            vector<Kokkos::View<string**,HostDevice> > & var_bcs_);
             
     ////////////////////////////////////////////////////////////////////////////////////
     // Public functions
@@ -96,9 +99,9 @@ namespace MrHyDE {
     // Compute the seeded solutions for general transient problems
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnTransientSeeded(View_Sc3 u,
-                                    View_Sc4 u_prev,
-                                    View_Sc4 u_stage,
+    void computeSolnTransientSeeded(vector<View_Sc3> & u,
+                                    vector<View_Sc4> & u_prev,
+                                    vector<View_Sc4> & u_stage,
                                     const int & seedwhat,
                                     const int & index=0);
     
@@ -106,7 +109,7 @@ namespace MrHyDE {
     // Compute the seeded solutions for steady-state problems
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnSteadySeeded(View_Sc3 u, const int & seedwhat);
+    void computeSolnSteadySeeded(vector<View_Sc3> & u, const int & seedwhat);
     
     void computeParamSteadySeeded(View_Sc3 params, const int & seedwhat);
     
@@ -116,34 +119,8 @@ namespace MrHyDE {
     // Compute the solutions at general set of points
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSoln(const int & type, const bool & onside);
-    
     void evaluateSolutionField(const int & fieldnum);
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Compute the solutions at the volumetric ip
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeSolnVolIP();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Compute the discretized parameters at the volumetric ip
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeParamVolIP();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Compute the solutions at the side ip
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeSolnSideIP();
-    
-    ////////////////////////////////////////////////////////////////////////////////////
-    // Compute the discretized parameters at the side ip
-    ////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeParamSideIP();
-    
+        
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the side ip
     ////////////////////////////////////////////////////////////////////////////////////
@@ -340,32 +317,19 @@ namespace MrHyDE {
     
     void setAuxPoint(View_AD2 newsol);
     
+    void updatePhysicsSet(const size_t & current_set_);
+    
     ////////////////////////////////////////////////////////////////////////////////////
     // Public data
     ////////////////////////////////////////////////////////////////////////////////////
     
     // Should be the only view stored on Host
     // Used by physics modules to determine the proper contribution to the boundary residual
-    Kokkos::View<string**,HostDevice> var_bcs, aux_var_bcs;
-    
-    Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
-    vector<string> varlist, aux_varlist, param_varlist;
-    Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, aux_butcher_A;
-    Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts, aux_butcher_b, aux_butcher_c, aux_BDF_wts;
-    
-    vector<int> usebasis, paramusebasis, auxusebasis;
-    vector<int> vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
-    vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
-    vector<int> auxvars_HGRAD, auxvars_HVOL, auxvars_HDIV, auxvars_HCURL, auxvars_HFACE;
-    
-    vector<string> varlist_HGRAD, varlist_HVOL, varlist_HDIV, varlist_HCURL, varlist_HFACE;
-    vector<string> paramvarlist_HGRAD, paramvarlist_HVOL, paramvarlist_HDIV, paramvarlist_HCURL, paramvarlist_HFACE;
-    vector<string> auxvarlist_HGRAD, auxvarlist_HVOL, auxvarlist_HDIV, auxvarlist_HCURL, auxvarlist_HFACE;
     
     bool isAdjoint, onlyTransient, isTransient;
     bool isInitialized, usebcs, onDemand;
     topo_RCP celltopo;
-    size_t numsides, numip, numsideip, numVars, numParams, numAux, maxRes, maxTeamSize;
+    size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set;
     int dimension, numElem, current_stage;
     size_type maxElem;
     
@@ -394,22 +358,45 @@ namespace MrHyDE {
     
     View_Sc1 h;
     View_Sc2 wts, wts_side;
-    
-    vector<View_AD2> uvals, u_dotvals, pvals, auxvals, aux_dotvals;
-    
     vector<View_Sc4> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<View_Sc3> basis_div;
-        
-    View_AD3 flux;
+    
     View_AD2 res, adjrhs;
-
+    View_AD3 flux;
+    Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
+    vector<View_AD2> pvals;
+    vector<string> param_varlist;
+    vector<int> paramusebasis;
+    vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
+    vector<string> paramvarlist_HGRAD, paramvarlist_HVOL, paramvarlist_HDIV, paramvarlist_HCURL, paramvarlist_HFACE;
+    
+    size_t numAux;
+    
+    // Editing for multi-set
+    vector<size_t> numVars;
+    vector<vector<View_AD2> > uvals, u_dotvals;
+    Kokkos::View<string**,HostDevice> var_bcs;
+    vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
+    
+    vector<Kokkos::View<int**,AssemblyDevice> > set_offsets;
+    vector<vector<string> > set_varlist;
+    vector<string> varlist, aux_varlist;
+    
+    Kokkos::View<ScalarT**,AssemblyDevice> butcher_A;
+    Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts;
+    
+    vector<vector<int> > set_usebasis;
+    vector<int> usebasis;
+    vector<vector<int> > vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
+    vector<vector<string> > varlist_HGRAD, varlist_HVOL, varlist_HDIV, varlist_HCURL, varlist_HFACE;
+    
     // Storage for integrated quantities TODO where to initialize? OK to do in the postprocess setup?
     
     View_Sc1 integrated_quantities;
         
     int sidetype;
     Kokkos::View<int****,AssemblyDevice> sideinfo;
-    string sidename, var;
+    string sidename;//, var;
     int currentside;
     
     bool have_rotation, have_rotation_phi;

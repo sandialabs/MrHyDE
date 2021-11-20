@@ -103,12 +103,8 @@ int FunctionManager::addFunction(const string & fname, ScalarT & value, const st
 // Set the lists of variables, parameters and discretized parameters
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionManager::setupLists(const vector<string> & variables_,
-                                 const vector<string> & aux_variables_,
-                                 const vector<string> & parameters_,
+void FunctionManager::setupLists(const vector<string> & parameters_,
                                  const vector<string> & disc_parameters_) {
-  variables = variables_;
-  aux_variables = aux_variables_;
   parameters = parameters_;
   disc_parameters = disc_parameters_;
 }

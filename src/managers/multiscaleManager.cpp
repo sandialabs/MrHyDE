@@ -281,16 +281,16 @@ ScalarT MultiscaleManager::initialize() {
         if (subgrid_static) { // only add each cell to one subgrid model
           
           sgusernum = subgridModels[sgwinner]->addMacro(cells[b][e]->nodes,
-                                                        cells[b][e]->sideinfo,
-                                                        cells[b][e]->LIDs,
+                                                        cells[b][e]->sideinfo[0],
+                                                        cells[b][e]->LIDs[0],
                                                         cells[b][e]->orientation);
           
         }
         else {
           for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this cell info to all of them (sgusernum is same for all)
             sgusernum = subgridModels[s]->addMacro(cells[b][e]->nodes,
-                                                   cells[b][e]->sideinfo,
-                                                   cells[b][e]->LIDs,
+                                                   cells[b][e]->sideinfo[0],
+                                                   cells[b][e]->LIDs[0],
                                                    cells[b][e]->orientation);
           }
         }

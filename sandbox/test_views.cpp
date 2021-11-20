@@ -46,8 +46,14 @@ int main(int argc, char * argv[]) {
     Kokkos::View<EvalT****,AssemblyDevice> basis("basis",numElem,numdof,numip,dimension);
     Kokkos::View<EvalT****,AssemblyDevice> basis_grad("basis",numElem,numdof,numip,dimension);
     
-    Kokkos::deep_copy(basis,1.0);
-    Kokkos::deep_copy(basis_grad,2.0);
+    Kokkos::View<double****,AssemblyDevice> dbasis("basis",numElem,numdof,numip,dimension);
+    Kokkos::View<double****,AssemblyDevice> dbasis_grad("basis",numElem,numdof,numip,dimension);
+                                                      
+    Kokkos::deep_copy(dbasis,1.0);
+    Kokkos::deep_copy(dbasis_grad,2.0);
+    
+    Kokkos::deep_copy(basis,dbasis);
+    Kokkos::deep_copy(basis_grad,dbasis_grad);
     
     Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dx("dTdx",numElem,numip);
     Kokkos::View<EvalT**,CL,AssemblyDevice> dT_dy("dTdy",numElem,numip);

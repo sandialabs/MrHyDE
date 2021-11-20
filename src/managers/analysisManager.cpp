@@ -175,7 +175,7 @@ void AnalysisManager::run() {
     // Evaluate model or a surrogate at these samples
     vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
-    vector_RCP avgsoln = solve->linalg->getNewOverlappedVector(2);
+    vector_RCP avgsoln = solve->linalg->getNewOverlappedVector(0,2);
     int output_freq = uqsettings.get<int>("output frequency",1);
     if (uqsettings.get<bool>("use surrogate",false)) {
       
@@ -424,14 +424,17 @@ void AnalysisManager::run() {
       solve->forwardModel(objfun);
       //std::cout << "Storing data ... " << std::endl;
       
-      vector<vector<ScalarT> > times = postproc->soln->times;
-      vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc->soln->data;
-      
-      for (size_t i=0; i<times.size(); i++) {
-        for (size_t j=0; j<times[i].size(); j++) {
-          postproc->datagen_soln->store(data[i][j], times[i][j], i);
+      for (size_t set=0; set<postproc->soln.size(); ++set) {
+        vector<vector<ScalarT> > times = postproc->soln[set]->times;
+        vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc->soln[set]->data;
+        
+        for (size_t i=0; i<times.size(); i++) {
+          for (size_t j=0; j<times[i].size(); j++) {
+            postproc->datagen_soln[set]->store(data[i][j], times[i][j], i);
+          }
         }
       }
+      
       //std::cout << "Finished storing data" << std::endl;
       if (params->isParameter("datagen")) {
         vector<ScalarT> pval = {0.0};

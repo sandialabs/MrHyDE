@@ -263,7 +263,7 @@ void SubGridFEM::setUpSubgridModels() {
   sub_mesh->stk_mesh->getMyElements(blockID, stk_meshElems);
   
   // Does need to be PHX::Device
-  Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = sub_disc->DOF->getLIDs();
+  Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = sub_disc->DOF[0]->getLIDs(); // hard coded
     
   for (size_t s=0; s<unique_sides.size(); s++) {
     
@@ -300,7 +300,7 @@ void SubGridFEM::setUpSubgridModels() {
       Kokkos::deep_copy(sideIndex,host_sideIndex); 
       
       // Build the Kokkos View of the cell GIDs ------
-      
+      vector<LIDView> vLIDs;
       LIDView cellLIDs("LIDs on device", currElem,LIDs.extent(1));
       parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int i ) {
         size_t elemID = eIndex(i);
@@ -308,10 +308,12 @@ void SubGridFEM::setUpSubgridModels() {
           cellLIDs(i,j) = LIDs(elemID,j);
         }
       });
+      vLIDs.push_back(cellLIDs);
       
       //-----------------------------------------------
       // Set the side information (soon to be removed)-
-      Kokkos::View<int****,HostDevice> sideinfo = sub_disc->getSideInfo(0,host_eIndex2);
+      vector<Kokkos::View<int****,HostDevice> > sideinfo;
+      sideinfo.push_back(sub_disc->getSideInfo(0,0,host_eIndex2));
       
       //-----------------------------------------------
       // Set the cell orientation ---
@@ -333,7 +335,7 @@ void SubGridFEM::setUpSubgridModels() {
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                         sideID, sidename, newbcells.size(),
-                                                        cellLIDs, sideinfo, sub_disc, true)));//, orient_drv)));
+                                                        vLIDs, sideinfo, sub_disc, true)));//, orient_drv)));
       
       prog += currElem;
     }
@@ -396,9 +398,8 @@ void SubGridFEM::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   {
-    varlist = sub_physics->varlist[0];
-    functionManagers[0]->setupLists(sub_physics->varlist[0], sub_physics->aux_varlist[0],
-                                    macro_paramnames, macro_disc_paramnames);
+    varlist = sub_physics->varlist[0][0];
+    functionManagers[0]->setupLists(macro_paramnames, macro_disc_paramnames);
     sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
     
     functionManagers[0]->wkset = sub_assembler->wkset[0];
@@ -458,7 +459,7 @@ void SubGridFEM::setUpSubgridModels() {
  
     // Define the cells and boundary cells for mindex>0
     if (mindex > 0) {
-    
+      
       // Use the subgrid mesh interface to define new nodes
       DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes,
                                           macro_cellTopo, sub_disc);
@@ -489,6 +490,9 @@ void SubGridFEM::setUpSubgridModels() {
         
       }
       
+      vector<Kokkos::View<int****,HostDevice> > vsideinfo;
+      vsideinfo.push_back(subsideinfo);
+      
       ///////////////////////////////////////////////////////////
       // New cells
       ///////////////////////////////////////////////////////////
@@ -502,24 +506,30 @@ void SubGridFEM::setUpSubgridModels() {
       
       if (numElem == maxElem) { // reuse if possible
         localID = cells[0][0]->localElemID;
-        LIDs = cells[0][0]->LIDs;
+        LIDs = cells[0][0]->LIDs[0];
       }
       else { // subviews do not work, so performing a deep copy (should only be on last cell)
         localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
-        LIDs = LIDView("LIDs",numElem,cells[0][0]->LIDs.extent(1));
+        LIDs = LIDView("LIDs",numElem,cells[0][0]->LIDs[0].extent(1));
         Kokkos::View<LO*,AssemblyDevice> localID_0 = cells[0][0]->localElemID;
-        LIDView LIDs_0 = cells[0][0]->LIDs;
-        parallel_for("subgrid LIDs",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
+        LIDView LIDs_0 = cells[0][0]->LIDs[0];
+        parallel_for("subgrid LIDs",
+                     RangePolicy<AssemblyExec>(0,numElem),
+                     KOKKOS_LAMBDA (const int e ) {
           localID(e) = localID_0(e);
-          for (size_t j=0; j<LIDs.extent(1); j++) {
+          for (size_t j=0; j<LIDs_0.extent(1); j++) {
             LIDs(e,j) = LIDs_0(e,j);
           }
         });
           
       }
+      
+      vector<LIDView> vLIDs;
+      vLIDs.push_back(LIDs);
+      
       newcells.push_back(Teuchos::rcp(new cell(sub_assembler->cellData[0],
                                                newnodes, localID,
-                                               LIDs, subsideinfo, sub_disc, true)));
+                                               vLIDs, vsideinfo, sub_disc, true)));
       
       //////////////////////////////////////////////////////////////
       // New boundary cells (more complicated than interior cells)
@@ -568,35 +578,40 @@ void SubGridFEM::setUpSubgridModels() {
         
         if (numElem == maxElem) { // reuse if possible
           localID = boundaryCells[0][s]->localElemID;
-          LIDs = boundaryCells[0][s]->LIDs;
+          LIDs = boundaryCells[0][s]->LIDs[0];
           orientation = boundaryCells[0][s]->orientation;
           sideID = boundaryCells[0][s]->localSideID;
         }
         else { // subviews do not work, so performing a deep copy (should only be on last cell)
           localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
-          LIDs = LIDView("LIDs",numElem,boundaryCells[0][s]->LIDs.extent(1));
+          LIDs = LIDView("LIDs",numElem,boundaryCells[0][s]->LIDs[0].extent(1));
           orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("orientation",numElem);
           sideID = Kokkos::View<LO*,AssemblyDevice>("side IDs",numElem);
           
           Kokkos::View<LO*,AssemblyDevice> localID_0 = boundaryCells[0][s]->localElemID;
-          LIDView LIDs_0 = boundaryCells[0][s]->LIDs;
+          LIDView LIDs_0 = boundaryCells[0][s]->LIDs[0];
           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_0 = boundaryCells[0][s]->orientation;
           Kokkos::View<LO*,AssemblyDevice> sideID_0 = boundaryCells[0][s]->localSideID;
           
-          parallel_for("subgrid LIDs",RangePolicy<AssemblyExec>(0,numElem), KOKKOS_LAMBDA (const int e ) {
+          parallel_for("subgrid LIDs",
+                       RangePolicy<AssemblyExec>(0,numElem),
+                       KOKKOS_LAMBDA (const int e ) {
             localID(e) = localID_0(e);
             orientation(e) = orientation_0(e);
             sideID(e) = sideID_0(e);
-            for (size_type j=0; j<LIDs.extent(1); j++) {
+            for (size_type j=0; j<LIDs_0.extent(1); j++) {
               LIDs(e,j) = LIDs_0(e,j);
             }
           });
           
         }
                 
+        vector<LIDView> vLIDs;
+        vLIDs.push_back(LIDs);
+        
         newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0], currnodes,
                                                           localID, sideID, sidenum, unique_names[s],
-                                                          newbcells.size(), LIDs, subsideinfo, sub_disc, true)));//, orientation)));
+                                                          newbcells.size(), vLIDs, vsideinfo, sub_disc, true)));//, orientation)));
         
       
         newbcells[s]->addAuxVars(macro_varlist);
@@ -645,14 +660,12 @@ void SubGridFEM::setUpSubgridModels() {
       }
       macroData[mindex]->bcs = currbcs;
       
-      int numDOF = cells[mindex][0]->LIDs.extent(1);
       for (size_t e=0; e<cells[mindex].size(); e++) {
         cells[mindex][e]->setWorkset(sub_assembler->wkset[0]);
         cells[mindex][e]->setUseBasis(sub_solver->solver->useBasis[0],
                                       sub_solver->solver->numsteps,
                                       sub_solver->solver->numstages);
-        cells[mindex][e]->setUpAdjointPrev(numDOF,
-                                           sub_solver->solver->numsteps,
+        cells[mindex][e]->setUpAdjointPrev(sub_solver->solver->numsteps,
                                            sub_solver->solver->numstages);
         cells[mindex][e]->setUpSubGradient(sub_solver->solver->params->num_active_params);
       }
@@ -860,11 +873,11 @@ void SubGridFEM::setUpSubgridModels() {
     Teuchos::TimeMonitor localtimer(*sgfemSubICTimer);
     for (size_t mindex = 0; mindex<macroData.size(); mindex++) {
       
-      Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector();
+      Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector(0);
       this->setInitial(init, mindex, false);
       soln->store(init,initial_time,mindex);
       sub_solver->performGather(mindex, init, 0, 0);
-      Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector();
+      Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector(0);
       adjsoln->store(inita,final_time,mindex);
     }
   }
@@ -887,11 +900,11 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID,
   
   if (macroData.size() > 0) {
     this->setUpSubgridModels();
-    
-    size_t defblock = 0;
-    if (cells.size() > 0) {
-      sub_physics->setAuxVars(defblock, macro_varlist);
-    }
+    sub_assembler->updatePhysicsSet(0);
+    //size_t defblock = 0;
+    //if (cells.size() > 0) {
+    //  sub_physics->setAuxVars(defblock, macro_varlist);
+    //}
   }
   
   if (write_subgrid_soln) {
@@ -901,6 +914,7 @@ void SubGridFEM::finalize(const int & globalSize, const int & globalPID,
     
     this->setupCombinedExodus();
   }
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1115,25 +1129,25 @@ void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
   
   bool useL2proj = true;//settings->sublist("Solver").get<bool>("Project initial",true);
 
-  auto glinitial = sub_solver->solver->linalg->getNewVector();
+  auto glinitial = sub_solver->solver->linalg->getNewVector(0);
    
   if (useL2proj) {
    
     // Compute the L2 projection of the initial data into the discrete space
-    auto rhs = sub_solver->solver->linalg->getNewOverlappedVector();
-    auto mass = sub_solver->solver->linalg->getNewOverlappedMatrix();
-    auto glrhs = sub_solver->solver->linalg->getNewVector();
-    auto glmass = sub_solver->solver->linalg->getNewMatrix();
+    auto rhs = sub_solver->solver->linalg->getNewOverlappedVector(0);
+    auto mass = sub_solver->solver->linalg->getNewOverlappedMatrix(0);
+    auto glrhs = sub_solver->solver->linalg->getNewVector(0);
+    auto glmass = sub_solver->solver->linalg->getNewMatrix(0);
 
-    sub_assembler->setInitial(rhs, mass, false, false, 1.0, 0, (size_t)usernum);
+    sub_assembler->setInitial(0, rhs, mass, false, false, 1.0, 0, (size_t)usernum);
     
-    sub_solver->solver->linalg->exportMatrixFromOverlapped(glmass, mass);
-    sub_solver->solver->linalg->exportVectorFromOverlapped(glrhs, rhs);
+    sub_solver->solver->linalg->exportMatrixFromOverlapped(0,glmass, mass);
+    sub_solver->solver->linalg->exportVectorFromOverlapped(0,glrhs, rhs);
     
     sub_solver->solver->linalg->fillComplete(glmass);
-    sub_solver->solver->linalg->linearSolverL2(glmass, glrhs, glinitial);
-    sub_solver->solver->linalg->importVectorToOverlapped(initial, glinitial);
-    sub_solver->solver->linalg->resetJacobian();
+    sub_solver->solver->linalg->linearSolverL2(0,glmass, glrhs, glinitial);
+    sub_solver->solver->linalg->importVectorToOverlapped(0,initial, glinitial);
+    sub_solver->solver->linalg->resetJacobian(0);
    
    }
    //else {
@@ -1146,7 +1160,7 @@ void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
 // Compute the error for verification
 ///////////////////////////////////////////////////////////////////////////////////////
 
-vector<std::pair<size_t, string> > SubGridFEM::getErrorList() {
+vector<std::pair<string, string> > SubGridFEM::getErrorList() {
   return sub_postproc->error_list[0];
 }
 
@@ -1183,7 +1197,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridFEM::computeError(const ScalarT & time)
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,HostDevice> SubGridFEM::computeError(vector<std::pair<size_t, string> > & sub_error_list,
+Kokkos::View<ScalarT**,HostDevice> SubGridFEM::computeError(vector<std::pair<string, string> > & sub_error_list,
                                                             const vector<ScalarT> & times) {
   
   Kokkos::View<ScalarT**,HostDevice> errors;
@@ -1333,25 +1347,25 @@ void SubGridFEM::setupCombinedExodus() {
     // Add in the necessary fields for plotting
     //////////////////////////////////////////////////////////////
     
-    vector<string> vartypes = sub_physics->types[0];
+    vector<string> vartypes = sub_physics->types[0][0];
     
     vector<string> subeBlocks;
     combined_mesh->getElementBlockNames(subeBlocks);
-    for (size_t j=0; j<sub_physics->varlist[0].size(); j++) {
+    for (size_t j=0; j<sub_physics->varlist[0][0].size(); j++) {
       if (vartypes[j] == "HGRAD") {
-        combined_mesh->addSolutionField(sub_physics->varlist[0][j], subeBlocks[0]);
+        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j], subeBlocks[0]);
       }
       else if (vartypes[j] == "HVOL"){
-        combined_mesh->addCellField(sub_physics->varlist[0][j], subeBlocks[0]);
+        combined_mesh->addCellField(sub_physics->varlist[0][0][j], subeBlocks[0]);
       }
       else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL"){
-        combined_mesh->addCellField(sub_physics->varlist[0][j]+"x", subeBlocks[0]);
-        combined_mesh->addCellField(sub_physics->varlist[0][j]+"y", subeBlocks[0]);
-        combined_mesh->addCellField(sub_physics->varlist[0][j]+"z", subeBlocks[0]);
+        combined_mesh->addCellField(sub_physics->varlist[0][0][j]+"x", subeBlocks[0]);
+        combined_mesh->addCellField(sub_physics->varlist[0][0][j]+"y", subeBlocks[0]);
+        combined_mesh->addCellField(sub_physics->varlist[0][0][j]+"z", subeBlocks[0]);
         
-        combined_mesh->addSolutionField(sub_physics->varlist[0][j]+"x", subeBlocks[0]);
-        combined_mesh->addSolutionField(sub_physics->varlist[0][j]+"y", subeBlocks[0]);
-        combined_mesh->addSolutionField(sub_physics->varlist[0][j]+"z", subeBlocks[0]);
+        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+"x", subeBlocks[0]);
+        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+"y", subeBlocks[0]);
+        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+"z", subeBlocks[0]);
       }
     }
     //vector<string> subextrafieldnames = sub_physics->getExtraFieldNames(0);
@@ -1389,8 +1403,8 @@ void SubGridFEM::setupCombinedExodus() {
     }
     
     // Add derived quantities from physics modules
-    for (size_t j=0; j<sub_physics->modules[0].size(); ++j) {
-      std::vector<string> derivedlist = sub_physics->modules[0][j]->getDerivedNames();
+    for (size_t j=0; j<sub_physics->modules[0][0].size(); ++j) {
+      std::vector<string> derivedlist = sub_physics->modules[0][0][j]->getDerivedNames();
       for (size_t k=0; k<derivedlist.size(); ++k) {
         combined_mesh->addCellField(derivedlist[k], subeBlocks[0]);
       }
@@ -1463,8 +1477,8 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
     
     Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;
     Kokkos::View<int*,AssemblyDevice> numDOF = sub_assembler->cellData[0]->numDOF;
-    vector<string> vartypes = sub_physics->types[0];
-    vector<string> varlist = sub_physics->varlist[0];
+    vector<string> vartypes = sub_physics->types[0][0];
+    vector<string> varlist = sub_physics->varlist[0][0];
     
     // Collect the subgrid solution
     for (size_t n = 0; n<varlist.size(); n++) {
@@ -1475,7 +1489,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
         size_t pprog = 0;
         for (size_t usernum=0; usernum<cells.size(); usernum++) {
           for( size_t e=0; e<cells[usernum].size(); e++ ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u[0];
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
             for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
@@ -1494,7 +1508,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
         size_t pprog = 0;
         for( size_t usernum=0; usernum<cells.size(); usernum++ ) {
           for( size_t e=0; e<cells[usernum].size(); e++ ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u[0];
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
             for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
@@ -1515,7 +1529,7 @@ void SubGridFEM::writeSolution(const ScalarT & time) {
         
         for( size_t usernum=0; usernum<cells.size(); usernum++ ) {
           for( size_t e=0; e<cells[usernum].size(); e++ ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u_avg;
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u_avg[0];
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
             for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
@@ -1855,7 +1869,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
   
   size_t numpts = pts.extent(1);
   size_t dimpts = pts.extent(2);
-  size_t numLIDs = cells[0][0]->LIDs.extent(1);
+  size_t numLIDs = cells[0][0]->LIDs[0].extent(1);
   Kokkos::View<int**,AssemblyDevice> owners("owners",numpts,2+numLIDs);
   
   for (size_t e=0; e<cells[0].size(); e++) {
@@ -1879,7 +1893,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM::evaluate
         if (inRefCell(0,i) == 1) {
           owners(i,0) = e;//cells[0][e]->localElemID[c];
           owners(i,1) = c;
-          LIDView LIDs = cells[0][e]->LIDs;
+          LIDView LIDs = cells[0][e]->LIDs[0];
           for (size_t j=0; j<numLIDs; j++) {
             owners(i,j+2) = LIDs(c,j);
           }
@@ -1963,7 +1977,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM::g
 ////////////////////////////////////////////////////////////////////////////////
 
 LIDView SubGridFEM::getCellLIDs(const int & cellnum) {
-  return cells[0][cellnum]->LIDs;
+  return cells[0][cellnum]->LIDs[0];
 }
 
 ////////////////////////////////////////////////////////////////////////////////

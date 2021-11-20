@@ -22,8 +22,8 @@ using namespace MrHyDE;
 cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const DRV nodes_,
            const Kokkos::View<LO*,AssemblyDevice> localID_,
-           LIDView LIDs_,
-           Kokkos::View<int****,HostDevice> sideinfo_,
+           vector<LIDView> & LIDs_,
+           vector<Kokkos::View<int****,HostDevice> > & sideinfo_,
            Teuchos::RCP<DiscretizationInterface> & disc_,
            const bool & storeAll_) :
 LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), nodes(nodes_), disc(disc_)
@@ -31,11 +31,14 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
   numElem = nodes.extent(0);
   useSensors = false;
 
-  auto LIDs_tmp = create_mirror_view(LIDs);
-  deep_copy(LIDs_tmp,LIDs);
- 
-  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1));
-  deep_copy(LIDs_host,LIDs_tmp);
+  for (size_t set=0; set<LIDs.size(); ++set) {
+    auto LIDs_tmp = create_mirror_view(LIDs[set]);
+    deep_copy(LIDs_tmp,LIDs[set]);
+    
+    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
+    deep_copy(currLIDs_host,LIDs_tmp);
+    LIDs_host.push_back(currLIDs_host);
+  }
   
   storeAll = storeAll_;
   
@@ -49,7 +52,6 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
                                     ip, wts, hsize, orientation,
                                     basis, basis_grad, basis_curl,
                                     basis_div, basis_nodes,true,true);
-    
     
     
     if (cellData->build_face_terms) {
@@ -148,35 +150,50 @@ void cell::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const v
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages) {
-  vector<int> usebasis = usebasis_;
+void cell::setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, const int & numstages) {
+  vector<vector<int> > usebasis = usebasis_;
   //num_stages = nstages;
   
   // Set up the containers for usual solution storage
-  int maxnbasis = 0;
-  for (size_type i=0; i<cellData->numDOF_host.extent(0); i++) {
-    if (cellData->numDOF_host(i) > maxnbasis) {
-      maxnbasis = cellData->numDOF_host(i);
+  for (size_t set=0; set<usebasis.size(); ++set) {
+    int maxnbasis = 0;
+    for (size_type i=0; i<cellData->set_numDOF_host[set].extent(0); i++) {
+      if (cellData->set_numDOF_host[set](i) > maxnbasis) {
+        maxnbasis = cellData->set_numDOF_host[set](i);
+      }
     }
-  }
-  //maxnbasis *= nstages;
-  u = View_Sc3("u",numElem,cellData->numDOF.extent(0),maxnbasis);
-  if (cellData->requiresAdjoint) {
-    phi = View_Sc3("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
-  }
-  
-  // This does add a little extra un-used memory for steady-state problems, but not a concern
-  if (cellData->requiresTransient) {
-    u_prev = View_Sc4("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
-    u_stage = View_Sc4("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+    //maxnbasis *= nstages;
+    u.push_back(View_Sc3("u",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
     if (cellData->requiresAdjoint) {
-      phi_prev = View_Sc4("phi previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
-      phi_stage = View_Sc4("phi stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+      phi.push_back(View_Sc3("phi",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
     }
-  }
-  
-  if (cellData->compute_sol_avg) {
-    u_avg = View_Sc3("u spatial average",numElem,cellData->numDOF.extent(0),cellData->dimension);
+    else {
+      phi.push_back(View_Sc3("phi",1,1,1)); // just a placeholder
+    }
+    
+    // This does add a little extra un-used memory for steady-state problems, but not a concern
+    if (cellData->requiresTransient) {
+      u_prev.push_back(View_Sc4("u previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps));
+      u_stage.push_back(View_Sc4("u stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages));
+    }
+    else {
+      u_prev.push_back(View_Sc4("u previous",1,1,1,1));
+      u_stage.push_back(View_Sc4("u stages",1,1,1,1));
+    }
+    if (cellData->requiresAdjoint) {
+      if (cellData->requiresTransient) {
+        phi_prev.push_back(View_Sc4("phi previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps));
+        phi_stage.push_back(View_Sc4("phi stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages));
+      }
+      else {
+        phi_prev.push_back(View_Sc4("phi previous",1,1,1,1));
+        phi_stage.push_back(View_Sc4("phi stages",1,1,1,1));
+      }
+    }
+    
+    if (cellData->compute_sol_avg) {
+      u_avg.push_back(View_Sc3("u spatial average",numElem,cellData->set_numDOF[set].extent(0),cellData->dimension));
+    }
   }
 }
 
@@ -270,27 +287,6 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   if (wkset->numParams > 0) {
     wkset->computeParamSteadySeeded(param, seedwhat);
   }
-  /* // TMW: not implemented yet
-  if (wkset->numAux > 0) {
-    if (cellData->requiresTransient) {
-      wkset->computeAuxTransientSeeded(aux, aux_prev, aux_stage, seedwhat);
-    }
-    else { // steady-state
-      wkset->computeAuxSteadySeeded(aux, seedwhat);
-    }
-  }
-  */
-  
-  // Map the AD solutions to the aolutions at the volumetric ip
-  if (!wkset->onDemand) {
-    wkset->computeSolnVolIP();
-    wkset->computeParamVolIP();
-    //wkset->computeAuxVolIP();
-  }
-  
-  //if (cellData->compute_sol_avg && wkset->current_stage == 0) {
-  //  this->computeSolAvg();
-  //}
   
 }
 
@@ -302,7 +298,7 @@ void cell::computeSolAvg() {
   // THIS FUNCTION ASSUMES THAT THE WORKSET BASIS HAS BEEN UPDATED
   
   Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
-
+  
   // Compute the average weight, i.e., the size of each elem
   // May consider storing this
   auto cwts = wkset->wts;
@@ -316,65 +312,15 @@ void cell::computeSolAvg() {
     }
     avgwts(elem) = avgwt;
   });
-
-  // HGRAD vars
-  vector<int> vars_HGRAD = wkset->vars_HGRAD;
-  vector<string> varlist_HGRAD = wkset->varlist_HGRAD;
-  for (size_t i=0; i<vars_HGRAD.size(); ++i) {
-    auto sol = wkset->getData(varlist_HGRAD[i]);
-    auto savg = subview(u_avg,ALL(),vars_HGRAD[i],0);
-    parallel_for("cell sol avg",
-                 RangePolicy<AssemblyExec>(0,savg.extent(0)),
-                 KOKKOS_LAMBDA (const size_type elem ) {
-      ScalarT solavg = 0.0;
-      for (size_type pt=0; pt<sol.extent(2); pt++) {
-#ifndef MrHyDE_NO_AD
-        solavg += sol(elem,pt).val()*cwts(elem,pt);
-#else
-        solavg += sol(elem,pt)*cwts(elem,pt);
-#endif
-      }
-      savg(elem) = solavg/avgwts(elem);
-    });
-  }
   
-  // HVOL vars
-  vector<int> vars_HVOL = wkset->vars_HVOL;
-  vector<string> varlist_HVOL = wkset->varlist_HVOL;
-  for (size_t i=0; i<vars_HVOL.size(); ++i) {
-    auto sol = wkset->getData(varlist_HVOL[i]);
-    auto savg = subview(u_avg,ALL(),vars_HVOL[i],0);
-    parallel_for("cell sol avg",
-                 RangePolicy<AssemblyExec>(0,savg.extent(0)),
-                 KOKKOS_LAMBDA (const size_type elem ) {
-      ScalarT solavg = 0.0;
-      for (size_type pt=0; pt<sol.extent(2); pt++) {
-#ifndef MrHyDE_NO_AD
-        solavg += sol(elem,pt).val()*cwts(elem,pt);
-#else
-        solavg += sol(elem,pt)*cwts(elem,pt);
-#endif
-      }
-      savg(elem) = solavg/avgwts(elem);
-    });
-  }
-  
-  // Compute the postfix options for vector vars
-  vector<string> postfix = {"[x]"};
-  if (u_avg.extent(2) > 1) { // 2D or 3D
-    postfix.push_back("[y]");
-  }
-  if (u_avg.extent(2) > 2) { // 3D
-    postfix.push_back("[z]");
-  }
-  
-  // HDIV vars
-  vector<int> vars_HDIV = wkset->vars_HDIV;
-  vector<string> varlist_HDIV = wkset->varlist_HDIV;
-  for (size_t i=0; i<vars_HDIV.size(); ++i) {
-    for (size_t j=0; j<postfix.size(); ++j) {
-      auto sol = wkset->getData(varlist_HDIV[i]+postfix[j]);
-      auto savg = subview(u_avg,ALL(),vars_HDIV[i],j);
+  for (size_t set=0; set<u_avg.size(); ++set) {
+    
+    // HGRAD vars
+    vector<int> vars_HGRAD = wkset->vars_HGRAD[set];
+    vector<string> varlist_HGRAD = wkset->varlist_HGRAD[set];
+    for (size_t i=0; i<vars_HGRAD.size(); ++i) {
+      auto sol = wkset->getData(varlist_HGRAD[i]);
+      auto savg = subview(u_avg[set],ALL(),vars_HGRAD[i],0);
       parallel_for("cell sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
                    KOKKOS_LAMBDA (const size_type elem ) {
@@ -389,15 +335,13 @@ void cell::computeSolAvg() {
         savg(elem) = solavg/avgwts(elem);
       });
     }
-  }
-  
-  // HCURL vars
-  vector<int> vars_HCURL = wkset->vars_HCURL;
-  vector<string> varlist_HCURL = wkset->varlist_HCURL;
-  for (size_t i=0; i<vars_HCURL.size(); ++i) {
-    for (size_t j=0; j<postfix.size(); ++j) {
-      auto sol = wkset->getData(varlist_HCURL[i]+postfix[j]);
-      auto savg = subview(u_avg,ALL(),vars_HCURL[i],j);
+    
+    // HVOL vars
+    vector<int> vars_HVOL = wkset->vars_HVOL[set];
+    vector<string> varlist_HVOL = wkset->varlist_HVOL[set];
+    for (size_t i=0; i<vars_HVOL.size(); ++i) {
+      auto sol = wkset->getData(varlist_HVOL[i]);
+      auto savg = subview(u_avg[set],ALL(),vars_HVOL[i],0);
       parallel_for("cell sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
                    KOKKOS_LAMBDA (const size_type elem ) {
@@ -411,6 +355,61 @@ void cell::computeSolAvg() {
         }
         savg(elem) = solavg/avgwts(elem);
       });
+    }
+    
+    // Compute the postfix options for vector vars
+    vector<string> postfix = {"[x]"};
+    if (u_avg[set].extent(2) > 1) { // 2D or 3D
+      postfix.push_back("[y]");
+    }
+    if (u_avg[set].extent(2) > 2) { // 3D
+      postfix.push_back("[z]");
+    }
+    
+    // HDIV vars
+    vector<int> vars_HDIV = wkset->vars_HDIV[set];
+    vector<string> varlist_HDIV = wkset->varlist_HDIV[set];
+    for (size_t i=0; i<vars_HDIV.size(); ++i) {
+      for (size_t j=0; j<postfix.size(); ++j) {
+        auto sol = wkset->getData(varlist_HDIV[i]+postfix[j]);
+        auto savg = subview(u_avg[set],ALL(),vars_HDIV[i],j);
+        parallel_for("cell sol avg",
+                     RangePolicy<AssemblyExec>(0,savg.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          ScalarT solavg = 0.0;
+          for (size_type pt=0; pt<sol.extent(2); pt++) {
+#ifndef MrHyDE_NO_AD
+            solavg += sol(elem,pt).val()*cwts(elem,pt);
+#else
+            solavg += sol(elem,pt)*cwts(elem,pt);
+#endif
+          }
+          savg(elem) = solavg/avgwts(elem);
+        });
+      }
+    }
+    
+    // HCURL vars
+    vector<int> vars_HCURL = wkset->vars_HCURL[set];
+    vector<string> varlist_HCURL = wkset->varlist_HCURL[set];
+    for (size_t i=0; i<vars_HCURL.size(); ++i) {
+      for (size_t j=0; j<postfix.size(); ++j) {
+        auto sol = wkset->getData(varlist_HCURL[i]+postfix[j]);
+        auto savg = subview(u_avg[set],ALL(),vars_HCURL[i],j);
+        parallel_for("cell sol avg",
+                     RangePolicy<AssemblyExec>(0,savg.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          ScalarT solavg = 0.0;
+          for (size_type pt=0; pt<sol.extent(2); pt++) {
+#ifndef MrHyDE_NO_AD
+            solavg += sol(elem,pt).val()*cwts(elem,pt);
+#else
+            solavg += sol(elem,pt)*cwts(elem,pt);
+#endif
+          }
+          savg(elem) = solavg/avgwts(elem);
+        });
+      }
     }
   }
   
@@ -482,7 +481,8 @@ void cell::computeSolutionAverage(const string & var, View_Sc2 sol) {
     avgwts(elem) = avgwt;
   });
   
-  auto csol = subview(u,ALL(),index,ALL());
+  size_t set = wkset->current_set;
+  auto csol = subview(u[set],ALL(),index,ALL());
   parallel_for("wkset soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -541,11 +541,6 @@ void cell::updateWorksetFace(const size_t & facenum) {
   
   wkset->resetSolutionFields();
   
-  // Map the seeded solution in workset to solution at face ip
-  if (!wkset->onDemand) {
-    wkset->computeSolnSideIP();
-    wkset->computeParamSideIP();
-  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -563,38 +558,40 @@ void cell::computeAuxSolnFaceIP(const size_t & facenum) {
 // Reset the data stored in the previous step solutions
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::resetPrevSoln() {
+void cell::resetPrevSoln(const size_t & set) {
   
-  auto sol = u;
-  auto sol_prev = u_prev;
-  
-  // shift previous step solns
-  if (sol_prev.extent(3)>1) {
-    parallel_for("cell reset prev soln 1",
+  if (cellData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_prev = u_prev[set];
+    
+    // shift previous step solns
+    if (sol_prev.extent(3)>1) {
+      parallel_for("cell reset prev soln 1",
+                   TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
+          for (size_type j=0; j<sol_prev.extent(2); j++) {
+            for (size_type s=sol_prev.extent(3)-1; s>0; s--) {
+              sol_prev(elem,i,j,s) = sol_prev(elem,i,j,s-1);
+            }
+          }
+        }
+      });
+    }
+    
+    // copy current u into first step
+    parallel_for("cell reset prev soln 2",
                  TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
-        for (size_type j=0; j<sol_prev.extent(2); j++) {
-          for (size_type s=sol_prev.extent(3)-1; s>0; s--) {
-            sol_prev(elem,i,j,s) = sol_prev(elem,i,j,s-1);
-          }
+        for (size_type j=0; j<sol.extent(2); j++) {
+          sol_prev(elem,i,j,0) = sol(elem,i,j);
         }
       }
     });
   }
-  
-  // copy current u into first step
-  parallel_for("cell reset prev soln 2",
-               TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
-               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-    int elem = team.league_rank();
-    for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
-      for (size_type j=0; j<sol.extent(2); j++) {
-        sol_prev(elem,i,j,0) = sol(elem,i,j);
-      }
-    }
-  });
   
 }
 
@@ -602,48 +599,51 @@ void cell::resetPrevSoln() {
 // Reset the data stored in the previous stage solutions
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::resetStageSoln() {
+void cell::resetStageSoln(const size_t & set) {
   
-  auto sol = u;
-  auto sol_stage = u_stage;
-  
-  parallel_for("cell reset stage 1",
-               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
-               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-    int elem = team.league_rank();
-    for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
-      for (size_type j=0; j<sol_stage.extent(2); j++) {
-        for (size_type k=0; k<sol_stage.extent(3); k++) {
-          sol_stage(elem,i,j,k) = sol(elem,i,j);
+  if (cellData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_stage = u_stage[set];
+    
+    parallel_for("cell reset stage 1",
+                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<sol_stage.extent(2); j++) {
+          for (size_type k=0; k<sol_stage.extent(3); k++) {
+            sol_stage(elem,i,j,k) = sol(elem,i,j);
+          }
         }
       }
-    }
-  });
-  
+    });
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Update the data stored in the previous stage solutions
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::updateStageSoln() {
+void cell::updateStageSoln(const size_t & set) {
   
-  auto sol = u;
-  auto sol_stage = u_stage;
-  
-  // add u into the current stage soln (done after stage solution is computed)
-  auto stage = wkset->current_stage;
-  parallel_for("wkset transient sol seedwhat 1",
-               TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
-               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-    int elem = team.league_rank();
-    //int stage = snum(0);
-    for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
-      for (size_type j=0; j<sol_stage.extent(2); j++) {
-        sol_stage(elem,i,j,stage) = sol(elem,i,j);
+  if (cellData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_stage = u_stage[set];
+    
+    // add u into the current stage soln (done after stage solution is computed)
+    auto stage = wkset->current_stage;
+    parallel_for("wkset transient sol seedwhat 1",
+                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      //int stage = snum(0);
+      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<sol_stage.extent(2); j++) {
+          sol_stage(elem,i,j,stage) = sol(elem,i,j);
+        }
       }
-    }
-  });
+    });
+  }
   
 }
 
@@ -695,7 +695,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     if (cellData->multiscale) {
       this->updateWorkset(seedwhat);
       int sgindex = subgrid_model_index[subgrid_model_index.size()-1];
-      subgridModels[sgindex]->subgridSolver(u, phi, wkset->time, isTransient, isAdjoint,
+      subgridModels[sgindex]->subgridSolver(u[0], phi[0], wkset->time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens, num_active_params,
                                             compute_disc_sens, compute_aux_sens,
                                             *wkset, subgrid_usernum, 0,
@@ -704,7 +704,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     }
     else {
       this->updateWorkset(seedwhat);
-      cellData->physics_RCP->volumeResidual(cellData->myBlock);
+      cellData->physics_RCP->volumeResidual(wkset->current_set,cellData->myBlock);
     }
   }
   
@@ -717,7 +717,7 @@ void cell::computeJacRes(const ScalarT & time, const bool & isTransient, const b
     else {
       for (size_t s=0; s<cellData->numSides; s++) {
         this->updateWorksetFace(s);
-        cellData->physics_RCP->faceResidual(cellData->myBlock);
+        cellData->physics_RCP->faceResidual(wkset->current_set,cellData->myBlock);
       }
     }
   }
@@ -821,6 +821,8 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   
+  size_t set = wkset->current_set;
+  auto cphi = phi[set];
   
   if (compute_jacobian) {
     parallel_for("cell adjust adjoint jac",
@@ -830,7 +832,7 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
         for (int j=0; j<numDOF(n); j++) {
           for (size_type m=0; m<numDOF.extent(0); m++) {
             for (int k=0; k<numDOF(m); k++) {
-              local_res(e,offsets(n,j),0) += -local_J(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
+              local_res(e,offsets(n,j),0) += -local_J(e,offsets(n,j),offsets(m,k))*cphi(e,m,k);
             }
           }
         }
@@ -839,13 +841,15 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
     
     if (isTransient) {
       
+      auto aprev = adj_prev[set];
+      
       // Previous step contributions for the residual
       parallel_for("cell adjust transient adjoint jac",
                    RangePolicy<AssemblyExec>(0,local_res.extent(0)),
                    KOKKOS_LAMBDA (const size_type e ) {
         for (size_type n=0; n<numDOF.extent(0); n++) {
           for (int j=0; j<numDOF(n); j++) {
-            local_res(e,offsets(n,j),0) += -adj_prev(e,offsets(n,j),0);
+            local_res(e,offsets(n,j),0) += -aprev(e,offsets(n,j),0);
           }
         }
       });
@@ -870,36 +874,38 @@ void cell::updateAdjointRes(const bool & compute_jacobian, const bool & isTransi
         
         // Move vectors up
         parallel_for("cell adjust transient adjoint jac",
-                     RangePolicy<AssemblyExec>(0,adj_prev.extent(0)),
+                     RangePolicy<AssemblyExec>(0,aprev.extent(0)),
                      KOKKOS_LAMBDA (const size_type e ) {
-          for (size_type step=1; step<adj_prev.extent(2); step++) {
-            for (size_type n=0; n<adj_prev.extent(1); n++) {
-              adj_prev(e,n,step-1) = adj_prev(e,n,step);
+          for (size_type step=1; step<aprev.extent(2); step++) {
+            for (size_type n=0; n<aprev.extent(1); n++) {
+              aprev(e,n,step-1) = aprev(e,n,step);
             }
           }
-          size_type numsteps = adj_prev.extent(2);
-          for (size_type n=0; n<adj_prev.extent(1); n++) {
-            adj_prev(e,n,numsteps-1) = 0.0;
+          size_type numsteps = aprev.extent(2);
+          for (size_type n=0; n<aprev.extent(1); n++) {
+            aprev(e,n,numsteps-1) = 0.0;
           }
         });
         
         // Sum new contributions into vectors
         int seedwhat = 2; // 2 for J wrt previous step solutions
-        for (size_type step=0; step<u_prev.extent(3); step++) {
+        for (size_type step=0; step<u_prev[set].extent(3); step++) {
           this->updateWorkset(seedwhat);
-          cellData->physics_RCP->volumeResidual(cellData->myBlock);
+          cellData->physics_RCP->volumeResidual(set,cellData->myBlock);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));
           this->updateJac(true, Jdot);
           
-          auto cadj = subview(adj_prev,ALL(), ALL(), step);
-          parallel_for("cell adjust transient adjoint jac 2",RangePolicy<AssemblyExec>(0,Jdot.extent(0)), KOKKOS_LAMBDA (const size_type e ) {
+          auto cadj = subview(aprev,ALL(), ALL(), step);
+          parallel_for("cell adjust transient adjoint jac 2",
+                       RangePolicy<AssemblyExec>(0,Jdot.extent(0)),
+                       KOKKOS_LAMBDA (const size_type e ) {
             for (size_type n=0; n<numDOF.extent(0); n++) {
               for (int j=0; j<numDOF(n); j++) {
                 ScalarT aPrev = 0.0;
                 for (size_type m=0; m<numDOF.extent(0); m++) {
                   for (int k=0; k<numDOF(m); k++) {
-                    aPrev += Jdot(e,offsets(n,j),offsets(m,k))*phi(e,m,k);
+                    aPrev += Jdot(e,offsets(n,j),offsets(m,k))*cphi(e,m,k);
                   }
                 }
                 cadj(e,offsets(n,j)) += aPrev;
@@ -1107,7 +1113,8 @@ void cell::updateAuxJac(Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 
 View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
   
-  View_Sc2 initialvals("initial values",numElem,LIDs.extent(1));
+  size_t set = wkset->current_set;
+  View_Sc2 initialvals("initial values",numElem,LIDs[set].extent(1));
   this->updateWorkset(0);
   
   auto offsets = wkset->offsets;
@@ -1115,7 +1122,7 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
   auto cwts = wts;
   
   if (project) { // works for any basis
-    auto initialip = cellData->physics_RCP->getInitial(ip,
+    auto initialip = cellData->physics_RCP->getInitial(ip, set,
                                                        cellData->myBlock,
                                                        project,
                                                        wkset);
@@ -1155,7 +1162,7 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
       vnodes.push_back(vz);
     }
     
-    auto initialnodes = cellData->physics_RCP->getInitial(vnodes,
+    auto initialnodes = cellData->physics_RCP->getInitial(vnodes, set,
                                                           cellData->myBlock,
                                                           project,
                                                           wkset);
@@ -1181,7 +1188,8 @@ View_Sc2 cell::getInitial(const bool & project, const bool & isAdjoint) {
 
 View_Sc2 cell::getInitialFace(const bool & project) {
   
-  View_Sc2 initialvals("initial values",numElem,LIDs.extent(1)); // TODO is this too big?
+  size_t set = wkset->current_set;
+  View_Sc2 initialvals("initial values",numElem,LIDs[set].extent(1)); // TODO is this too big?
   this->updateWorkset(0); // TODO not sure if this is necessary
 
   auto offsets = wkset->offsets;
@@ -1194,7 +1202,7 @@ View_Sc2 cell::getInitialFace(const bool & project) {
     this->updateWorksetFace(face);
     auto cwts = wkset->wts_side; // face weights get put into wts_side after update
     // get data from IC
-    auto initialip = cellData->physics_RCP->getInitialFace(ip_face[face],
+    auto initialip = cellData->physics_RCP->getInitialFace(ip_face[face], set,
                                                            cellData->myBlock,
                                                            project,
                                                            wkset);
@@ -1225,7 +1233,8 @@ View_Sc2 cell::getInitialFace(const bool & project) {
 
 View_Sc3 cell::getMass() {
   
-  View_Sc3 mass("local mass",numElem, LIDs.extent(1), LIDs.extent(1));
+  size_t set = wkset->current_set;
+  View_Sc3 mass("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
   
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
@@ -1288,7 +1297,9 @@ View_Sc3 cell::getMass() {
 
 View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
   
-  View_Sc3 mass("local mass",numElem, LIDs.extent(1), LIDs.extent(1));
+  size_t set = wkset->current_set;
+  
+  View_Sc3 mass("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
   View_Sc2 cwts;
   
   auto offsets = wkset->offsets;
@@ -1355,7 +1366,9 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
 
 View_Sc3 cell::getMassFace() {
   
-  View_Sc3 mass("local mass",numElem, LIDs.extent(1), LIDs.extent(1));
+  size_t set = wkset->current_set;
+  
+  View_Sc3 mass("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
   
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
@@ -1485,8 +1498,10 @@ void cell::updateData() {
 // Pass the cell data to the wkset
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::resetAdjPrev(const ScalarT & val) {
-  deep_copy(adj_prev,val);
+void cell::resetAdjPrev(const size_t & set, const ScalarT & val) {
+  if (cellData->requiresTransient) {
+    deep_copy(adj_prev[set],val);
+  }
 }
 
 
@@ -1497,12 +1512,13 @@ void cell::resetAdjPrev(const ScalarT & val) {
 Kokkos::View<ScalarT***,AssemblyDevice> cell::getSolutionAtNodes(const int & var) {
   
   Teuchos::TimeMonitor nodesoltimer(*computeNodeSolTimer);
+  size_t set = wkset->current_set;
   
   int bnum = wkset->usebasis[var];
   auto cbasis = basis_nodes[bnum];
   Kokkos::View<ScalarT***,AssemblyDevice> nodesol("solution at nodes",
                                                   cbasis.extent(0), cbasis.extent(2), cellData->dimension);
-  auto uvals = subview(u, ALL(), var, ALL());
+  auto uvals = subview(u[set], ALL(), var, ALL());
   parallel_for("cell node sol",
                RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {

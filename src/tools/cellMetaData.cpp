@@ -23,7 +23,7 @@ CellMetaData::CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings
                            const size_t & myBlock_,
                            const size_t & myLevel_, const int & numElem_,
                            const bool & build_face_terms_,
-                           const bool & assemble_face_terms_,
+                           const vector<bool> & assemble_face_terms_,
                            const vector<string> & sidenames_,
                            const size_t & num_params) :
 assemble_face_terms(assemble_face_terms_), build_face_terms(build_face_terms_),
@@ -75,6 +75,13 @@ cellTopo(cellTopo_) {
   have_extra_data = false;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void CellMetaData::updatePhysicsSet(const size_t & set) {
+  numDOF = set_numDOF[set];
+  numDOF_host = set_numDOF_host[set];
+}
 
 //===================================================
 // Clear out the saved data if we are done with it

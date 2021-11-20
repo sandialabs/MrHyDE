@@ -83,7 +83,7 @@ void thermal::volumeResidual() {
     rho = functionManager->evaluate("density","ip");
   
   }
-    
+  
   // Contributes:
   // (f(u),v) + (DF(u),nabla v)
   // f(u) = rho*cp*de/dt - source
@@ -216,6 +216,7 @@ void thermal::boundaryResidual() {
     else if (bcs(e_num,cside) == "interface") {
       bdata = wkset->getData("aux e side");
     }
+    
     parallel_for("Thermal bndry resid wD",
                  TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -281,6 +282,7 @@ void thermal::boundaryResidual() {
     //  adjrhs(e,resindex) += sf*diff_side(e,k)*gradv_dot_n*lambda - weakDiriScale*lambda*basis(e,i,k);
     //}
   }
+  
 }
 
 // ========================================================================================

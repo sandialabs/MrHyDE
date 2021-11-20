@@ -4,9 +4,9 @@
   <Parameter name="Linear solver xml" type="string" value="solverMueLuRefMaxwell.xml"/>
   <ParameterList name="MrHyDE Options">
     <Parameter name="Use explicit integration" type="bool" value="true"/>
-    <Parameter name="lump mass" type="bool" value="true"/>
+    <Parameter name="lump mass" type="bool" value="false"/>
     <Parameter name="Belos solver" type="string" value="Pseudo Block CG"/>
-    <Parameter name="debug level" type="int" value="0"/>
+    <Parameter name="debug level" type="int" value="2"/>
     <Parameter name="use preconditioner" type="bool" value="true"/>
     <Parameter name="use custom PCG" type="bool" value="true"/>
     <Parameter name="use direct solver" type="bool" value="false"/>

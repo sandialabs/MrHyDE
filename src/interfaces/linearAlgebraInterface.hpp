@@ -110,9 +110,9 @@ namespace MrHyDE {
     // ========================================================================================
     
     LinearAlgebraInterface(const Teuchos::RCP<MpiComm> & Comm_,
-                  Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                  Teuchos::RCP<DiscretizationInterface> & disc_,
-                  Teuchos::RCP<ParameterManager<Node> > & params_);
+                           Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                           Teuchos::RCP<DiscretizationInterface> & disc_,
+                           Teuchos::RCP<ParameterManager<Node> > & params_);
     
     void setupLinearAlgebra();
     
@@ -120,53 +120,53 @@ namespace MrHyDE {
     // Get physics state linear algebra objects
     // ========================================================================================
     
-    vector_RCP getNewVector(const int & numvecs = 1) {
+    vector_RCP getNewVector(const size_t & set, const int & numvecs = 1) {
       Teuchos::TimeMonitor vectimer(*newvectortimer);
-      vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(owned_map,numvecs));
+      vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(owned_map[set],numvecs));
       return newvec;
     }
     
-    vector_RCP getNewOverlappedVector(const int & numvecs = 1) {
+    vector_RCP getNewOverlappedVector(const size_t & set, const int & numvecs = 1) {
       Teuchos::TimeMonitor vectimer(*newvectortimer);
-      vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(overlapped_map,numvecs));
+      vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(overlapped_map[set],numvecs));
       return newvec;
     }
     
-    matrix_RCP getNewMatrix() {
+    matrix_RCP getNewMatrix(const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
       matrix_RCP newmat;
-      if (options->reuseJacobian) {
-        if (options->haveJacobian) {
-          newmat = options->J;
+      if (options[set]->reuseJacobian) {
+        if (options[set]->haveJacobian) {
+          newmat = options[set]->J;
         }
         else {
-          newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries));
-          options->J = newmat;
-          options->haveJacobian = true;
+          newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxEntries));
+          options[set]->J = newmat;
+          options[set]->haveJacobian = true;
         }
       }
       else {
-        newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries));
+        newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxEntries));
       }
       
       return newmat;
     }
     
-    bool getJacobianReuse() {
+    bool getJacobianReuse(const size_t & set) {
       bool reuse = false;
-      if (options->reuseJacobian && options->haveJacobian) {
+      if (options[set]->reuseJacobian && options[set]->haveJacobian) {
         reuse = true;
       }
       return reuse;
     }
     
-    void resetJacobian() {
-      options->haveJacobian = false;
+    void resetJacobian(const size_t & set) {
+      options[set]->haveJacobian = false;
     }
     
-    matrix_RCP getNewOverlappedMatrix() {
+    matrix_RCP getNewOverlappedMatrix(const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph[set]));
       return newmat;
     }
     
@@ -201,42 +201,14 @@ namespace MrHyDE {
     }
     
     // ========================================================================================
-    // Get aux variable linear algebra objects
-    // ========================================================================================
-    
-    vector_RCP getNewAuxVector(const int & numvecs = 1) {
-      Teuchos::TimeMonitor vectimer(*newvectortimer);
-      vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(aux_owned_map,numvecs));
-      return newvec;
-    }
-    
-    vector_RCP getNewAuxOverlappedVector(const int & numvecs = 1) {
-      Teuchos::TimeMonitor vectimer(*newvectortimer);
-      vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(aux_overlapped_map,numvecs));
-      return newvec;
-    }
-    
-    matrix_RCP getNewAuxMatrix() {
-      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(aux_owned_map, maxEntries));
-      return newmat;
-    }
-    
-    matrix_RCP getNewAuxOverlappedMatrix() {
-      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(aux_overlapped_graph));
-      return newmat;
-    }
-    
-    // ========================================================================================
     // Exporters from overlapped to owned
     // ========================================================================================
     
-    void exportVectorFromOverlapped(vector_RCP & vec, vector_RCP & vec_over) {
+    void exportVectorFromOverlapped(const size_t & set, vector_RCP & vec, vector_RCP & vec_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       if (Comm->getSize() > 1) {
         vec->putScalar(0.0);
-        vec->doExport(*vec_over, *exporter, Tpetra::ADD);
+        vec->doExport(*vec_over, *(exporter[set]), Tpetra::ADD);
       }
       else {
         vec->assign(*vec_over);
@@ -249,16 +221,10 @@ namespace MrHyDE {
       vec->doExport(*vec_over, *param_exporter, Tpetra::ADD);
     }
   
-    void exportAuxVectorFromOverlapped(vector_RCP & vec, vector_RCP & vec_over) {
-      Teuchos::TimeMonitor mattimer(*exporttimer);
-      vec->putScalar(0.0);
-      vec->doExport(*vec_over, *aux_exporter, Tpetra::ADD);
-    }
-  
-    void exportMatrixFromOverlapped(matrix_RCP & mat, matrix_RCP & mat_over) {
+    void exportMatrixFromOverlapped(const size_t & set, matrix_RCP & mat, matrix_RCP & mat_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       mat->setAllToScalar(0.0);
-      mat->doExport(*mat_over, *exporter, Tpetra::ADD);
+      mat->doExport(*mat_over, *(exporter[set]), Tpetra::ADD);
     }
   
     void exportParamMatrixFromOverlapped(matrix_RCP & mat, matrix_RCP & mat_over) {
@@ -267,29 +233,23 @@ namespace MrHyDE {
       mat->doExport(*mat_over, *param_exporter, Tpetra::ADD);
     }
   
-    void exportAuxMatrixFromOverlapped(matrix_RCP & mat, matrix_RCP & mat_over) {
-      Teuchos::TimeMonitor mattimer(*exporttimer);
-      mat->setAllToScalar(0.0);
-      mat->doExport(*mat_over, *aux_exporter, Tpetra::ADD);
-    }
-  
     // ========================================================================================
     // Importers from owned to overlapped
     // ========================================================================================
     
-    void importVectorToOverlapped(vector_RCP & vec_over, vector_RCP & vec) {
+    void importVectorToOverlapped(const size_t & set, vector_RCP & vec_over, vector_RCP & vec) {
       Teuchos::TimeMonitor mattimer(*importtimer);
       vec_over->putScalar(0.0);
-      vec_over->doImport(*vec, *importer, Tpetra::ADD);
+      vec_over->doImport(*vec, *(importer[set]), Tpetra::ADD);
     }
   
     // ========================================================================================
     // Fill complete calls
     // ========================================================================================
     
-    void fillCompleteParam(matrix_RCP & mat) {
+    void fillCompleteParam(const size_t & set, matrix_RCP & mat) {
       Teuchos::TimeMonitor mattimer(*fillcompletetimer);
-      mat->fillComplete(owned_map, param_owned_map);
+      mat->fillComplete(owned_map[set], param_owned_map);
     }
   
     void fillComplete(matrix_RCP & mat) {
@@ -314,9 +274,9 @@ namespace MrHyDE {
                       matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     
-    void linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
+    void linearSolver(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
-    void PCG(matrix_RCP & J, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
+    void PCG(const size_t & set, matrix_RCP & J, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
              const ScalarT & tol, const int & maxiter);
     
     // ========================================================================================
@@ -326,16 +286,10 @@ namespace MrHyDE {
     void linearSolverParam(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     // ========================================================================================
-    // Linear solver on Tpetra stack for Jacobians of aux vars
-    // ========================================================================================
-    
-    void linearSolverAux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
-    
-    // ========================================================================================
     // Linear solver on Tpetra stack for boundary L2 projections (Dirichlet BCs)
     // ========================================================================================
     
-    void linearSolverBoundaryL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
+    void linearSolverBoundaryL2(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     // ========================================================================================
     // Linear solver on Tpetra stack for boundary L2 projections (Dirichlet BCs)
@@ -344,28 +298,16 @@ namespace MrHyDE {
     void linearSolverBoundaryL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     // ========================================================================================
-    // Linear solver on Tpetra stack for boundary L2 projections (Dirichlet BCs)
-    // ========================================================================================
-    
-    void linearSolverBoundaryL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
-    
-    // ========================================================================================
     // Linear solver on Tpetra stack for L2 projections (Initial conditions)
     // ========================================================================================
     
-    void linearSolverL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
+    void linearSolverL2(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     // ========================================================================================
     // Linear solver on Tpetra stack for L2 projections of parameters
     // ========================================================================================
     
     void linearSolverL2Param(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
-    
-    // ========================================================================================
-    // Linear solver on Tpetra stack for L2 projections of aux vars
-    // ========================================================================================
-    
-    void linearSolverL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     // ========================================================================================
     // Preconditioner for Tpetra stack
@@ -384,23 +326,30 @@ namespace MrHyDE {
     Teuchos::RCP<ParameterManager<Node> > params;
     
     int verbosity, debug_level;
+    vector<string> setnames;
     
     // Maps, graphs, importers and exporters
     size_t maxEntries;
-    Teuchos::RCP<const LA_Map> owned_map, overlapped_map, param_owned_map, param_overlapped_map, aux_owned_map, aux_overlapped_map;
-    Teuchos::RCP<LA_CrsGraph> overlapped_graph, param_overlapped_graph, aux_overlapped_graph; // owned graphs are never used
-    Teuchos::RCP<LA_Export> exporter, param_exporter, aux_exporter;
-    Teuchos::RCP<LA_Import> importer, param_importer, aux_importer;
+    vector<Teuchos::RCP<const LA_Map> > owned_map, overlapped_map;
+    vector<Teuchos::RCP<LA_CrsGraph> > overlapped_graph; // owned graphs are never used
+    vector<Teuchos::RCP<LA_Export> > exporter;
+    vector<Teuchos::RCP<LA_Import> > importer;
     
-    matrix_RCP matrix, overlapped_matrix;
-    vector_RCP q_pcg, z_pcg, p_pcg, r_pcg;
+    Teuchos::RCP<const LA_Map> param_owned_map, param_overlapped_map;
+    Teuchos::RCP<LA_CrsGraph> param_overlapped_graph;
+    Teuchos::RCP<LA_Export> param_exporter;
+    Teuchos::RCP<LA_Import> param_importer;
+    
+    vector<matrix_RCP> matrix, overlapped_matrix;
+    vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg;
     
     // Linear solvers and preconditioner settings
     int maxLinearIters, maxKrylovVectors;
     string belos_residual_scaling;
     ScalarT linearTOL;
     
-    Teuchos::RCP<SolverOptions<Node> > options, options_L2, options_BndryL2, options_aux, options_aux_L2, options_aux_BndryL2, options_param, options_param_L2, options_param_BndryL2;
+    vector<Teuchos::RCP<SolverOptions<Node> > > options, options_L2, options_BndryL2;
+    Teuchos::RCP<SolverOptions<Node> > options_param, options_param_L2, options_param_BndryL2;
     
     Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
     Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Vector()");

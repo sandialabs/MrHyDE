@@ -44,7 +44,7 @@ ANONYMOUS:
     solver: steady-state
     workset size: 1
   Analysis: 
-    analysis_type: forward
+    analysis type: forward
   Postprocess:
     compute errors: true
     True solutions:

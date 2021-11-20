@@ -50,6 +50,8 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   
   verbosity = settings->get<int>("verbosity",0);
   
+  setnames = disc->phys->setnames;
+  
   // Generic Belos Settings - can be overridden by defining Belos sublists
   linearTOL = settings->sublist("Solver").get<double>("linear TOL",1.0E-7);
   maxLinearIters = settings->sublist("Solver").get<int>("max linear iters",100);
@@ -57,8 +59,9 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   belos_residual_scaling = settings->sublist("Solver").get<string>("Belos implicit residual scaling","None");
   // Also: "Norm of Preconditioned Initial Residual" or "Norm of Initial Residual"
   
+  
   // Create the solver options for the state Jacobians
-  {
+  for (size_t set=0; set<setnames.size(); ++set) {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("State linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("State linear solver");
@@ -66,11 +69,11 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+    options.push_back(Teuchos::rcp( new SolverOptions<Node>(solvesettings) ));
   }
   
   // Create the solver options for the state L2-projections
-  {
+  for (size_t set=0; set<setnames.size(); ++set) {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("State L2 linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("State L2 linear solver");
@@ -78,11 +81,11 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options_L2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+    options_L2.push_back(Teuchos::rcp( new SolverOptions<Node>(solvesettings) ));
   }
   
   // Create the solver options for the state boundary L2-projections
-  {
+  for (size_t set=0; set<setnames.size(); ++set) {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("State boundary L2 linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("State boundary L2 linear solver");
@@ -90,7 +93,7 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options_BndryL2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+    options_BndryL2.push_back(Teuchos::rcp( new SolverOptions<Node>(solvesettings) ));
   }
   
   // Create the solver options for the discretized parameter Jacobians
@@ -129,42 +132,6 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
     options_param_BndryL2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
   }
   
-  // Create the solver options for the aux Jacobians
-  {
-    Teuchos::ParameterList solvesettings;
-    if (settings->sublist("Solver").isSublist("Aux linear solver")) { // for detailed control
-      solvesettings = settings->sublist("Solver").sublist("Aux linear solver");
-    }
-    else { // use generic options
-      solvesettings = settings->sublist("Solver");
-    }
-    options_aux = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
-  }
-  
-  // Create the solver options for the aux L2-projections
-  {
-    Teuchos::ParameterList solvesettings;
-    if (settings->sublist("Solver").isSublist("Aux L2 linear solver")) { // for detailed control
-      solvesettings = settings->sublist("Solver").sublist("Aux L2 linear solver");
-    }
-    else { // use generic options
-      solvesettings = settings->sublist("Solver");
-    }
-    options_aux_L2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
-  }
-  
-  // Create the solver options for the aux boundary L2-projections
-  {
-    Teuchos::ParameterList solvesettings;
-    if (settings->sublist("Solver").isSublist("Aux boundary L2 linear solver")) { // for detailed control
-      solvesettings = settings->sublist("Solver").sublist("Aux boundary L2 linear solver");
-    }
-    else { // use generic options
-      solvesettings = settings->sublist("Solver");
-    }
-    options_aux_BndryL2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
-  }
-  
   this->setupLinearAlgebra();
   
   if (debug_level > 0) {
@@ -197,22 +164,22 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   // primary variable LA objects
   // --------------------------------------------------
   
-  {
+  for (size_t set=0; set<setnames.size(); ++set) {
     vector<GO> owned, ownedAndShared;
     
-    disc->DOF->getOwnedIndices(owned);
+    disc->DOF[set]->getOwnedIndices(owned);
     LO numUnknowns = (LO)owned.size();
-    disc->DOF->getOwnedAndGhostedIndices(ownedAndShared);
+    disc->DOF[set]->getOwnedAndGhostedIndices(ownedAndShared);
     GO localNumUnknowns = numUnknowns;
     
     GO globalNumUnknowns = 0;
     Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
     
-    owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, Comm));
-    overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, ownedAndShared, 0, Comm));
+    owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, Comm)));
+    overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, ownedAndShared, 0, Comm)));
     
-    exporter = Teuchos::rcp(new LA_Export(overlapped_map, owned_map));
-    importer = Teuchos::rcp(new LA_Import(owned_map, overlapped_map));
+    exporter.push_back(Teuchos::rcp(new LA_Export(overlapped_map[set], owned_map[set])));
+    importer.push_back(Teuchos::rcp(new LA_Import(owned_map[set], overlapped_map[set])));
     
     bool allocate_matrices = true;
     if (settings->sublist("Solver").get<bool>("fully explicit",false) ) {
@@ -220,15 +187,15 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
     
     if (allocate_matrices) {
-      vector<size_t> maxEntriesPerRow(overlapped_map->getNodeNumElements(), 0);
+      vector<size_t> maxEntriesPerRow(overlapped_map[set]->getNodeNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
           vector<GO> gids;
           size_t elemID = EIDs[e];
-          disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
+          disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
-            LO ind1 = overlapped_map->getLocalElement(gids[i]);
+            LO ind1 = overlapped_map[set]->getLocalElement(gids[i]);
             maxEntriesPerRow[ind1] += gids.size();
           }
         }
@@ -242,70 +209,32 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
                                                                             static_cast<int>(maxEntries)));
       
-      overlapped_graph = Teuchos::rcp(new LA_CrsGraph(overlapped_map,
-                                                      maxEntries,
-                                                      Tpetra::StaticProfile));
+      overlapped_graph.push_back(Teuchos::rcp(new LA_CrsGraph(overlapped_map[set],
+                                                              maxEntries,
+                                                              Tpetra::StaticProfile)));
     
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
           vector<GO> gids;
           size_t elemID = EIDs[e];
-          disc->DOF->getElementGIDs(elemID, gids, blocknames[b]);
+          disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             GO ind1 = gids[i];
-            overlapped_graph->insertGlobalIndices(ind1,gids);
+            overlapped_graph[set]->insertGlobalIndices(ind1,gids);
           }
         }
       }
       
-      overlapped_graph->fillComplete();
+      overlapped_graph[set]->fillComplete();
       
-      matrix = Teuchos::rcp(new LA_CrsMatrix(owned_map, maxEntries, Tpetra::StaticProfile));
+      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxEntries, Tpetra::StaticProfile)));
       
-      overlapped_matrix = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+      overlapped_matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(overlapped_graph[set])));
       
-      this->fillComplete(matrix);
-      this->fillComplete(overlapped_matrix);
+      this->fillComplete(matrix[set]);
+      this->fillComplete(overlapped_matrix[set]);
     }
-  }
-  
-  // --------------------------------------------------
-  // aux variable LA objects
-  // --------------------------------------------------
-  
-  if (disc->phys->have_aux) {
-    vector<GO> aux_owned, aux_ownedAndShared;
-    
-    disc->auxDOF->getOwnedIndices(aux_owned);
-    LO numUnknowns = (LO)aux_owned.size();
-    disc->auxDOF->getOwnedAndGhostedIndices(aux_ownedAndShared);
-    GO localNumUnknowns = numUnknowns;
-    
-    GO globalNumUnknowns = 0;
-    Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
-    
-    aux_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, aux_owned, 0, Comm));
-    aux_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, aux_ownedAndShared, 0, Comm));
-    aux_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(aux_overlapped_map,maxEntries));
-    
-    aux_exporter = Teuchos::rcp(new LA_Export(aux_overlapped_map, aux_owned_map));
-    aux_importer = Teuchos::rcp(new LA_Import(aux_owned_map, aux_overlapped_map));
-    
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<size_t> EIDs = disc->myElements[b];
-      for (size_t e=0; e<EIDs.size(); e++) {
-        vector<GO> gids;
-        size_t elemID = EIDs[e];
-        disc->auxDOF->getElementGIDs(elemID, gids, blocknames[b]);
-        for (size_t i=0; i<gids.size(); i++) {
-          GO ind1 = gids[i];
-          aux_overlapped_graph->insertGlobalIndices(ind1,gids);
-        }
-      }
-    }
-    
-    aux_overlapped_graph->fillComplete();
   }
   
   // --------------------------------------------------
@@ -339,7 +268,8 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
           size_t elemID = EIDs[e];
           params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
           vector<GO> stategids;
-          disc->DOF->getElementGIDs(elemID, stategids, blocknames[b]);
+          // TMW: warning - this is hard coded to one physics set
+          disc->DOF[0]->getElementGIDs(elemID, stategids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             GO ind1 = gids[i];
             param_overlapped_graph->insertGlobalIndices(ind1,stategids);
@@ -347,7 +277,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
         }
       }
       
-      param_overlapped_graph->fillComplete(owned_map, param_owned_map);
+      param_overlapped_graph->fillComplete(owned_map[0], param_owned_map); // hard coded
       
     }
   }
@@ -384,7 +314,7 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   }
   int numEqns = 1;
   if (disc->blocknames.size() == 1) {
-    numEqns = disc->phys->numVars[0];
+    numEqns = disc->phys->numVars[0][0];
   }
   belosList->set("number of equations", numEqns);
   
@@ -540,8 +470,8 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  this->linearSolver(options,J,r,soln);
+void LinearAlgebraInterface<Node>::linearSolver(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+  this->linearSolver(options[set],J,r,soln);
 }
 
 // ========================================================================================
@@ -549,8 +479,8 @@ void LinearAlgebraInterface<Node>::linearSolver(matrix_RCP & J, vector_RCP & r, 
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::linearSolverL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  this->linearSolver(options_L2,J,r,soln);
+void LinearAlgebraInterface<Node>::linearSolverL2(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+  this->linearSolver(options_L2[set],J,r,soln);
 }
 
 // ========================================================================================
@@ -558,35 +488,8 @@ void LinearAlgebraInterface<Node>::linearSolverL2(matrix_RCP & J, vector_RCP & r
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::linearSolverBoundaryL2(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  this->linearSolver(options_BndryL2,J,r,soln);
-}
-
-// ========================================================================================
-// Linear Solver for Tpetra stack
-// ========================================================================================
-
-template<class Node>
-void LinearAlgebraInterface<Node>::linearSolverAux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  this->linearSolver(options_aux,J,r,soln);
-}
-
-// ========================================================================================
-// Linear Solver for Tpetra stack
-// ========================================================================================
-
-template<class Node>
-void LinearAlgebraInterface<Node>::linearSolverL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  this->linearSolver(options_aux_L2,J,r,soln);
-}
-
-// ========================================================================================
-// Linear Solver for Tpetra stack
-// ========================================================================================
-
-template<class Node>
-void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Aux(matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
-  this->linearSolver(options_aux_BndryL2,J,r,soln);
+void LinearAlgebraInterface<Node>::linearSolverBoundaryL2(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+  this->linearSolver(options_BndryL2[set],J,r,soln);
 }
 
 // ========================================================================================
@@ -674,7 +577,7 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RCP & x,
+void LinearAlgebraInterface<Node>::PCG(const size_t & set, matrix_RCP & J, vector_RCP & b, vector_RCP & x,
                                        vector_RCP & M, const ScalarT & tol, const int & maxiter) {
   
   Teuchos::TimeMonitor localtimer(*PCGtimer);
@@ -686,27 +589,27 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
   ScalarT rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
   ScalarT one = 1.0, zero = 0.0;
   
-  p_pcg->putScalar(zero);
-  q_pcg->putScalar(zero);
-  r_pcg->putScalar(zero);
-  z_pcg->putScalar(zero);
+  p_pcg[set]->putScalar(zero);
+  q_pcg[set]->putScalar(zero);
+  r_pcg[set]->putScalar(zero);
+  z_pcg[set]->putScalar(zero);
   
   int iter=0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   {
     Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-    J->apply(*x,*q_pcg);
+    J->apply(*x,*(q_pcg[set]));
   }
   
-  r_pcg->assign(*b);
-  r_pcg->update(-one,*q_pcg,one);
+  r_pcg[set]->assign(*b);
+  r_pcg[set]->update(-one,*(q_pcg[set]),one);
   
-  r_pcg->norm2(rnorm);
+  r_pcg[set]->norm2(rnorm);
   ScalarT r0 = rnorm[0];
   
   auto M_view = M->template getLocalView<LA_device>();
-  auto r_view = r_pcg->template getLocalView<LA_device>();
-  auto z_view = z_pcg->template getLocalView<LA_device>();
+  auto r_view = r_pcg[set]->template getLocalView<LA_device>();
+  auto z_view = z_pcg[set]->template getLocalView<LA_device>();
   
   while (iter<maxiter && rnorm[0]/r0>tol) {
     
@@ -720,28 +623,28 @@ void LinearAlgebraInterface<Node>::PCG(matrix_RCP & J, vector_RCP & b, vector_RC
     }
     
     rho1 = rho;
-    r_pcg->dot(*z_pcg, dotprod);
+    r_pcg[set]->dot(*(z_pcg[set]), dotprod);
     rho = dotprod[0];
     if (iter == 0) {
-      p_pcg->assign(*z_pcg);
+      p_pcg[set]->assign(*(z_pcg[set]));
     }
     else {
       beta = rho/rho1;
-      p_pcg->update(one,*z_pcg,beta);
+      p_pcg[set]->update(one,*(z_pcg[set]),beta);
     }
     
     {
       Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-      J->apply(*p_pcg,*q_pcg);
+      J->apply(*(p_pcg[set]),*(q_pcg[set]));
     }
     
-    p_pcg->dot(*q_pcg,dotprod);
+    p_pcg[set]->dot(*(q_pcg[set]),dotprod);
     pq = dotprod[0];
     alpha = rho/pq;
     
-    x->update(alpha,*p_pcg,one);
-    r_pcg->update(-one*alpha,*q_pcg,one);
-    r_pcg->norm2(rnorm);
+    x->update(alpha,*(p_pcg[set]),one);
+    r_pcg[set]->update(-one*alpha,*(q_pcg[set]),one);
+    r_pcg[set]->norm2(rnorm);
     
     iter++;
   }

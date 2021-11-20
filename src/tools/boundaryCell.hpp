@@ -48,8 +48,8 @@ namespace MrHyDE {
                  const Kokkos::View<LO*,AssemblyDevice> sideID_,
                  const int & sidenum_, const string & sidename_,
                  const int & cellID_,
-                 LIDView LIDs_,
-                 Kokkos::View<int****,HostDevice> sideinfo_,
+                 vector<LIDView> & LIDs_,
+                 vector<Kokkos::View<int****,HostDevice> > & sideinfo_,
                  Teuchos::RCP<DiscretizationInterface> & disc_,
                  const bool & storeAll_);
                  
@@ -87,7 +87,7 @@ namespace MrHyDE {
     // Define which basis each variable will use
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages);
+    void setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, const int & numstages);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each discretized parameter will use
@@ -191,10 +191,11 @@ namespace MrHyDE {
       //wkset->h = hsize;
       //this->updateWorksetBasis();
       
-      vector<View_AD2> uvals = wkset->uvals;
+      // Currently hard coded to one physics sets
+      vector<View_AD2> uvals = wkset->uvals[0];
       //auto param_AD = wkset->pvals;
-      auto ulocal = u;
-      
+      auto ulocal = u[0];
+      auto currLIDs = LIDs[0];
       {
         Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
         
@@ -206,26 +207,26 @@ namespace MrHyDE {
                          RangePolicy<AssemblyExec>(0,u_AD.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
-                u_AD(elem,dof) = AD(u_kv(LIDs(elem,offsets(dof)),0));
+                u_AD(elem,dof) = AD(u_kv(currLIDs(elem,offsets(dof)),0));
               }
             });
           }
         }
         else {
           for (size_t var=0; var<ulocal.extent(1); var++) {
-            auto u_AD = wkset->uvals[var];
+            auto u_AD = uvals[var];
             auto offsets = subview(wkset->offsets,var,ALL());
             parallel_for("bcell flux gather",
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
 #ifndef MrHyDE_NO_AD
-                u_AD(elem,dof) = AD(maxDerivs, 0, u_kv(LIDs(elem,offsets(dof)),0));
+                u_AD(elem,dof) = AD(maxDerivs, 0, u_kv(currLIDs(elem,offsets(dof)),0));
                 for( size_t p=0; p<du_kv.extent(1); p++ ) {
-                  u_AD(elem,dof).fastAccessDx(p) = du_kv(LIDs(elem,offsets(dof)),p);
+                  u_AD(elem,dof).fastAccessDx(p) = du_kv(currLIDs(elem,offsets(dof)),p);
                 }
 #else
-                u_AD(elem,dof) = u_kv(LIDs(elem,offsets(dof)),0);
+                u_AD(elem,dof) = u_kv(currLIDs(elem,offsets(dof)),0);
 #endif
               }
             });
@@ -273,7 +274,7 @@ namespace MrHyDE {
       
       {
         Teuchos::TimeMonitor localtimer(*cellFluxEvalTimer);
-        cellData->physics_RCP->computeFlux(cellData->myBlock);
+        cellData->physics_RCP->computeFlux(0,cellData->myBlock);
       }
       
     }
@@ -281,7 +282,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     // Get the discretization/physics info (used for workset construction)
     ///////////////////////////////////////////////////////////////////////////////////////
-    
+    /*
     vector<int> getInfo() {
       vector<int> info;
       info.push_back(cellData->dimension);
@@ -291,17 +292,17 @@ namespace MrHyDE {
       info.push_back(LIDs.extent(1));
       info.push_back(numElem);
       return info;
-    }
+    }*/
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    View_Sc2 getDirichlet();
+    View_Sc2 getDirichlet(const size_t & set);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    View_Sc3 getMass();
+    View_Sc3 getMass(const size_t & set);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -329,19 +330,23 @@ namespace MrHyDE {
     View_Sc1 hsize;
     bool storeAll;
     
-    Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
+    vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
     string sidename;
         
     // DOF information
-    LIDView LIDs, paramLIDs, auxLIDs;
+    LIDView paramLIDs, auxLIDs;
+    vector<LIDView> LIDs;
     
     Teuchos::RCP<DiscretizationInterface> disc;
     
     // Creating LIDs on host device for host assembly
-    LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;
+    LIDView_host paramLIDs_host, auxLIDs_host;
+    vector<LIDView_host> LIDs_host;
     
-    View_Sc3 u, phi, aux, param;
-    View_Sc4 u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
+    vector<View_Sc3> u, phi;
+    View_Sc3 param, aux;
+    
+    vector<View_Sc4> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
     
     // basis information
     vector<View_Sc4> basis, basis_grad, basis_curl;

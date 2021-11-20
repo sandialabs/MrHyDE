@@ -89,30 +89,30 @@ namespace MrHyDE {
     /* solve the problem */
     // ========================================================================================
     
-    void steadySolver(DFAD & objective, vector_RCP & u);
+    void steadySolver(DFAD & objective, vector<vector_RCP> & u);
     
     // ========================================================================================
     // ========================================================================================
     
-    void transientSolver(vector_RCP & initial, DFAD & obj, vector<ScalarT> & gradient,
+    void transientSolver(vector<vector_RCP> & initial, DFAD & obj, vector<ScalarT> & gradient,
                          ScalarT & start_time, ScalarT & end_time);
     
     // ========================================================================================
     // ========================================================================================
     
-    int nonlinearSolver(vector_RCP & u, vector_RCP & phi);
+    int nonlinearSolver(const size_t & set, vector_RCP & u, vector_RCP & phi);
     
-    int explicitSolver(vector_RCP & u, vector_RCP & phi, const int & stage);
+    int explicitSolver(const size_t & set, vector_RCP & u, vector_RCP & phi, const int & stage);
 
     // ========================================================================================
     // ========================================================================================
     
-    void setDirichlet(vector_RCP & u);
+    void setDirichlet(const size_t & set, vector_RCP & u);
     
     // ========================================================================================
     // ========================================================================================
     
-    void projectDirichlet();
+    void projectDirichlet(const size_t & set);
     
     // ========================================================================================
     // ========================================================================================
@@ -122,7 +122,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    vector_RCP setInitial();
+    vector<vector_RCP> setInitial();
     
     // ========================================================================================
     // ========================================================================================
@@ -164,7 +164,6 @@ namespace MrHyDE {
     ScalarT NLtol, NLabstol,final_time, lintol, current_time, initial_time, deltat;
     
     string solver_type, initial_type;
-    vector<string> solve_order;
     
     bool line_search, useL2proj, discretized_stochastic, fully_explicit, use_custom_PCG;
     bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs;
@@ -172,17 +171,18 @@ namespace MrHyDE {
     bool scalarDirichletData, staticDirichletData, scalarInitialData;
     bool have_initial_conditions, have_static_Dirichlet_data;
     bool useRelativeTOL, useAbsoluteTOL, allowBacktracking;
-    vector<vector<ScalarT> > scalarDirichletValues, scalarInitialValues; //[block][var]
-    Teuchos::RCP<LA_MultiVector> fixedDOF_soln, invdiagMass, diagMass;
-    matrix_RCP explicitMass;
+    vector<vector<vector<ScalarT> > > scalarDirichletValues, scalarInitialValues; // [set][block][var]
+    vector<Teuchos::RCP<LA_MultiVector> > fixedDOF_soln, invdiagMass, diagMass;
+    vector<matrix_RCP> explicitMass;
     
-    vector<string> blocknames;
-    vector<vector<string> > varlist;
+    vector<string> blocknames, setnames;
+    vector<vector<vector<string> > > varlist;
     
-    vector<vector<LO> > numBasis, useBasis;
-    vector<LO> maxBasis, numVars;
+    vector<vector<vector<LO> > > numBasis, useBasis;
+    vector<vector<size_t> > maxBasis, numVars;
     
-    vector_RCP res, res_over, du, du_over;
+    vector<vector_RCP> res, res_over, du, du_over;
+    
     Kokkos::View<ScalarT**,HostDevice> butcher_A;
     Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
     

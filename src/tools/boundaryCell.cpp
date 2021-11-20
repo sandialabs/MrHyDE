@@ -28,8 +28,8 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const Kokkos::View<LO*,AssemblyDevice> sideID_,
                            const int & sidenum_, const string & sidename_,
                            const int & cellID_,
-                           LIDView LIDs_,
-                           Kokkos::View<int****,HostDevice> sideinfo_,
+                           vector<LIDView> & LIDs_,
+                           vector<Kokkos::View<int****,HostDevice> > & sideinfo_,
                            Teuchos::RCP<DiscretizationInterface> & disc_,
                            const bool & storeAll_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_),
@@ -37,10 +37,14 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
 
   numElem = nodes.extent(0);
 
-  auto LIDs_tmp = Kokkos::create_mirror_view(LIDs);
-  Kokkos::deep_copy(LIDs_tmp,LIDs);  
-  LIDs_host = LIDView_host("LIDs on host",LIDs.extent(0), LIDs.extent(1));
-  Kokkos::deep_copy(LIDs_host,LIDs_tmp);
+  for (size_t set=0; set<LIDs.size(); ++set) {
+    auto LIDs_tmp = Kokkos::create_mirror_view(LIDs[set]);
+    Kokkos::deep_copy(LIDs_tmp,LIDs[set]);
+    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
+    Kokkos::deep_copy(currLIDs_host,LIDs_tmp);
+    LIDs_host.push_back(currLIDs_host);
+  }
+  
   storeAll = storeAll_;
   
   if (storeAll) {
@@ -103,23 +107,25 @@ void BoundaryCell::addAuxVars(const vector<string> & auxlist_) {
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages) {
-  vector<int> usebasis = usebasis_;
+void BoundaryCell::setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, const int & numstages) {
+  vector<vector<int> > usebasis = usebasis_;
   
   // Set up the containers for usual solution storage
-  int maxnbasis = 0;
-  for (size_type i=0; i<cellData->numDOF_host.extent(0); i++) {
-    if (cellData->numDOF_host(i) > maxnbasis) {
-      maxnbasis = cellData->numDOF_host(i);
+  for (size_t set=0; set<usebasis.size(); ++set) {
+    int maxnbasis = 0;
+    for (size_type i=0; i<cellData->set_numDOF_host[set].extent(0); i++) {
+      if (cellData->set_numDOF_host[set](i) > maxnbasis) {
+        maxnbasis = cellData->set_numDOF_host[set](i);
+      }
     }
-  }
-  u = View_Sc3("u",numElem,cellData->numDOF.extent(0),maxnbasis);
-  if (cellData->requiresAdjoint) {
-    phi = View_Sc3("phi",numElem,cellData->numDOF.extent(0),maxnbasis);
-  }
-  if (cellData->requiresTransient) {
-    u_prev = View_Sc4("u previous",numElem,cellData->numDOF.extent(0),maxnbasis,numsteps);
-    u_stage = View_Sc4("u stages",numElem,cellData->numDOF.extent(0),maxnbasis,numstages);
+    u.push_back(View_Sc3("u",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
+    if (cellData->requiresAdjoint) {
+      phi.push_back(View_Sc3("phi",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
+    }
+    if (cellData->requiresTransient) {
+      u_prev.push_back(View_Sc4("u previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps));
+      u_stage.push_back(View_Sc4("u stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages));
+    }
   }
 }
 
@@ -242,11 +248,6 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnSideTimer);
   
-  if (!wkset->onDemand) {
-    wkset->computeSolnSideIP();
-    wkset->computeParamSideIP();
-  }
-  
   if (wkset->numAux > 0) {
     
     auto numAuxDOF = cellData->numAuxDOF;
@@ -326,7 +327,7 @@ void BoundaryCell::computeJacRes(const ScalarT & time, const bool & isTransient,
       }
     }
     this->updateWorkset(seedwhat);
-    cellData->physics_RCP->boundaryResidual(cellData->myBlock);
+    cellData->physics_RCP->boundaryResidual(wkset->current_set,cellData->myBlock);
     
   }
   
@@ -513,9 +514,9 @@ void BoundaryCell::updateAuxJac(View_Sc3 local_J) {
 // Get the initial condition
 ///////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc2 BoundaryCell::getDirichlet() {
+View_Sc2 BoundaryCell::getDirichlet(const size_t & set) {
   
-  View_Sc2 dvals("initial values",numElem,LIDs.extent(1));
+  View_Sc2 dvals("initial values",numElem,LIDs[set].extent(1));
   this->updateWorkset(0);
   
   Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
@@ -526,7 +527,7 @@ View_Sc2 BoundaryCell::getDirichlet() {
   
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
-      auto dip = cellData->physics_RCP->getDirichlet(n,cellData->myBlock, sidename);
+      auto dip = cellData->physics_RCP->getDirichlet(n,set,cellData->myBlock, sidename);
 
       int bind = wkset->usebasis[n];
       std::string btype = cellData->basis_types[bind];
@@ -583,9 +584,9 @@ View_Sc2 BoundaryCell::getDirichlet() {
 // Get the mass matrix
 ///////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc3 BoundaryCell::getMass() {
+View_Sc3 BoundaryCell::getMass(const size_t & set) {
   
-  View_Sc3 mass("local mass", numElem, LIDs.extent(1), LIDs.extent(1));
+  View_Sc3 mass("local mass", numElem, LIDs[set].extent(1), LIDs[set].extent(1));
   
   Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;

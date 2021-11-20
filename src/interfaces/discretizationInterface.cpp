@@ -121,55 +121,53 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   // Assemble the information we always store
   ////////////////////////////////////////////////////////////////////////////////
   
+  vector<vector<int> > orders = phys->unique_orders;
+  vector<vector<string> > types = phys->unique_types;
+  
   for (size_t b=0; b<blocknames.size(); b++) {
     
     string blockID = blocknames[b];
-    Teuchos::ParameterList db_settings;
-    if (settings->sublist("Discretization").isSublist(blocknames[b])) {
-      db_settings = settings->sublist("Discretization").sublist(blocknames[b]);
-    }
-    else {
-      db_settings = settings->sublist("Discretization");
-    }
-    
-    vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(blockID, stk_meshElems);
-    
-    // list of all elements on this processor
-    vector<size_t> blockmyElements = vector<size_t>(stk_meshElems.size());
-    for( size_t e=0; e<stk_meshElems.size(); e++ ) {
-      blockmyElements[e] = mesh->elementLocalId(stk_meshElems[e]);
-    }
-    myElements.push_back(blockmyElements);
-    
-    ///////////////////////////////////////////////////////////////////////////
-    // Get the cardinality of the basis functions  on this block
-    ///////////////////////////////////////////////////////////////////////////
-    
     topo_RCP cellTopo = mesh->getCellTopology(blockID);
     string shape = cellTopo->getName();
     
     vector<int> blockcards;
-    vector<basis_RCP> blockbasis;//(blockmaxorder);
+    vector<basis_RCP> blockbasis;
     
-    vector<vector<int> > orders = phys->unique_orders;
-    vector<vector<string> > types = phys->unique_types;
     vector<int> doneorders;
     vector<string> donetypes;
-    for (size_t n=0; n<orders[b].size(); n++) {
-      bool go = true;
-      for (size_t i=0; i<doneorders.size(); i++){
-        if (doneorders[i] == orders[b][n] && donetypes[i] == types[b][n]) {
-          go = false;
-        }
+    
+    for (size_t set=0; set<phys->setnames.size(); ++set) {
+      Teuchos::ParameterList db_settings = phys->setDiscSettings[set][b];
+      
+      vector<stk::mesh::Entity> stk_meshElems;
+      mesh->getMyElements(blockID, stk_meshElems);
+      
+      // list of all elements on this processor
+      vector<size_t> blockmyElements = vector<size_t>(stk_meshElems.size());
+      for( size_t e=0; e<stk_meshElems.size(); e++ ) {
+        blockmyElements[e] = mesh->elementLocalId(stk_meshElems[e]);
       }
-      if (go) {
-        basis_RCP basis = this->getBasis(spaceDim, cellTopo, types[b][n], orders[b][n]);
-        int bsize = basis->getCardinality();
-        blockcards.push_back(bsize); // cardinality of the basis
-        blockbasis.push_back(basis);
-        doneorders.push_back(orders[b][n]);
-        donetypes.push_back(types[b][n]);
+      myElements.push_back(blockmyElements);
+      
+      ///////////////////////////////////////////////////////////////////////////
+      // Get the cardinality of the basis functions  on this block
+      ///////////////////////////////////////////////////////////////////////////
+      
+      for (size_t n=0; n<orders[b].size(); n++) {
+        bool go = true;
+        for (size_t i=0; i<doneorders.size(); i++){
+          if (doneorders[i] == orders[b][n] && donetypes[i] == types[b][n]) {
+            go = false;
+          }
+        }
+        if (go) {
+          basis_RCP basis = this->getBasis(spaceDim, cellTopo, types[b][n], orders[b][n]);
+          int bsize = basis->getCardinality();
+          blockcards.push_back(bsize); // cardinality of the basis
+          blockbasis.push_back(basis);
+          doneorders.push_back(orders[b][n]);
+          donetypes.push_back(types[b][n]);
+        }
       }
     }
     basis_types.push_back(donetypes);
@@ -187,7 +185,7 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     }
     
     DRV qpts, qwts;
-    int quadorder = db_settings.get<int>("quadrature",2*mxorder);
+    int quadorder = phys->setDiscSettings[0][b].get<int>("quadrature",2*mxorder); // hard coded
     this->getQuadrature(cellTopo, quadorder, qpts, qwts);
     
     ///////////////////////////////////////////////////////////////////////////
@@ -224,7 +222,7 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
       Kokkos::deep_copy(side_qwts,1.0);
     }
     else {
-      int side_quadorder = db_settings.sublist(blockID).get<int>("side quadrature",2*mxorder);
+      int side_quadorder = phys->setDiscSettings[0][b].get<int>("side quadrature",2*mxorder); // hard coded
       this->getQuadrature(sideTopo, side_quadorder, side_qpts, side_qwts);
     }
     
@@ -245,14 +243,9 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   
   this->buildDOFManagers();
   
-  this->setBCData(false);
+  this->setBCData();
   
-  this->setDirichletData(false);
-  
-  if (phys->have_aux) {
-    this->setBCData(true);
-    this->setDirichletData(true);
-  }
+  this->setDirichletData();
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -1842,76 +1835,42 @@ void DiscretizationInterface::buildDOFManagers() {
   Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
   
   // DOF manager for the primary variables
-  {
-    DOF = Teuchos::rcp(new panzer::DOFManager());
-    DOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
-    DOF->setOrientationsRequired(true);
+  for (size_t set=0; set<phys->setnames.size(); ++set) {
+    Teuchos::RCP<panzer::DOFManager> setDOF = Teuchos::rcp(new panzer::DOFManager());
+    setDOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
+    setDOF->setOrientationsRequired(true);
     
     for (size_t b=0; b<blocknames.size(); b++) {
-      for (size_t j=0; j<phys->varlist[b].size(); j++) {
+      for (size_t j=0; j<phys->varlist[set][b].size(); j++) {
         topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-        basis_RCP basis_pointer = this->getBasis(spaceDim, cellTopo, phys->types[b][j], phys->orders[b][j]);
+        basis_RCP basis_pointer = this->getBasis(spaceDim, cellTopo,
+                                                 phys->types[set][b][j],
+                                                 phys->orders[set][b][j]);
         
         Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
         
-        if (phys->useDG[b][j]) {
-          DOF->addField(blocknames[b], phys->varlist[b][j], Pattern, panzer::FieldType::DG);
+        if (phys->useDG[set][b][j]) {
+          setDOF->addField(blocknames[b], phys->varlist[set][b][j], Pattern, panzer::FieldType::DG);
         }
         else {
-          DOF->addField(blocknames[b], phys->varlist[b][j], Pattern, panzer::FieldType::CG);
+          setDOF->addField(blocknames[b], phys->varlist[set][b][j], Pattern, panzer::FieldType::CG);
         }
       }
     }
     
-    DOF->buildGlobalUnknowns();
+    setDOF->buildGlobalUnknowns();
 #ifndef MrHyDE_NO_AD
     for (size_t b=0; b<blocknames.size(); b++) {
-      int numGIDs = DOF->getElementBlockGIDCount(blocknames[b]);
+      int numGIDs = setDOF->getElementBlockGIDCount(blocknames[b]);
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + blocknames[b]);
     }
 #endif
     if (verbosity>1) {
       if (Commptr->getRank() == 0) {
-        DOF->printFieldInformation(std::cout);
+        setDOF->printFieldInformation(std::cout);
       }
     }
-  }
-  
-  // DOF manager for the aux variables
-  if (phys->have_aux) {
-    auxDOF = Teuchos::rcp(new panzer::DOFManager());
-    auxDOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
-    auxDOF->setOrientationsRequired(true);
-    
-    for (size_t b=0; b<blocknames.size(); b++) {
-      for (size_t j=0; j<phys->aux_varlist[b].size(); j++) {
-        topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-        basis_RCP basis_pointer = this->getBasis(spaceDim, cellTopo, phys->aux_types[b][j], phys->aux_orders[b][j]);
-        
-        Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
-        
-        if (phys->aux_useDG[b][j]) {
-          auxDOF->addField(blocknames[b], phys->aux_varlist[b][j], Pattern, panzer::FieldType::DG);
-        }
-        else {
-          auxDOF->addField(blocknames[b], phys->aux_varlist[b][j], Pattern, panzer::FieldType::CG);
-        }
-      }
-    }
-    
-    auxDOF->buildGlobalUnknowns();
-    
-#ifndef MrHyDE_NO_AD
-    for (size_t b=0; b<blocknames.size(); b++) {
-      int numGIDs = auxDOF->getElementBlockGIDCount(blocknames[b]);
-      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of aux degrees of freedom per element on block: " + blocknames[b]);
-    }
-#endif
-    if (verbosity>1) {
-      if (Commptr->getRank() == 0) {
-        auxDOF->printFieldInformation(std::cout);
-      }
-    }
+    DOF.push_back(setDOF);
   }
   
   if (debug_level > 0) {
@@ -1925,7 +1884,7 @@ void DiscretizationInterface::buildDOFManagers() {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void DiscretizationInterface::setBCData(const bool & isaux) {
+void DiscretizationInterface::setBCData() {
   
   Teuchos::TimeMonitor localtimer(*setbctimer);
   
@@ -1939,236 +1898,215 @@ void DiscretizationInterface::setBCData(const bool & isaux) {
   mesh->getSidesetNames(sideSets);
   mesh->getNodesetNames(nodeSets);
   
-  vector<vector<string> > varlist;
-  vector<int> numVars;
-  Teuchos::RCP<panzer::DOFManager> currDOF;
-  if (isaux) {
-    varlist = phys->aux_varlist;
-    numVars = phys->aux_numVars;
-    currDOF = auxDOF;
-  }
-  else {
-    varlist = phys->varlist;
-    numVars = phys->numVars;
-    currDOF = DOF;
-  }
+  for (size_t set=0; set<phys->setnames.size(); ++set) {
+    vector<vector<string> > varlist;
+    //vector<int> numVars;
+    Teuchos::RCP<panzer::DOFManager> currDOF;
+    
+    varlist = phys->varlist[set];
+    //numVars = phys->numVars[set];
+    currDOF = DOF[set];
+    
+    int maxvars = 0;
+    for (size_t b=0; b<blocknames.size(); b++) {
+      for (size_t j=0; j<varlist[b].size(); j++) {
+        string var = varlist[b][j];
+        int num = currDOF->getFieldNum(var);
+        maxvars = std::max(num,maxvars);
+      }
+    }
   
-  int maxvars = 0;
-  for (size_t b=0; b<blocknames.size(); b++) {
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      string var = varlist[b][j];
-      int num = currDOF->getFieldNum(var);
-      maxvars = std::max(num,maxvars);
-    }
-  }
-  
-  vector<size_t> numElem;
-  for (size_t b=0; b<blocknames.size(); b++) {
+    vector<Kokkos::View<int****,HostDevice> > set_side_info;
+    vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
+    vector<vector<vector<int> > > set_offsets; // [block][var][dof]
     
-    Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
-                                              varlist[b].size(),sideSets.size());
-    topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
-    int numSidesPerElem = 2; // default to 1D for some reason
-    if (spaceDim == 2) {
-      numSidesPerElem = cellTopo->getEdgeCount();
-    }
-    else if (spaceDim == 3) {
-      numSidesPerElem = cellTopo->getFaceCount();
-    }
+    vector<vector<GO> > set_point_dofs;
+    vector<vector<vector<LO> > > set_dbc_dofs;
     
-    std::string blockID = blocknames[b];
-    vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(blockID, stk_meshElems);
-    size_t maxElemLID = 0;
-    for (size_t i=0; i<stk_meshElems.size(); i++) {
-      size_t lid = mesh->elementLocalId(stk_meshElems[i]);
-      maxElemLID = std::max(lid,maxElemLID);
-    }
-    std::vector<size_t> localelemmap(maxElemLID+1);
-    for (size_t i=0; i<stk_meshElems.size(); i++) {
-      size_t lid = mesh->elementLocalId(stk_meshElems[i]);
-      localelemmap[lid] = i;
-    }
-    
-    // TMW: is this needed?
-    if (!isaux) {
-      numElem.push_back(stk_meshElems.size());
-    }
-    
-    Teuchos::ParameterList blocksettings;
-    if (isaux) {
-      if (settings->sublist("Aux Physics").isSublist(blockID)) {
-        blocksettings = settings->sublist("Aux Physics").sublist(blockID);
-      }
-      else {
-        blocksettings = settings->sublist("Aux Physics");
-      }
-    }
-    else {
-      if (settings->sublist("Physics").isSublist(blockID)) {
-        blocksettings = settings->sublist("Physics").sublist(blockID);
-      }
-      else {
-        blocksettings = settings->sublist("Physics");
-      }
-    }
-    
-    Teuchos::ParameterList dbc_settings = blocksettings.sublist("Dirichlet conditions");
-    Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
-    bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
-    
-    vector<vector<int> > celloffsets;
-    Kokkos::View<int****,HostDevice> currside_info("side info",stk_meshElems.size(),numVars[b],numSidesPerElem,2);
-    
-    std::vector<int> block_dbc_dofs;
-    
-    std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
-    
-    for (size_t j=0; j<phys->varlist[b].size(); j++) {
-      string var = phys->varlist[b][j];
-      int num = currDOF->getFieldNum(var);
-      vector<int> var_offsets = currDOF->getGIDFieldOffsets(blockID,num);
+    for (size_t b=0; b<blocknames.size(); b++) {
       
-      celloffsets.push_back(var_offsets);
+      Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
+                                                varlist[b].size(),sideSets.size());
+      topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
+      int numSidesPerElem = 2; // default to 1D for some reason
+      if (spaceDim == 2) {
+        numSidesPerElem = cellTopo->getEdgeCount();
+      }
+      else if (spaceDim == 3) {
+        numSidesPerElem = cellTopo->getFaceCount();
+      }
       
-      for( size_t side=0; side<sideSets.size(); side++ ) {
-        string sideName = sideSets[side];
+      std::string blockID = blocknames[b];
+      vector<stk::mesh::Entity> stk_meshElems;
+      mesh->getMyElements(blockID, stk_meshElems);
+      size_t maxElemLID = 0;
+      for (size_t i=0; i<stk_meshElems.size(); i++) {
+        size_t lid = mesh->elementLocalId(stk_meshElems[i]);
+        maxElemLID = std::max(lid,maxElemLID);
+      }
+      std::vector<size_t> localelemmap(maxElemLID+1);
+      for (size_t i=0; i<stk_meshElems.size(); i++) {
+        size_t lid = mesh->elementLocalId(stk_meshElems[i]);
+        localelemmap[lid] = i;
+      }
+      
+      
+      Teuchos::ParameterList blocksettings = phys->setPhysSettings[set][b];
+      
+      Teuchos::ParameterList dbc_settings = blocksettings.sublist("Dirichlet conditions");
+      Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
+      bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
+      
+      vector<vector<int> > celloffsets;
+      Kokkos::View<int****,HostDevice> currside_info("side info",stk_meshElems.size(),
+                                                     varlist[b].size(),numSidesPerElem,2);
+      
+      std::vector<int> block_dbc_dofs;
+    
+      std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
+      
+      for (size_t j=0; j<varlist[b].size(); j++) {
+        string var = varlist[b][j];
+        int num = currDOF->getFieldNum(var);
+        vector<int> var_offsets = currDOF->getGIDFieldOffsets(blockID,num);
         
-        vector<stk::mesh::Entity> sideEntities;
-        mesh->getMySides(sideName, blockID, sideEntities);
-        
-        bool isDiri = false;
-        bool isNeum = false;
-        if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
-          isDiri = true;
-          if (use_weak_dbcs) {
-            currbcs(j,side) = "weak Dirichlet";
-          }
-          else {
-            currbcs(j,side) = "Dirichlet";
-          }
-        }
-        if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
-          isNeum = true;
-          currbcs(j,side) = "Neumann";
-        }
-        
-        vector<size_t>             local_side_Ids;
-        vector<stk::mesh::Entity> side_output;
-        vector<size_t>             local_elem_Ids;
-        panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities, local_side_Ids, side_output);
-        
-        for( size_t i=0; i<side_output.size(); i++ ) {
-          local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
-          size_t localid = localelemmap[local_elem_Ids[i]];
-          if( isDiri ) {
+        celloffsets.push_back(var_offsets);
+      
+        for (size_t side=0; side<sideSets.size(); side++ ) {
+          string sideName = sideSets[side];
+          
+          vector<stk::mesh::Entity> sideEntities;
+          mesh->getMySides(sideName, blockID, sideEntities);
+          
+          bool isDiri = false;
+          bool isNeum = false;
+          if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
+            isDiri = true;
             if (use_weak_dbcs) {
-              currside_info(localid, j, local_side_Ids[i], 0) = 4;
+              currbcs(j,side) = "weak Dirichlet";
             }
             else {
-              currside_info(localid, j, local_side_Ids[i], 0) = 1;
+              currbcs(j,side) = "Dirichlet";
             }
-            currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
           }
-          else if (isNeum) { // Neumann or Robin
-            currside_info(localid, j, local_side_Ids[i], 0) = 2;
-            currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+          if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
+            isNeum = true;
+            currbcs(j,side) = "Neumann";
           }
-        }
-      }
-      
-      // nodeset loop
-      string point_DBCs = blocksettings.get<std::string>(var+"_point_DBCs","");
-      
-      vector<int> dbc_nodes;
-      for( size_t node=0; node<nodeSets.size(); node++ ) {
-        string nodeName = nodeSets[node];
-        std::size_t found = point_DBCs.find(nodeName);
-        bool isDiri = false;
-        if (found!=std::string::npos) {
-          isDiri = true;
-        }
         
-        if (isDiri) {
-          vector<stk::mesh::Entity> nodeEntities;
-          mesh->getMyNodes(nodeName, blockID, nodeEntities);
-          vector<GO> elemGIDs;
-          
-          vector<size_t> local_elem_Ids;
-          vector<size_t> local_node_Ids;
+          vector<size_t>             local_side_Ids;
           vector<stk::mesh::Entity> side_output;
-          panzer_stk::workset_utils::getNodeElements(*mesh,blockID,nodeEntities,local_node_Ids,side_output);
+          vector<size_t>             local_elem_Ids;
+          panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities, local_side_Ids, side_output);
           
-          for( size_t i=0; i<side_output.size(); i++ ) {
+          for (size_t i=0; i<side_output.size(); i++ ) {
             local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
             size_t localid = localelemmap[local_elem_Ids[i]];
-            currDOF->getElementGIDs(localid,elemGIDs,blockID);
-            block_dbc_dofs.push_back(elemGIDs[var_offsets[local_node_Ids[i]]]);
+            if (isDiri) {
+              if (use_weak_dbcs) {
+                currside_info(localid, j, local_side_Ids[i], 0) = 4;
+              }
+              else {
+                currside_info(localid, j, local_side_Ids[i], 0) = 1;
+              }
+              currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+            }
+            else if (isNeum) { // Neumann or Robin
+              currside_info(localid, j, local_side_Ids[i], 0) = 2;
+              currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+            }
           }
         }
+      
+        // nodeset loop
+        string point_DBCs = blocksettings.get<std::string>(var+"_point_DBCs","");
         
+        vector<int> dbc_nodes;
+        for( size_t node=0; node<nodeSets.size(); node++ ) {
+          string nodeName = nodeSets[node];
+          std::size_t found = point_DBCs.find(nodeName);
+          bool isDiri = false;
+          if (found!=std::string::npos) {
+            isDiri = true;
+          }
+          
+          if (isDiri) {
+            vector<stk::mesh::Entity> nodeEntities;
+            mesh->getMyNodes(nodeName, blockID, nodeEntities);
+            vector<GO> elemGIDs;
+            
+            vector<size_t> local_elem_Ids;
+            vector<size_t> local_node_Ids;
+            vector<stk::mesh::Entity> side_output;
+            panzer_stk::workset_utils::getNodeElements(*mesh,blockID,nodeEntities,local_node_Ids,side_output);
+            
+            for( size_t i=0; i<side_output.size(); i++ ) {
+              local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
+              size_t localid = localelemmap[local_elem_Ids[i]];
+              currDOF->getElementGIDs(localid,elemGIDs,blockID);
+              block_dbc_dofs.push_back(elemGIDs[var_offsets[local_node_Ids[i]]]);
+            }
+          }
+          
+        }
       }
-    }
     
-    if (isaux) {
-      aux_offsets.push_back(celloffsets);
-      aux_var_bcs.push_back(currbcs);
-    }
-    else {
-      offsets.push_back(celloffsets);
-      var_bcs.push_back(currbcs);
-      side_info.push_back(currside_info);
-    }
-    
-    std::sort(block_dbc_dofs.begin(), block_dbc_dofs.end());
-    block_dbc_dofs.erase(std::unique(block_dbc_dofs.begin(),
-                                     block_dbc_dofs.end()), block_dbc_dofs.end());
-    
-    int localsize = (int)block_dbc_dofs.size();
-    int globalsize = 0;
-    
-    Teuchos::reduceAll<int,int>(*Commptr,Teuchos::REDUCE_SUM,1,&localsize,&globalsize);
-    int gathersize = Commptr->getSize()*globalsize;
-    int *block_dbc_dofs_local = new int [globalsize];
-    int *block_dbc_dofs_global = new int [gathersize];
-    
-    int mxdof = (int) block_dbc_dofs.size();
-    for (int i = 0; i < globalsize; i++) {
-      if ( i < mxdof) {
-        block_dbc_dofs_local[i] = (int) block_dbc_dofs[i];
+      set_offsets.push_back(celloffsets);
+      set_var_bcs.push_back(currbcs);
+      set_side_info.push_back(currside_info);
+      
+      std::sort(block_dbc_dofs.begin(), block_dbc_dofs.end());
+      block_dbc_dofs.erase(std::unique(block_dbc_dofs.begin(),
+                                       block_dbc_dofs.end()), block_dbc_dofs.end());
+      
+      int localsize = (int)block_dbc_dofs.size();
+      int globalsize = 0;
+      
+      Teuchos::reduceAll<int,int>(*Commptr,Teuchos::REDUCE_SUM,1,&localsize,&globalsize);
+      int gathersize = Commptr->getSize()*globalsize;
+      int *block_dbc_dofs_local = new int [globalsize];
+      int *block_dbc_dofs_global = new int [gathersize];
+      
+      int mxdof = (int) block_dbc_dofs.size();
+      for (int i = 0; i < globalsize; i++) {
+        if ( i < mxdof) {
+          block_dbc_dofs_local[i] = (int) block_dbc_dofs[i];
+        }
+        else {
+          block_dbc_dofs_local[i] = -1;
+        }
       }
-      else {
-        block_dbc_dofs_local[i] = -1;
+      
+      Teuchos::gatherAll(*Commptr, globalsize, &block_dbc_dofs_local[0], gathersize, &block_dbc_dofs_global[0]);
+      vector<GO> all_dbcs;
+      
+      for (int i = 0; i < gathersize; i++) {
+        all_dbcs.push_back(block_dbc_dofs_global[i]);
       }
-    }
+      delete [] block_dbc_dofs_local;
+      delete [] block_dbc_dofs_global;
+      
+      vector<GO> dbc_final;
+      vector<GO> ownedAndShared;
+      currDOF->getOwnedAndGhostedIndices(ownedAndShared);
+      
+      sort(all_dbcs.begin(),all_dbcs.end());
+      sort(ownedAndShared.begin(),ownedAndShared.end());
+      set_intersection(all_dbcs.begin(),all_dbcs.end(),
+                       ownedAndShared.begin(),ownedAndShared.end(),
+                       back_inserter(dbc_final));
+      
+      set_point_dofs.push_back(dbc_final);
+      
+    } // blocks
+      
     
-    Teuchos::gatherAll(*Commptr, globalsize, &block_dbc_dofs_local[0], gathersize, &block_dbc_dofs_global[0]);
-    vector<GO> all_dbcs;
+    offsets.push_back(set_offsets);
+    var_bcs.push_back(set_var_bcs);
+    side_info.push_back(set_side_info);
+    point_dofs.push_back(set_point_dofs);
     
-    for (int i = 0; i < gathersize; i++) {
-      all_dbcs.push_back(block_dbc_dofs_global[i]);
-    }
-    delete [] block_dbc_dofs_local;
-    delete [] block_dbc_dofs_global;
-    
-    vector<GO> dbc_final;
-    vector<GO> ownedAndShared;
-    currDOF->getOwnedAndGhostedIndices(ownedAndShared);
-    
-    sort(all_dbcs.begin(),all_dbcs.end());
-    sort(ownedAndShared.begin(),ownedAndShared.end());
-    set_intersection(all_dbcs.begin(),all_dbcs.end(),
-                     ownedAndShared.begin(),ownedAndShared.end(),
-                     back_inserter(dbc_final));
-    
-    if (isaux) {
-      aux_point_dofs.push_back(dbc_final);
-    }
-    else {
-      point_dofs.push_back(dbc_final);
-    }
-    
-  }
+  } // sets
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -2180,7 +2118,7 @@ void DiscretizationInterface::setBCData(const bool & isaux) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void DiscretizationInterface::setDirichletData(const bool & isaux) {
+void DiscretizationInterface::setDirichletData() {
   
   Teuchos::TimeMonitor localtimer(*setdbctimer);
   
@@ -2193,93 +2131,69 @@ void DiscretizationInterface::setDirichletData(const bool & isaux) {
   vector<string> sideNames;
   mesh->getSidesetNames(sideNames);
   
-  vector<vector<string> > varlist;
-  Teuchos::RCP<panzer::DOFManager> currDOF;
-  if (isaux) {
-    varlist = phys->aux_varlist;
-    currDOF = auxDOF;
-  }
-  else {
-    varlist = phys->varlist;
-    currDOF = DOF;
-  }
-  
-  for (size_t b=0; b<blocknames.size(); b++) {
+  for (size_t set=0; set<phys->setnames.size(); ++set) {
     
-    std::string blockID = blocknames[b];
+    vector<vector<string> > varlist = phys->varlist[set];
+    Teuchos::RCP<panzer::DOFManager> currDOF = DOF[set];
     
-    Teuchos::ParameterList dbc_settings;
-    if (isaux) {
-      if (settings->sublist("Aux Physics").isSublist(blockID)) {
-        dbc_settings = settings->sublist("Aux Physics").sublist(blockID).sublist("Dirichlet conditions");
-      }
-      else {
-        dbc_settings = settings->sublist("Aux Physics").sublist("Dirichlet conditions");
-      }
-    }
-    else {
-      if (settings->sublist("Physics").isSublist(blockID)) {
-        dbc_settings = settings->sublist("Physics").sublist(blockID).sublist("Dirichlet conditions");
-      }
-      else {
-        dbc_settings = settings->sublist("Physics").sublist("Dirichlet conditions");
-      }
-    }
-    std::vector<std::vector<LO> > block_dbc_dofs;
+    std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
     
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      std::string var = varlist[b][j];
-      int fieldnum = currDOF->getFieldNum(var);
-      std::vector<LO> var_dofs;
-      for (size_t side=0; side<sideNames.size(); side++ ) {
-        std::string sideName = sideNames[side];
-        vector<stk::mesh::Entity> sideEntities;
-        mesh->getMySides(sideName, blockID, sideEntities);
-        
-        bool isDiri = false;
-        if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
-          isDiri = true;
-          if (isaux) {
-            haveAuxDirichlet = true;
-          }
-          else {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      
+      std::string blockID = blocknames[b];
+      
+      Teuchos::ParameterList dbc_settings = phys->setPhysSettings[set][b].sublist("Dirichlet conditions");
+      
+      std::vector<std::vector<LO> > block_dbc_dofs;
+      
+      for (size_t j=0; j<varlist[b].size(); j++) {
+        std::string var = varlist[b][j];
+        int fieldnum = currDOF->getFieldNum(var);
+        std::vector<LO> var_dofs;
+        for (size_t side=0; side<sideNames.size(); side++ ) {
+          std::string sideName = sideNames[side];
+          vector<stk::mesh::Entity> sideEntities;
+          mesh->getMySides(sideName, blockID, sideEntities);
+          
+          bool isDiri = false;
+          if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
+            isDiri = true;
             haveDirichlet = true;
           }
-        }
-        
-        if (isDiri) {
           
-          vector<size_t>             local_side_Ids;
-          vector<stk::mesh::Entity>  side_output;
-          vector<size_t>             local_elem_Ids;
-          panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
-                                                     local_side_Ids, side_output);
-          
-          for( size_t i=0; i<side_output.size(); i++ ) {
-            LO local_EID = mesh->elementLocalId(side_output[i]);
-            auto elemLIDs = currDOF->getElementLIDs(local_EID);
-            const std::pair<vector<int>,vector<int> > SideIndex = currDOF->getGIDFieldOffsets_closure(blockID, fieldnum,
-                                                                                                      spaceDim-1,
-                                                                                                      local_side_Ids[i]);
-            const vector<int> sideOffset = SideIndex.first;
+          if (isDiri) {
             
-            for( size_t i=0; i<sideOffset.size(); i++ ) { // for each node
-              var_dofs.push_back(elemLIDs(sideOffset[i]));
+            vector<size_t>             local_side_Ids;
+            vector<stk::mesh::Entity>  side_output;
+            vector<size_t>             local_elem_Ids;
+            panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
+                                                       local_side_Ids, side_output);
+            
+            for( size_t i=0; i<side_output.size(); i++ ) {
+              LO local_EID = mesh->elementLocalId(side_output[i]);
+              auto elemLIDs = currDOF->getElementLIDs(local_EID);
+              const std::pair<vector<int>,vector<int> > SideIndex = currDOF->getGIDFieldOffsets_closure(blockID, fieldnum,
+                                                                                                        spaceDim-1,
+                                                                                                        local_side_Ids[i]);
+              const vector<int> sideOffset = SideIndex.first;
+              
+              for( size_t i=0; i<sideOffset.size(); i++ ) { // for each node
+                var_dofs.push_back(elemLIDs(sideOffset[i]));
+              }
             }
           }
         }
+        std::sort(var_dofs.begin(), var_dofs.end());
+        var_dofs.erase(std::unique(var_dofs.begin(), var_dofs.end()), var_dofs.end());
+        
+        block_dbc_dofs.push_back(var_dofs);
       }
-      std::sort(var_dofs.begin(), var_dofs.end());
-      var_dofs.erase(std::unique(var_dofs.begin(), var_dofs.end()), var_dofs.end());
+      set_dbc_dofs.push_back(block_dbc_dofs);
       
-      block_dbc_dofs.push_back(var_dofs);
     }
-    if (isaux) {
-      aux_dbc_dofs.push_back(block_dbc_dofs);
-    }
-    else {
-      dbc_dofs.push_back(block_dbc_dofs);
-    }
+    
+    dbc_dofs.push_back(set_dbc_dofs);
+    
   }
   
   if (debug_level > 0) {
@@ -2292,25 +2206,32 @@ void DiscretizationInterface::setDirichletData(const bool & isaux) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<int****,HostDevice> DiscretizationInterface::getSideInfo(const size_t & block,
+Kokkos::View<int****,HostDevice> DiscretizationInterface::getSideInfo(const size_t & set, const size_t & block,
                                                                       Kokkos::View<int*,HostDevice> elem) {
   
-  size_type nelem = elem.extent(0);
-  size_type nvars = side_info[block].extent(1);
-  size_type nelemsides = side_info[block].extent(2);
-  //size_type nglobalsides = side_info[block].extent(3);
-  Kokkos::View<int****,HostDevice> currsi("side info for cell",nelem,nvars,nelemsides, 2);
-  for (size_type e=0; e<nelem; e++) {
-    for (size_type j=0; j<nelemsides; j++) {
-      for (size_type i=0; i<nvars; i++) {
-        int sidetype = side_info[block](elem(e),i,j,0);
-        if (sidetype > 0) { // TMW: why is this here?
-          currsi(e,i,j,0) = sidetype;
-          currsi(e,i,j,1) = side_info[block](elem(e),i,j,1);
-        }
-        else {
-          currsi(e,i,j,0) = sidetype;
-          currsi(e,i,j,1) = 0;
+  Kokkos::View<int****,HostDevice> currsi;
+  
+  int maxe = 0;
+  for (size_type e=0; e<elem.extent(0); ++e) {
+    maxe = std::max(elem(e),maxe);
+  }
+  if (maxe < side_info[set][block].extent(0)) {
+    size_type nelem = elem.extent(0);
+    size_type nvars = side_info[set][block].extent(1);
+    size_type nelemsides = side_info[set][block].extent(2);
+    currsi = Kokkos::View<int****,HostDevice>("side info for cell",nelem,nvars,nelemsides, 2);
+    for (size_type e=0; e<nelem; e++) {
+      for (size_type j=0; j<nelemsides; j++) {
+        for (size_type i=0; i<nvars; i++) {
+          int sidetype = side_info[set][block](elem(e),i,j,0);
+          if (sidetype > 0) {
+            currsi(e,i,j,0) = sidetype;
+            currsi(e,i,j,1) = side_info[set][block](elem(e),i,j,1);
+          }
+          else {
+            currsi(e,i,j,0) = sidetype;
+            currsi(e,i,j,1) = 0;
+          }
         }
       }
     }
@@ -2321,8 +2242,8 @@ Kokkos::View<int****,HostDevice> DiscretizationInterface::getSideInfo(const size
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-vector<vector<int> > DiscretizationInterface::getOffsets(const int & block) {
-  return offsets[block];
+vector<vector<int> > DiscretizationInterface::getOffsets(const int & set, const int & block) {
+  return offsets[set][block];
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -2387,8 +2308,7 @@ DRV DiscretizationInterface::applyOrientation(DRV basis, Kokkos::DynRankView<Int
 
 void DiscretizationInterface::purgeMemory() {
   
-  DOF.reset();// = Teuchos::rcp(Teuchos::NULL);
-  auxDOF.reset();// = Teuchos::rcp(Teuchos::NULL);
+  DOF.clear();
   side_info.clear();
   
   bool storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
@@ -2398,9 +2318,8 @@ void DiscretizationInterface::purgeMemory() {
   }
   
   bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  bool write_aux_solution = settings->sublist("Postprocess").get("write aux solution",false);
   bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
-  if (!write_solution && !write_aux_solution && !create_optim_movie) {
+  if (!write_solution && !create_optim_movie) {
     mesh.reset();
   }
 }

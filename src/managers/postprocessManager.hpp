@@ -302,15 +302,15 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
-    vector<std::pair<size_t,string> > addTrueSolutions(Teuchos::ParameterList & true_solns,
-                                                       vector<string> & vars,
-                                                       vector<string> & types,
+    vector<std::pair<string,string> > addTrueSolutions(Teuchos::ParameterList & true_solns,
+                                                       vector<vector<vector<string> > > & types,
                                                        const int & block);
 
     // ========================================================================================
     // ========================================================================================
     
-    void record(vector_RCP & current_soln, const ScalarT & current_time, const bool & write_this_step, DFAD & objectiveval);
+    void record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
+                const bool & write_this_step, DFAD & objectiveval);
     
     // ========================================================================================
     // ========================================================================================
@@ -346,18 +346,18 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void computeObjective(vector_RCP & current_soln, const ScalarT & current_time,
+    void computeObjective(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                           DFAD & objectiveval);
 
-    void computeObjectiveGradState(vector_RCP & current_soln, const ScalarT & current_time,
+    void computeObjectiveGradState(const size_t & set, vector_RCP & current_soln, const ScalarT & current_time,
                                    const ScalarT & deltat, vector_RCP & grad);
 
-    void computeWeightedNorm(vector_RCP & current_soln);
+    void computeWeightedNorm(vector<vector_RCP> & current_soln);
     
     // ========================================================================================
     // ========================================================================================
 
-    void computeSensitivities(vector_RCP & u, vector_RCP & a2,
+    void computeSensitivities(vector<vector_RCP> & u, vector<vector_RCP> & adjoint,
                               const ScalarT & current_time, const ScalarT & deltat,
                               vector<ScalarT> & gradient);
 
@@ -461,7 +461,7 @@ namespace MrHyDE {
     
     vector<objective> objectives;
     vector<regularization> regularizations;
-    Teuchos::RCP<SolutionStorage<Node> > soln, adj_soln, datagen_soln;
+    vector<Teuchos::RCP<SolutionStorage<Node> > > soln, adj_soln, datagen_soln;
     bool save_solution=false;
     vector<fluxResponse> fluxes;
     vector< vector<integratedQuantity> > integratedQuantities; /// A vector of integrated quantities for each block
@@ -470,11 +470,11 @@ namespace MrHyDE {
     ScalarT discrete_objective_scale_factor;
     vector<vector<string> > extrafields_list, extracellfields_list, derivedquantities_list;
     vector<ScalarT> weighted_norms;
-    vector_RCP norm_wts;
+    vector<vector_RCP> norm_wts;
     bool have_norm_weights = false;
     
-    bool compute_response, compute_error, compute_subgrid_error, compute_aux_error, compute_weighted_norm;
-    bool write_solution, write_aux_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
+    bool compute_response, compute_error, compute_subgrid_error, compute_weighted_norm;
+    bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
     int write_frequency, write_cell_number;  ///< Solution write frequency (1/timesteps) 
     std::string exodus_filename, cellfield_reduction;
     int spaceDim;                                                // spatial dimension
@@ -486,21 +486,21 @@ namespace MrHyDE {
     std::string sname;
     ScalarT stddev;
     
-    std::vector<std::string> blocknames, sideSets, error_types, subgrid_error_types;
+    std::vector<std::string> blocknames, setnames, sideSets, error_types, subgrid_error_types;
     std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > errors; // [time][block](error_list)
     std::vector<Kokkos::View<ScalarT**,HostDevice> > responses; // [time](sensors,response)
     std::vector<std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > > subgrid_errors; // extra std::vector for multiple subgrid models [time][block][sgmodel](error_list)
     
     int numsteps;
-    std::vector<std::vector<std::string> > varlist, aux_varlist; // TMW: remove these at some point
+    std::vector<std::vector<std::vector<std::string> > > varlist; // [set][block][var]
     
     std::string response_type, error_type, append;
     std::vector<ScalarT> plot_times, response_times, error_times; // probably always the same
     
     int verbosity, debug_level;
     
-    std::vector<std::vector<std::pair<size_t,std::string> > > error_list, aux_error_list; // [block][errors]
-    std::vector<std::vector<std::vector<std::pair<size_t,std::string> > > > subgrid_error_lists; // [block][sgmodel][errors]
+    std::vector<std::vector<std::pair<std::string,std::string> > > error_list; // [block][errors] <varname,type>
+    std::vector<std::vector<std::vector<std::pair<std::string,std::string> > > > subgrid_error_lists; // [block][sgmodel][errors]
     
     
     // Timers

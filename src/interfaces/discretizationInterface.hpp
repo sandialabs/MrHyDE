@@ -119,19 +119,21 @@ namespace MrHyDE {
     
     void buildDOFManagers();
     
-    void setBCData(const bool & isaux);
+    void setBCData();
     
-    void setDirichletData(const bool & isaux);
+    void setDirichletData();
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    Kokkos::View<int****,HostDevice> getSideInfo(const size_t & block, Kokkos::View<int*,HostDevice> elem);
+    Kokkos::View<int****,HostDevice> getSideInfo(const size_t & set,
+                                                 const size_t & block,
+                                                 Kokkos::View<int*,HostDevice> elem);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    vector<vector<int> > getOffsets(const int & block);
+    vector<vector<int> > getOffsets(const int & set, const int & block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -176,25 +178,28 @@ namespace MrHyDE {
     Teuchos::RCP<PhysicsInterface> phys;
     vector<vector<basis_RCP> > basis_pointers;
     vector<vector<string> > basis_types;
-    vector<vector<GO> > point_dofs, aux_point_dofs;
-    vector<vector<vector<LO> > > dbc_dofs, aux_dbc_dofs;
+    
+    vector<vector<vector<GO> > > point_dofs;
+    vector<vector<vector<vector<LO> > > > dbc_dofs;
     vector<string> blocknames;
     
     // Purgable
     vector<stk::mesh::Entity> all_stkElems;
     vector<vector<stk::mesh::Entity> > block_stkElems;
-    Teuchos::RCP<panzer::DOFManager> DOF, auxDOF;
+    vector<Teuchos::RCP<panzer::DOFManager> > DOF;
     
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;
     vector<size_t> numip, numip_side;
     
     vector<vector<int> > cards;
     vector<vector<size_t> > myElements;
+        
+    vector<vector<Kokkos::View<int****,HostDevice> > > side_info;
+    vector<vector<Kokkos::View<string**,HostDevice> > > var_bcs;
+    vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
     
-    vector<Kokkos::View<int****,HostDevice> > side_info;
-    vector<Kokkos::View<string**,HostDevice> > var_bcs, aux_var_bcs;
-    vector<vector<vector<int> > > offsets, aux_offsets;
-    bool haveDirichlet = false, haveAuxDirichlet = false, minimize_memory;
+    
+    bool haveDirichlet = false, minimize_memory;
     
     Teuchos::RCP<Teuchos::Time> setbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setBCData()");
     Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setDirichletData()");

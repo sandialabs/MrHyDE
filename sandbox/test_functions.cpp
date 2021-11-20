@@ -30,12 +30,12 @@ int main(int argc, char * argv[]) {
     vector<basis_RCP> basis = {Teuchos::rcp(new Intrepid2::Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space, double, double>() )};
     int quadorder = 2;
     int numElem = 10;
-    int numvars = 5;
+    vector<size_t> numvars(1,5);
     vector<string> variables = {"a","b","c","d","p"};
     vector<string> aux_variables;
     vector<string> param_vars;
     
-    vector<int> cellinfo = {2,numvars,1,0,numElem};
+    vector<int> cellinfo = {2,1,numElem};
     DRV ip, wts, sip, swts;
     
     disc->getQuadrature(cellTopo, quadorder, ip, wts);
@@ -44,9 +44,10 @@ int main(int argc, char * argv[]) {
     cellinfo.push_back(ip.extent(0));
     cellinfo.push_back(sip.extent(0));
     vector<string> btypes = {"HGRAD"};
-    Kokkos::View<string**,HostDevice> bcs("bcs",1,1);
-    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, false,
-                                                            btypes, basis, basis, cellTopo,bcs) );
+    vector<Kokkos::View<string**,HostDevice> > bcs;
+    bcs.push_back(Kokkos::View<string**,HostDevice>("bcs",1,1));
+    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, numvars, false,
+                                                            btypes, basis, basis, cellTopo, bcs) );
     
     vector<int> usebasis = {0,0,0,0,0};
     wkset->usebasis = usebasis;
@@ -58,11 +59,11 @@ int main(int argc, char * argv[]) {
     vector<string> parameters;
     vector<string> disc_parameters;
     
-    functionManager->setupLists(variables, aux_variables, parameters, disc_parameters);
+    functionManager->setupLists(parameters, disc_parameters);
     
     functionManager->wkset = wkset;
     
-    View_AD4 sol("sol",numElem,numvars,numip,1);
+    View_AD4 sol("sol",numElem,numvars[0],numip,1);
     vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2};
     
     // This won't actually work on a GPU

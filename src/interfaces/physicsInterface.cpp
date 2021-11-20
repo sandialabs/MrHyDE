@@ -35,55 +35,51 @@ settings(settings_), Commptr(Comm_){
   }
   
   mesh->getElementBlockNames(blocknames);
-  mesh->getSidesetNames(sideNames);
+  mesh->getSidesetNames(sidenames);
   
-  numBlocks = blocknames.size();
   spaceDim = mesh->getDimension();
   
-  for (size_t b=0; b<blocknames.size(); b++) {
-    if (settings->sublist("Physics").isSublist(blocknames[b])) { // adding block overwrites the default
-      blockPhysSettings.push_back(settings->sublist("Physics").sublist(blocknames[b]));
-    }
-    else { // default
-      blockPhysSettings.push_back(settings->sublist("Physics"));
-    }
-    
-    if (settings->sublist("Discretization").isSublist(blocknames[b])) { // adding block overwrites default
-      blockDiscSettings.push_back(settings->sublist("Discretization").sublist(blocknames[b]));
-    }
-    else { // default
-      blockDiscSettings.push_back(settings->sublist("Discretization"));
-    }
-  }
-  
-  this->importPhysics(false);
-  
-  if (settings->isSublist("Aux Physics") && settings->isSublist("Aux Discretization")) {
-    have_aux = true;
-    for (size_t b=0; b<blocknames.size(); b++) {
-      if (settings->sublist("Aux Physics").isSublist(blocknames[b])) { // adding block overwrites the default
-        aux_blockPhysSettings.push_back(settings->sublist("Aux Physics").sublist(blocknames[b]));
-      }
-      else { // default
-        aux_blockPhysSettings.push_back(settings->sublist("Aux Physics"));
-      }
-      
-      if (settings->sublist("Aux Discretization").isSublist(blocknames[b])) { // adding block overwrites default
-        aux_blockDiscSettings.push_back(settings->sublist("Aux Discretization").sublist(blocknames[b]));
-      }
-      else { // default
-        aux_blockDiscSettings.push_back(settings->sublist("Aux Discretization"));
-      }
-    }
-    this->importPhysics(true);
+  if (settings->sublist("Physics").isParameter("physics set names")) {
+    string names = settings->sublist("Physics").get<string>("physics set names");
+    setnames = this->breakupList(names,", ");
   }
   else {
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<string> avars;
-      aux_varlist.push_back(avars);
-    }
+    setnames.push_back("default");
   }
-
+  
+  for (size_t set=0; set<setnames.size(); ++set) {
+    Teuchos::ParameterList psetlist, dsetlist;
+    if (setnames[set] == "default") {
+      psetlist = settings->sublist("Physics");
+      dsetlist = settings->sublist("Discretization");
+    }
+    else {
+      psetlist = settings->sublist("Physics").sublist(setnames[set]);
+      dsetlist = settings->sublist("Discretization").sublist(setnames[set]);
+    }
+    
+    vector<Teuchos::ParameterList> currpsettings, currdsettings;
+    for (size_t b=0; b<blocknames.size(); b++) {
+      if (psetlist.isSublist(blocknames[b])) { // adding block overwrites the default
+        currpsettings.push_back(psetlist.sublist(blocknames[b]));
+      }
+      else { // default
+        currpsettings.push_back(psetlist);
+      }
+      
+      if (dsetlist.isSublist(blocknames[b])) { // adding block overwrites default
+        currdsettings.push_back(dsetlist.sublist(blocknames[b]));
+      }
+      else { // default
+        currdsettings.push_back(dsetlist);
+      }
+    }
+    setPhysSettings.push_back(currpsettings);
+    setDiscSettings.push_back(currdsettings);
+  }
+    
+  this->importPhysics();
+  
   if (debug_level > 0 && Commptr->getRank() == 0) {
     cout << "**** Finished physics constructor" << endl;
   }
@@ -107,121 +103,149 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
       fs = settings->sublist("Functions");
     }
     
-    for (size_t n=0; n<modules[b].size(); n++) {
-      modules[b][n]->defineFunctions(fs, functionManagers[b]);
-    }
-    
-    // Add initial conditions
-    Teuchos::ParameterList initial_conds = blockPhysSettings[b].sublist("Initial conditions");
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      string expression;
-      if (initial_conds.isType<string>(varlist[b][j])) {
-        expression = initial_conds.get<string>(varlist[b][j]);
-      }
-      else if (initial_conds.isType<double>(varlist[b][j])) {
-        double value = initial_conds.get<double>(varlist[b][j]);
-        expression = std::to_string(value);
-      }
-      else {
-        expression = "0.0";
-      }
-      functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"ip");
-      functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"point");
-      if (types[b][j] == "HFACE") {
-        // we have found an HFACE variable and need to have side ip evaluations
-        // TODO check aux, etc?
-        functionManagers[b]->addFunction("initial "+varlist[b][j],expression,"side ip");
+    for (size_t set=0; set<modules.size(); set++) {
+      for (size_t n=0; n<modules[set][b].size(); n++) {
+        modules[set][b][n]->defineFunctions(fs, functionManagers[b]);
       }
     }
-    
-    // Dirichlet conditions
-    Teuchos::ParameterList dbcs = blockPhysSettings[b].sublist("Dirichlet conditions");
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      if (dbcs.isSublist(varlist[b][j])) {
-        if (dbcs.sublist(varlist[b][j]).isType<string>("all boundaries")) {
-          string entry = dbcs.sublist(varlist[b][j]).get<string>("all boundaries");
-          for (size_t s=0; s<sideNames.size(); s++) {
-            string label = "Dirichlet " + varlist[b][j] + " " + sideNames[s];
-            functionManagers[b]->addFunction(label,entry,"side ip");
-          }
+  }
+  
+  // Add initial conditions
+  for (size_t set=0; set<setnames.size(); set++) {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList initial_conds = setPhysSettings[set][b].sublist("Initial conditions");
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        string expression;
+        string var = varlist[set][b][j];
+        if (initial_conds.isType<string>(var)) {
+          expression = initial_conds.get<string>(var);
         }
-        else if (dbcs.sublist(varlist[b][j]).isType<double>("all boundaries")) {
-          double value = dbcs.sublist(varlist[b][j]).get<double>("all boundaries");
-          string entry = std::to_string(value);
-          for (size_t s=0; s<sideNames.size(); s++) {
-            string label = "Dirichlet " + varlist[b][j] + " " + sideNames[s];
-            functionManagers[b]->addFunction(label,entry,"side ip");
-          }
+        else if (initial_conds.isType<double>(var)) {
+          double value = initial_conds.get<double>(var);
+          expression = std::to_string(value);
         }
         else {
-          Teuchos::ParameterList currdbcs = dbcs.sublist(varlist[b][j]);
-          Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
-          while (d_itr != currdbcs.end()) {
-            if (currdbcs.isType<string>(d_itr->first)) {
-              string entry = currdbcs.get<string>(d_itr->first);
-              string label = "Dirichlet " + varlist[b][j] + " " + d_itr->first;
+          expression = "0.0";
+        }
+        functionManagers[b]->addFunction("initial "+var,expression,"ip");
+        functionManagers[b]->addFunction("initial "+var,expression,"point");
+        if (types[set][b][j] == "HFACE") {
+          // we have found an HFACE variable and need to have side ip evaluations
+          // TODO check aux, etc?
+          functionManagers[b]->addFunction("initial "+var,expression,"side ip");
+        }
+      }
+    }
+  }
+    
+  // Dirichlet conditions
+  for (size_t set=0; set<setnames.size(); set++) {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList dbcs = setPhysSettings[set][b].sublist("Dirichlet conditions");
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        string var = varlist[set][b][j];
+        if (dbcs.isSublist(var)) {
+          if (dbcs.sublist(var).isType<string>("all boundaries")) {
+            string entry = dbcs.sublist(var).get<string>("all boundaries");
+            for (size_t s=0; s<sidenames.size(); s++) {
+              string label = "Dirichlet " + var + " " + sidenames[s];
               functionManagers[b]->addFunction(label,entry,"side ip");
             }
-            else if (currdbcs.isType<double>(d_itr->first)) {
-              double value = currdbcs.get<double>(d_itr->first);
-              string entry = std::to_string(value);
-              string label = "Dirichlet " + varlist[b][j] + " " + d_itr->first;
+          }
+          else if (dbcs.sublist(var).isType<double>("all boundaries")) {
+            double value = dbcs.sublist(var).get<double>("all boundaries");
+            string entry = std::to_string(value);
+            for (size_t s=0; s<sidenames.size(); s++) {
+              string label = "Dirichlet " + var + " " + sidenames[s];
               functionManagers[b]->addFunction(label,entry,"side ip");
             }
-            d_itr++;
+          }
+          else {
+            Teuchos::ParameterList currdbcs = dbcs.sublist(var);
+            Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
+            while (d_itr != currdbcs.end()) {
+              if (currdbcs.isType<string>(d_itr->first)) {
+                string entry = currdbcs.get<string>(d_itr->first);
+                string label = "Dirichlet " + var + " " + d_itr->first;
+                functionManagers[b]->addFunction(label,entry,"side ip");
+              }
+              else if (currdbcs.isType<double>(d_itr->first)) {
+                double value = currdbcs.get<double>(d_itr->first);
+                string entry = std::to_string(value);
+                string label = "Dirichlet " + var + " " + d_itr->first;
+                functionManagers[b]->addFunction(label,entry,"side ip");
+              }
+              d_itr++;
+            }
           }
         }
       }
     }
-    
-    // Neumann/robin conditions
-    Teuchos::ParameterList nbcs = blockPhysSettings[b].sublist("Neumann conditions");
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      if (nbcs.isSublist(varlist[b][j])) {
-        if (nbcs.sublist(varlist[b][j]).isParameter("all boundaries")) {
-          string entry = nbcs.sublist(varlist[b][j]).get<string>("all boundaries");
-          for (size_t s=0; s<sideNames.size(); s++) {
-            string label = "Neumann " + varlist[b][j] + " " + sideNames[s];
-            functionManagers[b]->addFunction(label,entry,"side ip");
+  }
+  
+  // Neumann/robin conditions
+  for (size_t set=0; set<setnames.size(); set++) {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList nbcs = setPhysSettings[set][b].sublist("Neumann conditions");
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        string var = varlist[set][b][j];
+        if (nbcs.isSublist(var)) {
+          if (nbcs.sublist(var).isParameter("all boundaries")) {
+            string entry = nbcs.sublist(var).get<string>("all boundaries");
+            for (size_t s=0; s<sidenames.size(); s++) {
+              string label = "Neumann " + var + " " + sidenames[s];
+              functionManagers[b]->addFunction(label,entry,"side ip");
+            }
+          }
+          else {
+            Teuchos::ParameterList currnbcs = nbcs.sublist(var);
+            Teuchos::ParameterList::ConstIterator n_itr = currnbcs.begin();
+            while (n_itr != currnbcs.end()) {
+              string entry = currnbcs.get<string>(n_itr->first);
+              string label = "Neumann " + var + " " + n_itr->first;
+              functionManagers[b]->addFunction(label,entry,"side ip");
+              n_itr++;
+            }
           }
         }
-        else {
-          Teuchos::ParameterList currnbcs = nbcs.sublist(varlist[b][j]);
-          Teuchos::ParameterList::ConstIterator n_itr = currnbcs.begin();
-          while (n_itr != currnbcs.end()) {
-            string entry = currnbcs.get<string>(n_itr->first);
-            string label = "Neumann " + varlist[b][j] + " " + n_itr->first;
-            functionManagers[b]->addFunction(label,entry,"side ip");
-            n_itr++;
-          }
+      }
+    }
+  }
+  
+  // Add mass scalings
+  for (size_t set=0; set<setnames.size(); set++) {
+    vector<vector<ScalarT> > setwts;
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList wts_list = setPhysSettings[set][b].sublist("Mass weights");
+      vector<ScalarT> blockwts;
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        ScalarT wval = 1.0;
+        if (wts_list.isType<ScalarT>(varlist[set][b][j])) {
+          wval = wts_list.get<ScalarT>(varlist[set][b][j]);
         }
+        blockwts.push_back(wval);
       }
+      setwts.push_back(blockwts);
     }
-    
-    // Add mass scalings
-    Teuchos::ParameterList wts_list = blockPhysSettings[b].sublist("Mass weights");
-    vector<ScalarT> cmwts;
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      ScalarT wval = 1.0;
-      if (wts_list.isType<ScalarT>(varlist[b][j])) {
-        wval = wts_list.get<ScalarT>(varlist[b][j]);
+    masswts.push_back(setwts);
+  }
+ 
+  // Add norm weights
+  for (size_t set=0; set<setnames.size(); set++) {
+    vector<vector<ScalarT> > setwts;
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList nwts_list = setPhysSettings[set][b].sublist("Norm weights");
+      vector<ScalarT> blockwts;
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        ScalarT wval = 1.0;
+        if (nwts_list.isType<ScalarT>(varlist[set][b][j])) {
+          wval = nwts_list.get<ScalarT>(varlist[set][b][j]);
+        }
+        blockwts.push_back(wval);
       }
-      cmwts.push_back(wval);
+      setwts.push_back(blockwts);
     }
-    masswts.push_back(cmwts);
-    
-    // Add norm weights
-    Teuchos::ParameterList nwts_list = blockPhysSettings[b].sublist("Norm weights");
-    vector<ScalarT> cnwts;
-    for (size_t j=0; j<varlist[b].size(); j++) {
-      ScalarT wval = 1.0;
-      if (nwts_list.isType<ScalarT>(varlist[b][j])) {
-        wval = nwts_list.get<ScalarT>(varlist[b][j]);
-      }
-      cnwts.push_back(wval);
-    }
-    normwts.push_back(cnwts);
-    
+    normwts.push_back(setwts);
   }
   
   for (size_t b=0; b<blocknames.size(); b++) {
@@ -248,7 +272,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
 // Add the requested physics modules, variables, discretization types
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::importPhysics(const bool & isaux) {
+void PhysicsInterface::importPhysics() {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -256,87 +280,100 @@ void PhysicsInterface::importPhysics(const bool & isaux) {
     }
   }
   
-  for (size_t b=0; b<blocknames.size(); b++) {
-    vector<int> currorders;
-    vector<string> currtypes;
-    vector<string> currvarlist;
-    vector<int> currvarowned;
+  //-----------------------------------------------------------------
+  // Step 1: load the enabled modules
+  //-----------------------------------------------------------------
+  
+  for (size_t set=0; set<setnames.size(); set++) { // physics sets
     
-    vector<Teuchos::RCP<physicsbase> > currmodules;
-    vector<bool> currSubgrid, curruseDG;
-    std::string var;
-    int default_order = 1;
-    std::string default_type = "HGRAD";
-    string module_list;
-    if (isaux) {
-      module_list = aux_blockPhysSettings[b].get<string>("modules","");
-    }
-    else {
-      module_list = blockPhysSettings[b].get<string>("modules","");
-    }
+    vector<vector<int> > set_orders;
+    vector<vector<string> > set_types;
+    vector<vector<string> > set_varlist;
+    vector<vector<int> > set_varowned;
     
-    vector<string> enabled_modules;
-    // Script to break delimited list into pieces
-    {
-      string delimiter = ", ";
-      size_t pos = 0;
-      if (module_list.find(delimiter) == string::npos) {
-        enabled_modules.push_back(module_list);
-      }
-      else {
-        string token;
-        while ((pos = module_list.find(delimiter)) != string::npos) {
-          token = module_list.substr(0, pos);
-          enabled_modules.push_back(token);
-          module_list.erase(0, pos + delimiter.length());
+    vector<vector<Teuchos::RCP<physicsbase> > > set_modules;
+    vector<vector<bool> > set_useSubgrid, set_useDG;
+    
+    for (size_t b=0; b<blocknames.size(); b++) { // element blocks
+      vector<int> block_orders;
+      vector<string> block_types;
+      vector<string> block_varlist;
+      vector<int> block_varowned;
+      
+      vector<Teuchos::RCP<physicsbase> > block_modules;
+      vector<bool> block_useSubgrid, block_useDG;
+      
+      std::string var;
+      std::string default_type = "HGRAD";
+      string module_list = setPhysSettings[set][b].get<string>("modules","");
+      
+      vector<string> enabled_modules = this->breakupList(module_list, ", ");
+      
+      physicsImporter physimp = physicsImporter();
+      setPhysSettings[set][b].set<int>("verbosity",settings->get<int>("verbosity",0));
+      block_modules = physimp.import(enabled_modules, setPhysSettings[set][b],
+                                     spaceDim, Commptr);
+      
+      set_modules.push_back(block_modules);
+    }
+    modules.push_back(set_modules);
+  }
+  
+  //-----------------------------------------------------------------
+  // Step 2: get the variable names, type, etc.
+  //-----------------------------------------------------------------
+  
+  for (size_t set=0; set<setnames.size(); set++) { // physics sets
+    
+    vector<vector<int> > set_orders;
+    vector<vector<string> > set_types;
+    vector<vector<string> > set_varlist;
+    vector<vector<int> > set_varowned;
+    
+    vector<vector<bool> > set_useDG;
+    vector<size_t> set_numVars;
+    
+    for (size_t b=0; b<blocknames.size(); b++) { // element blocks
+      vector<int> block_orders;
+      vector<string> block_types;
+      vector<string> block_varlist;
+      vector<int> block_varowned;
+      vector<bool> block_useDG;
+      
+      for (size_t m=0; m<modules[set][b].size(); m++) {
+        vector<string> cvars = modules[set][b][m]->myvars;
+        vector<string> ctypes = modules[set][b][m]->mybasistypes;
+        for (size_t v=0; v<cvars.size(); v++) {
+          block_varlist.push_back(cvars[v]);
+          string DGflag("-DG");
+          size_t found = ctypes[v].find(DGflag);
+          if (found!=string::npos) {
+            string name = ctypes[v];
+            name.erase(name.end()-3, name.end());
+            block_types.push_back(name);
+            block_useDG.push_back(true);
+          }
+          else {
+            block_types.push_back(ctypes[v]);
+            block_useDG.push_back(false);
+          }
+          
+          block_varowned.push_back(m);
+          block_orders.push_back(setDiscSettings[set][b].sublist("order").get<int>(cvars[v],1));
         }
-        enabled_modules.push_back(module_list);
       }
-    }
-    
-    physicsImporter physimp = physicsImporter();
-    blockPhysSettings[b].set<int>("verbosity",settings->get<int>("verbosity",0));
-    currmodules = physimp.import(enabled_modules, blockPhysSettings[b],
-                                 spaceDim, Commptr);
-    
-    if (isaux) {
-      aux_modules.push_back(currmodules);
-    }
-    else {
-      modules.push_back(currmodules);
-      //useSubgrid.push_back(currSubgrid);
-    }
-    
-    for (size_t m=0; m<currmodules.size(); m++) {
-      vector<string> cvars = currmodules[m]->myvars;
-      vector<string> ctypes = currmodules[m]->mybasistypes;
-      for (size_t v=0; v<cvars.size(); v++) {
-        currvarlist.push_back(cvars[v]);
-        string DGflag("-DG");
-        size_t found = ctypes[v].find(DGflag);
-        if (found!=string::npos) {
-          string name = ctypes[v];
-          name.erase(name.end()-3, name.end());
-          currtypes.push_back(name);
-          curruseDG.push_back(true);
-        }
-        else {
-          currtypes.push_back(ctypes[v]);
-          curruseDG.push_back(false);
-        }
-        
-        currvarowned.push_back(m);
-        currorders.push_back(blockDiscSettings[b].sublist("order").get<int>(cvars[v],default_order));
+      
+      Teuchos::ParameterList evars;
+      bool have_extra_vars = false;
+      if (setPhysSettings[set][b].isSublist("Extra variables")) {
+        have_extra_vars = true;
+        evars = setPhysSettings[set][b].sublist("Extra variables");
       }
-    }
-    
-    if (isaux) {
-      if (aux_blockPhysSettings[b].isSublist("Extra variables")) {
-        Teuchos::ParameterList evars = aux_blockPhysSettings[b].sublist("Extra variables");
+      if (have_extra_vars) {
         Teuchos::ParameterList::ConstIterator pl_itr = evars.begin();
         while (pl_itr != evars.end()) {
           string newvar = pl_itr->first;
-          currvarlist.push_back(newvar);
+          block_varlist.push_back(newvar);
           
           string newtype = evars.get<string>(pl_itr->first);
           string DGflag("-DG");
@@ -344,77 +381,69 @@ void PhysicsInterface::importPhysics(const bool & isaux) {
           if (found!=string::npos) {
             string name = newtype;
             name.erase(name.end()-3, name.end());
-            currtypes.push_back(name);
-            curruseDG.push_back(true);
+            block_types.push_back(name);
+            block_useDG.push_back(true);
           }
           else {
-            currtypes.push_back(newtype);
-            curruseDG.push_back(false);
+            block_types.push_back(newtype);
+            block_useDG.push_back(false);
           }
-          
-          int neworder = default_order;
-          if (aux_blockDiscSettings[b].sublist("order").isSublist("Extra variables")) {
-            neworder = aux_blockDiscSettings[b].sublist("order").sublist("Extra variables").get<int>(newvar,default_order);
-          }
-          currorders.push_back(neworder);
+          block_orders.push_back(setDiscSettings[set][b].sublist("order").get<int>(newvar,1));
           pl_itr++;
         }
-      }
+      }     
+      
+      set_orders.push_back(block_orders);
+      set_types.push_back(block_types);
+      set_varlist.push_back(block_varlist);
+      set_varowned.push_back(block_varowned);
+      set_numVars.push_back(block_varlist.size());
+      set_useDG.push_back(block_useDG);
+      
     }
-    else {
-      if (blockPhysSettings[b].isSublist("Extra variables")) {
-        Teuchos::ParameterList evars = blockPhysSettings[b].sublist("Extra variables");
-        Teuchos::ParameterList::ConstIterator pl_itr = evars.begin();
-        while (pl_itr != evars.end()) {
-          string newvar = pl_itr->first;
-          currvarlist.push_back(newvar);
-          
-          string newtype = evars.get<string>(pl_itr->first);
-          string DGflag("-DG");
-          size_t found = newtype.find(DGflag);
-          if (found!=string::npos) {
-            string name = newtype;
-            name.erase(name.end()-3, name.end());
-            currtypes.push_back(name);
-            curruseDG.push_back(true);
-          }
-          else {
-            currtypes.push_back(newtype);
-            curruseDG.push_back(false);
-          }
-          
-          int neworder = default_order;
-          if (blockDiscSettings[b].sublist("order").isSublist("Extra variables")) {
-            neworder = blockDiscSettings[b].sublist("order").sublist("Extra variables").get<int>(newvar,default_order);
-          }
-          currorders.push_back(neworder);
-          pl_itr++;
-        }
-      }
-    }
+    orders.push_back(set_orders);
+    types.push_back(set_types);
+    varlist.push_back(set_varlist);
+    varowned.push_back(set_varowned);
+    numVars.push_back(set_numVars);
+    useDG.push_back(set_useDG);
+  }
     
-    int currnumVars = currvarlist.size();
+  //-----------------------------------------------------------------
+  // Step 3: get the unique information on each block
+  //-----------------------------------------------------------------
+  
+  for (size_t b=0; b<blocknames.size(); b++) { // element blocks
+
+    std::vector<int> block_unique_orders;
+    std::vector<string> block_unique_types;
+    std::vector<int> block_unique_index;
+    
+    int currnumVars = 0;
+    for (size_t set=0; set<setnames.size(); set++) { // physics sets
+      currnumVars += varlist[set][b].size();
+    }
     TEUCHOS_TEST_FOR_EXCEPTION(currnumVars==0,std::runtime_error,"Error: no variable were added on block: " + blocknames[b]);
     
-    std::vector<int> currunique_orders;
-    std::vector<string> currunique_types;
-    std::vector<int> currunique_index;
-    
-    for (size_t j=0; j<currorders.size(); j++) {
-      bool is_unique = true;
-      for (size_t k=0; k<currunique_orders.size(); k++) {
-        if (currunique_orders[k] == currorders[j] && currunique_types[k] == currtypes[j]) {
-          is_unique = false;
-          currunique_index.push_back(k);
+    for (size_t set=0; set<setnames.size(); set++) { // physics sets
+      for (size_t j=0; j<orders[set][b].size(); j++) {
+        bool is_unique = true;
+        for (size_t k=0; k<block_unique_orders.size(); k++) {
+          if (block_unique_orders[k] == orders[set][b][j] && block_unique_types[k] == types[set][b][j]) {
+            is_unique = false;
+            block_unique_index.push_back(k);
+          }
         }
-      }
-      if (is_unique) {
-        currunique_orders.push_back(currorders[j]);
-        currunique_types.push_back(currtypes[j]);
-        currunique_index.push_back(currunique_orders.size()-1);
+        if (is_unique) {
+          block_unique_orders.push_back(orders[set][b][j]);
+          block_unique_types.push_back(types[set][b][j]);
+          block_unique_index.push_back(block_unique_orders.size()-1);
+        }
       }
     }
     
+    
+    // Discretized parameters currently get added on all blocks
     vector<string> discretized_param_basis_types;
     vector<int> discretized_param_basis_orders;
     if (settings->isSublist("Parameters")) {
@@ -432,40 +461,21 @@ void PhysicsInterface::importPhysics(const bool & isaux) {
     
     for (size_t j=0; j<discretized_param_basis_orders.size(); j++) {
       bool is_unique = true;
-      for (size_t k=0; k<currunique_orders.size(); k++) {
-        if (currunique_orders[k] == discretized_param_basis_orders[j] && currunique_types[k] == discretized_param_basis_types[j]) {
+      for (size_t k=0; k<block_unique_orders.size(); k++) {
+        if (block_unique_orders[k] == discretized_param_basis_orders[j] && block_unique_types[k] == discretized_param_basis_types[j]) {
           is_unique = false;
-          //currunique_index.push_back(k);
         }
       }
       if (is_unique) {
-        currunique_orders.push_back(discretized_param_basis_orders[j]);
-        currunique_types.push_back(discretized_param_basis_types[j]);
-      //  currunique_index.push_back(currunique_orders.size()-1);
+        block_unique_orders.push_back(discretized_param_basis_orders[j]);
+        block_unique_types.push_back(discretized_param_basis_types[j]);
       }
     }
-    if (isaux) {
-      aux_orders.push_back(currorders);
-      aux_types.push_back(currtypes);
-      aux_varlist.push_back(currvarlist);
-      aux_varowned.push_back(currvarowned);
-      aux_numVars.push_back(currnumVars);
-      aux_useDG.push_back(curruseDG);
-      aux_unique_orders.push_back(currunique_orders);
-      aux_unique_types.push_back(currunique_types);
-      aux_unique_index.push_back(currunique_index);
-    }
-    else {
-      orders.push_back(currorders);
-      types.push_back(currtypes);
-      varlist.push_back(currvarlist);
-      varowned.push_back(currvarowned);
-      numVars.push_back(currnumVars);
-      useDG.push_back(curruseDG);
-      unique_orders.push_back(currunique_orders);
-      unique_types.push_back(currunique_types);
-      unique_index.push_back(currunique_index);
-    }
+    
+    unique_orders.push_back(block_unique_orders);
+    unique_types.push_back(block_unique_types);
+    unique_index.push_back(block_unique_index);
+    
   }
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -475,15 +485,37 @@ void PhysicsInterface::importPhysics(const bool & isaux) {
   
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+vector<string> PhysicsInterface::breakupList(const string & list, const string & delimiter) {
+  // Script to break delimited list into pieces
+  string tmplist = list;
+  vector<string> terms;
+  size_t pos = 0;
+  if (tmplist.find(delimiter) == string::npos) {
+    terms.push_back(tmplist);
+  }
+  else {
+    string token;
+    while ((pos = tmplist.find(delimiter)) != string::npos) {
+      token = tmplist.substr(0, pos);
+      terms.push_back(token);
+      tmplist.erase(0, pos + delimiter.length());
+    }
+    terms.push_back(tmplist);
+  }
+  return terms;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-int PhysicsInterface::getvarOwner(const int & block, const string & var) {
+int PhysicsInterface::getvarOwner(const int & set, const int & block, const string & var) {
   int owner = 0;
-  for (size_t k=0; k<varlist[block].size(); k++) {
-    if (varlist[block][k] == var) {
-      owner = varowned[block][k];
+  for (size_t k=0; k<varlist[set][block].size(); k++) {
+    if (varlist[set][block][k] == var) {
+      owner = varowned[set][block][k];
     }
   }
   return owner;
@@ -497,9 +529,9 @@ int PhysicsInterface::getvarOwner(const int & block, const string & var) {
 // TMW: this function is probably never used
 
 AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y,
-                              const ScalarT & z, const ScalarT & t, const string & var,
-                              const string & gside, const bool & useadjoint,
-                              Teuchos::RCP<workset> & wkset) {
+                                       const ScalarT & z, const ScalarT & t, const string & var,
+                                       const string & gside, const bool & useadjoint,
+                                       Teuchos::RCP<workset> & wkset) {
   
   // update point in wkset
   auto xpt = wkset->getDataSc("x point");
@@ -545,10 +577,10 @@ ScalarT PhysicsInterface::getInitialValue(const int & block, const ScalarT & x, 
 //
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-bool PhysicsInterface::checkFace(const size_t & block){
+bool PhysicsInterface::checkFace(const size_t & set, const size_t & block){
   bool include_face = false;
-  for (size_t i=0; i<modules[block].size(); i++) {
-    bool cuseef = modules[block][i]->include_face;
+  for (size_t i=0; i<modules[set][block].size(); i++) {
+    bool cuseef = modules[set][block][i]->include_face;
     if (cuseef) {
       include_face = true;
     }
@@ -560,21 +592,22 @@ bool PhysicsInterface::checkFace(const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block, const bool & project, Teuchos::RCP<workset> & wkset) {
+View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
+                                      const bool & project, Teuchos::RCP<workset> & wkset) {
   
   
-  size_t numVars = varlist[block].size();
+  size_t currnumVars = varlist[set][block].size();
   
   View_Sc3 ivals;
   
   if (project) {
     
-    ivals = View_Sc3("tmp ivals",pts[0].extent(0), numVars, pts[0].extent(1));
+    ivals = View_Sc3("tmp ivals",pts[0].extent(0), currnumVars, pts[0].extent(1));
     
     // ip in wkset are set in cell::getInitial
-    for (size_t n=0; n<varlist[block].size(); n++) {
+    for (size_t n=0; n<varlist[set][block].size(); n++) {
   
-      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"ip");
+      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n],"ip");
       auto cvals = subview( ivals, ALL(), n, ALL());
       //copy
       parallel_for("physics fill initial values",
@@ -612,7 +645,7 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
     }
     
     
-    ivals = View_Sc3("tmp ivals",Nelem,numVars,Npts);
+    ivals = View_Sc3("tmp ivals",Nelem,currnumVars,Npts);
     for (size_t e=0; e<ptx.extent(0); e++) {
       for (size_t i=0; i<ptx.extent(1); i++) {
         // set the node in wkset
@@ -630,9 +663,9 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
           
         });
         
-        for (size_t n=0; n<varlist[block].size(); n++) {
+        for (size_t n=0; n<varlist[set][block].size(); n++) {
           // evaluate
-          auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"point");
+          auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n],"point");
         
           // Also might be ok (terribly inefficient though)
           parallel_for("physics initial set point",
@@ -657,20 +690,21 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & block,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & block, const bool & project, Teuchos::RCP<workset> & wkset) {
+View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & set,
+                                          const int & block, const bool & project, Teuchos::RCP<workset> & wkset) {
   
-  size_t numVars = varlist[block].size();
+  size_t currnumVars = varlist[set][block].size();
   
   View_Sc3 ivals;
   
   if (project) {
     
-    ivals = View_Sc3("tmp ivals",pts[0].extent(0), numVars, pts[0].extent(1));
+    ivals = View_Sc3("tmp ivals",pts[0].extent(0), currnumVars, pts[0].extent(1));
     
     // ip in wkset are set in cell::getInitial
-    for (size_t n=0; n<varlist[block].size(); n++) {
+    for (size_t n=0; n<varlist[set][block].size(); n++) {
 
-      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[block][n],"side ip");
+      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n],"side ip");
       auto cvals = subview( ivals, ALL(), n, ALL());
       //copy
       parallel_for("physics fill initial values",
@@ -755,11 +789,12 @@ View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & bl
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 View_Sc2 PhysicsInterface::getDirichlet(const int & var,
+                                        const int & set,
                                         const int & block,
                                         const std::string & sidename) {
   
   // evaluate
-  auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[block][var] + " " + sidename,"side ip");
+  auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[set][block][var] + " " + sidename,"side ip");
   
   //View_Sc2 dvals("temp dnvals", dvals_AD.extent(0), dvals_AD.extent(1));
   View_Sc2 dvals("temp dnvals", functionManagers[block]->numElem, functionManagers[block]->numip_side);
@@ -782,34 +817,14 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::setVars() {
-  for (size_t block=0; block<modules.size(); ++block) {
-    for (size_t i=0; i<modules[block].size(); ++i) {
-      if (varlist[block].size() > 0){
-        //modules[block][i]->setVars(varlist[block]);
-      }
-    }
-  }
-}
-
-void PhysicsInterface::setAuxVars(size_t & block, vector<string> & vars) {
-  for (size_t i=0; i<modules[block].size(); i++) {
-    //modules[block][i]->setAuxVars(vars);
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
-
 void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
                                const vector<string> & paramnames) {
   
-  //needs to be deprecated
-  //udfunc->updateParameters(params,paramnames);
-  
-  for (size_t b=0; b<modules.size(); b++) {
-    for (size_t i=0; i<modules[b].size(); i++) {
-      modules[b][i]->updateParameters(params, paramnames);
+  for (size_t set=0; set<modules.size(); set++) {
+    for (size_t b=0; b<modules[set].size(); b++) {
+      for (size_t i=0; i<modules[set][b].size(); i++) {
+        modules[set][b][i]->updateParameters(params, paramnames);
+      }
     }
   }
   
@@ -818,10 +833,10 @@ void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & par
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-int PhysicsInterface::getUniqueIndex(const int & block, const std::string & var) {
+int PhysicsInterface::getUniqueIndex(const int & set, const int & block, const std::string & var) {
   int index = 0;
-  for (int j=0; j<numVars[block]; j++) {
-    if (varlist[block][j] == var)
+  for (size_t j=0; j<numVars[set][block]; j++) {
+    if (varlist[set][block][j] == var)
     index = unique_index[block][j];
   }
   return index;
@@ -830,14 +845,14 @@ int PhysicsInterface::getUniqueIndex(const int & block, const std::string & var)
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::volumeResidual(const size_t block) {
+void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
   if (debug_level > 1) {
     if (Commptr->getRank() == 0) {
       cout << "**** Starting PhysicsInterface volume residual ..." << endl;
     }
   }
-  for (size_t i=0; i<modules[block].size(); i++) {
-    modules[block][i]->volumeResidual();
+  for (size_t i=0; i<modules[set][block].size(); i++) {
+    modules[set][block][i]->volumeResidual();
   }
   if (debug_level > 1) {
     if (Commptr->getRank() == 0) {
@@ -849,18 +864,18 @@ void PhysicsInterface::volumeResidual(const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::boundaryResidual(const size_t block) {
-  for (size_t i=0; i<modules[block].size(); i++) {
-    modules[block][i]->boundaryResidual();
+void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) {
+  for (size_t i=0; i<modules[set][block].size(); i++) {
+    modules[set][block][i]->boundaryResidual();
   }
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::computeFlux(const size_t block) {
-  for (size_t i=0; i<modules[block].size(); i++) {
-    modules[block][i]->computeFlux();
+void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
+  for (size_t i=0; i<modules[set][block].size(); i++) {
+    modules[set][block][i]->computeFlux();
   }
 }
 
@@ -870,8 +885,11 @@ void PhysicsInterface::computeFlux(const size_t block) {
 void PhysicsInterface::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++) {
     if (wkset[block]->isInitialized) {
-      for (size_t i=0; i<modules[block].size(); i++) {
-        modules[block][i]->setWorkset(wkset[block]);//setWorkset(wkset[block]);
+      for (size_t set=0; set<modules.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules[set][block].size(); i++) {
+          modules[set][block][i]->setWorkset(wkset[block]);
+        }
       }
     }
   }
@@ -880,8 +898,8 @@ void PhysicsInterface::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::faceResidual(const size_t block) {
-  for (size_t i=0; i<modules[block].size(); i++) {
-    modules[block][i]->faceResidual();
+void PhysicsInterface::faceResidual(const size_t & set, const size_t block) {
+  for (size_t i=0; i<modules[set][block].size(); i++) {
+    modules[set][block][i]->faceResidual();
   }
 }

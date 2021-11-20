@@ -79,13 +79,15 @@ namespace MrHyDE {
     PhysicsInterface() {} ;
     
     PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
-            Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
+                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Add the requested physics modules, variables, discretization types 
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void importPhysics(const bool & isaux);
+    void importPhysics();
+    
+    vector<string> breakupList(const string & list, const string & delimiter);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Add the functions to the function managers
@@ -96,7 +98,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    int getvarOwner(const int & block, const string & var);
+    int getvarOwner(const int & set, const int & block, const string & var);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +116,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    View_Sc3 getInitial(vector<View_Sc2> & pts, const int & block,
+    View_Sc3 getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
                         const bool & project, Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,20 +134,19 @@ namespace MrHyDE {
      * @warning BWR -- under development. Not sure what the nonprojection option is about.
      */
     
-    View_Sc3 getInitialFace(vector<View_Sc2> & pts, const int & block,
+    View_Sc3 getInitialFace(vector<View_Sc2> & pts, const int & set, const int & block,
                             const bool & project, Teuchos::RCP<workset> & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    View_Sc2 getDirichlet(const int & var, const int & block, const std::string & sidename);
+    View_Sc2 getDirichlet(const int & var, const int & set,
+                          const int & block, const std::string & sidename);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     void setVars();
-    
-    void setAuxVars(size_t & block, vector<string> & vars);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,22 +156,22 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    int getUniqueIndex(const int & block, const std::string & var);
+    int getUniqueIndex(const int & set, const int & block, const std::string & var);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void volumeResidual(const size_t block);
+    void volumeResidual(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void boundaryResidual(const size_t block);
+    void boundaryResidual(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void computeFlux(const size_t block);
+    void computeFlux(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,41 +181,45 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    bool checkFace(const size_t & block);
+    bool checkFace(const size_t & set, const size_t & block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void faceResidual(const size_t block);
+    void faceResidual(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Public data members
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    vector<vector<Teuchos::RCP<physicsbase> > > modules, aux_modules;
     vector<Teuchos::RCP<FunctionManager> > functionManagers;
     Teuchos::RCP<MpiComm> Commptr;
-    vector<Teuchos::ParameterList> blockPhysSettings, blockDiscSettings, aux_blockPhysSettings, aux_blockDiscSettings;
-    vector<string> blocknames, sideNames;
+    
     int spaceDim, debug_level;
-    size_t numBlocks;
+    vector<string> setnames, blocknames, sidenames;
     
-    bool have_aux = false;
-    vector<int> numVars, aux_numVars;
-    vector<vector<bool> > useSubgrid, aux_useSubgrid;
-    vector<vector<bool> > useDG, aux_useDG;
-    //bool haveDirichlet;
-    vector<vector<ScalarT> > masswts, normwts;
+    vector<vector<size_t> > numVars;
     
-    vector<vector<string> > varlist, aux_varlist;
-    vector<vector<int> > varowned, aux_varowned;
-    vector<vector<int> > orders, aux_orders;
-    vector<vector<string> > types, aux_types;
-    vector<vector<int> > unique_orders, aux_unique_orders;
-    vector<vector<string> > unique_types, aux_unique_types;
-    vector<vector<int> > unique_index, aux_unique_index;
-        
+    //-----------------------------------------------------
+    // Data the depends on physics sets
+    vector<vector<vector<Teuchos::RCP<physicsbase> > > > modules;
+    
+    vector<vector<Teuchos::ParameterList>> setPhysSettings, setDiscSettings;
+    vector<vector<vector<bool> > > useSubgrid;
+    vector<vector<vector<bool> > > useDG;
+    vector<vector<vector<ScalarT> > > masswts, normwts;
+    
+    vector<vector<vector<string> > > varlist; // [set][block][var]
+    vector<vector<vector<int> > > varowned;
+    vector<vector<vector<int> > > orders;
+    vector<vector<vector<string> > > types;
+    //-----------------------------------------------------
+    
+    vector<vector<int> > unique_orders;
+    vector<vector<string> > unique_types;
+    vector<vector<int> > unique_index;
+    
     string initial_type;
     
     vector<vector<string> > extrafields_list, extracellfields_list, response_list, target_list, weight_list;

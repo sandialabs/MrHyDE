@@ -18,22 +18,27 @@ using namespace MrHyDE;
 // Constructors
 ////////////////////////////////////////////////////////////////////////////////////
 
-workset::workset(const vector<int> & cellinfo, const bool & isTransient_,
+workset::workset(const vector<int> & cellinfo,
+                 const vector<size_t> & numVars_,
+                 const bool & isTransient_,
                  const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-                 const topo_RCP & topo, Kokkos::View<string**,HostDevice> & var_bcs_) :
-var_bcs(var_bcs_), isTransient(isTransient_), celltopo(topo),
-basis_types(basis_types_), basis_pointers(basis_pointers_) {
+                 const topo_RCP & topo,
+                 vector<Kokkos::View<string**,HostDevice> > & var_bcs_) :
+isTransient(isTransient_), celltopo(topo),
+basis_types(basis_types_), basis_pointers(basis_pointers_), set_var_bcs(var_bcs_) {
 
+  isInitialized = true;
+  
   // Settings that should not change
   dimension = cellinfo[0];
-  numVars = cellinfo[1];
-  numParams = cellinfo[2];
-  numAux = cellinfo[3];
-  numElem = cellinfo[4];
+  numVars = numVars_;
+  numParams = cellinfo[1];
+  numAux = 0;
+  numElem = cellinfo[2];
   usebcs = true;
-  numip = cellinfo[5];
-  numsideip = cellinfo[6];
+  numip = cellinfo[3];
+  numsideip = cellinfo[4];
   if (dimension == 2) {
     numsides = celltopo->getSideCount();
   }
@@ -48,6 +53,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   time = 0.0;
   deltat = 1.0;
   current_stage = 0;
+  current_set = 0;
   
   // Add scalar views to store ips
   this->addDataSc("x",numElem,numip);
@@ -85,12 +91,12 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   }
   
   // These are stored as vector<View_AD2> instead of View_AD3 to avoid subviews
-  for (size_t k=0; k<numVars; ++k) {
-    uvals.push_back(View_AD2("seeded uvals",numElem, maxb));
-    if (isTransient) {
-      u_dotvals.push_back(View_AD2("seeded uvals",numElem, maxb));
-    }
-  }
+  //for (size_t k=0; k<numVars; ++k) {
+  //  uvals.push_back(View_AD2("seeded uvals",numElem, maxb));
+  //  if (isTransient) {
+  //    u_dotvals.push_back(View_AD2("seeded uvals",numElem, maxb));
+  //  }
+  //}
     
   
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
@@ -110,160 +116,183 @@ void workset::createSolns() {
   // Need to first allocate the residual view
   // This is the largest view in the code (due to the AD) so we are careful with the size
   
+  // Start with the number of active scalar parameters (typically small)
+  maxRes = numParams;
   
-  maxRes = std::max(offsets.extent(0)*offsets.extent(1),numParams);
+  // Check the number of DOF for each variable
+  for (size_t set=0; set<set_offsets.size(); ++set) {
+    maxRes = std::max(maxRes, set_offsets[set].extent(0)*set_offsets[set].extent(1));
+  }
+  
+  // Check the number of DOF for each discretized parameter
   if (paramusebasis.size() > 0) {
     maxRes = std::max(maxRes,paramoffsets.extent(0)*paramoffsets.extent(1));
   }
-  if (auxusebasis.size() > 0) {
-    maxRes = std::max(maxRes,aux_offsets.extent(0)*aux_offsets.extent(1));
-  }
   
   res = View_AD2("residual",numElem, maxRes);
-
-  for (size_t i=0; i<usebasis.size(); i++) {
-    int bind = usebasis[i];
-    string var = varlist[i];
-    int numb = basis_pointers[bind]->getCardinality();
-    uvals.push_back(View_AD2("seeded uvals",numElem, numb));
-    if (isTransient) {
-      u_dotvals.push_back(View_AD2("seeded uvals",numElem, numb));
+  
+  for (size_t set=0; set<set_usebasis.size(); ++set) {
+    vector<View_AD2> set_uvals, set_u_dotvals;
+    vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
+    vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
+    
+    for (size_t i=0; i<set_usebasis[set].size(); i++) {
+      int bind = set_usebasis[set][i];
+      string var = set_varlist[set][i];
+      int numb = basis_pointers[bind]->getCardinality();
+      set_uvals.push_back(View_AD2("seeded uvals",numElem, numb));
+      if (isTransient) {
+        set_u_dotvals.push_back(View_AD2("seeded uvals",numElem, numb));
+      }
+      
+      if (basis_types[bind].substr(0,5) == "HGRAD") {
+        set_vars_HGRAD.push_back(i);
+        set_varlist_HGRAD.push_back(var);
+        if (onDemand) {
+          fields.push_back(SolutionField(var,"solution",i,"HGRAD",bind,"",0,0,numip,false,false));
+          fields.push_back(SolutionField("grad("+var+")[x]","solution",i,"HGRAD",bind,"grad",0,0,numip,false,false));
+          fields.push_back(SolutionField("grad("+var+")[y]","solution",i,"HGRAD",bind,"grad",1,0,numip,false,false));
+          fields.push_back(SolutionField("grad("+var+")[z]","solution",i,"HGRAD",bind,"grad",2,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t","solution",i,"HGRAD",bind,"time",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+" side","solution",i,"HGRAD",bind,"",0,0,numsideip,true,false));
+          fields.push_back(SolutionField("grad("+var+")[x] side","solution",i,"HGRAD",bind,"grad",0,0,numsideip,true,false));
+          fields.push_back(SolutionField("grad("+var+")[y] side","solution",i,"HGRAD",bind,"grad",1,0,numsideip,true,false));
+          fields.push_back(SolutionField("grad("+var+")[z] side","solution",i,"HGRAD",bind,"grad",2,0,numsideip,true,false));
+          fields.push_back(SolutionField(var+" point","solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
+          fields.push_back(SolutionField("grad("+var+")[x] point","solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
+          fields.push_back(SolutionField("grad("+var+")[y] point","solution",i,"HGRAD",bind,"grad",1,0,1,false,true));
+          fields.push_back(SolutionField("grad("+var+")[z] point","solution",i,"HGRAD",bind,"grad",2,0,1,false,true));
+        }
+        else {
+          this->addData(var,numElem,numip);
+          this->addData("grad("+var+")[x]",numElem,numip);
+          this->addData("grad("+var+")[y]",numElem,numip);
+          this->addData("grad("+var+")[z]",numElem,numip);
+          this->addData(var+"_t",numElem,numip);
+          this->addData(var+" side",numElem,numsideip);
+          this->addData("grad("+var+")[x] side",numElem,numsideip);
+          this->addData("grad("+var+")[y] side",numElem,numsideip);
+          this->addData("grad("+var+")[z] side",numElem,numsideip);
+          this->addData(var+" point",1,1);
+          this->addData("grad("+var+")[x] point",1,1);
+          this->addData("grad("+var+")[y] point",1,1);
+          this->addData("grad("+var+")[z] point",1,1);
+        }
+      }
+      else if (basis_types[bind].substr(0,4) == "HDIV" ) {
+        set_vars_HDIV.push_back(i);
+        set_varlist_HDIV.push_back(var);
+        if (onDemand) {
+          fields.push_back(SolutionField(var+"[x]","solution",i,"HDIV",bind,"",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+"[y]","solution",i,"HDIV",bind,"",1,0,numip,false,false));
+          fields.push_back(SolutionField(var+"[z]","solution",i,"HDIV",bind,"",2,0,numip,false,false));
+          fields.push_back(SolutionField("div("+var+")","solution",i,"HDIV",bind,"div",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t[x]","solution",i,"HDIV",bind,"time",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t[y]","solution",i,"HDIV",bind,"time",1,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t[z]","solution",i,"HDIV",bind,"time",2,0,numip,false,false));
+          fields.push_back(SolutionField(var+"[x] side","solution",i,"HDIV",bind,"",0,0,numsideip,true,false));
+          fields.push_back(SolutionField(var+"[y] side","solution",i,"HDIV",bind,"",1,0,numsideip,true,false));
+          fields.push_back(SolutionField(var+"[z] side","solution",i,"HDIV",bind,"",2,0,numsideip,true,false));
+          fields.push_back(SolutionField(var+"[x] point","solution",i,"HDIV",bind,"",0,0,1,false,true));
+          fields.push_back(SolutionField(var+"[y] point","solution",i,"HDIV",bind,"",1,0,1,false,true));
+          fields.push_back(SolutionField(var+"[z] point","solution",i,"HDIV",bind,"",2,0,1,false,true));
+        }
+        else {
+          this->addData(var+"[x]",numElem,numip);
+          this->addData(var+"[y]",numElem,numip);
+          this->addData(var+"[z]",numElem,numip);
+          this->addData("div("+var+")",numElem,numip);
+          this->addData(var+"_t[x]",numElem,numip);
+          this->addData(var+"_t[y]",numElem,numip);
+          this->addData(var+"_t[z]",numElem,numip);
+          this->addData(var+"[x] side",numElem,numsideip);
+          this->addData(var+"[y] side",numElem,numsideip);
+          this->addData(var+"[z] side",numElem,numsideip);
+          this->addData(var+"[x] point",1,1);
+          this->addData(var+"[y] point",1,1);
+          this->addData(var+"[z] point",1,1);
+        }
+      }
+      else if (basis_types[bind].substr(0,4) == "HVOL") {
+        set_vars_HVOL.push_back(i);
+        set_varlist_HVOL.push_back(var);
+        if (onDemand) {
+          fields.push_back(SolutionField(var,"solution",i,"HVOL",bind,"",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t","solution",i,"HVOL",bind,"time",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+" side","solution",i,"HVOL",bind,"",0,0,numsideip,false,false));
+          fields.push_back(SolutionField(var+" point","solution",i,"HVOL",bind,"",0,0,1,false,true));
+        }
+        else {
+          this->addData(var,numElem,numip);
+          this->addData(var+"_t",numElem,numip);
+          this->addData(var+" side",numElem,numsideip);
+          this->addData(var+" point",1,1);
+        }
+      }
+      else if (basis_types[bind].substr(0,5) == "HCURL") {
+        set_vars_HCURL.push_back(i);
+        set_varlist_HCURL.push_back(var);
+        if (onDemand) {
+          fields.push_back(SolutionField(var+"[x]","solution",i,"HCURL",bind,"",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+"[y]","solution",i,"HCURL",bind,"",1,0,numip,false,false));
+          fields.push_back(SolutionField(var+"[z]","solution",i,"HCURL",bind,"",2,0,numip,false,false));
+          fields.push_back(SolutionField("curl("+var+")[x]","solution",i,"HCURL",bind,"curl",0,0,numip,false,false));
+          fields.push_back(SolutionField("curl("+var+")[y]","solution",i,"HCURL",bind,"curl",1,0,numip,false,false));
+          fields.push_back(SolutionField("curl("+var+")[z]","solution",i,"HCURL",bind,"curl",2,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t[x]","solution",i,"HCURL",bind,"time",0,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t[y]","solution",i,"HCURL",bind,"time",1,0,numip,false,false));
+          fields.push_back(SolutionField(var+"_t[z]","solution",i,"HCURL",bind,"time",2,0,numip,false,false));
+          fields.push_back(SolutionField(var+"[x] side","solution",i,"HCURL",bind,"",0,0,numsideip,true,false));
+          fields.push_back(SolutionField(var+"[y] side","solution",i,"HCURL",bind,"",1,0,numsideip,true,false));
+          fields.push_back(SolutionField(var+"[z] side","solution",i,"HCURL",bind,"",2,0,numsideip,true,false));
+          fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
+          fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
+          fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
+        }
+        else {
+          this->addData(var+"[x]",numElem,numip);
+          this->addData(var+"[y]",numElem,numip);
+          this->addData(var+"[z]",numElem,numip);
+          this->addData("curl("+var+")[x]",numElem,numip);
+          this->addData("curl("+var+")[y]",numElem,numip);
+          this->addData("curl("+var+")[z]",numElem,numip);
+          this->addData(var+"_t[x]",numElem,numip);
+          this->addData(var+"_t[y]",numElem,numip);
+          this->addData(var+"_t[z]",numElem,numip);
+          this->addData(var+"[x] side",numElem,numsideip);
+          this->addData(var+"[y] side",numElem,numsideip);
+          this->addData(var+"[z] side",numElem,numsideip);
+          this->addData(var+"[x] point",1,1);
+          this->addData(var+"[y] point",1,1);
+          this->addData(var+"[z] point",1,1);
+        }
+      }
+      else if (basis_types[bind].substr(0,5) == "HFACE") {
+        set_vars_HFACE.push_back(i);
+        set_varlist_HFACE.push_back(var);
+        if (onDemand) {
+          fields.push_back(SolutionField(var+" side","solution",i,"HFACE",bind,"",0,0,numsideip,true,false));
+        }
+        else {
+          this->addData(var+" side",numElem,numsideip);
+        }
+      }
     }
     
-    if (basis_types[bind].substr(0,5) == "HGRAD") {
-      vars_HGRAD.push_back(i);
-      varlist_HGRAD.push_back(var);
-      if (onDemand) {
-        fields.push_back(SolutionField(var,"solution",i,"HGRAD",bind,"",0,0,numip,false,false));
-        fields.push_back(SolutionField("grad("+var+")[x]","solution",i,"HGRAD",bind,"grad",0,0,numip,false,false));
-        fields.push_back(SolutionField("grad("+var+")[y]","solution",i,"HGRAD",bind,"grad",1,0,numip,false,false));
-        fields.push_back(SolutionField("grad("+var+")[z]","solution",i,"HGRAD",bind,"grad",2,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t","solution",i,"HGRAD",bind,"time",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+" side","solution",i,"HGRAD",bind,"",0,0,numsideip,true,false));
-        fields.push_back(SolutionField("grad("+var+")[x] side","solution",i,"HGRAD",bind,"grad",0,0,numsideip,true,false));
-        fields.push_back(SolutionField("grad("+var+")[y] side","solution",i,"HGRAD",bind,"grad",1,0,numsideip,true,false));
-        fields.push_back(SolutionField("grad("+var+")[z] side","solution",i,"HGRAD",bind,"grad",2,0,numsideip,true,false));
-        fields.push_back(SolutionField(var+" point","solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
-        fields.push_back(SolutionField("grad("+var+")[x] point","solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
-        fields.push_back(SolutionField("grad("+var+")[y] point","solution",i,"HGRAD",bind,"grad",1,0,1,false,true));
-        fields.push_back(SolutionField("grad("+var+")[z] point","solution",i,"HGRAD",bind,"grad",2,0,1,false,true));
-      }
-      else {
-        this->addData(var,numElem,numip);
-        this->addData("grad("+var+")[x]",numElem,numip);
-        this->addData("grad("+var+")[y]",numElem,numip);
-        this->addData("grad("+var+")[z]",numElem,numip);
-        this->addData(var+"_t",numElem,numip);
-        this->addData(var+" side",numElem,numsideip);
-        this->addData("grad("+var+")[x] side",numElem,numsideip);
-        this->addData("grad("+var+")[y] side",numElem,numsideip);
-        this->addData("grad("+var+")[z] side",numElem,numsideip);
-        this->addData(var+" point",1,1);
-        this->addData("grad("+var+")[x] point",1,1);
-        this->addData("grad("+var+")[y] point",1,1);
-        this->addData("grad("+var+")[z] point",1,1);
-      }
-    }
-    else if (basis_types[bind].substr(0,4) == "HDIV" ) {
-      vars_HDIV.push_back(i);
-      varlist_HDIV.push_back(var);
-      if (onDemand) {
-        fields.push_back(SolutionField(var+"[x]","solution",i,"HDIV",bind,"",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+"[y]","solution",i,"HDIV",bind,"",1,0,numip,false,false));
-        fields.push_back(SolutionField(var+"[z]","solution",i,"HDIV",bind,"",2,0,numip,false,false));
-        fields.push_back(SolutionField("div("+var+")","solution",i,"HDIV",bind,"div",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t[x]","solution",i,"HDIV",bind,"time",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t[y]","solution",i,"HDIV",bind,"time",1,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t[z]","solution",i,"HDIV",bind,"time",2,0,numip,false,false));
-        fields.push_back(SolutionField(var+"[x] side","solution",i,"HDIV",bind,"",0,0,numsideip,true,false));
-        fields.push_back(SolutionField(var+"[y] side","solution",i,"HDIV",bind,"",1,0,numsideip,true,false));
-        fields.push_back(SolutionField(var+"[z] side","solution",i,"HDIV",bind,"",2,0,numsideip,true,false));
-        fields.push_back(SolutionField(var+"[x] point","solution",i,"HDIV",bind,"",0,0,1,false,true));
-        fields.push_back(SolutionField(var+"[y] point","solution",i,"HDIV",bind,"",1,0,1,false,true));
-        fields.push_back(SolutionField(var+"[z] point","solution",i,"HDIV",bind,"",2,0,1,false,true));
-      }
-      else {
-        this->addData(var+"[x]",numElem,numip);
-        this->addData(var+"[y]",numElem,numip);
-        this->addData(var+"[z]",numElem,numip);
-        this->addData("div("+var+")",numElem,numip);
-        this->addData(var+"_t[x]",numElem,numip);
-        this->addData(var+"_t[y]",numElem,numip);
-        this->addData(var+"_t[z]",numElem,numip);
-        this->addData(var+"[x] side",numElem,numsideip);
-        this->addData(var+"[y] side",numElem,numsideip);
-        this->addData(var+"[z] side",numElem,numsideip);
-        this->addData(var+"[x] point",1,1);
-        this->addData(var+"[y] point",1,1);
-        this->addData(var+"[z] point",1,1);
-      }
-    }
-    else if (basis_types[bind].substr(0,4) == "HVOL") {
-      vars_HVOL.push_back(i);
-      varlist_HVOL.push_back(var);
-      if (onDemand) {
-        fields.push_back(SolutionField(var,"solution",i,"HVOL",bind,"",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t","solution",i,"HVOL",bind,"time",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+" side","solution",i,"HVOL",bind,"",0,0,numsideip,false,false));
-        fields.push_back(SolutionField(var+" point","solution",i,"HVOL",bind,"",0,0,1,false,true));
-      }
-      else {
-        this->addData(var,numElem,numip);
-        this->addData(var+"_t",numElem,numip);
-        this->addData(var+" side",numElem,numsideip);
-        this->addData(var+" point",1,1);
-      }
-    }
-    else if (basis_types[bind].substr(0,5) == "HCURL") {
-      vars_HCURL.push_back(i);
-      varlist_HCURL.push_back(var);
-      if (onDemand) {
-        fields.push_back(SolutionField(var+"[x]","solution",i,"HCURL",bind,"",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+"[y]","solution",i,"HCURL",bind,"",1,0,numip,false,false));
-        fields.push_back(SolutionField(var+"[z]","solution",i,"HCURL",bind,"",2,0,numip,false,false));
-        fields.push_back(SolutionField("curl("+var+")[x]","solution",i,"HCURL",bind,"curl",0,0,numip,false,false));
-        fields.push_back(SolutionField("curl("+var+")[y]","solution",i,"HCURL",bind,"curl",1,0,numip,false,false));
-        fields.push_back(SolutionField("curl("+var+")[z]","solution",i,"HCURL",bind,"curl",2,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t[x]","solution",i,"HCURL",bind,"time",0,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t[y]","solution",i,"HCURL",bind,"time",1,0,numip,false,false));
-        fields.push_back(SolutionField(var+"_t[z]","solution",i,"HCURL",bind,"time",2,0,numip,false,false));
-        fields.push_back(SolutionField(var+"[x] side","solution",i,"HCURL",bind,"",0,0,numsideip,true,false));
-        fields.push_back(SolutionField(var+"[y] side","solution",i,"HCURL",bind,"",1,0,numsideip,true,false));
-        fields.push_back(SolutionField(var+"[z] side","solution",i,"HCURL",bind,"",2,0,numsideip,true,false));
-        fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
-        fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
-        fields.push_back(SolutionField(var+"[x] point","solution",i,"HCURL",bind,"",0,0,1,false,true));
-      }
-      else {
-        this->addData(var+"[x]",numElem,numip);
-        this->addData(var+"[y]",numElem,numip);
-        this->addData(var+"[z]",numElem,numip);
-        this->addData("curl("+var+")[x]",numElem,numip);
-        this->addData("curl("+var+")[y]",numElem,numip);
-        this->addData("curl("+var+")[z]",numElem,numip);
-        this->addData(var+"_t[x]",numElem,numip);
-        this->addData(var+"_t[y]",numElem,numip);
-        this->addData(var+"_t[z]",numElem,numip);
-        this->addData(var+"[x] side",numElem,numsideip);
-        this->addData(var+"[y] side",numElem,numsideip);
-        this->addData(var+"[z] side",numElem,numsideip);
-        this->addData(var+"[x] point",1,1);
-        this->addData(var+"[y] point",1,1);
-        this->addData(var+"[z] point",1,1);
-      }
-    }
-    else if (basis_types[bind].substr(0,5) == "HFACE") {
-      vars_HFACE.push_back(i);
-      varlist_HFACE.push_back(var);
-      if (onDemand) {
-        fields.push_back(SolutionField(var+" side","solution",i,"HFACE",bind,"",0,0,numsideip,true,false));
-      }
-      else {
-        this->addData(var+" side",numElem,numsideip);
-      }
-    }
+    uvals.push_back(set_uvals);
+    u_dotvals.push_back(set_u_dotvals);
+    vars_HGRAD.push_back(set_vars_HGRAD);
+    vars_HVOL.push_back(set_vars_HVOL);
+    vars_HDIV.push_back(set_vars_HDIV);
+    vars_HCURL.push_back(set_vars_HCURL);
+    vars_HFACE.push_back(set_vars_HFACE);
+    varlist_HGRAD.push_back(set_varlist_HGRAD);
+    varlist_HVOL.push_back(set_varlist_HVOL);
+    varlist_HDIV.push_back(set_varlist_HDIV);
+    varlist_HCURL.push_back(set_varlist_HCURL);
+    varlist_HFACE.push_back(set_varlist_HFACE);
+    
   }
-  
   
   for (size_t i=0; i<paramusebasis.size(); i++) {
     int bind = paramusebasis[i];
@@ -464,9 +493,9 @@ void workset::resetResidual() {
 // Compute the seeded solutions for general transient problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeSolnTransientSeeded(View_Sc3 u,
-                                         View_Sc4 u_prev,
-                                         View_Sc4 u_stage,
+void workset::computeSolnTransientSeeded(vector<View_Sc3> & u,
+                                         vector<View_Sc4> & u_prev,
+                                         vector<View_Sc4> & u_stage,
                                          const int & seedwhat,
                                          const int & index) {
   
@@ -482,194 +511,197 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
 
   ScalarT one = 1.0;
   ScalarT zero = 0.0;
-  // Seed the current stage solution
-  if (seedwhat == 1) {
-    for (size_type var=0; var<u.extent(1); var++ ) {
-      auto u_AD = uvals[var];
-      auto u_dot_AD = u_dotvals[var];
-      auto off = subview(offsets,var,ALL());
-      auto cu = subview(u,ALL(),var,ALL());
-      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-      parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        ScalarT beta_u, beta_t;
-        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = one/dt/b_b(stage);
-        ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
-      
-          // Seed the stage solution
+  
+  for (size_t set=0; set<u.size(); ++set) {
+    // Seed the current stage solution
+    if (seedwhat == 1 && set == current_set) {
+      for (size_type var=0; var<u[set].extent(1); var++ ) {
+        auto u_AD = uvals[set][var];
+        auto u_dot_AD = u_dotvals[set][var];
+        auto off = subview(set_offsets[set],var,ALL());
+        auto cu = subview(u[set],ALL(),var,ALL());
+        auto cu_prev = subview(u_prev[set],ALL(),var,ALL(),ALL());
+        auto cu_stage = subview(u_stage[set],ALL(),var,ALL(),ALL());
+        parallel_for("wkset transient sol seedwhat 1",
+                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          ScalarT beta_u, beta_t;
+          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+          ScalarT timewt = one/dt/b_b(stage);
+          ScalarT alpha_t = BDF(0)*timewt;
+          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+            
+            // Seed the stage solution
 #ifndef MrHyDE_NO_AD
-          AD stageval = AD(maxDerivs,off(dof),cu(elem,dof));
+            AD stageval = AD(maxDerivs,off(dof),cu(elem,dof));
 #else
-          AD stageval = cu(elem,dof);
+            AD stageval = cu(elem,dof);
 #endif
-          // Compute the evaluating solution
-          beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
-          for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            // Compute the evaluating solution
+            beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+            for (int s=0; s<stage; s++) {
+              beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            u_AD(elem,dof) = alpha_u*stageval+beta_u;
+            
+            // Compute the time derivative
+            beta_t = zero;
+            for (size_type s=1; s<BDF.extent(0); s++) {
+              beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+            }
+            beta_t *= timewt;
+            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
           }
-          u_AD(elem,dof) = alpha_u*stageval+beta_u;
           
-          // Compute the time derivative
-          beta_t = zero;
-          for (size_type s=1; s<BDF.extent(0); s++) {
-            beta_t += BDF(s)*cu_prev(elem,dof,s-1);
-          }
-          beta_t *= timewt;
-          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-        }
+        });
+      }
+    }
+    else if (seedwhat == 2 && set == current_set) { // Seed one of the previous step solutions
+      for (size_type var=0; var<u[set].extent(1); var++ ) {
+        auto u_AD = uvals[set][var];
+        auto u_dot_AD = u_dotvals[set][var];
+        auto off = subview(set_offsets[set],var,ALL());
+        auto cu = subview(u[set],ALL(),var,ALL());
+        auto cu_prev = subview(u_prev[set],ALL(),var,ALL(),ALL());
+        auto cu_stage = subview(u_stage[set],ALL(),var,ALL(),ALL());
         
-      });
-    }
-  }
-  else if (seedwhat == 2) { // Seed one of the previous step solutions
-    for (size_type var=0; var<u.extent(1); var++ ) {
-      auto u_AD = uvals[var];
-      auto u_dot_AD = u_dotvals[var];
-      auto off = subview(offsets,var,ALL());
-      auto cu = subview(u,ALL(),var,ALL());
-      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-    
-      parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        AD beta_u, beta_t;
-        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = one/dt/b_b(stage);
-        ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
-          
-          // Get the stage solution
-          ScalarT stageval = cu(elem,dof);
-          
-          // Compute the evaluating solution
-          AD u_prev_val = cu_prev(elem,dof,0);
-          if (index == 0) {
+        parallel_for("wkset transient sol seedwhat 1",
+                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          AD beta_u, beta_t;
+          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+          ScalarT timewt = one/dt/b_b(stage);
+          ScalarT alpha_t = BDF(0)*timewt;
+          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+            
+            // Get the stage solution
+            ScalarT stageval = cu(elem,dof);
+            
+            // Compute the evaluating solution
+            AD u_prev_val = cu_prev(elem,dof,0);
+            if (index == 0) {
 #ifndef MrHyDE_NO_AD
-            u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,0));
+              u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,0));
 #else
-            u_prev_val = cu_prev(elem,dof,0);
-#endif
-          }
-          
-          beta_u = (one-alpha_u)*u_prev_val;
-          for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - u_prev_val);
-          }
-          u_AD(elem,dof) = alpha_u*stageval+beta_u;
-          
-          // Compute and seed the time derivative
-          beta_t = zero;
-          for (int s=1; s<BDF.extent_int(0); s++) {
-            AD u_prev_val = cu_prev(elem,dof,s-1);
-            if (index == (s-1)) {
-#ifndef MrHyDE_NO_AD
-              u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,s-1));
-#else
-              u_prev_val = cu_prev(elem,dof,s-1);
+              u_prev_val = cu_prev(elem,dof,0);
 #endif
             }
-            beta_t += BDF(s)*u_prev_val;
-          }
-          beta_t *= timewt;
-          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-        }
-      });
-    }
-  }
-  else if (seedwhat == 3) { // Seed one of the previous stage solutions
-    for (size_type var=0; var<u.extent(1); var++ ) {
-      auto u_AD = uvals[var];
-      auto u_dot_AD = u_dotvals[var];
-      auto off = subview(offsets,var,ALL());
-      auto cu = subview(u,ALL(),var,ALL());
-      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-      parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        AD beta_u, beta_t;
-        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = one/dt/b_b(stage);
-        ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
-          
-          // Get the stage solution
-          ScalarT stageval = cu(elem,dof);
-          
-          // Compute the evaluating solution
-          ScalarT u_prev_val = cu_prev(elem,dof,0);
-          
-          beta_u = (one-alpha_u)*u_prev_val;
-          for (int s=0; s<stage; s++) {
-            AD u_stage_val = cu_stage(elem,dof,s);
-            if (index == s) {
-#ifndef MrHyDE_NO_AD
-              u_stage_val = AD(maxDerivs,off(dof),cu_stage(elem,dof,s));
-#else
-              u_stage_val = cu_stage(elem,dof,s);
-#endif
+            
+            beta_u = (one-alpha_u)*u_prev_val;
+            for (int s=0; s<stage; s++) {
+              beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - u_prev_val);
             }
-            beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
+            u_AD(elem,dof) = alpha_u*stageval+beta_u;
+            
+            // Compute and seed the time derivative
+            beta_t = zero;
+            for (int s=1; s<BDF.extent_int(0); s++) {
+              AD u_prev_val = cu_prev(elem,dof,s-1);
+              if (index == (s-1)) {
+#ifndef MrHyDE_NO_AD
+                u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,s-1));
+#else
+                u_prev_val = cu_prev(elem,dof,s-1);
+#endif
+              }
+              beta_t += BDF(s)*u_prev_val;
+            }
+            beta_t *= timewt;
+            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
           }
-          u_AD(elem,dof) = alpha_u*stageval+beta_u;
-          
-          // Compute and seed the time derivative
-          beta_t = zero;
-          for (size_type s=1; s<BDF.extent(0); s++) {
-            ScalarT u_prev_val = cu_prev(elem,dof,s-1);
-            beta_t += BDF(s)*u_prev_val;
-          }
-          beta_t *= timewt;
-          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-        }
-      });
+        });
+      }
     }
-  }
-  else { // Seed nothing
-    for (size_type var=0; var<u.extent(1); var++ ) {
-      auto u_AD = uvals[var];
-      auto u_dot_AD = u_dotvals[var];
-      auto off = subview(offsets,var,ALL());
-      auto cu = subview(u,ALL(),var,ALL());
-      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-    
-      parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        ScalarT beta_u, beta_t;
-        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = one/dt/b_b(stage);
-        ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
-          // Get the stage solution
-          ScalarT stageval = cu(elem,dof);
-          
-          // Compute the evaluating solution
-          beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
-          for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+    else if (seedwhat == 3 && set == current_set) { // Seed one of the previous stage solutions
+      for (size_type var=0; var<u[set].extent(1); var++ ) {
+        auto u_AD = uvals[set][var];
+        auto u_dot_AD = u_dotvals[set][var];
+        auto off = subview(set_offsets[set],var,ALL());
+        auto cu = subview(u[set],ALL(),var,ALL());
+        auto cu_prev = subview(u_prev[set],ALL(),var,ALL(),ALL());
+        auto cu_stage = subview(u_stage[set],ALL(),var,ALL(),ALL());
+        parallel_for("wkset transient sol seedwhat 1",
+                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          AD beta_u, beta_t;
+          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+          ScalarT timewt = one/dt/b_b(stage);
+          ScalarT alpha_t = BDF(0)*timewt;
+          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+            
+            // Get the stage solution
+            ScalarT stageval = cu(elem,dof);
+            
+            // Compute the evaluating solution
+            ScalarT u_prev_val = cu_prev(elem,dof,0);
+            
+            beta_u = (one-alpha_u)*u_prev_val;
+            for (int s=0; s<stage; s++) {
+              AD u_stage_val = cu_stage(elem,dof,s);
+              if (index == s) {
+#ifndef MrHyDE_NO_AD
+                u_stage_val = AD(maxDerivs,off(dof),cu_stage(elem,dof,s));
+#else
+                u_stage_val = cu_stage(elem,dof,s);
+#endif
+              }
+              beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
+            }
+            u_AD(elem,dof) = alpha_u*stageval+beta_u;
+            
+            // Compute and seed the time derivative
+            beta_t = zero;
+            for (size_type s=1; s<BDF.extent(0); s++) {
+              ScalarT u_prev_val = cu_prev(elem,dof,s-1);
+              beta_t += BDF(s)*u_prev_val;
+            }
+            beta_t *= timewt;
+            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
           }
-          u_AD(elem,dof) = alpha_u*stageval+beta_u;
-          
-          // Compute the time derivative
-          beta_t = zero;
-          for (size_type s=1; s<BDF.extent(0); s++) {
-            beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+        });
+      }
+    }
+    else { // Seed nothing
+      for (size_type var=0; var<u[set].extent(1); var++ ) {
+        auto u_AD = uvals[set][var];
+        auto u_dot_AD = u_dotvals[set][var];
+        auto off = subview(set_offsets[set],var,ALL());
+        auto cu = subview(u[set],ALL(),var,ALL());
+        auto cu_prev = subview(u_prev[set],ALL(),var,ALL(),ALL());
+        auto cu_stage = subview(u_stage[set],ALL(),var,ALL(),ALL());
+        
+        parallel_for("wkset transient sol seedwhat 1",
+                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          ScalarT beta_u, beta_t;
+          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+          ScalarT timewt = one/dt/b_b(stage);
+          ScalarT alpha_t = BDF(0)*timewt;
+          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+            // Get the stage solution
+            ScalarT stageval = cu(elem,dof);
+            
+            // Compute the evaluating solution
+            beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+            for (int s=0; s<stage; s++) {
+              beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            u_AD(elem,dof) = alpha_u*stageval+beta_u;
+            
+            // Compute the time derivative
+            beta_t = zero;
+            for (size_type s=1; s<BDF.extent(0); s++) {
+              beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+            }
+            beta_t *= timewt;
+            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
           }
-          beta_t *= timewt;
-          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-        }
-      });
+        });
+      }
     }
   }
   //Kokkos::fence();
@@ -680,78 +712,43 @@ void workset::computeSolnTransientSeeded(View_Sc3 u,
 // Compute the seeded solutions for steady-state problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeSolnSteadySeeded(View_Sc3 u,
+void workset::computeSolnSteadySeeded(vector<View_Sc3> & u,
                                       const int & seedwhat) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
-  for (size_type var=0; var<u.extent(1); var++ ) {
-  
-    auto u_AD = uvals[var];
-    auto off = subview(offsets,var,ALL());
-    auto cu = subview(u,ALL(),var,ALL());
-    if (seedwhat == 1) {
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+  for (size_t set=0; set<u.size(); ++set) {
+    for (size_type var=0; var<u[set].extent(1); var++ ) {
+      
+      auto u_AD = uvals[set][var];
+      auto off = subview(set_offsets[set],var,ALL());
+      auto cu = subview(u[set],ALL(),var,ALL());
+      if (seedwhat == 1 && set == current_set) {
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u[set].extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
 #ifndef MrHyDE_NO_AD
-          u_AD(elem,dof) = AD(maxDerivs,off(dof),cu(elem,dof));
+            u_AD(elem,dof) = AD(maxDerivs,off(dof),cu(elem,dof));
 #else
-          u_AD(elem,dof) = cu(elem,dof);
+            u_AD(elem,dof) = cu(elem,dof);
 #endif
-        }
-      });
-    }
-    else {
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
-          u_AD(elem,dof) = cu(elem,dof);
-        }
-      });
+          }
+        });
+      }
+      else {
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u[set].extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+            u_AD(elem,dof) = cu(elem,dof);
+          }
+        });
+      }
     }
   }
   //Kokkos::fence();
   //AssemblyExec::execution_space().fence();
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the seeded solutions for steady-state problems
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeAuxSolnSteadySeeded(View_Sc3 aux,
-                                         const int & seedwhat) {
-  
-  Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
-
-  /*
-  // Needed so the device can access data-members (may be a better way)
-  auto aux_AD = auxvals;
-  auto off = aux_offsets;
-
-  if (seedwhat == 1) {
-    parallel_for(RangePolicy<AssemblyExec>(0,aux.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<aux.extent(1); var++ ) {
-        for (size_type dof=0; dof<aux.extent(2); dof++ ) {
-          aux_AD(elem,var,dof) = AD(maxDerivs,off(var,dof),aux(elem,var,dof));
-        }
-      }
-    });
-  }
-  else {
-    parallel_for("wkset steady soln",RangePolicy<AssemblyExec>(0,aux.extent(0)), KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<aux.extent(1); var++ ) {
-        for (size_type dof=0; dof<aux.extent(2); dof++ ) {
-          aux_AD(elem,var,dof) = aux(elem,var,dof);
-        }
-      }
-    });
-  }
-   */
-  //Kokkos::fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -798,14 +795,6 @@ void workset::computeParamSteadySeeded(View_Sc3 param,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-// Compute the seeded solutions at volumetric ip
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeSolnVolIP() {
-  this->computeSoln(1,false);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
 // Compute the seeded solutions at specified ip
 ////////////////////////////////////////////////////////////////////////////////////
 
@@ -840,22 +829,14 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     View_AD2 solvals;
     if (fields[fieldnum].variable_type == "solution") { // solution
       if (fields[fieldnum].derivative_type == "time" ) {
-        solvals = u_dotvals[fields[fieldnum].variable_index];
+        solvals = u_dotvals[current_set][fields[fieldnum].variable_index];
       }
       else {
-        solvals = uvals[fields[fieldnum].variable_index];
+        solvals = uvals[current_set][fields[fieldnum].variable_index];
       }
     }
     if (fields[fieldnum].variable_type == "param") { // discr. params
       solvals = pvals[fields[fieldnum].variable_index];
-    }
-    if (fields[fieldnum].variable_type == "aux") { // aux
-      if (fields[fieldnum].derivative_type == "time" ) {
-        solvals = aux_dotvals[fields[fieldnum].variable_index];
-      }
-      else {
-        solvals = auxvals[fields[fieldnum].variable_index];
-      }
     }
     
     //-----------------------------------------------------
@@ -936,707 +917,6 @@ void workset::evaluateSolutionField(const int & fieldnum) {
 }
 
 
-
-
-void workset::computeSoln(const int & type, const bool & onside) {
-    
-  {
-    Teuchos::TimeMonitor basistimer(*worksetComputeSolnVolTimer);
-    
-    vector<string> list_HGRAD, list_HVOL, list_HDIV, list_HCURL, list_HFACE;
-    vector<int> index_HGRAD, index_HVOL, index_HDIV, index_HCURL, index_HFACE;
-    vector<int> basis_index;
-    vector<View_AD2> solvals, soldotvals;
-    bool include_transient = isTransient;
-    if (onside) {
-      include_transient = false;
-    }
-    
-    if (type == 1) { // soln
-      list_HGRAD = varlist_HGRAD;
-      list_HVOL = varlist_HVOL;
-      list_HDIV = varlist_HDIV;
-      list_HCURL = varlist_HCURL;
-      list_HFACE = varlist_HFACE;
-      index_HGRAD = vars_HGRAD;
-      index_HVOL = vars_HVOL;
-      index_HDIV = vars_HDIV;
-      index_HCURL = vars_HCURL;
-      index_HFACE = vars_HFACE;
-      basis_index = usebasis;
-      solvals = uvals;
-      soldotvals = u_dotvals;
-    }
-    else if (type == 2) { // discr. params
-      list_HGRAD = paramvarlist_HGRAD;
-      list_HVOL = paramvarlist_HVOL;
-      list_HDIV = paramvarlist_HDIV;
-      list_HCURL = paramvarlist_HCURL;
-      list_HFACE = paramvarlist_HFACE;
-      index_HGRAD = paramvars_HGRAD;
-      index_HVOL = paramvars_HVOL;
-      index_HDIV = paramvars_HDIV;
-      index_HCURL = paramvars_HCURL;
-      index_HFACE = paramvars_HFACE;
-      include_transient = false;
-      basis_index = paramusebasis;
-      solvals = pvals;
-    }
-    else if (type == 3) { // aux
-      list_HGRAD = auxvarlist_HGRAD;
-      list_HVOL = auxvarlist_HVOL;
-      list_HDIV = auxvarlist_HDIV;
-      list_HCURL = auxvarlist_HCURL;
-      list_HFACE = auxvarlist_HFACE;
-      index_HGRAD = auxvars_HGRAD;
-      index_HVOL = auxvars_HVOL;
-      index_HDIV = auxvars_HDIV;
-      index_HCURL = auxvars_HCURL;
-      index_HFACE = auxvars_HFACE;
-      basis_index = auxusebasis;
-      solvals = auxvals;
-      soldotvals = aux_dotvals;
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HGRAD
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<list_HGRAD.size(); i++) {
-      string var = list_HGRAD[i];
-      int varind = index_HGRAD[i];
-      View_AD2 csol, csol_x, csol_y, csol_z, csol_t;
-      View_Sc4 cbasis;
-      View_Sc4 cbasis_grad;
-      
-      auto cuvals = solvals[varind];
-      
-      if (!onside) { // volumetric ip
-        csol = this->getData(var);
-        csol_x = this->getData("grad("+var+")[x]");
-        if (dimension > 1) {
-          csol_y = this->getData("grad("+var+")[y]");
-        }
-        if (dimension > 2) {
-          csol_z = this->getData("grad("+var+")[z]");
-        }
-        cbasis = basis[basis_index[varind]];
-        cbasis_grad = basis_grad[basis_index[varind]];
-      }
-      else { // boundary ip
-        csol = this->getData(var+" side");
-        csol_x = this->getData("grad("+var+")[x] side");
-        if (dimension > 1) {
-          csol_y = this->getData("grad("+var+")[y] side");
-        }
-        if (dimension > 2) {
-          csol_z = this->getData("grad("+var+")[z] side");
-        }
-        cbasis = basis_side[basis_index[varind]];
-        cbasis_grad = basis_grad_side[basis_index[varind]];
-      }
-      
-      size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
-      
-      size_type numDOF = cbasis_grad.extent(1);
-      size_type numIP = cbasis_grad.extent(2);
-      
-      if (dimension == 1) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          
-          for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
-            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
-          }
-          for (size_type dof=1; dof<numDOF; dof++ ) {
-            for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
-              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
-            }
-          }
-        });
-      }
-      else if (dimension == 2) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          
-          for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
-            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
-            csol_y(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,1);
-          }
-          for (size_type dof=1; dof<numDOF; dof++ ) {
-            for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
-              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
-              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
-            }
-          }
-        });
-      }
-      else if (dimension == 3) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          
-          for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
-            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            csol_x(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,0);
-            csol_y(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,1);
-            csol_z(elem,pt) = cuvals(elem,0)*cbasis_grad(elem,0,pt,2);
-          }
-          for (size_type dof=1; dof<numDOF; dof++ ) {
-            for (size_type pt=team.team_rank(); pt<numIP; pt+=team.team_size() ) {
-              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
-              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
-              csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
-            }
-          }
-        });
-        
-      }
-      
-      if (include_transient) { // transient terms only needed at volumetric ip
-        auto csol_t = this->getData(var+"_t");
-        auto cu_dotvals = soldotvals[varind];
-        parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_t(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-          }
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-        });
-      }
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HVOL
-    /////////////////////////////////////////////////////////////////////
-    for (size_t i=0; i<list_HVOL.size(); i++) {
-      
-      string var = list_HVOL[i];
-      int varind = index_HVOL[i];
-      View_AD2 csol, csol_t;
-      View_Sc4 cbasis;
-      
-      auto cuvals = solvals[varind];
-      
-      if (!onside) { // volumetric ip
-        csol = this->getData(var);
-        cbasis = basis[basis_index[varind]];
-      }
-      else { // boundary ip
-        csol = this->getData(var+" side");
-        cbasis = basis_side[basis_index[varind]];
-      }
-      
-      parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-        }
-        for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-          }
-        }
-      });
-      
-      if (include_transient) { // transient terms only need at volumetric ip
-        auto csol_t = this->getData(var+"_t");
-        auto cu_dotvals = soldotvals[varind];
-        parallel_for("wkset soln ip HGRAD transient",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_t(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-          }
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_t(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-        });
-      }
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HDIV
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<list_HDIV.size(); i++) {
-      string var = list_HDIV[i];
-      int varind = index_HDIV[i];
-      
-      View_AD2 csolx, csoly, csolz, csol_div;
-      View_Sc4 cbasis;
-      View_Sc3 cbasis_div;
-      
-      if (!onside) {
-        csolx = this->getData(var+"[x]");
-        if (dimension > 1) {
-          csoly = this->getData(var+"[y]");
-        }
-        if (dimension > 2) {
-          csolz = this->getData(var+"[z]");
-        }
-        csol_div = this->getData("div("+var+")");
-        cbasis = basis[basis_index[varind]];
-        cbasis_div = basis_div[basis_index[varind]];
-      }
-      else {
-        csolx = this->getData(var+"[x] side");
-        if (dimension > 1) {
-          csoly = this->getData(var+"[y] side");
-        }
-        if (dimension > 2) {
-          csolz = this->getData(var+"[z] side");
-        }
-        cbasis = basis_side[basis_index[varind]];
-      }
-      
-      auto cuvals = solvals[varind];
-      
-      if (dimension == 1) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-          }
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-        });
-        
-      }
-      else if (dimension == 2) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
-          }
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
-            }
-          }
-        });
-        
-      }
-      else if (dimension == 3) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
-            csolz(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,2);
-          }
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
-              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
-            }
-          }
-        });
-        
-      }
-      
-      if (!onside) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol_div(elem,pt) = cuvals(elem,0)*cbasis_div(elem,0,pt);
-          }
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_div(elem,pt) += cuvals(elem,dof)*cbasis_div(elem,dof,pt);
-            }
-          }
-        });
-      }
-      
-      if (include_transient) {
-        View_AD2 csol_tx, csol_ty, csol_tz;
-        csol_tx = this->getData(var+"_t[x]");
-        if (dimension > 1) {
-          csol_ty = this->getData(var+"_t[y]");
-        }
-        if (dimension > 2) {
-          csol_tz = this->getData(var+"_t[z]");
-        }
-        auto cu_dotvals = soldotvals[varind];
-        
-        if (dimension == 1) {
-          parallel_for("wkset soln ip HGRAD transient",
-                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-            }
-            
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
-          });
-        }
-        else if (dimension == 2) {
-          parallel_for("wkset soln ip HGRAD transient",
-                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
-            }
-            
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
-              }
-            }
-          });
-        }
-        else if (dimension == 3) {
-          parallel_for("wkset soln ip HGRAD transient",
-                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
-              csol_tz(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,2);
-            }
-            
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
-                csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-        
-      }
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HCURL
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<list_HCURL.size(); i++) {
-      
-      string var = list_HCURL[i];
-      int varind = index_HCURL[i];
-      
-      View_AD2 csolx, csoly, csolz, csol_curlx,csol_curly,csol_curlz;
-      View_Sc4 cbasis, cbasis_curl;
-      
-      if (!onside) {
-        csolx = this->getData(var+"[x]");
-        csol_curlx = this->getData("curl("+var+")[x]");
-        if (dimension > 1) {
-          csoly = this->getData(var+"[y]");
-          csol_curly = this->getData("curl("+var+")[y]");
-        }
-        if (dimension > 2) {
-          csolz = this->getData(var+"[z]");
-          csol_curlz = this->getData("curl("+var+")[z]");
-        }
-        cbasis = basis[basis_index[varind]];
-        cbasis_curl = basis_curl[basis_index[varind]];
-      }
-      else {
-        csolx = this->getData(var+"[x] side");
-        if (dimension > 1) {
-          csoly = this->getData(var+"[y] side");
-        }
-        if (dimension > 2) {
-          csolz = this->getData(var+"[z] side");
-        }
-        cbasis = basis_side[basis_index[varind]];
-      }
-      
-      auto cuvals = solvals[varind];
-      
-      if (dimension == 1) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-          }
-          
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-        });
-      }
-      else if (dimension == 2) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
-          }
-          
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
-            }
-          }
-        });
-      }
-      else if (dimension == 3) {
-        parallel_for("wkset soln ip HGRAD",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csolx(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            csoly(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,1);
-            csolz(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,2);
-          }
-          
-          for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
-              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
-            }
-          }
-        });
-        
-      }
-      
-      if (!onside) { // no curl on boundary?
-        if (dimension == 1) {
-          parallel_for("wkset soln ip HGRAD",
-                       TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-              csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
-            }
-            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-                csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
-              }
-            }
-          });
-        }
-        else if (dimension == 2) {
-          parallel_for("wkset soln ip HGRAD",
-                       TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-              csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
-              csol_curly(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,1);
-            }
-            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-                csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
-                csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
-              }
-            }
-          });
-        }
-        else if (dimension == 3) {
-          parallel_for("wkset soln ip HGRAD",
-                       TeamPolicy<AssemblyExec>(cbasis_curl.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-              csol_curlx(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,0);
-              csol_curly(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,1);
-              csol_curlz(elem,pt) = cuvals(elem,0)*cbasis_curl(elem,0,pt,2);
-            }
-            for (size_type dof=1; dof<cbasis_curl.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis_curl.extent(2); pt+=team.team_size() ) {
-                csol_curlx(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,0);
-                csol_curly(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,1);
-                csol_curlz(elem,pt) += cuvals(elem,dof)*cbasis_curl(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-        
-      }
-      
-      if (include_transient) {
-        View_AD2 csol_tx, csol_ty, csol_tz;
-        csol_tx = this->getData(var+"_t[x]");
-        if (dimension > 1) {
-          csol_ty = this->getData(var+"_t[y]");
-        }
-        if (dimension > 2) {
-          csol_tz = this->getData(var+"_t[z]");
-        }
-        auto cu_dotvals = soldotvals[varind];
-        
-        if (dimension == 1) {
-          parallel_for("wkset soln ip HGRAD transient",
-                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-            }
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-              }
-            }
-          });
-        }
-        else if (dimension == 2) {
-          parallel_for("wkset soln ip HGRAD transient",
-                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
-            }
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
-              }
-            }
-          });
-        }
-        else if (dimension == 3) {
-          parallel_for("wkset soln ip HGRAD transient",
-                       TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-            int elem = team.league_rank();
-            for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-              csol_tx(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,0);
-              csol_ty(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,1);
-              csol_tz(elem,pt) = cu_dotvals(elem,0)*cbasis(elem,0,pt,2);
-            }
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-                csol_tx(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,0);
-                csol_ty(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,1);
-                csol_tz(elem,pt) += cu_dotvals(elem,dof)*cbasis(elem,dof,pt,2);
-              }
-            }
-          });
-        }
-      }
-      
-    }
-    
-    /////////////////////////////////////////////////////////////////////
-    // HFACE
-    /////////////////////////////////////////////////////////////////////
-    
-    for (size_t i=0; i<list_HFACE.size(); i++) {
-      if (onside) {
-        string var = list_HFACE[i];
-        int varind = index_HFACE[i];
-        View_AD2 csol;
-        View_Sc4 cbasis;
-        
-        auto cuvals = solvals[varind];
-        
-        csol = this->getData(var+" side");
-        cbasis = basis_side[basis_index[varind]];
-        
-        parallel_for("wkset soln ip HFACE",
-                     TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            csol(elem,pt) = cuvals(elem,0)*cbasis(elem,0,pt,0);
-            for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-              csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            }
-          }
-        });
-      }
-    }
-    
-  }  
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the discretized parameters at the volumetric ip
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeParamVolIP() {
-  
-  if (numParams > 0) {
-    
-    //this->computeParamSteadySeeded(param,seedwhat);
-    this->computeSoln(2,false);
-    
-  }
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the solutions at the side ip
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeSolnSideIP() {
-  this->computeSoln(1,true);
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Compute the discretized parameters at the side ip
-////////////////////////////////////////////////////////////////////////////////////
-
-void workset::computeParamSideIP() {
-  
-  if (numParams>0) {
-    //this->computeParamSteadySeeded(param,seedwhat);
-    this->computeSoln(2,true);
-  }
-  
-}
-
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the solutions at the side ip
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1654,11 +934,11 @@ void workset::computeSolnSideIP(const int & side) {
     // HGRAD
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<varlist_HGRAD.size(); i++) {
-      string var = varlist_HGRAD[i];
-      int varind = vars_HGRAD[i];
+    for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
+      string var = varlist_HGRAD[current_set][i];
+      int varind = vars_HGRAD[current_set][i];
       
-      auto cuvals = uvals[varind];
+      auto cuvals = uvals[current_set][varind];
       
       auto csol = this->findData(var+" side");
       auto csol_x = this->findData("grad("+var+")[x] side");
@@ -1699,11 +979,11 @@ void workset::computeSolnSideIP(const int & side) {
     // HVOL
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HVOL.size(); i++) {
-      string var = varlist_HVOL[i];
-      int varind = vars_HVOL[i];
+    for (size_t i=0; i<vars_HVOL[current_set].size(); i++) {
+      string var = varlist_HVOL[current_set][i];
+      int varind = vars_HVOL[current_set][i];
       
-      auto cuvals = uvals[varind];
+      auto cuvals = uvals[current_set][varind];
       
       auto csol = this->findData(var+" side");
       auto cbasis = basis_side[usebasis[varind]];
@@ -1725,11 +1005,11 @@ void workset::computeSolnSideIP(const int & side) {
     // HDIV
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HDIV.size(); i++) {
-      string var = varlist_HDIV[i];
-      int varind = vars_HDIV[i];
+    for (size_t i=0; i<vars_HDIV[current_set].size(); i++) {
+      string var = varlist_HDIV[current_set][i];
+      int varind = vars_HDIV[current_set][i];
       
-      auto cuvals = uvals[varind];
+      auto cuvals = uvals[current_set][varind];
       
       auto csolx = this->findData(var+"[x] side");
       auto csoly = this->findData(var+"[y] side");
@@ -1766,11 +1046,11 @@ void workset::computeSolnSideIP(const int & side) {
     // HCURL
     /////////////////////////////////////////////////////////////////////
     
-    for (size_t i=0; i<vars_HDIV.size(); i++) {
-      string var = varlist_HDIV[i];
-      int varind = vars_HDIV[i];
+    for (size_t i=0; i<vars_HDIV[current_set].size(); i++) {
+      string var = varlist_HDIV[current_set][i];
+      int varind = vars_HDIV[current_set][i];
       
-      auto cuvals = uvals[varind];
+      auto cuvals = uvals[current_set][varind];
       
       auto csolx = this->findData(var+"[x] side");
       auto csoly = this->findData(var+"[y] side");
@@ -1992,7 +1272,6 @@ View_AD2 workset::getData(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
-  
   View_AD2 outdata;
   if (onDemand) {
     bool found = false;
@@ -2196,14 +1475,8 @@ bool workset::findBasisIndex(const string & var, int & basisindex) {
       basisindex = paramusebasis[index];
     }
     else {
-      found = this->isAux(var,index);
-      if (found) {
-        basisindex = auxusebasis[index];
-      }
-      else {
-        std::cout << "Warning: could not find basis for: " << var << std::endl;
-        std::cout << "An error will probably occur if this view is accessed" << std::endl;
-      }
+      std::cout << "Warning: could not find basis for: " << var << std::endl;
+      std::cout << "An error will probably occur if this view is accessed" << std::endl;
     }
   }
   return found;
@@ -2238,22 +1511,6 @@ bool workset::isParameter(const string & var, int & index) {
   size_t varindex = 0;
   while (!found && varindex<param_varlist.size()) {
     if (param_varlist[varindex] == var) {
-      found = true;
-      index = varindex;
-    }
-  }
-  return found;
-}
-
-//////////////////////////////////////////////////////////////
-// Check if a string is an aux variable
-//////////////////////////////////////////////////////////////
-
-bool workset::isAux(const string & var, int & index) {
-  bool found = false;
-  size_t varindex = 0;
-  while (!found && varindex<aux_varlist.size()) {
-    if (aux_varlist[varindex] == var) {
       found = true;
       index = varindex;
     }
@@ -2612,17 +1869,6 @@ void workset::setTangents(vector<View_Sc2> & newtangents) {
   }
 }
 
-
-/////////////////////////////////////////////////////////////
-// Set the integration points
-//////////////////////////////////////////////////////////////
-
-//void workset::seth(View_Sc2 newh, const string & pfix) {
-//  size_t hind = this->getDataScIndex("h"+pfix);
-//  data_Sc[hind] = newh;
-//  h = newh;
-//}
-
 //////////////////////////////////////////////////////////////
 // Set the solutions
 //////////////////////////////////////////////////////////////
@@ -2631,30 +1877,30 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
   
-  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
-    string var = varlist_HGRAD[i];
-    int varind = vars_HGRAD[i];
+  for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
+    string var = varlist_HGRAD[current_set][i];
+    int varind = vars_HGRAD[current_set][i];
     auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
-  for (size_t i=0; i<varlist_HVOL.size(); i++) {
-    string var = varlist_HVOL[i];
-    int varind = vars_HVOL[i];
+  for (size_t i=0; i<varlist_HVOL[current_set].size(); i++) {
+    string var = varlist_HVOL[current_set][i];
+    int varind = vars_HVOL[current_set][i];
     auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
-  for (size_t i=0; i<varlist_HFACE.size(); i++) {
-    string var = varlist_HFACE[i];
-    int varind = vars_HFACE[i];
+  for (size_t i=0; i<varlist_HFACE[current_set].size(); i++) {
+    string var = varlist_HFACE[current_set][i];
+    int varind = vars_HFACE[current_set][i];
     auto csol = this->findData(var+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
-  for (size_t i=0; i<varlist_HDIV.size(); i++) {
-    string var = varlist_HDIV[i];
-    int varind = vars_HDIV[i];
+  for (size_t i=0; i<varlist_HDIV[current_set].size(); i++) {
+    string var = varlist_HDIV[current_set][i];
+    int varind = vars_HDIV[current_set][i];
     size_type dim = newsol.extent(3);
     auto csol = this->findData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
@@ -2670,9 +1916,9 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
       this->copyData(csol,cnsol);
     }
   }
-  for (size_t i=0; i<varlist_HCURL.size(); i++) {
-    string var = varlist_HCURL[i];
-    int varind = vars_HCURL[i];
+  for (size_t i=0; i<varlist_HCURL[current_set].size(); i++) {
+    string var = varlist_HCURL[current_set][i];
+    int varind = vars_HCURL[current_set][i];
     size_type dim = newsol.extent(3);
     auto csol = this->findData(var+"[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
@@ -2696,9 +1942,9 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
-  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
-    string var = varlist_HGRAD[i];
-    int varind = vars_HGRAD[i];
+  for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
+    string var = varlist_HGRAD[current_set][i];
+    int varind = vars_HGRAD[current_set][i];
     size_type dim = newsol.extent(3);
     auto csol = this->findData("grad("+var+")[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
@@ -2721,9 +1967,9 @@ void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
-  for (size_t i=0; i<varlist_HDIV.size(); i++) {
-    string var = varlist_HDIV[i];
-    int varind = vars_HDIV[i];
+  for (size_t i=0; i<varlist_HDIV[current_set].size(); i++) {
+    string var = varlist_HDIV[current_set][i];
+    int varind = vars_HDIV[current_set][i];
     auto csol = this->findData("div("+var+")");
     auto cnsol = subview(newsol,ALL(),varind,ALL());
     this->copyData(csol,cnsol);
@@ -2735,9 +1981,9 @@ void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
-  for (size_t i=0; i<varlist_HCURL.size(); i++) {
-    string var = varlist_HCURL[i];
-    int varind = vars_HCURL[i];
+  for (size_t i=0; i<varlist_HCURL[current_set].size(); i++) {
+    string var = varlist_HCURL[current_set][i];
+    int varind = vars_HCURL[current_set][i];
     size_type dim = newsol.extent(3);
     auto csol = this->findData("curl("+var+")[x]"+pfix);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
@@ -2761,9 +2007,9 @@ void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
 
 void workset::setSolutionPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
-  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
-    string var = varlist_HGRAD[i];
-    int varind = vars_HGRAD[i];
+  for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
+    string var = varlist_HGRAD[current_set][i];
+    int varind = vars_HGRAD[current_set][i];
     auto csol = this->findData(var+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
@@ -2772,9 +2018,9 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
   }
-  for (size_t i=0; i<varlist_HVOL.size(); i++) {
-    string var = varlist_HVOL[i];
-    int varind = vars_HVOL[i];
+  for (size_t i=0; i<varlist_HVOL[current_set].size(); i++) {
+    string var = varlist_HVOL[current_set][i];
+    int varind = vars_HVOL[current_set][i];
     auto csol = this->findData(var+" point");
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
@@ -2783,9 +2029,9 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
   }
-  for (size_t i=0; i<varlist_HDIV.size(); i++) {
-    string var = varlist_HDIV[i];
-    int varind = vars_HDIV[i];
+  for (size_t i=0; i<varlist_HDIV[current_set].size(); i++) {
+    string var = varlist_HDIV[current_set][i];
+    int varind = vars_HDIV[current_set][i];
     size_type dim = newsol.extent(3);
     auto csol = this->findData(var+"[x] point");
     auto cnsol = subview(newsol,varind,ALL());
@@ -2811,9 +2057,9 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       });
     }
   }
-  for (size_t i=0; i<varlist_HCURL.size(); i++) {
-    string var = varlist_HCURL[i];
-    int varind = vars_HCURL[i];
+  for (size_t i=0; i<varlist_HCURL[current_set].size(); i++) {
+    string var = varlist_HCURL[current_set][i];
+    int varind = vars_HCURL[current_set][i];
     size_type dim = newsol.extent(3);
     auto csol = this->findData(var+"[x] point");
     auto cnsol = subview(newsol,varind,ALL());
@@ -2848,9 +2094,9 @@ void workset::setSolutionPoint(View_AD2 newsol) {
 
 void workset::setSolutionGradPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
-  for (size_t i=0; i<varlist_HGRAD.size(); i++) {
-    string var = varlist_HGRAD[i];
-    int varind = vars_HGRAD[i];
+  for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
+    string var = varlist_HGRAD[current_set][i];
+    int varind = vars_HGRAD[current_set][i];
     size_type dim = newsol.extent(1);
     auto csol = this->findData("grad("+var+")[x]"+" point");
     auto cnsol = subview(newsol,varind,ALL());
@@ -3069,4 +2315,18 @@ void workset::setParamGradPoint(View_AD2 newsol) {
     }
   }
 
+}
+
+//////////////////////////////////////////////////////////////
+// Set the solution at a point
+//////////////////////////////////////////////////////////////
+
+void workset::updatePhysicsSet(const size_t & current_set_) {
+  if (isInitialized) {
+    current_set = current_set_;
+    offsets = set_offsets[current_set];
+    usebasis = set_usebasis[current_set];
+    varlist = set_varlist[current_set];
+    var_bcs = set_var_bcs[current_set];
+  }
 }

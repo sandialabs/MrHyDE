@@ -53,30 +53,30 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
   solver = Teuchos::rcp( new SolverManager<SubgridSolverNode>(LocalComm, settings, mesh, disc,
                                                               physics, assembler, params) );
   
-  res = solver->linalg->getNewVector();
-  J = solver->linalg->getNewOverlappedMatrix();
+  res = solver->linalg->getNewVector(0);
+  J = solver->linalg->getNewOverlappedMatrix(0);
   
-  u = solver->linalg->getNewOverlappedVector();
-  phi = solver->linalg->getNewOverlappedVector();
+  u = solver->linalg->getNewOverlappedVector(0);
+  phi = solver->linalg->getNewOverlappedVector(0);
   
   if (LocalComm->getSize() > 1) {
-    res_over = solver->linalg->getNewOverlappedVector();
-    sub_J_over = solver->linalg->getNewOverlappedMatrix();
+    res_over = solver->linalg->getNewOverlappedVector(0);
+    sub_J_over = solver->linalg->getNewOverlappedMatrix(0);
   }
   else {
     res_over = res;
     sub_J_over = J;
   }
   
-  d_um = solver->linalg->getNewVector(numMacroDOF);
-  d_sub_res_overm = solver->linalg->getNewOverlappedVector(numMacroDOF);
-  d_sub_resm = solver->linalg->getNewVector(numMacroDOF);
-  d_sub_u_prevm = solver->linalg->getNewVector(numMacroDOF);
-  d_sub_u_overm = solver->linalg->getNewOverlappedVector(numMacroDOF);
+  d_um = solver->linalg->getNewVector(0,numMacroDOF);
+  d_sub_res_overm = solver->linalg->getNewOverlappedVector(0,numMacroDOF);
+  d_sub_resm = solver->linalg->getNewVector(0,numMacroDOF);
+  d_sub_u_prevm = solver->linalg->getNewVector(0,numMacroDOF);
+  d_sub_u_overm = solver->linalg->getNewOverlappedVector(0,numMacroDOF);
   
-  du_glob = solver->linalg->getNewVector();
+  du_glob = solver->linalg->getNewVector(0);
   if (LocalComm->getSize() > 1) {
-    du = solver->linalg->getNewOverlappedVector();
+    du = solver->linalg->getNewOverlappedVector(0);
   }
   else {
     du = du_glob;
@@ -105,7 +105,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
     belosList->set("Verbosity", Belos::Errors);
     belosList->set("Output Frequency",0);
     
-    int numEqns = solver->numVars[0];
+    int numEqns = solver->numVars[0][0];
     belosList->set("number of equations",numEqns);
     
     belosList->set("Output Style",          Belos::Brief);
@@ -145,6 +145,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   
   Kokkos::deep_copy(subgradient, 0.0);
   
+  
   if (std::abs(current_time - final_time) < 1.0e-12)
     is_final_time = true;
   else
@@ -179,9 +180,10 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   Kokkos::deep_copy(u_kv, prev_u_kv);
   
   this->performGather(usernum, prev_u, 0, 0);
+  
   for (size_t b=0; b<assembler->cells.size(); b++) {
     for (size_t e=0; e<assembler->cells[b].size(); e++) {
-      assembler->cells[b][e]->resetPrevSoln();
+      assembler->cells[b][e]->resetPrevSoln(0);
     }
   }
   
@@ -191,7 +193,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   
   Teuchos::RCP<SG_MultiVector> d_u = d_um;
   if (compute_sens) {
-    d_u = solver->linalg->getNewVector(num_active_params);//Teuchos::rcp( new SG_MultiVector(solver->LA_owned_map, num_active_params)); // reset residual
+    d_u = solver->linalg->getNewVector(0,num_active_params);//Teuchos::rcp( new SG_MultiVector(solver->LA_owned_map, num_active_params)); // reset residual
   }
   d_u->putScalar(0.0);
   
@@ -210,7 +212,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
       // First, we need to resolve the forward problem
       
       for (int tstep=0; tstep<time_steps; tstep++) {
-        Teuchos::RCP<SG_MultiVector> recu = solver->linalg->getNewOverlappedVector();//Teuchos::rcp( new SG_MultiVector(solver->LA_overlapped_map,1)); // reset residual
+        Teuchos::RCP<SG_MultiVector> recu = solver->linalg->getNewOverlappedVector(0);//Teuchos::rcp( new SG_MultiVector(solver->LA_overlapped_map,1)); // reset residual
         
         *recu = *u;
         sgtime += macro_deltat/(ScalarT)time_steps;
@@ -275,8 +277,8 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
         
         for (size_t b=0; b<assembler->cells.size(); b++) {
           for (size_t e=0; e<assembler->cells[b].size(); e++) {
-            assembler->cells[b][e]->resetPrevSoln();
-            assembler->cells[b][e]->resetStageSoln();
+            assembler->cells[b][e]->resetPrevSoln(0);
+            assembler->cells[b][e]->resetStageSoln(0);
           }
         }
         
@@ -473,7 +475,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         
         if (isAdjoint) {
           if (is_final_time) {
-            Kokkos::deep_copy(assembler->cells[usernum][e]->adj_prev, 0.0);
+            Kokkos::deep_copy(assembler->cells[usernum][e]->adj_prev[0], 0.0);
           }
         }
         
@@ -489,7 +491,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         
         // Volumetric contribution
         assembler->cells[usernum][e]->updateWorkset(seedwhat);
-        assembler->phys->volumeResidual(0);
+        assembler->phys->volumeResidual(0,0);
                 
         //////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
@@ -498,7 +500,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverScatterTimer);
         
-          auto LIDs = assembler->cells[usernum][e]->LIDs;
+          auto LIDs = assembler->cells[usernum][e]->LIDs[0];
           
           parallel_for("assembly insert Jac",
                        RangePolicy<SG_exec>(0,LIDs.extent(0)),
@@ -552,8 +554,9 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         if (assembler->boundaryCells[usernum][e]->numElem > 0) {
           
           int seedwhat = 1;
+          
           assembler->boundaryCells[usernum][e]->updateWorkset(seedwhat);
-          assembler->phys->boundaryResidual(0);
+          assembler->phys->boundaryResidual(0,0);
           
           //////////////////////////////////////////////////////////////////////////
           // Scatter into global matrix/vector
@@ -562,7 +565,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           {
             Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverScatterTimer);
             
-            auto LIDs = assembler->boundaryCells[usernum][e]->LIDs;
+            auto LIDs = assembler->boundaryCells[usernum][e]->LIDs[0];
             
             parallel_for("assembly insert Jac",
                          RangePolicy<SG_exec>(0,LIDs.extent(0)),
@@ -615,17 +618,17 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       
       if (maxElem > numElem) {
         if (data_avail) {
-          auto LIDs = assembler->cells[0][0]->LIDs;
+          auto LIDs = assembler->cells[0][0]->LIDs[0];
           this->fixDiagonal(LIDs, localMatrix, numElem);
         }
         else {
           if (use_host_LIDs) {
-            auto LIDs = assembler->cells[0][0]->LIDs_host;
+            auto LIDs = assembler->cells[0][0]->LIDs_host[0];
             this->fixDiagonal(LIDs, localMatrix, numElem);
           }
           else {
-            auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->cells[0][0]->LIDs);
-            Kokkos::deep_copy(LIDs_dev, assembler->cells[0][0]->LIDs);
+            auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->cells[0][0]->LIDs[0]);
+            Kokkos::deep_copy(LIDs_dev, assembler->cells[0][0]->LIDs[0]);
             this->fixDiagonal(LIDs_dev, localMatrix, numElem);
           }
         }
@@ -638,7 +641,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     if (solver->Comm->getSize() > 1) {
       J->resumeFill();
       J->setAllToScalar(0.0);
-      J->doExport(*sub_J_over, *(solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
+      J->doExport(*sub_J_over, *(solver->linalg->exporter[0]), Tpetra::ADD); // TMW: tmp fix
       J->fillComplete();
     }
     else {
@@ -649,7 +652,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     
     if (solver->Comm->getSize() > 1) {
       res->putScalar(0.0);
-      res->doExport(*res_over, *(solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
+      res->doExport(*res_over, *(solver->linalg->exporter[0]), Tpetra::ADD); // TMW: tmp fix
     }
     else {
       res = res_over;
@@ -703,7 +706,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       }
       if (solver->Comm->getSize() > 1) {
         du->putScalar(0.0);
-        du->doImport(*du_glob, *(solver->linalg->importer), Tpetra::ADD); // TMW tmp fix
+        du->doImport(*du_glob, *(solver->linalg->importer[0]), Tpetra::ADD); // TMW tmp fix
       }
       else {
         du = du_glob;
@@ -736,7 +739,9 @@ void SubGridFEM_Solver::fixDiagonal(LIDViewType LIDs, MatType localMatrix, const
   
   typedef typename SubgridSolverNode::execution_space SG_exec;
   
-  parallel_for("subgrid diagonal fix",RangePolicy<SG_exec>(startpoint,LIDs.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for("subgrid diagonal fix",
+               RangePolicy<SG_exec>(startpoint,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
     ScalarT vals[1];
     LO cols[1];
     for( size_type row=0; row<LIDs.extent(1); row++ ) {
@@ -797,10 +802,10 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   
   if (compute_sens) {
     int numsubDerivs = d_sub_u->getNumVectors();
-    d_sub_res_over = solver->linalg->getNewOverlappedVector(numsubDerivs);
-    d_sub_res = solver->linalg->getNewVector(numsubDerivs);
-    d_sub_u_prev = solver->linalg->getNewVector(numsubDerivs);
-    d_sub_u_over = solver->linalg->getNewOverlappedVector(numsubDerivs);
+    d_sub_res_over = solver->linalg->getNewOverlappedVector(0,numsubDerivs);
+    d_sub_res = solver->linalg->getNewVector(0,numsubDerivs);
+    d_sub_u_prev = solver->linalg->getNewVector(0,numsubDerivs);
+    d_sub_u_over = solver->linalg->getNewOverlappedVector(0,numsubDerivs);
   }
   
   d_sub_res_over->putScalar(0.0);
@@ -823,7 +828,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     if (multiscale_method != "mortar") {
       
       int numElem = assembler->cells[usernum][0]->numElem;
-      int snumDOF = assembler->cells[usernum][0]->LIDs.extent(1);
+      int snumDOF = assembler->cells[usernum][0]->LIDs[0].extent(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,num_active_params);
       Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,snumDOF);
@@ -837,8 +842,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         assembler->cells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
                                                     false, true, num_active_params, false, false, false,
                                                     local_res, local_J,
-                                                    assembler->assemble_volume_terms[0],
-                                                    assembler->assemble_face_terms[0]);
+                                                    assembler->assemble_volume_terms[0][0],
+                                                    assembler->assemble_face_terms[0][0]);
         
         this->updateResSens(true, usernum, elem, dres_view, local_res,
                             data_avail, use_host_LIDs, true);
@@ -849,7 +854,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     else {
             
       int numElem = assembler->boundaryCells[usernum][0]->numElem;
-      int snumDOF = assembler->boundaryCells[usernum][0]->LIDs.extent(1);
+      int snumDOF = assembler->boundaryCells[usernum][0]->LIDs[0].extent(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,num_active_params);
       Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,snumDOF);
@@ -890,7 +895,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     if (multiscale_method != "mortar") {
       
       int numElem = assembler->cells[usernum][0]->numElem;
-      int snumDOF = assembler->cells[usernum][0]->LIDs.extent(1);
+      int snumDOF = assembler->cells[usernum][0]->LIDs[0].extent(1);
       int anumDOF = assembler->cells[usernum][0]->auxLIDs.extent(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,1);
@@ -909,8 +914,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         assembler->cells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
                                                        true, false, num_active_params, false, true, false,
                                                        local_res, local_J,
-                                                       assembler->assemble_volume_terms[0],
-                                                       assembler->assemble_face_terms[0]);
+                                                       assembler->assemble_volume_terms[0][0],
+                                                       assembler->assemble_face_terms[0][0]);
         
         this->updateResSens(true, usernum, elem, dres_view, local_J,
                             data_avail, use_host_LIDs, false);
@@ -942,14 +947,14 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         // Compute the residual
         //-----------------------------------------------
         
-        assembler->phys->boundaryResidual(0);
+        assembler->phys->boundaryResidual(0,0);
           
         
         //-----------------------------------------------
         // Scatter to vectors
         //-----------------------------------------------
         
-        auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs;
+        auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs[0];
         
 #ifndef MrHyDE_NO_AD
         parallel_for("bcell update aux jac",
@@ -974,7 +979,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     }
     
     if (solver->Comm->getSize() > 1) {
-      d_sub_res->doExport(*d_sub_res_over, *(solver->linalg->exporter), Tpetra::ADD); // TMW tmp fix
+      d_sub_res->doExport(*d_sub_res_over, *(solver->linalg->exporter[0]), Tpetra::ADD); // TMW tmp fix
     }
     else {
       d_sub_res = d_sub_res_over;
@@ -991,8 +996,8 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       auto d_sub_u_over_kv = d_sub_u_over->getLocalView<SG_device>();
       auto d_sub_res_kv = d_sub_res->getLocalView<SG_device>();
       for (int c=0; c<numsubDerivs; c++) {
-        Teuchos::RCP<SG_MultiVector> x = solver->linalg->getNewOverlappedVector(); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
-        Teuchos::RCP<SG_MultiVector> b = solver->linalg->getNewVector(); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,1));
+        Teuchos::RCP<SG_MultiVector> x = solver->linalg->getNewOverlappedVector(0); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
+        Teuchos::RCP<SG_MultiVector> b = solver->linalg->getNewVector(0); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,1));
         auto b_kv = Kokkos::subview(b->getLocalView<SG_device>(),Kokkos::ALL(),0);
         auto x_kv = Kokkos::subview(x->getLocalView<SG_device>(),Kokkos::ALL(),0);
         
@@ -1019,7 +1024,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     
     if (solver->Comm->getSize() > 1) {
       d_sub_u->putScalar(0.0);
-      d_sub_u->doImport(*d_sub_u_over, *(solver->linalg->importer), Tpetra::ADD);
+      d_sub_u->doImport(*d_sub_u_over, *(solver->linalg->importer[0]), Tpetra::ADD);
     }
     else {
       d_sub_u = d_sub_u_over;
@@ -1047,10 +1052,10 @@ void SubGridFEM_Solver::updateResSens(const bool & use_cells, const int & usernu
 
   if (data_avail) {
     if (use_cells) {
-      this->updateResSens(dres_view,data,assembler->cells[usernum][elem]->LIDs,compute_sens);
+      this->updateResSens(dres_view,data,assembler->cells[usernum][elem]->LIDs[0],compute_sens);
     }
     else {
-      this->updateResSens(dres_view,data,assembler->boundaryCells[usernum][elem]->LIDs,compute_sens);
+      this->updateResSens(dres_view,data,assembler->boundaryCells[usernum][elem]->LIDs[0],compute_sens);
     }
   }
   else { // need to send assembly data to solver device
@@ -1058,21 +1063,21 @@ void SubGridFEM_Solver::updateResSens(const bool & use_cells, const int & usernu
     Kokkos::deep_copy(data_sgladev,data);
     if (use_host_LIDs) { // copy already on host device
       if (use_cells) {
-        this->updateResSens(dres_view, data_sgladev,assembler->cells[usernum][elem]->LIDs_host,compute_sens);
+        this->updateResSens(dres_view, data_sgladev,assembler->cells[usernum][elem]->LIDs_host[0],compute_sens);
       }
       else {
-        this->updateResSens(dres_view, data_sgladev,assembler->boundaryCells[usernum][elem]->LIDs_host,compute_sens);
+        this->updateResSens(dres_view, data_sgladev,assembler->boundaryCells[usernum][elem]->LIDs_host[0],compute_sens);
       }
     }
     else { // solve on GPU, but assembly on CPU (not common)
       if (use_cells) {
-        auto LIDs = assembler->cells[usernum][elem]->LIDs;
+        auto LIDs = assembler->cells[usernum][elem]->LIDs[0];
         auto LIDs_sgladev = Kokkos::create_mirror(SG_exec(), LIDs);
         Kokkos::deep_copy(LIDs_sgladev,LIDs);
         this->updateResSens(dres_view,data_sgladev,LIDs_sgladev,compute_sens);
       }
       else {
-        auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs;
+        auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs[0];
         auto LIDs_sgladev = Kokkos::create_mirror(SG_exec(), LIDs);
         Kokkos::deep_copy(LIDs_sgladev,LIDs);
         this->updateResSens(dres_view,data_sgladev,LIDs_sgladev,compute_sens);
@@ -1336,14 +1341,14 @@ void SubGridFEM_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_Solver::getProjectionMatrix() {
   
   // Compute the mass matrix on a reference element
-  matrix_RCP mass = solver->linalg->getNewOverlappedMatrix();;
+  matrix_RCP mass = solver->linalg->getNewOverlappedMatrix(0);
   //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph) );
   
   auto localMatrix = mass->getLocalMatrix();
   
   int usernum = 0;
   for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
-    LIDView LIDs = assembler->cells[usernum][e]->LIDs;
+    LIDView LIDs = assembler->cells[usernum][e]->LIDs[0];
     Kokkos::View<ScalarT***,AssemblyDevice> localmass = assembler->cells[usernum][e]->getMass();
     
     size_type numVals = LIDs.extent(1);
@@ -1369,10 +1374,10 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_So
   matrix_RCP glmass;
   //size_t maxEntries = 256;
   if (solver->Comm->getSize() > 1) {
-    glmass = solver->linalg->getNewMatrix();
+    glmass = solver->linalg->getNewMatrix(0);
     //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_owned_map,maxEntries) );
     glmass->setAllToScalar(0.0);
-    glmass->doExport(*mass, *(solver->linalg->exporter), Tpetra::ADD); // TMW: tmp fix
+    glmass->doExport(*mass, *(solver->linalg->exporter[0]), Tpetra::ADD); // TMW: tmp fix
     glmass->fillComplete();
   }
   else {
@@ -1389,7 +1394,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
   
   size_t numpts = pts.extent(1);
   size_t dimpts = pts.extent(2);
-  size_t numLIDs = assembler->cells[0][0]->LIDs.extent(1);
+  size_t numLIDs = assembler->cells[0][0]->LIDs[0].extent(1);
   Kokkos::View<int**,AssemblyDevice> owners("owners",numpts,2+numLIDs);
   
   for (size_t e=0; e<assembler->cells[0].size(); e++) {
@@ -1415,7 +1420,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
         if (inRefCell(0,i) == 1) {
           owners(i,0) = e;//cells[0][e]->localElemID[c];
           owners(i,1) = c;
-          LIDView LIDs = assembler->cells[0][e]->LIDs;
+          LIDView LIDs = assembler->cells[0][e]->LIDs[0];
           for (size_t j=0; j<numLIDs; j++) {
             owners(i,j+2) = LIDs(c,j);
           }
@@ -1480,12 +1485,12 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Sol
                                                                   std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
   std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > my_basisinfo = this->evaluateBasis2(ip);
-  matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix();
+  matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix(0);
   //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph));
   
   matrix_RCP map;
   if (solver->Comm->getSize() > 1) {
-    map = solver->linalg->getNewMatrix();
+    map = solver->linalg->getNewMatrix(0);
     //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph));
     map->setAllToScalar(0.0);
   }
@@ -1516,7 +1521,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Sol
   map_over->fillComplete();
   
   if (solver->Comm->getSize() > 1) {
-    map->doExport(*map_over, *(solver->linalg->exporter), Tpetra::ADD);
+    map->doExport(*map_over, *(solver->linalg->exporter[0]), Tpetra::ADD);
     map->fillComplete();
   }
   return map;
@@ -1527,7 +1532,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Sol
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Solver::getVector() {
-  vector_RCP vec = solver->linalg->getNewOverlappedVector(); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
+  vector_RCP vec = solver->linalg->getNewOverlappedVector(0); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
   return vec;
 }
 
@@ -1536,16 +1541,16 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_S
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_Solver::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) {
-  matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix();
+  matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix(0);
   //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph) );
   matrix_RCP map;
   if (solver->Comm->getSize() > 1) {
     //size_t maxEntries = 256;
-    map = solver->linalg->getNewMatrix();
+    map = solver->linalg->getNewMatrix(0);
     //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_owned_map, maxEntries) );
     
     map->setAllToScalar(0.0);
-    map->doExport(*map_over, *(solver->linalg->exporter), Tpetra::ADD);
+    map->doExport(*map_over, *(solver->linalg->exporter[0]), Tpetra::ADD);
     map->fillComplete();
   }
   else {
@@ -1608,16 +1613,16 @@ void SubGridFEM_Solver::performGather(const size_t & b, ViewType vec_dev, const 
     switch(type) {
       case 0 :
         numDOF = assembler->cells[b][c]->cellData->numDOF;
-        data = assembler->cells[b][c]->u;
-        LIDs = assembler->cells[b][c]->LIDs;
+        data = assembler->cells[b][c]->u[0];
+        LIDs = assembler->cells[b][c]->LIDs[0];
         offsets = assembler->wkset[0]->offsets;
         break;
       case 1 : // deprecated (was udot)
         break;
       case 2 :
         numDOF = assembler->cells[b][c]->cellData->numDOF;
-        data = assembler->cells[b][c]->phi;
-        LIDs = assembler->cells[b][c]->LIDs;
+        data = assembler->cells[b][c]->phi[0];
+        LIDs = assembler->cells[b][c]->LIDs[0];
         offsets = assembler->wkset[0]->offsets;
         break;
       case 3 : // deprecated (was phidot)
@@ -1669,16 +1674,16 @@ void SubGridFEM_Solver::performBoundaryGather(const size_t & b, ViewType vec_dev
         switch(type) {
           case 0 :
             numDOF = assembler->boundaryCells[b][c]->cellData->numDOF;
-            data = assembler->boundaryCells[b][c]->u;
-            LIDs = assembler->boundaryCells[b][c]->LIDs;
+            data = assembler->boundaryCells[b][c]->u[0];
+            LIDs = assembler->boundaryCells[b][c]->LIDs[0];
             offsets = assembler->wkset[0]->offsets;
             break;
           case 1 : // deprecated (was udot)
             break;
           case 2 :
             numDOF = assembler->boundaryCells[b][c]->cellData->numDOF;
-            data = assembler->boundaryCells[b][c]->phi;
-            LIDs = assembler->boundaryCells[b][c]->LIDs;
+            data = assembler->boundaryCells[b][c]->phi[0];
+            LIDs = assembler->boundaryCells[b][c]->LIDs[0];
             offsets = assembler->wkset[0]->offsets;
             break;
           case 3 : // deprecated (was phidot)

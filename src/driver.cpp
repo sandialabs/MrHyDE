@@ -184,8 +184,8 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     for (size_t b=0; b<functionManagers.size(); b++) {
-      functionManagers[b]->setupLists(phys->varlist[b], phys->aux_varlist[b],
-                                      params->paramnames, params->discretized_param_names);
+      functionManagers[b]->setupLists(params->paramnames,
+                                      params->discretized_param_names);
       
       functionManagers[b]->wkset = assembler->wkset[b];
       functionManagers[b]->decomposeFunctions();
@@ -203,6 +203,9 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<AnalysisManager> analys = Teuchos::rcp( new AnalysisManager(Comm, settings,
                                                                              solve, postproc, params) );
+    
+    // Make sure all processes are caught up at this point
+    Kokkos::fence();
     
     {
       Teuchos::TimeMonitor rtimer(*runTimer);

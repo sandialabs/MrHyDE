@@ -38,9 +38,15 @@ namespace MrHyDE {
                  const size_t & myBlock_,
                  const size_t & myLevel_, const int & numElem_,
                  const bool & build_face_terms_,
-                 const bool & assemble_face_terms_,
+                 const vector<bool> & assemble_face_terms_,
                  const vector<string> & sidenames_,
                  const size_t & num_params);
+    
+    
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    void updatePhysicsSet(const size_t & set);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +56,9 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    bool assemble_face_terms, build_face_terms, storeBasisAtIP = true, requireBasisAtNodes = false;
+    vector<bool> assemble_face_terms;
+    bool storeBasisAtIP = true, requireBasisAtNodes = false, build_face_terms;
+    
     size_t myBlock, myLevel;
     int numElem=0; // safeguard against case where a proc does not own any elem on a block
     Teuchos::RCP<PhysicsInterface> physics_RCP;
@@ -89,6 +97,9 @@ namespace MrHyDE {
     bool multiscale, have_cell_phi, have_cell_rotation, have_extra_data;
     
     // these are common to all elements/cells and are often used on both devices
+    vector<Kokkos::View<int*,AssemblyDevice> > set_numDOF;
+    vector<Kokkos::View<int*,HostDevice> > set_numDOF_host;
+    
     Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
     Kokkos::View<int*,HostDevice> numDOF_host, numParamDOF_host, numAuxDOF_host;
     

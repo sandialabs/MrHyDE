@@ -42,8 +42,8 @@ namespace MrHyDE {
     cell(const Teuchos::RCP<CellMetaData> & cellData_,
          const DRV nodes_,
          const Kokkos::View<LO*,AssemblyDevice> localID_,
-         LIDView LIDs_,
-         Kokkos::View<int****,HostDevice> sideinfo_,
+         vector<LIDView> & LIDs_,
+         vector<Kokkos::View<int****,HostDevice> > & sideinfo_,
          Teuchos::RCP<DiscretizationInterface> & disc_,
          const bool & storeAll_);
          
@@ -87,7 +87,7 @@ namespace MrHyDE {
     // Define which basis each variable will use
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setUseBasis(vector<int> & usebasis_, const int & numsteps, const int & numstages);
+    void setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, const int & numstages);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each discretized parameter will use
@@ -137,11 +137,11 @@ namespace MrHyDE {
     // Reset the data stored in the previous step/stage solutions
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void resetPrevSoln();
+    void resetPrevSoln(const size_t & set);
     
-    void resetStageSoln();
+    void resetStageSoln(const size_t & set);
     
-    void updateStageSoln();
+    void updateStageSoln(const size_t & set);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute the contribution from this cell to the global res, J, Jdot
@@ -244,10 +244,12 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setUpAdjointPrev(const int & numDOF, const int & numsteps, const int & numstages) {
+    void setUpAdjointPrev(const int & numsteps, const int & numstages) {
       if (cellData->requiresTransient && cellData->requiresAdjoint) {
-        adj_prev = View_Sc3("previous step adjoint",numElem,numDOF,numsteps);
-        adj_stage_prev = View_Sc3("previous stage adjoint",numElem,numDOF,numstages);
+        for (size_t set=0; set<LIDs.size(); ++set) {
+          adj_prev.push_back(View_Sc3("previous step adjoint",numElem,LIDs[set].extent(1),numsteps));
+          adj_stage_prev.push_back(View_Sc3("previous stage adjoint",numElem,LIDs[set].extent(1),numstages));
+        }
       }
     }
     
@@ -275,7 +277,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void resetAdjPrev(const ScalarT & val);
+    void resetAdjPrev(const size_t & set, const ScalarT & val);
     
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -297,16 +299,18 @@ namespace MrHyDE {
     // Public data
     
     // Data created elsewhere
-    LIDView LIDs, paramLIDs, auxLIDs;
+    vector<LIDView> LIDs;
+    LIDView paramLIDs, auxLIDs;
     
     // Creating LIDs on host device for host assembly
-    LIDView_host LIDs_host, paramLIDs_host, auxLIDs_host;
+    vector<LIDView_host> LIDs_host;
+    LIDView_host paramLIDs_host;
     
     Teuchos::RCP<CellMetaData> cellData;
     Teuchos::RCP<workset> wkset;
     vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Kokkos::View<LO*,AssemblyDevice> localElemID;
-    Kokkos::View<int****,HostDevice> sideinfo; // may need to move this to Assembly
+    vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
     DRV nodes;
     vector<size_t> cell_data_seed, cell_data_seedindex;
     vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
@@ -323,9 +327,11 @@ namespace MrHyDE {
     vector<View_Sc1> hsize_face;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
-    View_Sc3 u, phi, aux, param; // (elem,var,numdof)
-    View_Sc3 u_avg, u_alt, aux_avg, param_avg; // (elem,var,dim)
-    View_Sc4 u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
+    vector<View_Sc3> u, phi;
+    View_Sc3 param, aux; // (elem,var,numdof)
+    vector<View_Sc3> u_avg, u_alt;
+    View_Sc3 param_avg, aux_avg; // (elem,var,dim)
+    vector<View_Sc4> u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
     // basis information
     vector<View_Sc4> basis, basis_grad, basis_curl, basis_nodes;
@@ -351,7 +357,7 @@ namespace MrHyDE {
     vector<int> sensorElem, mySensorIDs;
     vector<vector<DRV> > sensorBasis, param_sensorBasis, sensorBasisGrad, param_sensorBasisGrad;
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, cell_data;
-    Kokkos::View<ScalarT***,AssemblyDevice> adj_prev, adj_stage_prev;
+    vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
     vector<ScalarT> cell_data_distance;
     
     // Profile timers

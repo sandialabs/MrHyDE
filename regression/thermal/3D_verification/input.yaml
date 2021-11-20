@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   debug level: 0
+  verbosity: 0
   Mesh:
     dimension: 3
     element type: hex

@@ -59,9 +59,9 @@ namespace MrHyDE {
     //virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time,
     //                                                           const int & usernum) = 0;
     
-    virtual vector<std::pair<size_t, string> > getErrorList() = 0;
+    virtual vector<std::pair<string, string> > getErrorList() = 0;
     
-    virtual Kokkos::View<ScalarT**,HostDevice> computeError(vector<std::pair<size_t, string> > & sub_error_list,
+    virtual Kokkos::View<ScalarT**,HostDevice> computeError(vector<std::pair<string, string> > & sub_error_list,
                                                             const vector<ScalarT> & times) = 0;
     
     virtual Kokkos::View<ScalarT*,HostDevice> computeError(const ScalarT & times) = 0;
