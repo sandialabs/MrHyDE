@@ -1,0 +1,66 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 00
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 5.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 50
+    NY: 10
+  Physics:
+    modules: 'navier stokes, cdr'
+    Dirichlet conditions:
+      ux:
+        bottom: '0.0'
+        top: '0.0'
+      uy:
+        bottom: '0.0'
+        top: '0.0'
+      c:
+        bottom: '0.0'
+        top: '0.0'
+    usePSPG: true
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      pr: 1
+      c: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    Preconditioner Settings:
+      'smoother: type': RELAXATION
+      'smoother: params':
+        'relaxation: type': Jacobi
+    nonlinear TOL: 1.0e-7
+    linear TOL: 1.0e-9
+    max nonlinear iters: 10
+    final time: 1.0
+    number of steps: 10
+  Analysis: 
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    compute errors: true
+    True solutions:
+      ux: '0.5*y*(1.0-y)'
+      uy: '0.0'
+      pr: '0.0'
+      c: '0.0'
+  Functions:
+    source ux: '1.0'
+    source uy: '0.1*c^2'
+    source: 'exp(bubble)'
+    diffusion: '0.01'
+    xvel: 'ux'
+    yvel: 'uy'
+    reaction: '0.0'
+    SUPG tau: '0.0'
+    bubble: '-10.0*(x-2)*(x-2) - 10.0*(y-0.5)*(y-0.5)'
+...
