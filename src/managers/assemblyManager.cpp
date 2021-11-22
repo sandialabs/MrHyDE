@@ -1679,7 +1679,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  if (!cells[b][0]->cellData->multiscale && assemble_boundary_terms[set][b]) {
+  if (!cellData[b]->multiscale && assemble_boundary_terms[set][b]) {
     
     if (!reduce_memory) {
       if (compute_sens) {
@@ -1783,6 +1783,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         
       }
     } // element loop
+    
   }
   
   // Apply constraints, e.g., strongly imposed Dirichlet
@@ -2168,8 +2169,10 @@ void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewT
   auto res = wkset[block]->res;
   auto offsets = wkset[block]->offsets;
   auto numDOF = cellData[block]->numDOF;
-  bool lump_mass_ = lump_mass, compute_sens_ = compute_sens,
-  isAdjoint_ = isAdjoint, compute_jacobian_ = compute_jacobian;
+  bool compute_sens_ = compute_sens;
+#ifndef MrHyDE_NO_AD
+  bool lump_mass_ = lump_mass, isAdjoint_ = isAdjoint, compute_jacobian_ = compute_jacobian;
+#endif
   
   bool use_atomics_ = false;
   if (LA_exec::concurrency() > 1) {

@@ -536,7 +536,9 @@ void mirage::volumeResidual() {
     }
   }
   
+  
   if (include_Eeqn) {
+    
     // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
     // Rewritten as: (eps*dEdt + sigma E + current, V) - (1/mu B, curl V) = 0
     
@@ -710,90 +712,72 @@ void mirage::volumeResidual() {
 
 void mirage::boundaryResidual() {
   
-  int spaceDim = wkset->dimension;
-  auto bcs = wkset->var_bcs;
-  
-  int cside = wkset->currentside;
-  
-  
-  auto wts = wkset->wts_side;
-  auto res = wkset->res;
-  
-  if (spaceDim == 2) {
-    View_Sc2 nx, ny;
-    nx = wkset->getDataSc("nx side");
-    ny = wkset->getDataSc("ny side");
+  if (include_Eeqn) {
     
-    //double gamma = 0.0;
-    if (bcs(Bnum,cside) == "Neumann") { // Really ABC
-      // Computes -nxnxE in B equation
+    int spaceDim = wkset->dimension;
+    auto bcs = wkset->var_bcs;
+    
+    int cside = wkset->currentside;
+    
+    
+    if (spaceDim == 2) {
       
-      parallel_for("maxwell bndry resid ABC",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-    
-      });
+      //double gamma = 0.0;
+      if (bcs(Bnum,cside) == "Neumann") { // Really ABC
+        // Computes -nxnxE in B equation
+        auto wts = wkset->wts_side;
+        auto res = wkset->res;
+        
+        View_Sc2 nx, ny;
+        nx = wkset->getDataSc("nx side");
+        ny = wkset->getDataSc("ny side");
+        
+        parallel_for("maxwell bndry resid ABC",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
+        // not actually implemented yet
+        });
+      }
+      
     }
-    
-  }
-  else if (spaceDim == 3) {
-    View_Sc2 nx, ny, nz;
-    nx = wkset->getDataSc("nx side");
-    ny = wkset->getDataSc("ny side");
-    nz = wkset->getDataSc("nz side");
-    auto Ex = wkset->getData("E[x] side");
-    auto Ey = wkset->getData("E[y] side");
-    auto Ez = wkset->getData("E[z] side");
-    auto off = subview(wkset->offsets, Enum, ALL());
-    auto basis = wkset->basis_side[wkset->usebasis[Enum]];
-    
-    ScalarT gamma = -0.9944;
-    if (bcs(Bnum,cside) == "Neumann") { // Really ABC
-      // Contributes -<nxnxE,V> along boundary in B equation
+    else if (spaceDim == 3) {
+      if (bcs(Bnum,cside) == "Neumann") { // Really ABC
+        // Contributes -<nxnxE,V> along boundary in B equation
+        auto wts = wkset->wts_side;
+        auto res = wkset->res;
+        
+        View_Sc2 nx, ny, nz;
+        nx = wkset->getDataSc("nx side");
+        ny = wkset->getDataSc("ny side");
+        nz = wkset->getDataSc("nz side");
+        auto Ex = wkset->getData("E[x] side");
+        auto Ey = wkset->getData("E[y] side");
+        auto Ez = wkset->getData("E[z] side");
+        auto off = subview(wkset->offsets, Enum, ALL());
+        auto basis = wkset->basis_side[wkset->usebasis[Enum]];
+        
+        ScalarT gamma = -0.9944;
       
-      parallel_for("maxwell bndry resid ABC",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-    
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
-          AD nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
-          AD nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
-          AD c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
-          AD c1 = -(1.0+gamma)*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
-          AD c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
-          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
-          }
-        }
-      });
-      
-      
-      /*
-      auto Bx = wkset->getData("B[x] side");
-      auto By = wkset->getData("B[y] side");
-      auto Bz = wkset->getData("B[z] side");
-      parallel_for("maxwell bndry resid ABC",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-    
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+        parallel_for("maxwell bndry resid ABC",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     KOKKOS_LAMBDA (const int elem ) {
           
-          AD nce_x = ny(elem,pt)*Bz(elem,pt) - nz(elem,pt)*By(elem,pt);
-          AD nce_y = nz(elem,pt)*Bx(elem,pt) - nx(elem,pt)*Bz(elem,pt);
-          AD nce_z = nx(elem,pt)*By(elem,pt) - ny(elem,pt)*Bx(elem,pt);
-          AD c0 = nce_x*wts(elem,pt);
-          AD c1 = nce_y*wts(elem,pt);
-          AD c2 = nce_z*wts(elem,pt);
-          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            AD nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
+            AD nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
+            AD nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
+            AD c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
+            AD c1 = -(1.0+gamma)*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
+            AD c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
+            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
+            }
           }
-        }
-      });
-       */
-       
+        });
+        
+      }
+      
     }
-    
   }
   
 }

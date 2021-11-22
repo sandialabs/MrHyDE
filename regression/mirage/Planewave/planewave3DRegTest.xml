@@ -4,7 +4,7 @@
   <Parameter name="z-elements" type="int" value="100"/>
   <Parameter name="x-procs" type="int" value="1"/>
   <Parameter name="y-procs" type="int" value="1"/>
-  <Parameter name="z-procs" type="int" value="1"/>
+  <Parameter name="z-procs" type="int" value="4"/>
   <Parameter name="x-blocks" type="int" value="1"/>
   <Parameter name="y-blocks" type="int" value="1"/>
   <Parameter name="z-blocks" type="int" value="1"/>
