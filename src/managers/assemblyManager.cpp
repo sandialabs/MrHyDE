@@ -1020,7 +1020,6 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
       
       Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[b][e]->getWeightedMass(phys->masswts[set][b]);
       
-      
       parallel_for("assembly insert Jac",
                    RangePolicy<LA_exec>(0,LIDs.extent(0)),
                    KOKKOS_LAMBDA (const int elem ) {

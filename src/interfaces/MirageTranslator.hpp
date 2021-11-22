@@ -127,6 +127,7 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////////////////////////
     
     bool use_explicit = mirage_settings->sublist("MrHyDE Options").get<bool>("Use explicit integration",true);
+    bool use_opsplit = mirage_settings->sublist("MrHyDE Options").get<bool>("use operator splitting",false);
     
     //----------------------------------------
     // Mesh block
@@ -212,10 +213,10 @@ namespace MrHyDE {
     double maxperm = -1.0;
     double minperm = -1.0;
     
-    if (blocknames.size() == 0) {
+    //if (blocknames.size() == 0) {
       physics_list->set("modules","mirage");
       physics_list->set("use fully explicit",use_explicit);
-      if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog") {
+      if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog" && !use_opsplit) {
         physics_list->set("use leap-frog",true);
       }
       else {
@@ -262,7 +263,8 @@ namespace MrHyDE {
       double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
       physics_list->sublist("Norm weights").set<double>("E",epsval);
       physics_list->sublist("Norm weights").set<double>("B",invmuval);
-    }
+    //}
+    /*
     else {
       for (size_t b=0; b<blocknames.size(); ++b) {
         string cmname = mirage_settings->sublist("Closure Models").sublist("Mapping to Blocks").get<string>(blocknames[b]);
@@ -309,45 +311,81 @@ namespace MrHyDE {
         physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("E",epsval);
         physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("B",invmuval);
       }
-    }
+    }*/
     
     // Safeguard against using discontinuous permittivity
     if (maxperm/minperm > 1.1) {
       TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: discontinuous permittivities detected.  Please use REFRACTIVE_INDEX to define multiple materials.");
     }
     
-    settings->sublist("Physics").setParameters(*physics_list);
+    if (use_opsplit) {
+      settings->sublist("Physics").set<string>("physics set names","Mirage B, Mirage E");
+      if (blocknames.size() == 0) {
+        settings->sublist("Physics").sublist("Mirage B").setParameters(*physics_list);
+        settings->sublist("Physics").sublist("Mirage E").setParameters(*physics_list);
+        settings->sublist("Physics").sublist("Mirage B").set<string>("active variables","B");
+        settings->sublist("Physics").sublist("Mirage E").set<string>("active variables","E");
+      }
+      else {
+        for (size_t block=0; block<blocknames.size(); ++block) {
+          settings->sublist("Physics").sublist("Mirage B").sublist(blocknames[block]).setParameters(*physics_list);
+          settings->sublist("Physics").sublist("Mirage E").sublist(blocknames[block]).setParameters(*physics_list);
+          settings->sublist("Physics").sublist("Mirage B").sublist(blocknames[block]).set<string>("active variables","B");
+          settings->sublist("Physics").sublist("Mirage E").sublist(blocknames[block]).set<string>("active variables","E");
+        }
+      }
+    }
+    else {
+      if (blocknames.size() == 0) {
+        settings->sublist("Physics").setParameters(*physics_list);
+      }
+      else {
+        for (size_t block=0; block<blocknames.size(); ++block) {
+          settings->sublist("Physics").sublist(blocknames[block]).setParameters(*physics_list);
+        }
+      }
+    }
+    
     
     //----------------------------------------
     // Discretization block
     //----------------------------------------
     
     Teuchos::RCP<Teuchos::ParameterList> disc_list = Teuchos::rcp( new Teuchos::ParameterList() );
+    disc_list->set<int>("quadrature",2);
+    disc_list->sublist("order").set<int>("E",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+    if (mirage_dim == 2) {
+      disc_list->sublist("order").set<int>("B",0);
+    }
+    else {
+      disc_list->sublist("order").set<int>("B",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+    }
     
-    if (blocknames.size() == 0) {
-      disc_list->set<int>("quadrature",2);
-      disc_list->sublist("order").set<int>("E",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
-      if (mirage_dim == 2) {
-        disc_list->sublist("order").set<int>("B",0);
+    if (use_opsplit) {
+      if (blocknames.size() == 0) {
+        settings->sublist("Discretization").sublist("Mirage B").setParameters(*disc_list);
+        settings->sublist("Discretization").sublist("Mirage E").setParameters(*disc_list);
       }
       else {
-        disc_list->sublist("order").set<int>("B",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+        for (size_t b=0; b<blocknames.size(); ++b) {
+          settings->sublist("Discretization").sublist("Mirage B").sublist(blocknames[b]).setParameters(*disc_list);
+          settings->sublist("Discretization").sublist("Mirage E").sublist(blocknames[b]).setParameters(*disc_list);
+        }
       }
     }
     else {
-      for (size_t b=0; b<blocknames.size(); ++b) {
-        disc_list->sublist(blocknames[b]).set<int>("quadrature",2);
-        disc_list->sublist(blocknames[b]).sublist("order").set<int>("E",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
-        if (mirage_dim == 2) {
-          disc_list->sublist("order").set<int>("B",0);
-        }
-        else {
-          disc_list->sublist(blocknames[b]).sublist("order").set<int>("B",mirage_settings->sublist("Solver Options").get<int>("Basis order",1));
+      if (blocknames.size() == 0) {
+        settings->sublist("Discretization").setParameters(*disc_list);
+        settings->sublist("Discretization").setParameters(*disc_list);
+      }
+      else {
+        for (size_t b=0; b<blocknames.size(); ++b) {
+          settings->sublist("Discretization").sublist(blocknames[b]).setParameters(*disc_list);
         }
       }
     }
     
-    settings->sublist("Discretization").setParameters(*disc_list);
+    //settings->sublist("Discretization").setParameters(*disc_list);
     
     //----------------------------------------
     // Functions block
@@ -388,7 +426,12 @@ namespace MrHyDE {
     settings->sublist("Solver").set<string>("Belos implicit residual scaling","Norm of Initial Residual");
     
     if (use_explicit) {
-      settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog"));
+      if (use_opsplit) {
+        settings->sublist("Solver").set<string>("transient Butcher tableau","FWE");
+      }
+      else {
+        settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog"));
+      }
       settings->sublist("Solver").set<bool>("lump mass",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
       settings->sublist("Solver").set<string>("Belos solver",
                                               mirage_settings->sublist("MrHyDE Options").get<string>("Belos solver","Block CG"));

@@ -52,8 +52,6 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
                                     ip, wts, hsize, orientation,
                                     basis, basis_grad, basis_curl,
                                     basis_div, basis_nodes,true,true);
-    
-    
     if (cellData->build_face_terms) {
       for (size_type side=0; side<cellData->numSides; side++) {
         int numip = cellData->ref_side_ip[side].extent(0);
@@ -1304,6 +1302,7 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
   
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
+  
   for (size_type n=0; n<numDOF.extent(0); n++) {
     View_Sc4 cbasis;
     if (storeAll) {
@@ -1323,7 +1322,7 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
       cbasis = tbasis[wkset->usebasis[n]];
       cwts = twts;
     }
-      
+    
     string btype = wkset->basis_types[wkset->usebasis[n]];
     auto off = subview(offsets,n,ALL());
     ScalarT mwt = masswts[n];
@@ -1357,6 +1356,7 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
       });
     }
   }
+  
   return mass;
 }
 

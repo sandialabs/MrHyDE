@@ -180,6 +180,8 @@ namespace MrHyDE {
     
     void checkDataScAllocation(const size_t & ind);
     
+    void printFields();
+    
     View_AD2 findData(const string & label);
     
     View_AD2 getData(const string & label);

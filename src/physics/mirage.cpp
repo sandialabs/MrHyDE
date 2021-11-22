@@ -390,7 +390,7 @@ void mirage::volumeResidual() {
   }
   
   bool include_dBdt = true, include_dEdt = true;
-  if (use_leap_frog) {
+  if (use_explicit) {
     include_dBdt = false;
     include_dEdt = false;
   }

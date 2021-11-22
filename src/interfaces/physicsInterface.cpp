@@ -835,9 +835,14 @@ void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & par
 
 int PhysicsInterface::getUniqueIndex(const int & set, const int & block, const std::string & var) {
   int index = 0;
-  for (size_t j=0; j<numVars[set][block]; j++) {
-    if (varlist[set][block][j] == var)
-    index = unique_index[block][j];
+  size_t prog = 0;
+  for (size_t set=0; set<numVars.size(); ++set) {
+    for (size_t j=0; j<numVars[set][block]; j++) {
+      if (varlist[set][block][j] == var) {
+        index = unique_index[block][j+prog];
+      }
+    }
+    prog += numVars[set][block];
   }
   return index;
 }

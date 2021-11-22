@@ -146,7 +146,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       int block_maxBasis = 0;
       for (size_t j=0; j<numVars[set][b]; j++) {
         string var = phys_varlist[set][b][j];
-        //int vnum = DOF->getFieldNum(var);
         int vub = phys->getUniqueIndex(set,b,var);
         block_varlist[j] = var;
         block_useBasis[j] = vub;
@@ -362,7 +361,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
         linalg->fillComplete(explicitMass[set]);
       }
       
-      //KokkosTools::print(diagMass);
+      //KokkosTools::print(explicitMass[set],"explicit mass");
+      //KokkosTools::print(diagMass[set],"diag mass");
       //linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
       
       linalg->q_pcg.push_back(linalg->getNewVector(set));
@@ -1131,17 +1131,20 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     
     if (usestrongDBCs) {
       for (size_t set=0; set<initial.size(); ++set) {
+        assembler->updatePhysicsSet(set);
         this->setDirichlet(set,u[set]);
       }
     }
     
     for (size_t set=0; set<initial.size(); ++set) {
+      assembler->updatePhysicsSet(set);
       assembler->performGather(set,u[set],0,0);
     }
+    
     postproc->record(u,current_time,true,obj);
     
-    
     for (size_t set=0; set<initial.size(); ++set) {
+      assembler->updatePhysicsSet(set);
       for (int s=0; s<numsteps; s++) {
         assembler->resetPrevSoln(set);
       }
@@ -1163,9 +1166,18 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       
       int status = 0;
+      if (Comm->getRank() == 0 && verbosity > 0) {
+        cout << endl << endl << "*******************************************************" << endl;
+        cout << endl << "**** Beginning Time Step " << endl;
+        cout << "**** Current time is " << current_time << endl << endl;
+        cout << "*******************************************************" << endl << endl << endl;
+      }
       
       for (int ss=0; ss<subcycles; ++ss) {
         for (size_t set=0; set<u.size(); ++set) {
+          
+          assembler->updatePhysicsSet(set);
+          
           if (BDForder > 1 && stepProg == startupSteps) {
             this->setBackwardDifference(BDForder);
             this->setButcherTableau(ButcherTab);
@@ -1194,19 +1206,12 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             }
           }
           
-          if (Comm->getRank() == 0 && verbosity > 0) {
-            cout << endl << endl << "*******************************************************" << endl;
-            cout << endl << "**** Beginning Time Step " << endl;
-            cout << "**** Current time is " << current_time << endl << endl;
-            cout << "*******************************************************" << endl << endl << endl;
-          }
-      
           u_prev[set]->assign(*(u[set]));
           auto BDF_wts = assembler->wkset[0]->BDF_wts;
+          
           for (int stage = 0; stage<numstages; stage++) {
             // Need a stage solution
             // Set the initial guess for stage solution
-            //u_stage->update(1.0,*u,0.0);
             u_stage[set]->assign(*(u_prev[set]));
             
             assembler->updateStageNumber(stage); // could probably just += 1 in wksets
@@ -1220,8 +1225,11 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             
             u[set]->update(1.0, *(u_stage[set]), 1.0);
             u[set]->update(-1.0, *(u_prev[set]), 1.0);
+            
             assembler->updateStageSoln(set); // moves the stage solution into u_stage (avoids mem transfer)
+            
           }
+          //assembler->resetPrevSoln(set); //
         }
       }
       
@@ -1232,6 +1240,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         // Make sure last step solution is gathered
         // Last set of values is from a stage solution, which is potentially different
         for (size_t set=0; set<u.size(); ++set) {
+          assembler->updatePhysicsSet(set);
           assembler->performGather(set,u[set],0,0);
         }
         // TODO :: BWR make this more flexible (may want to save based on simulation time as well)
@@ -1592,6 +1601,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   }
   
   int status = 0;
+  assembler->updatePhysicsSet(set);
   
   if (usestrongDBCs) {
     this->setDirichlet(set,u);
@@ -1611,45 +1621,52 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   
   linalg->exportVectorFromOverlapped(set, res[set], res_over[set]);
   
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
+  res[set]->norm2(rnorm);
+  
   // *********************** SOLVE THE LINEAR SYSTEM **************************
   
-  // Given m = diag(M^-1)
-  // Given timewt = b(stage)*deltat
-  // Compute du = timewt*m*res
-  // Compute u += du
-  
-  ScalarT wt = deltat*butcher_b(stage);
-  
-  du_over[set]->putScalar(0.0);
-  
-  if (!assembler->lump_mass) {
-    res[set]->scale(wt);
-    if (use_custom_PCG) {
-      linalg->PCG(set, explicitMass[set], res[set], du[set], diagMass[set],
-                  settings->sublist("Solver").get("linear TOL",1.0e-2),
-                  settings->sublist("Solver").get("max linear iters",100));
+  if (rnorm[0]>1.0e-100) {
+    // Given m = diag(M^-1)
+    // Given timewt = b(stage)*deltat
+    // Compute du = timewt*m*res
+    // Compute u += du
+    
+    ScalarT wt = deltat*butcher_b(stage);
+    
+    du_over[set]->putScalar(0.0);
+    du[set]->putScalar(0.0);
+    
+    if (!assembler->lump_mass) {
+      res[set]->scale(wt);
+      if (use_custom_PCG) {
+        linalg->PCG(set, explicitMass[set], res[set], du[set], diagMass[set],
+                    settings->sublist("Solver").get("linear TOL",1.0e-2),
+                    settings->sublist("Solver").get("max linear iters",100));
+      }
+      else {
+        linalg->linearSolverL2(set, explicitMass[set], res[set], du[set]);
+      }
+      
     }
     else {
-      linalg->linearSolverL2(set, explicitMass[set], res[set], du[set]);
+      typedef typename Node::execution_space LA_exec;
+      
+      auto du_view = du[set]->template getLocalView<LA_device>();
+      auto res_view = res[set]->template getLocalView<LA_device>();
+      auto dm_view = diagMass[set]->template getLocalView<LA_device>();
+      
+      parallel_for("explicit solver apply invdiag",
+                   RangePolicy<LA_exec>(0,du_view.extent(0)),
+                   KOKKOS_LAMBDA (const int k ) {
+        du_view(k,0) = wt*res_view(k,0)/dm_view(k,0);
+      });
     }
+    linalg->importVectorToOverlapped(set, du_over[set], du[set]);
+    
+    u->update(1.0, *(du_over[set]), 1.0);
     
   }
-  else {
-    typedef typename Node::execution_space LA_exec;
-    
-    auto du_view = du[set]->template getLocalView<LA_device>();
-    auto res_view = res[set]->template getLocalView<LA_device>();
-    auto dm_view = diagMass[set]->template getLocalView<LA_device>();
-    
-    parallel_for("explicit solver apply invdiag",
-                 RangePolicy<LA_exec>(0,du_view.extent(0)),
-                 KOKKOS_LAMBDA (const int k ) {
-      du_view(k,0) = wt*res_view(k,0)/dm_view(k,0);
-    });
-  }
-  linalg->importVectorToOverlapped(set, du_over[set], du[set]);
-  
-  u->update(1.0, *(du_over[set]), 1.0);
   
   if (verbosity>=10) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
