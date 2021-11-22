@@ -712,7 +712,7 @@ void mirage::volumeResidual() {
 
 void mirage::boundaryResidual() {
   
-  if (include_Eeqn) {
+  if (include_Beqn) {
     
     int spaceDim = wkset->dimension;
     auto bcs = wkset->var_bcs;

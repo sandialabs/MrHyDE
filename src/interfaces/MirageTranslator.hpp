@@ -213,105 +213,56 @@ namespace MrHyDE {
     double maxperm = -1.0;
     double minperm = -1.0;
     
-    //if (blocknames.size() == 0) {
-      physics_list->set("modules","mirage");
-      physics_list->set("use fully explicit",use_explicit);
-      if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog" && !use_opsplit) {
-        physics_list->set("use leap-frog",true);
-      }
-      else {
-        physics_list->set("use leap-frog",false);
-      }
-      if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics")) {
-        physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics"));
-      }
-      else if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics0")) {
-        physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics0"));
-      }
-      else {
-        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: could not find the closure model settings");
-      }
-      physics_list->sublist("Initial Conditions").set<bool>("scalar data",true);
-      physics_list->sublist("Initial Conditions").set<double>("E",0.0);
-      physics_list->sublist("Initial Conditions").set<double>("B",0.0);
-      
-      double epsval = 1.0e-11;
-      if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("Value") ) {
-        epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
-      }
-      else if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
-        epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
-      }
-      
-      if (minperm < 0 || epsval<minperm) {
-        minperm = epsval;
-      }
-      if (maxperm < 0 || epsval>maxperm) {
-        maxperm = epsval;
-      }
-      
-      double rival = 1.0;
-      if (physics_list->sublist("Mirage settings").isSublist("REFRACTIVE_INDEX")) {
-        if (physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").isParameter("Value") ) {
-          rival = physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").get<double>("Value");
-        }
-      }
-      
-      physics_list->sublist("Mass weights").set<double>("E",rival*rival);
-      physics_list->sublist("Mass weights").set<double>("B",1.0);
-      
-      double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
-      physics_list->sublist("Norm weights").set<double>("E",epsval);
-      physics_list->sublist("Norm weights").set<double>("B",invmuval);
-    //}
-    /*
+    physics_list->set("modules","mirage");
+    physics_list->set("use fully explicit",use_explicit);
+    if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog" && !use_opsplit) {
+      physics_list->set("use leap-frog",true);
+    }
     else {
-      for (size_t b=0; b<blocknames.size(); ++b) {
-        string cmname = mirage_settings->sublist("Closure Models").sublist("Mapping to Blocks").get<string>(blocknames[b]);
-        physics_list->sublist(blocknames[b]).set("modules","mirage");
-        physics_list->sublist(blocknames[b]).set("use fully explicit",use_explicit);
-        if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog") {
-          physics_list->sublist(blocknames[b]).set("use leap-frog",true);
-        }
-        else {
-          physics_list->sublist(blocknames[b]).set("use leap-frog",false);
-        }
-        
-        physics_list->sublist(blocknames[b]).sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist(cmname));
-        physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<bool>("scalar data",true);
-        physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<double>("E",0.0);
-        physics_list->sublist(blocknames[b]).sublist("Initial Conditions").set<double>("B",0.0);
-        
-        double epsval = 1.0e-11;
-        if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("Value") ) {
-          epsval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
-        }
-        else if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
-          epsval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
-        }
-        
-        if (minperm < 0 || epsval<minperm) {
-          minperm = epsval;
-        }
-        if (maxperm < 0 || epsval>maxperm) {
-          maxperm = epsval;
-        }
-        
-        double rival = 1.0;
-        if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").isSublist("REFRACTIVE_INDEX")) {
-          if (physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("REFRACTIVE_INDEX").isParameter("Value") ) {
-            rival = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("REFRACTIVE_INDEX").get<double>("Value");
-          }
-        }
-        
-        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("E",rival*rival);
-        physics_list->sublist(blocknames[b]).sublist("Mass weights").set<double>("B",1.0);
-        
-        double invmuval = physics_list->sublist(blocknames[b]).sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
-        physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("E",epsval);
-        physics_list->sublist(blocknames[b]).sublist("Norm weights").set<double>("B",invmuval);
+      physics_list->set("use leap-frog",false);
+    }
+    if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics")) {
+      physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics"));
+    }
+    else if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics0")) {
+      physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics0"));
+    }
+    else {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: could not find the closure model settings");
+    }
+    physics_list->sublist("Initial Conditions").set<bool>("scalar data",true);
+    physics_list->sublist("Initial Conditions").set<double>("E",0.0);
+    physics_list->sublist("Initial Conditions").set<double>("B",0.0);
+    
+    double epsval = 1.0e-11;
+    if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("Value") ) {
+      epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
+    }
+    else if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
+      epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
+    }
+    
+    if (minperm < 0 || epsval<minperm) {
+      minperm = epsval;
+    }
+    if (maxperm < 0 || epsval>maxperm) {
+      maxperm = epsval;
+    }
+    
+    double rival = 1.0;
+    if (physics_list->sublist("Mirage settings").isSublist("REFRACTIVE_INDEX")) {
+      if (physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").isParameter("Value") ) {
+        rival = physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").get<double>("Value");
       }
-    }*/
+    }
+    
+    physics_list->sublist("Mass weights").set<double>("E",rival*rival);
+    physics_list->sublist("Mass weights").set<double>("B",1.0);
+    
+    double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
+    physics_list->sublist("Norm weights").set<double>("E",epsval);
+    physics_list->sublist("Norm weights").set<double>("B",invmuval);
+    
     
     // Safeguard against using discontinuous permittivity
     if (maxperm/minperm > 1.1) {
