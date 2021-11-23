@@ -90,15 +90,6 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), set_var_bcs(var_bcs_
     maxb = std::max(maxb,numb);
   }
   
-  // These are stored as vector<View_AD2> instead of View_AD3 to avoid subviews
-  //for (size_t k=0; k<numVars; ++k) {
-  //  uvals.push_back(View_AD2("seeded uvals",numElem, maxb));
-  //  if (isTransient) {
-  //    u_dotvals.push_back(View_AD2("seeded uvals",numElem, maxb));
-  //  }
-  //}
-    
-  
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   maxTeamSize = 256 / VectorSize;
 #else
@@ -246,8 +237,8 @@ void workset::createSolns() {
           fields.push_back(SolutionField(var+"[y] side",set,"solution",i,"HCURL",bind,"",1,0,numsideip,true,false));
           fields.push_back(SolutionField(var+"[z] side",set,"solution",i,"HCURL",bind,"",2,0,numsideip,true,false));
           fields.push_back(SolutionField(var+"[x] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
-          fields.push_back(SolutionField(var+"[x] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
-          fields.push_back(SolutionField(var+"[x] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
+          fields.push_back(SolutionField(var+"[y] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
+          fields.push_back(SolutionField(var+"[z] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
         }
         else {
           this->addData(var+"[x]",numElem,numip);

@@ -754,6 +754,11 @@ void SolverManager<Node>::finalizeWorkset() {
     }
   }
   
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    if (assembler->wkset[b]->isInitialized) {
+      assembler->wkset[b]->updatePhysicsSet(0);
+    }
+  }
   
   // Parameters do not depend on physics sets
   for (size_t b=0; b<assembler->cells.size(); b++) {
