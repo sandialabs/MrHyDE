@@ -50,7 +50,7 @@ namespace MrHyDE {
       basis_index = basis_index_;
       derivative_type = derivtype_; // grad, curl, div, time
       component = component_; // x, y, z
-      data = View_AD2("solution field for " + expression, dim0, dim1);
+      data = View_AD2("solution field for " + expression, 1, dim1);
       isOnSide = onSide_;
       isPoint = isPoint_;
       isUpdated = false;

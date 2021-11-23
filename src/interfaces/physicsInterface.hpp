@@ -199,7 +199,7 @@ namespace MrHyDE {
     int spaceDim, debug_level;
     vector<string> setnames, blocknames, sidenames;
     
-    vector<vector<size_t> > numVars;
+    vector<vector<size_t> > numVars; // [set][block]
     
     //-----------------------------------------------------
     // Data the depends on physics sets
@@ -211,14 +211,14 @@ namespace MrHyDE {
     vector<vector<vector<ScalarT> > > masswts, normwts;
     
     vector<vector<vector<string> > > varlist; // [set][block][var]
-    vector<vector<vector<int> > > varowned;
-    vector<vector<vector<int> > > orders;
-    vector<vector<vector<string> > > types;
+    vector<vector<vector<int> > > varowned; // [set][block][var]
+    vector<vector<vector<int> > > orders; // [set][block][var]
+    vector<vector<vector<string> > > types; // [set][block][var]
     //-----------------------------------------------------
     
-    vector<vector<int> > unique_orders;
-    vector<vector<string> > unique_types;
-    vector<vector<int> > unique_index;
+    vector<vector<int> > unique_orders; // [block][basis]
+    vector<vector<string> > unique_types; // [block][basis]
+    vector<vector<int> > unique_index; // [block][basis]
     
     string initial_type;
     
