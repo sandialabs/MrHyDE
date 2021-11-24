@@ -39,6 +39,8 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), set_var_bcs(var_bcs_
   usebcs = true;
   numip = cellinfo[3];
   numsideip = cellinfo[4];
+  numSets = cellinfo[5];
+  
   if (dimension == 2) {
     numsides = celltopo->getSideCount();
   }
@@ -54,6 +56,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), set_var_bcs(var_bcs_
   deltat = 1.0;
   current_stage = 0;
   current_set = 0;
+  var_bcs = set_var_bcs[0];
   
   // Add scalar views to store ips
   this->addDataSc("x",numElem,numip);
@@ -111,7 +114,7 @@ void workset::createSolns() {
   maxRes = numParams;
   
   // Check the number of DOF for each variable
-  for (size_t set=0; set<set_offsets.size(); ++set) {
+  for (size_t set=0; set<numSets; ++set) {
     maxRes = std::max(maxRes, set_offsets[set].extent(0)*set_offsets[set].extent(1));
   }
   
@@ -122,7 +125,8 @@ void workset::createSolns() {
   
   res = View_AD2("residual",numElem, maxRes);
   
-  for (size_t set=0; set<set_usebasis.size(); ++set) {
+  for (size_t set=0; set<numSets; ++set) {
+    
     vector<View_AD2> set_uvals, set_u_dotvals;
     vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
     vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
@@ -130,6 +134,7 @@ void workset::createSolns() {
     for (size_t i=0; i<set_usebasis[set].size(); i++) {
       int bind = set_usebasis[set][i];
       string var = set_varlist[set][i];
+      
       int numb = basis_pointers[bind]->getCardinality();
       set_uvals.push_back(View_AD2("seeded uvals",numElem, numb));
       if (isTransient) {
@@ -504,7 +509,7 @@ void workset::computeSolnTransientSeeded(vector<View_Sc3> & u,
   ScalarT one = 1.0;
   ScalarT zero = 0.0;
   
-  for (size_t set=0; set<u.size(); ++set) {
+  for (size_t set=0; set<numSets; ++set) {
     // Seed the current stage solution
     if (set == current_set) {
       if (seedwhat == 1) {
@@ -724,7 +729,7 @@ void workset::computeSolnSteadySeeded(vector<View_Sc3> & u,
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
-  for (size_t set=0; set<u.size(); ++set) {
+  for (size_t set=0; set<numSets; ++set) {
     for (size_type var=0; var<u[set].extent(1); var++ ) {
       
       auto u_AD = uvals[set][var];
@@ -2342,10 +2347,12 @@ void workset::setParamGradPoint(View_AD2 newsol) {
 
 void workset::updatePhysicsSet(const size_t & current_set_) {
   if (isInitialized) {
-    current_set = current_set_;
-    offsets = set_offsets[current_set];
-    usebasis = set_usebasis[current_set];
-    varlist = set_varlist[current_set];
-    var_bcs = set_var_bcs[current_set];
+    if (numSets>1) {
+      current_set = current_set_;
+      offsets = set_offsets[current_set];
+      usebasis = set_usebasis[current_set];
+      varlist = set_varlist[current_set];
+      var_bcs = set_var_bcs[current_set];
+    }
   }
 }

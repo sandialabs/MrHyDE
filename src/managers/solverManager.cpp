@@ -714,9 +714,9 @@ void SolverManager<Node>::finalizeWorkset() {
   }
   
   // Determine the offsets for each set as a Kokkos View
-  for (size_t set=0; set<phys->setnames.size(); set++) {
-    for (size_t b=0; b<assembler->cells.size(); b++) {
-      if (assembler->wkset[b]->isInitialized) {
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    if (assembler->wkset[b]->isInitialized) {
+      for (size_t set=0; set<phys->setnames.size(); set++) {
         vector<vector<int> > voffsets = disc->offsets[set][b];
         size_t maxoff = 0;
         for (size_t i=0; i<voffsets.size(); i++) {
@@ -734,6 +734,9 @@ void SolverManager<Node>::finalizeWorkset() {
         }
         Kokkos::deep_copy(offsets_view,host_offsets);
         assembler->wkset[b]->set_offsets.push_back(offsets_view);
+        if (set == 0) {
+          assembler->wkset[b]->offsets = offsets_view;
+        }
       }
     }
   }
@@ -751,6 +754,8 @@ void SolverManager<Node>::finalizeWorkset() {
       }
       assembler->wkset[b]->set_usebasis = block_useBasis;
       assembler->wkset[b]->set_varlist = block_varlist;
+      assembler->wkset[b]->usebasis = block_useBasis[0];
+      assembler->wkset[b]->varlist = block_varlist[0];
     }
   }
   
@@ -781,7 +786,11 @@ void SolverManager<Node>::finalizeWorkset() {
       assembler->wkset[b]->paramusebasis = params->discretized_param_usebasis;
       assembler->wkset[b]->paramoffsets = poffsets_view;
       assembler->wkset[b]->param_varlist = params->discretized_param_names;
-      
+    }
+  }
+  
+  for (size_t b=0; b<assembler->cells.size(); b++) {
+    if (assembler->wkset[b]->isInitialized) {
       assembler->wkset[b]->createSolns();
     }
   }

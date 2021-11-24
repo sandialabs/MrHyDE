@@ -334,7 +334,7 @@ namespace MrHyDE {
     bool isAdjoint, onlyTransient, isTransient;
     bool isInitialized, usebcs, onDemand;
     topo_RCP celltopo;
-    size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set;
+    size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set, numSets;
     int dimension, numElem, current_stage;
     size_type maxElem;
     

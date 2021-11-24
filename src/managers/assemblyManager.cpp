@@ -763,6 +763,7 @@ void AssemblyManager<Node>::createWorkset() {
       info.push_back(cellData[b]->numElem);
       info.push_back(cellData[b]->numip);
       info.push_back(cellData[b]->numsideip);
+      info.push_back(phys->setnames.size());
       vector<size_t> numVars;
       for (size_t set=0; set<cellData[b]->set_numDOF.size(); ++set) {
         numVars.push_back(cellData[b]->set_numDOF[set].extent(0));

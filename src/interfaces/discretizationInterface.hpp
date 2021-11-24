@@ -176,11 +176,11 @@ namespace MrHyDE {
     Teuchos::RCP<MpiComm> Commptr;
     Teuchos::RCP<panzer_stk::STK_Interface> mesh;
     Teuchos::RCP<PhysicsInterface> phys;
-    vector<vector<basis_RCP> > basis_pointers;
-    vector<vector<string> > basis_types;
+    vector<vector<basis_RCP> > basis_pointers; // [block][basis]
+    vector<vector<string> > basis_types; // [block][basis]
     
-    vector<vector<vector<GO> > > point_dofs;
-    vector<vector<vector<vector<LO> > > > dbc_dofs;
+    vector<vector<vector<GO> > > point_dofs; // [set][block][dof]
+    vector<vector<vector<vector<LO> > > > dbc_dofs; // [set][block][dof]
     vector<string> blocknames;
     
     // Purgable

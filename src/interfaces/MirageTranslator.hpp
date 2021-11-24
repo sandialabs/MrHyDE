@@ -383,7 +383,7 @@ namespace MrHyDE {
       else {
         settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog"));
       }
-      settings->sublist("Solver").set<bool>("lump mass",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",true));
+      settings->sublist("Solver").set<bool>("lump mass",mirage_settings->sublist("MrHyDE Options").get<bool>("lump mass",false));
       settings->sublist("Solver").set<string>("Belos solver",
                                               mirage_settings->sublist("MrHyDE Options").get<string>("Belos solver","Block CG"));
       settings->sublist("Solver").set<bool>("use preconditioner",
