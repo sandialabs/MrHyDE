@@ -1341,11 +1341,12 @@ View_AD2 workset::getData(const string & label) {
 void workset::checkDataAllocation(const size_t & ind) {
   if (onDemand) {
     if (fields[ind].data.extent(0) < maxElem) {
-      Kokkos::resize(fields[ind].data,maxElem,fields[ind].data.extent(1));
+      fields[ind].data = View_AD2("solution field for " + fields[ind].expression, maxElem, fields[ind].data.extent(1));
     }
   }
   else {
     if (data[ind].extent(0) < maxElem) {
+      // this is mostly deprecated, so not changing 
       Kokkos::resize(data[ind],maxElem,data[ind].extent(1));
     }
   }
