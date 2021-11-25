@@ -124,10 +124,13 @@ void workset::createSolns() {
   }
   
   res = View_AD2("residual",numElem, maxRes);
-  
+  uvals = vector<vector<View_AD2>>(numSets);
+  u_dotvals = vector<vector<View_AD2>>(numSets);
   for (size_t set=0; set<numSets; ++set) {
     
-    vector<View_AD2> set_uvals, set_u_dotvals;
+    vector<View_AD2> set_uvals(set_varlist[set].size());
+    vector<View_AD2> set_u_dotvals(set_varlist[set].size());
+    
     vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
     vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
     
@@ -137,10 +140,12 @@ void workset::createSolns() {
       
       int numb = basis_pointers[bind]->getCardinality();
       View_AD2 newsol("seeded uvals",numElem, numb);
-      set_uvals.push_back(newsol);
+      set_uvals[i] = newsol;
+      //set_uvals.push_back(newsol);
       if (isTransient) {
         View_AD2 newtsol("seeded uvals",numElem, numb);
-        set_u_dotvals.push_back(newtsol);
+        //set_u_dotvals.push_back(newtsol);
+        set_u_dotvals[i] = newtsol;
       }
       
       if (basis_types[bind].substr(0,5) == "HGRAD") {
@@ -277,8 +282,10 @@ void workset::createSolns() {
       }
     }
     
-    uvals.push_back(set_uvals);
-    u_dotvals.push_back(set_u_dotvals);
+    uvals[set] = set_uvals;
+    u_dotvals[set] = set_u_dotvals;
+    //uvals.push_back(set_uvals);
+    //u_dotvals.push_back(set_u_dotvals);
     vars_HGRAD.push_back(set_vars_HGRAD);
     vars_HVOL.push_back(set_vars_HVOL);
     vars_HDIV.push_back(set_vars_HDIV);
