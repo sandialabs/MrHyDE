@@ -73,14 +73,18 @@ cellTopo(cellTopo_) {
   have_cell_phi = false;
   have_cell_rotation = false;
   have_extra_data = false;
+  
+  numSets = physics_RCP->setnames.size();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void CellMetaData::updatePhysicsSet(const size_t & set) {
-  numDOF = set_numDOF[set];
-  numDOF_host = set_numDOF_host[set];
+  if (numSets> 1) {
+    numDOF = set_numDOF[set];
+    numDOF_host = set_numDOF_host[set];
+  }
 }
 
 //===================================================

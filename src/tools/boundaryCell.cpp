@@ -118,13 +118,17 @@ void BoundaryCell::setUseBasis(vector<vector<int> > & usebasis_, const int & num
         maxnbasis = cellData->set_numDOF_host[set](i);
       }
     }
-    u.push_back(View_Sc3("u",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
+    View_Sc3 newu("u",numElem,cellData->set_numDOF[set].extent(0),maxnbasis);
+    u.push_back(newu);
     if (cellData->requiresAdjoint) {
-      phi.push_back(View_Sc3("phi",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
+      View_Sc3 newphi("phi",numElem,cellData->set_numDOF[set].extent(0),maxnbasis);
+      phi.push_back(newphi);
     }
     if (cellData->requiresTransient) {
-      u_prev.push_back(View_Sc4("u previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps));
-      u_stage.push_back(View_Sc4("u stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages));
+      View_Sc4 newuprev("u previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps);
+      u_prev.push_back(newuprev);
+      View_Sc4 newustage("u stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages);
+      u_stage.push_back(newustage);
     }
   }
 }

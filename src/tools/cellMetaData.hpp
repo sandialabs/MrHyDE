@@ -59,7 +59,7 @@ namespace MrHyDE {
     vector<bool> assemble_face_terms;
     bool storeBasisAtIP = true, requireBasisAtNodes = false, build_face_terms;
     
-    size_t myBlock, myLevel;
+    size_t myBlock, myLevel, numSets;
     int numElem=0; // safeguard against case where a proc does not own any elem on a block
     Teuchos::RCP<PhysicsInterface> physics_RCP;
     string response_type;

@@ -321,6 +321,8 @@ void AssemblyManager<Node>::createCells() {
       blockCellData->set_numDOF = set_numDOF;
       blockCellData->set_numDOF_host = set_numDOF_host;
            
+      blockCellData->numDOF = set_numDOF[0];
+      blockCellData->numDOF_host = set_numDOF_host[0];
       
       //////////////////////////////////////////////////////////////////////////////////
       // Boundary cells
