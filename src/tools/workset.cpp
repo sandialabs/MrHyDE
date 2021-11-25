@@ -136,9 +136,11 @@ void workset::createSolns() {
       string var = set_varlist[set][i];
       
       int numb = basis_pointers[bind]->getCardinality();
-      set_uvals.push_back(View_AD2("seeded uvals",numElem, numb));
+      View_AD2 newsol("seeded uvals",numElem, numb);
+      set_uvals.push_back(newsol);
       if (isTransient) {
-        set_u_dotvals.push_back(View_AD2("seeded uvals",numElem, numb));
+        View_AD2 newtsol("seeded uvals",numElem, numb);
+        set_u_dotvals.push_back(newtsol);
       }
       
       if (basis_types[bind].substr(0,5) == "HGRAD") {
@@ -295,7 +297,8 @@ void workset::createSolns() {
     int bind = paramusebasis[i];
     string var = param_varlist[i];
     int numb = basis_pointers[bind]->getCardinality();
-    pvals.push_back(View_AD2("seeded uvals",numElem, numb));
+    View_AD2 newpsol("seeded uvals",numElem, numb);
+    pvals.push_back(newpsol);
     
     if (basis_types[bind].substr(0,5) == "HGRAD") {
       paramvars_HGRAD.push_back(i);
@@ -1346,7 +1349,8 @@ View_AD2 workset::getData(const string & label) {
 void workset::checkDataAllocation(const size_t & ind) {
   if (onDemand) {
     if (fields[ind].data.extent(0) < maxElem) {
-      fields[ind].data = View_AD2("solution field for " + fields[ind].expression, maxElem, fields[ind].data.extent(1));
+      //fields[ind].data = View_AD2("solution field for " + fields[ind].expression, maxElem, fields[ind].data.extent(1));
+      Kokkos::resize(fields[ind].data,maxElem,fields[ind].data.extent(1));
     }
   }
   else {

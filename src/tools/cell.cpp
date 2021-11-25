@@ -153,7 +153,7 @@ void cell::setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, c
   //num_stages = nstages;
   
   // Set up the containers for usual solution storage
-  for (size_t set=0; set<usebasis.size(); ++set) {
+  for (size_t set=0; set<cellData->numSets; ++set) {
     int maxnbasis = 0;
     for (size_type i=0; i<cellData->set_numDOF_host[set].extent(0); i++) {
       if (cellData->set_numDOF_host[set](i) > maxnbasis) {
@@ -161,36 +161,48 @@ void cell::setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, c
       }
     }
     //maxnbasis *= nstages;
-    u.push_back(View_Sc3("u",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
+    View_Sc3 newu("u",numElem,cellData->set_numDOF[set].extent(0),maxnbasis);
+    u.push_back(newu);
     if (cellData->requiresAdjoint) {
-      phi.push_back(View_Sc3("phi",numElem,cellData->set_numDOF[set].extent(0),maxnbasis));
+      View_Sc3 newphi("phi",numElem,cellData->set_numDOF[set].extent(0),maxnbasis);
+      phi.push_back(newphi);
     }
     else {
-      phi.push_back(View_Sc3("phi",1,1,1)); // just a placeholder
+      View_Sc3 newphi("phi",1,1,1); // just a placeholder
+      phi.push_back(newphi); 
     }
     
     // This does add a little extra un-used memory for steady-state problems, but not a concern
     if (cellData->requiresTransient) {
-      u_prev.push_back(View_Sc4("u previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps));
-      u_stage.push_back(View_Sc4("u stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages));
+      View_Sc4 newuprev("u previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps);
+      u_prev.push_back(newuprev);
+      View_Sc4 newustage("u stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages);
+      u_stage.push_back(newustage);
     }
     else {
-      u_prev.push_back(View_Sc4("u previous",1,1,1,1));
-      u_stage.push_back(View_Sc4("u stages",1,1,1,1));
+      View_Sc4 newuprev("u previous",1,1,1,1);
+      u_prev.push_back(newuprev);
+      View_Sc4 newustage("u stages",1,1,1,1);
+      u_stage.push_back(newustage);
     }
     if (cellData->requiresAdjoint) {
       if (cellData->requiresTransient) {
-        phi_prev.push_back(View_Sc4("phi previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps));
-        phi_stage.push_back(View_Sc4("phi stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages));
+        View_Sc4 newphiprev("phi previous",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numsteps);
+        phi_prev.push_back(newphiprev);
+        View_Sc4 newphistage("phi stages",numElem,cellData->set_numDOF[set].extent(0),maxnbasis,numstages);
+        phi_stage.push_back(newphistage);
       }
       else {
-        phi_prev.push_back(View_Sc4("phi previous",1,1,1,1));
-        phi_stage.push_back(View_Sc4("phi stages",1,1,1,1));
+        View_Sc4 newphiprev("phi previous",1,1,1,1);
+        phi_prev.push_back(newphiprev);
+        View_Sc4 newphistage("phi stages",1,1,1,1);
+        phi_stage.push_back(newphistage);
       }
     }
     
     if (cellData->compute_sol_avg) {
-      u_avg.push_back(View_Sc3("u spatial average",numElem,cellData->set_numDOF[set].extent(0),cellData->dimension));
+      View_Sc3 newuavg("u spatial average",numElem,cellData->set_numDOF[set].extent(0),cellData->dimension);
+      u_avg.push_back(newuavg);
     }
   }
 }
