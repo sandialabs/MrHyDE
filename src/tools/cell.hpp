@@ -247,8 +247,10 @@ namespace MrHyDE {
     void setUpAdjointPrev(const int & numsteps, const int & numstages) {
       if (cellData->requiresTransient && cellData->requiresAdjoint) {
         for (size_t set=0; set<LIDs.size(); ++set) {
-          adj_prev.push_back(View_Sc3("previous step adjoint",numElem,LIDs[set].extent(1),numsteps));
-          adj_stage_prev.push_back(View_Sc3("previous stage adjoint",numElem,LIDs[set].extent(1),numstages));
+          View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),numsteps);
+          adj_prev.push_back(newaprev);
+          View_Sc3 newastage("previous stage adjoint",numElem,LIDs[set].extent(1),numstages);
+          adj_stage_prev.push_back(newastage);
         }
       }
     }

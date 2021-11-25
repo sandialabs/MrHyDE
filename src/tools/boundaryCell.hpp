@@ -192,7 +192,7 @@ namespace MrHyDE {
       //this->updateWorksetBasis();
       
       // Currently hard coded to one physics sets
-      vector<View_AD2> uvals = wkset->uvals[0];
+      vector<View_AD2> uvals = wkset->uvals;
       //auto param_AD = wkset->pvals;
       auto ulocal = u[0];
       auto currLIDs = LIDs[0];

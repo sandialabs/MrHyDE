@@ -124,13 +124,12 @@ void workset::createSolns() {
   }
   
   res = View_AD2("residual",numElem, maxRes);
-  uvals = vector<vector<View_AD2>>(numSets);
-  u_dotvals = vector<vector<View_AD2>>(numSets);
   for (size_t set=0; set<numSets; ++set) {
     
-    vector<View_AD2> set_uvals(set_varlist[set].size());
-    vector<View_AD2> set_u_dotvals(set_varlist[set].size());
-    
+    //vector<View_AD2> set_uvals(set_varlist[set].size());
+    //vector<View_AD2> set_u_dotvals(set_varlist[set].size());
+    vector<size_t> set_uindex;
+
     vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
     vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
     
@@ -140,13 +139,14 @@ void workset::createSolns() {
       
       int numb = basis_pointers[bind]->getCardinality();
       View_AD2 newsol("seeded uvals",numElem, numb);
-      set_uvals[i] = newsol;
-      //set_uvals.push_back(newsol);
-      if (isTransient) {
+      //set_uvals[i] = newsol;
+      uvals.push_back(newsol);
+      //if (isTransient) {
         View_AD2 newtsol("seeded uvals",numElem, numb);
-        //set_u_dotvals.push_back(newtsol);
-        set_u_dotvals[i] = newtsol;
-      }
+        u_dotvals.push_back(newtsol);
+        //set_u_dotvals[i] = newtsol;
+      //}
+      set_uindex.push_back(uvals.size()-1);      
       
       if (basis_types[bind].substr(0,5) == "HGRAD") {
         set_vars_HGRAD.push_back(i);
@@ -281,9 +281,9 @@ void workset::createSolns() {
         }
       }
     }
-    
-    uvals[set] = set_uvals;
-    u_dotvals[set] = set_u_dotvals;
+    uvals_index.push_back(set_uindex);
+    //uvals[set] = set_uvals;
+    //u_dotvals[set] = set_u_dotvals;
     //uvals.push_back(set_uvals);
     //u_dotvals.push_back(set_u_dotvals);
     vars_HGRAD.push_back(set_vars_HGRAD);
@@ -519,17 +519,19 @@ void workset::computeSolnTransientSeeded(const size_t & set,
 
   ScalarT one = 1.0;
   ScalarT zero = 0.0;
-  
+ 
   // Seed the current stage solution
   if (set == current_set) {
     if (seedwhat == 1) {
       for (size_type var=0; var<u.extent(1); var++ ) {
-        auto u_AD = uvals[set][var];
-        auto u_dot_AD = u_dotvals[set][var];
+        size_t uindex = uvals_index[set][var];
+        auto u_AD = uvals[uindex];
+        auto u_dot_AD = u_dotvals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
         auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+
         parallel_for("wkset transient sol seedwhat 1",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -538,7 +540,8 @@ void workset::computeSolnTransientSeeded(const size_t & set,
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
-          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+
+          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             
             // Seed the stage solution
 #ifndef MrHyDE_NO_AD
@@ -563,12 +566,14 @@ void workset::computeSolnTransientSeeded(const size_t & set,
           }
           
         });
+
       }
     }
     else if (seedwhat == 2) { // Seed one of the previous step solutions
       for (size_type var=0; var<u.extent(1); var++ ) {
-        auto u_AD = uvals[set][var];
-        auto u_dot_AD = u_dotvals[set][var];
+        size_t uindex = uvals_index[set][var];
+        auto u_AD = uvals[uindex];
+        auto u_dot_AD = u_dotvals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
@@ -582,7 +587,7 @@ void workset::computeSolnTransientSeeded(const size_t & set,
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
-          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             
             // Get the stage solution
             ScalarT stageval = cu(elem,dof);
@@ -624,8 +629,9 @@ void workset::computeSolnTransientSeeded(const size_t & set,
     }
     else if (seedwhat == 3) { // Seed one of the previous stage solutions
       for (size_type var=0; var<u.extent(1); var++ ) {
-        auto u_AD = uvals[set][var];
-        auto u_dot_AD = u_dotvals[set][var];
+        size_t uindex = uvals_index[set][var];
+        auto u_AD = uvals[uindex];
+        auto u_dot_AD = u_dotvals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
@@ -638,7 +644,7 @@ void workset::computeSolnTransientSeeded(const size_t & set,
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
-          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             
             // Get the stage solution
             ScalarT stageval = cu(elem,dof);
@@ -674,8 +680,9 @@ void workset::computeSolnTransientSeeded(const size_t & set,
     }
     else { // Seed nothing
       for (size_type var=0; var<u.extent(1); var++ ) {
-        auto u_AD = uvals[set][var];
-        auto u_dot_AD = u_dotvals[set][var];
+        size_t uindex = uvals_index[set][var];
+        auto u_AD = uvals[uindex];
+        auto u_dot_AD = u_dotvals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
@@ -689,7 +696,7 @@ void workset::computeSolnTransientSeeded(const size_t & set,
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
-          for (size_type dof=team.team_rank(); dof<cu.extent(1); dof+=team.team_size() ) {
+          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             // Get the stage solution
             ScalarT stageval = cu(elem,dof);
             // Compute the evaluating solution
@@ -713,7 +720,8 @@ void workset::computeSolnTransientSeeded(const size_t & set,
   }
   else {
     for (size_type var=0; var<u.extent(1); var++ ) {
-      auto u_AD = uvals[set][var];
+      size_t uindex = uvals_index[set][var];
+      auto u_AD = uvals[uindex];
       auto cu = subview(u,ALL(),var,ALL());
       
       parallel_for("wkset steady soln",
@@ -740,7 +748,8 @@ void workset::computeSolnSteadySeeded(const size_t & set,
   
   for (size_type var=0; var<u.extent(1); var++ ) {
     
-    auto u_AD = uvals[set][var];
+    size_t uindex = uvals_index[set][var];
+    auto u_AD = uvals[uindex];
     auto off = subview(set_offsets[set],var,ALL());
     auto cu = subview(u,ALL(),var,ALL());
     if (seedwhat == 1 && set == current_set) {
@@ -847,12 +856,13 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     //-----------------------------------------------------
     
     View_AD2 solvals;
+    size_t uindex = uvals_index[fields[fieldnum].set_index][fields[fieldnum].variable_index];
     if (fields[fieldnum].variable_type == "solution") { // solution
       if (fields[fieldnum].derivative_type == "time" ) {
-        solvals = u_dotvals[fields[fieldnum].set_index][fields[fieldnum].variable_index];
+        solvals = u_dotvals[uindex];
       }
       else {
-        solvals = uvals[fields[fieldnum].set_index][fields[fieldnum].variable_index];
+        solvals = uvals[uindex];
       }
     }
     if (fields[fieldnum].variable_type == "param") { // discr. params
@@ -957,7 +967,7 @@ void workset::computeSolnSideIP(const int & side) {
       string var = varlist_HGRAD[current_set][i];
       int varind = vars_HGRAD[current_set][i];
       
-      auto cuvals = uvals[current_set][varind];
+      auto cuvals = uvals[uvals_index[current_set][varind]];
       
       auto csol = this->findData(var+" side");
       auto csol_x = this->findData("grad("+var+")[x] side");
@@ -1002,7 +1012,7 @@ void workset::computeSolnSideIP(const int & side) {
       string var = varlist_HVOL[current_set][i];
       int varind = vars_HVOL[current_set][i];
       
-      auto cuvals = uvals[current_set][varind];
+      auto cuvals = uvals[uvals_index[current_set][varind]];
       
       auto csol = this->findData(var+" side");
       auto cbasis = basis_side[usebasis[varind]];
@@ -1028,7 +1038,7 @@ void workset::computeSolnSideIP(const int & side) {
       string var = varlist_HDIV[current_set][i];
       int varind = vars_HDIV[current_set][i];
       
-      auto cuvals = uvals[current_set][varind];
+      auto cuvals = uvals[uvals_index[current_set][varind]];
       
       auto csolx = this->findData(var+"[x] side");
       auto csoly = this->findData(var+"[y] side");
@@ -1069,7 +1079,7 @@ void workset::computeSolnSideIP(const int & side) {
       string var = varlist_HDIV[current_set][i];
       int varind = vars_HDIV[current_set][i];
       
-      auto cuvals = uvals[current_set][varind];
+      auto cuvals = uvals[uvals_index[current_set][varind]];
       
       auto csolx = this->findData(var+"[x] side");
       auto csoly = this->findData(var+"[y] side");

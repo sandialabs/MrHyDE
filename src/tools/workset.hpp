@@ -380,7 +380,10 @@ namespace MrHyDE {
     
     // Editing for multi-set
     vector<size_t> numVars;
-    vector<vector<View_AD2> > uvals, u_dotvals;
+    //vector<vector<View_AD2> > uvals, u_dotvals;
+    vector<View_AD2> uvals, u_dotvals;
+    vector<vector<size_t>> uvals_index; // [set][var]
+
     Kokkos::View<string**,HostDevice> var_bcs;
     vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
     
