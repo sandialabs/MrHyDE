@@ -189,10 +189,14 @@ void BoundaryCell::updateWorkset(const int & seedwhat, const bool & override_tra
   
   // Map the gathered solution to seeded version in workset
   if (cellData->requiresTransient && !override_transient) {
-    wkset->computeSolnTransientSeeded(u, u_prev, u_stage, seedwhat);
+    for (size_t set=0; set<cellData->numSets; ++set) {
+      wkset->computeSolnTransientSeeded(set, u[set], u_prev[set], u_stage[set], seedwhat);
+    }
   }
   else { // steady-state
-    wkset->computeSolnSteadySeeded(u, seedwhat);
+    for (size_t set=0; set<cellData->numSets; ++set) {
+      wkset->computeSolnSteadySeeded(set, u[set], seedwhat);
+    }
   }
   if (wkset->numParams > 0) {
     wkset->computeParamSteadySeeded(param, seedwhat);

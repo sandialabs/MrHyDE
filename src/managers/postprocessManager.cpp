@@ -1072,7 +1072,9 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         if (have_face_errs) {
           for (size_t face=0; face<assembler->cells[block][cell]->cellData->numSides; face++) {
             // TMW - hard coded for now
-            assembler->wkset[altblock]->computeSolnSteadySeeded(assembler->cells[block][cell]->u, seedwhat);
+            for (size_t set=0; set<assembler->wkset[altblock]->numSets; ++set) {
+              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->cells[block][cell]->u[set], seedwhat);
+            }
             //assembler->cells[block][cell]->computeSolnFaceIP(face);
             assembler->cells[block][cell]->updateWorksetFace(face);
             assembler->wkset[altblock]->resetSolutionFields();
@@ -3335,7 +3337,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               auto eID = assembler->cells[b][c]->localElemID;
               for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
                 int seedwhat = 0;
-                assembler->wkset[b]->computeSolnSteadySeeded(assembler->cells[b][c]->u, seedwhat);
+                for (size_t set=0; set<assembler->wkset[b]->numSets; ++set) {
+                  assembler->wkset[b]->computeSolnSteadySeeded(set, assembler->cells[b][c]->u[set], seedwhat);
+                }
                 //assembler->cells[b][c]->computeSolnFaceIP(face);
                 assembler->cells[b][c]->updateWorksetFace(face);
                 auto wts = assembler->wkset[b]->wts_side;

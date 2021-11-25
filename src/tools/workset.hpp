@@ -102,9 +102,10 @@ namespace MrHyDE {
     // Compute the seeded solutions for general transient problems
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnTransientSeeded(vector<View_Sc3> & u,
-                                    vector<View_Sc4> & u_prev,
-                                    vector<View_Sc4> & u_stage,
+    void computeSolnTransientSeeded(const size_t & set,
+                                    View_Sc3 u,
+                                    View_Sc4 u_prev,
+                                    View_Sc4 u_stage,
                                     const int & seedwhat,
                                     const int & index=0);
     
@@ -112,7 +113,7 @@ namespace MrHyDE {
     // Compute the seeded solutions for steady-state problems
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSolnSteadySeeded(vector<View_Sc3> & u, const int & seedwhat);
+    void computeSolnSteadySeeded(const size_t & set, View_Sc3 u, const int & seedwhat);
     
     void computeParamSteadySeeded(View_Sc3 params, const int & seedwhat);
     
