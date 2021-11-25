@@ -230,7 +230,8 @@ void AssemblyManager<Node>::createCells() {
   
   vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> > LIDs;
   for (size_t set=0; set<disc->DOF.size(); ++set) {
-    LIDs.push_back(disc->DOF[set]->getLIDs());
+    Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = disc->DOF[set]->getLIDs();
+    LIDs.push_back(setLIDs);
   }
    
   // Disc manager stores offsets as [set][block][var][dof]
