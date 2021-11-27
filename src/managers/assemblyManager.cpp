@@ -773,7 +773,8 @@ void AssemblyManager<Node>::createWorkset() {
       }
       vector<Kokkos::View<string**,HostDevice> > bcs;
       for (size_t set=0; set<phys->setnames.size(); ++set) {
-        bcs.push_back(disc->var_bcs[set][b]);
+        Kokkos::View<string**,HostDevice> vbcs = disc->getVarBCs(set,b);
+        bcs.push_back(vbcs);
       }
       wkset.push_back(Teuchos::rcp( new workset(info,
                                                 numVars,

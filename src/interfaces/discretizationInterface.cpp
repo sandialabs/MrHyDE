@@ -1917,7 +1917,8 @@ void DiscretizationInterface::setBCData() {
     }
   
     vector<Kokkos::View<int****,HostDevice> > set_side_info;
-    vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
+    //vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
+    vector<vector<vector<string> > > set_var_bcs; // [block][var][boundary]
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
     
     vector<vector<GO> > set_point_dofs;
@@ -1925,8 +1926,10 @@ void DiscretizationInterface::setBCData() {
     
     for (size_t b=0; b<blocknames.size(); b++) {
       
-      Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
-                                                varlist[b].size(),sideSets.size());
+      vector<vector<string> > block_var_bcs; // [var][boundary]
+      
+      //Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
+      //                                          varlist[b].size(),sideSets.size());
       topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
       int numSidesPerElem = 2; // default to 1D for some reason
       if (spaceDim == 2) {
@@ -1966,6 +1969,7 @@ void DiscretizationInterface::setBCData() {
       std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
       
       for (size_t j=0; j<varlist[b].size(); j++) {
+        vector<string> current_var_bcs(sideSets.size(),"none"); // [boundary]
         string var = varlist[b][j];
         int num = currDOF->getFieldNum(var);
         vector<int> var_offsets = currDOF->getGIDFieldOffsets(blockID,num);
@@ -1983,15 +1987,18 @@ void DiscretizationInterface::setBCData() {
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
             isDiri = true;
             if (use_weak_dbcs) {
-              currbcs(j,side) = "weak Dirichlet";
+              //currbcs(j,side) = "weak Dirichlet";
+              current_var_bcs[side] = "weak Dirichlet";
             }
             else {
-              currbcs(j,side) = "Dirichlet";
+              //currbcs(j,side) = "Dirichlet";
+              current_var_bcs[side] = "Dirichlet";
             }
           }
           if (nbc_settings.sublist(var).isParameter("all boundaries") || nbc_settings.sublist(var).isParameter(sideName)) {
             isNeum = true;
-            currbcs(j,side) = "Neumann";
+            //currbcs(j,side) = "Neumann";
+            current_var_bcs[side] = "Neumann";
           }
         
           vector<size_t>             local_side_Ids;
@@ -2018,6 +2025,8 @@ void DiscretizationInterface::setBCData() {
           }
         }
       
+        block_var_bcs.push_back(current_var_bcs);
+        
         // nodeset loop
         string point_DBCs = blocksettings.get<std::string>(var+"_point_DBCs","");
         
@@ -2052,7 +2061,7 @@ void DiscretizationInterface::setBCData() {
       }
     
       set_offsets.push_back(celloffsets);
-      set_var_bcs.push_back(currbcs);
+      set_var_bcs.push_back(block_var_bcs);
       set_side_info.push_back(currside_info);
       
       std::sort(block_dbc_dofs.begin(), block_dbc_dofs.end());
@@ -2301,6 +2310,22 @@ DRV DiscretizationInterface::applyOrientation(DRV basis, Kokkos::DynRankView<Int
   return new_basis;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+Kokkos::View<string**,HostDevice> DiscretizationInterface::getVarBCs(const size_t & set, const size_t & block) {
+  
+  vector<string> sideSets;
+  mesh->getSidesetNames(sideSets);
+  size_t numvars = var_bcs[set][block].size();
+  Kokkos::View<string**,HostDevice> bcs("BCs for each variable",numvars, sideSets.size());
+  for (size_t var=0; var<numvars; ++var) {
+    for (size_t side=0; side<sideSets.size(); ++side) {
+      bcs(var,side) = var_bcs[set][block][var][side];
+    }
+  }
+  return bcs;
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 // After the setup phase, we can get rid of a few things

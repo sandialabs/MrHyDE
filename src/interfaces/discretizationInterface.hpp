@@ -162,6 +162,8 @@ namespace MrHyDE {
     DRV applyOrientation(DRV basis, Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                          basis_RCP & basis_pointer);
 
+    Kokkos::View<string**,HostDevice> getVarBCs(const size_t & set, const size_t & block);
+    
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -195,7 +197,7 @@ namespace MrHyDE {
     vector<vector<size_t> > myElements;
         
     vector<vector<Kokkos::View<int****,HostDevice> > > side_info;
-    vector<vector<Kokkos::View<string**,HostDevice> > > var_bcs;
+    vector<vector<vector<vector<string> > > > var_bcs; // [set][block][var][boundary]
     vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
     
     
