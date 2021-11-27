@@ -22,24 +22,13 @@ using namespace MrHyDE;
 cell::cell(const Teuchos::RCP<CellMetaData> & cellData_,
            const DRV nodes_,
            const Kokkos::View<LO*,AssemblyDevice> localID_,
-           vector<LIDView> & LIDs_,
-           vector<Kokkos::View<int****,HostDevice> > & sideinfo_,
            Teuchos::RCP<DiscretizationInterface> & disc_,
            const bool & storeAll_) :
-LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), nodes(nodes_), disc(disc_)
+cellData(cellData_), localElemID(localID_), nodes(nodes_), disc(disc_)
 {
   numElem = nodes.extent(0);
   useSensors = false;
 
-  for (size_t set=0; set<LIDs.size(); ++set) {
-    auto LIDs_tmp = create_mirror_view(LIDs[set]);
-    deep_copy(LIDs_tmp,LIDs[set]);
-    
-    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
-    deep_copy(currLIDs_host,LIDs_tmp);
-    LIDs_host.push_back(currLIDs_host);
-  }
-  
   storeAll = storeAll_;
   
   // Compute integration data and basis functions
@@ -82,6 +71,22 @@ LIDs(LIDs_), cellData(cellData_), localElemID(localID_), sideinfo(sideinfo_), no
                                   orientation, true);
     
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::createHostLIDs() {
+  
+  for (size_t set=0; set<LIDs.size(); ++set) {
+    auto LIDs_tmp = create_mirror_view(LIDs[set]);
+    deep_copy(LIDs_tmp,LIDs[set]);
+    
+    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
+    deep_copy(currLIDs_host,LIDs_tmp);
+    LIDs_host.push_back(currLIDs_host);
+  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

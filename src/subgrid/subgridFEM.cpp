@@ -299,7 +299,7 @@ void SubGridFEM::setUpSubgridModels() {
       Kokkos::deep_copy(host_eIndex2,host_eIndex);
       Kokkos::deep_copy(sideIndex,host_sideIndex); 
       
-      // Build the Kokkos View of the cell GIDs ------
+      // Build the Kokkos View of the cell LIDs ------
       vector<LIDView> vLIDs;
       LIDView cellLIDs("LIDs on device", currElem,LIDs.extent(1));
       parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int i ) {
@@ -335,7 +335,11 @@ void SubGridFEM::setUpSubgridModels() {
       
       newbcells.push_back(Teuchos::rcp(new BoundaryCell(cellData,currnodes,eIndex,sideIndex,
                                                         sideID, sidename, newbcells.size(),
-                                                        vLIDs, sideinfo, sub_disc, true)));//, orient_drv)));
+                                                        //vLIDs, sideinfo,
+                                                        sub_disc, true)));//, orient_drv)));
+      newbcells[newbcells.size()-1]->LIDs = vLIDs;
+      newbcells[newbcells.size()-1]->createHostLIDs();
+      newbcells[newbcells.size()-1]->sideinfo = sideinfo;
       
       prog += currElem;
     }
@@ -529,7 +533,11 @@ void SubGridFEM::setUpSubgridModels() {
       
       newcells.push_back(Teuchos::rcp(new cell(sub_assembler->cellData[0],
                                                newnodes, localID,
-                                               vLIDs, vsideinfo, sub_disc, true)));
+                                               sub_disc, true)));
+      
+      newcells[newcells.size()-1]->LIDs = vLIDs;
+      newcells[newcells.size()-1]->createHostLIDs();
+      newcells[newcells.size()-1]->sideinfo = vsideinfo;
       
       //////////////////////////////////////////////////////////////
       // New boundary cells (more complicated than interior cells)
@@ -611,9 +619,12 @@ void SubGridFEM::setUpSubgridModels() {
         
         newbcells.push_back(Teuchos::rcp(new BoundaryCell(sub_assembler->cellData[0], currnodes,
                                                           localID, sideID, sidenum, unique_names[s],
-                                                          newbcells.size(), vLIDs, vsideinfo, sub_disc, true)));//, orientation)));
+                                                          newbcells.size(), sub_disc, true)));
         
-      
+        newbcells[newbcells.size()-1]->LIDs = vLIDs;
+        newbcells[newbcells.size()-1]->createHostLIDs();
+        newbcells[newbcells.size()-1]->sideinfo = vsideinfo;
+        
         newbcells[s]->addAuxVars(macro_varlist);
         newbcells[s]->cellData->numAuxDOF = macro_numDOF;
         newbcells[s]->setAuxUseBasis(macro_usebasis);

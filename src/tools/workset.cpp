@@ -23,10 +23,9 @@ workset::workset(const vector<int> & cellinfo,
                  const bool & isTransient_,
                  const vector<string> & basis_types_,
                  const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-                 const topo_RCP & topo,
-                 vector<Kokkos::View<string**,HostDevice> > & var_bcs_) :
+                 const topo_RCP & topo) :
 isTransient(isTransient_), celltopo(topo),
-basis_types(basis_types_), basis_pointers(basis_pointers_), set_var_bcs(var_bcs_) {
+basis_types(basis_types_), basis_pointers(basis_pointers_) {
 
   isInitialized = true;
   
@@ -56,7 +55,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_), set_var_bcs(var_bcs_
   deltat = 1.0;
   current_stage = 0;
   current_set = 0;
-  var_bcs = set_var_bcs[0];
+  //var_bcs = set_var_bcs[0];
   
   // Add scalar views to store ips
   this->addDataSc("x",numElem,numip);

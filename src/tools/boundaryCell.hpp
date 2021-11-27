@@ -48,11 +48,14 @@ namespace MrHyDE {
                  const Kokkos::View<LO*,AssemblyDevice> sideID_,
                  const int & sidenum_, const string & sidename_,
                  const int & cellID_,
-                 vector<LIDView> & LIDs_,
-                 vector<Kokkos::View<int****,HostDevice> > & sideinfo_,
                  Teuchos::RCP<DiscretizationInterface> & disc_,
                  const bool & storeAll_);
                  
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    void createHostLIDs();
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     

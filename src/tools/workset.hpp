@@ -79,8 +79,7 @@ namespace MrHyDE {
             const bool & isTransient_,
             const vector<string> & basis_types_,
             const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-            const topo_RCP & topo,
-            vector<Kokkos::View<string**,HostDevice> > & var_bcs_);
+            const topo_RCP & topo);
             
     ////////////////////////////////////////////////////////////////////////////////////
     // Public functions

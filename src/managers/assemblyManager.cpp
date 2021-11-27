@@ -409,7 +409,7 @@ void AssemblyManager<Node>::createCells() {
                 Kokkos::deep_copy(host_eIndex2,host_eIndex);
                 Kokkos::deep_copy(sideIndex,host_sideIndex);
                 
-                // Build the Kokkos View of the cell GIDs ------
+                // Build the Kokkos View of the cell LIDs ------
                 vector<LIDView> set_LIDs;
                 for (size_t set=0; set<LIDs.size(); ++set) {
                   LIDView cellLIDs("LIDs",currElem,LIDs[set].extent(1));
@@ -435,7 +435,10 @@ void AssemblyManager<Node>::createCells() {
                 
                 bcells.push_back(Teuchos::rcp(new BoundaryCell(blockCellData, currnodes, eIndex, sideIndex,
                                                                side, sideName, bcells.size(),
-                                                               set_LIDs, set_sideinfo, disc, storeAll)));
+                                                               disc, storeAll)));
+                bcells[bcells.size()-1]->LIDs = set_LIDs;
+                bcells[bcells.size()-1]->createHostLIDs();
+                bcells[bcells.size()-1]->sideinfo = set_sideinfo;
                 prog += currElem;
               }
             }
@@ -630,7 +633,12 @@ void AssemblyManager<Node>::createCells() {
         }
         
         blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
-                                                   set_LIDs, set_sideinfo, disc, storeThis)));
+                                                   disc, storeThis)));
+        
+        blockcells[blockcells.size()-1]->LIDs = set_LIDs;
+        blockcells[blockcells.size()-1]->createHostLIDs();
+        blockcells[blockcells.size()-1]->sideinfo = set_sideinfo;
+        
         prog += elemPerCell;
         
       }
@@ -771,10 +779,10 @@ void AssemblyManager<Node>::createWorkset() {
       for (size_t set=0; set<cellData[b]->set_numDOF.size(); ++set) {
         numVars.push_back(cellData[b]->set_numDOF[set].extent(0));
       }
-      vector<Kokkos::View<string**,HostDevice> > bcs;
+      vector<Kokkos::View<string**,HostDevice> > bcs(phys->setnames.size());
       for (size_t set=0; set<phys->setnames.size(); ++set) {
         Kokkos::View<string**,HostDevice> vbcs = disc->getVarBCs(set,b);
-        bcs.push_back(vbcs);
+        bcs[set] = vbcs;
       }
       wkset.push_back(Teuchos::rcp( new workset(info,
                                                 numVars,
@@ -782,10 +790,11 @@ void AssemblyManager<Node>::createWorkset() {
                                                 disc->basis_types[b],
                                                 disc->basis_pointers[b],
                                                 params->discretized_param_basis,
-                                                mesh->getCellTopology(blocknames[b]),
-                                                bcs) ) );
+                                                mesh->getCellTopology(blocknames[b])) ) );
       
       wkset[b]->block = b;
+      wkset[b]->set_var_bcs = bcs;
+      wkset[b]->var_bcs = bcs[0];
     }
     else {
       wkset.push_back(Teuchos::rcp( new workset()));

@@ -28,22 +28,13 @@ BoundaryCell::BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
                            const Kokkos::View<LO*,AssemblyDevice> sideID_,
                            const int & sidenum_, const string & sidename_,
                            const int & cellID_,
-                           vector<LIDView> & LIDs_,
-                           vector<Kokkos::View<int****,HostDevice> > & sideinfo_,
                            Teuchos::RCP<DiscretizationInterface> & disc_,
                            const bool & storeAll_) :
 cellData(cellData_), localElemID(localID_), localSideID(sideID_),
-sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename(sidename_), LIDs(LIDs_), disc(disc_)   {
-
+sidenum(sidenum_), cellID(cellID_), nodes(nodes_), 
+sidename(sidename_), disc(disc_)   {
+  
   numElem = nodes.extent(0);
-
-  for (size_t set=0; set<LIDs.size(); ++set) {
-    auto LIDs_tmp = Kokkos::create_mirror_view(LIDs[set]);
-    Kokkos::deep_copy(LIDs_tmp,LIDs[set]);
-    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
-    Kokkos::deep_copy(currLIDs_host,LIDs_tmp);
-    LIDs_host.push_back(currLIDs_host);
-  }
   
   storeAll = storeAll_;
   
@@ -61,6 +52,21 @@ sidenum(sidenum_), cellID(cellID_), nodes(nodes_), sideinfo(sideinfo_), sidename
     orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
     disc->getPhysicalOrientations(cellData, localElemID, orientation, false);
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::createHostLIDs() {
+  
+  for (size_t set=0; set<LIDs.size(); ++set) {
+    auto LIDs_tmp = Kokkos::create_mirror_view(LIDs[set]);
+    Kokkos::deep_copy(LIDs_tmp,LIDs[set]);
+    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
+    Kokkos::deep_copy(currLIDs_host,LIDs_tmp);
+    LIDs_host.push_back(currLIDs_host);
+  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

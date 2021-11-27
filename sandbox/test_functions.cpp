@@ -47,11 +47,12 @@ int main(int argc, char * argv[]) {
     vector<Kokkos::View<string**,HostDevice> > bcs;
     bcs.push_back(Kokkos::View<string**,HostDevice>("bcs",1,1));
     Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, numvars, false,
-                                                            btypes, basis, basis, cellTopo, bcs) );
+                                                            btypes, basis, basis, cellTopo) );
     
     vector<int> usebasis = {0,0,0,0,0};
     wkset->usebasis = usebasis;
     wkset->varlist = variables;
+    wkset->set_var_bcs = bcs;
     
     wkset->createSolns();
     
