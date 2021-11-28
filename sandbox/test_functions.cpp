@@ -85,8 +85,9 @@ int main(int argc, char * argv[]) {
     Kokkos::Random_XorShift64_Pool<> rand_pool(1979);
     Kokkos::fill_random(xip,rand_pool,0.0,1.0);
     Kokkos::fill_random(yip,rand_pool,0.0,1.0);
-    std::vector<View_Sc2> pip = {xip,yip};
-    wkset->setIP(pip);
+  
+    wkset->setScalarField(xip,"x");
+    wkset->setScalarField(yip,"y");
     
     //----------------------------------------------------------------------
     // Add some functions to test

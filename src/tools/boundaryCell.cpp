@@ -224,9 +224,22 @@ void BoundaryCell::updateWorksetBasis() {
   if (storeAll) {
     wkset->wts_side = wts;
     wkset->h = hsize;
-    wkset->setIP(ip," side");
-    wkset->setNormals(normals);
-    wkset->setTangents(tangents);
+    //wkset->setIP(ip," side");
+    //wkset->setNormals(normals);
+    //wkset->setTangents(tangents);
+    wkset->setScalarField(ip[0],"x side");
+    wkset->setScalarField(normals[0],"nx side");
+    wkset->setScalarField(tangents[0],"tx side");
+    if (ip.size() > 1) {
+      wkset->setScalarField(ip[1],"y side");
+      wkset->setScalarField(normals[1],"ny side");
+      wkset->setScalarField(tangents[1],"ty side");
+    }
+    if (ip.size() > 2) {
+      wkset->setScalarField(ip[2],"z side");
+      wkset->setScalarField(normals[2],"nz side");
+      wkset->setScalarField(tangents[2],"tz side");
+    }
     wkset->basis_side = basis;
     wkset->basis_grad_side = basis_grad;
   }
@@ -246,9 +259,22 @@ void BoundaryCell::updateWorksetBasis() {
     
     wkset->wts_side = twts;
     wkset->h = thsize;
-    wkset->setIP(tip," side");
-    wkset->setNormals(tnormals);
-    wkset->setTangents(ttangents);
+    //wkset->setIP(tip," side");
+    //wkset->setNormals(tnormals);
+    //wkset->setTangents(ttangents);
+    wkset->setScalarField(tip[0],"x side");
+    wkset->setScalarField(tnormals[0],"nx side");
+    wkset->setScalarField(ttangents[0],"tx side");
+    if (tip.size() > 1) {
+      wkset->setScalarField(tip[1],"y side");
+      wkset->setScalarField(tnormals[1],"ny side");
+      wkset->setScalarField(ttangents[1],"ty side");
+    }
+    if (tip.size() > 2) {
+      wkset->setScalarField(tip[2],"z side");
+      wkset->setScalarField(tnormals[2],"nz side");
+      wkset->setScalarField(ttangents[2],"tz side");
+    }
     wkset->basis_side = tbasis;
     wkset->basis_grad_side = tbasis_grad;
   }

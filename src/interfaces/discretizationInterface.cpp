@@ -871,8 +871,12 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
       
       int numb = cellData->basis_pointers[i]->getCardinality();
       
-      View_Sc4 basis_vals, basis_grad_vals, basis_curl_vals, basis_node_vals;
-      View_Sc3 basis_div_vals;
+      // These will be redefined below for the appropriate basis types
+      View_Sc4 basis_vals("tmp basis",1,1,1,1);
+      View_Sc4 basis_grad_vals("tmp grad vals",1,1,1,1);
+      View_Sc4 basis_curl_vals("tmp curl vals",1,1,1,1);
+      View_Sc4 basis_node_vals("tmp node vals",1,1,1,1);
+      View_Sc3 basis_div_vals("tmp div vals",1,1,1);
 
       if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
         DRV bvals1, bvals2;
@@ -1254,7 +1258,12 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
     
     for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
       int numb = cellData->basis_pointers[i]->getCardinality();
-      View_Sc4 basis_vals, basis_grad_vals;//, basis_div_vals, basis_curl_vals;
+      
+      // These will be defined below for the appropriate basis types
+      View_Sc4 basis_vals("tmp basis vals",1,1,1,1);
+      View_Sc4 basis_grad_vals("tmp grad vals",1,1,1,1);
+      
+      // div and curl values are not currently used on boundaries
       
       auto ref_basis_vals = cellData->ref_side_basis[side][i];
       
@@ -1614,8 +1623,12 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
     for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
       
       int numb = cellData->basis_pointers[i]->getCardinality();
-      View_Sc4 basis_vals, basis_grad_vals, basis_curl_vals;
-      View_Sc3 basis_div_vals;
+      
+      // These will be redefined below for the appropriate basis type
+      View_Sc4 basis_vals("tmp basis vals",1,1,1,1);
+      View_Sc4 basis_grad_vals("tmp grad vals",1,1,1,1);
+      View_Sc4 basis_curl_vals("tmp curl vals",1,1,1,1);
+      View_Sc3 basis_div_vals("tmp div vals",1,1,1);
       
       DRV ref_basis_vals = cellData->ref_side_basis[localSideID_host(0)][i];
       

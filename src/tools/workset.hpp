@@ -11,66 +11,17 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef WKSET_H
-#define WKSET_H
+#ifndef MRHYDE_WKSET_H
+#define MRHYDE_WKSET_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "fields.hpp"
 
 namespace MrHyDE {
   
   // =================================================================
   // =================================================================
-  
-  class SolutionField {
-  public:
-    
-    SolutionField() {};
-    
-    ~SolutionField() {};
-    
-    SolutionField(const string & expression_,
-                  const size_t & set_index_,
-                  const string & vartype_,
-                  const int & varindex_,
-                  const string & basistype_,
-                  const int & basis_index_,
-                  const string & derivtype_,
-                  const int & component_,
-                  const int & dim0_, // typically zero for first touch allocations
-                  const int & dim1_,
-                  const bool & onSide_,
-                  const bool & isPoint_) {
-      
-      expression = expression_;
-      variable_type = vartype_; // solution, aux, param
-      set_index = set_index_;
-      variable_index = varindex_;
-      basis_type = basistype_; // HGRAD, HVOL, HDIV, HCURL, HFACE
-      basis_index = basis_index_;
-      derivative_type = derivtype_; // grad, curl, div, time
-      component = component_; // x, y, z
-      //data = View_AD2("solution field for " + expression, 1, dim1);
-      isOnSide = onSide_;
-      isPoint = isPoint_;
-      isUpdated = false;
-      isInitialized = false;
-      dim1 = dim1_;
-      
-    }
-    
-    void initialize(const int & dim0) {
-      data = View_AD2("solution field for " + expression, dim0, dim1);
-      isInitialized = true;
-    }
-    
-    string expression, variable_type, basis_type, derivative_type;
-    size_t set_index;
-    int variable_index, basis_index, component, dim1;
-    bool isUpdated, isOnSide, isPoint, isInitialized;
-    View_AD2 data;
-    
-  };
   
   class workset {
   public:
@@ -80,6 +31,8 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////////
     
     workset() {};
+    
+    ~workset() {};
     
     workset(const vector<int> & cellinfo,
             const vector<size_t> & numVars_, 
@@ -187,21 +140,15 @@ namespace MrHyDE {
     
     void checkDataScAllocation(const size_t & ind);
     
-    void printFields();
+    void printSolutionFields();
+    
+    void printScalarFields();
     
     View_AD2 findData(const string & label);
     
     View_AD2 getData(const string & label);
     
     View_Sc2 getDataSc(const string & label);
-    
-    size_t getDataScIndex(const string & label);
-    
-#ifndef MrHyDE_NO_AD
-    void get(const string & label, View_AD2 & dataout);
-#endif
-    
-    void get(const string & label, View_Sc2 & dataout);
     
     View_Sc4 getBasis(const string & var);
     
@@ -251,9 +198,9 @@ namespace MrHyDE {
     // Functions to add data to storage
     //////////////////////////////////////////////////////////////
     
-    void addData(const string & label, const int & dim0, const int & dim1);
+    //void addData(const string & label, const int & dim0, const int & dim1);
     
-    void addDataSc(const string & label, const int & dim0, const int & dim1);
+    //void addDataSc(const string & label, const int & dim0, const int & dim1);
 
     /**
      * @brief Add storage for integrated quantities to the workset.
@@ -282,11 +229,7 @@ namespace MrHyDE {
     
     void printMetaData();
     
-    void setIP(vector<View_Sc2> & newip, const string & pfix = "");
-    
-    void setNormals(vector<View_Sc2> & newnormals);
-    
-    void setTangents(vector<View_Sc2> & newtangents);
+    void setScalarField(View_Sc2 newdata, const string & expression);
     
     template<class V1, class V2>
     void copyData(V1 view1, V2 view2);
@@ -339,7 +282,7 @@ namespace MrHyDE {
     // Used by physics modules to determine the proper contribution to the boundary residual
     
     bool isAdjoint, onlyTransient, isTransient;
-    bool isInitialized, usebcs, onDemand;
+    bool isInitialized, usebcs;
     topo_RCP celltopo;
     size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set, numSets;
     int dimension, numElem, current_stage;
@@ -357,16 +300,8 @@ namespace MrHyDE {
     
     size_t block, localEID, globalEID;
     
-    // Views that use ContLayout for hierarchical parallelism
-    vector<SolutionField> fields;
-    
-    vector<View_AD2> data;
-    vector<string> data_labels;
-    vector<int> data_usage;
-    
-    vector<View_Sc2> data_Sc;
-    vector<string> data_Sc_labels;
-    vector<int> data_Sc_usage;
+    vector<SolutionField> soln_fields;
+    vector<ScalarField> scalar_fields;
     
     View_Sc1 h;
     View_Sc2 wts, wts_side;

@@ -282,7 +282,14 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   if (storeAll) {
     wkset->wts = wts;
     wkset->h = hsize;
-    wkset->setIP(ip);
+    wkset->setScalarField(ip[0],"x");
+    if (ip.size() > 1) {
+      wkset->setScalarField(ip[1],"y");
+    }
+    if (ip.size() > 2) {
+      wkset->setScalarField(ip[2],"z");
+    }
+    //wkset->setIP(ip);
     wkset->basis = basis;
     wkset->basis_grad = basis_grad;
     wkset->basis_div = basis_div;
@@ -300,7 +307,14 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
                                     tbasis_div, tbasis_nodes,true,false);
     wkset->wts = twts;
     wkset->h = thsize;
-    wkset->setIP(tip);
+    //wkset->setIP(tip);
+    wkset->setScalarField(tip[0],"x");
+    if (tip.size() > 1) {
+      wkset->setScalarField(tip[1],"y");
+    }
+    if (tip.size() > 2) {
+      wkset->setScalarField(tip[2],"z");
+    }
     wkset->basis = tbasis;
     wkset->basis_grad = tbasis_grad;
     wkset->basis_div = tbasis_div;
@@ -549,8 +563,18 @@ void cell::updateWorksetFace(const size_t & facenum) {
   if (storeAll) {
     wkset->wts_side = wts_face[facenum];
     wkset->h = hsize;
-    wkset->setIP(ip_face[facenum]," side");
-    wkset->setNormals(normals_face[facenum]);
+    //wkset->setIP(ip_face[facenum]," side");
+    //wkset->setNormals(normals_face[facenum]);
+    wkset->setScalarField(ip_face[facenum][0],"x side");
+    wkset->setScalarField(normals_face[facenum][0],"nx side");
+    if (ip_face[facenum].size() > 1) {
+      wkset->setScalarField(ip_face[facenum][1],"y side");
+      wkset->setScalarField(normals_face[facenum][1],"ny side");
+    }
+    if (ip_face[facenum].size() > 2) {
+      wkset->setScalarField(ip_face[facenum][2],"z side");
+      wkset->setScalarField(normals_face[facenum][2],"nz side");
+    }
     wkset->basis_side = basis_face[facenum];
     wkset->basis_grad_side = basis_grad_face[facenum];
   }
@@ -567,8 +591,18 @@ void cell::updateWorksetFace(const size_t & facenum) {
     
     wkset->wts_side = twts;
     wkset->h = thsize;
-    wkset->setIP(tip," side");
-    wkset->setNormals(tnormals);
+    //wkset->setIP(tip," side");
+    //wkset->setNormals(tnormals);
+    wkset->setScalarField(tip[0],"x side");
+    wkset->setScalarField(tnormals[0],"nx side");
+    if (tip.size() > 1) {
+      wkset->setScalarField(tip[1],"y side");
+      wkset->setScalarField(tnormals[1],"ny side");
+    }
+    if (tip.size() > 2) {
+      wkset->setScalarField(tip[2],"z side");
+      wkset->setScalarField(tnormals[2],"nz side");
+    }
     wkset->basis_side = tbasis;
     wkset->basis_grad_side = tbasis_grad;
   }

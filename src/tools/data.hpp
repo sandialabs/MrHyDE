@@ -26,6 +26,8 @@ namespace MrHyDE {
     
     Data() {} ;
     
+    ~Data() {} ;
+    
     /////////////////////////////////////////////////////////////////////////////
     //  Various constructors depending on the characteristics of the data (spatial,
     //  transient, stochastic, etc.)

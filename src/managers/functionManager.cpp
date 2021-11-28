@@ -146,65 +146,6 @@ void FunctionManager::decomposeFunctions() {
             
             // Is it an AD data stored in the workset?
             if (decompose) {
-              if (wkset->onDemand) {
-                string mod_expr = expr;
-                if (forests[fiter].location == "side ip") {
-                  mod_expr += " side";
-                }
-                else if (forests[fiter].location == "point") {
-                  mod_expr += " point";
-                }
-                bool found = 0;
-                size_t j=0;
-                while (!found && j<wkset->fields.size()) {
-                  if (mod_expr == wkset->fields[j].expression) {
-                    decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isAD = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                    
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                    wkset->checkDataAllocation(j);
-                    found = true;
-                  }
-                  j++;
-                }
-              }
-              else {
-                vector<string> data_labels = wkset->data_labels;
-                
-                string mod_expr = expr;
-                if (forests[fiter].location == "side ip") {
-                  mod_expr += " side";
-                }
-                else if (forests[fiter].location == "point") {
-                  mod_expr += " point";
-                }
-                bool found = 0;
-                size_t j=0;
-                while (!found && j<data_labels.size()) {
-                  if (mod_expr == data_labels[j]) {
-                    decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isAD = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                    
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                    wkset->checkDataAllocation(j);
-                    found = true;
-                  }
-                  j++;
-                }
-              }
-            }
-            
-            // Is it a Scalar data stored in the workset?
-            if (decompose) {
-              vector<string> data_Sc_labels = wkset->data_Sc_labels;
               string mod_expr = expr;
               if (forests[fiter].location == "side ip") {
                 mod_expr += " side";
@@ -214,12 +155,42 @@ void FunctionManager::decomposeFunctions() {
               }
               bool found = 0;
               size_t j=0;
-              while (!found && j<data_Sc_labels.size()) {
-                if (mod_expr == data_Sc_labels[j]) {
+              while (!found && j<wkset->soln_fields.size()) {
+                if (mod_expr == wkset->soln_fields[j].expression) {
                   decompose = false;
                   forests[fiter].trees[titer].branches[k].isLeaf = true;
                   forests[fiter].trees[titer].branches[k].isDecomposed = true;
                   forests[fiter].trees[titer].branches[k].isView = true;
+                  forests[fiter].trees[titer].branches[k].isAD = true;
+                  forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                  
+                  forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                  wkset->checkDataAllocation(j);
+                  found = true;
+                }
+                j++;
+              }
+            }
+            
+            // Is it a Scalar data stored in the workset?
+            if (decompose) {
+              string mod_expr = expr;
+              if (forests[fiter].location == "side ip") {
+                mod_expr += " side";
+              }
+              else if (forests[fiter].location == "point") {
+                mod_expr += " point";
+              }
+              bool found = 0;
+              size_t j=0;
+              while (!found && j<wkset->scalar_fields.size()) {
+                if (mod_expr == wkset->scalar_fields[j].expression) {
+                  decompose = false;
+                  forests[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests[fiter].trees[titer].branches[k].isAD = false;
+                  forests[fiter].trees[titer].branches[k].isView = true;
+                  
                   forests[fiter].trees[titer].branches[k].isWorksetData = true;
                   
                   forests[fiter].trees[titer].branches[k].workset_data_index = j;
@@ -562,31 +533,21 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
     if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
       if (forests[findex].trees[tindex].branches[bindex].isWorksetData) {
         int wdindex = forests[findex].trees[tindex].branches[bindex].workset_data_index;
-        if (wkset->onDemand) {
-          if (forests[findex].trees[tindex].branches[bindex].isAD) {
-            if (!wkset->fields[wdindex].isUpdated) {
-              wkset->evaluateSolutionField(wdindex);
-            }
-            forests[findex].trees[tindex].branches[bindex].viewdata = wkset->fields[wdindex].data;
+        if (forests[findex].trees[tindex].branches[bindex].isAD) {
+          if (!wkset->soln_fields[wdindex].isUpdated) {
+            wkset->evaluateSolutionField(wdindex);
           }
-          else {
-            forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->data_Sc[wdindex];
-          }
+          forests[findex].trees[tindex].branches[bindex].viewdata = wkset->soln_fields[wdindex].data;
         }
         else {
-          if (forests[findex].trees[tindex].branches[bindex].isAD) {
-            forests[findex].trees[tindex].branches[bindex].viewdata = wkset->data[wdindex];
-          }
-          else {
-            forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->data_Sc[wdindex];
-          }
+          forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->scalar_fields[wdindex].data;
         }
       }
       else if (forests[findex].trees[tindex].branches[bindex].isParameter) {
         // Should be set correctly already
       }
       else if (forests[findex].trees[tindex].branches[bindex].isTime) {
-        forests[findex].trees[tindex].branches[bindex].data_Sc = wkset->time;//_KV(0);
+        forests[findex].trees[tindex].branches[bindex].data_Sc = wkset->time;
       }
     }
     else if (forests[findex].trees[tindex].branches[bindex].isFunc) {

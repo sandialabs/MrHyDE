@@ -306,15 +306,15 @@ void thermal::computeFlux() {
   
   View_Sc2 nx, ny, nz;
   View_AD2 T, dTdx, dTdy, dTdz;
-  wkset->get("nx side",nx);
+  nx = wkset->getDataSc("nx side");
   T = wkset->getData("e side");
   dTdx = wkset->getData("grad(e)[x] side"); //dedx_side;
   if (spaceDim > 1) {
-    wkset->get("ny side",ny);
+    ny = wkset->getDataSc("ny side");
     dTdy = wkset->getData("grad(e)[y] side"); //dedy_side;
   }
   if (spaceDim > 2) {
-    wkset->get("nz side",nz);
+    nz = wkset->getDataSc("nz side");
     dTdz = wkset->getData("grad(e)[z] side"); //dedz_side;
   }
   
