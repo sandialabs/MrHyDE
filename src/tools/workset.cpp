@@ -1222,7 +1222,7 @@ void workset::addData(const string & label, const int & dim0, const int & dim1) 
 }
 
 void workset::addDataSc(const string & label, const int & dim0, const int & dim1) {
-  data_Sc.push_back(View_Sc2(label,0,dim1));
+  data_Sc.push_back(View_Sc2(label,1,dim1));
   data_Sc_labels.push_back(label);
   data_Sc_usage.push_back(0);
 }
@@ -1365,14 +1365,9 @@ void workset::checkDataAllocation(const size_t & ind) {
     if (!fields[ind].isInitialized) {
       fields[ind].initialize(maxElem);
     }
-    //if (fields[ind].data.extent(0) < maxElem) {
-      //fields[ind].data = View_AD2("solution field for " + fields[ind].expression, maxElem, fields[ind].data.extent(1));
-    //  Kokkos::resize(fields[ind].data,maxElem,fields[ind].data.extent(1));
-    //}
   }
   else {
     if (data[ind].extent(0) < maxElem) {
-      // this is mostly deprecated, so not changing 
       Kokkos::resize(data[ind],maxElem,data[ind].extent(1));
     }
   }
