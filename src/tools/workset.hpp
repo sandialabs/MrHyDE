@@ -37,8 +37,8 @@ namespace MrHyDE {
                   const int & basis_index_,
                   const string & derivtype_,
                   const int & component_,
-                  const int & dim0, // typically zero for first touch allocations
-                  const int & dim1,
+                  const int & dim0_, // typically zero for first touch allocations
+                  const int & dim1_,
                   const bool & onSide_,
                   const bool & isPoint_) {
       
@@ -50,17 +50,24 @@ namespace MrHyDE {
       basis_index = basis_index_;
       derivative_type = derivtype_; // grad, curl, div, time
       component = component_; // x, y, z
-      data = View_AD2("solution field for " + expression, 1, dim1);
+      //data = View_AD2("solution field for " + expression, 1, dim1);
       isOnSide = onSide_;
       isPoint = isPoint_;
       isUpdated = false;
+      isInitialized = false;
+      dim1 = dim1_;
       
+    }
+    
+    void initialize(const int & dim0) {
+      data = View_AD2("solution field for " + expression, dim0, dim1);
+      isInitialized = true;
     }
     
     string expression, variable_type, basis_type, derivative_type;
     size_t set_index;
-    int variable_index, basis_index, component;
-    bool isUpdated, isOnSide, isPoint;
+    int variable_index, basis_index, component, dim1;
+    bool isUpdated, isOnSide, isPoint, isInitialized;
     View_AD2 data;
     
   };

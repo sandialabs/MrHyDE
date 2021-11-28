@@ -1362,10 +1362,13 @@ View_AD2 workset::getData(const string & label) {
 
 void workset::checkDataAllocation(const size_t & ind) {
   if (onDemand) {
-    if (fields[ind].data.extent(0) < maxElem) {
-      //fields[ind].data = View_AD2("solution field for " + fields[ind].expression, maxElem, fields[ind].data.extent(1));
-      Kokkos::resize(fields[ind].data,maxElem,fields[ind].data.extent(1));
+    if (!fields[ind].isInitialized) {
+      fields[ind].initialize(maxElem);
     }
+    //if (fields[ind].data.extent(0) < maxElem) {
+      //fields[ind].data = View_AD2("solution field for " + fields[ind].expression, maxElem, fields[ind].data.extent(1));
+    //  Kokkos::resize(fields[ind].data,maxElem,fields[ind].data.extent(1));
+    //}
   }
   else {
     if (data[ind].extent(0) < maxElem) {
