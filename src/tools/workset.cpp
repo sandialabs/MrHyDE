@@ -89,6 +89,15 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     maxb = std::max(maxb,numb);
   }
   
+  basis = vector<View_Sc4>(basis_pointers.size());
+  basis_grad = vector<View_Sc4>(basis_pointers.size());
+  basis_curl = vector<View_Sc4>(basis_pointers.size());
+  basis_div = vector<View_Sc3>(basis_pointers.size());
+  
+  basis_side = vector<View_Sc4>(basis_pointers.size());
+  basis_grad_side = vector<View_Sc4>(basis_pointers.size());
+  basis_curl_side = vector<View_Sc4>(basis_pointers.size());
+  
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   maxTeamSize = 256 / VectorSize;
 #else
@@ -119,11 +128,21 @@ void workset::createSolns() {
     maxRes = std::max(maxRes,paramoffsets.extent(0)*paramoffsets.extent(1));
   }
   
+  size_t totalvars = 0;
+  for (size_t set=0; set<numSets; ++set) {
+    totalvars += set_varlist[set].size();
+  }
+  
+  uvals = vector<View_AD2>(totalvars);
+  if (isTransient) {
+    u_dotvals = vector<View_AD2>(totalvars);
+  }
+  
   res = View_AD2("residual",numElem, maxRes);
+  
+  size_t uprog = 0;
   for (size_t set=0; set<numSets; ++set) {
     
-    //vector<View_AD2> set_uvals(set_varlist[set].size());
-    //vector<View_AD2> set_u_dotvals(set_varlist[set].size());
     vector<size_t> set_uindex;
 
     vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
@@ -136,13 +155,15 @@ void workset::createSolns() {
       int numb = basis_pointers[bind]->getCardinality();
       View_AD2 newsol("seeded uvals",numElem, numb);
       //set_uvals[i] = newsol;
-      uvals.push_back(newsol);
-      //if (isTransient) {
+      uvals[uprog] = newsol;
+      if (isTransient) {
         View_AD2 newtsol("seeded uvals",numElem, numb);
-        u_dotvals.push_back(newtsol);
-        //set_u_dotvals[i] = newtsol;
-      //}
-      set_uindex.push_back(uvals.size()-1);      
+        u_dotvals[uprog] = newtsol;
+      }
+      
+      set_uindex.push_back(uprog);
+      
+      uprog++;
       
       if (basis_types[bind].substr(0,5) == "HGRAD") {
         set_vars_HGRAD.push_back(i);

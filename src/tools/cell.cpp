@@ -272,7 +272,6 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   
   // Reset the residual and data in the workset
-  //wkset->resetResidual();
   wkset->reset();
   
   wkset->numElem = numElem;
@@ -289,11 +288,19 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
     if (ip.size() > 2) {
       wkset->setScalarField(ip[2],"z");
     }
-    //wkset->setIP(ip);
-    wkset->basis = basis;
-    wkset->basis_grad = basis_grad;
-    wkset->basis_div = basis_div;
-    wkset->basis_curl = basis_curl;
+  
+    for (size_t i=0; i<basis.size(); ++i) {
+      wkset->basis[i] = basis[i];
+    }
+    for (size_t i=0; i<basis_grad.size(); ++i) {
+      wkset->basis_grad[i] = basis_grad[i];
+    }
+    for (size_t i=0; i<basis.size(); ++i) {
+      wkset->basis_div[i] = basis_div[i];
+    }
+    for (size_t i=0; i<basis.size(); ++i) {
+      wkset->basis_curl[i] = basis_curl[i];
+    }
   }
   else {
     vector<View_Sc2> tip;
@@ -307,7 +314,7 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
                                     tbasis_div, tbasis_nodes,true,false);
     wkset->wts = twts;
     wkset->h = thsize;
-    //wkset->setIP(tip);
+    
     wkset->setScalarField(tip[0],"x");
     if (tip.size() > 1) {
       wkset->setScalarField(tip[1],"y");
