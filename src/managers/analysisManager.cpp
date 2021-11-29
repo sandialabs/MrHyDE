@@ -159,7 +159,7 @@ void AnalysisManager::run() {
     vector<ScalarT> param_vars = params->getStochasticParams("variance");
     vector<ScalarT> param_mins = params->getStochasticParams("min");
     vector<ScalarT> param_maxs = params->getStochasticParams("max");
-    UQManager uq(*Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
+    UQManager uq(Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
     
     // Generate the samples for the UQ
     int numstochparams = param_types.size();

@@ -44,6 +44,8 @@ namespace MrHyDE {
     
     MeshInterface() {};
     
+    ~MeshInterface() {};
+    
     MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<MpiComm> & Commptr_);
     
     MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,

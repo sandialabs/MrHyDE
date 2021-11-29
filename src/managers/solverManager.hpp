@@ -47,6 +47,10 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
+    SolverManager() {};
+    
+    ~SolverManager() {};
+    
     SolverManager(const Teuchos::RCP<MpiComm> & Comm_,
                   Teuchos::RCP<Teuchos::ParameterList> & settings_,
                   Teuchos::RCP<MeshInterface> & mesh_,

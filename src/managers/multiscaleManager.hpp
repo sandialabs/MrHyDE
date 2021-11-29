@@ -41,6 +41,10 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
+    MultiscaleManager() {};
+    
+    ~MultiscaleManager() {};
+    
     MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
                       Teuchos::RCP<MeshInterface> & mesh_,
                       Teuchos::RCP<Teuchos::ParameterList> & settings_,

@@ -35,6 +35,10 @@ namespace MrHyDE {
   class regularization {
   public:
     
+    regularization() {};
+    
+    ~regularization() {};
+    
     regularization(Teuchos::ParameterList & regsettings, const string name_,
                    const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
       name = name_;
@@ -68,6 +72,10 @@ namespace MrHyDE {
   
   class objective {
   public:
+    
+    objective() {};
+    
+    ~objective() {};
     
     objective(Teuchos::ParameterList & objsettings, const string name_,
               const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
@@ -148,6 +156,10 @@ namespace MrHyDE {
   class fluxResponse {
   public:
     
+    fluxResponse() {};
+    
+    ~fluxResponse() {};
+    
     fluxResponse(Teuchos::ParameterList & frsettings, const string & name_,
                  const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
       name = name_;
@@ -193,6 +205,10 @@ namespace MrHyDE {
      * @param[in]  functionManager_  The function manager used to store the integrand 
      *
      */
+    
+    integratedQuantity() {};
+    
+    ~integratedQuantity() {};
     
     integratedQuantity(Teuchos::ParameterList & iqsettings, const string & name_,
                  const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {

@@ -33,6 +33,8 @@ namespace MrHyDE {
     
     DiscretizationInterface() {} ;
     
+    ~DiscretizationInterface() {} ;
+    
     DiscretizationInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                    Teuchos::RCP<MpiComm> & Comm_,
                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,

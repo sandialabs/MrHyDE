@@ -30,6 +30,8 @@ namespace MrHyDE {
     
     FunctionManager();
     
+    ~FunctionManager() {};
+    
     FunctionManager(const std::string & blockname, const int & numElem_,
                     const int & numip_, const int & numip_side_);
     

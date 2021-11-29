@@ -55,6 +55,10 @@ namespace MrHyDE {
     
   public:
     
+    SolverOptions() {};
+    
+    ~SolverOptions() {};
+    
     SolverOptions(Teuchos::ParameterList & settings) {
       amesosType = settings.get<string>("Amesos solver","KLU2");
       belosType = settings.get<string>("Belos solver","Block GMRES");
@@ -108,6 +112,10 @@ namespace MrHyDE {
     // ========================================================================================
     // Constructor
     // ========================================================================================
+    
+    LinearAlgebraInterface() {};
+    
+    ~LinearAlgebraInterface() {};
     
     LinearAlgebraInterface(const Teuchos::RCP<MpiComm> & Comm_,
                            Teuchos::RCP<Teuchos::ParameterList> & settings_,

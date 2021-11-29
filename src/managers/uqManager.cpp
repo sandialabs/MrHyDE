@@ -20,7 +20,7 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-UQManager::UQManager(const MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
+UQManager::UQManager(const Teuchos::RCP<MpiComm> Comm_, const Teuchos::ParameterList & uqsettings_,
                      const std::vector<string> & param_types_,
                      const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
                      const std::vector<ScalarT> & param_mins_, const std::vector<ScalarT> & param_maxs_) :
@@ -152,7 +152,7 @@ void UQManager::computeStatistics(const std::vector<ScalarT> & values) {
       meanval += values[j];
     }
     meanval = meanval / numvals;
-    if (Comm.getRank() == 0 )
+    if (Comm->getRank() == 0 )
     cout << "Mean value of the response: " << meanval << endl;
   }
   if (uqsettings.get<bool>("compute variance",true)) {
@@ -166,7 +166,7 @@ void UQManager::computeStatistics(const std::vector<ScalarT> & values) {
       variance += (values[j]-meanval)*(values[j]-meanval);
     }
     variance = variance / numvals;
-    if (Comm.getRank() == 0 )
+    if (Comm->getRank() == 0 )
     cout << "Variance of the response: " << variance << endl;
   }
   if (uqsettings.isSublist("Probability levels")) {
@@ -180,7 +180,7 @@ void UQManager::computeStatistics(const std::vector<ScalarT> & values) {
         count += 1;
       }
       ScalarT currprob = (ScalarT)count / (ScalarT)numvals;
-      if (Comm.getRank() == 0 )
+      if (Comm->getRank() == 0 )
       cout << "Probability the response is less than " << currplevel << " = " << currprob << endl;
       pl_itr++;
     }
@@ -211,7 +211,7 @@ void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
         }
       }
     }
-    if (Comm.getRank() == 0 )
+    if (Comm->getRank() == 0 )
     cout << "Mean value of the response: " << endl;
     // KokkosTools::print(meanval); // GH: commenting this out for now; it can't tell DRV from DRVint
   }

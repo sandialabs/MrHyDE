@@ -53,6 +53,10 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
+    AssemblyManager() {};
+    
+    ~AssemblyManager() {};
+    
     AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_,
                     Teuchos::RCP<Teuchos::ParameterList> & settings,
                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,

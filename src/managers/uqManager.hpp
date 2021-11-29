@@ -28,13 +28,18 @@ namespace MrHyDE {
    */
 
   class UQManager {
+    
   public:
     
+    UQManager() {};
+    
+    ~UQManager() {};
+  
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    UQManager(const MpiComm & Comm_, const Teuchos::ParameterList & uqsettings_,
+    UQManager(const Teuchos::RCP<MpiComm> Comm_, const Teuchos::ParameterList & uqsettings_,
               const std::vector<string> & param_types_,
               const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
               const std::vector<ScalarT> & param_mins_, const std::vector<ScalarT> & param_maxs_);
@@ -69,9 +74,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-  protected:
-    
-    MpiComm Comm;
+    Teuchos::RCP<MpiComm> Comm;
     std::string surrogate;
     std::vector<std::vector<ScalarT> > points;
     int evalprog, numstochparams;

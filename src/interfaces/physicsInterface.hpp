@@ -78,6 +78,8 @@ namespace MrHyDE {
     
     PhysicsInterface() {} ;
     
+    ~PhysicsInterface() {} ;
+    
     PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
                      Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
     
