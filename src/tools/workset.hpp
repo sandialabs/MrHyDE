@@ -345,7 +345,7 @@ namespace MrHyDE {
     View_Sc1 integrated_quantities;
         
     int sidetype;
-    Kokkos::View<int****,AssemblyDevice> sideinfo;
+    //Kokkos::View<int****,AssemblyDevice> sideinfo;
     string sidename;//, var;
     int currentside;
     

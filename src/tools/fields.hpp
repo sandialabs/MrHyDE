@@ -59,7 +59,11 @@ namespace MrHyDE {
     }
     
     void initialize(const int & dim0) {
+#ifndef MrHyDE_NO_AD
+      data = View_AD2("solution field for " + expression, dim0, dim1, maxDerivs);
+#else
       data = View_AD2("solution field for " + expression, dim0, dim1);
+#endif
       isInitialized = true;
     }
     
