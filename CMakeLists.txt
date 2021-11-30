@@ -174,10 +174,15 @@ ENDIF()
 
 MESSAGE("   CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
 
-# Compile source code
+# Compile sandbox scripts
 ADD_SUBDIRECTORY(src)
 IF(MrHyDE_ENABLE_SANDBOX)
   ADD_SUBDIRECTORY(sandbox)
+ENDIF()
+
+# Compile unit tests
+IF(MrHyDE_ENABLE_UNIT_TESTS)
+  ADD_SUBDIRECTORY(unit_tests)
 ENDIF()
   
 #INSTALL(
