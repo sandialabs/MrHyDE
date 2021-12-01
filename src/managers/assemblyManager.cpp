@@ -653,6 +653,21 @@ void AssemblyManager<Node>::createCells() {
     boundaryCells.push_back(bcells);
     
   }
+}
+
+// =======================================================
+// Have the cells compute and store the basis functions
+// at the quadrature points (if storage is turned on)
+// =======================================================
+
+template<class Node>
+void AssemblyManager<Node>::allocateCellStorage() {
+  
+  for (size_t b=0; b<cells.size(); ++b) {
+    for (size_t c=0; c<cells[b].size(); ++c) {
+      cells[b][c]->computeBasis();
+    }
+  }
   
   // ==============================================
   // Inform the user how many cells/bcells are on

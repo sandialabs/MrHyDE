@@ -237,6 +237,8 @@ void SubGridFEM::setUpSubgridModels() {
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->stk_mesh,
                                                                        sub_disc, sub_physics, sub_params));
   
+  sub_assembler->allocateCellStorage();
+  
   cells = sub_assembler->cells;
   
   Teuchos::RCP<CellMetaData> cellData = sub_assembler->cellData[0];
@@ -538,6 +540,7 @@ void SubGridFEM::setUpSubgridModels() {
       newcells[newcells.size()-1]->LIDs = vLIDs;
       newcells[newcells.size()-1]->createHostLIDs();
       newcells[newcells.size()-1]->sideinfo = vsideinfo;
+      newcells[newcells.size()-1]->computeBasis();
       
       //////////////////////////////////////////////////////////////
       // New boundary cells (more complicated than interior cells)

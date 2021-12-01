@@ -357,7 +357,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       
       if (!assembler->lump_mass) {
         linalg->exportMatrixFromOverlapped(set,explicitMass[set], mass);
-        mass.reset();
         linalg->fillComplete(explicitMass[set]);
       }
       
@@ -371,6 +370,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       linalg->r_pcg.push_back(linalg->getNewVector(set));
     }
   }
+  
+  assembler->allocateCellStorage();
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {

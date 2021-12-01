@@ -46,7 +46,12 @@ namespace MrHyDE {
          const Kokkos::View<LO*,AssemblyDevice> localID_,
          Teuchos::RCP<DiscretizationInterface> & disc_,
          const bool & storeAll_);
-         
+    
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    void computeBasis();
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -357,7 +362,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Sensor information
-    bool storeAll, useSensors, usealtsol = false;
+    bool storeAll, useSensors, usealtsol = false, haveBasis;
     size_t numSensors;
     vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
     View_Sc3 sensorPoints;

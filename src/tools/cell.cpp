@@ -30,47 +30,58 @@ cellData(cellData_), localElemID(localID_), nodes(nodes_), disc(disc_)
   useSensors = false;
 
   storeAll = storeAll_;
+  haveBasis = false;
   
-  // Compute integration data and basis functions
+  // Even if we don't store the basis or integration info, we still store
+  // the orientations since these are small, but expensive to recompute (for some reason)
+  orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+  disc->getPhysicalOrientations(cellData, localElemID,
+                                orientation, true);
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::computeBasis() {
+  
   if (storeAll) {
-    size_type numip = cellData->ref_ip.extent(0);
-    wts = View_Sc2("physical wts",numElem, numip);
-    hsize = View_Sc1("physical meshsize",numElem);
-    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
-    disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
-                                    ip, wts, hsize, orientation,
-                                    basis, basis_grad, basis_curl,
-                                    basis_div, basis_nodes,true,true);
-    if (cellData->build_face_terms) {
-      for (size_type side=0; side<cellData->numSides; side++) {
-        int numip = cellData->ref_side_ip[side].extent(0);
-        vector<View_Sc2> face_ip;
-        vector<View_Sc2> face_normals;
-        View_Sc2 face_wts("face wts", numElem, numip);
-        View_Sc1 face_hsize("face hsize", numElem);
-        vector<View_Sc4> face_basis, face_basis_grad;
-                
-        disc->getPhysicalFaceData(cellData, side, nodes, localElemID, orientation,
-                                  face_ip, face_wts, face_normals, face_hsize,
-                                  face_basis, face_basis_grad,true,false);
+    if (!haveBasis) {
+      // Compute integration data and basis functions
+      size_type numip = cellData->ref_ip.extent(0);
+      wts = View_Sc2("physical wts",numElem, numip);
+      hsize = View_Sc1("physical meshsize",numElem);
+      disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
+                                      ip, wts, hsize, orientation,
+                                      basis, basis_grad, basis_curl,
+                                      basis_div, basis_nodes,true,false);
+      if (cellData->build_face_terms) {
+        for (size_type side=0; side<cellData->numSides; side++) {
+          int numip = cellData->ref_side_ip[side].extent(0);
+          vector<View_Sc2> face_ip;
+          vector<View_Sc2> face_normals;
+          View_Sc2 face_wts("face wts", numElem, numip);
+          View_Sc1 face_hsize("face hsize", numElem);
+          vector<View_Sc4> face_basis, face_basis_grad;
+          
+          disc->getPhysicalFaceData(cellData, side, nodes, localElemID, orientation,
+                                    face_ip, face_wts, face_normals, face_hsize,
+                                    face_basis, face_basis_grad,true,false);
+          
+          
+          ip_face.push_back(face_ip);
+          wts_face.push_back(face_wts);
+          normals_face.push_back(face_normals);
+          hsize_face.push_back(face_hsize);
+          basis_face.push_back(face_basis);
+          basis_grad_face.push_back(face_basis_grad);
+        }
         
-        
-        ip_face.push_back(face_ip);
-        wts_face.push_back(face_wts);
-        normals_face.push_back(face_normals);
-        hsize_face.push_back(face_hsize);
-        basis_face.push_back(face_basis);
-        basis_grad_face.push_back(face_basis_grad);
       }
-      
     }
+    haveBasis = true;
   }
-  else {
-    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
-    disc->getPhysicalOrientations(cellData, localElemID,
-                                  orientation, true);
-    
-  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -279,6 +290,7 @@ void cell::updateWorkset(const int & seedwhat, const bool & override_transient) 
   
   // Update the integration info and basis in workset
   if (storeAll) {
+    
     wkset->wts = wts;
     wkset->h = hsize;
     wkset->setScalarField(ip[0],"x");
@@ -1314,24 +1326,25 @@ View_Sc3 cell::getMass() {
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   auto cwts = wts;
+  
+  vector<View_Sc4> tbasis;
+  if (storeAll) {
+    tbasis = basis;
+  }
+  else { // goes through this more than once, but really shouldn't be used much anyways
+    vector<View_Sc2> tip;
+    View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
+    View_Sc1 thsize("physical meshsize",numElem);
+    vector<View_Sc4> tbasis_grad, tbasis_curl, tbasis_nodes;
+    vector<View_Sc3> tbasis_div;
+    disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
+                                    tip, twts, thsize, orientation,
+                                    tbasis, tbasis_grad, tbasis_curl,
+                                    tbasis_div, tbasis_nodes,true,false);
+  }
+  
   for (size_type n=0; n<numDOF.extent(0); n++) {
-    View_Sc4 cbasis;
-    if (storeAll) {
-      cbasis = basis[wkset->usebasis[n]];
-    }
-    else { // goes through this more than once, but really shouldn't be used much anyways
-      vector<View_Sc2> tip;
-      View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
-      View_Sc1 thsize("physical meshsize",numElem);
-      vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
-      vector<View_Sc3> tbasis_div;
-      disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
-                                      tip, twts, thsize, orientation,
-                                      tbasis, tbasis_grad, tbasis_curl,
-                                      tbasis_div, tbasis_nodes,true,false);
-      cbasis = tbasis[wkset->usebasis[n]];
-    }
-      
+    View_Sc4 cbasis = tbasis[wkset->usebasis[n]];
     string btype = wkset->basis_types[wkset->usebasis[n]];
     auto off = subview(offsets,n,ALL());
     if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
@@ -1380,25 +1393,19 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
   auto offsets = wkset->offsets;
   auto numDOF = cellData->numDOF;
   
+  vector<View_Sc2> tip;
+  View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
+  View_Sc1 thsize("physical meshsize",numElem);
+  vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+  vector<View_Sc3> tbasis_div;
+  disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
+                                  tip, twts, thsize, orientation,
+                                  tbasis, tbasis_grad, tbasis_curl,
+                                  tbasis_div, tbasis_nodes,true,false);
+  cwts = twts;
+  
   for (size_type n=0; n<numDOF.extent(0); n++) {
-    View_Sc4 cbasis;
-    if (storeAll) {
-      cbasis = basis[wkset->usebasis[n]];
-      cwts = wts;
-    }
-    else { // goes through this more than once, but really shouldn't be used much anyways
-      vector<View_Sc2> tip;
-      View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
-      View_Sc1 thsize("physical meshsize",numElem);
-      vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
-      vector<View_Sc3> tbasis_div;
-      disc->getPhysicalVolumetricData(cellData, nodes, localElemID,
-                                      tip, twts, thsize, orientation,
-                                      tbasis, tbasis_grad, tbasis_curl,
-                                      tbasis_div, tbasis_nodes,true,false);
-      cbasis = tbasis[wkset->usebasis[n]];
-      cwts = twts;
-    }
+    View_Sc4 cbasis = tbasis[wkset->usebasis[n]];
     
     string btype = wkset->basis_types[wkset->usebasis[n]];
     auto off = subview(offsets,n,ALL());
