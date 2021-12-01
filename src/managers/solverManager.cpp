@@ -284,6 +284,12 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
 template<class Node>
 void SolverManager<Node>::setupExplicitMass() {
 
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting SolverManager::setupExplicitMass()" << endl;
+    }
+  }
+  
   for (size_t set=0; set<useBasis.size(); ++set) {
     matrix_RCP mass;
     
@@ -379,6 +385,12 @@ void SolverManager<Node>::setupExplicitMass() {
     
   }
 
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting SolverManager::setupExplicitMass() - fillComplete" << endl;
+    }
+  }
+  
   for (size_t set=0; set<useBasis.size(); ++set) {
     
     if (!assembler->lump_mass) {
@@ -394,6 +406,13 @@ void SolverManager<Node>::setupExplicitMass() {
     linalg->p_pcg.push_back(linalg->getNewVector(set));
     linalg->r_pcg.push_back(linalg->getNewVector(set));
   }
+  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished SolverManager::setupExplicitMass()" << endl;
+    }
+  }
+  
 }
 
 //========================================================================
