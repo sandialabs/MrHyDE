@@ -204,94 +204,118 @@ namespace MrHyDE {
       }
     }
     
+    // If no blocks were defined in the mapping to blocks, then we'll just use a default closure model on all blocks
+    if (blocknames.size() == 0) {
+      blocknames.push_back("default");
+    }
+    
     //----------------------------------------
     // Physics block
     //----------------------------------------
     
-    Teuchos::RCP<Teuchos::ParameterList> physics_list = Teuchos::rcp( new Teuchos::ParameterList() );
-    
-    double maxperm = -1.0;
-    double minperm = -1.0;
-    
-    physics_list->set("modules","mirage");
-    physics_list->set("use fully explicit",use_explicit);
-    if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog" && !use_opsplit) {
-      physics_list->set("use leap-frog",true);
-    }
-    else {
-      physics_list->set("use leap-frog",false);
-    }
-    if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics")) {
-      physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics"));
-    }
-    else if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics0")) {
-      physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics0"));
-    }
-    else {
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: could not find the closure model settings");
-    }
-    physics_list->sublist("Initial Conditions").set<bool>("scalar data",true);
-    physics_list->sublist("Initial Conditions").set<double>("E",0.0);
-    physics_list->sublist("Initial Conditions").set<double>("B",0.0);
-    
-    double epsval = 1.0e-11;
-    if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("Value") ) {
-      epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
-    }
-    else if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
-      epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
-    }
-    
-    if (minperm < 0 || epsval<minperm) {
-      minperm = epsval;
-    }
-    if (maxperm < 0 || epsval>maxperm) {
-      maxperm = epsval;
-    }
-    
-    double rival = 1.0;
-    if (physics_list->sublist("Mirage settings").isSublist("REFRACTIVE_INDEX")) {
-      if (physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").isParameter("Value") ) {
-        rival = physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").get<double>("Value");
-      }
-    }
-    
-    physics_list->sublist("Mass weights").set<double>("E",rival*rival);
-    physics_list->sublist("Mass weights").set<double>("B",1.0);
-    
-    double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
-    physics_list->sublist("Norm weights").set<double>("E",epsval);
-    physics_list->sublist("Norm weights").set<double>("B",invmuval);
-    
-    
-    // Safeguard against using discontinuous permittivity
-    if (maxperm/minperm > 1.1) {
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: discontinuous permittivities detected.  Please use REFRACTIVE_INDEX to define multiple materials.");
-    }
-    
-    if (use_opsplit) {
-      settings->sublist("Physics").set<string>("physics set names","Mirage B, Mirage E");
-      if (blocknames.size() == 0) {
-        settings->sublist("Physics").sublist("Mirage B").setParameters(*physics_list);
-        settings->sublist("Physics").sublist("Mirage E").setParameters(*physics_list);
-        settings->sublist("Physics").sublist("Mirage B").set<string>("active variables","B");
-        settings->sublist("Physics").sublist("Mirage E").set<string>("active variables","E");
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      
+      Teuchos::RCP<Teuchos::ParameterList> physics_list = Teuchos::rcp( new Teuchos::ParameterList() );
+      
+      double maxperm = -1.0;
+      double minperm = -1.0;
+      
+      physics_list->set("modules","mirage");
+      physics_list->set("use fully explicit",use_explicit);
+      if (mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","leap-frog") == "leap-frog" && !use_opsplit) {
+        physics_list->set("use leap-frog",true);
       }
       else {
-        for (size_t block=0; block<blocknames.size(); ++block) {
+        physics_list->set("use leap-frog",false);
+      }
+      
+      if (blocknames[block] == "default") {
+        if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics")) {
+          physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics"));
+        }
+        else if (mirage_settings->sublist("Closure Models").isSublist("electromagnetics0")) {
+          physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist("electromagnetics0"));
+        }
+        else {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: could not find the closure model settings");
+        }
+      }
+      else {
+        string cmname = mirage_settings->sublist("Closure Models").sublist("Mapping to Blocks").get<string>(blocknames[block]);
+        physics_list->sublist("Mirage settings").setParameters(mirage_settings->sublist("Closure Models").sublist(cmname));
+      }
+      physics_list->sublist("Initial Conditions").set<bool>("scalar data",true);
+      physics_list->sublist("Initial Conditions").set<double>("E",0.0);
+      physics_list->sublist("Initial Conditions").set<double>("B",0.0);
+      if (mirage_settings->isSublist("Boundary Conditions")) {
+        Teuchos::ParameterList bcs = mirage_settings->sublist("Boundary Conditions");
+        Teuchos::ParameterList::ConstIterator m_itr = bcs.begin();
+        while (m_itr != bcs.end()) {
+          string bctype = bcs.get<string>(m_itr->first);
+          if (bctype == "Injection") {
+            string sidename = m_itr->first;
+            physics_list->sublist("Neumann Conditions").sublist("B").set<string>(sidename,"0.0"); // just a dummy value
+          }
+          m_itr++;
+        }
+        
+      }
+      
+      double epsval = 1.0e-11;
+      if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("Value") ) {
+        epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("Value");
+      }
+      else if (physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").isParameter("epsilon") ) {
+        epsval = physics_list->sublist("Mirage settings").sublist("PERMITTIVITY").get<double>("epsilon");
+      }
+      
+      if (minperm < 0 || epsval<minperm) {
+        minperm = epsval;
+      }
+      if (maxperm < 0 || epsval>maxperm) {
+        maxperm = epsval;
+      }
+      
+      double rival = 1.0;
+      if (physics_list->sublist("Mirage settings").isSublist("REFRACTIVE_INDEX")) {
+        if (physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").isParameter("Value") ) {
+          rival = physics_list->sublist("Mirage settings").sublist("REFRACTIVE_INDEX").get<double>("Value");
+        }
+      }
+      
+      physics_list->sublist("Mass weights").set<double>("E",rival*rival);
+      physics_list->sublist("Mass weights").set<double>("B",1.0);
+      
+      double invmuval = physics_list->sublist("Mirage settings").sublist("INVERSE_PERMEABILITY").get<double>("Value");
+      physics_list->sublist("Norm weights").set<double>("E",epsval);
+      physics_list->sublist("Norm weights").set<double>("B",invmuval);
+      
+      
+      // Safeguard against using discontinuous permittivity
+      if (maxperm/minperm > 1.1) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: discontinuous permittivities detected.  Please use REFRACTIVE_INDEX to define multiple materials.");
+      }
+      
+      if (use_opsplit) {
+        settings->sublist("Physics").set<string>("physics set names","Mirage B, Mirage E");
+        if (blocknames[block] == "default") {
+          settings->sublist("Physics").sublist("Mirage B").setParameters(*physics_list);
+          settings->sublist("Physics").sublist("Mirage E").setParameters(*physics_list);
+          settings->sublist("Physics").sublist("Mirage B").set<string>("active variables","B");
+          settings->sublist("Physics").sublist("Mirage E").set<string>("active variables","E");
+        }
+        else {
           settings->sublist("Physics").sublist("Mirage B").sublist(blocknames[block]).setParameters(*physics_list);
           settings->sublist("Physics").sublist("Mirage E").sublist(blocknames[block]).setParameters(*physics_list);
           settings->sublist("Physics").sublist("Mirage B").sublist(blocknames[block]).set<string>("active variables","B");
           settings->sublist("Physics").sublist("Mirage E").sublist(blocknames[block]).set<string>("active variables","E");
         }
       }
-    }
-    else {
-      if (blocknames.size() == 0) {
-        settings->sublist("Physics").setParameters(*physics_list);
-      }
       else {
-        for (size_t block=0; block<blocknames.size(); ++block) {
+        if (blocknames[block] == "default") {
+          settings->sublist("Physics").setParameters(*physics_list);
+        }
+        else {
           settings->sublist("Physics").sublist(blocknames[block]).setParameters(*physics_list);
         }
       }
