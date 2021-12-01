@@ -198,10 +198,6 @@ namespace MrHyDE {
     // Functions to add data to storage
     //////////////////////////////////////////////////////////////
     
-    //void addData(const string & label, const int & dim0, const int & dim1);
-    
-    //void addDataSc(const string & label, const int & dim0, const int & dim1);
-
     /**
      * @brief Add storage for integrated quantities to the workset.
      * Should only be called during physics initialization.
