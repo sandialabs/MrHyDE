@@ -417,7 +417,7 @@ namespace MrHyDE {
                                               mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","Ifpack2"));
       settings->sublist("Solver").set<bool>("fully explicit",true);
       settings->sublist("Solver").set<bool>("store all cell data",mirage_settings->sublist("MrHyDE Options").get<bool>("store basis functions",true));
-      settings->sublist("Solver").set<double>("storage proportion",mirage_settings->sublist("MrHyDE Options").get<double>("storage proporton",0.0));
+      settings->sublist("Solver").set<double>("storage proportion",mirage_settings->sublist("MrHyDE Options").get<double>("storage proportion",0.0));
     }
     else {
       settings->sublist("Solver").set<string>("transient Butcher tableau",mirage_settings->sublist("MrHyDE Options").get<string>("Butcher tableau","DIRK-1,2"));
