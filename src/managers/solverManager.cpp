@@ -265,9 +265,10 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   //---------------------------------------------------
   
   if (fully_explicit) {
-    matrix_RCP mass;
     
     for (size_t set=0; set<useBasis.size(); ++set) {
+      matrix_RCP mass;
+      
       assembler->updatePhysicsSet(set);
       if (!assembler->lump_mass) {
         
@@ -354,9 +355,15 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       assembler->getWeightedMass(set,mass,diagMass_over);
       
       linalg->exportVectorFromOverlapped(set,diagMass[set], diagMass_over);
-      
       if (!assembler->lump_mass) {
         linalg->exportMatrixFromOverlapped(set,explicitMass[set], mass);
+      }
+      
+    }
+    
+    for (size_t set=0; set<useBasis.size(); ++set) {
+    
+      if (!assembler->lump_mass) {
         linalg->fillComplete(explicitMass[set]);
       }
       
