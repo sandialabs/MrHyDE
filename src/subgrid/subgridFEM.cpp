@@ -627,6 +627,7 @@ void SubGridFEM::setUpSubgridModels() {
         newbcells[newbcells.size()-1]->LIDs = vLIDs;
         newbcells[newbcells.size()-1]->createHostLIDs();
         newbcells[newbcells.size()-1]->sideinfo = vsideinfo;
+        newbcells[newbcells.size()-1]->computeBasis();
         
         newbcells[s]->addAuxVars(macro_varlist);
         newbcells[s]->cellData->numAuxDOF = macro_numDOF;

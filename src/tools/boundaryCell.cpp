@@ -38,20 +38,28 @@ sidename(sidename_), disc(disc_)   {
   
   storeAll = storeAll_;
   
-  if (storeAll) {
+  haveBasis = false;
+  
+  orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+  disc->getPhysicalOrientations(cellData, localElemID, orientation, false);
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryCell::computeBasis() {
+  
+  if (storeAll && !haveBasis) {
     int numip = cellData->ref_side_ip[0].extent(0);
     wts = View_Sc2("physical wts",numElem, numip);
     hsize = View_Sc1("physical meshsize",numElem);
-    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
     disc->getPhysicalBoundaryData(cellData, nodes, localElemID, localSideID, orientation,
                                   ip, wts, normals, tangents, hsize,
-                                  basis, basis_grad, basis_curl, basis_div, true, true);
-    
+                                  basis, basis_grad, basis_curl, basis_div, true, false);
+    haveBasis = true;
   }
-  else {
-    orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
-    disc->getPhysicalOrientations(cellData, localElemID, orientation, false);
-  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +191,6 @@ void BoundaryCell::setAuxUseBasis(vector<int> & ausebasis_) {
 void BoundaryCell::updateWorkset(const int & seedwhat, const bool & override_transient) {
   
   // Reset the residual and data in the workset
-  //wkset->resetResidual();
   wkset->reset();
   wkset->sidename = sidename;
   wkset->currentside = sidenum;
@@ -224,9 +231,6 @@ void BoundaryCell::updateWorksetBasis() {
   if (storeAll) {
     wkset->wts_side = wts;
     wkset->h = hsize;
-    //wkset->setIP(ip," side");
-    //wkset->setNormals(normals);
-    //wkset->setTangents(tangents);
     wkset->setScalarField(ip[0],"x side");
     wkset->setScalarField(normals[0],"nx side");
     wkset->setScalarField(tangents[0],"tx side");
@@ -259,9 +263,6 @@ void BoundaryCell::updateWorksetBasis() {
     
     wkset->wts_side = twts;
     wkset->h = thsize;
-    //wkset->setIP(tip," side");
-    //wkset->setNormals(tnormals);
-    //wkset->setTangents(ttangents);
     wkset->setScalarField(tip[0],"x side");
     wkset->setScalarField(tnormals[0],"nx side");
     wkset->setScalarField(ttangents[0],"tx side");

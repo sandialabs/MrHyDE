@@ -669,6 +669,13 @@ void AssemblyManager<Node>::allocateCellStorage() {
     }
   }
   
+  for (size_t b=0; b<boundaryCells.size(); ++b) {
+    for (size_t c=0; c<boundaryCells[b].size(); ++c) {
+      boundaryCells[b][c]->computeBasis();
+    }
+  }
+  
+  
   // ==============================================
   // Inform the user how many cells/bcells are on
   // each processor and much memory is utilized by

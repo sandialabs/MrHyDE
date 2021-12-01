@@ -52,7 +52,12 @@ namespace MrHyDE {
                  const int & cellID_,
                  Teuchos::RCP<DiscretizationInterface> & disc_,
                  const bool & storeAll_);
-                 
+    
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    void computeBasis();
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -285,21 +290,6 @@ namespace MrHyDE {
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////
-    // Get the discretization/physics info (used for workset construction)
-    ///////////////////////////////////////////////////////////////////////////////////////
-    /*
-    vector<int> getInfo() {
-      vector<int> info;
-      info.push_back(cellData->dimension);
-      info.push_back(cellData->numDOF.extent(0));
-      info.push_back(cellData->numParamDOF.extent(0));
-      info.push_back(cellData->numAuxDOF.extent(0));
-      info.push_back(LIDs.extent(1));
-      info.push_back(numElem);
-      return info;
-    }*/
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
     View_Sc2 getDirichlet(const size_t & set);
@@ -333,7 +323,7 @@ namespace MrHyDE {
     vector<View_Sc2> ip, normals, tangents;
     View_Sc2 wts;
     View_Sc1 hsize;
-    bool storeAll;
+    bool storeAll, haveBasis;
     
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
     string sidename;
