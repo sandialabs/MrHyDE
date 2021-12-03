@@ -11,6 +11,8 @@
     <Parameter name="use custom PCG" type="bool" value="true"/>
     <Parameter name="use direct solver" type="bool" value="false"/>
     <Parameter name="use operator splitting" type="bool" value="true"/>
+    <Parameter name="store basis functions" type="bool" value="true"/>
+    <Parameter name="matrix free" type="bool" value="true"/>
     <Parameter name="preconditioner type" type="string" value="Ifpack2"/>
   </ParameterList>
   <ParameterList name="Solver Options">
@@ -23,13 +25,13 @@
   </ParameterList>
   <ParameterList name="Discretization Options">
     <Parameter name="Basis order" type="int" value="1"/>
-    <Parameter name="Workset size" type="int" value="100"/>
+    <Parameter name="Workset size" type="int" value="400"/>
     <Parameter name="Num time steps" type="int" value="100"/>
     <Parameter name="Final time" type="double" value="1.0e-13"/>
     <Parameter name="Transient order" type="int" value="2"/>
   </ParameterList>
   <ParameterList name="Postprocess Options">
-    <Parameter name="Exodus output" type="bool" value="true"/>
+    <Parameter name="Exodus output" type="bool" value="false"/>
     <Parameter name="Exodus output frequency" type="int" value="10"/>
     <Parameter name="Print timers" type="bool" value="true"/>
     <Parameter name="Stacked timer" type="bool" value="false"/>

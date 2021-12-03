@@ -416,6 +416,7 @@ namespace MrHyDE {
       settings->sublist("Solver").set<string>("preconditioner type",
                                               mirage_settings->sublist("MrHyDE Options").get<string>("preconditioner type","Ifpack2"));
       settings->sublist("Solver").set<bool>("fully explicit",true);
+      settings->sublist("Solver").set<bool>("matrix free",mirage_settings->sublist("MrHyDE Options").get<bool>("matrix free",false));
       settings->sublist("Solver").set<bool>("store all cell data",mirage_settings->sublist("MrHyDE Options").get<bool>("store basis functions",true));
       settings->sublist("Solver").set<double>("storage proportion",mirage_settings->sublist("MrHyDE Options").get<double>("storage proportion",0.0));
     }

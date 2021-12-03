@@ -290,11 +290,16 @@ void SolverManager<Node>::setupExplicitMass() {
     }
   }
   
+  bool compute_matrix = true;
+  if (assembler->lump_mass || assembler->matrix_free) {
+    compute_matrix = false;
+  }
+  
   for (size_t set=0; set<useBasis.size(); ++set) {
     matrix_RCP mass;
     
     assembler->updatePhysicsSet(set);
-    if (!assembler->lump_mass) {
+    if (compute_matrix) {
       
       typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
       typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
@@ -379,7 +384,7 @@ void SolverManager<Node>::setupExplicitMass() {
     assembler->getWeightedMass(set,mass,diagMass_over);
     
     linalg->exportVectorFromOverlapped(set,diagMass[set], diagMass_over);
-    if (!assembler->lump_mass) {
+    if (compute_matrix) {
       linalg->exportMatrixFromOverlapped(set,explicitMass[set], mass);
     }
     
@@ -393,7 +398,7 @@ void SolverManager<Node>::setupExplicitMass() {
   
   for (size_t set=0; set<useBasis.size(); ++set) {
     
-    if (!assembler->lump_mass) {
+    if (compute_matrix) {
       linalg->fillComplete(explicitMass[set]);
     }
     
@@ -401,10 +406,10 @@ void SolverManager<Node>::setupExplicitMass() {
     //KokkosTools::print(diagMass[set],"diag mass");
     //linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
     
-    linalg->q_pcg.push_back(linalg->getNewVector(set));
-    linalg->z_pcg.push_back(linalg->getNewVector(set));
-    linalg->p_pcg.push_back(linalg->getNewVector(set));
-    linalg->r_pcg.push_back(linalg->getNewVector(set));
+    q_pcg.push_back(linalg->getNewVector(set));
+    z_pcg.push_back(linalg->getNewVector(set));
+    p_pcg.push_back(linalg->getNewVector(set));
+    r_pcg.push_back(linalg->getNewVector(set));
   }
   
   if (debug_level > 0) {
@@ -1688,15 +1693,21 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
     
     if (!assembler->lump_mass) {
       res[set]->scale(wt);
-      if (use_custom_PCG) {
-        linalg->PCG(set, explicitMass[set], res[set], du[set], diagMass[set],
-                    settings->sublist("Solver").get("linear TOL",1.0e-2),
-                    settings->sublist("Solver").get("max linear iters",100));
+      if (assembler->matrix_free) {
+        this->matrixFreePCG(set, res[set], du[set], diagMass[set],
+                            settings->sublist("Solver").get("linear TOL",1.0e-2),
+                            settings->sublist("Solver").get("max linear iters",100));
       }
       else {
-        linalg->linearSolverL2(set, explicitMass[set], res[set], du[set]);
+        if (use_custom_PCG) {
+          this->PCG(set, explicitMass[set], res[set], du[set], diagMass[set],
+                    settings->sublist("Solver").get("linear TOL",1.0e-2),
+                    settings->sublist("Solver").get("max linear iters",100));
+        }
+        else {
+          linalg->linearSolverL2(set, explicitMass[set], res[set], du[set]);
+        }
       }
-      
     }
     else {
       typedef typename Node::execution_space LA_exec;
@@ -2076,6 +2087,185 @@ void SolverManager<Node>::finalizeMultiscale() {
     
   }
   
+}
+
+
+// ========================================================================================
+// Specialized PCG
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::PCG(const size_t & set, matrix_RCP & J, vector_RCP & b, vector_RCP & x,
+                              vector_RCP & M, const ScalarT & tol, const int & maxiter) {
+  
+  Teuchos::TimeMonitor localtimer(*PCGtimer);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> dotprod(1);
+  
+  ScalarT rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
+  ScalarT one = 1.0, zero = 0.0;
+  
+  p_pcg[set]->putScalar(zero);
+  q_pcg[set]->putScalar(zero);
+  r_pcg[set]->putScalar(zero);
+  z_pcg[set]->putScalar(zero);
+  
+  int iter=0;
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
+  {
+    Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
+    J->apply(*x,*(q_pcg[set]));
+  }
+  
+  r_pcg[set]->assign(*b);
+  r_pcg[set]->update(-one,*(q_pcg[set]),one);
+  
+  r_pcg[set]->norm2(rnorm);
+  ScalarT r0 = rnorm[0];
+  
+  auto M_view = M->template getLocalView<LA_device>();
+  auto r_view = r_pcg[set]->template getLocalView<LA_device>();
+  auto z_view = z_pcg[set]->template getLocalView<LA_device>();
+  
+  while (iter<maxiter && rnorm[0]/r0>tol) {
+    
+    {
+      Teuchos::TimeMonitor localtimer(*PCGApplyPrectimer);
+      parallel_for("PCG apply prec",
+                   RangePolicy<LA_exec>(0,z_view.extent(0)),
+                   KOKKOS_LAMBDA (const int k ) {
+        z_view(k,0) = r_view(k,0)/M_view(k,0);
+      });
+    }
+    
+    rho1 = rho;
+    r_pcg[set]->dot(*(z_pcg[set]), dotprod);
+    rho = dotprod[0];
+    if (iter == 0) {
+      p_pcg[set]->assign(*(z_pcg[set]));
+    }
+    else {
+      beta = rho/rho1;
+      p_pcg[set]->update(one,*(z_pcg[set]),beta);
+    }
+    
+    {
+      Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
+      J->apply(*(p_pcg[set]),*(q_pcg[set]));
+    }
+    
+    p_pcg[set]->dot(*(q_pcg[set]),dotprod);
+    pq = dotprod[0];
+    alpha = rho/pq;
+    
+    x->update(alpha,*(p_pcg[set]),one);
+    r_pcg[set]->update(-one*alpha,*(q_pcg[set]),one);
+    r_pcg[set]->norm2(rnorm);
+    
+    iter++;
+  }
+  if (verbosity >= 10 && Comm->getRank() == 0) {
+    cout << " ******* PCG Convergence Information: " << endl;
+    cout << " *******     Iter: " << iter << "   " << "rnorm = " << rnorm[0]/r0 << endl;
+  }
+}
+
+// ========================================================================================
+// Specialized matrix-free PCG
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vector_RCP & x,
+                                        vector_RCP & M, const ScalarT & tol, const int & maxiter) {
+  
+  Teuchos::TimeMonitor localtimer(*PCGtimer);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> dotprod(1);
+  
+  ScalarT rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
+  ScalarT one = 1.0, zero = 0.0;
+  
+  p_pcg[set]->putScalar(zero);
+  q_pcg[set]->putScalar(zero);
+  r_pcg[set]->putScalar(zero);
+  z_pcg[set]->putScalar(zero);
+  
+  vector_RCP x_over = linalg->getNewOverlappedVector(set);
+  vector_RCP p_over = linalg->getNewOverlappedVector(set);
+  vector_RCP q_over = linalg->getNewOverlappedVector(set);
+  
+  int iter=0;
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
+  
+  {
+    Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
+    linalg->importVectorToOverlapped(set, x_over, x);
+    assembler->applyMassMatrixFree(set, x_over, q_over);
+    linalg->exportVectorFromOverlapped(set, q_pcg[set], q_over);
+    
+    //J->apply(*x,*(q_pcg[set]));
+  }
+  
+  r_pcg[set]->assign(*b);
+  r_pcg[set]->update(-one,*(q_pcg[set]),one);
+  
+  r_pcg[set]->norm2(rnorm);
+  ScalarT r0 = rnorm[0];
+  
+  auto M_view = M->template getLocalView<LA_device>();
+  auto r_view = r_pcg[set]->template getLocalView<LA_device>();
+  auto z_view = z_pcg[set]->template getLocalView<LA_device>();
+  
+  while (iter<maxiter && rnorm[0]/r0>tol) {
+    
+    {
+      Teuchos::TimeMonitor localtimer(*PCGApplyPrectimer);
+      parallel_for("PCG apply prec",
+                   RangePolicy<LA_exec>(0,z_view.extent(0)),
+                   KOKKOS_LAMBDA (const int k ) {
+        z_view(k,0) = r_view(k,0)/M_view(k,0);
+      });
+    }
+    
+    rho1 = rho;
+    r_pcg[set]->dot(*(z_pcg[set]), dotprod);
+    rho = dotprod[0];
+    if (iter == 0) {
+      p_pcg[set]->assign(*(z_pcg[set]));
+    }
+    else {
+      beta = rho/rho1;
+      p_pcg[set]->update(one,*(z_pcg[set]),beta);
+    }
+    
+    {
+      Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
+      linalg->importVectorToOverlapped(set, p_over, p_pcg[set]);
+      q_over->putScalar(zero);
+      assembler->applyMassMatrixFree(set, p_over, q_over);
+      linalg->exportVectorFromOverlapped(set, q_pcg[set], q_over);
+      
+      //J->apply(*(p_pcg[set]),*(q_pcg[set]));
+    }
+    
+    p_pcg[set]->dot(*(q_pcg[set]),dotprod);
+    pq = dotprod[0];
+    alpha = rho/pq;
+    
+    x->update(alpha,*(p_pcg[set]),one);
+    r_pcg[set]->update(-one*alpha,*(q_pcg[set]),one);
+    r_pcg[set]->norm2(rnorm);
+    
+    iter++;
+  }
+  if (verbosity >= 10 && Comm->getRank() == 0) {
+    cout << " ******* PCG Convergence Information: " << endl;
+    cout << " *******     Iter: " << iter << "   " << "rnorm = " << rnorm[0]/r0 << endl;
+  }
 }
 
 // Explicit template instantiations

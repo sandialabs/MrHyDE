@@ -238,6 +238,9 @@ namespace MrHyDE {
 
     View_Sc3 getMassFace();
     
+    void applyLocalMass(const size_t & set, vector<ScalarT> & masswts,
+                        View_Sc2 x_local, View_Sc2 y_local);
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Plotting
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -347,7 +350,7 @@ namespace MrHyDE {
     
     // basis information
     vector<View_Sc4> basis, basis_grad, basis_curl, basis_nodes;
-    vector<View_Sc3> basis_div;
+    vector<View_Sc3> basis_div, local_mass;
     
     //vector<vector<DRV> > basis_face, basis_grad_face;
     vector<vector<View_Sc4>> basis_face, basis_grad_face;
@@ -362,7 +365,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Sensor information
-    bool storeAll, useSensors, usealtsol = false, haveBasis;
+    bool storeAll, storeMass, useSensors, usealtsol = false, haveBasis;
     size_t numSensors;
     vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
     View_Sc3 sensorPoints;

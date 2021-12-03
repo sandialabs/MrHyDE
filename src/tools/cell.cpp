@@ -31,6 +31,7 @@ cellData(cellData_), localElemID(localID_), nodes(nodes_), disc(disc_)
 
   storeAll = storeAll_;
   haveBasis = false;
+  storeMass = true;
   
   // Even if we don't store the basis or integration info, we still store
   // the orientations since these are small, but expensive to recompute (for some reason)
@@ -1440,7 +1441,10 @@ View_Sc3 cell::getWeightedMass(vector<ScalarT> & masswts) {
       });
     }
   }
-  
+  if (storeMass) {
+    // This assumes they are computed in order
+    local_mass.push_back(mass);
+  }
   return mass;
 }
 
@@ -1489,6 +1493,96 @@ View_Sc3 cell::getMassFace() {
     }
   }
   return mass;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Apply the local mass matrix to x and store in y
+// May be matrix free
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::applyLocalMass(const size_t & set, vector<ScalarT> & masswts,
+                          View_Sc2 x_local, View_Sc2 y_local) {
+  
+  // Here, matrix-free means that the action of the mass matrix on x_local is
+  // computed using only the basis functions, integration weights and extra mass weights
+  
+  // Otherwise, the local_mass matrices are computed (if not already present), stored
+  // and used to compute the action
+  
+  auto offsets = wkset->offsets;
+  auto numDOF = cellData->numDOF;
+  
+  if (!storeMass) { //cellData->matrix_free) {
+    View_Sc2 twts("physical wts",numElem, cellData->ref_ip.extent(0));
+    vector<View_Sc4> tbasis;
+    if (storeAll) { // unlikely case, but enabled
+      tbasis = basis;
+      twts = wts;
+    }
+    else {
+      disc->getPhysicalVolumetricBasis(cellData, nodes, localElemID, twts,
+                                       orientation, tbasis, true, false);
+    }
+    
+    for (size_type n=0; n<numDOF.extent(0); n++) {
+      View_Sc4 cbasis = tbasis[wkset->usebasis[n]];
+      
+      string btype = wkset->basis_types[wkset->usebasis[n]];
+      auto off = subview(offsets,n,ALL());
+      ScalarT mwt = masswts[n];
+      
+      if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+        parallel_for("cell get mass",
+                     RangePolicy<AssemblyExec>(0,twts.extent(0)),
+                     KOKKOS_LAMBDA (const size_type e ) {
+          for (size_type i=0; i<cbasis.extent(1); i++ ) {
+            for (size_type j=0; j<cbasis.extent(1); j++ ) {
+              ScalarT massval = 0.0;
+              for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                massval += cbasis(e,i,k,0)*cbasis(e,j,k,0)*twts(e,k)*mwt;
+              }
+              y_local(e,off(i)) += massval*x_local(e,off(j));
+            }
+          }
+        });
+      }
+      else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+        parallel_for("cell get mass",
+                     RangePolicy<AssemblyExec>(0,twts.extent(0)),
+                     KOKKOS_LAMBDA (const size_type e ) {
+          for (size_type i=0; i<cbasis.extent(1); i++ ) {
+            for (size_type j=0; j<cbasis.extent(1); j++ ) {
+              ScalarT massval = 0.0;
+              for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                  massval += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*twts(e,k)*mwt;
+                }
+              }
+              y_local(e,off(i)) += massval*x_local(e,off(j));
+            }
+          }
+        });
+      }
+    }
+  }
+  else {
+    
+    View_Sc3 curr_mass = local_mass[set];
+    
+    parallel_for("cell get mass",
+                 RangePolicy<AssemblyExec>(0,curr_mass.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type n=0; n<numDOF.extent(0); n++) {
+        for (int i=0; i<numDOF(n); i++ ) {
+          for (int j=0; j<numDOF(n); j++ ) {
+            y_local(elem,offsets(n,i)) += curr_mass(elem,offsets(n,i),offsets(n,j))*x_local(elem,offsets(n,j));
+          }
+        }
+      }
+    });
+    
+  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

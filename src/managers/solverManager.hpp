@@ -150,6 +150,13 @@ namespace MrHyDE {
     
     void finalizeMultiscale() ;
     
+    
+    void PCG(const size_t & set, matrix_RCP & J, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
+             const ScalarT & tol, const int & maxiter);
+    
+    void matrixFreePCG(const size_t & set, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
+                       const ScalarT & tol, const int & maxiter);
+    
     ///////////////////////////////////////////////////////////////////////////////////////////
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -191,6 +198,7 @@ namespace MrHyDE {
     vector<vector<size_t> > maxBasis, numVars;
     
     vector<vector_RCP> res, res_over, du, du_over;
+    vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg;
     
     Kokkos::View<ScalarT**,HostDevice> butcher_A;
     Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
@@ -205,6 +213,9 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::projectDirichlet()");
     Teuchos::RCP<Teuchos::Time> normLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver() - norm LA");
     Teuchos::RCP<Teuchos::Time> updateLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver() - update LA");
+    Teuchos::RCP<Teuchos::Time> PCGtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::PCG - total");
+    Teuchos::RCP<Teuchos::Time> PCGApplyOptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::PCG - apply Op");
+    Teuchos::RCP<Teuchos::Time> PCGApplyPrectimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::PCG - apply prec");
     
   };
   

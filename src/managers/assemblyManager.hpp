@@ -205,6 +205,9 @@ namespace MrHyDE {
                  const bool & compute_disc_sens,
                  const bool & isAdjoint);
     
+    // Computes y = M*x
+    void applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y);
+    
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -234,7 +237,7 @@ namespace MrHyDE {
     std::vector<std::vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
     std::vector<Teuchos::RCP<workset> > wkset;
     
-    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass;
+    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free;
     
     std::string assembly_partitioning;
     std::vector<std::vector<bool> > assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly [block][set]

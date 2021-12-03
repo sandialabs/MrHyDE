@@ -49,6 +49,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   
   // Really, this lumps the Jacobian and should only be used in explicit time integration
   lump_mass = settings->sublist("Solver").get<bool>("lump mass",false);
+  matrix_free = settings->sublist("Solver").get<bool>("matrix free",false);
   
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
   
@@ -1034,12 +1035,15 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   if (LA_exec::concurrency() > 1) {
     use_atomics_ = true;
   }
-  bool lump_mass_ = lump_mass;
+  bool compute_matrix = true;
+  if (lump_mass || matrix_free) {
+    compute_matrix = false;
+  }
   
   typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_type local_matrix;
   local_matrix localMatrix;
   
-  if (!lump_mass_) {
+  if (compute_matrix) {
     localMatrix = mass->getLocalMatrix();
   }
   
@@ -1085,7 +1089,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         }
       });
       
-      if (!lump_mass_) {
+      if (compute_matrix) {
         parallel_for("assembly insert Jac",
                      RangePolicy<LA_exec>(0,LIDs.extent(0)),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -1116,7 +1120,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     }
   }
   
-  if (!lump_mass_) {
+  if (compute_matrix) {
     mass->fillComplete();
   }
   
@@ -1127,6 +1131,66 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   }
   
 }
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y) {
+  
+  auto x_kv = x->template getLocalView<LA_device>();
+  auto x_slice = Kokkos::subview(x_kv, Kokkos::ALL(), 0);
+  
+  auto y_kv = y->template getLocalView<LA_device>();
+  auto y_slice = Kokkos::subview(y_kv, Kokkos::ALL(), 0);
+  
+  Kokkos::View<LO*,AssemblyDevice> numDOF;
+  View_Sc2 x_local, y_local;
+  Kokkos::View<int**,AssemblyDevice> offsets;
+  LIDView LIDs;
+  
+  for (size_t b=0; b<cells.size(); b++) {
+    offsets = wkset[b]->offsets;
+    numDOF = cellData[b]->numDOF;
+    int maxdof = 0;
+    for (size_type i=0; i<cellData[b]->set_numDOF_host[set].extent(0); i++) {
+      maxdof += cellData[b]->set_numDOF_host[set](i);
+    }
+    x_local = View_Sc2("local x values",wkset[b]->maxElem, maxdof);
+    y_local = View_Sc2("local y values",wkset[b]->maxElem, maxdof);
+    
+    for (size_t c=0; c<cells[b].size(); c++) {
+      deep_copy(y_local,0.0);
+      LIDs = cells[b][c]->LIDs[set];
+      parallel_for("assembly gather",
+                   RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type var=0; var<offsets.extent(0); var++) {
+          for(int dof=0; dof<numDOF(var); dof++ ) {
+            x_local(elem,offsets(var,dof)) = x_slice(LIDs(elem,offsets(var,dof)));
+            //y_local(elem,var,dof) = y_slice(LIDs(elem,offsets(var,dof)));
+          }
+        }
+      });
+      
+      cells[b][c]->applyLocalMass(set, phys->masswts[set][b], x_local, y_local);
+      
+    //  KokkosTools::print(y_local);
+      
+      parallel_for("assembly gather",
+                   RangePolicy<AssemblyExec>(0,x_local.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type var=0; var<offsets.extent(0); var++) {
+          for(int dof=0; dof<numDOF(var); dof++ ) {
+            y_slice(LIDs(elem,offsets(var,dof))) += y_local(elem,offsets(var,dof));
+          }
+        }
+      });
+    }
+  }
+  
+}
+
 
 // ========================================================================================
 // ========================================================================================
@@ -2319,9 +2383,8 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
 template<class Node>
 void AssemblyManager<Node>::purgeMemory() {
   bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  bool write_aux_solution = settings->sublist("Postprocess").get("write aux solution",false);
   bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
-  if (!write_solution && !write_aux_solution && !create_optim_movie) {
+  if (!write_solution && !create_optim_movie) {
     mesh.reset();
   }
   

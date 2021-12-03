@@ -217,6 +217,7 @@ int main(int argc,char * argv[]) {
         assembler->wkset[b]->printMetaData();
       }
     }
+    
   }
   
   if (verbosity >= 10) {

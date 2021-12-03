@@ -3,7 +3,7 @@ STK Meta data:
    Element blocks = "eblock-0_0_0" 
    Sidesets = "back" "bottom" "front" "left" "right" "top" 
    Nodesets = "origin" 
-   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" "dx" "dy" "dz" "VM stress" "MAG stress" 
+   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" 
 DOFManager Field Information: 
    Element Block = eblock-0_0_0
       "dx" is field ID 0
