@@ -48,7 +48,7 @@ sidename(sidename_), disc(disc_)   {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryCell::computeBasis() {
+void BoundaryCell::computeBasis(const bool & keepnodes) {
   
   if (storeAll && !haveBasis) {
     int numip = cellData->ref_side_ip[0].extent(0);
@@ -58,6 +58,9 @@ void BoundaryCell::computeBasis() {
                                   ip, wts, normals, tangents, hsize,
                                   basis, basis_grad, basis_curl, basis_div, true, false);
     haveBasis = true;
+    if (!keepnodes) {
+      nodes = DRV("dummy nodes",1);
+    }
   }
   
 }

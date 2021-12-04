@@ -48,6 +48,7 @@ ANONYMOUS:
     use strong DBCs: true
     workset size: 1
     allow backtracking: false
+    keep nodes: true
   Postprocess: 
     compute errors: true
     response type: pointwise

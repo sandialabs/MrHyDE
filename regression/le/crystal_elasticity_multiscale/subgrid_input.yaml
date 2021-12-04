@@ -32,6 +32,7 @@ ANONYMOUS:
     Solver:
       solver: steady-state
       use direct solver: true
+      keep nodes: true
     Functions:
     Parameters:
     Postprocess:

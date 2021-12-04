@@ -664,15 +664,27 @@ void AssemblyManager<Node>::createCells() {
 template<class Node>
 void AssemblyManager<Node>::allocateCellStorage() {
   
+  bool keepnodes = false;
+  // There are a few scenarios where we want the cells to keep their nodes
+  if (settings->sublist("Solver").get<string>("initial type","L2-projection") == "interpolation") {
+    keepnodes = true;
+  }
+  if (settings->isSublist("Subgrid")) {
+    keepnodes = true;
+  }
+  if (settings->sublist("Solver").get<bool>("keep nodes",false)) {
+    keepnodes = true;
+  }
+  
   for (size_t b=0; b<cells.size(); ++b) {
     for (size_t c=0; c<cells[b].size(); ++c) {
-      cells[b][c]->computeBasis();
+      cells[b][c]->computeBasis(keepnodes);
     }
   }
   
   for (size_t b=0; b<boundaryCells.size(); ++b) {
     for (size_t c=0; c<boundaryCells[b].size(); ++c) {
-      boundaryCells[b][c]->computeBasis();
+      boundaryCells[b][c]->computeBasis(keepnodes);
     }
   }
   

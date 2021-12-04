@@ -44,7 +44,7 @@ cellData(cellData_), localElemID(localID_), nodes(nodes_), disc(disc_)
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void cell::computeBasis() {
+void cell::computeBasis(const bool & keepnodes) {
   
   if (storeAll) {
     if (!haveBasis) {
@@ -81,6 +81,9 @@ void cell::computeBasis() {
       }
     }
     haveBasis = true;
+    if (!keepnodes) {
+      nodes = DRV("empty nodes",1);
+    }
   }
   
 }
@@ -90,13 +93,24 @@ void cell::computeBasis() {
 
 void cell::createHostLIDs() {
   
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<HostExec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  LIDs_host = vector<LIDView_host>(LIDs.size());
   for (size_t set=0; set<LIDs.size(); ++set) {
-    auto LIDs_tmp = create_mirror_view(LIDs[set]);
-    deep_copy(LIDs_tmp,LIDs[set]);
+    if (data_avail) {
+      LIDs_host[set] = LIDs[set];
+    }
+    else {
     
-    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
-    deep_copy(currLIDs_host,LIDs_tmp);
-    LIDs_host.push_back(currLIDs_host);
+      auto LIDs_tmp = create_mirror_view(LIDs[set]);
+      deep_copy(LIDs_tmp,LIDs[set]);
+      
+      LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
+      deep_copy(currLIDs_host,LIDs_tmp);
+      LIDs_host[set] = currLIDs_host;
+    }
   }
   
 }
