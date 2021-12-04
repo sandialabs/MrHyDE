@@ -395,9 +395,11 @@ void SubGridFEM::setUpSubgridModels() {
                                                    numMacroDOF) );
   
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
-                                                      //sub_mesh->stk_optimization_mesh,
-                                                      sub_disc, sub_physics,
-                                                      functionManagers, sub_assembler) );
+                                                                         sub_disc, sub_physics,
+                                                                         functionManagers, sub_assembler) );
+  
+  
+  sub_assembler->allocateCellStorage();
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Create a subgrid function mananger

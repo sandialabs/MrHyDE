@@ -643,8 +643,7 @@ void AssemblyManager<Node>::createCells() {
         prog += elemPerCell;
         
       }
-    }
-    
+    }    
     else {
       blockCellData = Teuchos::rcp( new CellMetaData());
     }

@@ -268,7 +268,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     }
   }
     
-  assembler->allocateCellStorage();
+  //assembler->allocateCellStorage();
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {

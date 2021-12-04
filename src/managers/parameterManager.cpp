@@ -1063,11 +1063,8 @@ vector<ScalarT> ParameterManager<Node>::getFractionalParams(const std::string & 
 template<class Node>
 void ParameterManager<Node>::purgeMemory() {
     
-  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
-  if (!write_solution && !create_optim_movie) {
-    mesh.reset();
-  }
+  // nothing to purge here
+  
 }
 
 

@@ -175,7 +175,11 @@ int main(int argc,char * argv[]) {
     if (settings->get<bool>("enable memory purge",true)) {
       disc->purgeMemory();
       mesh->purgeMemory();
-      params->purgeMemory();
+    }
+    
+    assembler->allocateCellStorage();
+    
+    if (settings->get<bool>("enable memory purge",true)) {
       assembler->purgeMemory();
     }
     
