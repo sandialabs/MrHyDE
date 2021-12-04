@@ -1190,7 +1190,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
     //  KokkosTools::print(y_local);
       
       parallel_for("assembly gather",
-                   RangePolicy<AssemblyExec>(0,x_local.extent(0)),
+                   RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type var=0; var<offsets.extent(0); var++) {
           for(int dof=0; dof<numDOF(var); dof++ ) {
