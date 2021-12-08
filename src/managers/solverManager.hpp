@@ -198,7 +198,7 @@ namespace MrHyDE {
     vector<vector<size_t> > maxBasis, numVars;
     
     vector<vector_RCP> res, res_over, du, du_over;
-    vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg;
+    vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg, p_pcg_over, q_pcg_over;
     
     Kokkos::View<ScalarT**,HostDevice> butcher_A;
     Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;

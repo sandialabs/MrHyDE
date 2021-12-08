@@ -410,6 +410,10 @@ void SolverManager<Node>::setupExplicitMass() {
     z_pcg.push_back(linalg->getNewVector(set));
     p_pcg.push_back(linalg->getNewVector(set));
     r_pcg.push_back(linalg->getNewVector(set));
+    if (assembler->matrix_free) {
+      q_pcg_over.push_back(linalg->getNewOverlappedVector(set));
+      p_pcg_over.push_back(linalg->getNewOverlappedVector(set));
+    }
   }
   
   if (debug_level > 0) {
@@ -2194,20 +2198,17 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
   r_pcg[set]->putScalar(zero);
   z_pcg[set]->putScalar(zero);
   
-  vector_RCP x_over = linalg->getNewOverlappedVector(set);
-  vector_RCP p_over = linalg->getNewOverlappedVector(set);
-  vector_RCP q_over = linalg->getNewOverlappedVector(set);
+  p_pcg_over[set]->putScalar(zero);
+  q_pcg_over[set]->putScalar(zero);
   
   int iter=0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   
   {
     Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-    linalg->importVectorToOverlapped(set, x_over, x);
-    assembler->applyMassMatrixFree(set, x_over, q_over);
-    linalg->exportVectorFromOverlapped(set, q_pcg[set], q_over);
-    
-    //J->apply(*x,*(q_pcg[set]));
+    linalg->importVectorToOverlapped(set, p_pcg_over[set], x);
+    assembler->applyMassMatrixFree(set, p_pcg_over[set], q_pcg_over[set]);
+    linalg->exportVectorFromOverlapped(set, q_pcg[set], q_pcg_over[set]);
   }
   
   r_pcg[set]->assign(*b);
@@ -2244,12 +2245,10 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
     
     {
       Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-      linalg->importVectorToOverlapped(set, p_over, p_pcg[set]);
-      q_over->putScalar(zero);
-      assembler->applyMassMatrixFree(set, p_over, q_over);
-      linalg->exportVectorFromOverlapped(set, q_pcg[set], q_over);
-      
-      //J->apply(*(p_pcg[set]),*(q_pcg[set]));
+      linalg->importVectorToOverlapped(set, p_pcg_over[set], p_pcg[set]);
+      q_pcg_over[set]->putScalar(zero);
+      assembler->applyMassMatrixFree(set, p_pcg_over[set], q_pcg_over[set]);
+      linalg->exportVectorFromOverlapped(set, q_pcg[set], q_pcg_over[set]);
     }
     
     p_pcg[set]->dot(*(q_pcg[set]),dotprod);
