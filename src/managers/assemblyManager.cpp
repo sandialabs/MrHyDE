@@ -1155,48 +1155,92 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
   auto y_kv = y->template getLocalView<LA_device>();
   auto y_slice = Kokkos::subview(y_kv, Kokkos::ALL(), 0);
   
-  Kokkos::View<LO*,AssemblyDevice> numDOF;
-  View_Sc2 x_local, y_local;
-  Kokkos::View<int**,AssemblyDevice> offsets;
-  LIDView LIDs;
-  
   for (size_t b=0; b<cells.size(); b++) {
-    offsets = wkset[b]->offsets;
-    numDOF = cellData[b]->numDOF;
-    int maxdof = 0;
-    for (size_type i=0; i<cellData[b]->set_numDOF_host[set].extent(0); i++) {
-      maxdof += cellData[b]->set_numDOF_host[set](i);
-    }
-    x_local = View_Sc2("local x values",wkset[b]->maxElem, maxdof);
-    y_local = View_Sc2("local y values",wkset[b]->maxElem, maxdof);
+    auto offsets = wkset[b]->offsets;
+    auto numDOF = cellData[b]->numDOF;
     
     for (size_t c=0; c<cells[b].size(); c++) {
-      deep_copy(y_local,0.0);
-      LIDs = cells[b][c]->LIDs[set];
-      parallel_for("assembly gather",
-                   RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type var=0; var<offsets.extent(0); var++) {
-          for(int dof=0; dof<numDOF(var); dof++ ) {
-            x_local(elem,offsets(var,dof)) = x_slice(LIDs(elem,offsets(var,dof)));
-            //y_local(elem,var,dof) = y_slice(LIDs(elem,offsets(var,dof)));
+      
+      auto cLIDs = cells[b][c]->LIDs[set];
+      
+      if (!cells[b][c]->storeMass) { //cellData->matrix_free) {
+        View_Sc2 twts("physical wts", cells[b][c]->numElem, cellData[b]->ref_ip.extent(0));
+        vector<View_Sc4> tbasis;
+        if (cells[b][c]->storeAll) { // unlikely case, but enabled
+          tbasis = cells[b][c]->basis;
+          twts = cells[b][c]->wts;
+        }
+        else {
+          disc->getPhysicalVolumetricBasis(cellData[b], cells[b][c]->nodes,
+                                           cells[b][c]->localElemID, twts,
+                                           cells[b][c]->orientation, tbasis, true, false);
+        }
+        
+        for (size_type var=0; var<numDOF.extent(0); var++) {
+          int bindex = wkset[b]->usebasis[var];
+          View_Sc4 cbasis = tbasis[bindex];
+          
+          string btype = wkset[b]->basis_types[bindex];
+          auto off = subview(offsets,var,ALL());
+          ScalarT mwt = phys->masswts[set][b][var];
+          
+          if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+            parallel_for("cell get mass",
+                         RangePolicy<AssemblyExec>(0,twts.extent(0)),
+                         KOKKOS_LAMBDA (const size_type e ) {
+              for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                  ScalarT massval = 0.0;
+                  for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                    massval += cbasis(e,i,k,0)*cbasis(e,j,k,0)*twts(e,k)*mwt;
+                  }
+                  LO indi = cLIDs(e,off(i));
+                  LO indj = cLIDs(e,off(j));
+                  y_slice(indi) += massval*x_slice(indj);
+                }
+              }
+            });
+          }
+          else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+            parallel_for("cell get mass",
+                         RangePolicy<AssemblyExec>(0,twts.extent(0)),
+                         KOKKOS_LAMBDA (const size_type e ) {
+              for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                  ScalarT massval = 0.0;
+                  for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                    for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                      massval += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*twts(e,k)*mwt;
+                    }
+                  }
+                  LO indi = cLIDs(e,off(i));
+                  LO indj = cLIDs(e,off(j));
+                  y_slice(indi) += massval*x_slice(indj);
+                }
+              }
+            });
           }
         }
-      });
-      
-      cells[b][c]->applyLocalMass(set, phys->masswts[set][b], x_local, y_local);
-      
-    //  KokkosTools::print(y_local);
-      
-      parallel_for("assembly gather",
-                   RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type var=0; var<offsets.extent(0); var++) {
-          for(int dof=0; dof<numDOF(var); dof++ ) {
-            y_slice(LIDs(elem,offsets(var,dof))) += y_local(elem,offsets(var,dof));
+      }
+      else {
+        
+        View_Sc3 curr_mass = cells[b][c]->local_mass[set];
+        
+        parallel_for("cell get mass",
+                     RangePolicy<AssemblyExec>(0,curr_mass.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type var=0; var<numDOF.extent(0); var++) {
+            for (int i=0; i<numDOF(var); i++ ) {
+              for (int j=0; j<numDOF(var); j++ ) {
+                LO indi = cLIDs(elem,offsets(var,i));
+                LO indj = cLIDs(elem,offsets(var,j));
+                y_slice(indi) += curr_mass(elem,offsets(var,i),offsets(var,j))*x_slice(indj);
+              }
+            }
           }
-        }
-      });
+        });
+        
+      }
     }
   }
   
@@ -2393,11 +2437,6 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
 
 template<class Node>
 void AssemblyManager<Node>::purgeMemory() {
-  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
-  if (!write_solution && !create_optim_movie) {
-    mesh.reset();
-  }
   
   for (size_t block=0; block<cellData.size(); ++block) {
     cellData[block]->clearPhysicalData();
