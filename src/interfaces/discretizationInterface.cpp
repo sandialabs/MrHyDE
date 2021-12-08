@@ -2507,9 +2507,4 @@ void DiscretizationInterface::purgeMemory() {
     block_stkElems.clear();
   }
   
-  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
-  if (!write_solution && !create_optim_movie) {
-    mesh.reset();
-  }
 }
