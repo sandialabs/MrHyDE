@@ -205,6 +205,7 @@ namespace MrHyDE {
     
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver()");
+    Teuchos::RCP<Teuchos::Time> explicitsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::explicitSolver()");
     
     Teuchos::RCP<Teuchos::Time> initsettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::setInitial()");
     Teuchos::RCP<Teuchos::Time> dbcsettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::setDirichlet()");

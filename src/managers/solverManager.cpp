@@ -1650,7 +1650,7 @@ template<class Node>
 int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vector_RCP & phi, const int & stage) {
   
   
-  Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
+  Teuchos::TimeMonitor localtimer(*explicitsolvertimer);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
