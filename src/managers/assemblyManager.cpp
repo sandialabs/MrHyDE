@@ -1851,8 +1851,6 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
       }
     }
-    auto local_res_ladev = create_mirror(LA_exec(),local_res);
-    auto local_J_ladev = create_mirror(LA_exec(),local_J);
     
     for (size_t e=0; e < boundaryCells[b].size(); e++) {
       
@@ -1909,6 +1907,9 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
             }
           }
           else {
+            auto local_res_ladev = create_mirror(LA_exec(),local_res);
+            auto local_J_ladev = create_mirror(LA_exec(),local_J);
+            
             Kokkos::deep_copy(local_J_ladev,local_J);
             Kokkos::deep_copy(local_res_ladev,local_res);
             

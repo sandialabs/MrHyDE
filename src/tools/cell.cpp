@@ -1601,7 +1601,7 @@ void cell::updateData() {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void cell::resetAdjPrev(const size_t & set, const ScalarT & val) {
-  if (cellData->requiresTransient) {
+  if (cellData->requiresAdjoint && cellData->requiresTransient) {
     deep_copy(adj_prev[set],val);
   }
 }
