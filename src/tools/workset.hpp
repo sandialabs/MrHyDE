@@ -45,7 +45,7 @@ namespace MrHyDE {
     // Public functions
     ////////////////////////////////////////////////////////////////////////////////////
     
-    void createSolns();
+    void createSolutionFields();
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Reset solution to zero
@@ -146,10 +146,14 @@ namespace MrHyDE {
     
     View_AD2 findData(const string & label);
     
+    View_AD2 getSolutionField(const string & label);
+    
     View_AD2 getData(const string & label);
     
-    View_Sc2 getDataSc(const string & label);
+    View_Sc2 getScalarField(const string & label);
     
+    View_Sc2 getDataSc(const string & label);
+        
     View_Sc4 getBasis(const string & var);
     
     View_Sc4 getBasis(const int & varindex);

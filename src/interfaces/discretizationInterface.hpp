@@ -17,6 +17,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "Panzer_DOFManager.hpp"
+#include "Panzer_BlockedDOFManager.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "physicsInterface.hpp"
 #include "cellMetaData.hpp"

@@ -54,7 +54,7 @@ int main(int argc, char * argv[]) {
     wkset->varlist = variables;
     wkset->set_var_bcs = bcs;
     
-    wkset->createSolns();
+    wkset->createSolutionFields();
     
     Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
     vector<string> parameters;

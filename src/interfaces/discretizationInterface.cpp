@@ -2015,6 +2015,7 @@ void DiscretizationInterface::buildDOFManagers() {
         else {
           setDOF->addField(blocknames[b], phys->varlist[set][b][j], Pattern, panzer::FieldType::CG);
         }
+        
       }
     }
     
@@ -2064,11 +2065,8 @@ void DiscretizationInterface::setBCData() {
   mesh->getNodesetNames(nodeSets);
   
   for (size_t set=0; set<phys->setnames.size(); ++set) {
-    vector<vector<string> > varlist;
-    Teuchos::RCP<panzer::DOFManager> currDOF;
-    
-    varlist = phys->varlist[set];
-    currDOF = DOF[set];
+    vector<vector<string> > varlist = phys->varlist[set];
+    auto currDOF = DOF[set];
     
     int maxvars = 0;
     for (size_t b=0; b<blocknames.size(); b++) {
@@ -2308,7 +2306,7 @@ void DiscretizationInterface::setDirichletData() {
   for (size_t set=0; set<phys->setnames.size(); ++set) {
     
     vector<vector<string> > varlist = phys->varlist[set];
-    Teuchos::RCP<panzer::DOFManager> currDOF = DOF[set];
+    auto currDOF = DOF[set];
     
     std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
     
@@ -2389,7 +2387,7 @@ Kokkos::View<int****,HostDevice> DiscretizationInterface::getSideInfo(const size
   for (size_type e=0; e<elem.extent(0); ++e) {
     maxe = std::max(elem(e),maxe);
   }
-  if (maxe < side_info[set][block].extent(0)) {
+  if (maxe < (int)side_info[set][block].extent(0)) {
     size_type nelem = elem.extent(0);
     size_type nvars = side_info[set][block].extent(1);
     size_type nelemsides = side_info[set][block].extent(2);

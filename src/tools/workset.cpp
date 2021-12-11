@@ -55,25 +55,25 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   //var_bcs = set_var_bcs[0];
   
   // Add scalar fields to store ip, normals, etc.
-  scalar_fields.push_back(ScalarField("x",0,numip,false,false));
-  scalar_fields.push_back(ScalarField("y",0,numip,false,false));
-  scalar_fields.push_back(ScalarField("z",0,numip,false,false));
+  scalar_fields.push_back(ScalarField("x"));
+  scalar_fields.push_back(ScalarField("y"));
+  scalar_fields.push_back(ScalarField("z"));
   
-  scalar_fields.push_back(ScalarField("x side",0,numsideip,true,false));
-  scalar_fields.push_back(ScalarField("y side",0,numsideip,true,false));
-  scalar_fields.push_back(ScalarField("z side",0,numsideip,true,false));
+  scalar_fields.push_back(ScalarField("x side"));
+  scalar_fields.push_back(ScalarField("y side"));
+  scalar_fields.push_back(ScalarField("z side"));
   
-  scalar_fields.push_back(ScalarField("nx side",0,numsideip,true,false));
-  scalar_fields.push_back(ScalarField("ny side",0,numsideip,true,false));
-  scalar_fields.push_back(ScalarField("nz side",0,numsideip,true,false));
+  scalar_fields.push_back(ScalarField("nx side"));
+  scalar_fields.push_back(ScalarField("ny side"));
+  scalar_fields.push_back(ScalarField("nz side"));
   
-  scalar_fields.push_back(ScalarField("tx side",0,numsideip,true,false));
-  scalar_fields.push_back(ScalarField("ty side",0,numsideip,true,false));
-  scalar_fields.push_back(ScalarField("tz side",0,numsideip,true,false));
+  scalar_fields.push_back(ScalarField("tx side"));
+  scalar_fields.push_back(ScalarField("ty side"));
+  scalar_fields.push_back(ScalarField("tz side"));
   
-  scalar_fields.push_back(ScalarField("x point",0,1,false,true));
-  scalar_fields.push_back(ScalarField("y point",0,1,false,true));
-  scalar_fields.push_back(ScalarField("z point",0,1,false,true));
+  scalar_fields.push_back(ScalarField("x point"));
+  scalar_fields.push_back(ScalarField("y point"));
+  scalar_fields.push_back(ScalarField("z point"));
   
   // these can point to different arrays
   wts = View_Sc2("ip wts",numElem,numip);
@@ -110,7 +110,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
 // Public functions
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::createSolns() {
+void workset::createSolutionFields() {
 
   // Need to first allocate the residual view
   // This is the largest view in the code (due to the AD) so we are careful with the size
@@ -169,74 +169,76 @@ void workset::createSolns() {
         set_vars_HGRAD.push_back(i);
         set_varlist_HGRAD.push_back(var);
         
-        soln_fields.push_back(SolutionField(var,set,"solution",i,"HGRAD",bind,"",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField("grad("+var+")[x]",set,"solution",i,"HGRAD",bind,"grad",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField("grad("+var+")[y]",set,"solution",i,"HGRAD",bind,"grad",1,0,numip,false,false));
-        soln_fields.push_back(SolutionField("grad("+var+")[z]",set,"solution",i,"HGRAD",bind,"grad",2,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t",set,"solution",i,"HGRAD",bind,"time",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+" side",set,"solution",i,"HGRAD",bind,"",0,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField("grad("+var+")[x] side",set,"solution",i,"HGRAD",bind,"grad",0,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField("grad("+var+")[y] side",set,"solution",i,"HGRAD",bind,"grad",1,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField("grad("+var+")[z] side",set,"solution",i,"HGRAD",bind,"grad",2,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField(var+" point",set,"solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
-        soln_fields.push_back(SolutionField("grad("+var+")[x] point",set,"solution",i,"HGRAD",bind,"grad",0,0,1,false,true));
-        soln_fields.push_back(SolutionField("grad("+var+")[y] point",set,"solution",i,"HGRAD",bind,"grad",1,0,1,false,true));
-        soln_fields.push_back(SolutionField("grad("+var+")[z] point",set,"solution",i,"HGRAD",bind,"grad",2,0,1,false,true));
+        soln_fields.push_back(SolutionField(var,set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[x]",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[y]",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[z]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+" side",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[x] side",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[y] side",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[z] side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+" point",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[x] point",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[y] point",set,"solution",i));
+        soln_fields.push_back(SolutionField("grad("+var+")[z] point",set,"solution",i));
+      
       }
       else if (basis_types[bind].substr(0,4) == "HDIV" ) {
         set_vars_HDIV.push_back(i);
         set_varlist_HDIV.push_back(var);
         
-        soln_fields.push_back(SolutionField(var+"[x]",set,"solution",i,"HDIV",bind,"",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"[y]",set,"solution",i,"HDIV",bind,"",1,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"[z]",set,"solution",i,"HDIV",bind,"",2,0,numip,false,false));
-        soln_fields.push_back(SolutionField("div("+var+")",set,"solution",i,"HDIV",bind,"div",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t[x]",set,"solution",i,"HDIV",bind,"time",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t[y]",set,"solution",i,"HDIV",bind,"time",1,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t[z]",set,"solution",i,"HDIV",bind,"time",2,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"[x] side",set,"solution",i,"HDIV",bind,"",0,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField(var+"[y] side",set,"solution",i,"HDIV",bind,"",1,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField(var+"[z] side",set,"solution",i,"HDIV",bind,"",2,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField(var+"[x] point",set,"solution",i,"HDIV",bind,"",0,0,1,false,true));
-        soln_fields.push_back(SolutionField(var+"[y] point",set,"solution",i,"HDIV",bind,"",1,0,1,false,true));
-        soln_fields.push_back(SolutionField(var+"[z] point",set,"solution",i,"HDIV",bind,"",2,0,1,false,true));
+        soln_fields.push_back(SolutionField(var+"[x]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[y]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[z]",set,"solution",i));
+        soln_fields.push_back(SolutionField("div("+var+")",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t[x]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t[y]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t[z]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[x] side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[y] side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[z] side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[x] point",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[y] point",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[z] point",set,"solution",i));
         
       }
       else if (basis_types[bind].substr(0,4) == "HVOL") {
         set_vars_HVOL.push_back(i);
         set_varlist_HVOL.push_back(var);
-        soln_fields.push_back(SolutionField(var,set,"solution",i,"HVOL",bind,"",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t",set,"solution",i,"HVOL",bind,"time",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+" side",set,"solution",i,"HVOL",bind,"",0,0,numsideip,false,false));
-        soln_fields.push_back(SolutionField(var+" point",set,"solution",i,"HVOL",bind,"",0,0,1,false,true));
+        
+        soln_fields.push_back(SolutionField(var,set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+" side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+" point",set,"solution",i));
         
       }
       else if (basis_types[bind].substr(0,5) == "HCURL") {
         set_vars_HCURL.push_back(i);
         set_varlist_HCURL.push_back(var);
         
-        soln_fields.push_back(SolutionField(var+"[x]",set,"solution",i,"HCURL",bind,"",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"[y]",set,"solution",i,"HCURL",bind,"",1,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"[z]",set,"solution",i,"HCURL",bind,"",2,0,numip,false,false));
-        soln_fields.push_back(SolutionField("curl("+var+")[x]",set,"solution",i,"HCURL",bind,"curl",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField("curl("+var+")[y]",set,"solution",i,"HCURL",bind,"curl",1,0,numip,false,false));
-        soln_fields.push_back(SolutionField("curl("+var+")[z]",set,"solution",i,"HCURL",bind,"curl",2,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t[x]",set,"solution",i,"HCURL",bind,"time",0,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t[y]",set,"solution",i,"HCURL",bind,"time",1,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"_t[z]",set,"solution",i,"HCURL",bind,"time",2,0,numip,false,false));
-        soln_fields.push_back(SolutionField(var+"[x] side",set,"solution",i,"HCURL",bind,"",0,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField(var+"[y] side",set,"solution",i,"HCURL",bind,"",1,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField(var+"[z] side",set,"solution",i,"HCURL",bind,"",2,0,numsideip,true,false));
-        soln_fields.push_back(SolutionField(var+"[x] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
-        soln_fields.push_back(SolutionField(var+"[y] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
-        soln_fields.push_back(SolutionField(var+"[z] point",set,"solution",i,"HCURL",bind,"",0,0,1,false,true));
+        soln_fields.push_back(SolutionField(var+"[x]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[y]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[z]",set,"solution",i));
+        soln_fields.push_back(SolutionField("curl("+var+")[x]",set,"solution",i));
+        soln_fields.push_back(SolutionField("curl("+var+")[y]",set,"solution",i));
+        soln_fields.push_back(SolutionField("curl("+var+")[z]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t[x]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t[y]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"_t[z]",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[x] side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[y] side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[z] side",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[x] point",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[y] point",set,"solution",i));
+        soln_fields.push_back(SolutionField(var+"[z] point",set,"solution",i));
         
       }
       else if (basis_types[bind].substr(0,5) == "HFACE") {
         set_vars_HFACE.push_back(i);
         set_varlist_HFACE.push_back(var);
         
-        soln_fields.push_back(SolutionField(var+" side",set,"solution",i,"HFACE",bind,"",0,0,numsideip,true,false));
+        soln_fields.push_back(SolutionField(var+" side",set,"solution",i));
         
       }
     }
@@ -266,80 +268,85 @@ void workset::createSolns() {
       paramvars_HGRAD.push_back(i);
       paramvarlist_HGRAD.push_back(var);
       
-      soln_fields.push_back(SolutionField(var,set,"param",i,"HGRAD",bind,"",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField("grad("+var+")[x]",set,"param",i,"HGRAD",bind,"grad",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField("grad("+var+")[y]",set,"param",i,"HGRAD",bind,"grad",1,0,numip,false,false));
-      soln_fields.push_back(SolutionField("grad("+var+")[z]",set,"param",i,"HGRAD",bind,"grad",2,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t",set,"param",i,"HGRAD",bind,"time",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+" side",set,"param",i,"HGRAD",bind,"",0,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField("grad("+var+")[x] side",set,"param",i,"HGRAD",bind,"grad",0,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField("grad("+var+")[y] side",set,"param",i,"HGRAD",bind,"grad",1,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField("grad("+var+")[z] side",set,"param",i,"HGRAD",bind,"grad",2,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+" point",set,"param",i,"HGRAD",bind,"",0,0,1,false,true));
-      soln_fields.push_back(SolutionField("grad("+var+")[x] point",set,"param",i,"HGRAD",bind,"grad",0,0,1,false,true));
-      soln_fields.push_back(SolutionField("grad("+var+")[y] point",set,"param",i,"HGRAD",bind,"grad",1,0,1,false,true));
-      soln_fields.push_back(SolutionField("grad("+var+")[z] point",set,"param",i,"HGRAD",bind,"grad",2,0,1,false,true));
+      soln_fields.push_back(SolutionField(var,set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[x]",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[y]",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[z]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t",set,"param",i));
+      soln_fields.push_back(SolutionField(var+" side",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[x] side",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[y] side",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[z] side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+" point",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[x] point",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[y] point",set,"param",i));
+      soln_fields.push_back(SolutionField("grad("+var+")[z] point",set,"param",i));
       
     }
     else if (basis_types[bind].substr(0,4) == "HDIV") {
       paramvars_HDIV.push_back(i);
       paramvarlist_HDIV.push_back(var);
       
-      soln_fields.push_back(SolutionField(var+"[x]",set,"param",i,"HDIV",bind,"",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"[y]",set,"param",i,"HDIV",bind,"",1,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"[z]",set,"param",i,"HDIV",bind,"",2,0,numip,false,false));
-      soln_fields.push_back(SolutionField("div("+var+")",set,"param",i,"HDIV",bind,"div",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t[x]",set,"param",i,"HDIV",bind,"time",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t[y]",set,"param",i,"HDIV",bind,"time",1,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t[z]",set,"param",i,"HDIV",bind,"time",2,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"[x] side",set,"param",i,"HDIV",bind,"",0,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+"[y] side",set,"param",i,"HDIV",bind,"",1,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+"[z] side",set,"param",i,"HDIV",bind,"",2,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+"[x] point",set,"param",i,"HDIV",bind,"",0,0,1,false,true));
-      soln_fields.push_back(SolutionField(var+"[y] point",set,"param",i,"HDIV",bind,"",1,0,1,false,true));
-      soln_fields.push_back(SolutionField(var+"[z] point",set,"param",i,"HDIV",bind,"",2,0,1,false,true));
+      soln_fields.push_back(SolutionField(var+"[x]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[y]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[z]",set,"param",i));
+      soln_fields.push_back(SolutionField("div("+var+")",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t[x]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t[y]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t[z]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[x] side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[y] side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[z] side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[x] point",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[y] point",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[z] point",set,"param",i));
       
     }
     else if (basis_types[bind].substr(0,4) == "HVOL") {
       paramvars_HVOL.push_back(i);
       paramvarlist_HVOL.push_back(var);
       
-      soln_fields.push_back(SolutionField(var,set,"param",i,"HVOL",bind,"",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t",set,"param",i,"HVOL",bind,"time",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+" side",set,"param",i,"HVOL",bind,"",0,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+" point",set,"param",i,"HVOL",bind,"",0,0,1,false,true));
+      soln_fields.push_back(SolutionField(var,set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t",set,"param",i));
+      soln_fields.push_back(SolutionField(var+" side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+" point",set,"param",i));
       
     }
     else if (basis_types[bind].substr(0,5) == "HCURL") {
       paramvars_HCURL.push_back(i);
       paramvarlist_HCURL.push_back(var);
       
-      soln_fields.push_back(SolutionField(var+"[x]",set,"param",i,"HCURL",bind,"",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"[y]",set,"param",i,"HCURL",bind,"",1,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"[z]",set,"param",i,"HCURL",bind,"",2,0,numip,false,false));
-      soln_fields.push_back(SolutionField("curl("+var+")[x]",set,"param",i,"HCURL",bind,"curl",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField("curl("+var+")[y]",set,"param",i,"HCURL",bind,"curl",1,0,numip,false,false));
-      soln_fields.push_back(SolutionField("curl("+var+")[z]",set,"param",i,"HCURL",bind,"curl",2,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t[x]",set,"param",i,"HCURL",bind,"time",0,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t[y]",set,"param",i,"HCURL",bind,"time",1,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"_t[z]",set,"param",i,"HCURL",bind,"time",2,0,numip,false,false));
-      soln_fields.push_back(SolutionField(var+"[x] side",set,"param",i,"HCURL",bind,"",0,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+"[y] side",set,"param",i,"HCURL",bind,"",1,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+"[z] side",set,"param",i,"HCURL",bind,"",2,0,numsideip,true,false));
-      soln_fields.push_back(SolutionField(var+"[x] point",set,"param",i,"HCURL",bind,"",0,0,1,false,true));
-      soln_fields.push_back(SolutionField(var+"[y] point",set,"param",i,"HCURL",bind,"",1,0,1,false,true));
-      soln_fields.push_back(SolutionField(var+"[z] point",set,"param",i,"HCURL",bind,"",2,0,1,false,true));
+      soln_fields.push_back(SolutionField(var+"[x]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[y]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[z]",set,"param",i));
+      soln_fields.push_back(SolutionField("curl("+var+")[x]",set,"param",i));
+      soln_fields.push_back(SolutionField("curl("+var+")[y]",set,"param",i));
+      soln_fields.push_back(SolutionField("curl("+var+")[z]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t[x]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t[y]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"_t[z]",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[x] side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[y] side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[z] side",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[x] point",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[y] point",set,"param",i));
+      soln_fields.push_back(SolutionField(var+"[z] point",set,"param",i));
       
     }
     else if (basis_types[bind].substr(0,5) == "HFACE") {
       paramvars_HFACE.push_back(i);
       paramvarlist_HFACE.push_back(var);
       
-      soln_fields.push_back(SolutionField(var+" side",set,"param",i,"HFACE",bind,"",0,0,numsideip,true,false));
+      soln_fields.push_back(SolutionField(var+" side",set,"param",i));
       
     }
   }
 }
+
+//void workset::addSolutionFields(vector<string> & vars) {
+  //soln_fields.push_back(SolutionField(var+"_t",set,"solution",i,"HGRAD",bind,"time",0,0,numip,false,false));
+  //soln_fields.push_back(SolutionField(var+" side",set,"solution",i,"HGRAD",bind,"",0,0,numsideip,true,false));
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Reset
@@ -749,9 +756,13 @@ void workset::evaluateSolutionField(const int & fieldnum) {
   }
   
   if (proceed) {
+    
     //-----------------------------------------------------
     // Get the appropriate view of seeded solution values
     //-----------------------------------------------------
+    
+    size_t sindex = soln_fields[fieldnum].set_index;
+    size_t vindex = soln_fields[fieldnum].variable_index;
     
     View_AD2 solvals;
     size_t uindex = uvals_index[soln_fields[fieldnum].set_index][soln_fields[fieldnum].variable_index];
@@ -763,8 +774,15 @@ void workset::evaluateSolutionField(const int & fieldnum) {
         solvals = uvals[uindex];
       }
     }
+    
+    int basis_index;
+    
     if (soln_fields[fieldnum].variable_type == "param") { // discr. params
       solvals = pvals[soln_fields[fieldnum].variable_index];
+      basis_index = paramusebasis[vindex];
+    }
+    else {
+      basis_index = set_usebasis[sindex][vindex];//soln_fields[fieldnum].basis_index;
     }
     
     //-----------------------------------------------------
@@ -772,7 +790,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     //-----------------------------------------------------
     
     int component = soln_fields[fieldnum].component;
-    int basis_index = soln_fields[fieldnum].basis_index;
+    
     
     if (soln_fields[fieldnum].derivative_type == "div") {
       auto sbasis = basis_div[basis_index];
@@ -1033,8 +1051,11 @@ void workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,Assembly
   for (size_t i=0; i<aux_varlist.size(); ++i) {
     string var = aux_varlist[i];
     
-    soln_fields.push_back(SolutionField("aux "+var,0,"aux",i,"HGRAD",0,"",0,0,numip,false,false));
-    soln_fields.push_back(SolutionField("aux "+var+" side",0,"aux",i,"HGRAD",0,"",0,0,numsideip,true,false));
+    soln_fields.push_back(SolutionField("aux "+var,0,"aux",i)); // TMW: I think this is hard-coded for one basis type
+    soln_fields.push_back(SolutionField("aux "+var+" side",0,"aux",i));
+    
+    //soln_fields.push_back(SolutionField("aux "+var,0,"aux",i,"HGRAD",0,"",0,0,numip,false,false));
+    //soln_fields.push_back(SolutionField("aux "+var+" side",0,"aux",i,"HGRAD",0,"",0,0,numsideip,true,false));
     
   }
 }
@@ -1106,22 +1127,6 @@ void workset::setStage(const int & newstage) {
   current_stage = newstage;
 }
 
-//////////////////////////////////////////////////////////////
-// Add a data view
-//////////////////////////////////////////////////////////////
-
-//void workset::addData(const string & label, const int & dim0, const int & dim1) {
-  //data.push_back(View_AD2(label,0,dim1));
-  //data_labels.push_back(label);
-  //data_usage.push_back(0);
-//}
-
-//void workset::addDataSc(const string & label, const int & dim0, const int & dim1) {
-  //data_Sc.push_back(View_Sc2(label,1,dim1));
-  //data_Sc_labels.push_back(label);
-  //data_Sc_usage.push_back(0);
-//}
-
 int workset::addIntegratedQuantities(const int & nRequested) {
 
   int startingIndex = this->integrated_quantities.extent(0);
@@ -1185,9 +1190,21 @@ void workset::printScalarFields() {
     cout << scalar_fields[f].expression << endl;
   }
 }
+
+//----------------------------------------------------------------
+// This routine will eventually be deprecated.
+// Leaving in for backwards compatibility for now
 //----------------------------------------------------------------
 
 View_AD2 workset::getData(const string & label) {
+  return this->getSolutionField(label);
+}
+
+//----------------------------------------------------------------
+//
+//----------------------------------------------------------------
+
+View_AD2 workset::getSolutionField(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
@@ -1222,7 +1239,15 @@ View_AD2 workset::getData(const string & label) {
 void workset::checkDataAllocation(const size_t & ind) {
   
   if (!soln_fields[ind].isInitialized) {
-    soln_fields[ind].initialize(maxElem);
+    if (soln_fields[ind].isOnSide) {
+      soln_fields[ind].initialize(maxElem,numsideip);
+    }
+    else if (soln_fields[ind].isPoint) {
+      soln_fields[ind].initialize(maxElem,1);
+    }
+    else {
+      soln_fields[ind].initialize(maxElem,numip);
+    }
   }
   
 }
@@ -1230,7 +1255,12 @@ void workset::checkDataAllocation(const size_t & ind) {
 void workset::checkDataScAllocation(const size_t & ind) {
   
   if (!scalar_fields[ind].isInitialized) {
-    scalar_fields[ind].initialize(maxElem);
+    if (soln_fields[ind].isOnSide) {
+      scalar_fields[ind].initialize(maxElem,numsideip);
+    }
+    else{
+      scalar_fields[ind].initialize(maxElem,numip);
+    }
   }
   
 }
@@ -1240,6 +1270,10 @@ void workset::checkDataScAllocation(const size_t & ind) {
 //////////////////////////////////////////////////////////////
 
 View_Sc2 workset::getDataSc(const string & label) {
+  return this->getScalarField(label);
+}
+
+View_Sc2 workset::getScalarField(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
   View_Sc2 outdata;

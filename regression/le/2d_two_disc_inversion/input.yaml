@@ -23,7 +23,7 @@ ANONYMOUS:
       dx:
         top: '0.0'
       dy:
-        top: 'disc_trac'
+        top: 'disctrac'
   Discretization:
     order:
       dx: 1
@@ -52,7 +52,7 @@ ANONYMOUS:
             type: integrated
             location: boundary
             boundary name: top
-            function: '1.0*(grad(disc_trac)[x])^2'
+            function: '1.0*(grad(disctrac)[x])^2'
             weight: 0.5e-5
       obj_dy:
         type: sensors
