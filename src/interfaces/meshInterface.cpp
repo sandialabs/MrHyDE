@@ -14,7 +14,7 @@
 #include "meshInterface.hpp"
 #include "exodusII.h"
 
-#include <boost/algorithm/string.hpp>
+//#include <boost/algorithm/string.hpp>
 
 using namespace MrHyDE;
 
@@ -1323,6 +1323,29 @@ DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
   return cnodes;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+vector<string> MeshInterface::breakupList(const string & list, const string & delimiter) {
+  // Script to break delimited list into pieces
+  string tmplist = list;
+  vector<string> terms;
+  size_t pos = 0;
+  if (tmplist.find(delimiter) == string::npos) {
+    terms.push_back(tmplist);
+  }
+  else {
+    string token;
+    while ((pos = tmplist.find(delimiter)) != string::npos) {
+      token = tmplist.substr(0, pos);
+      terms.push_back(token);
+      tmplist.erase(0, pos + delimiter.length());
+    }
+    terms.push_back(tmplist);
+  }
+  return terms;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // Read in discretized data from an exodus mesh
 /////////////////////////////////////////////////////////////////////////////
@@ -1407,7 +1430,8 @@ void MeshInterface::readMeshData() {
         vector<string> results;
         std::stringstream sns, snr;
         int nr;
-        boost::split(results, vname, [](char u){return u == '_';});
+        results = this->breakupList(vname,"_");
+        //boost::split(results, vname, [](char u){return u == '_';});
         snr << results[3];
         snr >> nr;
         numResponses = std::max(numResponses,nr);
