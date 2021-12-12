@@ -31,6 +31,13 @@ int main(int argc, char * argv[]) {
     Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
     pl->set("File Name",input_file_name);
     
+    RCP<Teuchos::ParameterList> pbc = rcp(new Teuchos::ParameterList);
+    pbc->set("Count",2);
+    pbc->set("Periodic Condition 1","xz-all 1e-12,3D: top;bottom");
+    pbc->set("Periodic Condition 2","yz-all 1e-12,3D: left;right");
+    pl->sublist("Periodic BCs").setParameters( *pbc );
+    
+    
     mesh_factory->setParameterList(pl);
     Teuchos::RCP<panzer_stk::STK_Interface> mesh = mesh_factory->buildUncommitedMesh(*(Comm->getRawMpiComm()));
     
