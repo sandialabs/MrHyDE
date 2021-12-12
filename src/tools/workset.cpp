@@ -343,7 +343,8 @@ void workset::createSolutionFields() {
   }
 }
 
-//void workset::addSolutionFields(vector<string> & vars) {
+//void workset::addSolutionFields(vector<string> & vars, vector<size_t> set_indices,
+//                                vector<string> & types) {
   //soln_fields.push_back(SolutionField(var+"_t",set,"solution",i,"HGRAD",bind,"time",0,0,numip,false,false));
   //soln_fields.push_back(SolutionField(var+" side",set,"solution",i,"HGRAD",bind,"",0,0,numsideip,true,false));
 //}

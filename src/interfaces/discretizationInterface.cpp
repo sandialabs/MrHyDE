@@ -28,6 +28,8 @@
 #include "Intrepid2_HGRAD_TET_Cn_FEM.hpp"
 #include "Intrepid2_HGRAD_LINE_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_LINE_Cn_FEM.hpp"
+
+// HVOL basis functions
 #include "Intrepid2_HVOL_C0_FEM.hpp"
 
 // HDIV basis functions
@@ -72,7 +74,6 @@
 
 #include "Panzer_STKConnManager.hpp"
 #include "Panzer_IntrepidFieldPattern.hpp"
-#include "Panzer_STK_Interface.hpp"
 #include "Panzer_STK_SetupUtilities.hpp"
 
 typedef Intrepid2::CellTools<PHX::Device::execution_space> CellTools;
