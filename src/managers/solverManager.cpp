@@ -1949,7 +1949,6 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             
           }
         }
-        
       }
       else {
         
@@ -2087,7 +2086,6 @@ void SolverManager<Node>::finalizeMultiscale() {
     if (Comm->getRank() == 0 && verbosity>0) {
       cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
     }
-    
     
   }
   

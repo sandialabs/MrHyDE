@@ -25,3 +25,12 @@ NavierStokes.cpp
 ../../src/tools/interpreter.cpp
 ../../src/tools/workset.cpp)
 TARGET_LINK_LIBRARIES(NavierStokes ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+ADD_EXECUTABLE(Euler
+Euler.cpp
+../../src/physics/euler.cpp
+../../src/managers/FunctionManager.cpp
+../../src/tools/interpreter.cpp
+../../src/tools/workset.cpp
+../../src/interfaces/discretizationInterface.cpp)
+TARGET_LINK_LIBRARIES(Euler ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

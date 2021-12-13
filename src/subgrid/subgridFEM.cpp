@@ -152,6 +152,7 @@ void SubGridFEM::setUpSubgridModels() {
     
     sideinfo = sgt.getPhysicalSideinfo(macroData[0]->macrosideinfo);
     
+    // TODO what is this doing? why just macroData[0], etc. everywhere?
     for (size_t c=0; c<sideinfo.extent(0); c++) { // number of elem in cell
       for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
         for (size_t j=0; j<sideinfo.extent(2); j++) { // number of sides per element
@@ -346,13 +347,12 @@ void SubGridFEM::setUpSubgridModels() {
       prog += currElem;
     }
     
-    
   }
   
   boundaryCells.push_back(newbcells);
   
   sub_assembler->boundaryCells = boundaryCells;
-  
+
   Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
                                             sideinfo.extent(1),
                                             macroData[0]->macrosideinfo.extent(2));
@@ -380,6 +380,12 @@ void SubGridFEM::setUpSubgridModels() {
               else if (sideinfo(c,i,j,0) == 5) {
                 currbcs(i,p) = "interface";
               }
+              else if (sideinfo(c,i,j,0) == 6) {
+                currbcs(i,p) = "Far-field";
+              }
+              else if (sideinfo(c,i,j,0) == 7) {
+                currbcs(i,p) = "Slip";
+              }
               //currbcs(i,p) = sideinfo(c,i,j,0);
             }
           }
@@ -388,7 +394,7 @@ void SubGridFEM::setUpSubgridModels() {
     }
   }
   macroData[0]->bcs = currbcs;
-  
+
   size_t numMacroDOF = macroData[0]->macroLIDs.extent(1);
   sub_solver = Teuchos::rcp( new SubGridFEM_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
                                                    sub_assembler, sub_params, macro_deltat,
@@ -488,6 +494,7 @@ void SubGridFEM::setUpSubgridModels() {
             for (size_t k=0; k<newsideinfo.extent(3); k++) { // boundary information
               subsideinfo(c,i,j,k) = newsideinfo(sprog,i,j,k);
             }
+            // TODO what is the significance of this?
             if (subsideinfo(c,i,j,0) == 1) {
               subsideinfo(c,i,j,0) = 5;
               subsideinfo(c,i,j,1) = -1;
@@ -669,6 +676,12 @@ void SubGridFEM::setUpSubgridModels() {
                   else if (subsideinfo(c,i,j,0) == 5) {
                     currbcs(i,p) = "interface";
                   }
+                  else if (subsideinfo(c,i,j,0) == 6) {
+                    currbcs(i,p) = "Far-field";
+                  }
+                  else if (subsideinfo(c,i,j,0) == 7) {
+                    currbcs(i,p) = "Slip";
+                  }
                 }
               }
             }
@@ -697,7 +710,7 @@ void SubGridFEM::setUpSubgridModels() {
         }
       }
       
-    } // if mindex == 0
+    } // end if mindex > 0
     
     macroData[mindex]->setMacroIDs(cells[mindex][0]->numElem);
     
@@ -736,8 +749,6 @@ void SubGridFEM::setUpSubgridModels() {
       Kokkos::deep_copy(cLIDs_host2,cLIDs_host);
       boundaryCells[mindex][e]->auxLIDs_host = cLIDs_host2;
     }
-    
-    
     
     ////////////////////////////////////////////////////////////////////////////////
     // The current macro-element will store the values of its own basis functions
@@ -2074,6 +2085,8 @@ void SubGridFEM::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_da
 
 void SubGridFEM::updateLocalData(const int & usernum) {
   
+  // Update the boundary condition definitions in the workset
+  // to match the current (set of) macroelement(s)
   wkset[0]->var_bcs = macroData[usernum]->bcs;
 
 }

@@ -35,6 +35,7 @@
 #include "llamas.hpp"
 #include "variableDensityNS.hpp"
 #include "mirage.hpp"
+#include "euler.hpp"
 //#include "cns.hpp"
 
 using namespace MrHyDE;
@@ -147,6 +148,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // Variable-density Navier-Stokes 
     if (modname == "VDNS"){
       modules.push_back(Teuchos::rcp(new VDNS(settings, dimension) ) );
+    }
+
+    // Euler equations
+    if (modname == "Euler" || modname == "euler"){
+      modules.push_back(Teuchos::rcp(new euler(settings, dimension) ) );
     }
     
     // Compressible Navier-Stokes

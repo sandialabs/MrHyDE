@@ -44,7 +44,6 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
   
   if (settings->isSublist("Subgrid")) {
     
-    
     vector<Teuchos::RCP<Teuchos::ParameterList> > subgrid_model_pls;
     
     bool single_model = false;
@@ -276,7 +275,7 @@ ScalarT MultiscaleManager::initialize() {
             sgwinner = i;
           }
         }
-        
+
         size_t sgusernum = 0;
         if (subgrid_static) { // only add each cell to one subgrid model
           

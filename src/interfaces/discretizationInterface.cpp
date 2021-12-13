@@ -2111,12 +2111,13 @@ void DiscretizationInterface::setBCData() {
         size_t lid = mesh->elementLocalId(stk_meshElems[i]);
         localelemmap[lid] = i;
       }
-      
-      
+
       Teuchos::ParameterList blocksettings = phys->setPhysSettings[set][b];
-      
+    
       Teuchos::ParameterList dbc_settings = blocksettings.sublist("Dirichlet conditions");
       Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
+      Teuchos::ParameterList fbc_settings = blocksettings.sublist("Far-field conditions");
+      Teuchos::ParameterList sbc_settings = blocksettings.sublist("Slip conditions");
       bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
       
       vector<vector<int> > celloffsets;
@@ -2128,17 +2129,17 @@ void DiscretizationInterface::setBCData() {
       else {
         currside_info = Kokkos::View<int****,HostDevice>("side info",1,1,1,2);
       }
-      
+
       std::vector<int> block_dbc_dofs;
-    
-      std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
       
+      std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
+
       for (size_t j=0; j<varlist[b].size(); j++) {
         vector<string> current_var_bcs(sideSets.size(),"none"); // [boundary]
         string var = varlist[b][j];
         int num = currDOF->getFieldNum(var);
         vector<int> var_offsets = currDOF->getGIDFieldOffsets(blockID,num);
-        
+
         celloffsets.push_back(var_offsets);
       
         for (size_t side=0; side<sideSets.size(); side++ ) {
@@ -2149,6 +2150,9 @@ void DiscretizationInterface::setBCData() {
           
           bool isDiri = false;
           bool isNeum = false;
+          bool isFar  = false;
+          bool isSlip = false;
+
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
             isDiri = true;
             if (use_weak_dbcs) {
@@ -2162,7 +2166,15 @@ void DiscretizationInterface::setBCData() {
             isNeum = true;
             current_var_bcs[side] = "Neumann";
           }
-        
+          if (fbc_settings.sublist(var).isParameter("all boundaries") || fbc_settings.sublist(var).isParameter(sideName)) {
+            isFar = true;
+            current_var_bcs[side] = "Far-field";
+          }
+          if (sbc_settings.sublist(var).isParameter("all boundaries") || sbc_settings.sublist(var).isParameter(sideName)) {
+            isSlip = true;
+            current_var_bcs[side] = "Slip";
+          }
+
           if (requires_sideinfo) {
             vector<size_t>             local_side_Ids;
             vector<stk::mesh::Entity> side_output;
@@ -2183,6 +2195,14 @@ void DiscretizationInterface::setBCData() {
               }
               else if (isNeum) { // Neumann or Robin
                 currside_info(localid, j, local_side_Ids[i], 0) = 2;
+                currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+              }
+              else if (isFar) { // Far-field
+                currside_info(localid, j, local_side_Ids[i], 0) = 6;
+                currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+              }
+              else if (isSlip) { // Slip
+                currside_info(localid, j, local_side_Ids[i], 0) = 7;
                 currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
               }
             }

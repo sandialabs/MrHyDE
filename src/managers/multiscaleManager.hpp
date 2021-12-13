@@ -44,6 +44,24 @@ namespace MrHyDE {
     MultiscaleManager() {};
     
     ~MultiscaleManager() {};
+
+    /* @brief Constructor for MultiscaleManager
+     *
+     * @param[in] MacroComm_  MpiCommunicator from the macroscale
+     * @param[in] mesh_  Macroscopic mesh
+     * @param[in] settings_  ParameterList of settings from the input file
+     * @param[in] cells_  Cells (containers of elements) from the macroscale 
+     * @param[in] macro_functionManagers_  Macroscale function managers
+     */
+    
+    /* @brief Constructor for MultiscaleManager
+     *
+     * @param[in] MacroComm_  MpiCommunicator from the macroscale
+     * @param[in] mesh_  Macroscopic mesh
+     * @param[in] settings_  ParameterList of settings from the input file
+     * @param[in] cells_  Cells (containers of elements) from the macroscale 
+     * @param[in] macro_functionManagers_  Macroscale function managers
+     */
     
     MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
                       Teuchos::RCP<MeshInterface> & mesh_,

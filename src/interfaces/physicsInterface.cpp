@@ -91,7 +91,7 @@ settings(settings_), Commptr(Comm_){
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionManagers_) {
-  
+
   functionManagers = functionManagers_;
   
   for (size_t b=0; b<blocknames.size(); b++) {
@@ -211,7 +211,65 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
       }
     }
   }
-  
+
+  // Far-field conditions
+  for (size_t set=0; set<setnames.size(); set++) {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList fbcs = setPhysSettings[set][b].sublist("Far-field conditions");
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        string var = varlist[set][b][j];
+        if (fbcs.isSublist(var)) {
+          if (fbcs.sublist(var).isParameter("all boundaries")) {
+            string entry = fbcs.sublist(var).get<string>("all boundaries");
+            for (size_t s=0; s<sidenames.size(); s++) {
+              string label = "Far-field " + var + " " + sidenames[s];
+              functionManagers[b]->addFunction(label,entry,"side ip");
+            }
+          }
+          else {
+            Teuchos::ParameterList currfbcs = fbcs.sublist(var);
+            Teuchos::ParameterList::ConstIterator f_itr = currfbcs.begin();
+            while (f_itr != currfbcs.end()) {
+              string entry = currfbcs.get<string>(f_itr->first);
+              string label = "Far-field " + var + " " + f_itr->first;
+              functionManagers[b]->addFunction(label,entry,"side ip");
+              f_itr++;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Slip conditions
+  for (size_t set=0; set<setnames.size(); set++) {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList sbcs = setPhysSettings[set][b].sublist("Slip conditions");
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        string var = varlist[set][b][j];
+        if (sbcs.isSublist(var)) {
+          if (sbcs.sublist(var).isParameter("all boundaries")) {
+            string entry = sbcs.sublist(var).get<string>("all boundaries");
+            for (size_t s=0; s<sidenames.size(); s++) {
+              string label = "Slip " + var + " " + sidenames[s];
+              functionManagers[b]->addFunction(label,entry,"side ip");
+            }
+          }
+          else {
+            Teuchos::ParameterList currsbcs = sbcs.sublist(var);
+            Teuchos::ParameterList::ConstIterator s_itr = currsbcs.begin();
+            while (s_itr != currsbcs.end()) {
+              string entry = currsbcs.get<string>(s_itr->first);
+              string label = "Slip " + var + " " + s_itr->first;
+              functionManagers[b]->addFunction(label,entry,"side ip");
+              s_itr++;
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Add mass scalings
   for (size_t set=0; set<setnames.size(); set++) {
     vector<vector<ScalarT> > setwts;

@@ -550,7 +550,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       ////////////////////////////////////////////////
       
       for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
-        
+
         if (assembler->boundaryCells[usernum][e]->numElem > 0) {
           
           int seedwhat = 1;
@@ -1204,7 +1204,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
   macrowkset.reset();
   
   for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
-    
+
     if (assembler->boundaryCells[usernum][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
@@ -1259,6 +1259,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
 void SubGridFEM_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
                                    const int & usernum, const bool & useadjoint) {
   
+  // TODO :: BWR is this deprecated now?
   initial->putScalar(0.0);
   // TMW: uncomment if you need a nonzero initial condition
   //      right now, it slows everything down ... especially if using an L2-projection
