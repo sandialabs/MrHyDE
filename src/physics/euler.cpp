@@ -977,6 +977,8 @@ void euler::computeStabilizationTerm() {
   
   Teuchos::TimeMonitor localtime(*stabCompFill);
 
+  using namespace std;
+  
   int spaceDim = wkset->dimension;
 
   // these are always needed
