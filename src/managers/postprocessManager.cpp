@@ -3337,8 +3337,8 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               auto eID = assembler->cells[b][c]->localElemID;
               for (size_t face=0; face<assembler->cellData[b]->numSides; face++) {
                 int seedwhat = 0;
-                for (size_t set=0; set<assembler->wkset[b]->numSets; ++set) {
-                  assembler->wkset[b]->computeSolnSteadySeeded(set, assembler->cells[b][c]->u[set], seedwhat);
+                for (size_t iset=0; iset<assembler->wkset[b]->numSets; ++iset) {
+                  assembler->wkset[b]->computeSolnSteadySeeded(iset, assembler->cells[b][c]->u[iset], seedwhat);
                 }
                 //assembler->cells[b][c]->computeSolnFaceIP(face);
                 assembler->cells[b][c]->updateWorksetFace(face);
