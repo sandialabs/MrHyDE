@@ -519,7 +519,7 @@ void euler::boundaryResidual() {
 
   if (spaceDim == 1) {
 
-    for (size_type iEqn=0; iEqn<spaceDim+2; ++iEqn) {
+    for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
       int basis_num = wkset->usebasis[iEqn];
       auto basis = wkset->basis_side[basis_num];
@@ -542,7 +542,7 @@ void euler::boundaryResidual() {
     // need ny
     auto ny = wkset->getDataSc("ny side");
 
-    for (size_type iEqn=0; iEqn<spaceDim+2; ++iEqn) {
+    for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
       int basis_num = wkset->usebasis[iEqn];
       auto basis = wkset->basis_side[basis_num];
@@ -566,7 +566,7 @@ void euler::boundaryResidual() {
     auto ny = wkset->getDataSc("ny side");
     auto nz = wkset->getDataSc("nz side");
 
-    for (size_type iEqn=0; iEqn<spaceDim+2; ++iEqn) {
+    for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
       int basis_num = wkset->usebasis[iEqn];
       auto basis = wkset->basis_side[basis_num];
@@ -640,7 +640,7 @@ void euler::computeFlux() {
       parallel_for("euler boundary flux copy",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
-        for (size_type ieqn=0; ieqn<spaceDim+2; ++ieqn) {
+        for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
           for (size_type pt=0; pt<bound.extent(1); ++pt) {
             interfaceFlux(elem,ieqn,pt) = bound(elem,pt,ieqn);
           }
@@ -662,7 +662,7 @@ void euler::computeFlux() {
         parallel_for("euler flux 1D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
-          for (size_type ieqn=0; ieqn<spaceDim+2; ++ieqn) {
+          for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,ieqn,pt) = fluxes(elem,pt,ieqn,0)*nx(elem,pt)
                 + stab(elem,pt,ieqn);
@@ -677,7 +677,7 @@ void euler::computeFlux() {
         parallel_for("euler flux 2D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
-          for (size_type ieqn=0; ieqn<spaceDim+2; ++ieqn) {
+          for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,ieqn,pt) = fluxes(elem,pt,ieqn,0)*nx(elem,pt)
                 + fluxes(elem,pt,ieqn,1)*ny(elem,pt) + stab(elem,pt,ieqn);
@@ -693,7 +693,7 @@ void euler::computeFlux() {
         parallel_for("euler flux 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
-          for (size_type ieqn=0; ieqn<spaceDim+2; ++ieqn) {
+          for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,ieqn,pt) = fluxes(elem,pt,ieqn,0)*nx(elem,pt)
                 + fluxes(elem,pt,ieqn,1)*ny(elem,pt) + fluxes(elem,pt,ieqn,2)*nz(elem,pt) 
@@ -927,7 +927,7 @@ void euler::computeThermoProps(const bool & on_side)
                KOKKOS_LAMBDA (const int elem ) {
 
     ScalarT gamma = modelparams(gamma_mp_num); 
-    ScalarT RGas = modelparams(RGas_mp_num);
+    // ScalarT RGas = modelparams(RGas_mp_num);
     ScalarT MachNum = modelparams(MRef_mp_num);
 
     for (size_type pt=0; pt<props.extent(1); ++pt) {
@@ -1061,7 +1061,7 @@ void euler::computeStabilizationTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the absolute value of the diagonal matrix
-        for (size_type i=0; i<spaceDim + 2; ++i) {
+        for (int i=0; i<spaceDim + 2; ++i) {
           tmp(i) *= abs( Lambda(i) );
         }
         // R tmp = R AbsLambda L deltaS --> stab_sub 
@@ -1075,7 +1075,7 @@ void euler::computeStabilizationTerm() {
         // max of | vn + a |, | vn - a |
         AD lambdaMax = max(abs(vn + props(elem,pt,a_num)),abs(vn - props(elem,pt,a_num)));
 
-        for (size_type i=0; i<spaceDim+2; ++i) {
+        for (int i=0; i<spaceDim+2; ++i) {
           stab_sub(i) = deltaS(i) * lambdaMax;
         }
       }
@@ -1214,7 +1214,7 @@ void euler::computeBoundaryTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the diagonal matrix
-        for (size_type i=0; i<spaceDim + 2; ++i) {
+        for (int i=0; i<spaceDim + 2; ++i) {
           tmp(i) *= ( Lambda(i) + abs( Lambda(i) ) ) / 2.;
         }
         // R tmp = A^+ deltaS --> bound_sub 
@@ -1238,7 +1238,7 @@ void euler::computeBoundaryTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the diagonal matrix
-        for (size_type i=0; i<spaceDim + 2; ++i) {
+        for (int i=0; i<spaceDim + 2; ++i) {
           tmp(i) *= ( Lambda(i) - abs( Lambda(i) ) ) / 2.;
         }
         // R tmp = A^- deltaS --> deltaS
@@ -1246,7 +1246,7 @@ void euler::computeBoundaryTerm() {
 
         // finalize
         
-        for (size_type i=0; i<spaceDim + 2; ++i) {
+        for (int i=0; i<spaceDim + 2; ++i) {
           bound_sub(i) -= deltaS(i);
         }
 
