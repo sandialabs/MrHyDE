@@ -382,6 +382,53 @@ namespace MrHyDE {
       }
     }
     
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    template<class T>
+    static void printExtents(Kokkos::View<T*,AssemblyDevice> V, const string message = "") {
+      std::cout << std::endl;
+      std::cout << message << std::endl;
+      
+      for (size_type k=0; k<V.rank(); k++) {
+        std::cout << "extent(" << k << ") = " << V.extent(k) << std::endl;
+      }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    template<class T>
+    static void printExtents(Kokkos::View<T**,AssemblyDevice> V, const string message = "") {
+      std::cout << std::endl;
+      std::cout << message << std::endl;
+      
+      for (size_type k=0; k<V.rank(); k++) {
+        std::cout << "extent(" << k << ") = " << V.extent(k) << std::endl;
+      }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    template<class T>
+    static void printExtents(Kokkos::View<T***,AssemblyDevice> V, const string message = "") {
+      std::cout << std::endl;
+      std::cout << message << std::endl;
+      
+      for (size_type k=0; k<V.rank(); k++) {
+        std::cout << "extent(" << k << ") = " << V.extent(k) << std::endl;
+      }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    template<class T>
+    static void printExtents(Kokkos::View<T****,AssemblyDevice> V, const string message = "") {
+      std::cout << std::endl;
+      std::cout << message << std::endl;
+      
+      for (size_type k=0; k<V.rank(); k++) {
+        std::cout << "extent(" << k << ") = " << V.extent(k) << std::endl;
+      }
+    }
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
