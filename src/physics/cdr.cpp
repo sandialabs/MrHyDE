@@ -92,7 +92,7 @@ void cdr::volumeResidual() {
   if (spaceDim > 1) {
     dC_dy = wkset->getData("grad(c)[y]");
   }
-  if (spaceDim > 3) {
+  if (spaceDim > 2) {
     dC_dz = wkset->getData("grad(c)[z]");
   }
   auto off = Kokkos::subview(wkset->offsets, cnum, Kokkos::ALL());
@@ -140,6 +140,7 @@ void cdr::volumeResidual() {
       }
     });
   }
+  
 }
 
 // ========================================================================================
