@@ -194,7 +194,7 @@ int main(int argc,char * argv[]) {
       functionManagers[b]->wkset = assembler->wkset[b];
       functionManagers[b]->decomposeFunctions();
       
-      if (verbosity>=20) {
+      if (verbosity >= 20) {
         functionManagers[b]->printFunctions();
       }
     }
@@ -205,7 +205,7 @@ int main(int argc,char * argv[]) {
     // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<AnalysisManager> analys = Teuchos::rcp( new AnalysisManager(Comm, settings,
+    Teuchos::RCP<AnalysisManager> analysis = Teuchos::rcp( new AnalysisManager(Comm, settings,
                                                                              solve, postproc, params) );
     
     // Make sure all processes are caught up at this point
@@ -213,7 +213,7 @@ int main(int argc,char * argv[]) {
     
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
-      analys->run();
+      analysis->run();
     }
     
     if (verbosity >= 20) {
