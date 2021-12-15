@@ -126,11 +126,12 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   // needed information from the physics interface
   numVars = phys->numVars; //
   vector<vector<vector<string> > > phys_varlist = phys->varlist;
+  size_t numSets = phys->setnames.size();
   
   // needed information from the disc interface
   vector<vector<int> > cards = disc->cards;
   
-  for (size_t set=0; set<numVars.size(); ++set) {
+  for (size_t set=0; set<numSets; ++set) {
     vector<vector<int> > set_useBasis;
     vector<vector<int> > set_numBasis;
     vector<vector<string> > set_varlist;
@@ -201,7 +202,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     this->setupExplicitMass();
   }
   
-  for (size_t set=0; set<numVars.size(); ++set) {
+  for (size_t set=0; set<numSets; ++set) {
     res.push_back(linalg->getNewVector(set));
     res_over.push_back(linalg->getNewOverlappedVector(set));
     du_over.push_back(linalg->getNewOverlappedVector(set));
@@ -218,47 +219,32 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   
   /////////////////////////////////////////////////////////////////////////////
   
-  have_initial_conditions = false;
-  if (settings->sublist("Physics").isSublist("Initial conditions")) {
-    have_initial_conditions = true;
-  }
-  else {
+  have_initial_conditions = vector<bool>(numSets,false);
+  scalarInitialData = vector<bool>(numSets,false);
+  have_static_Dirichlet_data = vector<bool>(numSets,false);
+  
+  for (size_t set=0; set<numSets; ++set) {
+    have_initial_conditions[set] = false;
     for (size_t b=0; b<blocknames.size(); b++) {
-      if (settings->sublist("Physics").isSublist(blocknames[b])) {
-        if (settings->sublist("Physics").sublist(blocknames[b]).isSublist("Initial conditions")) {
-          have_initial_conditions  = true;
-        }
+      if (phys->setPhysSettings[set][b].isSublist("Initial conditions")) {
+        have_initial_conditions[set] = true;
+        scalarInitialData[set] = phys->setPhysSettings[set][b].sublist("Initial conditions").get<bool>("scalar data", false);
       }
     }
-  }
   
-  scalarInitialData = settings->sublist("Physics").sublist("Initial conditions").get<bool>("scalar data", false);
-  have_static_Dirichlet_data = false;
-  
-  if (have_initial_conditions && scalarInitialData) {
-    for (size_t set=0; set<numVars.size(); ++set) {
+    if (have_initial_conditions[set] && scalarInitialData[set]) {
       vector<vector<ScalarT> > setInitialValues;
       for (size_t b=0; b<blocknames.size(); b++) {
         
         std::string blockID = blocknames[b];
-        Teuchos::ParameterList init_settings;
-        if (settings->sublist("Physics").isSublist(blockID)) {
-          init_settings = settings->sublist("Physics").sublist(blockID).sublist("Initial conditions");
-        }
-        else {
-          init_settings = settings->sublist("Physics").sublist("Initial conditions");
-        }
+        Teuchos::ParameterList init_settings = phys->setPhysSettings[set][b].sublist("Initial conditions");
+        
         vector<ScalarT> blockInitialValues;
         
         for (size_t var=0; var<varlist[set][b].size(); var++ ) {
           ScalarT value = 0.0;
-          if (init_settings.isSublist(varlist[set][b][var])) {
-            Teuchos::ParameterList currinit = init_settings.sublist(varlist[set][b][var]);
-            Teuchos::ParameterList::ConstIterator i_itr = currinit.begin();
-            while (i_itr != currinit.end()) {
-              value = currinit.get<ScalarT>(i_itr->first);
-              i_itr++;
-            }
+          if (init_settings.isParameter(varlist[set][b][var])) {
+            value = init_settings.get<ScalarT>(varlist[set][b][var]);
           }
           blockInitialValues.push_back(value);
         }
@@ -266,9 +252,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       }
       scalarInitialValues.push_back(setInitialValues);
     }
-  }
     
-  //assembler->allocateCellStorage();
+  }
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -895,33 +880,33 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
     usestrongDBCs = false;
   }
   
+  size_t numSets = phys->setnames.size();
+  
+  scalarDirichletData = vector<bool>(numSets,false);
+  staticDirichletData = vector<bool>(numSets,true);
+  
   if (usestrongDBCs) {
-    for (size_t set=0; set<numVars.size(); ++set) {
+    for (size_t set=0; set<numSets; ++set) {
       fixedDOF_soln.push_back(linalg->getNewOverlappedVector(set));
     }
     
-    scalarDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);
-    staticDirichletData = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("static data", true);
+    for (size_t set=0; set<numSets; ++set) {
     
-    if (scalarDirichletData && !staticDirichletData) {
-      if (Comm->getRank() == 0) {
-        cout << "Warning: The Dirichlet data was set to scalar and non-static.  This should not happen." << endl;
+      scalarDirichletData[set] = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);
+      staticDirichletData[set] = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("static data", true);
+      
+      if (scalarDirichletData[set] && !staticDirichletData[set]) {
+        if (Comm->getRank() == 0) {
+          cout << "Warning: The Dirichlet data was set to scalar and non-static.  This should not happen." << endl;
+        }
       }
-    }
-    
-    if (scalarDirichletData) {
-      for (size_t set=0; set<numVars.size(); ++set) {
+      
+      if (scalarDirichletData[set]) {
         vector<vector<ScalarT> > setDirichletValues;
         for (size_t b=0; b<blocknames.size(); b++) {
           
           std::string blockID = blocknames[b];
-          Teuchos::ParameterList dbc_settings;
-          if (settings->sublist("Physics").isSublist(blockID)) {
-            dbc_settings = settings->sublist("Physics").sublist(blockID).sublist("Dirichlet conditions");
-          }
-          else {
-            dbc_settings = settings->sublist("Physics").sublist("Dirichlet conditions");
-          }
+          Teuchos::ParameterList dbc_settings = phys->setPhysSettings[set][b].sublist("Dirichlet conditions");
           vector<ScalarT> blockDirichletValues;
           
           for (size_t var=0; var<varlist[set][b].size(); var++ ) {
@@ -1035,13 +1020,13 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   params->sacadoizeParams(false);
   
   for (size_t set=0; set<setnames.size(); ++set) {
-    if (!scalarDirichletData) {
-      if (!staticDirichletData) {
+    if (!scalarDirichletData[set]) {
+      if (!staticDirichletData[set]) {
         this->projectDirichlet(set);
       }
-      else if (!have_static_Dirichlet_data) {
+      else if (!have_static_Dirichlet_data[set]) {
         this->projectDirichlet(set);
-        have_static_Dirichlet_data = true;
+        have_static_Dirichlet_data[set] = true;
       }
     }
   }
@@ -1775,13 +1760,13 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
     auto u_kv = u->template getLocalView<LA_device>();
     //auto meas_kv = meas->getLocalView<HostDevice>();
     
-    if (!scalarDirichletData) {
-      if (!staticDirichletData) {
+    if (!scalarDirichletData[set]) {
+      if (!staticDirichletData[set]) {
         this->projectDirichlet(set);
       }
-      else if (!have_static_Dirichlet_data) {
+      else if (!have_static_Dirichlet_data[set]) {
         this->projectDirichlet(set);
-        have_static_Dirichlet_data = true;
+        have_static_Dirichlet_data[set] = true;
       }
     }
     
@@ -1790,7 +1775,7 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
     //}
     
     vector<vector<Kokkos::View<LO*,LA_device> > > dbcDOFs = assembler->fixedDOF[set];
-    if (scalarDirichletData) {
+    if (scalarDirichletData[set]) {
       
       for (size_t b=0; b<dbcDOFs.size(); b++) {
         for (size_t v=0; v<dbcDOFs[b].size(); v++) {
@@ -1894,8 +1879,8 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
       }
     }
     
-    if (have_initial_conditions) {
-      if (scalarInitialData) {
+    if (have_initial_conditions[set]) {
+      if (scalarInitialData[set]) {
         
         auto initial_kv = initial->template getLocalView<LA_device>();
         

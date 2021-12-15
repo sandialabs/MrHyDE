@@ -131,6 +131,16 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     topo_RCP cellTopo = mesh->getCellTopology(blockID);
     string shape = cellTopo->getName();
     
+    vector<stk::mesh::Entity> stk_meshElems;
+    mesh->getMyElements(blockID, stk_meshElems);
+    
+    // list of all elements on this processor
+    vector<size_t> blockmyElements = vector<size_t>(stk_meshElems.size());
+    for( size_t e=0; e<stk_meshElems.size(); e++ ) {
+      blockmyElements[e] = mesh->elementLocalId(stk_meshElems[e]);
+    }
+    myElements.push_back(blockmyElements);
+    
     vector<int> blockcards;
     vector<basis_RCP> blockbasis;
     
@@ -139,16 +149,6 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     
     for (size_t set=0; set<phys->setnames.size(); ++set) {
       Teuchos::ParameterList db_settings = phys->setDiscSettings[set][b];
-      
-      vector<stk::mesh::Entity> stk_meshElems;
-      mesh->getMyElements(blockID, stk_meshElems);
-      
-      // list of all elements on this processor
-      vector<size_t> blockmyElements = vector<size_t>(stk_meshElems.size());
-      for( size_t e=0; e<stk_meshElems.size(); e++ ) {
-        blockmyElements[e] = mesh->elementLocalId(stk_meshElems[e]);
-      }
-      myElements.push_back(blockmyElements);
       
       ///////////////////////////////////////////////////////////////////////////
       // Get the cardinality of the basis functions  on this block

@@ -163,6 +163,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   // --------------------------------------------------
   // primary variable LA objects
   // --------------------------------------------------
+  maxEntries = 0;
   
   for (size_t set=0; set<setnames.size(); ++set) {
     vector<GO> owned, ownedAndShared;
@@ -201,16 +202,17 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
         }
       }
       
-      maxEntries = 0;
+      size_t curr_maxEntries = 0;
       for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
-        maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
+        curr_maxEntries = std::max(curr_maxEntries, maxEntriesPerRow[m]);
       }
       
-      maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
-                                                                            static_cast<int>(maxEntries)));
+      //curr_maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
+      //                                                                      static_cast<int>(curr_maxEntries)));
+      maxEntries = std::max(maxEntries,curr_maxEntries);
       
       overlapped_graph.push_back(Teuchos::rcp(new LA_CrsGraph(overlapped_map[set],
-                                                              maxEntries,
+                                                              curr_maxEntries,
                                                               Tpetra::StaticProfile)));
     
       for (size_t b=0; b<blocknames.size(); b++) {
@@ -228,7 +230,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       
       overlapped_graph[set]->fillComplete();
       
-      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxEntries, Tpetra::StaticProfile)));
+      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], curr_maxEntries, Tpetra::StaticProfile)));
       
       overlapped_matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(overlapped_graph[set])));
       

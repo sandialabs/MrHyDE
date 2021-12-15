@@ -1155,7 +1155,7 @@ void SubGridFEM::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
   //      right now, it slows everything down ... especially if using an L2-projection
   
   
-  bool useL2proj = true;//settings->sublist("Solver").get<bool>("Project initial",true);
+  bool useL2proj = sub_solver->solver->have_initial_conditions[0];//true;//settings->sublist("Solver").get<bool>("Project initial",true);
 
   auto glinitial = sub_solver->solver->linalg->getNewVector(0);
    

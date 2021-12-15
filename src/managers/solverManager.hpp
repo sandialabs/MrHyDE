@@ -184,8 +184,8 @@ namespace MrHyDE {
     bool line_search, useL2proj, discretized_stochastic, fully_explicit, use_custom_PCG;
     bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs;
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
-    bool scalarDirichletData, staticDirichletData, scalarInitialData;
-    bool have_initial_conditions, have_static_Dirichlet_data;
+    vector<bool> scalarDirichletData, staticDirichletData, scalarInitialData;
+    vector<bool> have_initial_conditions, have_static_Dirichlet_data;
     bool useRelativeTOL, useAbsoluteTOL, allowBacktracking;
     vector<vector<vector<ScalarT> > > scalarDirichletValues, scalarInitialValues; // [set][block][var]
     vector<Teuchos::RCP<LA_MultiVector> > fixedDOF_soln, invdiagMass, diagMass;

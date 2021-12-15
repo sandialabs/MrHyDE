@@ -113,26 +113,28 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
   // Add initial conditions
   for (size_t set=0; set<setnames.size(); set++) {
     for (size_t b=0; b<blocknames.size(); b++) {
-      Teuchos::ParameterList initial_conds = setPhysSettings[set][b].sublist("Initial conditions");
-      for (size_t j=0; j<varlist[set][b].size(); j++) {
-        string expression;
-        string var = varlist[set][b][j];
-        if (initial_conds.isType<string>(var)) {
-          expression = initial_conds.get<string>(var);
-        }
-        else if (initial_conds.isType<double>(var)) {
-          double value = initial_conds.get<double>(var);
-          expression = std::to_string(value);
-        }
-        else {
-          expression = "0.0";
-        }
-        functionManagers[b]->addFunction("initial "+var,expression,"ip");
-        functionManagers[b]->addFunction("initial "+var,expression,"point");
-        if (types[set][b][j] == "HFACE") {
-          // we have found an HFACE variable and need to have side ip evaluations
-          // TODO check aux, etc?
-          functionManagers[b]->addFunction("initial "+var,expression,"side ip");
+      if (setPhysSettings[set][b].isSublist("Initial conditions")) {
+        Teuchos::ParameterList initial_conds = setPhysSettings[set][b].sublist("Initial conditions");
+        for (size_t j=0; j<varlist[set][b].size(); j++) {
+          string expression;
+          string var = varlist[set][b][j];
+          if (initial_conds.isType<string>(var)) {
+            expression = initial_conds.get<string>(var);
+          }
+          else if (initial_conds.isType<double>(var)) {
+            double value = initial_conds.get<double>(var);
+            expression = std::to_string(value);
+          }
+          else {
+            expression = "0.0";
+          }
+          functionManagers[b]->addFunction("initial "+var,expression,"ip");
+          functionManagers[b]->addFunction("initial "+var,expression,"point");
+          if (types[set][b][j] == "HFACE") {
+            // we have found an HFACE variable and need to have side ip evaluations
+            // TODO check aux, etc?
+            functionManagers[b]->addFunction("initial "+var,expression,"side ip");
+          }
         }
       }
     }
@@ -141,41 +143,43 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
   // Dirichlet conditions
   for (size_t set=0; set<setnames.size(); set++) {
     for (size_t b=0; b<blocknames.size(); b++) {
-      Teuchos::ParameterList dbcs = setPhysSettings[set][b].sublist("Dirichlet conditions");
-      for (size_t j=0; j<varlist[set][b].size(); j++) {
-        string var = varlist[set][b][j];
-        if (dbcs.isSublist(var)) {
-          if (dbcs.sublist(var).isType<string>("all boundaries")) {
-            string entry = dbcs.sublist(var).get<string>("all boundaries");
-            for (size_t s=0; s<sidenames.size(); s++) {
-              string label = "Dirichlet " + var + " " + sidenames[s];
-              functionManagers[b]->addFunction(label,entry,"side ip");
-            }
-          }
-          else if (dbcs.sublist(var).isType<double>("all boundaries")) {
-            double value = dbcs.sublist(var).get<double>("all boundaries");
-            string entry = std::to_string(value);
-            for (size_t s=0; s<sidenames.size(); s++) {
-              string label = "Dirichlet " + var + " " + sidenames[s];
-              functionManagers[b]->addFunction(label,entry,"side ip");
-            }
-          }
-          else {
-            Teuchos::ParameterList currdbcs = dbcs.sublist(var);
-            Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
-            while (d_itr != currdbcs.end()) {
-              if (currdbcs.isType<string>(d_itr->first)) {
-                string entry = currdbcs.get<string>(d_itr->first);
-                string label = "Dirichlet " + var + " " + d_itr->first;
+      if (setPhysSettings[set][b].isSublist("Dirichlet conditions")) {
+        Teuchos::ParameterList dbcs = setPhysSettings[set][b].sublist("Dirichlet conditions");
+        for (size_t j=0; j<varlist[set][b].size(); j++) {
+          string var = varlist[set][b][j];
+          if (dbcs.isSublist(var)) {
+            if (dbcs.sublist(var).isType<string>("all boundaries")) {
+              string entry = dbcs.sublist(var).get<string>("all boundaries");
+              for (size_t s=0; s<sidenames.size(); s++) {
+                string label = "Dirichlet " + var + " " + sidenames[s];
                 functionManagers[b]->addFunction(label,entry,"side ip");
               }
-              else if (currdbcs.isType<double>(d_itr->first)) {
-                double value = currdbcs.get<double>(d_itr->first);
-                string entry = std::to_string(value);
-                string label = "Dirichlet " + var + " " + d_itr->first;
+            }
+            else if (dbcs.sublist(var).isType<double>("all boundaries")) {
+              double value = dbcs.sublist(var).get<double>("all boundaries");
+              string entry = std::to_string(value);
+              for (size_t s=0; s<sidenames.size(); s++) {
+                string label = "Dirichlet " + var + " " + sidenames[s];
                 functionManagers[b]->addFunction(label,entry,"side ip");
               }
-              d_itr++;
+            }
+            else {
+              Teuchos::ParameterList currdbcs = dbcs.sublist(var);
+              Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
+              while (d_itr != currdbcs.end()) {
+                if (currdbcs.isType<string>(d_itr->first)) {
+                  string entry = currdbcs.get<string>(d_itr->first);
+                  string label = "Dirichlet " + var + " " + d_itr->first;
+                  functionManagers[b]->addFunction(label,entry,"side ip");
+                }
+                else if (currdbcs.isType<double>(d_itr->first)) {
+                  double value = currdbcs.get<double>(d_itr->first);
+                  string entry = std::to_string(value);
+                  string label = "Dirichlet " + var + " " + d_itr->first;
+                  functionManagers[b]->addFunction(label,entry,"side ip");
+                }
+                d_itr++;
+              }
             }
           }
         }

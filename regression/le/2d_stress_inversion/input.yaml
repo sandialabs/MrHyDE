@@ -30,8 +30,8 @@ ANONYMOUS:
         top: '-1.0'
     Initial conditions:
       scalar data: true
-      dx: 1.0
-      dy: 1.0
+      dx: 0.0
+      dy: 0.0
   Discretization:
     order:
       dx: 1

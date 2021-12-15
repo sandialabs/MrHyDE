@@ -207,7 +207,7 @@ namespace MrHyDE {
     // Data the depends on physics sets
     vector<vector<vector<Teuchos::RCP<physicsbase> > > > modules;
     
-    vector<vector<Teuchos::ParameterList>> setPhysSettings, setDiscSettings;
+    vector<vector<Teuchos::ParameterList>> setPhysSettings, setDiscSettings; // [set][block]
     vector<vector<vector<bool> > > useSubgrid;
     vector<vector<vector<bool> > > useDG;
     vector<vector<vector<ScalarT> > > masswts, normwts;

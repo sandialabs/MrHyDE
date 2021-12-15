@@ -19,8 +19,7 @@ ANONYMOUS:
     assemble boundary terms: false
     Initial conditions:
       scalar data: true
-      q:
-        init: 1.0
+      q: 1.0
   Discretization:
     order:
       q: 1
