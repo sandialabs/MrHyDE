@@ -44,6 +44,7 @@ if its.opts.preprocess:
   status += its.call('echo "  No preprocessing, yet."')
 
 status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
+status += its.call('rm -f ROL_out.txt final_params.dat')
 
 hostname = os.getenv('HOSTNAME')
 if hostname != None:

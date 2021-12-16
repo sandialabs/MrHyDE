@@ -52,6 +52,7 @@ if hostname != None:
     its.call('sed -i \'/weaver/d\' mrhyde.log')
 
 status += its.call('diff -y %s.log %s.gold' % (root, root))
+status += its.call('rm -f ROL_out.txt final_params.dat')
 
 # ------------------------------
 if its.opts.baseline and not status:
