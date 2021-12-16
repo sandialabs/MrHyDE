@@ -336,7 +336,7 @@ class xml_document:
       stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s' \
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, test.fname[0:-11])
-      print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
+      print stmt2 #+ ' '*(max(0,len(test.stmt)-len(stmt2)))
     
 
 #===============================================================================
@@ -347,12 +347,12 @@ def serial_testing(opts,listOfTests,doc):
   skipped = 0
   for test in listOfTests:
     starttime = time.time()
-    if not opts.simpleReporting:
-      tm = time.localtime()
-      stmt = 'running on %s procs - %2i:%02i:%02i %s' \
-           % (test.nprocs, tm.tm_hour, tm.tm_min, tm.tm_sec, test.fname)
-      print stmt,
-      sys.stdout.flush()
+    #if not opts.simpleReporting:
+    #  tm = time.localtime()
+    #  stmt = 'running on %s procs - %2i:%02i:%02i %s' \
+    #       % (test.nprocs, tm.tm_hour, tm.tm_min, tm.tm_sec, test.fname)
+    #  print stmt,
+    #  sys.stdout.flush()
     # Unknown TESTING options are passed to test
     for option in test.unknownOpts:
       test.test_args += ' ' + option
@@ -378,9 +378,9 @@ def serial_testing(opts,listOfTests,doc):
       passed += 1
       test.statusStr = 'pass'
     # report test results
-    if not opts.simpleReporting:
-      print '\b' * (len(stmt)+1),
-      sys.stdout.flush()
+    #if not opts.simpleReporting:
+    #  print '\b' * (len(stmt)+1),
+    #  sys.stdout.flush()
     # including test time
     endtime = time.time()
     runtime = endtime-starttime
