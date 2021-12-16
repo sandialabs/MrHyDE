@@ -33,7 +33,7 @@ fdtol= 5.0e-10     # finite difference gradient tolerance
 # These comments are for testing with the runtest.py utility.
 #TESTING active
 #TESTING -n 1
-#TESTING -k transient,ODE
+#TESTING -k transient,ODE,explicit
 
 # ==============================================================================
 status = 0
