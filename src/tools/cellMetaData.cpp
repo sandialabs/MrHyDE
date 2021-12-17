@@ -38,7 +38,7 @@ cellTopo(cellTopo_) {
   loadSensorFiles = settings->sublist("Analysis").get<bool>("Load Sensor Files",false);
   writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
   mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
-  storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
+  //storeAll = false;//settings->sublist("Solver").get<bool>("store all cell data",true);
   matrix_free = settings->sublist("Solver").get<bool>("matrix free",false);
   
   requiresTransient = true;
@@ -91,8 +91,9 @@ void CellMetaData::updatePhysicsSet(const size_t & set) {
 //===================================================
 // Clear out the saved data if we are done with it
 //===================================================
-
+/*
 void CellMetaData::clearPhysicalData() {
+  
   jacobian = DRV("empty view");
   jacobianDet = DRV("empty view");
   jacobianInv = DRV("empty view");
@@ -127,3 +128,4 @@ void CellMetaData::clearPhysicalData() {
   side_phys_basiscurl2.clear();
   
 }
+*/

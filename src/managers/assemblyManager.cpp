@@ -132,9 +132,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   
   params->setupDiscretizedParameters(cells, boundaryCells);
   
-  // Create worksets
-  //this->createWorkset();
-  
   this->createFixedDOFs();
   
   if (debug_level > 0) {
@@ -220,11 +217,7 @@ void AssemblyManager<Node>::createCells() {
     }
   }
   
-  bool storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
-  double storageProportion = 1.0;
-  if (!storeAll) {
-    storageProportion = settings->sublist("Solver").get<double>("storage proportion",0.0);
-  }
+  double storageProportion = settings->sublist("Solver").get<double>("storage proportion",1.0);
   
   vector<stk::mesh::Entity> all_meshElems;
   mesh->getMyElements(all_meshElems);
@@ -357,6 +350,7 @@ void AssemblyManager<Node>::createCells() {
           mesh->getElementVertices(side_output, blocknames[b],sidenodes);
           
           size_t numSideElem = local_side_Ids.size();
+          size_t belemProg = 0;
           
           if (numSideElem > 0) {
             vector<size_t> unique_sides;
@@ -434,9 +428,14 @@ void AssemblyManager<Node>::createCells() {
                   set_sideinfo.push_back(sideinfo);
                 }
                 
+                bool storeThis = true;
+                if (static_cast<double>(belemProg)/static_cast<double>(numSideElem) >= storageProportion) {
+                  storeThis = false;
+                }
+                
                 bcells.push_back(Teuchos::rcp(new BoundaryCell(blockCellData, currnodes, eIndex, sideIndex,
                                                                side, sideName, bcells.size(),
-                                                               disc, storeAll)));
+                                                               disc, storeThis)));
                 bcells[bcells.size()-1]->LIDs = set_LIDs;
                 bcells[bcells.size()-1]->createHostLIDs();
                 bcells[bcells.size()-1]->sideinfo = set_sideinfo;
@@ -580,12 +579,11 @@ void AssemblyManager<Node>::createCells() {
       for (size_t grp=0; grp<groups.size(); ++grp) {
         LO currElem = groups[grp].size();
         
-        bool storeThis = storeAll;
-        if (!storeAll) {
-          if (static_cast<double>(processedElem)/static_cast<double>(numTotalElem) < storageProportion) {
-            storeThis = true;
-          }
+        bool storeThis = true;
+        if (static_cast<double>(processedElem)/static_cast<double>(numTotalElem) >= storageProportion) {
+          storeThis = false;
         }
+        
         processedElem += currElem;
         
         Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
@@ -2439,9 +2437,9 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
 template<class Node>
 void AssemblyManager<Node>::purgeMemory() {
   
-  for (size_t block=0; block<cellData.size(); ++block) {
-    cellData[block]->clearPhysicalData();
-  }
+  //for (size_t block=0; block<cellData.size(); ++block) {
+  //  cellData[block]->clearPhysicalData();
+  //}
   
 }
 

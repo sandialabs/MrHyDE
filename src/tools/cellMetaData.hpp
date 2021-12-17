@@ -53,7 +53,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void clearPhysicalData();
+    //void clearPhysicalData();
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -66,7 +66,7 @@ namespace MrHyDE {
     Teuchos::RCP<PhysicsInterface> physics_RCP;
     string response_type;
     vector<string> sidenames;
-    bool storeAll, requiresTransient, requiresAdjoint, matrix_free;
+    bool requiresTransient, requiresAdjoint, matrix_free;
     
     // Geometry Information
     size_t numnodes, numSides, dimension, numip, numsideip, numDiscParams;
@@ -79,8 +79,8 @@ namespace MrHyDE {
     vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
     
     // Physical element integration containers
-    DRV jacobian, jacobianDet, jacobianInv, physip, physwts;
-    DRV side_jacobian, side_jacobianDet, side_jacobianInv, side_physip, side_physwts, side_physnormals, side_phystangents;
+    //DRV jacobian, jacobianDet, jacobianInv, physip, physwts;
+    //DRV side_jacobian, side_jacobianDet, side_jacobianInv, side_physip, side_physwts, side_physnormals, side_phystangents;
     
     vector<string> basis_types;
     vector<basis_RCP> basis_pointers;
@@ -88,10 +88,10 @@ namespace MrHyDE {
     vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
     vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
     
-    vector<DRV> phys_basis1, phys_basisgrad1, phys_basisdiv1, phys_basiscurl1;
-    vector<DRV> phys_basis2, phys_basisgrad2, phys_basisdiv2, phys_basiscurl2;
-    vector<DRV> side_phys_basis1, side_phys_basisgrad1, side_phys_basisdiv1, side_phys_basiscurl1;
-    vector<DRV> side_phys_basis2, side_phys_basisgrad2, side_phys_basisdiv2, side_phys_basiscurl2;
+    //vector<DRV> phys_basis1, phys_basisgrad1, phys_basisdiv1, phys_basiscurl1;
+    //vector<DRV> phys_basis2, phys_basisgrad2, phys_basisdiv2, phys_basiscurl2;
+    //vector<DRV> side_phys_basis1, side_phys_basisgrad1, side_phys_basisdiv1, side_phys_basiscurl1;
+    //vector<DRV> side_phys_basis2, side_phys_basisgrad2, side_phys_basisdiv2, side_phys_basiscurl2;
     
     bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
     bool mortar_objective;

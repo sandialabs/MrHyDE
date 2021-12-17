@@ -122,6 +122,8 @@ int main(int argc,char * argv[]) {
     mesh->setMeshData(assembler->cells,
                       assembler->boundaryCells);
     
+    disc->purgeStkMemory();
+    
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
@@ -179,9 +181,9 @@ int main(int argc,char * argv[]) {
     
     assembler->allocateCellStorage();
     
-    if (settings->get<bool>("enable memory purge",true)) {
-      assembler->purgeMemory();
-    }
+    //if (settings->get<bool>("enable memory purge",true)) {
+    //  assembler->purgeMemory();
+    //}
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions

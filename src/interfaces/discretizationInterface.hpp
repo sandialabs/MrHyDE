@@ -180,11 +180,15 @@ namespace MrHyDE {
 
     void purgeMemory();
     
+    void purgeStkMemory();
+    
     ////////////////////////////////////////////////////////////////////////////////
     // Public data
     ////////////////////////////////////////////////////////////////////////////////
     
     int debug_level, verbosity, spaceDim;
+    double storage_proportion;
+    
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> Commptr;
     Teuchos::RCP<panzer_stk::STK_Interface> mesh;

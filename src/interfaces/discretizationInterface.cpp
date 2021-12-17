@@ -519,6 +519,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
     }
   }
   
+  /*
   if (cellData->storeAll && !minimize_memory) {
     cellData->jacobian = DRV("jacobian", cellData->numElem, cellData->numip, dimension, dimension);
     cellData->jacobianDet = DRV("jacobian determinant", cellData->numElem, cellData->numip);
@@ -526,6 +527,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
     cellData->physip = DRV("tmp ip", cellData->numElem, cellData->numip, dimension);
     cellData->physwts = DRV("tmp ip wts", cellData->numElem, cellData->numip);
   }
+  */
   
   // ------------------------------------
   // Get refnodes
@@ -606,7 +608,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
     cellData->ref_basis_div.push_back(basisdiv);
     cellData->ref_basis_nodes.push_back(basisnodes);
   }
-  
+  /*
   if (cellData->storeAll && !minimize_memory) {
     for (size_t i=0; i<basis_pointers[block].size(); i++) {
       
@@ -667,6 +669,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
       
     }
   }
+  */
   
   // Compute the basis value and basis grad values on reference element
   // at side ip
@@ -704,6 +707,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
     cellData->ref_side_basis_curl.push_back(sbasiscurl);
   }
   
+  /*
   if (cellData->storeAll && !minimize_memory) {
     cellData->side_physip = DRV("side ip", cellData->numElem, cellData->numsideip, dimension);
     cellData->side_jacobian = DRV("side jac", cellData->numElem, cellData->numsideip, dimension, dimension);
@@ -755,6 +759,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
       cellData->side_phys_basiscurl2.push_back(basiscurl2);
     }
   }
+  */
 }
 
 // -------------------------------------------------
@@ -782,20 +787,20 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
   // -------------------------------------------------
   
   DRV jacobian, jacobianDet, jacobianInv, tmpip, tmpwts;
-  if (cellData->numElem == numElem && cellData->storeAll && !minimize_memory) {
-    jacobian = cellData->jacobian;
-    jacobianDet = cellData->jacobianDet;
-    jacobianInv = cellData->jacobianInv;
-    tmpip = cellData->physip;
-    tmpwts = cellData->physwts;
-  }
-  else {
+  //if (cellData->numElem == numElem && cellData->storeAll && !minimize_memory) {
+  //  jacobian = cellData->jacobian;
+  //  jacobianDet = cellData->jacobianDet;
+  //  jacobianInv = cellData->jacobianInv;
+  //  tmpip = cellData->physip;
+  //  tmpwts = cellData->physwts;
+  //}
+  //else {
     jacobian = DRV("jacobian", numElem, numip, dimension, dimension);
     jacobianDet = DRV("determinant of jacobian", numElem, numip);
     jacobianInv = DRV("inverse of jacobian", numElem, numip, dimension, dimension);
     tmpip = DRV("tmp ip", numElem, numip, dimension);
     tmpwts = DRV("tmp ip wts", numElem, numip);
-  }
+  //}
   
   {
     Teuchos::TimeMonitor localtimer(*physVolDataIPTimer);
@@ -881,14 +886,14 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
 
       if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->phys_basis1[i];
-          bvals2 = cellData->phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->phys_basis1[i];
+        //  bvals2 = cellData->phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
           bvals2 = DRV("basis tmp",numElem,numb,numip);
-        }
+        //}
         FuncTools::HGRADtransformVALUE(bvals1, cellData->ref_basis[i]);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                               cellData->basis_pointers[i].get());
@@ -897,14 +902,14 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
         Kokkos::deep_copy(basis_vals_slice,bvals2);
         
         DRV bgrad1, bgrad2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bgrad1 = cellData->phys_basisgrad1[i];
-          bgrad2 = cellData->phys_basisgrad2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bgrad1 = cellData->phys_basisgrad1[i];
+        //  bgrad2 = cellData->phys_basisgrad2[i];
+        //}
+        //else {
           bgrad1 = DRV("basis grad tmp",numElem,numb,numip,dimension);
           bgrad2 = DRV("basis grad",numElem,numb,numip,dimension);
-        }
+        //}
         FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, cellData->ref_basis_grad[i]);
         OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
                                               cellData->basis_pointers[i].get());
@@ -915,12 +920,12 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
       else if (cellData->basis_types[i].substr(0,4) == "HVOL"){
         
         DRV bvals1;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->phys_basis1[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->phys_basis1[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
-        }
+        //}
         FuncTools::HGRADtransformVALUE(bvals1, cellData->ref_basis[i]);
         
         basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
@@ -932,14 +937,14 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
         {
           Teuchos::TimeMonitor localtimer(*physVolDataBasisDivValTimer);
           DRV bvals1, bvals2;
-          if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-            bvals1 = cellData->phys_basis1[i];
-            bvals2 = cellData->phys_basis2[i];
-          }
-          else {
+          //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+          //  bvals1 = cellData->phys_basis1[i];
+          //  bvals2 = cellData->phys_basis2[i];
+          //}
+          //else {
             bvals1 = DRV("basis",numElem,numb,numip,dimension);
             bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          }
+          //}
           
           FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, cellData->ref_basis[i]);
           OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
@@ -962,14 +967,14 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
           Teuchos::TimeMonitor localtimer(*physVolDataBasisDivDivTimer);
           
           DRV bdiv1, bdiv2;
-          if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-            bdiv1 = cellData->phys_basisdiv1[i];
-            bdiv2 = cellData->phys_basisdiv2[i];
-          }
-          else {
+          //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+          //  bdiv1 = cellData->phys_basisdiv1[i];
+          //  bdiv2 = cellData->phys_basisdiv2[i];
+          //}
+          //else {
             bdiv1 = DRV("basis",numElem,numb,numip);
             bdiv2 = DRV("basis tmp",numElem,numb,numip);
-          }
+          //}
           
           FuncTools::HDIVtransformDIV(bdiv1, jacobianDet, cellData->ref_basis_div[i]);
           OrientTools::modifyBasisByOrientation(bdiv2, bdiv1, orientation,
@@ -984,14 +989,14 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
           Teuchos::TimeMonitor localtimer(*physVolDataBasisCurlValTimer);
           
           DRV bvals1, bvals2;
-          if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-            bvals1 = cellData->phys_basis1[i];
-            bvals2 = cellData->phys_basis2[i];
-          }
-          else {
+          //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+          //  bvals1 = cellData->phys_basis1[i];
+          //  bvals2 = cellData->phys_basis2[i];
+          //}
+          //else {
             bvals1 = DRV("basis",numElem,numb,numip,dimension);
             bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          }
+          //}
           
           FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, cellData->ref_basis[i]);
           OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
@@ -1015,14 +1020,14 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
           Teuchos::TimeMonitor localtimer(*physVolDataBasisCurlCurlTimer);
         
           DRV bcurl1, bcurl2;
-          if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-            bcurl1 = cellData->phys_basiscurl1[i];
-            bcurl2 = cellData->phys_basiscurl2[i];
-          }
-          else {
+          //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+          //  bcurl1 = cellData->phys_basiscurl1[i];
+          //  bcurl2 = cellData->phys_basiscurl2[i];
+          //}
+          //else {
             bcurl1 = DRV("basis",numElem,numb,numip,dimension);
             bcurl2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          }
+          //}
           
           FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, cellData->ref_basis_curl[i]);
           OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
@@ -1069,20 +1074,20 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<CellMetaDa
   // -------------------------------------------------
   
   DRV jacobian, jacobianDet, jacobianInv, tmpip, tmpwts;
-  if (cellData->numElem == numElem && cellData->storeAll && !minimize_memory) {
-    jacobian = cellData->jacobian;
-    jacobianDet = cellData->jacobianDet;
-    jacobianInv = cellData->jacobianInv;
-    tmpip = cellData->physip;
-    tmpwts = cellData->physwts;
-  }
-  else {
+  //if (cellData->numElem == numElem && cellData->storeAll && !minimize_memory) {
+  //  jacobian = cellData->jacobian;
+  //  jacobianDet = cellData->jacobianDet;
+  //  jacobianInv = cellData->jacobianInv;
+  //  tmpip = cellData->physip;
+  //  tmpwts = cellData->physwts;
+  //}
+  //else {
     jacobian = DRV("jacobian", numElem, numip, dimension, dimension);
     jacobianDet = DRV("determinant of jacobian", numElem, numip);
     jacobianInv = DRV("inverse of jacobian", numElem, numip, dimension, dimension);
     tmpip = DRV("tmp ip", numElem, numip, dimension);
     tmpwts = DRV("tmp ip wts", numElem, numip);
-  }
+  //}
     
   {
     Teuchos::TimeMonitor localtimer(*physVolDataSetJacTimer);
@@ -1237,6 +1242,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
   
   // Step 1: fill in ip_side, wts_side and normals
   DRV sip, jac, jacDet, jacInv, swts, snormals, tangents;
+  /*
   if (cellData->numElem == numElem && cellData->storeAll && !minimize_memory) {
     jac = cellData->side_jacobian;
     jacDet = cellData->side_jacobianDet;
@@ -1246,7 +1252,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
     snormals = cellData->side_physnormals;
     tangents = cellData->side_phystangents;
   }
-  else {
+  else {*/
     sip = DRV("side ip", numElem, numip, dimension);
     jac = DRV("bijac", numElem, numip, dimension, dimension);
     jacDet = DRV("bijacDet", numElem, numip);
@@ -1254,7 +1260,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
     swts = DRV("wts_side", numElem, numip);
     snormals = DRV("normals", numElem, numip, dimension);
     tangents = DRV("tangents", numElem, numip, dimension);
-  }
+  //}
   
   
   {
@@ -1416,14 +1422,14 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
       if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
         
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
           bvals2 = DRV("basis tmp",numElem,numb,numip);
-        }
+        //}
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
@@ -1434,14 +1440,14 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
         
         auto ref_basis_grad_vals = cellData->ref_side_basis_grad[side][i];
         DRV bgrad1, bgrad2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bgrad1 = cellData->side_phys_basisgrad1[i];
-          bgrad2 = cellData->side_phys_basisgrad2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bgrad1 = cellData->side_phys_basisgrad1[i];
+        //  bgrad2 = cellData->side_phys_basisgrad2[i];
+        //}
+        //else {
           bgrad1 = DRV("basis",numElem,numb,numip,dimension);
           bgrad2 = DRV("basis tmp",numElem,numb,numip,dimension);
-        }
+        //}
         
         FuncTools::HGRADtransformGRAD(bgrad1, jacInv, ref_basis_grad_vals);
         OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
@@ -1453,12 +1459,12 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
       else if (cellData->basis_types[i].substr(0,4) == "HVOL"){
         
         DRV bvals1;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
-        }
+        //}
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
@@ -1468,14 +1474,14 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
       else if (cellData->basis_types[i].substr(0,4) == "HDIV" ) {
         
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip,dimension);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-        }
+        //}
         
         FuncTools::HDIVtransformVALUE(bvals1, jac, jacDet, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
@@ -1486,14 +1492,14 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
       }
       else if (cellData->basis_types[i].substr(0,5) == "HCURL"){
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip,dimension);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-        }
+        //}
         
         FuncTools::HCURLtransformVALUE(bvals1, jacInv, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
@@ -1505,14 +1511,14 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
       else if (cellData->basis_types[i].substr(0,5) == "HFACE"){
         
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
           bvals2 = DRV("basis tmp",numElem,numb,numip);
-        }
+        //}
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                               cellData->basis_pointers[i].get());
@@ -1561,6 +1567,7 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
   // -------------------------------------------------
   
   DRV tmpip, ijac, ijacDet, ijacInv, tmpwts, tmpnormals, tmptangents;
+  /*
   if (cellData->numElem == numElem && cellData->storeAll && !minimize_memory) { // This is unlikely here
     ijac = cellData->side_jacobian;
     ijacDet = cellData->side_jacobianDet;
@@ -1570,7 +1577,7 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
     tmpnormals = cellData->side_physnormals;
     tmptangents = cellData->side_phystangents;
   }
-  else {
+  else {*/
     tmpip = DRV("side ip", numElem, numip, dimension);
     ijac = DRV("bijac", numElem, numip, dimension, dimension);
     ijacDet = DRV("bijacDet", numElem, numip);
@@ -1578,7 +1585,7 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
     tmpwts = DRV("wts_side", numElem, numip);
     tmpnormals = DRV("normals", numElem, numip, dimension);
     tmptangents = DRV("tangents", numElem, numip, dimension);
-  }
+  //}
   
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataIPTimer);
@@ -1781,14 +1788,14 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
         
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
           bvals2 = DRV("basis tmp",numElem,numb,numip);
-        }
+        //}
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                               cellData->basis_pointers[i].get());
@@ -1797,14 +1804,14 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
         Kokkos::deep_copy(basis_vals_slice,bvals2);
         
         DRV bgrad1, bgrad2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bgrad1 = cellData->side_phys_basisgrad1[i];
-          bgrad2 = cellData->side_phys_basisgrad2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bgrad1 = cellData->side_phys_basisgrad1[i];
+        //  bgrad2 = cellData->side_phys_basisgrad2[i];
+        //}
+        //else {
           bgrad1 = DRV("basis",numElem,numb,numip,dimension);
           bgrad2 = DRV("basis tmp",numElem,numb,numip,dimension);
-        }
+        //}
         
         DRV ref_bgrad_vals = cellData->ref_side_basis_grad[localSideID_host(0)][i];
         FuncTools::HGRADtransformGRAD(bgrad1, ijacInv, ref_bgrad_vals);
@@ -1818,12 +1825,12 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       else if (cellData->basis_types[i].substr(0,4) == "HVOL"){ // does not require orientations
         
         DRV bvals1;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
-        }
+        //}
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
@@ -1833,14 +1840,14 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       else if (cellData->basis_types[i].substr(0,5) == "HFACE"){
         
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip);
           bvals2 = DRV("basis tmp",numElem,numb,numip);
-        }
+        //}
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
@@ -1852,14 +1859,14 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       else if (cellData->basis_types[i].substr(0,4) == "HDIV"){
         
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip,dimension);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-        }
+        //}
         
         FuncTools::HDIVtransformVALUE(bvals1, ijac, ijacDet, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
@@ -1869,14 +1876,14 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData>
       }
       else if (cellData->basis_types[i].substr(0,5) == "HCURL"){
         DRV bvals1, bvals2;
-        if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
-          bvals1 = cellData->side_phys_basis1[i];
-          bvals2 = cellData->side_phys_basis2[i];
-        }
-        else {
+        //if (numElem == cellData->numElem && cellData->storeAll && !minimize_memory) {
+        //  bvals1 = cellData->side_phys_basis1[i];
+        //  bvals2 = cellData->side_phys_basis2[i];
+        //}
+        //else {
           bvals1 = DRV("basis",numElem,numb,numip,dimension);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-        }
+        //}
         FuncTools::HCURLtransformVALUE(bvals1, ijacInv, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                               cellData->basis_pointers[i].get());
@@ -2519,11 +2526,11 @@ void DiscretizationInterface::purgeMemory() {
   
   DOF.clear();
   side_info.clear();
-  
-  bool storeAll = settings->sublist("Solver").get<bool>("store all cell data",true);
-  if (storeAll) {
-    all_stkElems.clear();
-    block_stkElems.clear();
-  }
+}
+
+void DiscretizationInterface::purgeStkMemory() {
+
+  all_stkElems.clear();
+  block_stkElems.clear();
   
 }
