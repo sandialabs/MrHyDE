@@ -40,7 +40,7 @@
 // ************************************************************************
 // @HEADER
 
-/** \file   Intrepid2_HDIV_TRI_In_FEMDef.hpp
+/** \file   Intrepid2_HFACE_TRI_In_FEMDef.hpp
  \brief  Definition file for FEM basis functions of degree n for HFACE functions on TRI cells.
  \author Created by T. Wildey based on implementation by R. Kirby, P. Bochev, D. Ridzal and K. Peterson.
  Kokkorized by Kyungjoo Kim
