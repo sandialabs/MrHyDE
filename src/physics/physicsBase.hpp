@@ -29,19 +29,18 @@ namespace MrHyDE {
     
     virtual ~physicsbase() {};
     
-    // ========================================================================================
-    /* Constructor to set up the problem */
-    // ========================================================================================
     
+    /**
+     * Constructor to set up the problem 
+     */
     physicsbase(Teuchos::ParameterList & settings, const int & dimension_) {
       verbosity = settings.get<int>("verbosity",0);
     };
     
     
-    // ========================================================================================
-    // Define the functions for this module (not necessary, but probably need to be defined in all modules)
-    // ========================================================================================
-    
+    /**
+     * Define the functions for this module (not necessary, but probably need to be defined in all modules)
+     */
     virtual
     void defineFunctions(Teuchos::ParameterList & fs,
                          Teuchos::RCP<FunctionManager> & functionManager_) {
@@ -53,10 +52,9 @@ namespace MrHyDE {
       }
     };
     
-    // ========================================================================================
-    // The volumetric contributions to the residual
-    // ========================================================================================
-    
+    /**
+     * The volumetric contributions to the residual
+     */
     virtual
     void volumeResidual() {
       if (verbosity > 10) {
@@ -65,10 +63,9 @@ namespace MrHyDE {
       }
     };
     
-    // ========================================================================================
-    // The boundary contributions to the residual
-    // ========================================================================================
-    
+    /**
+     * The boundary contributions to the residual
+     */
     virtual
     void boundaryResidual() {
       if (verbosity > 10) {
@@ -77,10 +74,9 @@ namespace MrHyDE {
       }
     };
     
-    // ========================================================================================
-    // The edge (2D) and face (3D) contributions to the residual
-    // ========================================================================================
-    
+    /**
+     * The edge (2D) and face (3D) contributions to the residual
+     */
     virtual
     void faceResidual() {
       if (verbosity > 10) {
@@ -89,10 +85,9 @@ namespace MrHyDE {
       }
     };
     
-    // ========================================================================================
-    // The boundary/edge flux
-    // ========================================================================================
-    
+    /**
+     * The boundary/edge flux
+     */
     virtual
     void computeFlux() {
       if (verbosity > 10) {
@@ -149,7 +144,6 @@ namespace MrHyDE {
      * @param[in] spaceDim  The number of spatial dimensions.
      * @return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
      */
-    
     virtual std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim) {
       std::vector< std::vector<string> > integrandsNamesAndTypes;
       return integrandsNamesAndTypes;
@@ -161,7 +155,6 @@ namespace MrHyDE {
      *
      * This must be called after the postprocessing routine.
      */
-
     virtual void updateIntegratedQuantitiesDependents() {
       if (verbosity > 10) {
         std::cout << "*** Warning: physicsBase::updateIntegratedQuantitiesDependents() called!" << std::endl;

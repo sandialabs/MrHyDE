@@ -142,11 +142,11 @@ IF(MrHyDE_BUILD_DOXYGEN)
   MESSAGE("Processing Doxygen build")
   find_package(Doxygen)
   IF(DOXYGEN_FOUND)
+    MESSAGE(STATUS "Doxygen found")
+
     SET(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
     SET(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-
     configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
-    MESSAGE(STATUS "Doxygen found")
 
     # note the option ALL which allows to build the docs together with the application
     add_custom_target( doc_doxygen ALL

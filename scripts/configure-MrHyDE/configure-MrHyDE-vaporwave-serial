@@ -4,12 +4,9 @@
 # Machine type: linux workstation with GPU
 # Build type: serial
 
-# Modules used:
-#  1) sems-env                                     6) sems-hdf5/1.8.12/parallel                   11) sems-yaml_cpp/0.5.3/base
-#  2) sems-gcc/6.1.0                               7) sems-netcdf/4.4.1/exo_parallel              12) sems-zlib/1.2.8/base
-#  3) sems-openmpi/1.10.1                          8) sems-parmetis/4.0.3/64bit_parallel          13) sems-devpack-gcc/6.1.0
-#  4) sems-python/2.7.9                            9) sems-scotch/6.0.3/nopthread_64bit_parallel  14) sems-ninja_fortran/1.8.2
-#  5) sems-boost/1.63.0/base                      10) sems-superlu/5.2.1/base                     15) sems-cmake/3.12.2
+# Modules used (SEMS 2.0):
+#  1) sems-gcc/8.3.0      3) sems-ninja/1.10.1   5) sems-openmpi/1.10.7   7) sems-hdf5/1.10.7      9) sems-doxygen/1.8.20  11) sems-parallel-netcdf/1.12.1
+#  2) sems-cmake/3.21.1   4) sems-boost/1.69.0   6) sems-zlib/1.2.11      8) sems-yaml-cpp/0.6.2  10) sems-netcdf-c/4.7.3  12) sems-texlive/20200406
 
 EXTRA_ARGS=$@
 rm CMakeCache.txt
@@ -26,6 +23,7 @@ MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
 
 cmake \
   -G "Ninja" \
+  -D CMAKE_CXX_LINK_FLAGS="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
   -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
   -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
   -D MrHyDE_BUILD_DOXYGEN=true \
