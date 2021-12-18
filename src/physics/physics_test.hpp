@@ -16,10 +16,11 @@
 
 #include "physicsBase.hpp"
 
+
 namespace MrHyDE {
   
-  /*
-   * This class procedurally constructs an L^2 projection or Laplacian problem
+  /**
+   * \brief This class procedurally constructs an L^2 projection or Laplacian problem
    * based on inputs in the parameter list, and then dumps basis values and matrix entries
    * to standard output. 
    * 
@@ -44,6 +45,9 @@ namespace MrHyDE {
     
     ~physicsTest() {};
     
+    /**
+     * Constructor. Sets the discetization and operator according to the options provided in \p settings
+     */
     physicsTest(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
