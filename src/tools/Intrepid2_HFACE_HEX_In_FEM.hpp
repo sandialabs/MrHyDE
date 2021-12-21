@@ -41,7 +41,7 @@
 // @HEADER
 
 /** \file   Intrepid2_HFACE_HEX_In_FEM.hpp
- \brief  Header file for the Intrepid2::Basis_HFACES_HEX_In_FEM class.
+ \brief  Header file for the Intrepid2::Basis_HFACE_HEX_In_FEM class.
  \author Created by T. Wildey based on implementation by R. Kirby and P. Bochev and D. Ridzal and K. Petrson.
  Kokkorized by Kyungjoo Kim
  */
@@ -57,7 +57,7 @@ namespace Intrepid2 {
   namespace Impl {
     
     /**
-     \brief See Intrepid2::Basis_HDIV_HEX_In_FEM
+     \brief See Intrepid2::Basis_HFACE_HEX_In_FEM
      */
     class Basis_HFACE_HEX_In_FEM {
     public:
@@ -96,7 +96,7 @@ namespace Intrepid2 {
                 const EOperator operatorType );
       
       /**
-       \brief See Intrepid2::Basis_HDIV_HEX_In_FEM
+       \brief See Intrepid2::Basis_HFACE_HEX_In_FEM
        */
       template<typename outputValueViewType,
       typename inputPointViewType,
@@ -151,8 +151,8 @@ namespace Intrepid2 {
     };
   }
   
-  /** \class  Intrepid2::Basis_HDIV_HEX_In_FEM
-   \brief  Implementation of the default H(div)-compatible FEM basis on Quadrilateral cell
+  /** \class  Intrepid2::Basis_HFACE_HEX_In_FEM
+   \brief  Implementation of the default H(face)-compatible FEM basis on Quadrilateral cell
    */
   
   template<typename ExecSpaceType = void,
