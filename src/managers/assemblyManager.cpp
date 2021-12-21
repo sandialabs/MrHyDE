@@ -1156,6 +1156,12 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
 template<class Node>
 void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y) {
   
+  typedef typename Node::execution_space LA_exec;
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
+  
   auto x_kv = x->template getLocalView<LA_device>();
   auto x_slice = Kokkos::subview(x_kv, Kokkos::ALL(), 0);
   
@@ -1203,7 +1209,12 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
                   }
                   LO indi = cLIDs(e,off(i));
                   LO indj = cLIDs(e,off(j));
-                  y_slice(indi) += massval*x_slice(indj);
+                  if (use_atomics_) {
+                    Kokkos::atomic_add(&(y_slice(indi)), massval*x_slice(indj));
+                  }
+                  else {
+                    y_slice(indi) += massval*x_slice(indj);
+                  }
                 }
               }
             });
@@ -1222,7 +1233,12 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
                   }
                   LO indi = cLIDs(e,off(i));
                   LO indj = cLIDs(e,off(j));
-                  y_slice(indi) += massval*x_slice(indj);
+                  if (use_atomics_) {
+                    Kokkos::atomic_add(&(y_slice(indi)), massval*x_slice(indj));
+                  }
+                  else {
+                    y_slice(indi) += massval*x_slice(indj);
+                  }
                 }
               }
             });
@@ -1241,7 +1257,12 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
               for (int j=0; j<numDOF(var); j++ ) {
                 LO indi = cLIDs(elem,offsets(var,i));
                 LO indj = cLIDs(elem,offsets(var,j));
-                y_slice(indi) += curr_mass(elem,offsets(var,i),offsets(var,j))*x_slice(indj);
+                if (use_atomics_) {
+                  Kokkos::atomic_add(&(y_slice(indi)), curr_mass(elem,offsets(var,i),offsets(var,j))*x_slice(indj));
+                }
+                else {
+                  y_slice(indi) += curr_mass(elem,offsets(var,i),offsets(var,j))*x_slice(indj);
+                }
               }
             }
           }
