@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   discretizationInterface.hpp
+ \brief  Contains the interface to the discretization tools in Intrepid2 and the degree-of-freedom managers in Panzer.
+ \author Created by T. Wildey
+ */
+
 #ifndef DISCINTERFACE_H
 #define DISCINTERFACE_H
 
@@ -23,11 +28,10 @@
 #include "cellMetaData.hpp"
 
 namespace MrHyDE {
-  /*
-  void static discretizationHelp(const string & details) {
-    cout << "********** Help and Documentation for the Discretization Interface **********" << endl;
-  }
-  */
+  
+  /** \class  MrHyDE::DiscretizationInterface
+   \brief  Provides the interface to the functions and classes in the Trilinos packages (panzer, Intrepid2) that handle the discretizations and degrees-of-freedom.
+   */
   
   class DiscretizationInterface {
   public:

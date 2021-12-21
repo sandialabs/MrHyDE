@@ -1048,6 +1048,10 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   if (lump_mass || matrix_free) {
     compute_matrix = false;
   }
+  bool use_jacobi = true;
+  if (lump_mass) {
+    use_jacobi = false;
+  }
   
   typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_type local_matrix;
   local_matrix localMatrix;
@@ -1080,11 +1084,16 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
           for (int j=0; j<numDOF(n); j++) {
             row = offsets(n,j);
             rowIndex = LIDs(elem,row);
-            ScalarT val = 0.0;
             
-            for (int k=0; k<numDOF(n); k++) {
-              int col = offsets(n,k);
-              val += localmass(elem,row,col);
+            ScalarT val = 0.0;
+            if (use_jacobi) {
+              val = localmass(elem,row,row);
+            }
+            else {
+              for (int k=0; k<numDOF(n); k++) {
+                int col = offsets(n,k);
+                val += localmass(elem,row,col);
+              }
             }
             
             if (use_atomics_) {

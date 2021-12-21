@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   MirageTranslator.hpp
+ \brief  Reads in a Mirage/FEM-Cubed input file and fills in the appropriate fields in a Teuchos Parameter list to run the same problem in MrHyDE.
+ \author Created by T. Wildey
+ */
+
 #ifndef MIRAGETRANSLATOR_H
 #define MIRAGETRANSLATOR_H
 

@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   analysisManager.hpp
+ \brief  Creates the analysis manager which performs the high-level interface to the solution strategies, e.g, standard run, dry run, UQ, ROL-optimization.
+ \author Created by T. Wildey
+ */
+
 #ifndef MRHYDE_ANALYSIS_H
 #define MRHYDE_ANALYSIS_H
 
@@ -24,10 +29,9 @@ namespace MrHyDE {
   
   //////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////
-  /*
-   static void analysisHelp(const string & details) {
-   cout << "********** Help and Documentation for the Analysis Interface **********" << endl;
-   }
+  
+  /** \class  MrHyDE::AnalysisManager
+   \brief  Executes the simulation based on the user-provided analysis mode.
    */
   
   class AnalysisManager {

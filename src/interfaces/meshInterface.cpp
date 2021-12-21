@@ -14,8 +14,6 @@
 #include "meshInterface.hpp"
 #include "exodusII.h"
 
-//#include <boost/algorithm/string.hpp>
-
 using namespace MrHyDE;
 
 // ========================================================================================
@@ -509,7 +507,7 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
   
   if (settings->sublist("Mesh").get<bool>("have element data", false) ||
       settings->sublist("Mesh").get<bool>("have nodal data", false)) {
-    this->readMeshData();
+    this->readExodusData();
   }
   
   if (debug_level > 0) {
@@ -1350,13 +1348,11 @@ vector<string> MeshInterface::breakupList(const string & list, const string & de
 // Read in discretized data from an exodus mesh
 /////////////////////////////////////////////////////////////////////////////
 
-void MeshInterface::readMeshData() {
-  //Teuchos::RCP<const Tpetra::Map<LO, GO, SolverNode> > & LA_overlapped_map,
-                                 //vector<vector<Teuchos::RCP<cell> > > & cells) {
+void MeshInterface::readExodusData() {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Starting mesh::readMeshData ..." << endl;
+      cout << "**** Starting mesh::readExodusData ..." << endl;
     }
   }
   
@@ -1512,7 +1508,7 @@ void MeshInterface::readMeshData() {
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
-      cout << "**** Finished mesh::readMeshData" << endl;
+      cout << "**** Finished mesh::readExodusData" << endl;
     }
   }
   

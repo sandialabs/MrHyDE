@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   physicsInterface.hpp
+ \brief  Contains the interface to the MrHyDE-specific physics modules.
+ \author Created by T. Wildey
+ */
+
 #ifndef PHYSICSINTERFACE_H
 #define PHYSICSINTERFACE_H
 
@@ -25,49 +30,9 @@
 
 namespace MrHyDE {
   
-  /*
-  static void physicsHelp(const string & details) {
-    
-    if (details == "none") {
-      cout << "********** Help and Documentation for the Physics Interface **********" << endl;
-    }
-    
-     else if (details == "porousHDIV") {
-     porousHDIVHelp();
-     }
-     else if (details == "thermal") {
-     thermalHelp();
-     }
-     else if (details == "thermal_enthalpy") {
-     thermal_enthalpyHelp();
-     }
-     else if (details == "msphasefield") {
-     msphasefieldHelp();
-     }
-     else if (details == "stokes") {
-     stokesHelp();
-     }
-     else if (details == "navierstokes") {
-     navierstokesHelp();
-     }
-     else if (details == "linearelasticity") {
-     linearelasticityHelp();
-     }
-     else if (details == "helmholtz") {
-     helmholtzHelp();
-     }
-     else if (details == "maxwells_fp") {
-     maxwells_fpHelp();
-     }
-     else if (details == "shallowwater") {
-     shallowwaterHelp();
-     }
-     else {
-     cout << "Physics module help: unrecognized details: " << details << endl;
-     }
-     
-  }
-  */
+  /** \class  MrHyDE::PhysicsInterface
+   \brief  Interface to the MrHyDE-specific physics modules.  This is the only class that direcly interacts with the physics modules.
+   */
   
   class PhysicsInterface {
   public:

@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   analysisManager.hpp
+ \brief  Contains all of the assembly routines in MrHyDE.  Also creates the cells and the worksets.
+ \author Created by T. Wildey
+ */
+
 #ifndef ASSEMBLYMANAGER_H
 #define ASSEMBLYMANAGER_H
 
@@ -26,11 +31,10 @@
 #include "parameterManager.hpp"
 
 namespace MrHyDE {
-  /*
-  void static assemblyHelp(const std::string & details) {
-    cout << "********** Help and Documentation for the Assembly Manager **********" << endl;
-  }
-  */
+  
+  /** \class  MrHyDE::AssemblyManager
+   \brief  Provides the functionality for the MrHyDE-specific assembly routines for both implicit and explicit methods.
+   */
   
   template< class Node>
   class AssemblyManager {

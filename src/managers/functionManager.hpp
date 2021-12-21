@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   functionManager.hpp
+ \brief  Contains the function manager which handles all of the user-defined or physics-defined functions.
+ \author Created by T. Wildey
+ */
+
 #ifndef FUNCTION_MANAGER_H
 #define FUNCTION_MANAGER_H
 
@@ -23,7 +28,10 @@
 
 namespace MrHyDE {
   
-  
+  /** \class  MrHyDE::FunctionManager
+   \brief  Provides the functionality that allows the user (or physics modules) to define arbitrarily
+   complex functions without modifying the code.
+   */
   
   class FunctionManager {
   public:

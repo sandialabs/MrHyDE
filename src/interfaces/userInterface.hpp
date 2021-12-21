@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   physicsInterface.hpp
+ \brief  Contains the user interface to MrHyDE.
+ \author Created by T. Wildey
+ */
+
 #ifndef USERINTERFACE_H
 #define USERINTERFACE_H
 

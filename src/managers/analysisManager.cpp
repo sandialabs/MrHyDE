@@ -15,7 +15,6 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "uqManager.hpp"
-#include "CDBatchManager.hpp"
 #include "obj_milorol.hpp"
 #include "ROL_StdVector.hpp"
 //#include "obj_milorol_simopt.hpp"
@@ -743,7 +742,7 @@ void AnalysisManager::run() {
   } //ROL_SIMOPT
   else { // don't solve anything, but produce visualization
     std::cout << "Unknown analysis option: " << analysis_type << std::endl;
-    std::cout << "Valid and tested options: forward, forward+adjoint, UQ, ROL" << std::endl;
+    std::cout << "Valid and tested options: dry run, forward, forward+adjoint, UQ, ROL" << std::endl;
   }
   
   if (debug_level > 0) {

@@ -11,6 +11,12 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   meshInterface.hpp
+ \brief  Interface to the mesh objects, which includes a Panzer STK interface, and various functionality
+ for modifying and extracting data from meshes.
+ \author Created by T. Wildey
+ */
+
 #ifndef MESHINTERFACE_H
 #define MESHINTERFACE_H
 
@@ -32,21 +38,36 @@
 #include "boundaryCell.hpp"
 
 namespace MrHyDE {
-  /*
-  void static meshHelp(const string & details) {
-    cout << "********** Help and Documentation for the Mesh Interface **********" << endl;
-  }
-  */
+  
+  /** \class  MrHyDE::MeshInterface
+   \brief  Interface to the Trilinos packages (panzer, stk) that handle the mesh objects.
+   */
   
   class MeshInterface {
     
   public:
     
+    /**
+     * Default constructor
+     */
+    
     MeshInterface() {};
+    
+    /**
+     * Default destructor
+     */
     
     ~MeshInterface() {};
     
+    /**
+     * Standard constructor.  The mesh is still uninitialized after this function.  Need to call finalize to finish setting up the mesh.
+     */
+    
     MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, const Teuchos::RCP<MpiComm> & Commptr_);
+    
+    /**
+     * Constructor that reuses an existing MesfFactory and STK Interface.
+     */
     
     MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                   const Teuchos::RCP<MpiComm> & Commptr_,
@@ -56,15 +77,27 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * Thiis function uses the vriables defined in the physics interface to add fields to the mesh and complete the mesh construction.
+     */
+    
     void finalize(Teuchos::RCP<PhysicsInterface> & phys);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * This function perturbs the mesh nodes, as required for ALE methods.  Note that the basis functions and integration information will need to be recomputed if they have been stored.
+     */
+    
     DRV perturbMesh(const int & b, DRV & blocknodes);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * This function calls the functions associated with microstructure and sets the data in cells and boundary cells.
+     */
     
     void setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
                      vector<vector<Teuchos::RCP<BoundaryCell>>> & bcells);
@@ -72,43 +105,70 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * This function eads in a microstructure from a file and sets the data in the cells and boundary cells.
+     */
+    
     void importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
                         vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
     
-    //void importMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
-    
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    //void computeMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
-    //                     vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
-    
-    //void computeMeshData(vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+    /**
+     * This function uses Intrepid2 tools to determine the cell center for each of the elements in nodes.
+     */
     
     View_Sc2 getElementCenters(DRV nodes, topo_RCP & reftopo);
       
+    /**
+     * This function returns the nodes associated with a particular element on a particular block.
+     */
+    
     DRV getElemNodes(const int & block, const int & elemID);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /**
+     * This function takes a string containing a list of entries separated by a delmiter, and returns a vector of strings containing the entries.
+     *
+     * This is similar in functionality to boost split
+     */
+    
     vector<string> breakupList(const string & list, const string & delimiter);
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void readMeshData();
+    /**
+     * This function imports data from the Exodus mesh.
+     */
+    
+    void readExodusData();
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * Removes any unnecessary objects before the cells allocate storing the basis functions and before the solve phase.
+     * Only removes the Panzer_STK interface if visualization is not required.
+     *
+     * This function only gets called outside of this class in the driver/main.
+     */
+     
     void purgeMemory();
+    
+    /**
+     * Generate a new realization of the microstructue.
+     */
     
     View_Sc2 generateNewMicrostructure(int & randSeed);
 
+    /**
+     * Determine which grain contains each cell and boundary cell.
+     */
+    
     void importNewMicrostructure(int & randSeed, View_Sc2 seeds,
                                  vector<vector<Teuchos::RCP<cell> > > & cells,
                                  vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
@@ -117,10 +177,11 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     // Public data members
-    Teuchos::RCP<Teuchos::ParameterList>  settings;
-    Teuchos::RCP<MpiComm> Commptr;
-    Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory;
-    Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh, stk_optimization_mesh;
+    Teuchos::RCP<Teuchos::ParameterList>  settings; ///< RCP to the main MrHyDE parameter list
+    Teuchos::RCP<MpiComm> Commptr; ///< RCP to the MPIComm
+    Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory; ///< RCP to the Panzer STK Mesh Factory
+    Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh; ///< RCP to the Panzer STK Mesh
+    Teuchos::RCP<panzer_stk::STK_Interface> stk_optimization_mesh; ///< RCP to the Panzer STK Mesh used to visualize an optmization history.
     
     bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;

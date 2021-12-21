@@ -31,7 +31,7 @@
     <Parameter name="Transient order" type="int" value="2"/>
   </ParameterList>
   <ParameterList name="Postprocess Options">
-    <Parameter name="Exodus output" type="bool" value="false"/>
+    <Parameter name="Exodus output" type="bool" value="true"/>
     <Parameter name="Exodus output frequency" type="int" value="10"/>
     <Parameter name="Print timers" type="bool" value="true"/>
     <Parameter name="Stacked timer" type="bool" value="false"/>

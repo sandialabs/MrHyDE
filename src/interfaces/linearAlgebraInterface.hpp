@@ -11,6 +11,11 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
+/** \file   linearAlgebraInterface.hpp
+ \brief  Contains the interface to the linear algebra tools from Trilinos.
+ \author Created by T. Wildey
+ */
+
 #ifndef MRHYDE_LINEAR_ALGEBRA_H
 #define MRHYDE_LINEAR_ALGEBRA_H
 
@@ -35,11 +40,10 @@
 
 
 namespace MrHyDE {
-  /*
-  void static solverHelp(const string & details) {
-    cout << "********** Help and Documentation for the Solver Interface **********" << endl;
-  }
-  */
+  
+  /** \class  MrHyDE::SolverOptions
+   \brief  Stores the specifications for a given linear solver.
+   */
   
   // ========================================================================================
   // Constructor for linear solver options class
@@ -91,6 +95,10 @@ namespace MrHyDE {
   // ========================================================================================
   // Main Interface
   // ========================================================================================
+  
+  /** \class  MrHyDE::LinearAlgebraInterface
+   \brief  Interface to Tpetra, Belos, MueLu and Amesos2 for various linear algebra routines.
+   */
   
   template<class Node>
   class LinearAlgebraInterface {
