@@ -3227,15 +3227,15 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
     std::string blockID = blocknames[b];
     vector<size_t> myElements = disc->myElements[b];
     
-    for (size_t set=0; set<setnames.size(); ++set) {
+    if (myElements.size() > 0) {
+        
+      for (size_t set=0; set<setnames.size(); ++set) {
     
-      assembler->updatePhysicsSet(set);
+        assembler->updatePhysicsSet(set);
       
-      vector<string> vartypes = phys->types[set][b];
-      vector<int> varorders = phys->orders[set][b];
-      int numVars = phys->numVars[set][b]; // probably redundant
-    
-      if (myElements.size() > 0) {
+        vector<string> vartypes = phys->types[set][b];
+        vector<int> varorders = phys->orders[set][b];
+        int numVars = phys->numVars[set][b]; // probably redundant
         
         for (int n = 0; n<numVars; n++) {
           
