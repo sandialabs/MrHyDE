@@ -199,8 +199,12 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
     if (num_pm > 0) {
       
       for (size_t i=0; i<s.length(); i++) {
+        
         if (s[i] == ' ') {
           // do nothing ... skip spaces
+        }
+        else if (s[i] == '=') {
+          // do nothing ... skip equals (from lte, gte)
         }
         else if (s[i] == '('){
           paren += 1;
@@ -282,7 +286,10 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
       string currbranch = "";
       string currop = "";
       for (size_t i=0; i<s.length(); i++) {
-        if (s[i] == '('){
+        if (s[i] == ' ') {
+          // do nothing
+        }
+        else if (s[i] == '('){
           paren += 1;
           currbranch += s[i];
         }
@@ -342,7 +349,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             branches[index].dep_ops.push_back(currop);
           }
           currbranch = "";
-          currop = "lt";
+          if (s[i+1] == '=') {
+            currop = "lte";
+            ++i;
+          }
+          else {
+            currop = "lt";
+          }
         }
         else if ( paren == 0 && s[i] == '>') {
           bool found = false;
@@ -360,7 +373,14 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             branches[index].dep_ops.push_back(currop);
           }
           currbranch = "";
-          currop = "gt";
+          
+          if (s[i+1] == '=') {
+            currop = "gte";
+            ++i;
+          }
+          else {
+            currop = "gt";
+          }
         }
         else {
           currbranch += s[i];
@@ -539,11 +559,42 @@ bool Interpreter::isOperator(vector<Branch> & branches, size_t & index, vector<s
   }
   
   if (found) {
-    Branch nbranch = Branch(argument);
-    branches.push_back(nbranch);
-    branches[index].dep_list.push_back(branches.size()-1);
-    branches[index].dep_ops.push_back(oper);
-    branches[index].isDecomposed = true;
+    bool has_comma = false;
+    size_t comma_ind = 0;
+    for (size_t i=0; i<argument.length()-1; ++i) {
+      if (argument[i] == ',') {
+        has_comma = true;
+        comma_ind = i;
+      }
+    }
+    if (has_comma) {
+      string argument1 = "";
+      for (size_t i=0; i<comma_ind; i++) {
+        argument1 += argument[i];
+      }
+      string argument2 = "";
+      for (size_t i=comma_ind+1; i<argument.length(); i++) {
+        argument2 += argument[i];
+      }
+      
+      Branch nbranch1 = Branch(argument1);
+      branches.push_back(nbranch1);
+      branches[index].dep_list.push_back(branches.size()-1);
+      branches[index].dep_ops.push_back("");
+      
+      Branch nbranch2 = Branch(argument2);
+      branches.push_back(nbranch2);
+      branches[index].dep_list.push_back(branches.size()-1);
+      branches[index].dep_ops.push_back(oper);
+      branches[index].isDecomposed = true;
+    }
+    else {
+      Branch nbranch = Branch(argument);
+      branches.push_back(nbranch);
+      branches[index].dep_list.push_back(branches.size()-1);
+      branches[index].dep_ops.push_back(oper);
+      branches[index].isDecomposed = true;
+    }
   }
   
   

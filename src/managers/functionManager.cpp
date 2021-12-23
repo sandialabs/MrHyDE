@@ -23,7 +23,7 @@ FunctionManager::FunctionManager() {
   numip_side = 1;
   
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","sqrt"};
+  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
   
   interpreter = Teuchos::rcp( new Interpreter());
   
@@ -38,7 +38,7 @@ blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_)
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
   known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","sqrt"};
+  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
   
   interpreter = Teuchos::rcp( new Interpreter());
   
@@ -825,8 +825,44 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
-    parallel_for("funcman evaluate max",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+  else if (op == "max") {
+    parallel_for("funcman evaluate max",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (unsigned int n=0; n<dim1; n++) {
+        if (tdata(e,n) > data(e,n)) {
+          data(e,n) = tdata(e,n);
+        }
+      }
+    });
+  }
+  else if (op == "min") {
+    parallel_for("funcman evaluate min",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (unsigned int n=0; n<dim1; n++) {
+        if (tdata(e,n) < data(e,n)) {
+          data(e,n) = tdata(e,n);
+        }
+      }
+    });
+  }
+  else if (op == "mean") {
+    parallel_for("funcman evaluate mean",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (unsigned int n=0; n<dim1; n++) {
+        data(e,n) = 0.5*data(e,n) + 0.5*tdata(e,n);
+      }
+    });
+  }
+  else if (op == "emax") { // maximum over rows ... usually corr. to max over element/face at ip
+    parallel_for("funcman evaluate emax",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       data(e,0) = tdata(e,0);
       for (unsigned int n=0; n<dim1; n++) {
@@ -839,8 +875,10 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
-    parallel_for("funcman evaluate min",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+  else if (op == "emin") { // minimum over rows ... usually corr. to min over element/face at ip
+    parallel_for("funcman evaluate emin",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       data(e,0) = tdata(e,0);
       for (unsigned int n=0; n<dim1; n++) {
@@ -853,8 +891,10 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
-    parallel_for("funcman evaluate mean",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+  else if (op == "emean") { // mean over rows ... usually corr. to mean over element/face
+    parallel_for("funcman evaluate emean",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = min(data.extent(1),tdata.extent(1));
       ScalarT scale = (ScalarT)dim1;
       data(e,0) = tdata(e,0)/scale;
@@ -882,19 +922,22 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  /*else if (op == "lte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) <= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "lte") { // TMW: commenting this for now
+    parallel_for("funcman evaluate lt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) <= tdata(elem,pt)) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
   else if (op == "gt") {
     parallel_for("funcman evaluate gt",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
@@ -911,19 +954,22 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  /*else if (op == "gte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) >= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "gte") { // TMW: commenting this for now
+    parallel_for("funcman evaluate gt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) >= tdata(elem,pt)) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
   else if (op == "sqrt") {
     parallel_for("funcman evaluate sqrt",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
@@ -1093,8 +1139,42 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
       }
     });
   }
-  else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
+  else if (op == "max") {
     parallel_for("funcman evaluate max",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      for (unsigned int n=0; n<dim1; n++) {
+        if (tdata(pIndex) > data(e,n)) {
+          data(e,n) = tdata(pIndex);
+        }
+      }
+    });
+  }
+  else if (op == "min") {
+    parallel_for("funcman evaluate min",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      for (unsigned int n=0; n<dim1; n++) { // copy min value at all ip
+        if (tdata(pIndex) < data(e,n)) {
+          data(e,n) = tdata(pIndex);
+        }
+      }
+    });
+  }
+  else if (op == "mean") {
+    parallel_for("funcman evaluate mean",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
+        data(e,n) = 0.5*data(e,n) + 0.5*tdata(pIndex);
+      }
+    });
+  }
+  else if (op == "emax") { // maximum over rows ... usually corr. to max over element/face at ip
+    parallel_for("funcman evaluate emax",
                  RangePolicy<AssemblyExec>(0,dim0),
                  KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = data.extent(1);
@@ -1104,8 +1184,10 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
       }
     });
   }
-  else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
-    parallel_for("funcman evaluate min",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+  else if (op == "emin") { // minimum over rows ... usually corr. to min over element/face at ip
+    parallel_for("funcman evaluate emin",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = data.extent(1);
       data(e,0) = tdata(pIndex);
       for (unsigned int n=0; n<dim1; n++) { // copy min value at all ip
@@ -1113,8 +1195,10 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
       }
     });
   }
-  else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
-    parallel_for("funcman evaluate mean",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+  else if (op == "emean") { // mean over rows ... usually corr. to mean over element/face
+    parallel_for("funcman evaluate emean",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = data.extent(1);
       data(e,0) = tdata(pIndex);
       for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
@@ -1138,19 +1222,22 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
       }
     });
   }
-  /*else if (op == "lte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) <= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "lte") { // TMW: commenting this for now
+    parallel_for("funcman evaluate lt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) <= tdata(pIndex)) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
   else if (op == "gt") {
     parallel_for("funcman evaluate gt",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
@@ -1167,19 +1254,22 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
       }
     });
   }
-  /*else if (op == "gte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) >= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "gte") { // TMW: commenting this for now
+    parallel_for("funcman evaluate gt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) >= tdata(pIndex)) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
   
 }
 
@@ -1333,8 +1423,41 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
       }
     });
   }
-  else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
+  else if (op == "max") {
     parallel_for("funcman evaluate max",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      for (unsigned int n=0; n<dim1; n++) {
+        if (tdata > data(e,n)) {
+          data(e,n) = tdata;
+        }
+      }
+    });
+  }
+  else if (op == "min") {
+    parallel_for("funcman evaluate min",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      for (unsigned int n=0; n<dim1; n++) { // copy min value at all ip
+        if (tdata < data(e,n)) {
+          data(e,n) = tdata;
+        }}
+    });
+  }
+  else if (op == "mean") {
+    parallel_for("funcman evaluate mean",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
+      size_t dim1 = data.extent(1);
+      for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
+        data(e,n) = 0.5*data(e,n) + 0.5*tdata;
+      }
+    });
+  }
+  else if (op == "emax") { // maximum over rows ... usually corr. to max over element/face at ip
+    parallel_for("funcman evaluate emax",
                  RangePolicy<AssemblyExec>(0,dim0),
                  KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = data.extent(1);
@@ -1344,8 +1467,10 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
       }
     });
   }
-  else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
-    parallel_for("funcman evaluate min",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+  else if (op == "emin") { // minimum over rows ... usually corr. to min over element/face at ip
+    parallel_for("funcman evaluate emin",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = data.extent(1);
       data(e,0) = tdata;
       for (unsigned int n=0; n<dim1; n++) { // copy min value at all ip
@@ -1353,8 +1478,10 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
       }
     });
   }
-  else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
-    parallel_for("funcman evaluate mean",RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
+  else if (op == "emean") { // mean over rows ... usually corr. to mean over element/face
+    parallel_for("funcman evaluate emean",
+                 RangePolicy<AssemblyExec>(0,dim0),
+                 KOKKOS_LAMBDA (const int e ) {
       size_t dim1 = data.extent(1);
       data(e,0) = tdata;
       for (unsigned int n=0; n<dim1; n++) { // copy max value at all ip
@@ -1378,19 +1505,22 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
       }
     });
   }
-  /*else if (op == "lte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) <= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "lte") { // TMW: commenting this for now
+    parallel_for("funcman evaluate lt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) <= tdata) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
   else if (op == "gt") {
     parallel_for("funcman evaluate gt",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
@@ -1407,19 +1537,22 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
       }
     });
   }
-  /*else if (op == "gte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) >= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "gte") { // TMW: commenting this for now
+    parallel_for("funcman evaluate gt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if (data(elem,pt) >= tdata) {
+          data(elem,pt) = 1.0;
+        }
+        else {
+          data(elem,pt) = 0.0;
+        }
+      }
+    });
+  }
   
 }
 
@@ -1475,13 +1608,22 @@ void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
       data = tdata;
     }
   }
-  else if (op == "max") { // maximum over rows ... usually corr. to max over element/face at ip
+  else if (op == "max") {
+    data = max(data,tdata);
+  }
+  else if (op == "min") {
+    data = min(data,tdata);
+  }
+  else if (op == "mean") {
+    data = 0.5*data+0.5*tdata;
+  }
+  else if (op == "emax") { // maximum over rows ... usually corr. to max over element/face at ip
     data = tdata;
   }
-  else if (op == "min") { // minimum over rows ... usually corr. to min over element/face at ip
+  else if (op == "emin") { // minimum over rows ... usually corr. to min over element/face at ip
     data = tdata;
   }
-  else if (op == "mean") { // mean over rows ... usually corr. to mean over element/face
+  else if (op == "emean") { // mean over rows ... usually corr. to mean over element/face
     data = tdata;
   }
   else if (op == "lt") {
@@ -1492,19 +1634,14 @@ void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
       data = 0.0;
     }
   }
-  /*else if (op == "lte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) <= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "lte") { // TMW: commenting this for now
+    if (data <= tdata) {
+      data = 1.0;
+    }
+    else {
+      data = 0.0;
+    }
+  }
   else if (op == "gt") {
     if (data > tdata) {
       data = 1.0;
@@ -1513,19 +1650,14 @@ void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
       data = 0.0;
     }
   }
-  /*else if (op == "gte") { // TMW: commenting this for now
-   parallel_for(RangePolicy<AssemblyExec>(0,dim0), KOKKOS_LAMBDA (const int e ) {
-   size_t dim1 = min(data.extent(1),tdata.extent(1));
-   for (unsigned int n=0; n<dim1; n++) {
-   if (data(e,n) >= tdata(e,n)) {
-   data(e,n) = 1.0;
-   }
-   else {
-   data(e,n) = 0.0;
-   }
-   }
-   });
-   }*/
+  else if (op == "gte") { // TMW: commenting this for now
+    if (data >= tdata) {
+      data = 1.0;
+    }
+    else {
+      data = 0.0;
+    }
+  }
   
 }
 

@@ -3,7 +3,7 @@
 #include "preferences.hpp"
 #include "functionManager.hpp"
 #include "workset.hpp"
-#include "discretizationInterface.hpp"
+//#include "discretizationInterface.hpp"
 
 #include <Kokkos_Random.hpp>
 
@@ -19,52 +19,38 @@ int main(int argc, char * argv[]) {
 
   {
     //----------------------------------------------------------------------
-    // Set up a dummy workset just to test interplay between function manager and workset
+    // Setup
     //----------------------------------------------------------------------
     
-    Teuchos::RCP<DiscretizationInterface> disc = Teuchos::rcp( new DiscretizationInterface() );
+    // Set up a dummy workset just to test interplay between function manager and workset
+    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset() );
     
-    topo_RCP cellTopo = Teuchos::rcp( new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() ) );
-    topo_RCP sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() ));
-    
-    vector<basis_RCP> basis = {Teuchos::rcp(new Intrepid2::Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space, double, double>() )};
-    int quadorder = 2;
+    // Define some parameters
     int numElem = 10;
-    vector<size_t> numvars(1,5);
     vector<string> variables = {"a","b","c","d","p"};
-    vector<string> aux_variables;
-    vector<string> param_vars;
-    
-    vector<int> cellinfo = {2,1,numElem};
-    DRV ip, wts, sip, swts;
-    
-    disc->getQuadrature(cellTopo, quadorder, ip, wts);
-    disc->getQuadrature(sideTopo, quadorder, sip, swts);
-    int numip = ip.extent(0);
-    cellinfo.push_back(ip.extent(0));
-    cellinfo.push_back(sip.extent(0));
+    vector<string> scalars = {"x","y","z"};
+    int numip = 4;
     vector<string> btypes = {"HGRAD"};
-    vector<Kokkos::View<string**,HostDevice> > bcs;
-    bcs.push_back(Kokkos::View<string**,HostDevice>("bcs",1,1));
-    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, numvars, false,
-                                                            btypes, basis, basis, cellTopo) );
-    
     vector<int> usebasis = {0,0,0,0,0};
+
+    // Set necessary parameters in workset
     wkset->usebasis = usebasis;
-    wkset->varlist = variables;
-    wkset->set_var_bcs = bcs;
-    
-    wkset->createSolutionFields();
-    
+    wkset->maxElem = numElem;
+    wkset->numip = numip;
+    wkset->isInitialized = true;
+    wkset->addSolutionFields(variables, btypes, usebasis);
+    wkset->addScalarFields(scalars);
+
+    // Create a function manager
     Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
-    vector<string> parameters;
-    vector<string> disc_parameters;
-    
-    functionManager->setupLists(parameters, disc_parameters);
-    
     functionManager->wkset = wkset;
     
-    View_AD4 sol("sol",numElem,numvars[0],numip,1);
+    //----------------------------------------------------------------------
+    // Fill in some data
+    //----------------------------------------------------------------------
+    
+    // Set the solution fields in the workset
+    View_AD4 sol("sol", numElem, variables.size(), numip, 1);
     vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2};
     
     // This won't actually work on a GPU
@@ -80,6 +66,7 @@ int main(int argc, char * argv[]) {
     
     wkset->setSolution(sol);
     
+    // Set the scalar fields in the workset
     View_Sc2 xip("int pts",numElem,numip);
     View_Sc2 yip("int pts",numElem,numip);
     Kokkos::Random_XorShift64_Pool<> rand_pool(1979);
@@ -96,11 +83,11 @@ int main(int argc, char * argv[]) {
     vector<string> ref_names, ref_funcs;
     vector<View_AD2> ref_vals;
     
-    auto a = wkset->getData("a");
-    auto b = wkset->getData("b");
-    auto c = wkset->getData("c");
-    auto x = wkset->getDataSc("x");
-    auto y = wkset->getDataSc("y");
+    auto a = wkset->getSolutionField("a");
+    auto b = wkset->getSolutionField("b");
+    auto c = wkset->getSolutionField("c");
+    auto x = wkset->getScalarField("x");
+    auto y = wkset->getScalarField("y");
     
     {
       string name = "test1";
@@ -331,7 +318,9 @@ int main(int argc, char * argv[]) {
                    RangePolicy<AssemblyExec>(0,sol.extent(0)),
                    KOKKOS_LAMBDA (const size_type elem ) {
         for (size_type pt=0; pt<sol.extent(2); ++pt) {
-          ref(elem,pt) = a(elem,pt) <= b(elem,pt);
+          if (a(elem,pt) <= b(elem,pt)) {
+            ref(elem,pt) = 1.0;
+          }
         }
       });
       ref_names.push_back(name);
@@ -343,7 +332,6 @@ int main(int argc, char * argv[]) {
     // Make sure everything is defined properly and setup decompositions
     //----------------------------------------------------------------------
     
-    //functionManager->validateFunctions();
     functionManager->decomposeFunctions();
     functionManager->printFunctions();
     
@@ -353,6 +341,7 @@ int main(int argc, char * argv[]) {
         cout << functionManager->forests[0].trees[f].branches[0].data_Sc << endl;
       }
     }
+    
     //----------------------------------------------------------------------
     // Evaluate the functions and check against ref solutions
     //----------------------------------------------------------------------

@@ -47,9 +47,13 @@ namespace MrHyDE {
     
     void createSolutionFields();
     
-    //void addSolutionFields(vector<string> & names, vector<size_t> & set_indices,
-    //                       vector<string> & types);
+    void addSolutionFields(vector<string> & names, vector<string> & types, vector<int> & basis_indices);
     
+    void addSolutionField(string & var, size_t & set_index,
+                          size_t & var_index, string & basistype, string & soltype);
+
+    void addScalarFields(vector<string> & fields);
+      
     ////////////////////////////////////////////////////////////////////////////////////
     // Reset solution to zero
     ////////////////////////////////////////////////////////////////////////////////////

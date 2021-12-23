@@ -141,6 +141,8 @@ void workset::createSolutionFields() {
   res = View_AD2("residual",numElem, maxRes);
   
   size_t uprog = 0;
+  string soltype = "solution";
+  
   for (size_t set=0; set<numSets; ++set) {
     
     vector<size_t> set_uindex;
@@ -154,7 +156,6 @@ void workset::createSolutionFields() {
       
       int numb = basis_pointers[bind]->getCardinality();
       View_AD2 newsol("seeded uvals",numElem, numb);
-      //set_uvals[i] = newsol;
       uvals[uprog] = newsol;
       if (isTransient) {
         View_AD2 newtsol("seeded uvals",numElem, numb);
@@ -165,81 +166,27 @@ void workset::createSolutionFields() {
       
       uprog++;
       
+      this->addSolutionField(var, set, i, basis_types[bind], soltype);
+      
       if (basis_types[bind].substr(0,5) == "HGRAD") {
         set_vars_HGRAD.push_back(i);
         set_varlist_HGRAD.push_back(var);
-        
-        soln_fields.push_back(SolutionField(var,set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[x]",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[y]",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[z]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+" side",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[x] side",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[y] side",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[z] side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+" point",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[x] point",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[y] point",set,"solution",i));
-        soln_fields.push_back(SolutionField("grad("+var+")[z] point",set,"solution",i));
-      
       }
       else if (basis_types[bind].substr(0,4) == "HDIV" ) {
         set_vars_HDIV.push_back(i);
         set_varlist_HDIV.push_back(var);
-        
-        soln_fields.push_back(SolutionField(var+"[x]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[y]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[z]",set,"solution",i));
-        soln_fields.push_back(SolutionField("div("+var+")",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t[x]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t[y]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t[z]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[x] side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[y] side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[z] side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[x] point",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[y] point",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[z] point",set,"solution",i));
-        
       }
       else if (basis_types[bind].substr(0,4) == "HVOL") {
         set_vars_HVOL.push_back(i);
         set_varlist_HVOL.push_back(var);
-        
-        soln_fields.push_back(SolutionField(var,set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+" side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+" point",set,"solution",i));
-        
       }
       else if (basis_types[bind].substr(0,5) == "HCURL") {
         set_vars_HCURL.push_back(i);
         set_varlist_HCURL.push_back(var);
-        
-        soln_fields.push_back(SolutionField(var+"[x]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[y]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[z]",set,"solution",i));
-        soln_fields.push_back(SolutionField("curl("+var+")[x]",set,"solution",i));
-        soln_fields.push_back(SolutionField("curl("+var+")[y]",set,"solution",i));
-        soln_fields.push_back(SolutionField("curl("+var+")[z]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t[x]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t[y]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"_t[z]",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[x] side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[y] side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[z] side",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[x] point",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[y] point",set,"solution",i));
-        soln_fields.push_back(SolutionField(var+"[z] point",set,"solution",i));
-        
       }
       else if (basis_types[bind].substr(0,5) == "HFACE") {
         set_vars_HFACE.push_back(i);
         set_varlist_HFACE.push_back(var);
-        
-        soln_fields.push_back(SolutionField(var+" side",set,"solution",i));
-        
       }
     }
     uvals_index.push_back(set_uindex);
@@ -256,6 +203,8 @@ void workset::createSolutionFields() {
     
   }
   
+  soltype = "param";
+  
   for (size_t i=0; i<paramusebasis.size(); i++) {
     size_t set = 0;
     int bind = paramusebasis[i];
@@ -264,90 +213,174 @@ void workset::createSolutionFields() {
     View_AD2 newpsol("seeded uvals",numElem, numb);
     pvals.push_back(newpsol);
     
+    this->addSolutionField(var, set, i, basis_types[bind], soltype);
+    
     if (basis_types[bind].substr(0,5) == "HGRAD") {
       paramvars_HGRAD.push_back(i);
       paramvarlist_HGRAD.push_back(var);
-      
-      soln_fields.push_back(SolutionField(var,set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[x]",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[y]",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[z]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t",set,"param",i));
-      soln_fields.push_back(SolutionField(var+" side",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[x] side",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[y] side",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[z] side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+" point",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[x] point",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[y] point",set,"param",i));
-      soln_fields.push_back(SolutionField("grad("+var+")[z] point",set,"param",i));
-      
     }
     else if (basis_types[bind].substr(0,4) == "HDIV") {
       paramvars_HDIV.push_back(i);
       paramvarlist_HDIV.push_back(var);
-      
-      soln_fields.push_back(SolutionField(var+"[x]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[y]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[z]",set,"param",i));
-      soln_fields.push_back(SolutionField("div("+var+")",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t[x]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t[y]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t[z]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[x] side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[y] side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[z] side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[x] point",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[y] point",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[z] point",set,"param",i));
-      
     }
     else if (basis_types[bind].substr(0,4) == "HVOL") {
       paramvars_HVOL.push_back(i);
       paramvarlist_HVOL.push_back(var);
-      
-      soln_fields.push_back(SolutionField(var,set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t",set,"param",i));
-      soln_fields.push_back(SolutionField(var+" side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+" point",set,"param",i));
-      
     }
     else if (basis_types[bind].substr(0,5) == "HCURL") {
       paramvars_HCURL.push_back(i);
       paramvarlist_HCURL.push_back(var);
-      
-      soln_fields.push_back(SolutionField(var+"[x]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[y]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[z]",set,"param",i));
-      soln_fields.push_back(SolutionField("curl("+var+")[x]",set,"param",i));
-      soln_fields.push_back(SolutionField("curl("+var+")[y]",set,"param",i));
-      soln_fields.push_back(SolutionField("curl("+var+")[z]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t[x]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t[y]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"_t[z]",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[x] side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[y] side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[z] side",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[x] point",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[y] point",set,"param",i));
-      soln_fields.push_back(SolutionField(var+"[z] point",set,"param",i));
-      
     }
     else if (basis_types[bind].substr(0,5) == "HFACE") {
       paramvars_HFACE.push_back(i);
       paramvarlist_HFACE.push_back(var);
-      
-      soln_fields.push_back(SolutionField(var+" side",set,"param",i));
-      
     }
   }
 }
 
-//void workset::addSolutionFields(vector<string> & vars, vector<size_t> set_indices,
-//                                vector<string> & types) {
-  //soln_fields.push_back(SolutionField(var+"_t",set,"solution",i,"HGRAD",bind,"time",0,0,numip,false,false));
-  //soln_fields.push_back(SolutionField(var+" side",set,"solution",i,"HGRAD",bind,"",0,0,numsideip,true,false));
-//}
+////////////////////////////////////////////////////////////////////////////////////
+// Add solution fields
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::addSolutionFields(vector<string> & vars, vector<string> & types, vector<int> & basis_indices) {
+  
+  vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
+  vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
+  
+  for (size_t i=0; i<vars.size(); ++i) {
+    size_t set = 0;
+    if (set_usebasis.size() == 0) {
+      vector<int> cusebasis;
+      set_usebasis.push_back(cusebasis);
+    }
+    size_t varind = set_usebasis[set].size();
+    string soltype = "solution";
+    int bind = basis_indices[i];
+    string type = types[bind];
+    string var = vars[i];
+    
+    this->addSolutionField(var, set, varind, type, soltype);
+    set_usebasis[set].push_back(basis_indices[i]);
+    
+    if (type.substr(0,5) == "HGRAD") {
+      set_vars_HGRAD.push_back(i);
+      set_varlist_HGRAD.push_back(var);
+    }
+    else if (type.substr(0,4) == "HDIV" ) {
+      set_vars_HDIV.push_back(i);
+      set_varlist_HDIV.push_back(var);
+    }
+    else if (type.substr(0,4) == "HVOL") {
+      set_vars_HVOL.push_back(i);
+      set_varlist_HVOL.push_back(var);
+    }
+    else if (type.substr(0,5) == "HCURL") {
+      set_vars_HCURL.push_back(i);
+      set_varlist_HCURL.push_back(var);
+    }
+    else if (type.substr(0,5) == "HFACE") {
+      set_vars_HFACE.push_back(i);
+      set_varlist_HFACE.push_back(var);
+    }
+  }
+  
+  vars_HGRAD.push_back(set_vars_HGRAD);
+  vars_HVOL.push_back(set_vars_HVOL);
+  vars_HDIV.push_back(set_vars_HDIV);
+  vars_HCURL.push_back(set_vars_HCURL);
+  vars_HFACE.push_back(set_vars_HFACE);
+  varlist_HGRAD.push_back(set_varlist_HGRAD);
+  varlist_HVOL.push_back(set_varlist_HVOL);
+  varlist_HDIV.push_back(set_varlist_HDIV);
+  varlist_HCURL.push_back(set_varlist_HCURL);
+  varlist_HFACE.push_back(set_varlist_HFACE);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+// Add solution fields
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::addSolutionField(string & var, size_t & set_index,
+                               size_t & var_index, string & basistype, string & soltype) {
+  
+  if (basistype.substr(0,5) == "HGRAD") {
+    
+    soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+" side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[x] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[y] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[z] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+" point", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[x] point", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[y] point", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("grad("+var+")[z] point", set_index, soltype, var_index));
+  
+  }
+  else if (basistype.substr(0,4) == "HDIV" ) {
+    
+    soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("div("+var+")", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[x] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[y] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[z] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[x] point", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[y] point", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[z] point", set_index, soltype, var_index));
+    
+  }
+  else if (basistype.substr(0,4) == "HVOL") {
+    
+    soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+" side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+" point", set_index, soltype, var_index));
+    
+  }
+  else if (basistype.substr(0,5) == "HCURL") {
+    
+    soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("curl("+var+")[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("curl("+var+")[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField("curl("+var+")[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"_t[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[x] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[y] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[z] side", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[x] point", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[y] point", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField(var+"[z] point", set_index, soltype, var_index));
+    
+  }
+  else if (basistype.substr(0,5) == "HFACE") {
+    
+    soln_fields.push_back(SolutionField(var+" side", set_index, soltype, var_index));
+    
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+// Add scalar fields
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::addScalarFields(vector<string> & fields) {
+  for (size_t i=0; i<fields.size(); ++i) {
+    scalar_fields.push_back(ScalarField(fields[i]));
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Reset
@@ -1171,6 +1204,7 @@ View_AD2 workset::findData(const string & label) {
     this->checkDataAllocation(ind);
   }
   outdata = soln_fields[ind].data;
+  soln_fields[ind].isUpdated = true;
   
   return outdata;
   

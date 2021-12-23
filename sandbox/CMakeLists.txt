@@ -44,7 +44,6 @@ ADD_EXECUTABLE(test_functions
 test_functions.cpp
 ../src/tools/workset.cpp
 ../src/tools/interpreter.cpp
-../src/interfaces/discretizationInterface.cpp 
 ../src/managers/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
