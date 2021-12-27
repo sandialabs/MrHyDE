@@ -73,6 +73,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   useAbsoluteTOL = settings->sublist("Solver").get<bool>("use absolute TOL",false);
   allowBacktracking = settings->sublist("Solver").get<bool>("allow backtracking",true);
   
+  maxTimeStepCuts = settings->sublist("Solver").get<int>("maximum time step cuts",5);
+  amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
+  
   ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
   BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
   if (BDForder>1) {
@@ -1198,9 +1201,10 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     int stepProg = 0;
     obj = 0.0;
     int numCuts = 0;
-    int maxCuts = 5; // TMW: make this a user-defined input
+    int maxCuts = maxTimeStepCuts; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
     bool write_this_step = false;
+    double ampMax = amplification_factor; // for exlicit methods, maximum applification allowed in a time step
     
     vector<vector_RCP> u_prev, u_stage;
     for (size_t set=0; set<initial.size(); ++set) {
@@ -1246,7 +1250,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
             ScalarT gmax = 0.0;
             Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
-            if (Comm->getRank() == 0 && verbosity>0) {
+            if (Comm->getRank() == 0 && verbosity > 10) {
               cout << "***** Multiscale Load Balancing Factor " << gmax/gmin <<  endl;
             }
           }
@@ -1274,7 +1278,24 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             assembler->updateStageSoln(set); // moves the stage solution into u_stage (avoids mem transfer)
             
           }
-          //assembler->resetPrevSoln(set); //
+          
+          if (fully_explicit) {
+            {
+              Teuchos::TimeMonitor localtimer(*normLAtimer);
+              Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
+              Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> uprevnorm(1);
+              
+              u[set]->normInf(unorm);
+              u_prev[set]->normInf(uprevnorm);
+              
+              if (uprevnorm[0] > 1.0e-100) {
+                if (unorm[0]/uprevnorm[0] > ampMax) {
+                  status += 1;
+                }
+              }
+              
+            }
+          }
         }
       }
       
@@ -1297,14 +1318,12 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         deltat *= 0.5;
         numCuts += 1;
         for (size_t set=0; set<u.size(); ++set) {
-          bool fnd = postproc->soln[set]->extract(u[set], current_time);
-          if (!fnd) {
-            // throw error
-          }
+          assembler->revertSoln(set);
+          u[set]->assign(*(u_prev[set]));
         }
         if (Comm->getRank() == 0 && verbosity > 0) {
           cout << endl << endl << "*******************************************************" << endl;
-          cout << endl << "**** Cutting Time Step " << endl;
+          cout << endl << "**** Cutting time step to " << deltat << endl;
           cout << "**** Current time is " << current_time << endl << endl;
           cout << "*******************************************************" << endl << endl << endl;
         }

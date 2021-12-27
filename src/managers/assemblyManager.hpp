@@ -167,6 +167,8 @@ namespace MrHyDE {
     
     void resetPrevSoln(const size_t & set);
     
+    void revertSoln(const size_t & set);
+    
     void resetStageSoln(const size_t & set);
     
     void updateStageNumber(const int & stage);

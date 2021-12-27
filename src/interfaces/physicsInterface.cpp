@@ -274,6 +274,35 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
     }
   }
 
+  // Flux conditions
+  for (size_t set=0; set<setnames.size(); set++) {
+    for (size_t b=0; b<blocknames.size(); b++) {
+      Teuchos::ParameterList fbcs = setPhysSettings[set][b].sublist("Flux conditions");
+      for (size_t j=0; j<varlist[set][b].size(); j++) {
+        string var = varlist[set][b][j];
+        if (fbcs.isSublist(var)) {
+          if (fbcs.sublist(var).isParameter("all boundaries")) {
+            string entry = fbcs.sublist(var).get<string>("all boundaries");
+            for (size_t s=0; s<sidenames.size(); s++) {
+              string label = "Flux " + var + " " + sidenames[s];
+              functionManagers[b]->addFunction(label,entry,"side ip");
+            }
+          }
+          else {
+            Teuchos::ParameterList currfbcs = fbcs.sublist(var);
+            Teuchos::ParameterList::ConstIterator f_itr = currfbcs.begin();
+            while (f_itr != currfbcs.end()) {
+              string entry = currfbcs.get<string>(f_itr->first);
+              string label = "Flux " + var + " " + f_itr->first;
+              functionManagers[b]->addFunction(label,entry,"side ip");
+              f_itr++;
+            }
+          }
+        }
+      }
+    }
+  }
+  
   // Add mass scalings
   for (size_t set=0; set<setnames.size(); set++) {
     vector<vector<ScalarT> > setwts;

@@ -698,6 +698,31 @@ void cell::resetPrevSoln(const size_t & set) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Revert the solution (time step failed)
+///////////////////////////////////////////////////////////////////////////////////////
+
+void cell::revertSoln(const size_t & set) {
+  
+  if (cellData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_prev = u_prev[set];
+    
+    // copy current u into first step
+    parallel_for("cell reset prev soln 2",
+                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<sol.extent(2); j++) {
+          sol(elem,i,j) = sol_prev(elem,i,j,0);
+        }
+      }
+    });
+  }
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Reset the data stored in the previous stage solutions
 ///////////////////////////////////////////////////////////////////////////////////////
 

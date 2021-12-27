@@ -174,10 +174,10 @@ namespace MrHyDE {
     
     int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, debug_level, maxNLiter, time_order, subcycles;
     
-    int BDForder, startupBDForder, startupSteps, numEvaluations;
+    int BDForder, startupBDForder, startupSteps, numEvaluations, maxTimeStepCuts;
     string ButcherTab, startupButcherTab;
     
-    ScalarT NLtol, NLabstol,final_time, lintol, current_time, initial_time, deltat;
+    ScalarT NLtol, NLabstol,final_time, lintol, current_time, initial_time, deltat, amplification_factor;
     
     string solver_type, initial_type;
     

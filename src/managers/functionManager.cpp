@@ -922,8 +922,8 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  else if (op == "lte") { // TMW: commenting this for now
-    parallel_for("funcman evaluate lt",
+  else if (op == "lte") {
+    parallel_for("funcman evaluate lte",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -954,8 +954,8 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
       }
     });
   }
-  else if (op == "gte") { // TMW: commenting this for now
-    parallel_for("funcman evaluate gt",
+  else if (op == "gte") {
+    parallel_for("funcman evaluate gte",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -1222,8 +1222,8 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
       }
     });
   }
-  else if (op == "lte") { // TMW: commenting this for now
-    parallel_for("funcman evaluate lt",
+  else if (op == "lte") {
+    parallel_for("funcman evaluate lte",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -1254,8 +1254,8 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
       }
     });
   }
-  else if (op == "gte") { // TMW: commenting this for now
-    parallel_for("funcman evaluate gt",
+  else if (op == "gte") {
+    parallel_for("funcman evaluate gte",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -1505,8 +1505,8 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
       }
     });
   }
-  else if (op == "lte") { // TMW: commenting this for now
-    parallel_for("funcman evaluate lt",
+  else if (op == "lte") {
+    parallel_for("funcman evaluate lte",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -1537,8 +1537,8 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
       }
     });
   }
-  else if (op == "gte") { // TMW: commenting this for now
-    parallel_for("funcman evaluate gt",
+  else if (op == "gte") {
+    parallel_for("funcman evaluate gte",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
@@ -1634,7 +1634,7 @@ void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
       data = 0.0;
     }
   }
-  else if (op == "lte") { // TMW: commenting this for now
+  else if (op == "lte") {
     if (data <= tdata) {
       data = 1.0;
     }
@@ -1650,7 +1650,7 @@ void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
       data = 0.0;
     }
   }
-  else if (op == "gte") { // TMW: commenting this for now
+  else if (op == "gte") { 
     if (data >= tdata) {
       data = 1.0;
     }

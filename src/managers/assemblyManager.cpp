@@ -2057,6 +2057,15 @@ void AssemblyManager<Node>::resetPrevSoln(const size_t & set) {
 }
 
 template<class Node>
+void AssemblyManager<Node>::revertSoln(const size_t & set) {
+  for (size_t b=0; b<cells.size(); b++) {
+    for (size_t e=0; e<cells[b].size(); e++) {
+      cells[b][e]->revertSoln(set);
+    }
+  }
+}
+
+template<class Node>
 void AssemblyManager<Node>::resetStageSoln(const size_t & set) {
   for (size_t b=0; b<cells.size(); b++) {
     for (size_t e=0; e<cells[b].size(); e++) {
