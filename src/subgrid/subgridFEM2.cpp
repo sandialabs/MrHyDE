@@ -217,7 +217,6 @@ void SubGridFEM2::setUpSubgridModels() {
                                                               sub_disc->numip[0],
                                                               sub_disc->numip_side[0])));
   
-  
   ////////////////////////////////////////////////////////////////////////////////
   // Define the functions on each block
   ////////////////////////////////////////////////////////////////////////////////
