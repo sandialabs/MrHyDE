@@ -11,7 +11,7 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "subgridTools.hpp"
+#include "subgridTools2.hpp"
 #include "Panzer_STK_MeshFactory.hpp"
 #include "Panzer_STK_LineMeshFactory.hpp"
 #include "Panzer_STK_SquareQuadMeshFactory.hpp"
@@ -27,12 +27,11 @@ using namespace MrHyDE;
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-SubGridTools::SubGridTools(const Teuchos::RCP<MpiComm> & LocalComm_, const string & shape_,
+SubGridTools2::SubGridTools2(const Teuchos::RCP<MpiComm> & LocalComm_, const string & shape_,
                            const string & subshape_, const DRV nodes_,
-                           Kokkos::View<int****,HostDevice> sideinfo_,
                            std::string & mesh_type_, std::string & mesh_file_) :
 LocalComm(LocalComm_), shape(shape_), subshape(subshape_),
-mesh_type(mesh_type_), mesh_file(mesh_file_), sideinfo(sideinfo_){
+mesh_type(mesh_type_), mesh_file(mesh_file_) {
   
   //nodes = nodes_;
   nodes = Kokkos::View<ScalarT**,HostDevice>("nodes on host",nodes_.extent(0),nodes_.extent(1));
@@ -41,13 +40,33 @@ mesh_type(mesh_type_), mesh_file(mesh_file_), sideinfo(sideinfo_){
   Kokkos::deep_copy(nodes,tmp_nodes);
   
   dimension = nodes.extent(1);
+  
+  if (dimension == 1) {
+    numMacroSides = 2;
+  }
+  else if (dimension == 2) {
+    if (shape == "tri") {
+      numMacroSides = 3;
+    }
+    if (shape == "quad") {
+      numMacroSides = 4;
+    }
+  }
+  if (dimension == 3) {
+    if (shape == "tet") {
+      numMacroSides = 4;
+    }
+    if (shape == "hex") {
+      numMacroSides = 6;
+    }
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Given the coarse grid nodes and shape, define the subgrid nodes, connectivity, and sideinfo
 //////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridTools::createSubMesh(const int & numrefine) {
+void SubGridTools2::createSubMesh(const int & numrefine) {
   
   if (mesh_type == "Exodus" || mesh_type == "panzer") {
     
@@ -162,7 +181,7 @@ void SubGridTools::createSubMesh(const int & numrefine) {
       }
       subconnectivity.push_back(conn);
       
-      Kokkos::View<int**,HostDevice> newsidemap("new side map",numSides,2);
+      Kokkos::View<bool*,HostDevice> newsidemap("new side map",numSides);
       subsidemap.push_back(newsidemap);
       
     }
@@ -196,8 +215,9 @@ void SubGridTools::createSubMesh(const int & numrefine) {
       for( size_t i=0; i<side_output.size(); i++ ) {
         local_elem_Ids.push_back(ref_mesh->elementLocalId(side_output[i]));
         size_t localid = local_elem_Ids[i];
-        subsidemap[localid](local_side_Ids[i], 0) = 1;
-        subsidemap[localid](local_side_Ids[i], 1) = local_side_Ids[i];
+        subsidemap[localid](local_side_Ids[i]) = true;
+        //subsidemap[localid](local_side_Ids[i], 1) = local_side_Ids[i];//side;
+        //subsidemap[localid](side, 1) = local_side_Ids[i];
       }
     }
     
@@ -215,10 +235,31 @@ void SubGridTools::createSubMesh(const int & numrefine) {
       }
       subconnectivity.push_back(newconn);
       
-      Kokkos::View<int**,HostDevice> newsidemap("newsidemap",sideinfo.extent(2),2);
-      for (size_t s=0; s<sideinfo.extent(2); s++) {
-        newsidemap(s,0) = 1;
-        newsidemap(s,1) = s;
+      size_t numSides = 0;
+      if (dimension == 1) {
+        numSides = 2;
+      }
+      else if (dimension == 2) {
+        if (subshape == "tri") {
+          numSides = 3;
+        }
+        else if (subshape == "quad"){
+          numSides = 4;
+        }
+      }
+      else if (dimension == 3) {
+        if (subshape == "tet") {
+          numSides = 4;
+        }
+        else if (subshape == "hex"){
+          numSides = 6;
+        }
+      }
+      
+      Kokkos::View<bool*,HostDevice> newsidemap("newsidemap",numSides);
+      for (size_t s=0; s<numSides; s++) {
+        newsidemap(s) = true;
+        //newsidemap(s,1) = s;
       }
       subsidemap.push_back(newsidemap);
       
@@ -254,34 +295,15 @@ void SubGridTools::createSubMesh(const int & numrefine) {
           vector<GO> newconn3 = {3,0,4};
           subconnectivity.push_back(newconn3);
           
-          Kokkos::View<int**,HostDevice> newsidemap0("newsi",3,2);
-          Kokkos::View<int**,HostDevice> newsidemap1("newsi",3,2);
-          Kokkos::View<int**,HostDevice> newsidemap2("newsi",3,2);
-          Kokkos::View<int**,HostDevice> newsidemap3("newsi",3,2);
+          Kokkos::View<bool*,HostDevice> newsidemap0("newsi",3);
+          Kokkos::View<bool*,HostDevice> newsidemap1("newsi",3);
+          Kokkos::View<bool*,HostDevice> newsidemap2("newsi",3);
+          Kokkos::View<bool*,HostDevice> newsidemap3("newsi",3);
           
-          newsidemap0(0,0) = 1;
-          if (sideinfo(0,0,0,0) > 0)
-            newsidemap0(0,1) = 0;
-          else
-            newsidemap0(0,1) = -1;
-          
-          newsidemap1(0,0) = 1;
-          if (sideinfo(0,0,1,0) > 0)
-            newsidemap1(0,1) = 1;
-          else
-            newsidemap1(0,1) = -1;
-          
-          newsidemap2(0,0) = 1;
-          if (sideinfo(0,0,2,0) > 0)
-            newsidemap2(0,1) = 2;
-          else
-            newsidemap2(0,1) = -1;
-          
-          newsidemap3(0,0) = 1;
-          if (sideinfo(0,0,3,0) > 0)
-            newsidemap3(0,1) = 3;
-          else
-            newsidemap3(0,1) = -1;
+          newsidemap0(0) = true;
+          newsidemap1(0) = true;
+          newsidemap2(0) = true;
+          newsidemap3(0) = true;
           
           subsidemap.push_back(newsidemap0);
           subsidemap.push_back(newsidemap1);
@@ -324,45 +346,16 @@ void SubGridTools::createSubMesh(const int & numrefine) {
           vector<GO> newconn2 = {2,6,3,5};
           subconnectivity.push_back(newconn2);
           
-          Kokkos::View<int**,HostDevice> newsidemap0("newsi",4,2);
-          Kokkos::View<int**,HostDevice> newsidemap1("newsi",4,2);
-          Kokkos::View<int**,HostDevice> newsidemap2("newsi",4,2);
+          Kokkos::View<bool*,HostDevice> newsidemap0("newsi",4);
+          Kokkos::View<bool*,HostDevice> newsidemap1("newsi",4);
+          Kokkos::View<bool*,HostDevice> newsidemap2("newsi",4);
           
-          newsidemap0(0,0) = 1;
-          if (sideinfo(0,0,0,0) > 0)
-            newsidemap0(0,1) = 0;
-          else
-            newsidemap0(0,1) = -1;
-          
-          newsidemap0(3,0) = 1;
-          if (sideinfo(0,0,2,0) > 0)
-            newsidemap0(3,1) = 2;
-          else
-            newsidemap0(3,1) = -1;
-          
-          newsidemap1(0,0) = 1;
-          if (sideinfo(0,0,1,0) > 0)
-            newsidemap1(0,1) = 1;
-          else
-            newsidemap1(0,1) = -1;
-          
-          newsidemap1(3,0) = 1;
-          if (sideinfo(0,0,0,0) > 0)
-            newsidemap1(3,1) = 0;
-          else
-            newsidemap1(3,1) = -1;
-          
-          newsidemap2(0,0) = 1;
-          if (sideinfo(0,0,2,0) > 0)
-            newsidemap2(0,1) = 2;
-          else
-            newsidemap2(0,1) = -1;
-          
-          newsidemap2(3,0) = 1;
-          if (sideinfo(0,0,1,0) > 0)
-            newsidemap2(3,1) = 1;
-          else
-            newsidemap2(3,1) = -1;
+          newsidemap0(0) = true;
+          newsidemap0(3) = true;
+          newsidemap1(0) = true;
+          newsidemap1(3) = true;
+          newsidemap2(0) = true;
+          newsidemap2(3) = true;
           
           subsidemap.push_back(newsidemap0);
           subsidemap.push_back(newsidemap1);
@@ -408,7 +401,7 @@ void SubGridTools::createSubMesh(const int & numrefine) {
 // Uniformly refine an element
 //////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridTools::refineSubCell(const int & e) {
+void SubGridTools2::refineSubCell(const int & e) {
   
   if (dimension == 1) {
     vector<ScalarT> node0 = subnodes[subconnectivity[e][0]];
@@ -428,16 +421,15 @@ void SubGridTools::refineSubCell(const int & e) {
     subconnectivity.push_back(newelem0);
     subconnectivity.push_back(newelem1);
     
-    Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
-    Kokkos::View<int**,HostDevice> newsm0("newsi",2,2);
-    Kokkos::View<int**,HostDevice> newsm1("newsi",2,2);
+    Kokkos::View<bool*,HostDevice> oldmap = subsidemap[e];
+    Kokkos::View<bool*,HostDevice> newsm0("newsi",2);
+    Kokkos::View<bool*,HostDevice> newsm1("newsi",2);
     Kokkos::deep_copy(newsm0,oldmap);
     Kokkos::deep_copy(newsm1,oldmap);
     
-    newsm0(1,0) = 0;
-    newsm0(1,1) = 0;
-    newsm1(0,0) = 0;
-    newsm1(0,1) = 0;
+    newsm0(1) = false;
+    newsm1(0) = false;
+    
     subsidemap.push_back(newsm0);
     subsidemap.push_back(newsm1);
     
@@ -505,28 +497,22 @@ void SubGridTools::refineSubCell(const int & e) {
       subconnectivity.push_back(elem3);
       
       
-      Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
-      Kokkos::View<int**,HostDevice> newsm0("newsi",3,2);
-      Kokkos::View<int**,HostDevice> newsm1("newsi",3,2);
-      Kokkos::View<int**,HostDevice> newsm2("newsi",3,2);
-      Kokkos::View<int**,HostDevice> newsm3("newsi",3,2);
+      Kokkos::View<bool*,HostDevice> oldmap = subsidemap[e];
+      Kokkos::View<bool*,HostDevice> newsm0("newsi",3);
+      Kokkos::View<bool*,HostDevice> newsm1("newsi",3);
+      Kokkos::View<bool*,HostDevice> newsm2("newsi",3);
+      Kokkos::View<bool*,HostDevice> newsm3("newsi",3);
       Kokkos::deep_copy(newsm0,oldmap);
       Kokkos::deep_copy(newsm1,oldmap);
       Kokkos::deep_copy(newsm2,oldmap);
       Kokkos::deep_copy(newsm3,oldmap);
       
-      newsm0(1,0) = 0;
-      newsm0(1,1) = 0;
-      newsm1(1,0) = 0;
-      newsm1(1,1) = 0;
-      newsm2(1,0) = 0;
-      newsm2(1,1) = 0;
-      newsm3(0,0) = 0;
-      newsm3(0,1) = 0;
-      newsm3(1,0) = 0;
-      newsm3(1,1) = 0;
-      newsm3(2,0) = 0;
-      newsm3(2,1) = 0;
+      newsm0(1) = false;
+      newsm1(1) = false;
+      newsm2(1) = false;
+      newsm3(0) = false;
+      newsm3(1) = false;
+      newsm3(2) = false;
       
       subsidemap.push_back(newsm0);
       subsidemap.push_back(newsm1);
@@ -617,35 +603,27 @@ void SubGridTools::refineSubCell(const int & e) {
       elem3.push_back(subconnectivity[e][3]);
       subconnectivity.push_back(elem3);
       
-      Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
-      Kokkos::View<int**,HostDevice> newsm0("newsm",4,2);
-      Kokkos::View<int**,HostDevice> newsm1("newsm",4,2);
-      Kokkos::View<int**,HostDevice> newsm2("newsm",4,2);
-      Kokkos::View<int**,HostDevice> newsm3("newsm",4,2);
+      Kokkos::View<bool*,HostDevice> oldmap = subsidemap[e];
+      Kokkos::View<bool*,HostDevice> newsm0("newsm",4);
+      Kokkos::View<bool*,HostDevice> newsm1("newsm",4);
+      Kokkos::View<bool*,HostDevice> newsm2("newsm",4);
+      Kokkos::View<bool*,HostDevice> newsm3("newsm",4);
       Kokkos::deep_copy(newsm0,oldmap);
       Kokkos::deep_copy(newsm1,oldmap);
       Kokkos::deep_copy(newsm2,oldmap);
       Kokkos::deep_copy(newsm3,oldmap);
       
-      newsm0(1,0) = 0;
-      newsm0(1,1) = 0;
-      newsm0(2,0) = 0;
-      newsm0(2,1) = 0;
+      newsm0(1) = false;
+      newsm0(2) = false;
       
-      newsm1(2,0) = 0;
-      newsm1(2,1) = 0;
-      newsm1(3,0) = 0;
-      newsm1(3,1) = 0;
+      newsm1(2) = false;
+      newsm1(3) = false;
       
-      newsm2(0,0) = 0;
-      newsm2(0,1) = 0;
-      newsm2(3,0) = 0;
-      newsm2(3,1) = 0;
+      newsm2(0) = false;
+      newsm2(3) = false;
       
-      newsm3(0,0) = 0;
-      newsm3(0,1) = 0;
-      newsm3(1,0) = 0;
-      newsm3(1,1) = 0;
+      newsm3(0) = false;
+      newsm3(1) = false;
       
       subsidemap.push_back(newsm0);
       subsidemap.push_back(newsm1);
@@ -779,15 +757,15 @@ void SubGridTools::refineSubCell(const int & e) {
       elem7.push_back(mid12_ind);
       subconnectivity.push_back(elem7);
       
-      Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
-      Kokkos::View<int**,HostDevice> newsm0("newsi",4,2);
-      Kokkos::View<int**,HostDevice> newsm1("newsi",4,2);
-      Kokkos::View<int**,HostDevice> newsm2("newsi",4,2);
-      Kokkos::View<int**,HostDevice> newsm3("newsi",4,2);
-      Kokkos::View<int**,HostDevice> newsm4("newsi",4,2);
-      Kokkos::View<int**,HostDevice> newsm5("newsi",4,2);
-      Kokkos::View<int**,HostDevice> newsm6("newsi",4,2);
-      Kokkos::View<int**,HostDevice> newsm7("newsi",4,2);
+      Kokkos::View<bool*,HostDevice> oldmap = subsidemap[e];
+      Kokkos::View<bool*,HostDevice> newsm0("newsi",4);
+      Kokkos::View<bool*,HostDevice> newsm1("newsi",4);
+      Kokkos::View<bool*,HostDevice> newsm2("newsi",4);
+      Kokkos::View<bool*,HostDevice> newsm3("newsi",4);
+      Kokkos::View<bool*,HostDevice> newsm4("newsi",4);
+      Kokkos::View<bool*,HostDevice> newsm5("newsi",4);
+      Kokkos::View<bool*,HostDevice> newsm6("newsi",4);
+      Kokkos::View<bool*,HostDevice> newsm7("newsi",4);
       
       Kokkos::deep_copy(newsm0,oldmap);
       Kokkos::deep_copy(newsm1,oldmap);
@@ -798,23 +776,15 @@ void SubGridTools::refineSubCell(const int & e) {
       Kokkos::deep_copy(newsm6,oldmap);
       Kokkos::deep_copy(newsm7,oldmap);
       
-      newsm0(2,0) = 0;
-      newsm0(2,1) = 0;
-      newsm1(2,0) = 0;
-      newsm1(2,1) = 0;
-      newsm2(2,0) = 0;
-      newsm2(2,1) = 0;
-      newsm3(0,0) = 0;
-      newsm3(0,1) = 0;
+      newsm0(2) = false;
+      newsm1(2) = false;
+      newsm2(2) = false;
+      newsm3(0) = false;
       
-      newsm4(1,0) = 0;
-      newsm4(1,1) = 0;
-      newsm4(2,0) = 0;
-      newsm4(2,1) = 0;
-      newsm4(3,0) = 0;
-      newsm4(3,1) = 0;
-      newsm5(2,0) = 0;
-      newsm5(2,1) = 0;
+      newsm4(1) = false;
+      newsm4(2) = false;
+      newsm4(3) = false;
+      newsm5(2) = false;
       
       subsidemap.push_back(newsm0);
       subsidemap.push_back(newsm1);
@@ -1117,15 +1087,15 @@ void SubGridTools::refineSubCell(const int & e) {
       
       subconnectivity.push_back(elem7);
       
-      Kokkos::View<int**,HostDevice> oldmap = subsidemap[e];
-      Kokkos::View<int**,HostDevice> newsm0("newsi",6,2);
-      Kokkos::View<int**,HostDevice> newsm1("newsi",6,2);
-      Kokkos::View<int**,HostDevice> newsm2("newsi",6,2);
-      Kokkos::View<int**,HostDevice> newsm3("newsi",6,2);
-      Kokkos::View<int**,HostDevice> newsm4("newsi",6,2);
-      Kokkos::View<int**,HostDevice> newsm5("newsi",6,2);
-      Kokkos::View<int**,HostDevice> newsm6("newsi",6,2);
-      Kokkos::View<int**,HostDevice> newsm7("newsi",6,2);
+      Kokkos::View<bool*,HostDevice> oldmap = subsidemap[e];
+      Kokkos::View<bool*,HostDevice> newsm0("newsi",6);
+      Kokkos::View<bool*,HostDevice> newsm1("newsi",6);
+      Kokkos::View<bool*,HostDevice> newsm2("newsi",6);
+      Kokkos::View<bool*,HostDevice> newsm3("newsi",6);
+      Kokkos::View<bool*,HostDevice> newsm4("newsi",6);
+      Kokkos::View<bool*,HostDevice> newsm5("newsi",6);
+      Kokkos::View<bool*,HostDevice> newsm6("newsi",6);
+      Kokkos::View<bool*,HostDevice> newsm7("newsi",6);
       
       Kokkos::deep_copy(newsm0,oldmap);
       Kokkos::deep_copy(newsm1,oldmap);
@@ -1138,61 +1108,37 @@ void SubGridTools::refineSubCell(const int & e) {
       
       // order = 0145, 1256, 2367, 0367, 0123, 4567
       // order = bottom, right, top, left, back, front
-      newsm0(1,0) = 0;
-      newsm0(1,1) = 0;
-      newsm0(2,0) = 0;
-      newsm0(2,1) = 0;
-      newsm0(5,0) = 0;
-      newsm0(5,1) = 0;
+      newsm0(1) = false;
+      newsm0(2) = false;
+      newsm0(5) = false;
       
-      newsm1(2,0) = 0;
-      newsm1(2,1) = 0;
-      newsm1(3,0) = 0;
-      newsm1(3,1) = 0;
-      newsm1(5,0) = 0;
-      newsm1(5,1) = 0;
+      newsm1(2) = false;
+      newsm1(3) = false;
+      newsm1(5) = false;
       
-      newsm2(0,0) = 0;
-      newsm2(0,1) = 0;
-      newsm2(3,0) = 0;
-      newsm2(3,1) = 0;
-      newsm2(5,0) = 0;
-      newsm2(5,1) = 0;
+      newsm2(0) = false;
+      newsm2(3) = false;
+      newsm2(5) = false;
       
-      newsm3(0,0) = 0;
-      newsm3(0,1) = 0;
-      newsm3(1,0) = 0;
-      newsm3(1,1) = 0;
-      newsm3(5,0) = 0;
-      newsm3(5,1) = 0;
+      newsm3(0) = false;
+      newsm3(1) = false;
+      newsm3(5) = false;
       
-      newsm4(1,0) = 0;
-      newsm4(1,1) = 0;
-      newsm4(2,0) = 0;
-      newsm4(2,1) = 0;
-      newsm4(4,0) = 0;
-      newsm4(4,1) = 0;
+      newsm4(1) = false;
+      newsm4(2) = false;
+      newsm4(4) = false;
       
-      newsm5(2,0) = 0;
-      newsm5(2,1) = 0;
-      newsm5(3,0) = 0;
-      newsm5(3,1) = 0;
-      newsm5(4,0) = 0;
-      newsm5(4,1) = 0;
+      newsm5(2) = false;
+      newsm5(3) = false;
+      newsm5(4) = false;
       
-      newsm6(0,0) = 0;
-      newsm6(0,1) = 0;
-      newsm6(3,0) = 0;
-      newsm6(3,1) = 0;
-      newsm6(4,0) = 0;
-      newsm6(4,1) = 0;
+      newsm6(0) = false;
+      newsm6(3) = false;
+      newsm6(4) = false;
       
-      newsm7(0,0) = 0;
-      newsm7(0,1) = 0;
-      newsm7(1,0) = 0;
-      newsm7(1,1) = 0;
-      newsm7(4,0) = 0;
-      newsm7(4,1) = 0;
+      newsm7(0) = false;
+      newsm7(1) = false;
+      newsm7(4) = false;
       
       subsidemap.push_back(newsm0);
       subsidemap.push_back(newsm1);
@@ -1214,7 +1160,7 @@ void SubGridTools::refineSubCell(const int & e) {
 // Check if a sub-grid nodes has already been added to the list
 ///////////////////////////////////////////////////////////////////////////////////////
 
-bool SubGridTools::checkExistingSubNodes(const vector<ScalarT> & newpt,
+bool SubGridTools2::checkExistingSubNodes(const vector<ScalarT> & newpt,
                                          const ScalarT & tol, int & index) {
   bool found = false;
   int dimension = newpt.size();
@@ -1237,7 +1183,7 @@ bool SubGridTools::checkExistingSubNodes(const vector<ScalarT> & newpt,
 // Get the sub-grid nodes as a list: output is (Nnodes x dimension)
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,HostDevice> SubGridTools::getListOfPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo,
+Kokkos::View<ScalarT**,HostDevice> SubGridTools2::getListOfPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo,
                                                                         Teuchos::RCP<DiscretizationInterface> & disc) {
   
   //DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), dimension);
@@ -1266,11 +1212,9 @@ Kokkos::View<ScalarT**,HostDevice> SubGridTools::getListOfPhysicalNodes(DRV newm
 // Get the sub-grid nodes on each element: output is (Nelem x Nnperelem x dimension)
 ///////////////////////////////////////////////////////////////////////////////////////
 
-DRV SubGridTools::getPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo,
+DRV SubGridTools2::getPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo,
                                    Teuchos::RCP<DiscretizationInterface> & disc) {
   
-  //DRV newnodes("nodes on phys elem", newmacronodes.extent(0), subnodes_list.extent(0), subnodes_list.extent(1));
-  //CellTools::mapToPhysicalFrame(newnodes, subnodes_list, newmacronodes, *macro_topo);
   DRV newnodes = disc->mapPointsToPhysical(subnodes_list, newmacronodes, macro_topo);
   auto newnodes_host = Kokkos::create_mirror_view(newnodes);
   Kokkos::deep_copy(newnodes_host, newnodes);
@@ -1297,46 +1241,10 @@ DRV SubGridTools::getPhysicalNodes(DRV newmacronodes, topo_RCP & macro_topo,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Get the sub-grid side info
-///////////////////////////////////////////////////////////////////////////////////////
-
-Kokkos::View<int****,HostDevice> SubGridTools::getPhysicalSideinfo(Kokkos::View<int****,HostDevice> macrosideinfo) {
-  Kokkos::View<int****,HostDevice> ksubsideinfo("subgrid side info",
-                                                macrosideinfo.extent(0)*subconnectivity.size(), // macroelem*subelem
-                                                sideinfo.extent(1),
-                                                sideinfo.extent(2),
-                                                2);
-  
-  int prog = 0;
-  for (unsigned int k=0; k<macrosideinfo.extent(0); k++) {
-    for (unsigned int e=0; e<subsidemap.size(); e++) {
-      for (unsigned int j=0; j<subsidemap[e].extent(0); j++) {
-        if (subsidemap[e](j,0)>0) {
-          int sideindex = subsidemap[e](j,1);
-          for (unsigned int i=0; i<ksubsideinfo.extent(1); i++) {
-            if (macrosideinfo(k,i,sideindex,0)>1) {
-              ksubsideinfo(e+prog,i,j,0) = macrosideinfo(k,i,sideindex,0);
-              ksubsideinfo(e+prog,i,j,1) = macrosideinfo(k,i,sideindex,1);
-            }
-            else { // default to weak Dirichlet
-              ksubsideinfo(e+prog,i,j,0) = 5;
-              ksubsideinfo(e+prog,i,j,1) = -1;
-            }
-          }
-        }
-      }
-    }
-    prog += subsidemap.size();
-  }
-  
-  return ksubsideinfo;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
 // Get the sub-grid connectivity
 ///////////////////////////////////////////////////////////////////////////////////////
 
-vector<vector<GO> > SubGridTools::getPhysicalConnectivity(int & reps) {
+vector<vector<GO> > SubGridTools2::getPhysicalConnectivity(int & reps) {
   vector<vector<GO> > newconn;
   
   int prog = 0;
@@ -1354,60 +1262,24 @@ vector<vector<GO> > SubGridTools::getPhysicalConnectivity(int & reps) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Get the unique subgrid side names and indices
+// Get the groups of boundary elements
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridTools::getUniqueSides(Kokkos::View<int****,HostDevice> & newsi, vector<int> & unique_sides,
-                                  vector<int> & unique_local_sides, vector<string> & unique_names,
-                                  vector<string> & macrosidenames,
-                                  vector<vector<size_t> > & boundary_groups) {
+void SubGridTools2::getBoundaryGroups(size_t & numMacro,
+                                      vector<vector<size_t> > & boundary_groups) {
   
-  for (size_type c=0; c<newsi.extent(0); c++) { // number of elem in cell
-    for (size_type i=0; i<newsi.extent(1); i++) { // number of variables
-      for (size_type j=0; j<newsi.extent(2); j++) { // number of sides per element
-        if (newsi(c,i,j,0) > 0) {
-          bool found = false;
-          for (size_t s=0; s<unique_sides.size(); s++) {
-            if (newsi(c,i,j,1) == unique_sides[s]) {
-              if ((int)j == unique_local_sides[s]) {
-                found = true;
-              }
-            }
-          }
-          if (!found) {
-            unique_sides.push_back(newsi(c,i,j,1));
-            unique_local_sides.push_back(j);
-            if (newsi(c,i,j,1) == -1) {
-              unique_names.push_back("interior");
-            }
-            else {
-              unique_names.push_back(macrosidenames[newsi(c,i,j,1)]);
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  for (size_t s=0; s<unique_sides.size(); s++) {
-    
-    int clside = unique_local_sides[s];
-    string sidename = unique_names[s];
+  for (size_t s=0; s<subsidemap[0].extent(0); s++) {
     vector<size_t> group;
-    for (size_t c=0; c<newsi.extent(0); c++) {
-      bool addthis = false;
-      for (size_t i=0; i<newsi.extent(1); i++) { // number of variables
-        if (newsi(c,i,clside,0) > 0) {
-          if (newsi(c,i,clside,1) == unique_sides[s]) {
-            addthis = true;
-          }
+    for (size_t m=0; m<numMacro; ++m) {
+      for (size_t c=0; c<subsidemap.size(); c++) {
+        if (subsidemap[c](s)) {
+          size_t eindex = m*subsidemap.size() + c;
+          group.push_back(eindex);
         }
-      }
-      if (addthis) {
-        group.push_back(c);
       }
     }
     boundary_groups.push_back(group);
   }
 }
+
 

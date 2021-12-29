@@ -55,9 +55,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   
   assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential");
   
-  if (settings->isSublist("Subgrid")) {
-    assembly_partitioning = "subgrid-preserving";
-  }
+  //if (settings->isSublist("Subgrid")) {
+    //assembly_partitioning = "subgrid-preserving";
+  //}
   
   string solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   isTransient = false;
@@ -1862,7 +1862,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  if (!cellData[b]->multiscale && assemble_boundary_terms[set][b]) {
+  if (assemble_boundary_terms[set][b]) {
     
     if (!reduce_memory) {
       if (compute_sens) {
@@ -1887,16 +1887,19 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         /////////////////////////////////////////////////////////////////////////////
         // Compute the local residual and Jacobian on this cell
         /////////////////////////////////////////////////////////////////////////////
+        wkset[b]->resetResidual();
+        boundaryCells[b][e]->updateWorkset(seedwhat);
         
-        {
+        if (!cellData[b]->multiscale) {
           Teuchos::TimeMonitor localtimer(*phystimer);
-          wkset[b]->resetResidual();
-          
-          boundaryCells[b][e]->updateWorkset(seedwhat);
+        //  boundaryCells[b][e]->updateWorkset(seedwhat);
           phys->boundaryResidual(set,b);
-          
         }
         
+        {
+        //  boundaryCells[b][e]->updateWorkset(seedwhat);
+          phys->fluxConditions(set,b);
+        }
         ///////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////

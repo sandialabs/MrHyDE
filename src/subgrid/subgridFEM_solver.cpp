@@ -124,7 +124,6 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
                               Teuchos::RCP<SG_MultiVector> & prev_u,
                               Teuchos::RCP<SG_MultiVector> & prev_phi,
                               Teuchos::RCP<SG_MultiVector> & disc_params,
-                              Teuchos::RCP<SubGridMacroData> & macroData,
                               const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                               const bool & compute_jacobian, const bool & compute_sens,
                               const int & num_active_params,
@@ -255,7 +254,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
                               phi, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
         
-        this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps, macroData);
+        this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
         
       }
     }
@@ -290,7 +289,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
                               phi, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
         
-        this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0/(ScalarT)time_steps, macroData);
+        this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
       }
     }
     
@@ -310,10 +309,10 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
     
     //KokkosTools::print(d_u);
     if (isAdjoint) {
-      this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, macroData);
+      this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
     }
     else {
-      this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum, 1.0, macroData);
+      this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
     }
     
   }
@@ -1134,8 +1133,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
                                    const Teuchos::RCP<SG_MultiVector> & disc_params,
                                    const bool & compute_sens, const int macroelemindex,
                                    const ScalarT & time, workset & macrowkset,
-                                   const int & usernum, const ScalarT & fwt,
-                                   Teuchos::RCP<SubGridMacroData> & macroData) {
+                                   const int & usernum) {
   
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
   if (debug_level > 0) {
@@ -1160,7 +1158,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
     
     if (Kokkos::SpaceAccessibility<AssemblyExec, SGS_mem>::accessible) { // can we avoid a copy?
       this->updateFlux(u_kv, du_kv, lambda, dp_kv, compute_sens, macroelemindex,
-                       time, macrowkset, usernum, fwt, macroData);
+                       time, macrowkset, usernum);
     }
     else {
       auto u_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),u_kv);
@@ -1170,7 +1168,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
       auto dp_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),dp_kv);
       Kokkos::deep_copy(dp_dev,dp_kv);
       this->updateFlux(u_dev, du_dev, lambda, dp_dev, compute_sens, macroelemindex,
-                       time, macrowkset, usernum, fwt, macroData);
+                       time, macrowkset, usernum);
     }
   }
   if (debug_level > 0) {
@@ -1191,8 +1189,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
                                    ViewType dp_kv,
                                    const bool & compute_sens, const int macroelemindex,
                                    const ScalarT & time, workset & macrowkset,
-                                   const int & usernum, const ScalarT & fwt,
-                                   Teuchos::RCP<SubGridMacroData> & macroData) {
+                                   const int & usernum) {
   
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {

@@ -18,13 +18,9 @@ ANONYMOUS:
       dx:
         top: '0.0'
         bottom: '0.0'
-        ileft: '0.0'
-        iright: '0.0'
       dy:
         top: '1.5'
         bottom: '-1.5'
-        ileft: '0.0'
-        iright: '0.0'
   Discretization:
     order:
       dx: 1
@@ -35,6 +31,7 @@ ANONYMOUS:
     workset size: 1
   Postprocess: 
     compute errors: true
+    write solution: true
     True solutions:
       dx face: '-0.5*x'
       dy face: 'y'

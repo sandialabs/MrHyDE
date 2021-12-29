@@ -999,3 +999,36 @@ void PhysicsInterface::faceResidual(const size_t & set, const size_t block) {
     modules[set][block][i]->faceResidual();
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
+  for (size_t var=0; var<varlist[set][block].size(); ++var) {
+    int cside = functionManagers[block]->wkset->currentside;
+    string bctype = functionManagers[block]->wkset->var_bcs(var,cside);
+    if (bctype == "Flux") {
+      string varname = varlist[set][block][var];
+      string sidename = functionManagers[block]->wkset->sidename;
+      string label = "Flux " + varname + " " + sidename;
+      auto fluxvals = functionManagers[block]->evaluate(label,"side ip");
+      
+      auto basis = functionManagers[block]->wkset->getBasisSide(varname);
+      auto wts = functionManagers[block]->wkset->wts_side;
+      auto res = functionManagers[block]->wkset->res;
+      auto off = functionManagers[block]->wkset->getOffsets(varname);
+      
+      
+      parallel_for("physics flux condition",
+                   TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+            res(elem,off(dof)) += -fluxvals(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
+          }
+        }
+      });
+    }
+  }
+}

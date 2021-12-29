@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SUBGRIDFEM_H
-#define SUBGRIDFEM_H
+#ifndef SUBGRIDFEM2_H
+#define SUBGRIDFEM2_H
 
 #include "trilinos.hpp"
 #include "Teuchos_YamlParameterListCoreHelpers.hpp"
@@ -25,15 +25,15 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
-#include "subgridTools.hpp"
+#include "subgridTools2.hpp"
 #include "parameterManager.hpp"
-#include "subgridMacroData.hpp"
+#include "subgridMacroData2.hpp"
 #include "subgridFEM_solver.hpp"
 #include "postprocessManager.hpp"
 
 namespace MrHyDE {
   
-  class SubGridFEM : public SubGridModel {
+  class SubGridFEM2 : public SubGridModel {
         
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>   SG_CrsMatrix;
     typedef Tpetra::CrsGraph<LO,GO,SubgridSolverNode>            SG_CrsGraph;
@@ -47,14 +47,14 @@ namespace MrHyDE {
     
   public:
     
-    SubGridFEM() {} ;
+    SubGridFEM2() {} ;
     
-    ~SubGridFEM() {};
+    ~SubGridFEM2() {};
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    SubGridFEM(const Teuchos::RCP<MpiComm> & LocalComm_,
+    SubGridFEM2(const Teuchos::RCP<MpiComm> & LocalComm_,
                Teuchos::RCP<Teuchos::ParameterList> & settings_,
                topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
                ScalarT & macro_deltat_);
@@ -70,13 +70,21 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void setUpSubgridModels();
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    
     void finalize(const int & globalSize, const int & globalPID, const bool & write_subgrid_soln);
     
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    void setUpSubgridModels();
+    
+    void createNewBoundaryCells(SubGridTools2 & sgt, size_t & mindex);
+
+    void createNewCells(SubGridTools2 & sgt, size_t & mindex);
+    
+    void setBoundaryCellAuxLIDs(size_t & mindex);
+
+    void computeMacroBasisSubgridIP(size_t & mindex);
+      
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -256,7 +264,7 @@ namespace MrHyDE {
     vector<Teuchos::RCP<SG_MultiVector> > Psol;
     
     // Dynamic - depend on the macro-element
-    vector<Teuchos::RCP<SubGridMacroData> > macroData;
+    vector<Teuchos::RCP<SubGridMacroData2> > macroData;
     
     int num_macro_time_steps;
     ScalarT macro_deltat;

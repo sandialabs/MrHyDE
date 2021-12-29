@@ -16,7 +16,6 @@ ANONYMOUS:
           top: '0.0'
           bottom: '0.0'
     Solver:
-      verbosity: 0
       solver: steady-state
       use direct solver: true
       use preconditioner: false

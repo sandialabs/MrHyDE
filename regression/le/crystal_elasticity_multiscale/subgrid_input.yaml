@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   Subgrid:
+    subgrid model: FEM
     debug level: 0
     Mesh:
       macro element type: hex

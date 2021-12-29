@@ -2125,6 +2125,7 @@ void DiscretizationInterface::setBCData() {
       Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
       Teuchos::ParameterList fbc_settings = blocksettings.sublist("Far-field conditions");
       Teuchos::ParameterList sbc_settings = blocksettings.sublist("Slip conditions");
+      Teuchos::ParameterList flux_settings = blocksettings.sublist("Flux conditions");
       bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
       
       vector<vector<int> > celloffsets;
@@ -2159,6 +2160,7 @@ void DiscretizationInterface::setBCData() {
           bool isNeum = false;
           bool isFar  = false;
           bool isSlip = false;
+          bool isFlux = false;
 
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
             isDiri = true;
@@ -2180,6 +2182,10 @@ void DiscretizationInterface::setBCData() {
           if (sbc_settings.sublist(var).isParameter("all boundaries") || sbc_settings.sublist(var).isParameter(sideName)) {
             isSlip = true;
             current_var_bcs[side] = "Slip";
+          }
+          if (flux_settings.sublist(var).isParameter("all boundaries") || flux_settings.sublist(var).isParameter(sideName)) {
+            isFlux = true;
+            current_var_bcs[side] = "Flux";
           }
 
           if (requires_sideinfo) {
@@ -2210,6 +2216,10 @@ void DiscretizationInterface::setBCData() {
               }
               else if (isSlip) { // Slip
                 currside_info(localid, j, local_side_Ids[i], 0) = 7;
+                currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
+              }
+              else if (isFlux) { // Flux
+                currside_info(localid, j, local_side_Ids[i], 0) = 8;
                 currside_info(localid, j, local_side_Ids[i], 1) = (int)side;
               }
             }

@@ -25,6 +25,7 @@ ANONYMOUS:
   Solver:
     solver: steady-state
     #workset size: 40
+    assembly partitioning: subgrid-preserving
   Analysis: 
     analysis type: forward
   Postprocess: 

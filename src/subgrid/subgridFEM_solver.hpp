@@ -66,7 +66,6 @@ namespace MrHyDE {
                Teuchos::RCP<SG_MultiVector> & prev_u,
                Teuchos::RCP<SG_MultiVector> & prev_phi,
                Teuchos::RCP<SG_MultiVector> & disc_params,
-               Teuchos::RCP<SubGridMacroData> & macroData,
                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                const bool & compute_jacobian, const bool & compute_sens,
                const int & num_active_params,
@@ -129,8 +128,7 @@ namespace MrHyDE {
                     const Teuchos::RCP<SG_MultiVector> & disc_params,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
-                    const int & usernum, const ScalarT & fwt,
-                    Teuchos::RCP<SubGridMacroData> & macroData);
+                    const int & usernum);
     
     
     template<class ViewType>
@@ -140,8 +138,7 @@ namespace MrHyDE {
                     ViewType dp_kv,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
-                    const int & usernum, const ScalarT & fwt,
-                    Teuchos::RCP<SubGridMacroData> & macroData);
+                    const int & usernum);
 
     ///////////////////////////////////////////////////////////////////////////////////////
     // Store macro-dofs and flux (for ML-based subgrid)

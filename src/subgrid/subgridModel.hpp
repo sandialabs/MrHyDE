@@ -84,15 +84,13 @@ namespace MrHyDE {
     virtual matrix_RCP getProjectionMatrix() = 0;
     
     virtual matrix_RCP getProjectionMatrix(DRV & ip, DRV & wts,
-                                                           std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) = 0;
+                                           std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) = 0;
     
     virtual vector_RCP getVector() = 0;
     
     virtual DRV getIP() = 0;
     
     virtual DRV getIPWts() = 0;
-    
-    //virtual std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis(const DRV & ip) = 0;
     
     virtual std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > evaluateBasis2(const DRV & ip) = 0;
     
@@ -101,8 +99,6 @@ namespace MrHyDE {
     virtual LIDView getCellLIDs(const int & cellnum) = 0;
     
     virtual void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) = 0;
-    
-    virtual Kokkos::View<ScalarT**,AssemblyDevice> getCellFields(const int & usernum, const ScalarT & time) = 0;
     
     virtual void addMeshData() = 0;
     

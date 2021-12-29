@@ -14,6 +14,7 @@
 #include "multiscaleManager.hpp"
 #include "split_mpi_communicators.hpp"
 #include "subgridFEM.hpp"
+#include "subgridFEM2.hpp"
 
 using namespace MrHyDE;
 
@@ -80,7 +81,7 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
     ScalarT macro_deltat = finaltime/num_macro_time_steps;
     if (single_model) {
       Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = subgrid_model_pls[0];
-      string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
+      string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM2");
       string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
       std::vector<string> macro_blocknames;
       mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
@@ -102,7 +103,9 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
         //                                                         macro_deltat) ) );
       }
       else if (subgrid_model_type == "FEM2") {
-        //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat) ) );
+        subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo,
+                                                              num_macro_time_steps,
+                                                              macro_deltat) ) );
       }
       subgridModels[subgridModels.size()-1]->macro_block = macro_block;
       subgridModels[subgridModels.size()-1]->usage = "1.0";
@@ -133,7 +136,9 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
           //                                                          macro_deltat ) ) );
         }
         else if (subgrid_model_type == "FEM2") {
-          //subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo, num_macro_time_steps, macro_deltat ) ) );
+          subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo,
+                                                                num_macro_time_steps,
+                                                                macro_deltat ) ) );
         }
         subgridModels[subgridModels.size()-1]->macro_block = macro_block;
         string usage;
@@ -530,28 +535,10 @@ void MultiscaleManager::updateParameters(vector<Teuchos::RCP<vector<AD> > > & pa
 // Get the mean subgrid cell fields
 ////////////////////////////////////////////////////////////////////////////////
 
-
 Kokkos::View<ScalarT**,HostDevice> MultiscaleManager::getMeanCellFields(const size_t & block, const int & timeindex,
                                                                         const ScalarT & time, const int & numfields) {
   
   Kokkos::View<ScalarT**,HostDevice> subgrid_cell_fields("subgrid cell fields",cells[block].size(),numfields);
-  /*
-   if (subgridModels.size() > 0) {
-   for (size_t e=0; e<cells[block].size(); e++) {
-   int sgmodelnum = cells[block][e]->subgrid_model_index[timeindex];
-   FC cfields = subgridModels[sgmodelnum]->getCellFields(cells[block][e]->subgrid_usernum, time);
-   size_t nsgc = cfields.extent(0);
-   for (size_t k=0; k<cfields.extent(1); k++) {
-   ScalarT cval = 0.0;
-   for (size_t j=0; j<nsgc; j++) {
-   cval += cfields(j,k)/(ScalarT)nsgc;
-   }
-   subgrid_cell_fields(e,k) = cval;
-   }
-   }
-   }
-   */
-  
   return subgrid_cell_fields;
 }
 
