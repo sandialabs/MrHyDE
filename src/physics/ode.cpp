@@ -68,5 +68,4 @@ void ODE::volumeResidual() {
       res(e,off(0)) += (dqdt(e,pt) - source(e,pt))*wts(e,pt);
     }
   });
-  
 }
