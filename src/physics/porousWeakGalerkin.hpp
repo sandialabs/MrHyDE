@@ -17,13 +17,6 @@
 #include "physicsBase.hpp"
 
 namespace MrHyDE {
-  /*
-  static void porousHDIVWGHelp() {
-    cout << "********** Help and Documentation for the Porous (HDIV) Physics Module **********" << endl << endl;
-    cout << "Model:" << endl << endl;
-    cout << "User defined functions: " << endl << endl;
-  }
-  */
   
   /*
    * This class computes the solution to the physics formed by applying the weak Galerkin finite

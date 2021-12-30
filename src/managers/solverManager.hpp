@@ -27,11 +27,7 @@
 #include "linearAlgebraInterface.hpp"
 
 namespace MrHyDE {
-  /*
-   void static solverHelp(const string & details) {
-   cout << "********** Help and Documentation for the Solver Interface **********" << endl;
-   }
-   */
+  
   template<class Node>
   class SolverManager {
     

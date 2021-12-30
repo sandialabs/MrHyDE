@@ -17,13 +17,6 @@
 #include "physicsBase.hpp"
 
 namespace MrHyDE {
-  /*
-  static void shallowwaterHelp() {
-    cout << "********** Help and Documentation for the Shallow Water Physics Module **********" << endl << endl;
-    cout << "Model:" << endl << endl;
-    cout << "User defined functions: " << endl << endl;
-  }
-  */
   
   class shallowwater : public physicsbase {
   public:

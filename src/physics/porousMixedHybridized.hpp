@@ -17,13 +17,6 @@
 #include "physicsBase.hpp"
 
 namespace MrHyDE {
-  /*
-  static void porousHDIVHYBRIDHelp() {
-    cout << "********** Help and Documentation for the Porous (HDIV) Physics Module **********" << endl << endl;
-    cout << "Model:" << endl << endl;
-    cout << "User defined functions: " << endl << endl;
-  }
-  */
   
   class porousMixedHybrid : public physicsbase {
   public:

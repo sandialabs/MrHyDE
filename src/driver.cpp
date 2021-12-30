@@ -24,8 +24,6 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "functionManager.hpp"
 #include "analysisManager.hpp"
 
-#include "MrHyDE_help.hpp"
-
 int main(int argc,char * argv[]) {
   
 #ifdef HAVE_MPI
@@ -54,21 +52,6 @@ int main(int argc,char * argv[]) {
     std::cout << "Copyright 2018 National Technology & Engineering Solutions of Sandia, LLC (NTESS)." << std::endl;
     std::cout << "Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains certain rights in this software." << std::endl << std::endl;
     std::cout << "Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or Bart van Bloemen Waanders (bartv@sandia.gov)" << std::endl << std::endl;
-  }
-  else if (input_file_name == "--help") {
-    if (argc > 2) {
-      std::string helpwhat = argv[2];
-      std::string details = "none";
-      if (argc > 3) {
-        details = argv[3];
-      }
-      MrHyDEHelp::printHelp(helpwhat, details);
-    }
-    else {
-      std::cout << std::endl << "MrHyDE - Multiscale/Multiphysics Interfaces for Large-scale Optimization" << std::endl << std::endl;
-      std::cout << "Suggested help topics: user, physics, solver, analysis, postprocess" << std::endl;
-      std::cout << "Example: mpiexec -n 1 MrHyDE --help solver" << std::endl << std::endl;
-    }
   }
   else {
     

@@ -18,14 +18,6 @@
 
 using namespace MrHyDE;
 
-/*
-// Explicit template instantiations
-template class MrHyDE::ParameterManager<SolverNode>;
-#if MrHyDE_REQ_SUBGRID_ETI
-  template class MrHyDE::ParameterManager<SubgridSolverNode>;
-#endif
-*/
-
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================

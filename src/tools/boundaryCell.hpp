@@ -24,11 +24,6 @@
 #include <iterator>     
 
 namespace MrHyDE {
-  /*
-  static void boundaryCellHelp(const string & details) {
-    cout << "********** Help and Documentation for the cells **********" << endl;
-  }
-  */
   
   class BoundaryCell {
     

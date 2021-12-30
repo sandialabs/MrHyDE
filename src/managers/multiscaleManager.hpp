@@ -22,11 +22,6 @@
 #include "meshInterface.hpp"
 
 namespace MrHyDE {
-  /*
-   void static multiscaleHelp(const std::string & details) {
-   cout << "********** Help and Documentation for the Multiscale Interface **********" << endl;
-   }
-   */
   
   class MultiscaleManager {
     

@@ -25,11 +25,6 @@
 #include <iterator>     
 
 namespace MrHyDE {
-  /*
-  static void cellHelp(const string & details) {
-    cout << "********** Help and Documentation for the cells **********" << endl;
-  }
-  */
   
   class cell {
   public:

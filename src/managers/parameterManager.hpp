@@ -24,11 +24,6 @@
 #include "discretizationInterface.hpp"
 
 namespace MrHyDE {
-  /*
-  void static parameterHelp(const string & details) {
-    cout << "********** Help and Documentation for the Parameter Manager **********" << endl;
-  }
-  */
   
   template<class Node>
   class ParameterManager {

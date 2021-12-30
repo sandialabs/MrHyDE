@@ -21,12 +21,6 @@
 
 namespace MrHyDE {
   
-  /*
-   void static uqHelp(const string & details) {
-   cout << "********** Help and Documentation for the UQ Interface **********" << endl;
-   }
-   */
-
   class UQManager {
     
   public:

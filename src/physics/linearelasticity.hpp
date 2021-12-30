@@ -19,13 +19,6 @@
 #include <string>
 
 namespace MrHyDE {
-  /*
-  static void linearelasticityHelp() {
-    cout << "********** Help and Documentation for the Linear Elasticity Physics Module **********" << endl << endl;
-    cout << "Model:" << endl << endl;
-    cout << "User defined functions: " << endl << endl;
-  }
-  */
   
   class linearelasticity : public physicsbase {
   public:
