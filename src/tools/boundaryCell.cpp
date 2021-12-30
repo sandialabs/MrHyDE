@@ -300,7 +300,7 @@ void BoundaryCell::computeSoln(const int & seedwhat) {
       auto abasis = auxside_basis[auxusebasis[var]];
       auto off = subview(auxoffsets,var,ALL());
       string varname = wkset->aux_varlist[var];
-      auto local_aux = wkset->findData("aux "+varname+" side");
+      auto local_aux = wkset->getSolutionField("aux "+varname+" side",false);
       Kokkos::deep_copy(local_aux,0.0);
       auto localID = localElemID;
       auto varaux = subview(aux,ALL(),var,ALL());

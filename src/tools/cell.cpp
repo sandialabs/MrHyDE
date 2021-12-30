@@ -401,7 +401,7 @@ void cell::computeSolAvg() {
     vector<int> vars_HGRAD = wkset->vars_HGRAD[set];
     vector<string> varlist_HGRAD = wkset->varlist_HGRAD[set];
     for (size_t i=0; i<vars_HGRAD.size(); ++i) {
-      auto sol = wkset->getData(varlist_HGRAD[i]);
+      auto sol = wkset->getSolutionField(varlist_HGRAD[i]);
       auto savg = subview(u_avg[set],ALL(),vars_HGRAD[i],0);
       parallel_for("cell sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
@@ -422,7 +422,7 @@ void cell::computeSolAvg() {
     vector<int> vars_HVOL = wkset->vars_HVOL[set];
     vector<string> varlist_HVOL = wkset->varlist_HVOL[set];
     for (size_t i=0; i<vars_HVOL.size(); ++i) {
-      auto sol = wkset->getData(varlist_HVOL[i]);
+      auto sol = wkset->getSolutionField(varlist_HVOL[i]);
       auto savg = subview(u_avg[set],ALL(),vars_HVOL[i],0);
       parallel_for("cell sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
@@ -453,7 +453,7 @@ void cell::computeSolAvg() {
     vector<string> varlist_HDIV = wkset->varlist_HDIV[set];
     for (size_t i=0; i<vars_HDIV.size(); ++i) {
       for (size_t j=0; j<postfix.size(); ++j) {
-        auto sol = wkset->getData(varlist_HDIV[i]+postfix[j]);
+        auto sol = wkset->getSolutionField(varlist_HDIV[i]+postfix[j]);
         auto savg = subview(u_avg[set],ALL(),vars_HDIV[i],j);
         parallel_for("cell sol avg",
                      RangePolicy<AssemblyExec>(0,savg.extent(0)),
@@ -476,7 +476,7 @@ void cell::computeSolAvg() {
     vector<string> varlist_HCURL = wkset->varlist_HCURL[set];
     for (size_t i=0; i<vars_HCURL.size(); ++i) {
       for (size_t j=0; j<postfix.size(); ++j) {
-        auto sol = wkset->getData(varlist_HCURL[i]+postfix[j]);
+        auto sol = wkset->getSolutionField(varlist_HCURL[i]+postfix[j]);
         auto savg = subview(u_avg[set],ALL(),vars_HCURL[i],j);
         parallel_for("cell sol avg",
                      RangePolicy<AssemblyExec>(0,savg.extent(0)),

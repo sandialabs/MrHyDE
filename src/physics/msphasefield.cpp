@@ -217,14 +217,14 @@ void msphasefield::volumeResidual() {
   vector<View_AD2> sol, sol_dot, dsol_dx, dsol_dy, dsol_dz;
   
   for (size_t k=0; k<myvars.size(); k++) {
-    sol.push_back(wkset->getData(myvars[k]));
-    sol_dot.push_back(wkset->getData(myvars[k]+"_t"));
-    dsol_dx.push_back(wkset->getData("grad("+myvars[k]+")[x]"));
+    sol.push_back(wkset->getSolutionField(myvars[k]));
+    sol_dot.push_back(wkset->getSolutionField(myvars[k]+"_t"));
+    dsol_dx.push_back(wkset->getSolutionField("grad("+myvars[k]+")[x]"));
     if (spaceDim > 1) {
-      dsol_dy.push_back(wkset->getData("grad("+myvars[k]+")[y]"));
+      dsol_dy.push_back(wkset->getSolutionField("grad("+myvars[k]+")[y]"));
     }
     if (spaceDim > 2) {
-      dsol_dz.push_back(wkset->getData("grad("+myvars[k]+")[z]"));
+      dsol_dz.push_back(wkset->getSolutionField("grad("+myvars[k]+")[z]"));
     }
   }
   

@@ -164,10 +164,6 @@ int main(int argc,char * argv[]) {
     
     assembler->allocateCellStorage();
     
-    //if (settings->get<bool>("enable memory purge",true)) {
-    //  assembler->purgeMemory();
-    //}
-    
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
     ////////////////////////////////////////////////////////////////////////////////
@@ -199,12 +195,6 @@ int main(int argc,char * argv[]) {
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analysis->run();
-    }
-    
-    if (verbosity >= 20) {
-      for (size_t b=0; b<assembler->wkset.size(); ++b) {
-        assembler->wkset[b]->printMetaData();
-      }
     }
     
   }

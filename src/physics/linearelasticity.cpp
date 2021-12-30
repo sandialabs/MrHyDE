@@ -302,7 +302,7 @@ void linearelasticity::boundaryResidual() {
       auto basis = wkset->basis_side[dx_basis];
       auto basis_grad = wkset->basis_grad_side[dx_basis];
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
-      auto nx = wkset->getDataSc("nx side");
+      auto nx = wkset->getScalarField("nx side");
       if (dx_sidetype == "Neumann") { // Neumann
         parallel_for("LE ux bndry resid 1D N",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -315,7 +315,7 @@ void linearelasticity::boundaryResidual() {
         });
       }
       else if (dx_sidetype == "weak Dirichlet") { // weak Dirichlet
-        auto dx = wkset->getData("dx side");
+        auto dx = wkset->getSolutionField("dx side");
         parallel_for("LE ux bndry resid 1D wD",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
@@ -330,8 +330,8 @@ void linearelasticity::boundaryResidual() {
         });
       }
       else if (dx_sidetype == "interface") { // weak Dirichlet for multiscale
-        auto dx = wkset->getData("dx side");
-        auto lambdax = wkset->getData("aux dx side");
+        auto dx = wkset->getSolutionField("dx side");
+        auto lambdax = wkset->getSolutionField("aux dx side");
         parallel_for("LE ux bndry resid 1D wD-ms",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
@@ -347,8 +347,8 @@ void linearelasticity::boundaryResidual() {
       }
     }
     else if (spaceDim == 2) {
-      auto nx = wkset->getDataSc("nx side");
-      auto ny = wkset->getDataSc("ny side");
+      auto nx = wkset->getScalarField("nx side");
+      auto ny = wkset->getScalarField("ny side");
       
       // dx equation boundary residual
       {
@@ -369,8 +369,8 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
           parallel_for("LE ux bndry resid 2D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -388,10 +388,10 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "interface") { // weak Dirichlet for multiscale
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto lambdax = wkset->getData("aux dx side");
-          auto lambday = wkset->getData("aux dy side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto lambdax = wkset->getSolutionField("aux dx side");
+          auto lambday = wkset->getSolutionField("aux dy side");
           parallel_for("LE ux bndry resid 1D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -427,8 +427,8 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
           parallel_for("LE uy bndry resid 2D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -445,10 +445,10 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "interface") { // weak Dirichlet for multiscale
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto lambdax = wkset->getData("aux dx side");
-          auto lambday = wkset->getData("aux dy side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto lambdax = wkset->getSolutionField("aux dx side");
+          auto lambday = wkset->getSolutionField("aux dy side");
           parallel_for("LE uy bndry resid 2D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -468,9 +468,9 @@ void linearelasticity::boundaryResidual() {
     }
     
     else if (spaceDim == 3) {
-      auto nx = wkset->getDataSc("nx side");
-      auto ny = wkset->getDataSc("ny side");
-      auto nz = wkset->getDataSc("nz side");
+      auto nx = wkset->getScalarField("nx side");
+      auto ny = wkset->getScalarField("ny side");
+      auto nz = wkset->getScalarField("nz side");
       
       // dx equation boundary residual
       {
@@ -490,9 +490,9 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto dz = wkset->getData("dz side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto dz = wkset->getSolutionField("dz side");
           parallel_for("LE ux bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -511,12 +511,12 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dx_sidetype == "interface") { // weak Dirichlet for multiscale
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto dz = wkset->getData("dz side");
-          auto lambdax = wkset->getData("aux dx side");
-          auto lambday = wkset->getData("aux dy side");
-          auto lambdaz = wkset->getData("aux dz side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto dz = wkset->getSolutionField("dz side");
+          auto lambdax = wkset->getSolutionField("aux dx side");
+          auto lambday = wkset->getSolutionField("aux dy side");
+          auto lambdaz = wkset->getSolutionField("aux dz side");
           parallel_for("LE ux bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -554,9 +554,9 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto dz = wkset->getData("dz side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto dz = wkset->getSolutionField("dz side");
           parallel_for("LE uy bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -575,12 +575,12 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dy_sidetype == "interface") { // weak Dirichlet for multiscale
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto dz = wkset->getData("dz side");
-          auto lambdax = wkset->getData("aux dx side");
-          auto lambday = wkset->getData("aux dy side");
-          auto lambdaz = wkset->getData("aux dz side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto dz = wkset->getSolutionField("dz side");
+          auto lambdax = wkset->getSolutionField("aux dx side");
+          auto lambday = wkset->getSolutionField("aux dy side");
+          auto lambdaz = wkset->getSolutionField("aux dz side");
           parallel_for("LE uy bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -617,9 +617,9 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dz_sidetype == "weak Dirichlet") { // weak Dirichlet (set to 0.0)
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto dz = wkset->getData("dz side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto dz = wkset->getSolutionField("dz side");
           parallel_for("LE uz bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -638,12 +638,12 @@ void linearelasticity::boundaryResidual() {
           });
         }
         else if (dz_sidetype == "interface") { // weak Dirichlet for multiscale
-          auto dx = wkset->getData("dx side");
-          auto dy = wkset->getData("dy side");
-          auto dz = wkset->getData("dz side");
-          auto lambdax = wkset->getData("aux dx side");
-          auto lambday = wkset->getData("aux dy side");
-          auto lambdaz = wkset->getData("aux dz side");
+          auto dx = wkset->getSolutionField("dx side");
+          auto dy = wkset->getSolutionField("dy side");
+          auto dz = wkset->getSolutionField("dz side");
+          auto lambdax = wkset->getSolutionField("aux dx side");
+          auto lambday = wkset->getSolutionField("aux dy side");
+          auto lambdaz = wkset->getSolutionField("aux dz side");
           
           parallel_for("LE uz bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -705,14 +705,14 @@ void linearelasticity::computeFlux() {
     this->computeStress(lambda_side, mu_side, true);
     
     if (spaceDim == 1) {
-      auto nx = wkset->getDataSc("nx side");
-      auto dx = wkset->getData("dx side");
+      auto nx = wkset->getScalarField("nx side");
+      auto dx = wkset->getSolutionField("dx side");
       Vista source_dx;
       if (dx_sidetype == "Neumann") {
         source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
       }
       else if (dx_sidetype == "interface") {
-        source_dx = wkset->getData("aux dx side");
+        source_dx = wkset->getSolutionField("aux dx side");
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
         source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
@@ -728,16 +728,16 @@ void linearelasticity::computeFlux() {
       });
     }
     else if (spaceDim == 2) {
-      auto nx = wkset->getDataSc("nx side");
-      auto ny = wkset->getDataSc("ny side");
-      auto dx = wkset->getData("dx side");
-      auto dy = wkset->getData("dy side");
+      auto nx = wkset->getScalarField("nx side");
+      auto ny = wkset->getScalarField("ny side");
+      auto dx = wkset->getSolutionField("dx side");
+      auto dy = wkset->getSolutionField("dy side");
       Vista source_dx, source_dy;
       if (dx_sidetype == "Neumann") {
         source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
       }
       else if (dx_sidetype == "interface") {
-        source_dx = wkset->getData("aux dx side");
+        source_dx = wkset->getSolutionField("aux dx side");
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
         source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
@@ -747,7 +747,7 @@ void linearelasticity::computeFlux() {
         source_dy = functionManager->evaluate("Neumann dy " + wkset->sidename,"side ip");
       }
       else if (dy_sidetype == "interface") {
-        source_dy = wkset->getData("aux dy side");
+        source_dy = wkset->getSolutionField("aux dy side");
       }
       else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
         source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
@@ -766,18 +766,18 @@ void linearelasticity::computeFlux() {
       });
     }
     else if (spaceDim == 3) {
-      auto nx = wkset->getDataSc("nx side");
-      auto ny = wkset->getDataSc("ny side");
-      auto nz = wkset->getDataSc("nz side");
-      auto dx = wkset->getData("dx side");
-      auto dy = wkset->getData("dy side");
-      auto dz = wkset->getData("dz side");
+      auto nx = wkset->getScalarField("nx side");
+      auto ny = wkset->getScalarField("ny side");
+      auto nz = wkset->getScalarField("nz side");
+      auto dx = wkset->getSolutionField("dx side");
+      auto dy = wkset->getSolutionField("dy side");
+      auto dz = wkset->getSolutionField("dz side");
       
       Vista source_dx, source_dy, source_dz;
       bool compute_dx = true, compute_dy = true, compute_dz = true;
       
       if (dx_sidetype == "interface") {
-        source_dx = wkset->getData("aux dx side");
+        source_dx = wkset->getSolutionField("aux dx side");
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
         source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
@@ -787,7 +787,7 @@ void linearelasticity::computeFlux() {
       }
       
       if (dy_sidetype == "interface") {
-        source_dy = wkset->getData("aux dy side");
+        source_dy = wkset->getSolutionField("aux dy side");
       }
       else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
         source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
@@ -797,7 +797,7 @@ void linearelasticity::computeFlux() {
       }
       
       if (dz_sidetype == "interface") {
-        source_dz = wkset->getData("aux dz side");
+        source_dz = wkset->getSolutionField("aux dz side");
       }
       else if (dz_sidetype == "weak Dirichlet" || dz_sidetype == "Dirichlet") {
         source_dz = functionManager->evaluate("Dirichlet dz " + wkset->sidename,"side ip");
@@ -921,7 +921,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
     if (onside){
       auto stress = stress_side;
       if (spaceDim == 1) {
-        auto ddx_dx = wkset->getData("grad(dx)[x] side");
+        auto ddx_dx = wkset->getSolutionField("grad(dx)[x] side");
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 1D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -931,7 +931,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e side");
+            auto T = wkset->getSolutionField("e side");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -950,7 +950,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e side");
+            auto T = wkset->getSolutionField("e side");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -961,7 +961,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
           }
         }
         if (addBiot) {
-          auto pres = wkset->getData("p side");
+          auto pres = wkset->getSolutionField("p side");
           parallel_for("LE stress 1D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -973,10 +973,10 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
         
       }
       else if (spaceDim == 2) {
-        auto ddx_dx = wkset->getData("grad(dx)[x] side");
-        auto ddx_dy = wkset->getData("grad(dx)[y] side");
-        auto ddy_dx = wkset->getData("grad(dy)[x] side");
-        auto ddy_dy = wkset->getData("grad(dy)[y] side");
+        auto ddx_dx = wkset->getSolutionField("grad(dx)[x] side");
+        auto ddx_dy = wkset->getSolutionField("grad(dx)[y] side");
+        auto ddy_dx = wkset->getSolutionField("grad(dy)[x] side");
+        auto ddy_dy = wkset->getSolutionField("grad(dy)[y] side");
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 2D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -989,7 +989,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e side");
+            auto T = wkset->getSolutionField("e side");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1012,7 +1012,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e side");
+            auto T = wkset->getSolutionField("e side");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1024,7 +1024,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
           }
         }
         if (addBiot) {
-          auto pres = wkset->getData("p side");
+          auto pres = wkset->getSolutionField("p side");
           parallel_for("LE stress 2D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -1036,15 +1036,15 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
         }
       }
       else if (spaceDim == 3) {
-        auto ddx_dx = wkset->getData("grad(dx)[x] side");
-        auto ddx_dy = wkset->getData("grad(dx)[y] side");
-        auto ddx_dz = wkset->getData("grad(dx)[z] side");
-        auto ddy_dx = wkset->getData("grad(dy)[x] side");
-        auto ddy_dy = wkset->getData("grad(dy)[y] side");
-        auto ddy_dz = wkset->getData("grad(dy)[z] side");
-        auto ddz_dx = wkset->getData("grad(dz)[x] side");
-        auto ddz_dy = wkset->getData("grad(dz)[y] side");
-        auto ddz_dz = wkset->getData("grad(dz)[z] side");
+        auto ddx_dx = wkset->getSolutionField("grad(dx)[x] side");
+        auto ddx_dy = wkset->getSolutionField("grad(dx)[y] side");
+        auto ddx_dz = wkset->getSolutionField("grad(dx)[z] side");
+        auto ddy_dx = wkset->getSolutionField("grad(dy)[x] side");
+        auto ddy_dy = wkset->getSolutionField("grad(dy)[y] side");
+        auto ddy_dz = wkset->getSolutionField("grad(dy)[z] side");
+        auto ddz_dx = wkset->getSolutionField("grad(dz)[x] side");
+        auto ddz_dy = wkset->getSolutionField("grad(dz)[y] side");
+        auto ddz_dz = wkset->getSolutionField("grad(dz)[z] side");
                 
         parallel_for("LE stress 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -1062,7 +1062,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
           }
         });
         if (e_num>=0) { // include thermoelastic
-          auto T = wkset->getData("e side");
+          auto T = wkset->getSolutionField("e side");
           parallel_for("LE stress 3D TE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -1075,7 +1075,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
         }
       }
       if (addBiot) {
-        auto pres = wkset->getData("p side");
+        auto pres = wkset->getSolutionField("p side");
         parallel_for("LE stress 3D PE",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
@@ -1090,7 +1090,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
     else {
       auto stress = stress_vol;
       if (spaceDim == 1) {
-        auto ddx_dx = wkset->getData("grad(dx)[x]");
+        auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 1D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -1100,7 +1100,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e");
+            auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1119,7 +1119,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e");
+            auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1130,7 +1130,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
           }
         }
         if (addBiot) {
-          auto pres = wkset->getData("p");
+          auto pres = wkset->getSolutionField("p");
           parallel_for("LE stress 1D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -1142,10 +1142,10 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
         
       }
       else if (spaceDim == 2) {
-        auto ddx_dx = wkset->getData("grad(dx)[x]");
-        auto ddx_dy = wkset->getData("grad(dx)[y]");
-        auto ddy_dx = wkset->getData("grad(dy)[x]");
-        auto ddy_dy = wkset->getData("grad(dy)[y]");
+        auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
+        auto ddx_dy = wkset->getSolutionField("grad(dx)[y]");
+        auto ddy_dx = wkset->getSolutionField("grad(dy)[x]");
+        auto ddy_dy = wkset->getSolutionField("grad(dy)[y]");
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 2D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -1158,7 +1158,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e");
+            auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 3D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1181,7 +1181,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getData("e");
+            auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1193,7 +1193,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
           }
         }
         if (addBiot) {
-          auto pres = wkset->getData("p");
+          auto pres = wkset->getSolutionField("p");
           parallel_for("LE stress 2D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -1205,15 +1205,15 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
         }
       }
       else if (spaceDim == 3) {
-        auto ddx_dx = wkset->getData("grad(dx)[x]");
-        auto ddx_dy = wkset->getData("grad(dx)[y]");
-        auto ddx_dz = wkset->getData("grad(dx)[z]");
-        auto ddy_dx = wkset->getData("grad(dy)[x]");
-        auto ddy_dy = wkset->getData("grad(dy)[y]");
-        auto ddy_dz = wkset->getData("grad(dy)[z]");
-        auto ddz_dx = wkset->getData("grad(dz)[x]");
-        auto ddz_dy = wkset->getData("grad(dz)[y]");
-        auto ddz_dz = wkset->getData("grad(dz)[z]");
+        auto ddx_dx = wkset->getSolutionField("grad(dx)[x]");
+        auto ddx_dy = wkset->getSolutionField("grad(dx)[y]");
+        auto ddx_dz = wkset->getSolutionField("grad(dx)[z]");
+        auto ddy_dx = wkset->getSolutionField("grad(dy)[x]");
+        auto ddy_dy = wkset->getSolutionField("grad(dy)[y]");
+        auto ddy_dz = wkset->getSolutionField("grad(dy)[z]");
+        auto ddz_dx = wkset->getSolutionField("grad(dz)[x]");
+        auto ddz_dy = wkset->getSolutionField("grad(dz)[y]");
+        auto ddz_dz = wkset->getSolutionField("grad(dz)[z]");
         
         parallel_for("LE stress 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -1231,7 +1231,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
           }
         });
         if (e_num>=0) { // include thermoelastic
-          auto T = wkset->getData("e");
+          auto T = wkset->getSolutionField("e");
           parallel_for("LE stress 3D TE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -1244,7 +1244,7 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
         }
       }
       if (addBiot) {
-        auto pres = wkset->getData("p");
+        auto pres = wkset->getSolutionField("p");
         parallel_for("LE stress 3D PE",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {

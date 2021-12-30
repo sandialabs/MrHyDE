@@ -59,12 +59,12 @@ void Burgers::volumeResidual() {
   auto res = wkset->res;
   auto wts = wkset->wts;
   auto off = wkset->getOffsets("u");
-  auto u = wkset->getData("u");
-  auto dudt = wkset->getData("u_t");
+  auto u = wkset->getSolutionField("u");
+  auto dudt = wkset->getSolutionField("u_t");
   
   // Solves dudt + div (1/2*v u^2 - eps grad u) = source(x,t)
   if (wkset->dimension == 1) {
-    auto dudx = wkset->getData("grad(u)[x]");
+    auto dudx = wkset->getSolutionField("grad(u)[x]");
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -79,8 +79,8 @@ void Burgers::volumeResidual() {
     });
   }
   else if (wkset->dimension == 2) {
-    auto dudx = wkset->getData("grad(u)[x]");
-    auto dudy = wkset->getData("grad(u)[y]");
+    auto dudx = wkset->getSolutionField("grad(u)[x]");
+    auto dudy = wkset->getSolutionField("grad(u)[y]");
     auto vy = functionManager->evaluate("yvel","ip");
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -98,9 +98,9 @@ void Burgers::volumeResidual() {
     });
   }
   else if (wkset->dimension == 3) {
-    auto dudx = wkset->getData("grad(u)[x]");
-    auto dudy = wkset->getData("grad(u)[y]");
-    auto dudz = wkset->getData("grad(u)[z]");
+    auto dudx = wkset->getSolutionField("grad(u)[x]");
+    auto dudy = wkset->getSolutionField("grad(u)[y]");
+    auto dudz = wkset->getSolutionField("grad(u)[z]");
     auto vy = functionManager->evaluate("yvel","ip");
     auto vz = functionManager->evaluate("zvel","ip");
     parallel_for("Burgers volume resid",

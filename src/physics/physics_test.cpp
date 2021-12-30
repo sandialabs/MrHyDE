@@ -52,7 +52,7 @@ void physicsTest::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   if(mybasistypes[0] == "HGRAD" || mybasistypes[0] == "HFACE" || mybasistypes[0] == "HVOL") { // If we're working with scalar-valued basis functions
-    auto psol = wkset->getData("p");
+    auto psol = wkset->getSolutionField("p");
   
     if(myoperators[0] == "projection") {
       auto basis = wkset->basis[p_basis_num];
@@ -69,7 +69,7 @@ void physicsTest::volumeResidual() {
     else if(myoperators[0] == "Laplace") {
       auto basis_grad = wkset->basis_grad[p_basis_num];
       if (spaceDim == 1) {
-        auto dpdx = wkset->getData("grad(p)[x]");
+        auto dpdx = wkset->getSolutionField("grad(p)[x]");
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis_grad.extent(1); dof++) {
             for (size_type pt=0; pt<psol.extent(1); pt++) {
@@ -81,8 +81,8 @@ void physicsTest::volumeResidual() {
         }
       }
       else if (spaceDim == 2) {
-        auto dpdx = wkset->getData("grad(p)[x]");
-        auto dpdy = wkset->getData("grad(p)[y]");
+        auto dpdx = wkset->getSolutionField("grad(p)[x]");
+        auto dpdy = wkset->getSolutionField("grad(p)[y]");
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis_grad.extent(1); dof++) {
             for (size_type pt=0; pt<psol.extent(1); pt++) {
@@ -95,9 +95,9 @@ void physicsTest::volumeResidual() {
         }
       }
       else if (spaceDim == 3) {
-        auto dpdx = wkset->getData("grad(p)[x]");
-        auto dpdy = wkset->getData("grad(p)[y]");
-        auto dpdz = wkset->getData("grad(p)[z]");
+        auto dpdx = wkset->getSolutionField("grad(p)[x]");
+        auto dpdy = wkset->getSolutionField("grad(p)[y]");
+        auto dpdz = wkset->getSolutionField("grad(p)[z]");
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis_grad.extent(1); dof++) {
             for (size_type pt=0; pt<psol.extent(1); pt++) {
@@ -119,7 +119,7 @@ void physicsTest::volumeResidual() {
     if(myoperators[0] == "projection") {
 
       if (spaceDim == 1) {
-        auto px = wkset->getData("p[x]");
+        auto px = wkset->getSolutionField("p[x]");
         auto basis = wkset->basis[p_basis_num];
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
@@ -132,8 +132,8 @@ void physicsTest::volumeResidual() {
         }
       }
       else if (spaceDim == 2) {
-        auto px = wkset->getData("p[x]");
-        auto py = wkset->getData("p[y]");
+        auto px = wkset->getSolutionField("p[x]");
+        auto py = wkset->getSolutionField("p[y]");
         auto basis = wkset->basis[p_basis_num];
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
@@ -147,9 +147,9 @@ void physicsTest::volumeResidual() {
         }
       }
       else if (spaceDim == 3) {
-        auto px = wkset->getData("p[x]");
-        auto py = wkset->getData("p[y]");
-        auto pz = wkset->getData("p[z]");
+        auto px = wkset->getSolutionField("p[x]");
+        auto py = wkset->getSolutionField("p[y]");
+        auto pz = wkset->getSolutionField("p[z]");
         auto basis = wkset->basis[p_basis_num];
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {

@@ -106,11 +106,11 @@ void porousMixedHybrid::volumeResidual() {
     
     auto basis = wkset->basis[u_basis];
     auto basis_div = wkset->basis_div[u_basis];
-    auto psol = wkset->getData("p");
+    auto psol = wkset->getSolutionField("p");
     auto off = subview(wkset->offsets, unum, ALL());
     
     if (spaceDim == 1) { // easier to place conditional here than on device
-      auto ux = wkset->getData("u[x]");
+      auto ux = wkset->getSolutionField("u[x]");
       parallel_for("porous HDIV-HY volume resid u 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -126,8 +126,8 @@ void porousMixedHybrid::volumeResidual() {
       });
     }
     else if (spaceDim == 2) {
-      auto ux = wkset->getData("u[x]");
-      auto uy = wkset->getData("u[y]");
+      auto ux = wkset->getSolutionField("u[x]");
+      auto uy = wkset->getSolutionField("u[y]");
       parallel_for("porous HDIV-HY volume resid u 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -145,9 +145,9 @@ void porousMixedHybrid::volumeResidual() {
       });
     }
     else {
-      auto ux = wkset->getData("u[x]");
-      auto uy = wkset->getData("u[y]");
-      auto uz = wkset->getData("u[z]");
+      auto ux = wkset->getSolutionField("u[x]");
+      auto uy = wkset->getSolutionField("u[y]");
+      auto uz = wkset->getSolutionField("u[z]");
       parallel_for("porous HDIV-HY volume resid u 3D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -172,7 +172,7 @@ void porousMixedHybrid::volumeResidual() {
     // -(div u,q) + (src,q) (src not added yet)
     
     auto basis = wkset->basis[p_basis];
-    auto udiv = wkset->getData("div(u)");
+    auto udiv = wkset->getSolutionField("div(u)");
     auto off = subview(wkset->offsets, pnum, ALL());
     
     parallel_for("porous HDIV-HY volume resid div(u)",
@@ -207,15 +207,15 @@ void porousMixedHybrid::boundaryResidual() {
   auto basis = wkset->basis_side[u_basis];
   View_Sc2 nx, ny, nz;
   View_AD2 ux, uy, uz;
-  nx = wkset->getDataSc("nx side");
-  ux = wkset->getData("u[x] side");
+  nx = wkset->getScalarField("nx side");
+  ux = wkset->getSolutionField("u[x] side");
   if (spaceDim > 1) {
-    ny = wkset->getDataSc("ny side");
-    uy = wkset->getData("u[y] side");
+    ny = wkset->getScalarField("ny side");
+    uy = wkset->getSolutionField("u[y] side");
   }
   if (spaceDim > 2) {
-    nz = wkset->getDataSc("nz side");
-    uz = wkset->getData("u[z] side");
+    nz = wkset->getScalarField("nz side");
+    uz = wkset->getSolutionField("u[z] side");
   }
   
   Vista bsource;
@@ -258,7 +258,7 @@ void porousMixedHybrid::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == "interface") {
-    auto lambda = wkset->getData("aux p side");
+    auto lambda = wkset->getSolutionField("aux p side");
     parallel_for("porous HDIV-HY bndry resid MS Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -295,15 +295,15 @@ void porousMixedHybrid::faceResidual() {
   auto wts = wkset->wts_side;
   View_Sc2 nx, ny, nz;
   View_AD2 ux, uy, uz;
-  nx = wkset->getDataSc("nx side");
-  ux = wkset->getData("u[x] side");
+  nx = wkset->getScalarField("nx side");
+  ux = wkset->getSolutionField("u[x] side");
   if (spaceDim > 1) {
-    ny = wkset->getDataSc("ny side");
-    uy = wkset->getData("u[y] side");
+    ny = wkset->getScalarField("ny side");
+    uy = wkset->getSolutionField("u[y] side");
   }
   if (spaceDim > 2) {
-    nz = wkset->getDataSc("nz side");
-    uz = wkset->getData("u[z] side");
+    nz = wkset->getScalarField("nz side");
+    uz = wkset->getSolutionField("u[z] side");
   }
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
@@ -312,7 +312,7 @@ void porousMixedHybrid::faceResidual() {
     // include <lambda, v \cdot n> in velocity equation
     auto basis = wkset->basis_side[u_basis];
     auto off = subview(wkset->offsets, unum, ALL());
-    auto lambda = wkset->getData("lambda side");
+    auto lambda = wkset->getSolutionField("lambda side");
     
     parallel_for("porous HDIV-HY face resid lambda",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -376,15 +376,15 @@ void porousMixedHybrid::computeFlux() {
     auto uflux = subview(wkset->flux, ALL(), auxpnum, ALL());
     View_Sc2 nx, ny, nz;
     View_AD2 ux, uy, uz;
-    nx = wkset->getDataSc("nx side");
-    ux = wkset->getData("u[x] side");
+    nx = wkset->getScalarField("nx side");
+    ux = wkset->getSolutionField("u[x] side");
     if (spaceDim > 1) {
-      ny = wkset->getDataSc("ny side");
-      uy = wkset->getData("u[y] side");
+      ny = wkset->getScalarField("ny side");
+      uy = wkset->getSolutionField("u[y] side");
     }
     if (spaceDim > 2) {
-      nz = wkset->getDataSc("nz side");
-      uz = wkset->getData("u[z] side");
+      nz = wkset->getScalarField("nz side");
+      uz = wkset->getSolutionField("u[z] side");
     }
     
     parallel_for("porous HDIV flux ",

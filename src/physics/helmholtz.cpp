@@ -117,17 +117,17 @@ void helmholtz::volumeResidual() {
   auto wts = wkset->wts;
   
   View_AD2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
-  Ur = wkset->getData("ureal");
-  Ui = wkset->getData("uimag");
-  dUr_dx = wkset->getData("grad(ureal)[x]");
-  dUi_dx = wkset->getData("grad(uimag)[x]");
+  Ur = wkset->getSolutionField("ureal");
+  Ui = wkset->getSolutionField("uimag");
+  dUr_dx = wkset->getSolutionField("grad(ureal)[x]");
+  dUi_dx = wkset->getSolutionField("grad(uimag)[x]");
   if (spaceDim > 1) {
-    dUr_dy = wkset->getData("grad(ureal)[y]");
-    dUi_dy = wkset->getData("grad(uimag)[y]");
+    dUr_dy = wkset->getSolutionField("grad(ureal)[y]");
+    dUi_dy = wkset->getSolutionField("grad(uimag)[y]");
   }
   if (spaceDim > 2) {
-    dUr_dz = wkset->getData("grad(ureal)[z]");
-    dUi_dz = wkset->getData("grad(uimag)[z]");
+    dUr_dz = wkset->getSolutionField("grad(ureal)[z]");
+    dUi_dz = wkset->getSolutionField("grad(uimag)[z]");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -299,22 +299,22 @@ void helmholtz::boundaryResidual() {
   auto uibasis_grad = wkset->basis_grad_side[ui_basis_num];
   
   View_Sc2 nx,ny,nz;
-  nx = wkset->getDataSc("nx side");
+  nx = wkset->getScalarField("nx side");
   
   View_AD2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
-  Ur = wkset->getData("ureal side");
-  Ui = wkset->getData("uimag side");
-  dUr_dx = wkset->getData("grad(ureal)[x] side");
-  dUi_dx = wkset->getData("grad(uimag)[x] side");
+  Ur = wkset->getSolutionField("ureal side");
+  Ui = wkset->getSolutionField("uimag side");
+  dUr_dx = wkset->getSolutionField("grad(ureal)[x] side");
+  dUi_dx = wkset->getSolutionField("grad(uimag)[x] side");
   if (spaceDim > 1) {
-    ny = wkset->getDataSc("ny side");
-    dUr_dy = wkset->getData("grad(ureal)[y] side");
-    dUi_dy = wkset->getData("grad(uimag)[y] side");
+    ny = wkset->getScalarField("ny side");
+    dUr_dy = wkset->getSolutionField("grad(ureal)[y] side");
+    dUi_dy = wkset->getSolutionField("grad(uimag)[y] side");
   }
   if (spaceDim > 2) {
-    nz = wkset->getDataSc("nz side");
-    dUr_dz = wkset->getData("grad(ureal)[z] side");
-    dUi_dz = wkset->getData("grad(uimag)[z] side");
+    nz = wkset->getScalarField("nz side");
+    dUr_dz = wkset->getSolutionField("grad(ureal)[z] side");
+    dUi_dz = wkset->getSolutionField("grad(uimag)[z] side");
   }
   
   //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative

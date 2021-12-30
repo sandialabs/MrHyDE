@@ -73,12 +73,12 @@ void porous::volumeResidual() {
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
-  auto psol = wkset->getData("p");
-  auto pdot = wkset->getData("p_t");
+  auto psol = wkset->getSolutionField("p");
+  auto pdot = wkset->getSolutionField("p_t");
   auto off = subview(wkset->offsets, pnum, ALL());
   
   if (spaceDim == 1) {
-    auto dpdx = wkset->getData("grad(p)[x]");
+    auto dpdx = wkset->getSolutionField("grad(p)[x]");
     parallel_for("porous HGRAD volume resid 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -94,8 +94,8 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 2) {
-    auto dpdx = wkset->getData("grad(p)[x]");
-    auto dpdy = wkset->getData("grad(p)[y]");
+    auto dpdx = wkset->getSolutionField("grad(p)[x]");
+    auto dpdy = wkset->getSolutionField("grad(p)[y]");
     parallel_for("porous HGRAD volume resid 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -112,9 +112,9 @@ void porous::volumeResidual() {
     });
   }
   else if (spaceDim == 3) {
-    auto dpdx = wkset->getData("grad(p)[x]");
-    auto dpdy = wkset->getData("grad(p)[y]");
-    auto dpdz = wkset->getData("grad(p)[z]");
+    auto dpdx = wkset->getSolutionField("grad(p)[x]");
+    auto dpdy = wkset->getSolutionField("grad(p)[y]");
+    auto dpdz = wkset->getSolutionField("grad(p)[z]");
     parallel_for("porous HGRAD volume resid 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -184,18 +184,18 @@ void porous::boundaryResidual() {
   
   View_Sc2 nx, ny, nz;
   View_AD2 dpdx, dpdy, dpdz;
-  nx = wkset->getDataSc("nx side");
-  dpdx = wkset->getData("grad(p)[x] side");
+  nx = wkset->getScalarField("nx side");
+  dpdx = wkset->getSolutionField("grad(p)[x] side");
   if (spaceDim > 1) {
-    ny = wkset->getDataSc("ny side");
-    dpdy = wkset->getData("grad(p)[y] side");
+    ny = wkset->getScalarField("ny side");
+    dpdy = wkset->getSolutionField("grad(p)[y] side");
   }
   if (spaceDim > 2) {
-    nz = wkset->getDataSc("nz side");
-    dpdz = wkset->getData("grad(p)[z] side");
+    nz = wkset->getScalarField("nz side");
+    dpdz = wkset->getSolutionField("grad(p)[z] side");
   }
   
-  auto psol = wkset->getData("p side");
+  auto psol = wkset->getSolutionField("p side");
   auto off = subview(wkset->offsets, pnum, ALL());
   
   if (bcs(pnum,cside) == "Neumann") { //Neumann
@@ -244,7 +244,7 @@ void porous::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == "interface") { // multiscale weak Dirichlet
-    auto lambda = wkset->getData("aux p side");
+    auto lambda = wkset->getSolutionField("aux p side");
     parallel_for("porous HGRAD bndry resid MS weak Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -318,20 +318,20 @@ void porous::computeFlux() {
     Teuchos::TimeMonitor localtime(*fluxFill);
     View_Sc2 nx, ny, nz;
     View_AD2 dpdx, dpdy, dpdz;
-    nx = wkset->getDataSc("nx side");
-    dpdx = wkset->getData("grad(p)[x] side");
+    nx = wkset->getScalarField("nx side");
+    dpdx = wkset->getSolutionField("grad(p)[x] side");
     if (spaceDim > 1) {
-      ny = wkset->getDataSc("ny side");
-      dpdy = wkset->getData("grad(p)[y] side");
+      ny = wkset->getScalarField("ny side");
+      dpdy = wkset->getSolutionField("grad(p)[y] side");
     }
     if (spaceDim > 2) {
-      nz = wkset->getDataSc("nz side");
-      dpdz = wkset->getData("grad(p)[z] side");
+      nz = wkset->getScalarField("nz side");
+      dpdz = wkset->getSolutionField("grad(p)[z] side");
     }
     
     auto pflux = subview(wkset->flux, ALL(), pnum, ALL());
-    auto psol = wkset->getData("p side");
-    auto lambda = wkset->getData("aux p side");
+    auto psol = wkset->getSolutionField("p side");
+    auto lambda = wkset->getSolutionField("aux p side");
     parallel_for("porous HGRAD flux",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {

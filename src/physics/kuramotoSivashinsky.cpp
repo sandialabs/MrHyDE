@@ -52,17 +52,17 @@ void KuramotoSivashinsky::volumeResidual() {
   auto res = wkset->res;
   auto wts = wkset->wts;
   
-  auto u = wkset->getData("u");
-  auto dudt = wkset->getData("u_t");
+  auto u = wkset->getSolutionField("u");
+  auto dudt = wkset->getSolutionField("u_t");
   
   // Solves the first equation u_t + grad^2(w) + w + 1/2*|grad(u)|^2 = 0
   // i.e. (u_t,p) - (grad(w),grad(p)) + (w,p) + (1/2*|grad(u)|^2,p) = 0
   {
     auto off = subview(wkset->offsets,u_num,ALL());
     if (spacedim == 1) {
-      auto dudx = wkset->getData("grad(u)[x]");
-      auto w = wkset->getData("w");
-      auto dwdx = wkset->getData("grad(w)[x]");
+      auto dudx = wkset->getSolutionField("grad(u)[x]");
+      auto w = wkset->getSolutionField("w");
+      auto dwdx = wkset->getSolutionField("grad(w)[x]");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
@@ -77,11 +77,11 @@ void KuramotoSivashinsky::volumeResidual() {
       });
     }
     else if (spacedim == 2) {
-      auto dudx = wkset->getData("grad(u)[x]");
-      auto dudy = wkset->getData("grad(u)[y]");
-      auto w = wkset->getData("w");
-      auto dwdx = wkset->getData("grad(w)[x]");
-      auto dwdy = wkset->getData("grad(w)[y]");
+      auto dudx = wkset->getSolutionField("grad(u)[x]");
+      auto dudy = wkset->getSolutionField("grad(u)[y]");
+      auto w = wkset->getSolutionField("w");
+      auto dwdx = wkset->getSolutionField("grad(w)[x]");
+      auto dwdy = wkset->getSolutionField("grad(w)[y]");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
@@ -98,13 +98,13 @@ void KuramotoSivashinsky::volumeResidual() {
       });
     }
     else if (spacedim == 3) {
-      auto dudx = wkset->getData("grad(u)[x]");
-      auto dudy = wkset->getData("grad(u)[y]");
-      auto dudz = wkset->getData("grad(u)[z]");
-      auto w = wkset->getData("w");
-      auto dwdx = wkset->getData("grad(w)[x]");
-      auto dwdy = wkset->getData("grad(w)[y]");
-      auto dwdz = wkset->getData("grad(w)[z]");
+      auto dudx = wkset->getSolutionField("grad(u)[x]");
+      auto dudy = wkset->getSolutionField("grad(u)[y]");
+      auto dudz = wkset->getSolutionField("grad(u)[z]");
+      auto w = wkset->getSolutionField("w");
+      auto dwdx = wkset->getSolutionField("grad(w)[x]");
+      auto dwdy = wkset->getSolutionField("grad(w)[y]");
+      auto dwdz = wkset->getSolutionField("grad(w)[z]");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
@@ -128,8 +128,8 @@ void KuramotoSivashinsky::volumeResidual() {
   {
     auto off = subview(wkset->offsets,w_num,ALL());
     if (spacedim == 1) {
-      auto dudx = wkset->getData("grad(u)[x]");
-      auto w = wkset->getData("w");
+      auto dudx = wkset->getSolutionField("grad(u)[x]");
+      auto w = wkset->getSolutionField("w");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
@@ -143,9 +143,9 @@ void KuramotoSivashinsky::volumeResidual() {
       });
     }
     else if (spacedim == 2) {
-      auto dudx = wkset->getData("grad(u)[x]");
-      auto dudy = wkset->getData("grad(u)[y]");
-      auto w = wkset->getData("w");
+      auto dudx = wkset->getSolutionField("grad(u)[x]");
+      auto dudy = wkset->getSolutionField("grad(u)[y]");
+      auto w = wkset->getSolutionField("w");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
@@ -161,10 +161,10 @@ void KuramotoSivashinsky::volumeResidual() {
       });
     }
     else if (spacedim == 3) {
-      auto dudx = wkset->getData("grad(u)[x]");
-      auto dudy = wkset->getData("grad(u)[y]");
-      auto dudz = wkset->getData("grad(u)[z]");
-      auto w = wkset->getData("w");
+      auto dudx = wkset->getSolutionField("grad(u)[x]");
+      auto dudy = wkset->getSolutionField("grad(u)[y]");
+      auto dudz = wkset->getSolutionField("grad(u)[z]");
+      auto w = wkset->getSolutionField("w");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {

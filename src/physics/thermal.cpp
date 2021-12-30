@@ -94,21 +94,21 @@ void thermal::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  auto T = wkset->getData("e"); //e_vol;
-  auto dTdt = wkset->getData("e_t"); //dedt_vol;
+  auto T = wkset->getSolutionField("e"); //e_vol;
+  auto dTdt = wkset->getSolutionField("e_t"); //dedt_vol;
   
   auto off = subview( wkset->offsets, e_num, ALL());
   bool have_nsvel_ = have_nsvel;
   
-  auto dTdx = wkset->getData("grad(e)[x]"); //dedx_vol;
-  auto dTdy = wkset->getData("grad(e)[y]"); //dedy_vol;
-  auto dTdz = wkset->getData("grad(e)[z]"); //dedz_vol;
+  auto dTdx = wkset->getSolutionField("grad(e)[x]"); //dedx_vol;
+  auto dTdy = wkset->getSolutionField("grad(e)[y]"); //dedy_vol;
+  auto dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_vol;
   
   View_AD2 Ux, Uy, Uz;
   if (have_nsvel) {
-    Ux = wkset->getData("ux");
-    Uy = wkset->getData("uy");
-    Uz = wkset->getData("uz");
+    Ux = wkset->getSolutionField("ux");
+    Uy = wkset->getSolutionField("uy");
+    Uz = wkset->getSolutionField("uz");
   }
   size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
   
@@ -202,19 +202,19 @@ void thermal::boundaryResidual() {
     });
   }
   else if (bcs(e_num,cside) == "weak Dirichlet" || bcs(e_num,cside) == "interface") {
-    auto T = wkset->getData("e side"); //e_side;
-    auto dTdx = wkset->getData("grad(e)[x] side"); //dedx_side;
-    auto dTdy = wkset->getData("grad(e)[y] side"); //dedy_side;
-    auto dTdz = wkset->getData("grad(e)[z] side"); //dedz_side;
-    auto nx = wkset->getDataSc("nx side");
-    auto ny = wkset->getDataSc("ny side");
-    auto nz = wkset->getDataSc("nz side");
+    auto T = wkset->getSolutionField("e side"); //e_side;
+    auto dTdx = wkset->getSolutionField("grad(e)[x] side"); //dedx_side;
+    auto dTdy = wkset->getSolutionField("grad(e)[y] side"); //dedy_side;
+    auto dTdz = wkset->getSolutionField("grad(e)[z] side"); //dedz_side;
+    auto nx = wkset->getScalarField("nx side");
+    auto ny = wkset->getScalarField("ny side");
+    auto nz = wkset->getScalarField("nz side");
     Vista bdata;
     if (bcs(e_num,cside) == "weak Dirichlet") {
       bdata = nsource;
     }
     else if (bcs(e_num,cside) == "interface") {
-      bdata = wkset->getData("aux e side");
+      bdata = wkset->getSolutionField("aux e side");
     }
     
     parallel_for("Thermal bndry resid wD",
@@ -306,16 +306,16 @@ void thermal::computeFlux() {
   
   View_Sc2 nx, ny, nz;
   View_AD2 T, dTdx, dTdy, dTdz;
-  nx = wkset->getDataSc("nx side");
-  T = wkset->getData("e side");
-  dTdx = wkset->getData("grad(e)[x] side"); //dedx_side;
+  nx = wkset->getScalarField("nx side");
+  T = wkset->getSolutionField("e side");
+  dTdx = wkset->getSolutionField("grad(e)[x] side"); //dedx_side;
   if (spaceDim > 1) {
-    ny = wkset->getDataSc("ny side");
-    dTdy = wkset->getData("grad(e)[y] side"); //dedy_side;
+    ny = wkset->getScalarField("ny side");
+    dTdy = wkset->getSolutionField("grad(e)[y] side"); //dedy_side;
   }
   if (spaceDim > 2) {
-    nz = wkset->getDataSc("nz side");
-    dTdz = wkset->getData("grad(e)[z] side"); //dedz_side;
+    nz = wkset->getScalarField("nz side");
+    dTdz = wkset->getSolutionField("grad(e)[z] side"); //dedz_side;
   }
   
   auto h = wkset->h;
@@ -325,7 +325,7 @@ void thermal::computeFlux() {
     //Teuchos::TimeMonitor localtime(*fluxFill);
     
     auto fluxT = subview(wkset->flux, ALL(), e_num, ALL());
-    auto lambda = wkset->getData("aux e side");
+    auto lambda = wkset->getSolutionField("aux e side");
     
     {
       Teuchos::TimeMonitor localtime(*fluxFill);

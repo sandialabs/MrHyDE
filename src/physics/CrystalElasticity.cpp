@@ -263,7 +263,7 @@ void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & 
     postfix = " side";
   }
   if (dimension == 1) {
-    auto dx_x = wkset->getData("grad(dx)[x]"+postfix);
+    auto dx_x = wkset->getSolutionField("grad(dx)[x]"+postfix);
     parallel_for("CE stress 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const size_type e ) {
@@ -273,10 +273,10 @@ void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & 
     });
   }
   else if (dimension == 2) {
-    auto dx_x = wkset->getData("grad(dx)[x]"+postfix);
-    auto dx_y = wkset->getData("grad(dx)[y]"+postfix);
-    auto dy_x = wkset->getData("grad(dy)[x]"+postfix);
-    auto dy_y = wkset->getData("grad(dy)[y]"+postfix);
+    auto dx_x = wkset->getSolutionField("grad(dx)[x]"+postfix);
+    auto dx_y = wkset->getSolutionField("grad(dx)[y]"+postfix);
+    auto dy_x = wkset->getSolutionField("grad(dy)[x]"+postfix);
+    auto dy_y = wkset->getSolutionField("grad(dy)[y]"+postfix);
     parallel_for("CE stress 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const size_type e ) {
@@ -289,15 +289,15 @@ void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & 
     });
   }
   else if (dimension == 3) {
-    auto dx_x = wkset->getData("grad(dx)[x]"+postfix);
-    auto dx_y = wkset->getData("grad(dx)[y]"+postfix);
-    auto dx_z = wkset->getData("grad(dx)[z]"+postfix);
-    auto dy_x = wkset->getData("grad(dy)[x]"+postfix);
-    auto dy_y = wkset->getData("grad(dy)[y]"+postfix);
-    auto dy_z = wkset->getData("grad(dy)[z]"+postfix);
-    auto dz_x = wkset->getData("grad(dz)[x]"+postfix);
-    auto dz_y = wkset->getData("grad(dz)[y]"+postfix);
-    auto dz_z = wkset->getData("grad(dz)[z]"+postfix);
+    auto dx_x = wkset->getSolutionField("grad(dx)[x]"+postfix);
+    auto dx_y = wkset->getSolutionField("grad(dx)[y]"+postfix);
+    auto dx_z = wkset->getSolutionField("grad(dx)[z]"+postfix);
+    auto dy_x = wkset->getSolutionField("grad(dy)[x]"+postfix);
+    auto dy_y = wkset->getSolutionField("grad(dy)[y]"+postfix);
+    auto dy_z = wkset->getSolutionField("grad(dy)[z]"+postfix);
+    auto dz_x = wkset->getSolutionField("grad(dz)[x]"+postfix);
+    auto dz_y = wkset->getSolutionField("grad(dz)[y]"+postfix);
+    auto dz_z = wkset->getSolutionField("grad(dz)[z]"+postfix);
     parallel_for("CE stress 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const size_type e ) {
@@ -338,7 +338,7 @@ void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & 
     }
   });
   if (have_energy) {
-    auto T = wkset->getData("e");
+    auto T = wkset->getSolutionField("e");
     parallel_for("CE stress 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const size_type e ) {

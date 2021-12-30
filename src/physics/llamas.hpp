@@ -64,9 +64,9 @@ namespace MrHyDE {
       // Grad some arrays from the workset
       // Rememeber that these are Views and act like pointers (no deep copies of data)
       
-      auto llama = wkset->getData("llama");
-      auto dllama_dx = wkset->getData("grad(llama)[x]");
-      auto dllama_dy = wkset->getData("grad(llama)[y]");
+      auto llama = wkset->getSolutionField("llama");
+      auto dllama_dx = wkset->getSolutionField("grad(llama)[x]");
+      auto dllama_dy = wkset->getSolutionField("grad(llama)[y]");
       
       // These basis array are 4-dimensional Views with dimensions numElem x numDOF x numip x dimension
       // In this examples, they will be 100x4x4x2

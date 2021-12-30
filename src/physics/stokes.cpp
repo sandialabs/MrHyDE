@@ -96,8 +96,8 @@ void stokes::volumeResidual() {
   /////////////////////////////
   
   if (spaceDim == 1) {
-    auto dux_dx = wkset->getData("grad(ux)[x]");
-    auto Pr = wkset->getData("pr");
+    auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+    auto Pr = wkset->getSolutionField("pr");
     {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
@@ -138,7 +138,7 @@ void stokes::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         
         parallel_for("Stokes pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -158,7 +158,7 @@ void stokes::volumeResidual() {
       if (useLSIC) {
         
         auto h = wkset->h;
-        auto dux_dx = wkset->getData("grad(ux)[x]");
+        auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
         
         parallel_for("Stokes pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -178,11 +178,11 @@ void stokes::volumeResidual() {
   }
   
   if (spaceDim == 2) {
-    auto dux_dx = wkset->getData("grad(ux)[x]");
-    auto dux_dy = wkset->getData("grad(ux)[y]");
-    auto duy_dx = wkset->getData("grad(uy)[x]");
-    auto duy_dy = wkset->getData("grad(uy)[y]");
-    auto Pr = wkset->getData("pr");
+    auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+    auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+    auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+    auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+    auto Pr = wkset->getSolutionField("pr");
     {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
@@ -246,8 +246,8 @@ void stokes::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
-        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
+        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         
         parallel_for("Stokes pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -270,8 +270,8 @@ void stokes::volumeResidual() {
       if (useLSIC) {
         
         auto h = wkset->h;
-        auto dux_dx = wkset->getData("grad(ux)[x]");
-        auto duy_dy = wkset->getData("grad(uy)[y]");
+        auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+        auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
         
         parallel_for("Stokes pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -291,16 +291,16 @@ void stokes::volumeResidual() {
   }
   
   if (spaceDim == 3) {
-    auto dux_dx = wkset->getData("grad(ux)[x]");
-    auto dux_dy = wkset->getData("grad(ux)[y]");
-    auto dux_dz = wkset->getData("grad(ux)[z]");
-    auto duy_dx = wkset->getData("grad(uy)[x]");
-    auto duy_dy = wkset->getData("grad(uy)[y]");
-    auto duy_dz = wkset->getData("grad(uy)[z]");
-    auto duz_dx = wkset->getData("grad(uz)[x]");
-    auto duz_dy = wkset->getData("grad(uz)[y]");
-    auto duz_dz = wkset->getData("grad(uz)[z]");
-    auto Pr = wkset->getData("pr");
+    auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+    auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+    auto dux_dz = wkset->getSolutionField("grad(ux)[z]");
+    auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+    auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+    auto duy_dz = wkset->getSolutionField("grad(uy)[z]");
+    auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
+    auto duz_dy = wkset->getSolutionField("grad(uz)[y]");
+    auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
+    auto Pr = wkset->getSolutionField("pr");
     
     {
       int ux_basis = wkset->usebasis[ux_num];
@@ -392,9 +392,9 @@ void stokes::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
-        auto dpr_dy = wkset->getData("grad(pr)[y]");
-        auto dpr_dz = wkset->getData("grad(pr)[z]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
+        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
+        auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
         
         parallel_for("Stokes pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -418,9 +418,9 @@ void stokes::volumeResidual() {
       if (useLSIC) {
         
         auto h = wkset->h;
-        auto dux_dx = wkset->getData("grad(ux)[x]");
-        auto duy_dy = wkset->getData("grad(uy)[y]");
-        auto duz_dz = wkset->getData("grad(uz)[z]");
+        auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+        auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+        auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
         
         parallel_for("Stokes pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),

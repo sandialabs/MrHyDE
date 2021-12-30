@@ -191,7 +191,7 @@ void euler::volumeResidual() {
       int rho_basis = wkset->usebasis[rho_num];
       auto basis = wkset->basis[rho_basis];
       auto basis_grad = wkset->basis_grad[rho_basis];
-      auto drho_dt = wkset->getData("rho_t");
+      auto drho_dt = wkset->getSolutionField("rho_t");
       auto off = subview(wkset->offsets,rho_num,ALL());
       
       parallel_for("euler rho volume resid",
@@ -212,7 +212,7 @@ void euler::volumeResidual() {
       int rhoux_basis = wkset->usebasis[rhoux_num];
       auto basis = wkset->basis[rhoux_basis];
       auto basis_grad = wkset->basis_grad[rhoux_basis];
-      auto drhoux_dt = wkset->getData("rhoux_t");
+      auto drhoux_dt = wkset->getSolutionField("rhoux_t");
       auto off = subview(wkset->offsets,rhoux_num,ALL());
       
       parallel_for("euler rhoux volume resid",
@@ -233,7 +233,7 @@ void euler::volumeResidual() {
       int rhoE_basis = wkset->usebasis[rhoE_num];
       auto basis = wkset->basis[rhoE_basis];
       auto basis_grad = wkset->basis_grad[rhoE_basis];
-      auto drhoE_dt = wkset->getData("rhoE_t");
+      auto drhoE_dt = wkset->getSolutionField("rhoE_t");
       auto off = subview(wkset->offsets,rhoE_num,ALL());
       
       parallel_for("euler rhoE volume resid",
@@ -260,7 +260,7 @@ void euler::volumeResidual() {
       int rho_basis = wkset->usebasis[rho_num];
       auto basis = wkset->basis[rho_basis];
       auto basis_grad = wkset->basis_grad[rho_basis];
-      auto drho_dt = wkset->getData("rho_t");
+      auto drho_dt = wkset->getSolutionField("rho_t");
       auto off = subview(wkset->offsets,rho_num,ALL());
       
       parallel_for("euler rho volume resid",
@@ -282,7 +282,7 @@ void euler::volumeResidual() {
       int rhoux_basis = wkset->usebasis[rhoux_num];
       auto basis = wkset->basis[rhoux_basis];
       auto basis_grad = wkset->basis_grad[rhoux_basis];
-      auto drhoux_dt = wkset->getData("rhoux_t");
+      auto drhoux_dt = wkset->getSolutionField("rhoux_t");
       auto off = subview(wkset->offsets,rhoux_num,ALL());
       
       parallel_for("euler rhoux volume resid",
@@ -304,7 +304,7 @@ void euler::volumeResidual() {
       int rhouy_basis = wkset->usebasis[rhouy_num];
       auto basis = wkset->basis[rhouy_basis];
       auto basis_grad = wkset->basis_grad[rhouy_basis];
-      auto drhouy_dt = wkset->getData("rhouy_t");
+      auto drhouy_dt = wkset->getSolutionField("rhouy_t");
       auto off = subview(wkset->offsets,rhouy_num,ALL());
       
       parallel_for("euler rhouy volume resid",
@@ -326,7 +326,7 @@ void euler::volumeResidual() {
       int rhoE_basis = wkset->usebasis[rhoE_num];
       auto basis = wkset->basis[rhoE_basis];
       auto basis_grad = wkset->basis_grad[rhoE_basis];
-      auto drhoE_dt = wkset->getData("rhoE_t");
+      auto drhoE_dt = wkset->getSolutionField("rhoE_t");
       auto off = subview(wkset->offsets,rhoE_num,ALL());
       
       parallel_for("euler rhoE volume resid",
@@ -355,7 +355,7 @@ void euler::volumeResidual() {
       int rho_basis = wkset->usebasis[rho_num];
       auto basis = wkset->basis[rho_basis];
       auto basis_grad = wkset->basis_grad[rho_basis];
-      auto drho_dt = wkset->getData("rho_t");
+      auto drho_dt = wkset->getSolutionField("rho_t");
       auto off = subview(wkset->offsets,rho_num,ALL());
       
       parallel_for("euler rho volume resid",
@@ -378,7 +378,7 @@ void euler::volumeResidual() {
       int rhoux_basis = wkset->usebasis[rhoux_num];
       auto basis = wkset->basis[rhoux_basis];
       auto basis_grad = wkset->basis_grad[rhoux_basis];
-      auto drhoux_dt = wkset->getData("rhoux_t");
+      auto drhoux_dt = wkset->getSolutionField("rhoux_t");
       auto off = subview(wkset->offsets,rhoux_num,ALL());
       
       parallel_for("euler rhoux volume resid",
@@ -401,7 +401,7 @@ void euler::volumeResidual() {
       int rhouy_basis = wkset->usebasis[rhouy_num];
       auto basis = wkset->basis[rhouy_basis];
       auto basis_grad = wkset->basis_grad[rhouy_basis];
-      auto drhouy_dt = wkset->getData("rhouy_t");
+      auto drhouy_dt = wkset->getSolutionField("rhouy_t");
       auto off = subview(wkset->offsets,rhouy_num,ALL());
       
       parallel_for("euler rhouy volume resid",
@@ -424,7 +424,7 @@ void euler::volumeResidual() {
       int rhouz_basis = wkset->usebasis[rhouz_num];
       auto basis = wkset->basis[rhouz_basis];
       auto basis_grad = wkset->basis_grad[rhouz_basis];
-      auto drhouz_dt = wkset->getData("rhouz_t");
+      auto drhouz_dt = wkset->getSolutionField("rhouz_t");
       auto off = subview(wkset->offsets,rhouz_num,ALL());
       
       parallel_for("euler rhouz volume resid",
@@ -447,7 +447,7 @@ void euler::volumeResidual() {
       int rhoE_basis = wkset->usebasis[rhoE_num];
       auto basis = wkset->basis[rhoE_basis];
       auto basis_grad = wkset->basis_grad[rhoE_basis];
-      auto drhoE_dt = wkset->getData("rhoE_t");
+      auto drhoE_dt = wkset->getSolutionField("rhoE_t");
       auto off = subview(wkset->offsets,rhoE_num,ALL());
       
       parallel_for("euler rhoE volume resid",
@@ -509,7 +509,7 @@ void euler::boundaryResidual() {
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
 
   // These are always needed
-  auto nx = wkset->getDataSc("nx side");
+  auto nx = wkset->getScalarField("nx side");
   auto fluxes = fluxes_side;
   auto stab = stab_bound_side;
 
@@ -540,7 +540,7 @@ void euler::boundaryResidual() {
   else if (spaceDim == 2) {
 
     // need ny
-    auto ny = wkset->getDataSc("ny side");
+    auto ny = wkset->getScalarField("ny side");
 
     for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
@@ -563,8 +563,8 @@ void euler::boundaryResidual() {
   }
   else if (spaceDim == 3) {
     // need ny, nz
-    auto ny = wkset->getDataSc("ny side");
-    auto nz = wkset->getDataSc("nz side");
+    auto ny = wkset->getScalarField("ny side");
+    auto nz = wkset->getScalarField("nz side");
 
     for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
@@ -650,7 +650,7 @@ void euler::computeFlux() {
     else if (sidetype == "interface") {
       
       // These are always needed
-      auto nx = wkset->getDataSc("nx side");
+      auto nx = wkset->getScalarField("nx side");
 
       auto fluxes = fluxes_side;
       auto stab = stab_bound_side;
@@ -672,7 +672,7 @@ void euler::computeFlux() {
       } 
       else if (spaceDim == 2) {
         // second normal needed
-        auto ny = wkset->getDataSc("ny side");
+        auto ny = wkset->getScalarField("ny side");
 
         parallel_for("euler flux 2D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -687,8 +687,8 @@ void euler::computeFlux() {
       } 
       else if (spaceDim == 3) {
         // second and third normal needed
-        auto ny = wkset->getDataSc("ny side");
-        auto nz = wkset->getDataSc("nz side");
+        auto ny = wkset->getScalarField("ny side");
+        auto nz = wkset->getScalarField("nz side");
 
         parallel_for("euler flux 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -768,9 +768,9 @@ void euler::computeInviscidFluxes(const bool & on_side) {
 
   auto fluxes = on_side ? fluxes_side : fluxes_vol;
   // these are always needed
-  auto rho = on_side ? wkset->getData("aux rho side") : wkset->getData("rho");
-  auto rhoux = on_side ? wkset->getData("aux rhoux side") : wkset->getData("rhoux");
-  auto rhoE = on_side ? wkset->getData("aux rhoE side") : wkset->getData("rhoE");
+  auto rho = on_side ? wkset->getSolutionField("aux rho side") : wkset->getSolutionField("rho");
+  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side") : wkset->getSolutionField("rhoux");
+  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side") : wkset->getSolutionField("rhoE");
   auto props = on_side ? props_side : props_vol;
 
   // TODO this is the same for face or side, can I collapse?
@@ -804,7 +804,7 @@ void euler::computeInviscidFluxes(const bool & on_side) {
   } 
   else if (spaceDim == 2) {
     // get the second momentum component
-    auto rhouy = on_side ? wkset->getData("aux rhouy side") : wkset->getData("rhouy");
+    auto rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : wkset->getSolutionField("rhouy");
 
     parallel_for("euler inviscid fluxes 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -845,8 +845,8 @@ void euler::computeInviscidFluxes(const bool & on_side) {
   } 
   else {
     // get the second and third momentum component
-    auto rhouy = on_side ? wkset->getData("aux rhouy side") : wkset->getData("rhouy");
-    auto rhouz = on_side ? wkset->getData("aux rhouz side") : wkset->getData("rhouz");
+    auto rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : wkset->getSolutionField("rhouy");
+    auto rhouz = on_side ? wkset->getSolutionField("aux rhouz side") : wkset->getSolutionField("rhouz");
 
     parallel_for("euler inviscid fluxes 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -909,17 +909,17 @@ void euler::computeThermoProps(const bool & on_side)
 
   auto props = on_side ? props_side : props_vol;
   // these are always needed
-  auto rho = on_side ? wkset->getData("aux rho side") : wkset->getData("rho");
-  auto rhoux = on_side ? wkset->getData("aux rhoux side") : wkset->getData("rhoux");
-  auto rhoE = on_side ? wkset->getData("aux rhoE side") : wkset->getData("rhoE");
+  auto rho = on_side ? wkset->getSolutionField("aux rho side") : wkset->getSolutionField("rho");
+  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side") : wkset->getSolutionField("rhoux");
+  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side") : wkset->getSolutionField("rhoE");
 
   View_AD2 rhouy, rhouz; // TODO not sure this is the best way
 
   if ( spaceDim > 1 ) {
-    rhouy = on_side ? wkset->getData("aux rhouy side") : wkset->getData("rhouy");
+    rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : wkset->getSolutionField("rhouy");
   } 
   if ( spaceDim > 2 ) {
-    rhouz = on_side ? wkset->getData("aux rhouz side") : wkset->getData("rhouz");
+    rhouz = on_side ? wkset->getSolutionField("aux rhouz side") : wkset->getSolutionField("rhouz");
   }
 
   parallel_for("euler thermo props",
@@ -982,29 +982,29 @@ void euler::computeStabilizationTerm() {
   int spaceDim = wkset->dimension;
 
   // these are always needed
-  auto rho = wkset->getData("rho");
-  auto rho_hat = wkset->getData("aux rho side");
-  auto rhoux = wkset->getData("rhoux");
-  auto rhoux_hat = wkset->getData("aux rhoux side");
-  auto rhoE = wkset->getData("rhoE");
-  auto rhoE_hat = wkset->getData("aux rhoE side");
+  auto rho = wkset->getSolutionField("rho");
+  auto rho_hat = wkset->getSolutionField("aux rho side");
+  auto rhoux = wkset->getSolutionField("rhoux");
+  auto rhoux_hat = wkset->getSolutionField("aux rhoux side");
+  auto rhoE = wkset->getSolutionField("rhoE");
+  auto rhoE_hat = wkset->getSolutionField("aux rhoE side");
   auto props = props_side; // get the properties evaluated with trace variables
 
   auto stabterm = stab_bound_side;
-  auto nx = wkset->getDataSc("nx side");
+  auto nx = wkset->getScalarField("nx side");
 
   View_AD2 rhouy, rhouy_hat, rhouz, rhouz_hat; // only assign if necessary
   View_Sc2 ny, nz;
 
   if (spaceDim > 1) {
-    rhouy = wkset->getData("rhouy");
-    rhouy_hat = wkset->getData("aux rhouy side");
-    ny = wkset->getDataSc("ny side");
+    rhouy = wkset->getSolutionField("rhouy");
+    rhouy_hat = wkset->getSolutionField("aux rhouy side");
+    ny = wkset->getScalarField("ny side");
   }
   if (spaceDim > 2) {
-    rhouz = wkset->getData("rhouz");
-    rhouz_hat = wkset->getData("aux rhouz side");
-    nz = wkset->getDataSc("nz side");
+    rhouz = wkset->getSolutionField("rhouz");
+    rhouz_hat = wkset->getSolutionField("aux rhouz side");
+    nz = wkset->getScalarField("nz side");
   }
 
   parallel_for("euler stabilization",
@@ -1115,29 +1115,29 @@ void euler::computeBoundaryTerm() {
   }
 
   // these are always needed
-  auto rho = wkset->getData("rho");
-  auto rho_hat = wkset->getData("aux rho side");
-  auto rhoux = wkset->getData("rhoux");
-  auto rhoux_hat = wkset->getData("aux rhoux side");
-  auto rhoE = wkset->getData("rhoE");
-  auto rhoE_hat = wkset->getData("aux rhoE side");
+  auto rho = wkset->getSolutionField("rho");
+  auto rho_hat = wkset->getSolutionField("aux rho side");
+  auto rhoux = wkset->getSolutionField("rhoux");
+  auto rhoux_hat = wkset->getSolutionField("aux rhoux side");
+  auto rhoE = wkset->getSolutionField("rhoE");
+  auto rhoE_hat = wkset->getSolutionField("aux rhoE side");
   auto props = props_side; // get the properties evaluated with trace variables
 
   auto boundterm = stab_bound_side;
-  auto nx = wkset->getDataSc("nx side");
+  auto nx = wkset->getScalarField("nx side");
 
   View_AD2 rhouy, rhouy_hat, rhouz, rhouz_hat; // and only assign if necessary?
   View_Sc2 ny, nz;
 
   if (spaceDim > 1) {
-    rhouy = wkset->getData("rhouy");
-    rhouy_hat = wkset->getData("aux rhouy side");
-    ny = wkset->getDataSc("ny side");
+    rhouy = wkset->getSolutionField("rhouy");
+    rhouy_hat = wkset->getSolutionField("aux rhouy side");
+    ny = wkset->getScalarField("ny side");
   }
   if (spaceDim > 2) {
-    rhouz = wkset->getData("rhouz");
-    rhouz_hat = wkset->getData("aux rhouz side");
-    nz = wkset->getDataSc("nz side");
+    rhouz = wkset->getSolutionField("rhouz");
+    rhouz_hat = wkset->getSolutionField("aux rhouz side");
+    nz = wkset->getScalarField("nz side");
   }
 
   // Get the freestream info if needed

@@ -625,14 +625,14 @@ AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, con
                                        Teuchos::RCP<workset> & wkset) {
   
   // update point in wkset
-  auto xpt = wkset->getDataSc("x point");
+  auto xpt = wkset->getScalarField("x point");
   Kokkos::deep_copy(xpt,x);
   
-  auto ypt = wkset->getDataSc("y point");
+  auto ypt = wkset->getScalarField("y point");
   Kokkos::deep_copy(ypt,y);
   
   if (spaceDim == 3) {
-    auto zpt = wkset->getDataSc("z point");
+    auto zpt = wkset->getScalarField("z point");
     Kokkos::deep_copy(zpt,z);
   }
   
@@ -725,14 +725,14 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
     ptx = pts[0];
     
     View_Sc2 x,y,z;
-    x = wkset->getDataSc("x point");
+    x = wkset->getScalarField("x point");
     if (dim > 1) {
       pty = pts[1];
-      y = wkset->getDataSc("y point");
+      y = wkset->getScalarField("y point");
     }
     if (dim > 2) {
       ptz = pts[2];
-      z = wkset->getDataSc("z point");
+      z = wkset->getScalarField("z point");
     }
     
     
@@ -823,14 +823,14 @@ View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & se
     //ptx = pts[0];
     //
     //View_Sc2 x,y,z;
-    //x = wkset->getDataSc("x point");
+    //x = wkset->getScalarField("x point");
     //if (dim > 1) {
     //  pty = pts[1];
-    //  y = wkset->getDataSc("y point");
+    //  y = wkset->getScalarField("y point");
     //}
     //if (dim > 2) {
     //  ptz = pts[2];
-    //  z = wkset->getDataSc("z point");
+    //  z = wkset->getScalarField("z point");
     //}
     //
     //

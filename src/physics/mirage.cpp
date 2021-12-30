@@ -408,7 +408,7 @@ void mirage::volumeResidual() {
   
     if (spaceDim == 2) {
       
-      auto curlE = wkset->getData("curl(E)[x]");
+      auto curlE = wkset->getSolutionField("curl(E)[x]");
       parallel_for("Maxwells B volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -421,7 +421,7 @@ void mirage::volumeResidual() {
       });
       
       if (include_dBdt) {
-        auto dB_dt = wkset->getData("B_t");
+        auto dB_dt = wkset->getSolutionField("B_t");
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -436,7 +436,7 @@ void mirage::volumeResidual() {
       
       if (use_iPML) {
         this->isotropicPML();
-        auto B = wkset->getData("B");
+        auto B = wkset->getSolutionField("B");
         parallel_for("mirage isoPML",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -452,9 +452,9 @@ void mirage::volumeResidual() {
     }
     else if (spaceDim == 3) {
       
-      auto curlE_x = wkset->getData("curl(E)[x]");
-      auto curlE_y = wkset->getData("curl(E)[y]");
-      auto curlE_z = wkset->getData("curl(E)[z]");
+      auto curlE_x = wkset->getSolutionField("curl(E)[x]");
+      auto curlE_y = wkset->getSolutionField("curl(E)[y]");
+      auto curlE_z = wkset->getSolutionField("curl(E)[z]");
       
       parallel_for("Maxwells B volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -472,9 +472,9 @@ void mirage::volumeResidual() {
       });
       
       if (include_dBdt) {
-        auto dBx_dt = wkset->getData("B_t[x]");
-        auto dBy_dt = wkset->getData("B_t[y]");
-        auto dBz_dt = wkset->getData("B_t[z]");
+        auto dBx_dt = wkset->getSolutionField("B_t[x]");
+        auto dBy_dt = wkset->getSolutionField("B_t[y]");
+        auto dBz_dt = wkset->getSolutionField("B_t[z]");
         
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -494,9 +494,9 @@ void mirage::volumeResidual() {
       
       if (use_iPML) {
         this->isotropicPML();
-        auto Bx = wkset->getData("B[x]");
-        auto By = wkset->getData("B[y]");
-        auto Bz = wkset->getData("B[z]");
+        auto Bx = wkset->getSolutionField("B[x]");
+        auto By = wkset->getSolutionField("B[y]");
+        auto Bz = wkset->getSolutionField("B[z]");
         parallel_for("mirage isoPML",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -514,9 +514,9 @@ void mirage::volumeResidual() {
       }
       if (use_aPML) {
         this->anisotropicPML();
-        auto Bx = wkset->getData("B[x]");
-        auto By = wkset->getData("B[y]");
-        auto Bz = wkset->getData("B[z]");
+        auto Bx = wkset->getSolutionField("B[x]");
+        auto By = wkset->getSolutionField("B[y]");
+        auto Bz = wkset->getSolutionField("B[z]");
         parallel_for("mirage anisoPML",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -565,9 +565,9 @@ void mirage::volumeResidual() {
 
     if (spaceDim == 2) {
       
-      auto B = wkset->getData("B");
-      auto Ex = wkset->getData("E[x]");
-      auto Ey = wkset->getData("E[y]");
+      auto B = wkset->getSolutionField("B");
+      auto Ex = wkset->getSolutionField("E[x]");
+      auto Ey = wkset->getSolutionField("E[y]");
   
       parallel_for("Maxwells E volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -584,8 +584,8 @@ void mirage::volumeResidual() {
       });
       
       if (include_dEdt) {
-        auto dEx_dt = wkset->getData("E_t[x]");
-        auto dEy_dt = wkset->getData("E_t[y]");
+        auto dEx_dt = wkset->getSolutionField("E_t[x]");
+        auto dEy_dt = wkset->getSolutionField("E_t[y]");
         parallel_for("Maxwells E volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -619,12 +619,12 @@ void mirage::volumeResidual() {
     }
     else if (spaceDim == 3) {
       
-      auto Bx = wkset->getData("B[x]");
-      auto By = wkset->getData("B[y]");
-      auto Bz = wkset->getData("B[z]");
-      auto Ex = wkset->getData("E[x]");
-      auto Ey = wkset->getData("E[y]");
-      auto Ez = wkset->getData("E[z]");
+      auto Bx = wkset->getSolutionField("B[x]");
+      auto By = wkset->getSolutionField("B[y]");
+      auto Bz = wkset->getSolutionField("B[z]");
+      auto Ex = wkset->getSolutionField("E[x]");
+      auto Ey = wkset->getSolutionField("E[y]");
+      auto Ez = wkset->getSolutionField("E[z]");
       
       parallel_for("Maxwells E volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -648,9 +648,9 @@ void mirage::volumeResidual() {
       });
       
       if (include_dEdt) {
-        auto dEx_dt = wkset->getData("E_t[x]");
-        auto dEy_dt = wkset->getData("E_t[y]");
-        auto dEz_dt = wkset->getData("E_t[z]");
+        auto dEx_dt = wkset->getSolutionField("E_t[x]");
+        auto dEy_dt = wkset->getSolutionField("E_t[y]");
+        auto dEz_dt = wkset->getSolutionField("E_t[z]");
         parallel_for("Maxwells E volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -729,8 +729,8 @@ void mirage::boundaryResidual() {
         auto res = wkset->res;
         
         View_Sc2 nx, ny;
-        nx = wkset->getDataSc("nx side");
-        ny = wkset->getDataSc("ny side");
+        nx = wkset->getScalarField("nx side");
+        ny = wkset->getScalarField("ny side");
         
         parallel_for("maxwell bndry resid ABC",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -747,12 +747,12 @@ void mirage::boundaryResidual() {
         auto res = wkset->res;
         
         View_Sc2 nx, ny, nz;
-        nx = wkset->getDataSc("nx side");
-        ny = wkset->getDataSc("ny side");
-        nz = wkset->getDataSc("nz side");
-        auto Ex = wkset->getData("E[x] side");
-        auto Ey = wkset->getData("E[y] side");
-        auto Ez = wkset->getData("E[z] side");
+        nx = wkset->getScalarField("nx side");
+        ny = wkset->getScalarField("ny side");
+        nz = wkset->getScalarField("nz side");
+        auto Ex = wkset->getSolutionField("E[x] side");
+        auto Ey = wkset->getSolutionField("E[y] side");
+        auto Ez = wkset->getSolutionField("E[z] side");
         auto off = subview(wkset->offsets, Enum, ALL());
         auto basis = wkset->basis_side[wkset->usebasis[Enum]];
         
@@ -830,9 +830,9 @@ void mirage::planewaveSource() {
   
   if (wkset->dimension == 3) {
     ScalarT zmin_ = current_zmin_, zmax_ = current_zmax_;
-    auto ip_x = wkset->getDataSc("x");
-    auto ip_y = wkset->getDataSc("y");
-    auto ip_z = wkset->getDataSc("z");
+    auto ip_x = wkset->getScalarField("x");
+    auto ip_y = wkset->getScalarField("y");
+    auto ip_z = wkset->getScalarField("z");
     
     if (current_xcomponent_) {
       parallel_for("mirage current x",
@@ -887,8 +887,8 @@ void mirage::planewaveSource() {
     }
   }
   else {
-    auto ip_x = wkset->getDataSc("x");
-    auto ip_y = wkset->getDataSc("y");
+    auto ip_x = wkset->getScalarField("x");
+    auto ip_y = wkset->getScalarField("y");
     if (current_xcomponent_) {
       parallel_for("mirage current x",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -931,11 +931,11 @@ void mirage::isotropicPML() {
   
   int dimension = wkset->dimension;
   
-  auto ip_x = wkset->getDataSc("x");
-  auto ip_y = wkset->getDataSc("y");
+  auto ip_x = wkset->getScalarField("x");
+  auto ip_y = wkset->getScalarField("y");
   View_Sc2 ip_z;
   if (dimension>2) {
-    ip_z = wkset->getDataSc("z");
+    ip_z = wkset->getScalarField("z");
   }
   
   using namespace std;
@@ -1083,11 +1083,11 @@ void mirage::anisotropicPML() {
   
   int dimension = wkset->dimension;
   
-  auto ip_x = wkset->getDataSc("x");
-  auto ip_y = wkset->getDataSc("y");
+  auto ip_x = wkset->getScalarField("x");
+  auto ip_y = wkset->getScalarField("y");
   View_Sc2 ip_z;
   if (dimension>2) {
-    ip_z = wkset->getDataSc("z");
+    ip_z = wkset->getScalarField("z");
   }
   
   using namespace std;

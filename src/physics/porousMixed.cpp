@@ -335,11 +335,11 @@ void porousMixed::volumeResidual() {
     // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
     
     auto basis = wkset->basis[u_basis];
-    auto psol = wkset->getData("p");
+    auto psol = wkset->getSolutionField("p");
     auto off = subview(wkset->offsets, unum, ALL());
     
     if (spaceDim == 1) { // easier to place conditional here than on device
-      auto ux = wkset->getData("u");
+      auto ux = wkset->getSolutionField("u");
       auto basis_div = wkset->basis_grad[u_basis];
         
       parallel_for("porous HDIV volume resid u 1D",
@@ -357,8 +357,8 @@ void porousMixed::volumeResidual() {
       });
     }
     else if (spaceDim == 2) {
-      auto ux = wkset->getData("u[x]");
-      auto uy = wkset->getData("u[y]");
+      auto ux = wkset->getSolutionField("u[x]");
+      auto uy = wkset->getSolutionField("u[y]");
       auto basis_div = wkset->basis_div[u_basis];
       
       parallel_for("porous HDIV volume resid u 2D",
@@ -378,9 +378,9 @@ void porousMixed::volumeResidual() {
       });
     }
     else {
-      auto ux = wkset->getData("u[x]");
-      auto uy = wkset->getData("u[y]");
-      auto uz = wkset->getData("u[z]");
+      auto ux = wkset->getSolutionField("u[x]");
+      auto uy = wkset->getSolutionField("u[y]");
+      auto uz = wkset->getSolutionField("u[z]");
       auto basis_div = wkset->basis_div[u_basis];
       
       parallel_for("porous HDIV volume resid u 3D",
@@ -410,10 +410,10 @@ void porousMixed::volumeResidual() {
     auto off = subview(wkset->offsets,pnum, ALL());
     View_AD2 udiv;
     if (spaceDim == 1) {
-      udiv = wkset->getData("grad(u)[x]");
+      udiv = wkset->getSolutionField("grad(u)[x]");
     }
     else {
-      udiv = wkset->getData("div(u)");
+      udiv = wkset->getSolutionField("div(u)");
     }
     
     parallel_for("porous HDIV volume resid div(u)",
@@ -450,21 +450,21 @@ void porousMixed::boundaryResidual() {
   
   View_Sc2 nx, ny, nz;
   View_AD2 ux, uy, uz;
-  nx = wkset->getDataSc("nx side");
+  nx = wkset->getScalarField("nx side");
   
   if (spaceDim == 1) {
-    ux = wkset->getData("u side");
+    ux = wkset->getSolutionField("u side");
   }
   else {
-    ux = wkset->getData("u[x] side");
+    ux = wkset->getSolutionField("u[x] side");
   }
   if (spaceDim > 1) {
-    ny = wkset->getDataSc("ny side");
-    uy = wkset->getData("u[y] side");
+    ny = wkset->getScalarField("ny side");
+    uy = wkset->getSolutionField("u[y] side");
   }
   if (spaceDim > 2) {
-    nz = wkset->getDataSc("nz side");
-    uz = wkset->getData("u[z] side");
+    nz = wkset->getScalarField("nz side");
+    uz = wkset->getSolutionField("u[z] side");
   }
   
   Vista bsource;
@@ -502,7 +502,7 @@ void porousMixed::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == "interface") {
-    auto lambda = wkset->getData("aux "+auxvar+" side");
+    auto lambda = wkset->getSolutionField("aux "+auxvar+" side");
     parallel_for("porous HDIV boundary resid MS Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -541,8 +541,8 @@ void porousMixed::computeFlux() {
     View_Sc2 nx, ny, nz;
     View_AD2 ux, uy, uz;
     if (spaceDim == 1) {
-      nx = wkset->getDataSc("nx side");
-      ux = wkset->getData("u side");
+      nx = wkset->getScalarField("nx side");
+      ux = wkset->getSolutionField("u side");
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -553,10 +553,10 @@ void porousMixed::computeFlux() {
       });
     }
     else if (spaceDim == 2) {
-      nx = wkset->getDataSc("nx side");
-      ux = wkset->getData("u[x] side");
-      ny = wkset->getDataSc("ny side");
-      uy = wkset->getData("u[y] side");
+      nx = wkset->getScalarField("nx side");
+      ux = wkset->getSolutionField("u[x] side");
+      ny = wkset->getScalarField("ny side");
+      uy = wkset->getSolutionField("u[y] side");
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -568,12 +568,12 @@ void porousMixed::computeFlux() {
       });
     }
     else if (spaceDim == 3) {
-      nx = wkset->getDataSc("nx side");
-      ux = wkset->getData("u[x] side");
-      ny = wkset->getDataSc("ny side");
-      uy = wkset->getData("u[y] side");
-      nz = wkset->getDataSc("nz side");
-      uz = wkset->getData("u[z] side");
+      nx = wkset->getScalarField("nx side");
+      ux = wkset->getSolutionField("u[x] side");
+      ny = wkset->getScalarField("ny side");
+      uy = wkset->getSolutionField("u[y] side");
+      nz = wkset->getScalarField("nz side");
+      uz = wkset->getSolutionField("u[z] side");
       
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -662,7 +662,7 @@ void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
   bool foundUQ = false;
   auto KLUQcoeffs = wkset->getParameter("KLUQcoeffs",foundUQ);
   size_type prog = 0;
-  auto xpts = wkset->getDataSc("x");
+  auto xpts = wkset->getScalarField("x");
   auto indices = KLindices;
   
   if (foundUQ) {
@@ -682,7 +682,7 @@ void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
       });
     }
     else if (spaceDim == 2) {
-      auto ypts = wkset->getDataSc("y");
+      auto ypts = wkset->getScalarField("y");
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -702,8 +702,8 @@ void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
       });
     }
     else if (spaceDim == 3) {
-      auto ypts = wkset->getDataSc("y");
-      auto zpts = wkset->getDataSc("z");
+      auto ypts = wkset->getScalarField("y");
+      auto zpts = wkset->getScalarField("z");
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -751,7 +751,7 @@ void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
       });
     }
     else if (spaceDim == 2) {
-      auto ypts = wkset->getDataSc("y");
+      auto ypts = wkset->getScalarField("y");
       
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -772,8 +772,8 @@ void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
       });
     }
     else if (spaceDim == 3) {
-      auto ypts = wkset->getDataSc("y");
-      auto zpts = wkset->getDataSc("z");
+      auto ypts = wkset->getScalarField("y");
+      auto zpts = wkset->getScalarField("z");
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {

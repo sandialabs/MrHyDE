@@ -150,10 +150,10 @@ void VDNS::volumeResidual() {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
-      auto ux = wkset->getData("ux");
-      auto dux_dt = wkset->getData("ux_t");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto pr = wkset->getData("pr");
+      auto ux = wkset->getSolutionField("ux");
+      auto dux_dt = wkset->getSolutionField("ux_t");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto pr = wkset->getSolutionField("pr");
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       // Ux equation
@@ -179,7 +179,7 @@ void VDNS::volumeResidual() {
       // 1/\tau_mom^2 = (c1 \mu/h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -201,9 +201,9 @@ void VDNS::volumeResidual() {
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
         auto h = wkset->h;
-        auto T = wkset->getData("T");
-        auto dT_dt = wkset->getData("T_t");
-        auto dT_dx = wkset->getData("grad(T)[x]");
+        auto T = wkset->getSolutionField("T");
+        auto dT_dt = wkset->getSolutionField("T_t");
+        auto dT_dx = wkset->getSolutionField("grad(T)[x]");
         parallel_for("VDNS ux volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -229,10 +229,10 @@ void VDNS::volumeResidual() {
       int T_basis = wkset->usebasis[T_num];
       auto basis = wkset->basis[T_basis];
       auto basis_grad = wkset->basis_grad[T_basis];
-      auto T = wkset->getData("T");
-      auto dT_dt = wkset->getData("T_t");
-      auto dT_dx = wkset->getData("grad(T)[x]"); 
-      auto ux = wkset->getData("ux");
+      auto T = wkset->getSolutionField("T");
+      auto dT_dt = wkset->getSolutionField("T_t");
+      auto dT_dx = wkset->getSolutionField("grad(T)[x]"); 
+      auto ux = wkset->getSolutionField("ux");
       auto off = subview(wkset->offsets,T_num,ALL());
 
       parallel_for("VDNS T volume resid",
@@ -282,11 +282,11 @@ void VDNS::volumeResidual() {
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
-      auto ux = wkset->getData("ux");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto T = wkset->getData("T");
-      auto dT_dt = wkset->getData("T_t");
-      auto dT_dx = wkset->getData("grad(T)[x]");
+      auto ux = wkset->getSolutionField("ux");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto T = wkset->getSolutionField("T");
+      auto dT_dt = wkset->getSolutionField("T_t");
+      auto dT_dx = wkset->getSolutionField("grad(T)[x]");
       auto off = subview(wkset->offsets,pr_num,ALL());
       
       parallel_for("VDNS pr volume resid",
@@ -308,9 +308,9 @@ void VDNS::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
-        auto ux = wkset->getData("ux");
-        auto dux_dt = wkset->getData("ux_t");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
+        auto ux = wkset->getSolutionField("ux");
+        auto dux_dt = wkset->getSolutionField("ux_t");
         
         parallel_for("VDNS pr volume resid PSPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -334,14 +334,14 @@ void VDNS::volumeResidual() {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto dux_dt = wkset->getData("ux_t");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto dux_dy = wkset->getData("grad(ux)[y]");
-      auto duy_dx = wkset->getData("grad(uy)[x]");
-      auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto pr = wkset->getData("pr");
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto dux_dt = wkset->getSolutionField("ux_t");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+      auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+      auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+      auto pr = wkset->getSolutionField("pr");
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       // Ux equation
@@ -372,7 +372,7 @@ void VDNS::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -394,10 +394,10 @@ void VDNS::volumeResidual() {
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
         auto h = wkset->h;
-        auto T = wkset->getData("T");
-        auto dT_dt = wkset->getData("T_t");
-        auto dT_dx = wkset->getData("grad(T)[x]");
-        auto dT_dy = wkset->getData("grad(T)[y]");
+        auto T = wkset->getSolutionField("T");
+        auto dT_dt = wkset->getSolutionField("T_t");
+        auto dT_dx = wkset->getSolutionField("grad(T)[x]");
+        auto dT_dy = wkset->getSolutionField("grad(T)[y]");
         parallel_for("VDNS ux volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -425,14 +425,14 @@ void VDNS::volumeResidual() {
       int uy_basis = wkset->usebasis[uy_num];
       auto basis = wkset->basis[uy_basis];
       auto basis_grad = wkset->basis_grad[uy_basis];
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto duy_dt = wkset->getData("uy_t");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto dux_dy = wkset->getData("grad(ux)[y]");
-      auto duy_dx = wkset->getData("grad(uy)[x]");
-      auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto pr = wkset->getData("pr");
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto duy_dt = wkset->getSolutionField("uy_t");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+      auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+      auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+      auto pr = wkset->getSolutionField("pr");
       auto off = subview(wkset->offsets,uy_num,ALL());
       
       parallel_for("VDNS uy volume resid",
@@ -460,7 +460,7 @@ void VDNS::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("VDNS uy volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -481,10 +481,10 @@ void VDNS::volumeResidual() {
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
         auto h = wkset->h;
-        auto T = wkset->getData("T");
-        auto dT_dt = wkset->getData("T_t");
-        auto dT_dx = wkset->getData("grad(T)[x]");
-        auto dT_dy = wkset->getData("grad(T)[y]");
+        auto T = wkset->getSolutionField("T");
+        auto dT_dt = wkset->getSolutionField("T_t");
+        auto dT_dx = wkset->getSolutionField("grad(T)[x]");
+        auto dT_dy = wkset->getSolutionField("grad(T)[y]");
         parallel_for("VDNS uy volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -513,12 +513,12 @@ void VDNS::volumeResidual() {
       int T_basis = wkset->usebasis[T_num];
       auto basis = wkset->basis[T_basis];
       auto basis_grad = wkset->basis_grad[T_basis];
-      auto T = wkset->getData("T");
-      auto dT_dt = wkset->getData("T_t");
-      auto dT_dx = wkset->getData("grad(T)[x]"); 
-      auto dT_dy = wkset->getData("grad(T)[y]"); 
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
+      auto T = wkset->getSolutionField("T");
+      auto dT_dt = wkset->getSolutionField("T_t");
+      auto dT_dx = wkset->getSolutionField("grad(T)[x]"); 
+      auto dT_dy = wkset->getSolutionField("grad(T)[y]"); 
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
       auto off = subview(wkset->offsets,T_num,ALL());
  
       parallel_for("VDNS T volume resid",
@@ -570,14 +570,14 @@ void VDNS::volumeResidual() {
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto T = wkset->getData("T");
-      auto dT_dt = wkset->getData("T_t");
-      auto dT_dx = wkset->getData("grad(T)[x]");
-      auto dT_dy = wkset->getData("grad(T)[y]");
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+      auto T = wkset->getSolutionField("T");
+      auto dT_dt = wkset->getSolutionField("T_t");
+      auto dT_dx = wkset->getSolutionField("grad(T)[x]");
+      auto dT_dy = wkset->getSolutionField("grad(T)[y]");
       auto off = subview(wkset->offsets,pr_num,ALL());
       
       parallel_for("VDNS pr volume resid",
@@ -599,12 +599,12 @@ void VDNS::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
-        auto dpr_dy = wkset->getData("grad(pr)[y]");
-        auto dux_dt = wkset->getData("ux_t");
-        auto duy_dt = wkset->getData("uy_t");
-        auto dux_dy = wkset->getData("grad(ux)[y]");
-        auto duy_dx = wkset->getData("grad(uy)[x]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
+        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
+        auto dux_dt = wkset->getSolutionField("ux_t");
+        auto duy_dt = wkset->getSolutionField("uy_t");
+        auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+        auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
 
         parallel_for("VDNS pr volume resid PSPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -635,20 +635,20 @@ void VDNS::volumeResidual() {
       int ux_basis = wkset->usebasis[ux_num];
       auto basis = wkset->basis[ux_basis];
       auto basis_grad = wkset->basis_grad[ux_basis];
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto uz = wkset->getData("uz");
-      auto dux_dt = wkset->getData("ux_t");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto dux_dy = wkset->getData("grad(ux)[y]");
-      auto dux_dz = wkset->getData("grad(ux)[z]");
-      auto duy_dx = wkset->getData("grad(uy)[x]");
-      auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto duy_dz = wkset->getData("grad(uy)[z]");
-      auto duz_dx = wkset->getData("grad(uz)[x]");
-      auto duz_dy = wkset->getData("grad(uz)[y]");
-      auto duz_dz = wkset->getData("grad(uz)[z]");
-      auto pr = wkset->getData("pr");
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto uz = wkset->getSolutionField("uz");
+      auto dux_dt = wkset->getSolutionField("ux_t");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+      auto dux_dz = wkset->getSolutionField("grad(ux)[z]");
+      auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+      auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+      auto duy_dz = wkset->getSolutionField("grad(uy)[z]");
+      auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
+      auto duz_dy = wkset->getSolutionField("grad(uz)[y]");
+      auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
+      auto pr = wkset->getSolutionField("pr");
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       parallel_for("VDNS ux volume resid",
@@ -675,7 +675,7 @@ void VDNS::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -702,20 +702,20 @@ void VDNS::volumeResidual() {
       int uy_basis = wkset->usebasis[uy_num];
       auto basis = wkset->basis[uy_basis];
       auto basis_grad = wkset->basis_grad[uy_basis];
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto uz = wkset->getData("uz");
-      auto duy_dt = wkset->getData("uy_t");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto dux_dy = wkset->getData("grad(ux)[y]");
-      auto dux_dz = wkset->getData("grad(ux)[z]");
-      auto duy_dx = wkset->getData("grad(uy)[x]");
-      auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto duy_dz = wkset->getData("grad(uy)[z]");
-      auto duz_dx = wkset->getData("grad(uz)[x]");
-      auto duz_dy = wkset->getData("grad(uz)[y]");
-      auto duz_dz = wkset->getData("grad(uz)[z]");
-      auto pr = wkset->getData("pr");
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto uz = wkset->getSolutionField("uz");
+      auto duy_dt = wkset->getSolutionField("uy_t");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+      auto dux_dz = wkset->getSolutionField("grad(ux)[z]");
+      auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+      auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+      auto duy_dz = wkset->getSolutionField("grad(uy)[z]");
+      auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
+      auto duz_dy = wkset->getSolutionField("grad(uz)[y]");
+      auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
+      auto pr = wkset->getSolutionField("pr");
       auto off = subview(wkset->offsets,uy_num,ALL());
       
       parallel_for("VDNS uy volume resid",
@@ -743,7 +743,7 @@ void VDNS::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto dpr_dy = wkset->getData("grad(pr)[y]");
+        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("VDNS uy volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -770,20 +770,20 @@ void VDNS::volumeResidual() {
       int uz_basis = wkset->usebasis[uz_num];
       auto basis = wkset->basis[uz_basis];
       auto basis_grad = wkset->basis_grad[uz_basis];
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto uz = wkset->getData("uz");
-      auto duz_dt = wkset->getData("uz_t");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto dux_dy = wkset->getData("grad(ux)[y]");
-      auto dux_dz = wkset->getData("grad(ux)[z]");
-      auto duy_dx = wkset->getData("grad(uy)[x]");
-      auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto duy_dz = wkset->getData("grad(uy)[z]");
-      auto duz_dx = wkset->getData("grad(uz)[x]");
-      auto duz_dy = wkset->getData("grad(uz)[y]");
-      auto duz_dz = wkset->getData("grad(uz)[z]");
-      auto pr = wkset->getData("pr");
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto uz = wkset->getSolutionField("uz");
+      auto duz_dt = wkset->getSolutionField("uz_t");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+      auto dux_dz = wkset->getSolutionField("grad(ux)[z]");
+      auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+      auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+      auto duy_dz = wkset->getSolutionField("grad(uy)[z]");
+      auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
+      auto duz_dy = wkset->getSolutionField("grad(uz)[y]");
+      auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
+      auto pr = wkset->getSolutionField("pr");
       auto off = subview(wkset->offsets,uz_num,ALL());
       
       parallel_for("VDNS uz volume resid",
@@ -811,7 +811,7 @@ void VDNS::volumeResidual() {
       
       if (useSUPG) {
         auto h = wkset->h;
-        auto dpr_dz = wkset->getData("grad(pr)[z]");
+        auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
         parallel_for("VDNS uz volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -838,14 +838,14 @@ void VDNS::volumeResidual() {
       int T_basis = wkset->usebasis[T_num];
       auto basis = wkset->basis[T_basis];
       auto basis_grad = wkset->basis_grad[T_basis];
-      auto T = wkset->getData("T");
-      auto dT_dt = wkset->getData("T_t");
-      auto dT_dx = wkset->getData("grad(T)[x]"); 
-      auto dT_dy = wkset->getData("grad(T)[y]"); 
-      auto dT_dz = wkset->getData("grad(T)[z]"); 
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto uz = wkset->getData("uz");
+      auto T = wkset->getSolutionField("T");
+      auto dT_dt = wkset->getSolutionField("T_t");
+      auto dT_dx = wkset->getSolutionField("grad(T)[x]"); 
+      auto dT_dy = wkset->getSolutionField("grad(T)[y]"); 
+      auto dT_dz = wkset->getSolutionField("grad(T)[z]"); 
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto uz = wkset->getSolutionField("uz");
       auto off = subview(wkset->offsets,T_num,ALL());
  
       parallel_for("VDNS T volume resid",
@@ -898,17 +898,17 @@ void VDNS::volumeResidual() {
       int pr_basis = wkset->usebasis[pr_num];
       auto basis = wkset->basis[pr_basis];
       auto basis_grad = wkset->basis_grad[pr_basis];
-      auto ux = wkset->getData("ux");
-      auto uy = wkset->getData("uy");
-      auto uz = wkset->getData("uz");
-      auto dux_dx = wkset->getData("grad(ux)[x]");
-      auto duy_dy = wkset->getData("grad(uy)[y]");
-      auto duz_dz = wkset->getData("grad(uz)[z]");
-      auto T = wkset->getData("T");
-      auto dT_dt = wkset->getData("T_t");
-      auto dT_dx = wkset->getData("grad(T)[x]");
-      auto dT_dy = wkset->getData("grad(T)[y]");
-      auto dT_dz = wkset->getData("grad(T)[z]");
+      auto ux = wkset->getSolutionField("ux");
+      auto uy = wkset->getSolutionField("uy");
+      auto uz = wkset->getSolutionField("uz");
+      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+      auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
+      auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
+      auto T = wkset->getSolutionField("T");
+      auto dT_dt = wkset->getSolutionField("T_t");
+      auto dT_dx = wkset->getSolutionField("grad(T)[x]");
+      auto dT_dy = wkset->getSolutionField("grad(T)[y]");
+      auto dT_dz = wkset->getSolutionField("grad(T)[z]");
       auto off = subview(wkset->offsets,pr_num,ALL());
       
       parallel_for("VDNS pr volume resid",
@@ -930,18 +930,18 @@ void VDNS::volumeResidual() {
       if (usePSPG) {
         
         auto h = wkset->h;
-        auto dpr_dx = wkset->getData("grad(pr)[x]");
-        auto dpr_dy = wkset->getData("grad(pr)[y]");
-        auto dpr_dz = wkset->getData("grad(pr)[z]");
-        auto dux_dt = wkset->getData("ux_t");
-        auto duy_dt = wkset->getData("uy_t");
-        auto duz_dt = wkset->getData("uz_t");
-        auto dux_dy = wkset->getData("grad(ux)[y]");
-        auto dux_dz = wkset->getData("grad(ux)[z]");
-        auto duy_dx = wkset->getData("grad(uy)[x]");
-        auto duy_dz = wkset->getData("grad(uy)[z]");
-        auto duz_dx = wkset->getData("grad(uz)[x]");
-        auto duz_dy = wkset->getData("grad(uz)[y]");
+        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
+        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
+        auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
+        auto dux_dt = wkset->getSolutionField("ux_t");
+        auto duy_dt = wkset->getSolutionField("uy_t");
+        auto duz_dt = wkset->getSolutionField("uz_t");
+        auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+        auto dux_dz = wkset->getSolutionField("grad(ux)[z]");
+        auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+        auto duy_dz = wkset->getSolutionField("grad(uy)[z]");
+        auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
+        auto duz_dy = wkset->getSolutionField("grad(uz)[y]");
         
         parallel_for("NS pr volume resid PSPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),

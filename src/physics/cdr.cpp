@@ -85,15 +85,15 @@ void cdr::volumeResidual() {
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
-  auto C = wkset->getData("c");
-  auto dC_dt = wkset->getData("c_t");
+  auto C = wkset->getSolutionField("c");
+  auto dC_dt = wkset->getSolutionField("c_t");
   View_AD2 dC_dx, dC_dy, dC_dz;
-  dC_dx = wkset->getData("grad(c)[x]");
+  dC_dx = wkset->getSolutionField("grad(c)[x]");
   if (spaceDim > 1) {
-    dC_dy = wkset->getData("grad(c)[y]");
+    dC_dy = wkset->getSolutionField("grad(c)[y]");
   }
   if (spaceDim > 2) {
-    dC_dz = wkset->getData("grad(c)[z]");
+    dC_dz = wkset->getSolutionField("grad(c)[z]");
   }
   auto off = Kokkos::subview(wkset->offsets, cnum, Kokkos::ALL());
   auto res = wkset->res;

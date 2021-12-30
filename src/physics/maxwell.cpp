@@ -87,7 +87,7 @@ void maxwell::volumeResidual() {
       // (dB/dt + curl E,V) = 0
       
       auto basis = wkset->basis[B_basis];
-      auto dB_dt = wkset->getData("B_t");
+      auto dB_dt = wkset->getSolutionField("B_t");
       
       auto off = subview(wkset->offsets, Bnum, ALL());
       auto wts = wkset->wts;
@@ -95,7 +95,7 @@ void maxwell::volumeResidual() {
       
       if (useLeapFrog) {
         if (stage == 0) {
-          auto curlE = wkset->getData("curl(E)[x]");
+          auto curlE = wkset->getSolutionField("curl(E)[x]");
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
@@ -121,7 +121,7 @@ void maxwell::volumeResidual() {
         }
       }
       else {
-        auto curlE = wkset->getData("curl(E)[x]");
+        auto curlE = wkset->getSolutionField("curl(E)[x]");
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -142,15 +142,15 @@ void maxwell::volumeResidual() {
       auto wts = wkset->wts;
       auto res = wkset->res;
       auto basis = wkset->basis[B_basis];
-      auto dBx_dt = wkset->getData("B_t[x]");
-      auto dBy_dt = wkset->getData("B_t[y]");
-      auto dBz_dt = wkset->getData("B_t[z]");
+      auto dBx_dt = wkset->getSolutionField("B_t[x]");
+      auto dBy_dt = wkset->getSolutionField("B_t[y]");
+      auto dBz_dt = wkset->getSolutionField("B_t[z]");
       
       if (useLeapFrog) {
         if (stage == 0) {
-          auto curlE_x = wkset->getData("curl(E)[x]");
-          auto curlE_y = wkset->getData("curl(E)[y]");
-          auto curlE_z = wkset->getData("curl(E)[z]");
+          auto curlE_x = wkset->getSolutionField("curl(E)[x]");
+          auto curlE_y = wkset->getSolutionField("curl(E)[y]");
+          auto curlE_z = wkset->getSolutionField("curl(E)[z]");
           
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -185,9 +185,9 @@ void maxwell::volumeResidual() {
         }
       }
       else {
-        auto curlE_x = wkset->getData("curl(E)[x]");
-        auto curlE_y = wkset->getData("curl(E)[y]");
-        auto curlE_z = wkset->getData("curl(E)[z]");
+        auto curlE_x = wkset->getSolutionField("curl(E)[x]");
+        auto curlE_y = wkset->getSolutionField("curl(E)[y]");
+        auto curlE_z = wkset->getSolutionField("curl(E)[z]");
         
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -216,11 +216,11 @@ void maxwell::volumeResidual() {
         auto basis = wkset->basis[E_basis];
         auto basis_curl = wkset->basis_curl[E_basis];
         
-        auto dEx_dt = wkset->getData("E_t[x]");
-        auto dEy_dt = wkset->getData("E_t[y]");
-        auto B = wkset->getData("B");
-        auto Ex = wkset->getData("E[x]");
-        auto Ey = wkset->getData("E[y]");
+        auto dEx_dt = wkset->getSolutionField("E_t[x]");
+        auto dEy_dt = wkset->getSolutionField("E_t[y]");
+        auto B = wkset->getSolutionField("B");
+        auto Ex = wkset->getSolutionField("E[x]");
+        auto Ey = wkset->getSolutionField("E[y]");
         auto off = subview(wkset->offsets, Enum, ALL());
         auto wts = wkset->wts;
         auto res = wkset->res;
@@ -244,15 +244,15 @@ void maxwell::volumeResidual() {
       if (!useLeapFrog || stage == 1) {
         auto basis = wkset->basis[E_basis];
         auto basis_curl = wkset->basis_curl[E_basis];
-        auto dEx_dt = wkset->getData("E_t[x]");
-        auto dEy_dt = wkset->getData("E_t[y]");
-        auto dEz_dt = wkset->getData("E_t[z]");
-        auto Bx = wkset->getData("B[x]");
-        auto By = wkset->getData("B[y]");
-        auto Bz = wkset->getData("B[z]");
-        auto Ex = wkset->getData("E[x]");
-        auto Ey = wkset->getData("E[y]");
-        auto Ez = wkset->getData("E[z]");
+        auto dEx_dt = wkset->getSolutionField("E_t[x]");
+        auto dEy_dt = wkset->getSolutionField("E_t[y]");
+        auto dEz_dt = wkset->getSolutionField("E_t[z]");
+        auto Bx = wkset->getSolutionField("B[x]");
+        auto By = wkset->getSolutionField("B[y]");
+        auto Bz = wkset->getSolutionField("B[z]");
+        auto Ex = wkset->getSolutionField("E[x]");
+        auto Ey = wkset->getSolutionField("E[y]");
+        auto Ez = wkset->getSolutionField("E[z]");
         auto off = subview(wkset->offsets, Enum, ALL());
         auto wts = wkset->wts;
         auto res = wkset->res;
@@ -296,8 +296,8 @@ void maxwell::boundaryResidual() {
   
   if (spaceDim == 2) {
     View_Sc2 nx, ny;
-    nx = wkset->getDataSc("nx side");
-    ny = wkset->getDataSc("ny side");
+    nx = wkset->getScalarField("nx side");
+    ny = wkset->getScalarField("ny side");
     
     //double gamma = 0.0;
     if (bcs(Bnum,cside) == "Neumann") { // Really ABC
@@ -313,12 +313,12 @@ void maxwell::boundaryResidual() {
   }
   else if (spaceDim == 3) {
     View_Sc2 nx, ny, nz;
-    nx = wkset->getDataSc("nx side");
-    ny = wkset->getDataSc("ny side");
-    nz = wkset->getDataSc("nz side");
-    auto Ex = wkset->getData("E[x] side");
-    auto Ey = wkset->getData("E[y] side");
-    auto Ez = wkset->getData("E[z] side");
+    nx = wkset->getScalarField("nx side");
+    ny = wkset->getScalarField("ny side");
+    nz = wkset->getScalarField("nz side");
+    auto Ex = wkset->getSolutionField("E[x] side");
+    auto Ey = wkset->getSolutionField("E[y] side");
+    auto Ez = wkset->getSolutionField("E[z] side");
     auto off = subview(wkset->offsets, Enum, ALL());
     auto basis = wkset->basis_side[wkset->usebasis[Enum]];
     
@@ -345,9 +345,9 @@ void maxwell::boundaryResidual() {
       
       
       /*
-      auto Bx = wkset->getData("B[x] side");
-      auto By = wkset->getData("B[y] side");
-      auto Bz = wkset->getData("B[z] side");
+      auto Bx = wkset->getSolutionField("B[x] side");
+      auto By = wkset->getSolutionField("B[y] side");
+      auto Bz = wkset->getSolutionField("B[z] side");
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {

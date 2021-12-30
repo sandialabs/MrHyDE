@@ -126,68 +126,68 @@ void maxwells_fp::volumeResidual() {
   auto offsets = wkset->offsets;
   
   View_AD2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
-  Ax_r = wkset->getData("Arx");
-  Ax_i = wkset->getData("Aix");
-  phi_r = wkset->getData("phir");
-  phi_i = wkset->getData("phii");
+  Ax_r = wkset->getSolutionField("Arx");
+  Ax_i = wkset->getSolutionField("Aix");
+  phi_r = wkset->getSolutionField("phir");
+  phi_i = wkset->getSolutionField("phii");
   
   View_AD2 dAxr_dt, dAxi_dt, dphir_dt, dphii_dt, dAyr_dt, dAyi_dt, dAzr_dt, dAzi_dt;
-  dAxr_dt = wkset->getData("Arx_t");
-  dAxi_dt = wkset->getData("Aix_t");
-  dphir_dt = wkset->getData("phir_t");
-  dphii_dt = wkset->getData("phii_t");
+  dAxr_dt = wkset->getSolutionField("Arx_t");
+  dAxi_dt = wkset->getSolutionField("Aix_t");
+  dphir_dt = wkset->getSolutionField("phir_t");
+  dphii_dt = wkset->getSolutionField("phii_t");
   
   View_AD2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
-  dAxr_dx = wkset->getData("grad(Arx)[x]");
-  dAxi_dx = wkset->getData("grad(Aix)[x]");
-  dphir_dx = wkset->getData("grad(phir)[x]");
-  dphii_dx = wkset->getData("grad(phii)[x]");
+  dAxr_dx = wkset->getSolutionField("grad(Arx)[x]");
+  dAxi_dx = wkset->getSolutionField("grad(Aix)[x]");
+  dphir_dx = wkset->getSolutionField("grad(phir)[x]");
+  dphii_dx = wkset->getSolutionField("grad(phii)[x]");
   
   View_AD2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
   View_AD2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
   
   if (spaceDim > 1) {
-    Ay_r = wkset->getData("Ary");
-    Ay_i = wkset->getData("Aiy");
-    dAyr_dt = wkset->getData("Ary_t");
-    dAyi_dt = wkset->getData("Aiy_t");
-    dAxr_dy = wkset->getData("grad(Arx)[y]");
-    dAxi_dy = wkset->getData("grad(Aix)[y]");
-    dphir_dy = wkset->getData("grad(phir)[y]");
-    dphii_dy = wkset->getData("grad(phii)[y]");
-    dAyr_dx = wkset->getData("grad(Ary)[x]");
-    dAyi_dx = wkset->getData("grad(Aiy)[x]");
-    dAyr_dy = wkset->getData("grad(Ary)[y]");
-    dAyi_dy = wkset->getData("grad(Aiy)[y]");
+    Ay_r = wkset->getSolutionField("Ary");
+    Ay_i = wkset->getSolutionField("Aiy");
+    dAyr_dt = wkset->getSolutionField("Ary_t");
+    dAyi_dt = wkset->getSolutionField("Aiy_t");
+    dAxr_dy = wkset->getSolutionField("grad(Arx)[y]");
+    dAxi_dy = wkset->getSolutionField("grad(Aix)[y]");
+    dphir_dy = wkset->getSolutionField("grad(phir)[y]");
+    dphii_dy = wkset->getSolutionField("grad(phii)[y]");
+    dAyr_dx = wkset->getSolutionField("grad(Ary)[x]");
+    dAyi_dx = wkset->getSolutionField("grad(Aiy)[x]");
+    dAyr_dy = wkset->getSolutionField("grad(Ary)[y]");
+    dAyi_dy = wkset->getSolutionField("grad(Aiy)[y]");
   }
   if (spaceDim > 2) {
-    Az_r = wkset->getData("Arz");
-    Az_i = wkset->getData("Aiz");
-    dAzr_dt = wkset->getData("Arz_t");
-    dAzi_dt = wkset->getData("Aiz_t");
-    dAxr_dz = wkset->getData("grad(Arx)[z]");
-    dAxi_dz = wkset->getData("grad(Aix)[z]");
-    dAyr_dz = wkset->getData("grad(Ary)[z]");
-    dAyi_dz = wkset->getData("grad(Aiy)[z]");
+    Az_r = wkset->getSolutionField("Arz");
+    Az_i = wkset->getSolutionField("Aiz");
+    dAzr_dt = wkset->getSolutionField("Arz_t");
+    dAzi_dt = wkset->getSolutionField("Aiz_t");
+    dAxr_dz = wkset->getSolutionField("grad(Arx)[z]");
+    dAxi_dz = wkset->getSolutionField("grad(Aix)[z]");
+    dAyr_dz = wkset->getSolutionField("grad(Ary)[z]");
+    dAyi_dz = wkset->getSolutionField("grad(Aiy)[z]");
   
-    dphir_dz = wkset->getData("grad(phir)[z]");
-    dphii_dz = wkset->getData("grad(phii)[z]");
-    dAzr_dx = wkset->getData("grad(Arz)[x]");
-    dAzi_dx = wkset->getData("grad(Aiz)[x]");
-    dAzr_dy = wkset->getData("grad(Arz)[y]");
-    dAzi_dy = wkset->getData("grad(Aiz)[y]");
-    dAzr_dz = wkset->getData("grad(Arz)[z]");
-    dAzi_dz = wkset->getData("grad(Aiz)[z]");
+    dphir_dz = wkset->getSolutionField("grad(phir)[z]");
+    dphii_dz = wkset->getSolutionField("grad(phii)[z]");
+    dAzr_dx = wkset->getSolutionField("grad(Arz)[x]");
+    dAzi_dx = wkset->getSolutionField("grad(Aiz)[x]");
+    dAzr_dy = wkset->getSolutionField("grad(Arz)[y]");
+    dAzi_dy = wkset->getSolutionField("grad(Aiz)[y]");
+    dAzr_dz = wkset->getSolutionField("grad(Arz)[z]");
+    dAzi_dz = wkset->getSolutionField("grad(Aiz)[z]");
   
   }
   
   View_Sc2 ip_x, ip_y, ip_z;
-  ip_x = wkset->getDataSc("x");
+  ip_x = wkset->getScalarField("x");
   if (spaceDim > 1) {
-    ip_y = wkset->getDataSc("y");
+    ip_y = wkset->getScalarField("y");
   }
   if (spaceDim > 2) {
-    ip_z = wkset->getDataSc("z");
+    ip_z = wkset->getScalarField("z");
   }
   int numCubPoints = ip_x.extent(1);
   
@@ -551,61 +551,61 @@ void maxwells_fp::boundaryResidual() {
   //    for( int i=0; i<numBasis; i++ ) {
   
   View_AD2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
-  Ax_r = wkset->getData("Arx side");
-  Ax_i = wkset->getData("Aix side");
-  phi_r = wkset->getData("phir side");
-  phi_i = wkset->getData("phii side");
+  Ax_r = wkset->getSolutionField("Arx side");
+  Ax_i = wkset->getSolutionField("Aix side");
+  phi_r = wkset->getSolutionField("phir side");
+  phi_i = wkset->getSolutionField("phii side");
   
   View_AD2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
-  dAxr_dx = wkset->getData("grad(Arx)[x] side");
-  dAxi_dx = wkset->getData("grad(Aix)[x] side");
-  dphir_dx = wkset->getData("grad(phir)[x] side");
-  dphii_dx = wkset->getData("grad(phii)[x] side");
+  dAxr_dx = wkset->getSolutionField("grad(Arx)[x] side");
+  dAxi_dx = wkset->getSolutionField("grad(Aix)[x] side");
+  dphir_dx = wkset->getSolutionField("grad(phir)[x] side");
+  dphii_dx = wkset->getSolutionField("grad(phii)[x] side");
   
   View_AD2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
   View_AD2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
   
   if (spaceDim > 1) {
-    Ay_r = wkset->getData("Ary side");
-    Ay_i = wkset->getData("Aiy side");
-    dAxr_dy = wkset->getData("grad(Arx)[y] side");
-    dAxi_dy = wkset->getData("grad(Aix)[y] side");
-    dphir_dy = wkset->getData("grad(phir)[y] side");
-    dphii_dy = wkset->getData("grad(phii)[y] side");
-    dAyr_dx = wkset->getData("grad(Ary)[x] side");
-    dAyi_dx = wkset->getData("grad(Aiy)[x] side");
-    dAyr_dy = wkset->getData("grad(Ary)[y] side");
-    dAyi_dy = wkset->getData("grad(Aiy)[y] side");
+    Ay_r = wkset->getSolutionField("Ary side");
+    Ay_i = wkset->getSolutionField("Aiy side");
+    dAxr_dy = wkset->getSolutionField("grad(Arx)[y] side");
+    dAxi_dy = wkset->getSolutionField("grad(Aix)[y] side");
+    dphir_dy = wkset->getSolutionField("grad(phir)[y] side");
+    dphii_dy = wkset->getSolutionField("grad(phii)[y] side");
+    dAyr_dx = wkset->getSolutionField("grad(Ary)[x] side");
+    dAyi_dx = wkset->getSolutionField("grad(Aiy)[x] side");
+    dAyr_dy = wkset->getSolutionField("grad(Ary)[y] side");
+    dAyi_dy = wkset->getSolutionField("grad(Aiy)[y] side");
   }
   if (spaceDim > 2) {
-    Az_r = wkset->getData("Arz side");
-    Az_i = wkset->getData("Aiz side");
-    dAxr_dz = wkset->getData("grad(Arx)[z] side");
-    dAxi_dz = wkset->getData("grad(Aix)[z] side");
-    dAyr_dz = wkset->getData("grad(Ary)[z] side");
-    dAyi_dz = wkset->getData("grad(Aiy)[z] side");
+    Az_r = wkset->getSolutionField("Arz side");
+    Az_i = wkset->getSolutionField("Aiz side");
+    dAxr_dz = wkset->getSolutionField("grad(Arx)[z] side");
+    dAxi_dz = wkset->getSolutionField("grad(Aix)[z] side");
+    dAyr_dz = wkset->getSolutionField("grad(Ary)[z] side");
+    dAyi_dz = wkset->getSolutionField("grad(Aiy)[z] side");
   
-    dphir_dz = wkset->getData("grad(phir)[z] side");
-    dphii_dz = wkset->getData("grad(phii)[z] side");
-    dAzr_dx = wkset->getData("grad(Arz)[x] side");
-    dAzi_dx = wkset->getData("grad(Aiz)[x] side");
-    dAzr_dy = wkset->getData("grad(Arz)[y] side");
-    dAzi_dy = wkset->getData("grad(Aiz)[y] side");
-    dAzr_dz = wkset->getData("grad(Arz)[z] side");
-    dAzi_dz = wkset->getData("grad(Aiz)[z] side");
+    dphir_dz = wkset->getSolutionField("grad(phir)[z] side");
+    dphii_dz = wkset->getSolutionField("grad(phii)[z] side");
+    dAzr_dx = wkset->getSolutionField("grad(Arz)[x] side");
+    dAzi_dx = wkset->getSolutionField("grad(Aiz)[x] side");
+    dAzr_dy = wkset->getSolutionField("grad(Arz)[y] side");
+    dAzi_dy = wkset->getSolutionField("grad(Aiz)[y] side");
+    dAzr_dz = wkset->getSolutionField("grad(Arz)[z] side");
+    dAzi_dz = wkset->getSolutionField("grad(Aiz)[z] side");
   
   }
   
   View_Sc2 ip_x, ip_y, ip_z, n_x, n_y, n_z;
-  ip_x = wkset->getDataSc("x side");
-  n_x = wkset->getDataSc("nx side");
+  ip_x = wkset->getScalarField("x side");
+  n_x = wkset->getScalarField("nx side");
   if (spaceDim > 1) {
-    ip_y = wkset->getDataSc("y side");
-    n_y = wkset->getDataSc("ny side");
+    ip_y = wkset->getScalarField("y side");
+    n_y = wkset->getScalarField("ny side");
   }
   if (spaceDim > 2) {
-    ip_z = wkset->getDataSc("z side");
-    n_z = wkset->getDataSc("nz side");
+    ip_z = wkset->getScalarField("z side");
+    n_z = wkset->getScalarField("nz side");
   }
   
   

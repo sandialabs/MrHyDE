@@ -57,7 +57,7 @@ void ODE::volumeResidual() {
   auto basis = wkset->getBasis("q");
   auto res = wkset->getResidual();
   auto off = wkset->getOffsets("q");
-  auto dqdt = wkset->getData("q_t");
+  auto dqdt = wkset->getSolutionField("q_t");
   auto wts = wkset->wts;
   
   // Simply solves q_dot = f(q,t)

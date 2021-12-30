@@ -102,14 +102,14 @@ void shallowwater::volumeResidual() {
   
   //KokkosTools::print(bath);
   
-  auto xi = wkset->getData("H");
-  auto xi_dot = wkset->getData("H_t");
+  auto xi = wkset->getSolutionField("H");
+  auto xi_dot = wkset->getSolutionField("H_t");
   
-  auto Hu = wkset->getData("Hu");
-  auto Hu_dot = wkset->getData("Hu_t");
+  auto Hu = wkset->getSolutionField("Hu");
+  auto Hu_dot = wkset->getSolutionField("Hu_t");
   
-  auto Hv = wkset->getData("Hv");
-  auto Hv_dot = wkset->getData("Hv_t");
+  auto Hv = wkset->getSolutionField("Hv");
+  auto Hv_dot = wkset->getSolutionField("Hv_t");
   
   auto Hoff  = subview(wkset->offsets, H_num,  ALL());
   auto Huoff = subview(wkset->offsets, Hu_num, ALL());

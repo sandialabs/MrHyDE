@@ -165,7 +165,7 @@ void FunctionManager::decomposeFunctions() {
                   forests[fiter].trees[titer].branches[k].isWorksetData = true;
                   
                   forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                  wkset->checkDataAllocation(j);
+                  wkset->checkSolutionFieldAllocation(j);
                   found = true;
                 }
                 j++;
@@ -194,7 +194,7 @@ void FunctionManager::decomposeFunctions() {
                   forests[fiter].trees[titer].branches[k].isWorksetData = true;
                   
                   forests[fiter].trees[titer].branches[k].workset_data_index = j;
-                  wkset->checkDataScAllocation(j);
+                  wkset->checkScalarFieldAllocation(j);
                   found = true;
                 }
                 j++;

@@ -143,24 +143,26 @@ namespace MrHyDE {
     
     View_Sc2 getSideWeights();
     
-    void checkDataAllocation(const size_t & ind);
+    //////////////////////////////////////////////////////////////
+    // Interact with the scalar/solution fields
+    //////////////////////////////////////////////////////////////
     
-    void checkDataScAllocation(const size_t & ind);
+    void checkSolutionFieldAllocation(const size_t & ind);
+    
+    void checkScalarFieldAllocation(const size_t & ind);
     
     void printSolutionFields();
     
     void printScalarFields();
     
-    View_AD2 findData(const string & label);
-    
-    View_AD2 getSolutionField(const string & label);
-    
-    View_AD2 getData(const string & label);
+    View_AD2 getSolutionField(const string & label, const bool & evaluate = true);
     
     View_Sc2 getScalarField(const string & label);
-    
-    View_Sc2 getDataSc(const string & label);
         
+    //////////////////////////////////////////////////////////////
+    // Interact with the basis functions
+    //////////////////////////////////////////////////////////////
+    
     View_Sc4 getBasis(const string & var);
     
     View_Sc4 getBasis(const int & varindex);
@@ -188,6 +190,10 @@ namespace MrHyDE {
     View_Sc4 getBasisCurlSide(const string & var);
     
     View_Sc4 getBasisCurlSide(const int & varindex);
+    
+    //////////////////////////////////////////////////////////////
+    // Get the offsets or a subview of the offsets
+    //////////////////////////////////////////////////////////////
     
     Kokkos::View<int**,AssemblyDevice> getOffsets();
     
@@ -223,20 +229,14 @@ namespace MrHyDE {
     int addIntegratedQuantities(const int & nRequested);
     
     //////////////////////////////////////////////////////////////
-    // Functions to set the data
+    // Functions to set scalar data
     //////////////////////////////////////////////////////////////
     
-#ifndef MrHyDE_NO_AD
-    void setData(const string & label, View_AD2 newdata);
-#endif
-    
-    void setDataSc(const string & label, View_Sc2 newdata);
-    
-    void reorderData();
-    
-    void printMetaData();
-    
     void setScalarField(View_Sc2 newdata, const string & expression);
+    
+    //////////////////////////////////////////////////////////////
+    // Function to carefully copy data
+    //////////////////////////////////////////////////////////////
     
     template<class V1, class V2>
     void copyData(V1 view1, V2 view2);
@@ -278,6 +278,10 @@ namespace MrHyDE {
     void setAuxCurl(View_AD4 newsolcurl, const string & pfix = "");
     
     void setAuxPoint(View_AD2 newsol);
+    
+    //////////////////////////////////////////////////////////////
+    // Function to change the current physics set
+    //////////////////////////////////////////////////////////////
     
     void updatePhysicsSet(const size_t & current_set_);
     

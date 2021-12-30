@@ -840,7 +840,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             // compute the true solution
             string expression = varname;
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol = assembler->wkset[altblock]->getData(expression);
+            auto sol = assembler->wkset[altblock]->getSolutionField(expression);
             
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
@@ -859,7 +859,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             // compute the true x-component of grad
             string expression = "grad(" + varname + ")[x]";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_x = assembler->wkset[altblock]->getData(expression);
+            auto sol_x = assembler->wkset[altblock]->getSolutionField(expression);
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
@@ -878,7 +878,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               // compute the true y-component of grad
               string expression = "grad(" + varname + ")[y]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_y = assembler->wkset[altblock]->getData(expression);
+              auto sol_y = assembler->wkset[altblock]->getSolutionField(expression);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -899,7 +899,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               // compute the true z-component of grad
               string expression = "grad(" + varname + ")[z]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_z = assembler->wkset[altblock]->getData(expression);
+              auto sol_z = assembler->wkset[altblock]->getSolutionField(expression);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -920,7 +920,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             // compute the true divergence
             string expression = "div(" + varname + ")";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_div = assembler->wkset[altblock]->getData(expression);
+            auto sol_div = assembler->wkset[altblock]->getSolutionField(expression);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
@@ -940,7 +940,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             // compute the true x-component of grad
             string expression = "curl(" + varname + ")[x]";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_curl_x = assembler->wkset[altblock]->getData(expression);
+            auto sol_curl_x = assembler->wkset[altblock]->getSolutionField(expression);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
@@ -960,7 +960,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               // compute the true y-component of grad
               string expression = "curl(" + varname + ")[y]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_curl_y = assembler->wkset[altblock]->getData(expression);
+              auto sol_curl_y = assembler->wkset[altblock]->getSolutionField(expression);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -981,7 +981,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               // compute the true z-component of grad
               string expression = "curl(" + varname + ")[z]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_curl_z = assembler->wkset[altblock]->getData(expression);
+              auto sol_curl_z = assembler->wkset[altblock]->getSolutionField(expression);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -1002,7 +1002,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             // compute the true x-component of grad
             string expression = varname + "[x]";
             auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_x = assembler->wkset[altblock]->getData(expression);
+            auto sol_x = assembler->wkset[altblock]->getSolutionField(expression);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
@@ -1022,7 +1022,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               // compute the true y-component of grad
               string expression = varname + "[y]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_y = assembler->wkset[altblock]->getData(expression);
+              auto sol_y = assembler->wkset[altblock]->getSolutionField(expression);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -1043,7 +1043,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               // compute the true z-component of grad
               string expression = varname + "[z]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_z = assembler->wkset[altblock]->getData(expression);
+              auto sol_z = assembler->wkset[altblock]->getSolutionField(expression);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
@@ -1077,7 +1077,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                 // compute the true z-component of grad
                 string expression = varname;
                 auto tsol = functionManagers[altblock]->evaluate("true "+expression,"side ip");
-                auto sol = assembler->wkset[altblock]->getData(expression+" side");
+                auto sol = assembler->wkset[altblock]->getSolutionField(expression+" side");
                 auto wts = assembler->cells[block][cell]->wkset->wts_side;
                 
                 // add in the L2 difference at the volumetric ip
@@ -1848,14 +1848,14 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           size_t cell = objectives[r].sensor_owners(pt,0);
           size_t elem = objectives[r].sensor_owners(pt,1);
           
-          auto x = assembler->wkset[block]->getDataSc("x point");
+          auto x = assembler->wkset[block]->getScalarField("x point");
           x(0,0) = objectives[r].sensor_points(pt,0);
           if (spaceDim > 1) {
-            auto y = assembler->wkset[block]->getDataSc("y point");
+            auto y = assembler->wkset[block]->getScalarField("y point");
             y(0,0) = objectives[r].sensor_points(pt,1);
           }
           if (spaceDim > 2) {
-            auto z = assembler->wkset[block]->getDataSc("z point");
+            auto z = assembler->wkset[block]->getScalarField("z point");
             z(0,0) = objectives[r].sensor_points(pt,2);
           }
           
@@ -2838,14 +2838,14 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           size_t cell = objectives[r].sensor_owners(pt,0);
           size_t elem = objectives[r].sensor_owners(pt,1);
           
-          auto x = assembler->wkset[block]->getDataSc("x point");
+          auto x = assembler->wkset[block]->getScalarField("x point");
           x(0,0) = objectives[r].sensor_points(pt,0);
           if (spaceDim > 1) {
-            auto y = assembler->wkset[block]->getDataSc("y point");
+            auto y = assembler->wkset[block]->getScalarField("y point");
             y(0,0) = objectives[r].sensor_points(pt,1);
           }
           if (spaceDim > 2) {
-            auto z = assembler->wkset[block]->getDataSc("z point");
+            auto z = assembler->wkset[block]->getScalarField("z point");
             z(0,0) = objectives[r].sensor_points(pt,2);
           }
           
@@ -3335,7 +3335,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
                 //assembler->cells[b][c]->computeSolnFaceIP(face);
                 assembler->cells[b][c]->updateWorksetFace(face);
                 auto wts = assembler->wkset[b]->wts_side;
-                auto sol = assembler->wkset[b]->getData(varlist[set][b][n]+" side");
+                auto sol = assembler->wkset[b]->getSolutionField(varlist[set][b][n]+" side");
                 parallel_for("postproc plot HFACE",
                              RangePolicy<AssemblyExec>(0,eID.extent(0)),
                              KOKKOS_LAMBDA (const int elem ) {
