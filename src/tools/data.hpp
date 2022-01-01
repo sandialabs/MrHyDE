@@ -53,7 +53,7 @@ namespace MrHyDE {
     Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
          const std::string & sensorprefix, const bool & separate_files);
     
-    
+    /////////////////////////////////////////////////////////////////////////////
     
     Data(const std::string & name_, const int & spaceDim_, const std::string & ptsfile,
          const std::string & sensorprefix, const bool & separate_files,
