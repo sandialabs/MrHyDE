@@ -2,7 +2,7 @@
 ---
 ANONYMOUS:
   Subgrid:
-    subgrid model: FEM
+    subgrid model: DtN2
     debug level: 0
     Mesh:
       macro element type: hex
@@ -23,13 +23,6 @@ ANONYMOUS:
       use crystal elasticity: true
       modules: linearelasticity
       form_param: -1.0
-      Neumann conditions:
-        dy:
-          top: '1.0'
-        dx:
-          top: '0.0'
-        dz:
-          top: '0.0'
     Solver:
       solver: steady-state
       use direct solver: true
@@ -37,6 +30,7 @@ ANONYMOUS:
     Functions:
     Parameters:
     Postprocess:
+      write solution: false
       True solutions:
         dx: '0.0'
         dy: '0.0'

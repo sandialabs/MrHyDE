@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SUBGRIDFEM_H
-#define SUBGRIDFEM_H
+#ifndef MRHYDE_SUBGRIDDTN2_H
+#define MRHYDE_SUBGRIDDTN2_H
 
 #include "trilinos.hpp"
 #include "Teuchos_YamlParameterListCoreHelpers.hpp"
@@ -25,15 +25,15 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
-#include "subgridTools.hpp"
+#include "subgridTools2.hpp"
 #include "parameterManager.hpp"
-#include "subgridMacroData.hpp"
-#include "subgridFEM_solver.hpp"
+#include "subgridMacroData2.hpp"
+#include "subgridDtN_solver.hpp"
 #include "postprocessManager.hpp"
 
 namespace MrHyDE {
   
-  class SubGridFEM : public SubGridModel {
+  class SubGridDtN2 : public SubGridModel {
         
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>   SG_CrsMatrix;
     typedef Tpetra::CrsGraph<LO,GO,SubgridSolverNode>            SG_CrsGraph;
@@ -47,14 +47,14 @@ namespace MrHyDE {
     
   public:
     
-    SubGridFEM() {} ;
+    SubGridDtN2() {} ;
     
-    ~SubGridFEM() {};
+    ~SubGridDtN2() {};
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    SubGridFEM(const Teuchos::RCP<MpiComm> & LocalComm_,
+    SubGridDtN2(const Teuchos::RCP<MpiComm> & LocalComm_,
                Teuchos::RCP<Teuchos::ParameterList> & settings_,
                topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
                ScalarT & macro_deltat_);
@@ -70,13 +70,21 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void setUpSubgridModels();
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    
     void finalize(const int & globalSize, const int & globalPID, const bool & write_subgrid_soln);
     
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    void setUpSubgridModels();
+    
+    void createNewBoundaryCells(SubGridTools2 & sgt, size_t & mindex);
+
+    void createNewCells(SubGridTools2 & sgt, size_t & mindex);
+    
+    void setBoundaryCellAuxLIDs(size_t & mindex);
+
+    void computeMacroBasisSubgridIP(size_t & mindex);
+      
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -248,7 +256,7 @@ namespace MrHyDE {
     Teuchos::RCP<PhysicsInterface> sub_physics;
     Teuchos::RCP<AssemblyManager<SubgridSolverNode> > sub_assembler;
     Teuchos::RCP<ParameterManager<SubgridSolverNode> > sub_params;
-    Teuchos::RCP<SubGridFEM_Solver> sub_solver;
+    Teuchos::RCP<SubGridDtN_Solver> sub_solver;
     Teuchos::RCP<MeshInterface> sub_mesh;
     Teuchos::RCP<panzer_stk::STK_Interface> combined_mesh;
     Teuchos::RCP<DiscretizationInterface> sub_disc;
@@ -256,7 +264,7 @@ namespace MrHyDE {
     vector<Teuchos::RCP<SG_MultiVector> > Psol;
     
     // Dynamic - depend on the macro-element
-    vector<Teuchos::RCP<SubGridMacroData> > macroData;
+    vector<Teuchos::RCP<SubGridMacroData2> > macroData;
     
     int num_macro_time_steps;
     ScalarT macro_deltat;
@@ -277,32 +285,32 @@ namespace MrHyDE {
     vector<Kokkos::View<AD***,AssemblyDevice> > fluxdata;
     
     // Timers
-    Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridSolver()");
-    Teuchos::RCP<Teuchos::Time> sgfemInitialTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridSolver - set initial conditions");
-    Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridNonlinearSolver()");
-    Teuchos::RCP<Teuchos::Time> sgfemSolnSensTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridSolnSens()");
-    Teuchos::RCP<Teuchos::Time> sgfemSolnSensLinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridSolnSens - linear solver");
-    Teuchos::RCP<Teuchos::Time> sgfemFluxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::updateFlux()");
-    Teuchos::RCP<Teuchos::Time> sgfemFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::updateFlux - update workset");
-    Teuchos::RCP<Teuchos::Time> sgfemFluxCellTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::updateFlux - cell computation");
-    Teuchos::RCP<Teuchos::Time> sgfemComputeAuxBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - compute aux basis functions");
-    Teuchos::RCP<Teuchos::Time> sgfemSubMeshTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - create subgrid meshes");
-    Teuchos::RCP<Teuchos::Time> sgfemLinearAlgebraSetupTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - setup linear algebra");
-    Teuchos::RCP<Teuchos::Time> sgfemTotalAddMacroTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro()");
-    Teuchos::RCP<Teuchos::Time> sgfemTotalSetUpTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::setUpSubgridModels()");
-    Teuchos::RCP<Teuchos::Time> sgfemMeshDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMeshData()");
-    Teuchos::RCP<Teuchos::Time> sgfemSubCellTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - create subcells");
-    Teuchos::RCP<Teuchos::Time> sgfemSubDiscTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - create disc. interface");
-    Teuchos::RCP<Teuchos::Time> sgfemSubSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - create solver interface");
-    Teuchos::RCP<Teuchos::Time> sgfemSubICTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - create vectors");
-    Teuchos::RCP<Teuchos::Time> sgfemSubSideinfoTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::addMacro - create side info");
-    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverAllocateTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridNonlinearSolver - allocate objects");
-    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSetSolnTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridNonlinearSolver - set local soln");
-    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverJacResTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridNonlinearSolver - Jacobian/residual");
-    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverInsertTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridNonlinearSolver - insert");
-    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSolveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::subgridNonlinearSolver - solve");
-    Teuchos::RCP<Teuchos::Time> sgfemCombinedMeshSetupTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::setupCombinedExodus()");
-    Teuchos::RCP<Teuchos::Time> sgfemCombinedMeshOutputTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::subgridFEM::writeSolution() - combined version");
+    Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridSolver()");
+    Teuchos::RCP<Teuchos::Time> sgfemInitialTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridSolver - set initial conditions");
+    Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridNonlinearSolver()");
+    Teuchos::RCP<Teuchos::Time> sgfemSolnSensTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridSolnSens()");
+    Teuchos::RCP<Teuchos::Time> sgfemSolnSensLinearSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridSolnSens - linear solver");
+    Teuchos::RCP<Teuchos::Time> sgfemFluxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::updateFlux()");
+    Teuchos::RCP<Teuchos::Time> sgfemFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::updateFlux - update workset");
+    Teuchos::RCP<Teuchos::Time> sgfemFluxCellTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::updateFlux - cell computation");
+    Teuchos::RCP<Teuchos::Time> sgfemComputeAuxBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - compute aux basis functions");
+    Teuchos::RCP<Teuchos::Time> sgfemSubMeshTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create subgrid meshes");
+    Teuchos::RCP<Teuchos::Time> sgfemLinearAlgebraSetupTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - setup linear algebra");
+    Teuchos::RCP<Teuchos::Time> sgfemTotalAddMacroTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro()");
+    Teuchos::RCP<Teuchos::Time> sgfemTotalSetUpTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::setUpSubgridModels()");
+    Teuchos::RCP<Teuchos::Time> sgfemMeshDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMeshData()");
+    Teuchos::RCP<Teuchos::Time> sgfemSubCellTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create subcells");
+    Teuchos::RCP<Teuchos::Time> sgfemSubDiscTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create disc. interface");
+    Teuchos::RCP<Teuchos::Time> sgfemSubSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create solver interface");
+    Teuchos::RCP<Teuchos::Time> sgfemSubICTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create vectors");
+    Teuchos::RCP<Teuchos::Time> sgfemSubSideinfoTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create side info");
+    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverAllocateTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridNonlinearSolver - allocate objects");
+    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSetSolnTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridNonlinearSolver - set local soln");
+    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverJacResTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridNonlinearSolver - Jacobian/residual");
+    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverInsertTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridNonlinearSolver - insert");
+    //Teuchos::RCP<Teuchos::Time> sgfemNonlinearSolverSolveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::subgridNonlinearSolver - solve");
+    Teuchos::RCP<Teuchos::Time> sgfemCombinedMeshSetupTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::setupCombinedExodus()");
+    Teuchos::RCP<Teuchos::Time> sgfemCombinedMeshOutputTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::writeSolution() - combined version");
     
   };
   

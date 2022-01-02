@@ -12,7 +12,7 @@
  ************************************************************************/
 
 #include "solverManager.hpp"
-#include "subgridFEM_solver.hpp"
+#include "subgridDtN_solver.hpp"
 
 using namespace MrHyDE;
 
@@ -20,7 +20,7 @@ using namespace MrHyDE;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 
-SubGridFEM_Solver::SubGridFEM_Solver(const Teuchos::RCP<MpiComm> & LocalComm,
+SubGridDtN_Solver::SubGridDtN_Solver(const Teuchos::RCP<MpiComm> & LocalComm,
                                      Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                      Teuchos::RCP<MeshInterface> & mesh,
                                      Teuchos::RCP<DiscretizationInterface> & disc,
@@ -119,7 +119,7 @@ settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
+void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
                               View_Sc3 coarse_phi,
                               Teuchos::RCP<SG_MultiVector> & prev_u,
                               Teuchos::RCP<SG_MultiVector> & prev_phi,
@@ -135,7 +135,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   Teuchos::TimeMonitor totalsolvertimer(*sgfemSolverTimer);
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM_Solver::solve ..." << endl;
+      cout << "**** Starting SubGridDtN_Solver::solve ..." << endl;
     }
   }
   ScalarT current_time = time;
@@ -323,7 +323,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
   
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM_Solver::solve ..." << endl;
+      cout << "**** Finished SubGridDtN_Solver::solve ..." << endl;
     }
   }
 }
@@ -333,7 +333,7 @@ void SubGridFEM_Solver::solve(View_Sc3 coarse_u,
 // Does not work on GPU for obvious reasons
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::storeFluxData(View_Sc3 lambda, View_AD2 flux) {
+void SubGridDtN_Solver::storeFluxData(View_Sc3 lambda, View_AD2 flux) {
   
   //int num_dof_lambda = lambda.extent(1)*lambda.extent(2);
   
@@ -375,7 +375,7 @@ void SubGridFEM_Solver::storeFluxData(View_Sc3 lambda, View_AD2 flux) {
 // Subgrid Nonlinear Solver
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
+void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
                                                Teuchos::RCP<SG_MultiVector> & sub_phi,
                                                Teuchos::RCP<SG_MultiVector> & sub_params,
                                                Kokkos::View<ScalarT***,AssemblyDevice> lambda,
@@ -387,7 +387,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
   Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverTimer);
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM_Solver::nonlinearSolver ..." << endl;
+      cout << "**** Starting SubGridDtN_Solver::nonlinearSolver ..." << endl;
     }
   }
   
@@ -724,7 +724,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
   //KokkosTools::print(sub_u);
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM_Solver::nonlinearSolver ..." << endl;
+      cout << "**** Finished SubGridDtN_Solver::nonlinearSolver ..." << endl;
     }
   }
 }
@@ -734,7 +734,7 @@ void SubGridFEM_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
 //////////////////////////////////////////////////////////////
 
 template<class LIDViewType, class MatType>
-void SubGridFEM_Solver::fixDiagonal(LIDViewType LIDs, MatType localMatrix, const int startpoint) {
+void SubGridDtN_Solver::fixDiagonal(LIDViewType LIDs, MatType localMatrix, const int startpoint) {
   
   typedef typename SubgridSolverNode::execution_space SG_exec;
   
@@ -759,7 +759,7 @@ void SubGridFEM_Solver::fixDiagonal(LIDViewType LIDs, MatType localMatrix, const
 // solution or w.r.t parameters
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
+void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
                                                const bool & compute_sens,
                                                Teuchos::RCP<SG_MultiVector> & sub_u,
                                                Teuchos::RCP<SG_MultiVector> & sub_phi,
@@ -774,7 +774,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   Teuchos::TimeMonitor localtimer(*sgfemSolnSensTimer);
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM_Solver::computeSolnSens ..." << endl;
+      cout << "**** Starting SubGridDtN_Solver::computeSolnSens ..." << endl;
     }
   }
   
@@ -1033,7 +1033,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM_Solver::computeSolnSens ..." << endl;
+      cout << "**** Finished SubGridDtN_Solver::computeSolnSens ..." << endl;
     }
   }
 }
@@ -1043,7 +1043,7 @@ void SubGridFEM_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
 //////////////////////////////////////////////////////////////
 
 template<class ResViewType, class DataViewType>
-void SubGridFEM_Solver::updateResSens(const bool & use_cells, const int & usernum, const int & elem, ResViewType dres_view,
+void SubGridDtN_Solver::updateResSens(const bool & use_cells, const int & usernum, const int & elem, ResViewType dres_view,
                                       DataViewType data, const bool & data_avail,
                                       const bool & use_host_LIDs, const bool & compute_sens) {
   
@@ -1090,7 +1090,7 @@ void SubGridFEM_Solver::updateResSens(const bool & use_cells, const int & usernu
 //////////////////////////////////////////////////////////////
 
 template<class LIDViewType, class ResViewType, class DataViewType>
-void SubGridFEM_Solver::updateResSens(ResViewType res, DataViewType data, LIDViewType LIDs, const bool & compute_sens ) {
+void SubGridDtN_Solver::updateResSens(ResViewType res, DataViewType data, LIDViewType LIDs, const bool & compute_sens ) {
   
   typedef typename SubgridSolverNode::execution_space SG_exec;
 
@@ -1127,7 +1127,7 @@ void SubGridFEM_Solver::updateResSens(ResViewType res, DataViewType data, LIDVie
 // Update the flux
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
+void SubGridDtN_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
                                    const Teuchos::RCP<SG_MultiVector> & d_u,
                                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                    const Teuchos::RCP<SG_MultiVector> & disc_params,
@@ -1138,7 +1138,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM_Solver::updateFlux (intermediate function) ..." << endl;
+      cout << "**** Starting SubGridDtN_Solver::updateFlux (intermediate function) ..." << endl;
     }
   }
     
@@ -1173,7 +1173,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
   }
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM_Solver::updateFlux (intermediate function) ..." << endl;
+      cout << "**** Finished SubGridDtN_Solver::updateFlux (intermediate function) ..." << endl;
     }
   }
 }
@@ -1183,7 +1183,7 @@ void SubGridFEM_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
 //////////////////////////////////////////////////////////////
 
 template<class ViewType>
-void SubGridFEM_Solver::updateFlux(ViewType u_kv,
+void SubGridDtN_Solver::updateFlux(ViewType u_kv,
                                    ViewType du_kv,
                                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                    ViewType dp_kv,
@@ -1193,7 +1193,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
   
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM_Solver::updateFlux ..." << endl;
+      cout << "**** Starting SubGridDtN_Solver::updateFlux ..." << endl;
     }
   }
   
@@ -1244,7 +1244,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
   
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM_Solver::updateFlux ..." << endl;
+      cout << "**** Finished SubGridDtN_Solver::updateFlux ..." << endl;
     }
   }
 }
@@ -1253,7 +1253,7 @@ void SubGridFEM_Solver::updateFlux(ViewType u_kv,
 // Compute the initial values for the subgrid solution
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
+void SubGridDtN_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
                                    const int & usernum, const bool & useadjoint) {
   
   // TODO :: BWR is this deprecated now?
@@ -1336,7 +1336,7 @@ void SubGridFEM_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
 // Assemble the projection (mass) matrix
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_Solver::getProjectionMatrix() {
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_Solver::getProjectionMatrix() {
   
   // Compute the mass matrix on a reference element
   matrix_RCP mass = solver->linalg->getNewOverlappedMatrix(0);
@@ -1388,7 +1388,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_So
 // Evaluate the basis functions at a set of points
 ////////////////////////////////////////////////////////////////////////////////
 
-std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::evaluateBasis2(const DRV & pts) {
+std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::evaluateBasis2(const DRV & pts) {
   
   size_t numpts = pts.extent(1);
   size_t dimpts = pts.extent(2);
@@ -1479,7 +1479,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM_Solver::e
 // Assemble the projection (mass) matrix
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Solver::getProjectionMatrix(DRV & ip, DRV & wts,
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN_Solver::getProjectionMatrix(DRV & ip, DRV & wts,
                                                                   std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
   std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > my_basisinfo = this->evaluateBasis2(ip);
@@ -1529,7 +1529,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Sol
 // Get an empty vector
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_Solver::getVector() {
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN_Solver::getVector() {
   vector_RCP vec = solver->linalg->getNewOverlappedVector(0); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
   return vec;
 }
@@ -1538,7 +1538,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM_S
 // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_Solver::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) {
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_Solver::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) {
   matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix(0);
   //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph) );
   matrix_RCP map;
@@ -1561,7 +1561,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM_So
 // Update the subgrid parameters (will be depracated)
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
+void SubGridDtN_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
   for (size_t b=0; b<assembler->wkset.size(); b++) {
     assembler->wkset[b]->params = params;
     assembler->wkset[b]->paramnames = paramnames;
@@ -1574,7 +1574,7 @@ void SubGridFEM_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & pa
 //
 // ========================================================================================
 
-void SubGridFEM_Solver::performGather(const size_t & b, const vector_RCP & vec,
+void SubGridDtN_Solver::performGather(const size_t & b, const vector_RCP & vec,
                                       const size_t & type, const size_t & entry) {
     
   typedef typename SubgridSolverNode::memory_space SGS_mem;
@@ -1600,7 +1600,7 @@ void SubGridFEM_Solver::performGather(const size_t & b, const vector_RCP & vec,
 // ========================================================================================
 
 template<class ViewType>
-void SubGridFEM_Solver::performGather(const size_t & b, ViewType vec_dev, const size_t & type) {
+void SubGridDtN_Solver::performGather(const size_t & b, ViewType vec_dev, const size_t & type) {
 
   Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
@@ -1657,7 +1657,7 @@ void SubGridFEM_Solver::performGather(const size_t & b, ViewType vec_dev, const 
 // ========================================================================================
 
 template<class ViewType>
-void SubGridFEM_Solver::performBoundaryGather(const size_t & b, ViewType vec_dev, const size_t & type) {
+void SubGridDtN_Solver::performBoundaryGather(const size_t & b, ViewType vec_dev, const size_t & type) {
   
   if (assembler->boundaryCells.size() > b) {
     

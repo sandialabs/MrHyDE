@@ -36,7 +36,7 @@ ANONYMOUS:
         bottom: '0.0'
       dz:
         bottom: '0.0'
-    Neumann conditions:
+    Flux conditions:
       dy:
         top: '1.0'
       dx:

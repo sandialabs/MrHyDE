@@ -11,7 +11,7 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "subgridFEM2.hpp"
+#include "subgridDtN2.hpp"
 #include "cell.hpp"
 
 using namespace MrHyDE;
@@ -19,7 +19,7 @@ using namespace MrHyDE;
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-SubGridFEM2::SubGridFEM2(const Teuchos::RCP<MpiComm> & LocalComm_,
+SubGridDtN2::SubGridDtN2(const Teuchos::RCP<MpiComm> & LocalComm_,
                          Teuchos::RCP<Teuchos::ParameterList> & settings_,
                          topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
                          ScalarT & macro_deltat_) :
@@ -91,7 +91,7 @@ num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-int SubGridFEM2::addMacro(DRV & macronodes_,
+int SubGridDtN2::addMacro(DRV & macronodes_,
                           Kokkos::View<int****,HostDevice> & macrosideinfo_,
                           LIDView macroLIDs_,
                           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & macroorientation_) {
@@ -110,7 +110,7 @@ int SubGridFEM2::addMacro(DRV & macronodes_,
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::finalize(const int & globalSize, const int & globalPID,
+void SubGridDtN2::finalize(const int & globalSize, const int & globalPID,
                            const bool & write_subgrid_soln) {
   
   // globalRank and globalPID are associated with the global MPI communicator
@@ -140,13 +140,13 @@ void SubGridFEM2::finalize(const int & globalSize, const int & globalPID,
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::setUpSubgridModels() {
+void SubGridDtN2::setUpSubgridModels() {
   
   Teuchos::TimeMonitor subgridsetuptimer(*sgfemTotalSetUpTimer);
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM::setupSubgridModels ..." << endl;
+      cout << "**** Starting SubGridDtN::setupSubgridModels ..." << endl;
     }
   }
   
@@ -264,7 +264,7 @@ void SubGridFEM2::setUpSubgridModels() {
   sub_assembler->boundaryCells = boundaryCells;
   
   size_t numMacroDOF = macroData[0]->macroLIDs.extent(1);
-  sub_solver = Teuchos::rcp( new SubGridFEM_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
+  sub_solver = Teuchos::rcp( new SubGridDtN_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
                                                    sub_assembler, sub_params, macro_deltat,
                                                    numMacroDOF) );
   
@@ -375,7 +375,7 @@ void SubGridFEM2::setUpSubgridModels() {
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM::setupSubgridModels ..." << endl;
+      cout << "**** Finished SubGridDtN::setupSubgridModels ..." << endl;
     }
   }
 }
@@ -383,7 +383,7 @@ void SubGridFEM2::setUpSubgridModels() {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::createNewBoundaryCells(SubGridTools2 & sgt, size_t & mindex) {
+void SubGridDtN2::createNewBoundaryCells(SubGridTools2 & sgt, size_t & mindex) {
   
   DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes,
                                       macro_cellTopo, sub_disc);
@@ -517,7 +517,7 @@ void SubGridFEM2::createNewBoundaryCells(SubGridTools2 & sgt, size_t & mindex) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::createNewCells(SubGridTools2 & sgt, size_t & mindex) {
+void SubGridDtN2::createNewCells(SubGridTools2 & sgt, size_t & mindex) {
   
   // Use the subgrid mesh interface to define new nodes
   DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes,
@@ -575,7 +575,7 @@ void SubGridFEM2::createNewCells(SubGridTools2 & sgt, size_t & mindex) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::setBoundaryCellAuxLIDs(size_t & mindex) {
+void SubGridDtN2::setBoundaryCellAuxLIDs(size_t & mindex) {
 
   macroData[mindex]->setMacroIDs(cells[mindex][0]->numElem);
   
@@ -619,7 +619,7 @@ void SubGridFEM2::setBoundaryCellAuxLIDs(size_t & mindex) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::computeMacroBasisSubgridIP(size_t & mindex) {
+void SubGridDtN2::computeMacroBasisSubgridIP(size_t & mindex) {
   
   Teuchos::TimeMonitor auxbasistimer(*sgfemComputeAuxBasisTimer);
   nummacroVars = macro_varlist.size();
@@ -747,12 +747,12 @@ void SubGridFEM2::computeMacroBasisSubgridIP(size_t & mindex) {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::addMeshData() {
+void SubGridDtN2::addMeshData() {
   
   Teuchos::TimeMonitor localmeshtimer(*sgfemMeshDataTimer);
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM::addMeshData ..." << endl;
+      cout << "**** Starting SubGridDtN::addMeshData ..." << endl;
     }
   }
   
@@ -762,7 +762,7 @@ void SubGridFEM2::addMeshData() {
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM::addMeshData ..." << endl;
+      cout << "**** Finished SubGridDtN::addMeshData ..." << endl;
     }
   }
   
@@ -771,7 +771,7 @@ void SubGridFEM2::addMeshData() {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fwdsoln,
+void SubGridDtN2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fwdsoln,
                                 Kokkos::View<ScalarT***,AssemblyDevice> coarse_adjsoln,
                                 const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                                 const bool & compute_jacobian, const bool & compute_sens,
@@ -785,7 +785,7 @@ void SubGridFEM2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Starting SubgridFEM::subgridSolver ..." << endl;
+      cout << "**** Starting SubGridDtN::subgridSolver ..." << endl;
     }
   }
   
@@ -888,7 +888,7 @@ void SubGridFEM2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Finished SubgridFEM::subgridSolver ..." << endl;
+      cout << "**** Finished SubGridDtN::subgridSolver ..." << endl;
     }
   }
   
@@ -898,7 +898,7 @@ void SubGridFEM2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
 // Store macro-dofs and flux (for ML-based subgrid)
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, Kokkos::View<AD**,AssemblyDevice> flux) {
+void SubGridDtN2::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, Kokkos::View<AD**,AssemblyDevice> flux) {
   
   std::ofstream ofs;
   
@@ -935,7 +935,7 @@ void SubGridFEM2::storeFluxData(Kokkos::View<ScalarT***,AssemblyDevice> lambda, 
 // Compute the initial values for the subgrid solution
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM2::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
+void SubGridDtN2::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
                              const int & usernum, const bool & useadjoint) {
   
   initial->putScalar(0.0);
@@ -970,7 +970,7 @@ void SubGridFEM2::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
 // Compute the error for verification
 ///////////////////////////////////////////////////////////////////////////////////////
 
-vector<std::pair<string, string> > SubGridFEM2::getErrorList() {
+vector<std::pair<string, string> > SubGridDtN2::getErrorList() {
   return sub_postproc->error_list[0];
 }
 
@@ -978,7 +978,7 @@ vector<std::pair<string, string> > SubGridFEM2::getErrorList() {
 // These views are on the Host since we are using the postproc mananger
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT*,HostDevice> SubGridFEM2::computeError(const ScalarT & time) {
+Kokkos::View<ScalarT*,HostDevice> SubGridDtN2::computeError(const ScalarT & time) {
   Kokkos::View<ScalarT*,HostDevice> errors;
   
   if (macroData.size() > 0) {
@@ -1007,7 +1007,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridFEM2::computeError(const ScalarT & time
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<ScalarT**,HostDevice> SubGridFEM2::computeError(vector<std::pair<string, string> > & sub_error_list,
+Kokkos::View<ScalarT**,HostDevice> SubGridDtN2::computeError(vector<std::pair<string, string> > & sub_error_list,
                                                              const vector<ScalarT> & times) {
   
   Kokkos::View<ScalarT**,HostDevice> errors;
@@ -1041,7 +1041,7 @@ Kokkos::View<ScalarT**,HostDevice> SubGridFEM2::computeError(vector<std::pair<st
 // Compute the objective function
 ///////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::View<AD*,AssemblyDevice> SubGridFEM2::computeObjective(const string & response_type, const int & seedwhat,
+Kokkos::View<AD*,AssemblyDevice> SubGridDtN2::computeObjective(const string & response_type, const int & seedwhat,
                                                                const ScalarT & time, const int & usernum) {
   
   Kokkos::View<AD*,AssemblyDevice> objective;
@@ -1083,7 +1083,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridFEM2::computeObjective(const string & re
 // Write the solution to a file
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::setupCombinedExodus() {
+void SubGridDtN2::setupCombinedExodus() {
   
   Teuchos::TimeMonitor meshsetuptimer(*sgfemCombinedMeshSetupTimer);
   
@@ -1251,7 +1251,7 @@ void SubGridFEM2::setupCombinedExodus() {
 // Write the current states to the combined output file
 //////////////////////////////////////////////////////////////
 
-void SubGridFEM2::writeSolution(const ScalarT & time) {
+void SubGridDtN2::writeSolution(const ScalarT & time) {
   
   Teuchos::TimeMonitor outputtimer(*sgfemCombinedMeshOutputTimer);
   
@@ -1512,7 +1512,7 @@ void SubGridFEM2::writeSolution(const ScalarT & time) {
 // Add in the sensor data
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
+void SubGridDtN2::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
                              const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
                              const vector<basis_RCP> & basisTypes, const int & usernum) {
   for (size_t e=0; e<cells[usernum].size(); e++) {
@@ -1526,7 +1526,7 @@ void SubGridFEM2::addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_poi
 // This function needs to exist in a subgrid model, but the solver does the real work
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM2::getProjectionMatrix() {
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN2::getProjectionMatrix() {
   
   return sub_solver->getProjectionMatrix();
   
@@ -1537,7 +1537,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM2::
 // This function needs to exist in a subgrid model, but the solver does the real work
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM2::getProjectionMatrix(DRV & ip, DRV & wts,
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN2::getProjectionMatrix(DRV & ip, DRV & wts,
                                                                                                    std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
   return sub_solver->getProjectionMatrix(ip, wts, other_basisinfo);
@@ -1549,7 +1549,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM2::g
 // This function needs to exist in a subgrid model, but the solver does the real work
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM2::getVector() {
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN2::getVector() {
   return sub_solver->getVector();
 }
 
@@ -1557,7 +1557,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SubgridSolverNode> > SubGridFEM2:
 // Get the integration points
 ////////////////////////////////////////////////////////////////////////////////
 
-DRV SubGridFEM2::getIP() {
+DRV SubGridDtN2::getIP() {
   int numip_per_cell = wkset[0]->numip;
   int usernum = 0; // doesn't really matter
   int totalip = 0;
@@ -1598,7 +1598,7 @@ DRV SubGridFEM2::getIP() {
 // Get the integration weights
 ////////////////////////////////////////////////////////////////////////////////
 
-DRV SubGridFEM2::getIPWts() {
+DRV SubGridDtN2::getIPWts() {
   int numip_per_cell = wkset[0]->numip;
   int usernum = 0; // doesn't really matter
   int totalip = 0;
@@ -1626,7 +1626,7 @@ DRV SubGridFEM2::getIPWts() {
 // Evaluate the basis functions at a set of points
 ////////////////////////////////////////////////////////////////////////////////
 
-std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM2::evaluateBasis2(const DRV & pts) {
+std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN2::evaluateBasis2(const DRV & pts) {
   
   size_t numpts = pts.extent(1);
   size_t dimpts = pts.extent(2);
@@ -1703,7 +1703,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridFEM2::evaluat
 // Get the matrix mapping the DOFs to a set of integration points on a reference macro-element
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM2::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) {
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN2::getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map) {
   return sub_solver->getEvaluationMatrix(newip, ip_map);
 }
 
@@ -1711,7 +1711,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridFEM2::
 // Get the subgrid cell GIDs
 ////////////////////////////////////////////////////////////////////////////////
 
-LIDView SubGridFEM2::getCellLIDs(const int & cellnum) {
+LIDView SubGridDtN2::getCellLIDs(const int & cellnum) {
   return cells[0][cellnum]->LIDs[0];
 }
 
@@ -1719,7 +1719,7 @@ LIDView SubGridFEM2::getCellLIDs(const int & cellnum) {
 // Update the subgrid parameters (will be depracated)
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridFEM2::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
+void SubGridDtN2::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
   for (size_t b=0; b<wkset.size(); b++) {
     wkset[b]->params = params;
     wkset[b]->paramnames = paramnames;
@@ -1732,6 +1732,6 @@ void SubGridFEM2::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, 
 //
 // ========================================================================================
 
-void SubGridFEM2::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
+void SubGridDtN2::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
   
 }

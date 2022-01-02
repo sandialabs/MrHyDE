@@ -2,7 +2,7 @@
 ---
 ANONYMOUS:
   Subgrid:
-    subgrid model: 'FEM'
+    subgrid model: DtN
     Mesh: 
       element type: quad
       refinements: 0

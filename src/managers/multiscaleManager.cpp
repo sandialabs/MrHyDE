@@ -13,8 +13,8 @@
 
 #include "multiscaleManager.hpp"
 #include "split_mpi_communicators.hpp"
-#include "subgridFEM.hpp"
-#include "subgridFEM2.hpp"
+#include "subgridDtN.hpp"
+#include "subgridDtN2.hpp"
 
 using namespace MrHyDE;
 
@@ -81,7 +81,7 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
     ScalarT macro_deltat = finaltime/num_macro_time_steps;
     if (single_model) {
       Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = subgrid_model_pls[0];
-      string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM2");
+      string subgrid_model_type = subgrid_pl->get<string>("subgrid model","DtN2");
       string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
       std::vector<string> macro_blocknames;
       mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
@@ -92,8 +92,8 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
         }
       }
       topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
-      if (subgrid_model_type == "FEM") {
-        subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
+      if (subgrid_model_type == "DtN") {
+        subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo,
                                                              num_macro_time_steps,
                                                              macro_deltat) ) );
       }
@@ -102,8 +102,8 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
         //                                                         num_macro_time_steps,
         //                                                         macro_deltat) ) );
       }
-      else if (subgrid_model_type == "FEM2") {
-        subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo,
+      else if (subgrid_model_type == "DtN2") {
+        subgridModels.push_back(Teuchos::rcp( new SubGridDtN2(Comm, subgrid_pl, macro_topo,
                                                               num_macro_time_steps,
                                                               macro_deltat) ) );
       }
@@ -113,7 +113,7 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
     else {
       for (size_t j=0; j<subgrid_model_pls.size(); j++) {
         Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = subgrid_model_pls[j];
-        string subgrid_model_type = subgrid_pl->get<string>("subgrid model","FEM");
+        string subgrid_model_type = subgrid_pl->get<string>("subgrid model","DtN2");
         string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
         std::vector<string> macro_blocknames;
         mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
@@ -125,8 +125,8 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
         }
         topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
         
-        if (subgrid_model_type == "FEM") {
-          subgridModels.push_back(Teuchos::rcp( new SubGridFEM(Comm, subgrid_pl, macro_topo,
+        if (subgrid_model_type == "DtN") {
+          subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo,
                                                                num_macro_time_steps,
                                                                macro_deltat ) ) );
         }
@@ -135,8 +135,8 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
           //                                                          num_macro_time_steps,
           //                                                          macro_deltat ) ) );
         }
-        else if (subgrid_model_type == "FEM2") {
-          subgridModels.push_back(Teuchos::rcp( new SubGridFEM2(Comm, subgrid_pl, macro_topo,
+        else if (subgrid_model_type == "DtN2") {
+          subgridModels.push_back(Teuchos::rcp( new SubGridDtN2(Comm, subgrid_pl, macro_topo,
                                                                 num_macro_time_steps,
                                                                 macro_deltat ) ) );
         }
