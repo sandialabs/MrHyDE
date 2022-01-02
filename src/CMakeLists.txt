@@ -26,6 +26,16 @@ file(GLOB mrhyde-all
   "physics/*.cpp"
 )
 
+IF(MrHyDE_ENABLE_MIRAGE_EXTENSIONS)
+  INCLUDE_DIRECTORIES ( ./
+    ${MrHyDE_MIRAGE_EXTENSIONS_DIR} 
+  )  
+  file(GLOB mirage
+    "${MrHyDE_MIRAGE_EXTENSIONS_DIR}/*.cpp"
+  )
+  list(APPEND mrhyde-all "${MrHyDE_MIRAGE_EXTENSIONS_DIR}/mirage.cpp")
+ENDIF()
+
 ADD_EXECUTABLE(mrhyde
   ${mrhyde-all}
 )

@@ -24,7 +24,10 @@
 #include "Teuchos_YamlParameterListCoreHelpers.hpp"
 
 #include "preferences.hpp"
+
+#if defined(MrHyDE_ENABLE_MIRAGE)
 #include "MirageTranslator.hpp"
+#endif
 
 namespace MrHyDE {
   
@@ -76,10 +79,13 @@ namespace MrHyDE {
     // This required a special interpreter
     
     if (filename == "FEM3.xml") {
+      #if defined(MrHyDE_ENABLE_MIRAGE)
       MirageTranslator(settings, filename);
+      #else
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Mirage extensions were not enabled!");
+      #endif
     }
     else {
-      
       
       // MrHyDE uses a set of input files ... one for each interface: mesh, physics, solver, analysis, postprocessing, parameters
       

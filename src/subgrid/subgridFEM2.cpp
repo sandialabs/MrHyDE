@@ -282,14 +282,12 @@ void SubGridFEM2::setUpSubgridModels() {
   }
   
   wkset = sub_assembler->wkset;
-  sub_physics->setWorkset(wkset);
-  
   wkset[0]->addAux(macro_varlist, macro_offsets);
+  sub_physics->setWorkset(wkset);
   
   for(size_t e=0; e<boundaryCells[0].size(); e++) {
     boundaryCells[0][e]->wkset = wkset[0];
   }
-  
   
   Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
                                             sub_physics->numVars[0][0],
