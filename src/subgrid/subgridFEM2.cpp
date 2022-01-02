@@ -123,9 +123,15 @@ void SubGridFEM2::finalize(const int & globalSize, const int & globalPID,
   
   if (write_subgrid_soln) {
     std::stringstream ss;
-    ss << "_" << name << ".exo." << globalSize << "." << globalPID;
-    combined_mesh_filename = "subgrid_data/subgrid_combined_output" + ss.str();
-    
+    if (globalSize > 1) {
+      ss << "_" << name << ".exo." << globalSize << "." << globalPID;
+      combined_mesh_filename = "subgrid_output" + ss.str();
+    }
+    else {
+      ss << "_" << name << ".exo";
+      combined_mesh_filename = "subgrid_output" + ss.str();
+    }
+
     this->setupCombinedExodus();
   }
   
@@ -1324,18 +1330,23 @@ void SubGridFEM2::writeSolution(const ScalarT & time) {
         Kokkos::View<ScalarT*,HostDevice> soln_z("soln",myElements.size());
         size_t pprog = 0;
         
+        std::string var = varlist[n];
+        View_Sc2 sol("average solution",sub_assembler->cellData[0]->numElem,dimension);
+            
         for( size_t usernum=0; usernum<cells.size(); usernum++ ) {
           for( size_t e=0; e<cells[usernum].size(); e++ ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u_avg[0];
+            cells[usernum][e]->computeSolutionAverage(var,sol);
+            
+            //Kokkos::View<ScalarT***,AssemblyDevice> sol = cells[usernum][e]->u_avg[0];
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
             for (size_t p=0; p<cells[usernum][e]->numElem; p++) {
-              soln_x(pprog) = host_sol(p,n,0);
+              soln_x(pprog) = host_sol(p,0);
               if (dimension > 1) {
-                soln_y(pprog) = host_sol(p,n,1);
+                soln_y(pprog) = host_sol(p,1);
               }
               if (dimension > 2) {
-                soln_z(pprog) = host_sol(p,n,2);
+                soln_z(pprog) = host_sol(p,2);
               }
               pprog++;
             }
