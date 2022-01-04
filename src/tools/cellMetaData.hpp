@@ -77,22 +77,13 @@ namespace MrHyDE {
     DRV ref_ip, ref_wts;
     vector<DRV> ref_side_ip, ref_side_wts, ref_side_normals, ref_side_tangents, ref_side_tangentsU, ref_side_tangentsV;
     vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
-    
-    // Physical element integration containers
-    //DRV jacobian, jacobianDet, jacobianInv, physip, physwts;
-    //DRV side_jacobian, side_jacobianDet, side_jacobianInv, side_physip, side_physwts, side_physnormals, side_phystangents;
-    
+        
     vector<string> basis_types;
     vector<basis_RCP> basis_pointers;
     vector<DRV> ref_basis, ref_basis_grad, ref_basis_div, ref_basis_curl;
     vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
     vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
-    
-    //vector<DRV> phys_basis1, phys_basisgrad1, phys_basisdiv1, phys_basiscurl1;
-    //vector<DRV> phys_basis2, phys_basisgrad2, phys_basisdiv2, phys_basiscurl2;
-    //vector<DRV> side_phys_basis1, side_phys_basisgrad1, side_phys_basisdiv1, side_phys_basiscurl1;
-    //vector<DRV> side_phys_basis2, side_phys_basisgrad2, side_phys_basisdiv2, side_phys_basiscurl2;
-    
+        
     bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
     bool mortar_objective;
     bool exodus_sensors = false, compute_sol_avg = false;
