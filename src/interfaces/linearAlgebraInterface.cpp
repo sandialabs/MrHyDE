@@ -93,6 +93,7 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
+    solvesettings.set("use preconditioner",false);
     options_BndryL2.push_back(Teuchos::rcp( new SolverOptions<Node>(solvesettings) ));
   }
   
