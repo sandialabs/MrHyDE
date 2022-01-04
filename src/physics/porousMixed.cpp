@@ -282,7 +282,7 @@ void porousMixed::volumeResidual() {
       View_AD2 new_Kyy("new K yy",wts.extent(0),wts.extent(1));
       View_AD2 new_Kzz("new K zz",wts.extent(0),wts.extent(1));
       
-      parallel_for("porous HDIV update well source",
+      parallel_for("porous mixed update KL",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<KL_Kxx.extent(1); ++pt) {
@@ -322,7 +322,8 @@ void porousMixed::volumeResidual() {
 #else
           ScalarT Kval = 1.0/Kinv_xx(elem,pt);
 #endif
-          source_kv(elem,pt) *= 2.0*PI/C*Kval;
+          //source_kv(elem,pt) *= 2.0*PI/C*Kval;
+          source_kv(elem,pt) = 2.0*PI/C*Kval*source(elem,pt);
         }
       });
       source = Vista(source_kv);
@@ -892,8 +893,10 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
         K_yy(elem,pt) = 1.0/Kinv_yy(elem,pt);
       }
     }
-    for (size_type pt=0; pt<K_zz.extent(1); ++pt) {
-      K_zz(elem,pt) = 1.0/Kinv_zz(elem,pt);
+    if (spaceDim > 2) {
+      for (size_type pt=0; pt<K_zz.extent(1); ++pt) {
+        K_zz(elem,pt) = 1.0/Kinv_zz(elem,pt);
+      }
     }
   });
   
