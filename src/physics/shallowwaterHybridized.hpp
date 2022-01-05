@@ -11,43 +11,37 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-/** @file euler.hpp
+/** @file shallowwaterHybridized.hpp
  *
- * @brief Euler physics module
+ * @brief Shallow water physics module, hybridized version
  *
- * Solves the Euler equations for conservation of mass, momentum, and energy.
- * Transport and thermodynamic properties are assumed to be functions
- * of temperature.
- * We employ an ideal gas law.
+ * FILL ME
  */
 
-#ifndef EULER_H
-#define EULER_H
+#ifndef SHALLOWWATERHYBRIDIZED_H
+#define SHALLOWWATERHYBRIDIZED_H
 
 #include "physicsBase.hpp"
 
 namespace MrHyDE {
   
-  /** Euler physics module 
+  /** Shallow water physics module, hybridized version
    *
-   * Solves the Euler equations for conservation of mass, momentum, and energy.
-   * Transport and thermodynamic properties are assumed to be functions
-   * of temperature.
-   * We employ an ideal gas law.
+   * FILL ME
    */
 
-  class euler : public physicsbase {
+  class shallowwaterHybridized : public physicsbase {
   public:
 
-    euler() {} ;
+    shallowwaterHybridized() {} ;
     
-    ~euler() {};
+    ~shallowwaterHybridized() {};
     
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    euler(Teuchos::ParameterList & settings, const int & dimension);
+    shallowwaterHybridized(Teuchos::ParameterList & settings, const int & dimension);
     
     // ========================================================================================
     // ========================================================================================
@@ -177,70 +171,6 @@ namespace MrHyDE {
         const AD & rhoux, const AD & rhouy, const AD & rhouz, const AD & rho, 
         const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
         const AD & a_sound, const ScalarT & gamma);
-
-    /* @brief Computes the local normal flux Jacobian for the boundary term.
-     * This is the 1-D version.
-     *
-     * @param[inout] dFdn  Storage for the normal flux Jacobian
-     * @param[in] rhoux  x-component of the momentum
-     * @param[in] rho  Density
-     * @param[in] a_sound  Speed of sound
-     * @param[in] gamma  Ratio of specific heats
-     *
-     * @details Should be called using the trace variables \f$\hat{S}\f$.
-     */
-
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
-        const AD & rho, const AD & a_sound, const ScalarT & gamma);
-
-    /* @brief Computes the local normal flux Jacobian for the boundary term.
-     * This is the 2-D version.
-     *
-     * @param[inout] dFdn  Storage for the normal flux Jacobian
-     * @param[in] rhoux  x-component of the momentum
-     * @param[in] rhouy  y-component of the momentum
-     * @param[in] rho  Density
-     * @param[in] nx  x-component of the normal vector
-     * @param[in] ny  y-component of the normal vector
-     * @param[in] a_sound  Speed of sound
-     * @param[in] gamma  Ratio of specific heats
-     *
-     * @details Should be called using the trace variables \f$\hat{S}\f$.
-     */
-
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
-        const AD & rhouy, const AD & rho, const AD & nx, const AD & ny, 
-        const AD & a_sound, const ScalarT & gamma);
-
-    /* @brief Computes the local normal flux Jacobian for the boundary term.
-     * This is the 3-D version.
-     *
-     * @param[inout] dFdn  Storage for the normal flux Jacobian
-     * @param[in] rhoux  x-component of the momentum
-     * @param[in] rhouy  y-component of the momentum
-     * @param[in] rhouz  z-component of the momentum
-     * @param[in] rho  Density
-     * @param[in] nx  x-component of the normal vector
-     * @param[in] ny  y-component of the normal vector
-     * @param[in] nz  z-component of the normal vector
-     * @param[in] a_sound  Speed of sound
-     * @param[in] gamma  Ratio of specific heats
-     *
-     * @details Should be called using the trace variables \f$\hat{S}\f$.
-     */
-
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
-        const AD & rhouy, const AD & rhouz, const AD & rho, 
-        const AD & nx, const AD & ny, const AD & nz,
-        const AD & a_sound, const ScalarT & gamma);
-
-    /* @brief Computes y = Ax
-     *
-     * @param[in] A  Matrix
-     * @param[in] x  Vector
-     * @param[out] y  Result
-     *
-     */
 
     KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
 
