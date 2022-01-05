@@ -15,7 +15,8 @@
  *
  * @brief Shallow water physics module, hybridized version
  *
- * FILL ME
+ * Solves the shallow water equations with a hybridized formulation.
+ * See Samii (J. Sci. Comp. 2019). 
  */
 
 #ifndef SHALLOWWATERHYBRIDIZED_H
@@ -27,7 +28,8 @@ namespace MrHyDE {
   
   /** Shallow water physics module, hybridized version
    *
-   * FILL ME
+   * Solves the shallow water equations with a hybridized formulation.
+   * See Samii (J. Sci. Comp. 2019). 
    */
 
   class shallowwaterHybridized : public physicsbase {
@@ -70,25 +72,14 @@ namespace MrHyDE {
     
     void setWorkset(Teuchos::RCP<workset> & wkset_);
 
-    /* @brief Update the inviscid fluxes for the residual calculation.
+    /* @brief Update the fluxes for the residual calculation.
      *
      * @param[in] on_side  Bool indicating if we are on an element side or not
      *
      * @details When we are at an interface, the flux is evaluated using the trace variables.
-     * This should be called after updating the thermodynamic properties.
      */
 
-    void computeInviscidFluxes(const bool & on_side);
-
-    /* @brief Update the thermodynamic properties for the residual calculation.
-     *
-     * @param[in] on_side  Bool indicating if we are on an element side or not
-     *
-     * @details When we are at an interface, the properties are evaluated using the trace variables.
-     * This should be called before computing the inviscid fluxes.
-     */
-
-    void computeThermoProps(const bool & on_side);
+    void computeFluxVector(const bool & on_side);
 
     /* @brief Update the stabilization term for numerical flux at interfaces.
      *
@@ -172,51 +163,45 @@ namespace MrHyDE {
         const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
         const AD & a_sound, const ScalarT & gamma);
 
+    /* @brief Computes y = Ax
+     *
+     * @param[in] A  Matrix
+     * @param[in] x  Vector
+     * @param[out] y  Result
+     *
+     */
+
     KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
 
   private:
 
     int spaceDim;
     
-    int rho_num, rhoux_num, rhouy_num, rhouz_num, rhoE_num;
-    int auxrho_num, auxrhoux_num, auxrhouy_num, auxrhouz_num, auxrhoE_num;
+    int H_num, Hux_num, Huy_num;
+    int auxH_num, auxHux_num, auxHuy_num;
 
     // indices to access the model params
-    int cp_mp_num = 0;
-    int gamma_mp_num = 1;
-    int RGas_mp_num = 2;
-    int URef_mp_num = 3;
-    int LRef_mp_num = 4;
-    int rhoRef_mp_num = 5;
-    int TRef_mp_num = 6;
-    int MRef_mp_num = 7;
-
-    // indices to access the thermodynamic properties
-    int p0_num = 0;
-    int T_num = 1;
-    int a_num = 2;
+    int gravity_mp_num = 0;
 
     bool maxEVstab,roestab; // Options for stabilization
 
-    View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
+    View_AD4 fluxes_vol, fluxes_side; // Storage for the fluxes
     View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
-    View_AD3 props_vol, props_side; // Storage for the thermodynamic properties
 
     Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
     
-    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::volumeResidual() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::volumeResidual() - evaluation of residual");
-    Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::boundaryResidual() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::boundaryResidual() - evaluation of residual");
-    Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeFlux() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeFlux() - evaluation of flux");
-    Teuchos::RCP<Teuchos::Time> invFluxesFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeInviscidFluxes() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> invFluxesFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeInviscidFluxes() - evaluation of flux");
-    Teuchos::RCP<Teuchos::Time> stabCompFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeStabilizationTerm() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> stabCompFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeStabilizationTerm() - evaluation of product");
-    Teuchos::RCP<Teuchos::Time> boundCompFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeBoundaryTerm() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> boundCompFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeBoundaryTerm() - evaluation of product");
-    Teuchos::RCP<Teuchos::Time> thermoPropFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::euler::computeThermoProps() - evaluation of thermodynamic properties");
+    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::volumeResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::volumeResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::boundaryResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::boundaryResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeFlux() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeFlux() - evaluation of flux");
+    Teuchos::RCP<Teuchos::Time> fluxVectorFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeFluxVector() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> fluxVectorFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeFluxVector() - evaluation of flux");
+    Teuchos::RCP<Teuchos::Time> stabCompFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeStabilizationTerm() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> stabCompFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeStabilizationTerm() - evaluation of product");
+    Teuchos::RCP<Teuchos::Time> boundCompFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeBoundaryTerm() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> boundCompFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::shallowwaterHybridized::computeBoundaryTerm() - evaluation of product");
 
   };
   

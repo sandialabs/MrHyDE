@@ -29,19 +29,14 @@ shallowwaterHybridized::shallowwaterHybridized(Teuchos::ParameterList & settings
 
   spaceDim = dimension_;
 
-  myvars.push_back("rho");
-  myvars.push_back("rhoux");
-  myvars.push_back("rhoE");
+  // The state is defined by (H,Hu) where H is the depth and u is the velocity
+
+  myvars.push_back("H");
+  myvars.push_back("Hux");
   if (spaceDim > 1) {
-    myvars.push_back("rhouy");
-  }
-  if (spaceDim > 2) {
-    myvars.push_back("rhouz");
+    myvars.push_back("Huy");
   }
 
-  // we take the state to be the vector of conserved quantities (\rho,\rho u_i, \rho E)
-  // where E is the total energy density per unit mass
-  
   // TODO appropriate types?
   // I think this is setup to do the fully hybridized
  
@@ -69,32 +64,12 @@ shallowwaterHybridized::shallowwaterHybridized(Teuchos::ParameterList & settings
     std::cout << "Error: No stabilization method chosen! Specify in input file!" << std::endl;
   }
 
-  // We default to properties of air at 293 K, Mach .01
-  // Store these as model params as they are constant, but they can also be 
-  // normal ADs as with p0, T, etc.
- 
-  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for euler",8);
+  // TODO Will need more so fix here
+  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for euler",1);
   auto modelparams_host = Kokkos::create_mirror_view(modelparams);
 
-  // Specific heat at constant pressure  units are L^2/T^2-K (K must be Kelvin) 
-  modelparams_host(cp_mp_num) = settings.get<ScalarT>("cp",1004.5);
-  // Ratio of specific heats
-  modelparams_host(gamma_mp_num) = settings.get<ScalarT>("gamma",1.4);
-  // Specific gas constant  units are J/kg-K
-  modelparams_host(RGas_mp_num) = settings.get<ScalarT>("RGas",287.0);
-  // Reference velocity  units are m/s
-  modelparams_host(URef_mp_num) = settings.get<ScalarT>("URef",3.431143);
-  // Reference length  units are m  TODO don't think it matters?
-  modelparams_host(LRef_mp_num) = settings.get<ScalarT>("LRef",1.0); 
-  // Reference density  units are kg/m^3
-  modelparams_host(rhoRef_mp_num) = settings.get<ScalarT>("rhoRef",1.189);
-  // Reference temperature  units are K
-  modelparams_host(TRef_mp_num) = settings.get<ScalarT>("TRef",293.0);
-  // Reference Mach number  U/sqrt(gamma*R*T)
-  modelparams_host(MRef_mp_num) = 
-    modelparams_host(URef_mp_num)/sqrt(modelparams_host(gamma_mp_num)*
-                                       modelparams_host(RGas_mp_num)*
-                                       modelparams_host(TRef_mp_num));
+  // Acceleration due to gravity  units are L/T^2 
+  modelparams_host(gravity_mp_num) = settings.get<ScalarT>("g",9.81);
 
   Kokkos::deep_copy(modelparams, modelparams_host);
 
@@ -109,22 +84,18 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
   functionManager = functionManager_;
   
   // TODO not supported right now?
-  functionManager->addFunction("source rho",fs.get<string>("source rho","0.0"),"ip");
-  functionManager->addFunction("source rhoux",fs.get<string>("source rhoux","0.0"),"ip");
-  functionManager->addFunction("source rhoE", fs.get<string>("source rhoE", "0.0"),"ip");
+  functionManager->addFunction("source H",fs.get<string>("source H","0.0"),"ip");
+  functionManager->addFunction("source Hux",fs.get<string>("source Hux","0.0"),"ip");
   if (spaceDim > 1) {
-    functionManager->addFunction("source rhouy",fs.get<string>("source rhouy","0.0"),"ip");
-  }
-  if (spaceDim > 2) {
-    functionManager->addFunction("source rhouz",fs.get<string>("source rhouz","0.0"),"ip");
+    functionManager->addFunction("source Huy",fs.get<string>("source Huy","0.0"),"ip");
   }
 
-  // Storage for the inviscid flux vectors
+  // Storage for the flux vectors
 
-  fluxes_vol  = View_AD4("inviscid flux", functionManager->numElem,
-                         functionManager->numip, spaceDim + 2, spaceDim); // neqn = spaceDim + 2
-  fluxes_side = View_AD4("inviscid flux", functionManager->numElem,
-                         functionManager->numip_side, spaceDim + 2, spaceDim); // see above 
+  fluxes_vol  = View_AD4("flux", functionManager->numElem,
+                         functionManager->numip, spaceDim + 1, spaceDim); // neqn = spaceDim + 1
+  fluxes_side = View_AD4("flux", functionManager->numElem,
+                         functionManager->numip_side, spaceDim + 1, spaceDim); // see above 
 
   // Storage for stabilization term/boundary flux
 
@@ -136,15 +107,7 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
   // This is needed by the computeFlux routine (see for more details).
 
   stab_bound_side = View_AD3("stab/boundary term", functionManager->numElem,
-                             functionManager->numip_side, spaceDim + 2); // see above 
-
-  // Storage for the thermodynamic properties
-  // TODO I don't think T is technically needed... 
-  
-  props_vol  = View_AD3("thermo props", functionManager->numElem,
-                       functionManager->numip, 3);
-  props_side = View_AD3("thermo props", functionManager->numElem,
-                       functionManager->numip_side, 3);
+                             functionManager->numip_side, spaceDim + 1); // see above 
 
 }
 
@@ -154,30 +117,25 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
 void shallowwaterHybridized::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  Vista source_rho, source_rhoux, source_rhouy, source_rhouz, source_rhoE;
+  Vista source_H, source_Hux, source_Huy;
 
   // TODO not currently using source terms
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source_rho = functionManager->evaluate("source rho","ip");
-    source_rhoux = functionManager->evaluate("source rhoux","ip");
-    source_rhoE  = functionManager->evaluate("source rhoE","ip");
+    source_H = functionManager->evaluate("source H","ip");
+    source_Hux = functionManager->evaluate("source Hux","ip");
     if (spaceDim > 1) {
-      source_rhouy = functionManager->evaluate("source rhouy","ip");
-    }
-    if (spaceDim > 2) {
-      source_rhouz = functionManager->evaluate("source rhouz","ip");
+      source_Huy = functionManager->evaluate("source Huy","ip");
     }
 
-    // Update thermodynamic and fluxes properties
-
-    this->computeThermoProps(false); // not on_side
-    this->computeInviscidFluxes(false); // not on_side 
+    // Update fluxes 
+    this->computeFluxes(false); // not on_side 
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   auto wts = wkset->wts;
   auto res = wkset->res;
+  auto varlist = wkset->varlist;
 
   // The flux storage is (numElem,numip,eqn,dimension)
   
@@ -186,67 +144,26 @@ void shallowwaterHybridized::volumeResidual() {
     // All equations are of the form
     // (v_i,d S_i/dt) - (dv_i/dx_1,F_{x,i}) - (v_i,source)
 
-    // rho
-    {
-      int rho_basis = wkset->usebasis[rho_num];
-      auto basis = wkset->basis[rho_basis];
-      auto basis_grad = wkset->basis_grad[rho_basis];
-      auto drho_dt = wkset->getSolutionField("rho_t");
-      auto off = subview(wkset->offsets,rho_num,ALL());
-      
-      parallel_for("euler rho volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drho_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rho_num,0)*basis_grad(elem,dof,pt,0) 
-                + source_rho(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
+    for (size_t varind=0; varind<varlist.size(); ++i)) {
+      int basis_num = wkset->usebasis[varind];
+      auto basis = wkset->basis[basis_num];
+      auto basis_grad = wkset->basis_grad[basis_num];
+      auto dSi_dt = wkset->getSolutionField(varlist[varind]+"_t");
+      auto off = subview(wkset->offsets,varind,ALL());
 
-    // rhoux
-    {
-      int rhoux_basis = wkset->usebasis[rhoux_num];
-      auto basis = wkset->basis[rhoux_basis];
-      auto basis_grad = wkset->basis_grad[rhoux_basis];
-      auto drhoux_dt = wkset->getSolutionField("rhoux_t");
-      auto off = subview(wkset->offsets,rhoux_num,ALL());
-      
-      parallel_for("euler rhoux volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+      parallel_for("shallow water volume resid " + varlist[varind] + " 1D",
+              RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhoux_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhoux_num,0)*basis_grad(elem,dof,pt,0) 
-                + source_rhoux(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
+            res(elem,off(dof)) += dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
+            res(elem,off(dof)) += -( fluxes_vol(elem,pt,varind,0)*basis_grad(elem,dof,pt,0) 
+                + source_rho(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
+                // TODO this will break... need a way to know which source to nab...
           }
         }
       });
-    }
-      
-    // rhoE
-    {
-      int rhoE_basis = wkset->usebasis[rhoE_num];
-      auto basis = wkset->basis[rhoE_basis];
-      auto basis_grad = wkset->basis_grad[rhoE_basis];
-      auto drhoE_dt = wkset->getSolutionField("rhoE_t");
-      auto off = subview(wkset->offsets,rhoE_num,ALL());
-      
-      parallel_for("euler rhoE volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhoE_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhoE_num,0)*basis_grad(elem,dof,pt,0) 
-                + source_rhoE(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
+
     }
 
   }
@@ -255,214 +172,27 @@ void shallowwaterHybridized::volumeResidual() {
     // All equations are of the form
     // (v_i,d S_i/dt) - (dv_i/dx_1,F_{x,i}) - (dv_i/dx_2,F_{y,i}) - (v_i,source)
 
-    // rho
-    {
-      int rho_basis = wkset->usebasis[rho_num];
-      auto basis = wkset->basis[rho_basis];
-      auto basis_grad = wkset->basis_grad[rho_basis];
-      auto drho_dt = wkset->getSolutionField("rho_t");
-      auto off = subview(wkset->offsets,rho_num,ALL());
-      
-      parallel_for("euler rho volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+    for (size_t varind=0; varind<varlist.size(); ++i)) {
+      int basis_num = wkset->usebasis[varind];
+      auto basis = wkset->basis[basis_num];
+      auto basis_grad = wkset->basis_grad[basis_num];
+      auto dSi_dt = wkset->getSolutionField(varlist[varind]+"_t");
+      auto off = subview(wkset->offsets,varind,ALL());
+
+      parallel_for("shallow water volume resid " + varlist[varind] + " 2D",
+              RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drho_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
+            res(elem,off(dof)) += dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
             res(elem,off(dof)) += -( fluxes_vol(elem,pt,rho_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rho_num,1)*basis_grad(elem,dof,pt,1)
+                + fluxes_vol(elem,pt,varind,1)*basis_grad(elem,dof,pt,1)
                 + source_rho(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
+                // TODO this will break... need a way to know which source to nab...
           }
         }
       });
-    }
 
-    // rhoux
-    {
-      int rhoux_basis = wkset->usebasis[rhoux_num];
-      auto basis = wkset->basis[rhoux_basis];
-      auto basis_grad = wkset->basis_grad[rhoux_basis];
-      auto drhoux_dt = wkset->getSolutionField("rhoux_t");
-      auto off = subview(wkset->offsets,rhoux_num,ALL());
-      
-      parallel_for("euler rhoux volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhoux_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhoux_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rhoux_num,1)*basis_grad(elem,dof,pt,1)
-                + source_rhoux(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
-
-    // rhouy
-    {
-      int rhouy_basis = wkset->usebasis[rhouy_num];
-      auto basis = wkset->basis[rhouy_basis];
-      auto basis_grad = wkset->basis_grad[rhouy_basis];
-      auto drhouy_dt = wkset->getSolutionField("rhouy_t");
-      auto off = subview(wkset->offsets,rhouy_num,ALL());
-      
-      parallel_for("euler rhouy volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhouy_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhouy_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rhouy_num,1)*basis_grad(elem,dof,pt,1)
-                + source_rhouy(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
-
-    // rhoE
-    {
-      int rhoE_basis = wkset->usebasis[rhoE_num];
-      auto basis = wkset->basis[rhoE_basis];
-      auto basis_grad = wkset->basis_grad[rhoE_basis];
-      auto drhoE_dt = wkset->getSolutionField("rhoE_t");
-      auto off = subview(wkset->offsets,rhoE_num,ALL());
-      
-      parallel_for("euler rhoE volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhoE_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhoE_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rhoE_num,1)*basis_grad(elem,dof,pt,1)
-                + source_rhoE(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
-
-  }
-  else if (spaceDim == 3) {
-
-    // All equations are of the form
-    // (v_i,d S_i/dt) - (dv_i/dx_1,F_{x,i}) - (dv_i/dx_2,F_{y,i}) 
-    // - (dv_i/dx_3,F_{z,i}) - (v_i,source)
-
-    // rho
-    {
-      int rho_basis = wkset->usebasis[rho_num];
-      auto basis = wkset->basis[rho_basis];
-      auto basis_grad = wkset->basis_grad[rho_basis];
-      auto drho_dt = wkset->getSolutionField("rho_t");
-      auto off = subview(wkset->offsets,rho_num,ALL());
-      
-      parallel_for("euler rho volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drho_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rho_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rho_num,1)*basis_grad(elem,dof,pt,1)
-                + fluxes_vol(elem,pt,rho_num,2)*basis_grad(elem,dof,pt,2)
-                + source_rho(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
-
-    // rhoux
-    {
-      int rhoux_basis = wkset->usebasis[rhoux_num];
-      auto basis = wkset->basis[rhoux_basis];
-      auto basis_grad = wkset->basis_grad[rhoux_basis];
-      auto drhoux_dt = wkset->getSolutionField("rhoux_t");
-      auto off = subview(wkset->offsets,rhoux_num,ALL());
-      
-      parallel_for("euler rhoux volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhoux_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhoux_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rhoux_num,1)*basis_grad(elem,dof,pt,1)
-                + fluxes_vol(elem,pt,rhoux_num,2)*basis_grad(elem,dof,pt,2)
-                + source_rhoux(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
-
-    // rhouy
-    {
-      int rhouy_basis = wkset->usebasis[rhouy_num];
-      auto basis = wkset->basis[rhouy_basis];
-      auto basis_grad = wkset->basis_grad[rhouy_basis];
-      auto drhouy_dt = wkset->getSolutionField("rhouy_t");
-      auto off = subview(wkset->offsets,rhouy_num,ALL());
-      
-      parallel_for("euler rhouy volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhouy_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhouy_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rhouy_num,1)*basis_grad(elem,dof,pt,1)
-                + fluxes_vol(elem,pt,rhouy_num,2)*basis_grad(elem,dof,pt,2)
-                + source_rhouy(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
-
-    // rhouz
-    {
-      int rhouz_basis = wkset->usebasis[rhouz_num];
-      auto basis = wkset->basis[rhouz_basis];
-      auto basis_grad = wkset->basis_grad[rhouz_basis];
-      auto drhouz_dt = wkset->getSolutionField("rhouz_t");
-      auto off = subview(wkset->offsets,rhouz_num,ALL());
-      
-      parallel_for("euler rhouz volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhouz_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhouz_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rhouz_num,1)*basis_grad(elem,dof,pt,1)
-                + fluxes_vol(elem,pt,rhouz_num,2)*basis_grad(elem,dof,pt,2)
-                + source_rhouz(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
-    }
-
-    // rhoE
-    {
-      int rhoE_basis = wkset->usebasis[rhoE_num];
-      auto basis = wkset->basis[rhoE_basis];
-      auto basis_grad = wkset->basis_grad[rhoE_basis];
-      auto drhoE_dt = wkset->getSolutionField("rhoE_t");
-      auto off = subview(wkset->offsets,rhoE_num,ALL());
-      
-      parallel_for("euler rhoE volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += drhoE_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,rhoE_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,rhoE_num,1)*basis_grad(elem,dof,pt,1)
-                + fluxes_vol(elem,pt,rhoE_num,2)*basis_grad(elem,dof,pt,2)
-                + source_rhoE(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-          }
-        }
-      });
     }
 
   }
@@ -721,42 +451,34 @@ void shallowwaterHybridized::setWorkset(Teuchos::RCP<workset> & wkset_) {
   // TODO make this less hard codey?
   vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); ++i) {
-    if (varlist[i] == "rho")
-      rho_num = i;
-    else if (varlist[i] == "rhoux")
-      rhoux_num = i;
-    else if (varlist[i] == "rhouy")
-      rhouy_num = i;
-    else if (varlist[i] == "rhouz")
-      rhouz_num = i;
-    else if (varlist[i] == "rhoE")
-      rhoE_num = i;
+    if (varlist[i] == "H")
+      H_num = i;
+    else if (varlist[i] == "Hux")
+      Hux_num = i;
+    else if (varlist[i] == "Huy")
+      Huy_num = i;
   }
 
   // TODO make this less hard codey?
   vector<string> auxvarlist = wkset->aux_varlist;
   for (size_t i=0; i<auxvarlist.size(); ++i) {
-    if (auxvarlist[i] == "rho")
-      auxrho_num = i;
-    else if (auxvarlist[i] == "rhoux")
-      auxrhoux_num = i;
-    else if (auxvarlist[i] == "rhouy")
-      auxrhouy_num = i;
-    else if (auxvarlist[i] == "rhouz")
-      auxrhouz_num = i;
-    else if (auxvarlist[i] == "rhoE")
-      auxrhoE_num = i;
+    if (auxvarlist[i] == "H")
+      auxH_num = i;
+    else if (auxvarlist[i] == "Hux")
+      auxHux_num = i;
+    else if (auxvarlist[i] == "Huy")
+      auxHuy_num = i;
   }
 
 }
 
 // ========================================================================================
-// compute the inviscid fluxes
+// compute the fluxes
 // ========================================================================================
 
-void shallowwaterHybridized::computeInviscidFluxes(const bool & on_side) {
+void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
 
-  Teuchos::TimeMonitor localtime(*invFluxesFill);
+  Teuchos::TimeMonitor localtime(*fluxVectorFill);
 
   int spaceDim = wkset->dimension;
 
@@ -768,194 +490,66 @@ void shallowwaterHybridized::computeInviscidFluxes(const bool & on_side) {
 
   auto fluxes = on_side ? fluxes_side : fluxes_vol;
   // these are always needed
-  auto rho = on_side ? wkset->getSolutionField("aux rho side") : wkset->getSolutionField("rho");
-  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side") : wkset->getSolutionField("rhoux");
-  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side") : wkset->getSolutionField("rhoE");
-  auto props = on_side ? props_side : props_vol;
-
+  auto H = on_side ? wkset->getSolutionField("aux H side") : wkset->getSolutionField("H");
+  auto Hux = on_side ? wkset->getSolutionField("aux Hux side") : wkset->getSolutionField("Hux");
+  
   // TODO this is the same for face or side, can I collapse?
   // ? : operator... are they of the same type?
   // TODO WILL THAT BE BAD??
 
   if (spaceDim == 1) {
 
-    parallel_for("euler inviscid fluxes 1D",
+    parallel_for("shallow water fluxes 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
-        // rho equation -- F_x = rhoux
+        // H equation -- F_x = Hux
 
-        fluxes(elem,pt,rho_num,0) = rhoux(elem,pt);
+        fluxes(elem,pt,H_num,0) = Hux(elem,pt);
 
-        // rhoux equation -- F_x = rhoux**2/rho + p
+        // Hux equation -- F_x = Hux*Hux/H + 1/2 g H*H
 
-        fluxes(elem,pt,rhoux_num,0) = 
-          rhoux(elem,pt)*rhoux(elem,pt)/rho(elem,pt) + props(elem,pt,p0_num);
-
-        // rhoE equation -- F_x = rhoE*rhoux/rho + p * rhoux/rho 
-
-        fluxes(elem,pt,rhoE_num,0) = 
-          rhoE(elem,pt)*rhoux(elem,pt)/rho(elem,pt) 
-          + props(elem,pt,p0_num)*rhoux(elem,pt)/rho(elem,pt);
+        fluxes(elem,pt,Hux_num,0) = 
+          Hux(elem,pt)*Hux(elem,pt)/H(elem,pt) + 
+            .5*H(elem,pt)*H(elem,pt)*modelparams(gravity_mp_num);
 
       }
     });
   } 
   else if (spaceDim == 2) {
-    // get the second momentum component
-    auto rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : wkset->getSolutionField("rhouy");
+    // get the second scaled velocity component
+    auto Huy = on_side ? wkset->getSolutionField("aux Huy side") : wkset->getSolutionField("Huy");
 
-    parallel_for("euler inviscid fluxes 2D",
+    parallel_for("shallow water fluxes 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
-        // rho equation -- F_x = rhoux F_y = rhouy
+        // H equation -- F_x = Hux F_y = Huy
 
-        fluxes(elem,pt,rho_num,0) = rhoux(elem,pt);
-        fluxes(elem,pt,rho_num,1) = rhouy(elem,pt);
+        fluxes(elem,pt,H_num,0) = Hux(elem,pt);
+        fluxes(elem,pt,H_num,1) = Huy(elem,pt);
 
-        // rhoux equation -- F_x = rhoux**2/rho + p F_y = rhoux*rhouy/rho
+        // Hux equation -- F_x = Hux**2/H + 1/2 g H*H F_y = Hux*Huy/H
 
-        fluxes(elem,pt,rhoux_num,0) = 
-          rhoux(elem,pt)*rhoux(elem,pt)/rho(elem,pt) + props(elem,pt,p0_num);
-        fluxes(elem,pt,rhoux_num,1) = rhoux(elem,pt)*rhouy(elem,pt)/rho(elem,pt);
+        fluxes(elem,pt,Hux_num,0) = 
+          Hux(elem,pt)*Hux(elem,pt)/H(elem,pt) + 
+            .5*H(elem,pt)*H(elem,pt)*modelparams(gravity_mp_num);
+        fluxes(elem,pt,Hux_num,1) = Hux(elem,pt)*Huy(elem,pt)/H(elem,pt);
 
-        // rhouy equation -- F_x = rhoux*rhouy/rho F_y = rhouy**2/rho + p
+        // Huy equation -- F_x = Hux*Huy/H F_y = Huy**2/H + p
 
-        fluxes(elem,pt,rhouy_num,0) = 
-          rhoux(elem,pt)*rhouy(elem,pt)/rho(elem,pt); 
-        fluxes(elem,pt,rhouy_num,1) = 
-          rhouy(elem,pt)*rhouy(elem,pt)/rho(elem,pt) + props(elem,pt,p0_num);
-
-        // rhoE equation -- F_x = rhoE*rhoux/rho + p * rhoux/rho 
-        //                  F_y = rhoE*rhouy/rho + p * rhouy/rho
-
-        fluxes(elem,pt,rhoE_num,0) = 
-          rhoE(elem,pt)*rhoux(elem,pt)/rho(elem,pt) 
-          + props(elem,pt,p0_num)*rhoux(elem,pt)/rho(elem,pt);
-        fluxes(elem,pt,rhoE_num,1) = 
-          rhoE(elem,pt)*rhouy(elem,pt)/rho(elem,pt) 
-          + props(elem,pt,p0_num)*rhouy(elem,pt)/rho(elem,pt);
+        fluxes(elem,pt,Huy_num,0) = 
+          Hux(elem,pt)*Huy(elem,pt)/H(elem,pt); 
+        fluxes(elem,pt,Huy_num,1) = 
+          Huy(elem,pt)*Huy(elem,pt)/H(elem,pt) + 
+            .5*H(elem,pt)*H(elem,pt)*modelparams(gravity_mp_num);
 
       }
     });
 
   } 
-  else {
-    // get the second and third momentum component
-    auto rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : wkset->getSolutionField("rhouy");
-    auto rhouz = on_side ? wkset->getSolutionField("aux rhouz side") : wkset->getSolutionField("rhouz");
-
-    parallel_for("euler inviscid fluxes 3D",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
-
-        // rho equation -- F_x = rhoux F_y = rhouy F_z = rhouz
-
-        fluxes(elem,pt,rho_num,0) = rhoux(elem,pt);
-        fluxes(elem,pt,rho_num,1) = rhouy(elem,pt);
-        fluxes(elem,pt,rho_num,2) = rhouz(elem,pt);
-
-        // rhoux equation -- F_x = rhoux**2/rho + p F_y = rhoux*rhouy/rho F_z rhoux*rhouz/rho
-
-        fluxes(elem,pt,rhoux_num,0) = 
-          rhoux(elem,pt)*rhoux(elem,pt)/rho(elem,pt) + props(elem,pt,p0_num);
-        fluxes(elem,pt,rhoux_num,1) = rhoux(elem,pt)*rhouy(elem,pt)/rho(elem,pt);
-        fluxes(elem,pt,rhoux_num,2) = rhoux(elem,pt)*rhouz(elem,pt)/rho(elem,pt);
-
-        // rhouy equation -- F_x = rhoux*rhouy/rho F_y = rhouy**2/rho + p F_z = rhouy*rhouz/rho
-
-        fluxes(elem,pt,rhouy_num,0) = 
-          rhoux(elem,pt)*rhouy(elem,pt)/rho(elem,pt); 
-        fluxes(elem,pt,rhouy_num,1) = 
-          rhouy(elem,pt)*rhouy(elem,pt)/rho(elem,pt) + props(elem,pt,p0_num);
-        fluxes(elem,pt,rhouy_num,2) = 
-          rhouy(elem,pt)*rhouz(elem,pt)/rho(elem,pt); 
-
-        // rhoE equation -- F_x = rhoE*rhoux/rho + p * rhoux/rho 
-        //                  F_y = rhoE*rhouy/rho + p * rhouy/rho
-        //                  F_z = rhoE*rhouz/rho + p * rhouz/rho
-
-        fluxes(elem,pt,rhoE_num,0) = 
-          rhoE(elem,pt)*rhoux(elem,pt)/rho(elem,pt) 
-          + props(elem,pt,p0_num)*rhoux(elem,pt)/rho(elem,pt);
-        fluxes(elem,pt,rhoE_num,1) = 
-          rhoE(elem,pt)*rhouy(elem,pt)/rho(elem,pt) 
-          + props(elem,pt,p0_num)*rhouy(elem,pt)/rho(elem,pt); 
-        fluxes(elem,pt,rhoE_num,2) = 
-          rhoE(elem,pt)*rhouz(elem,pt)/rho(elem,pt) 
-          + props(elem,pt,p0_num)*rhouz(elem,pt)/rho(elem,pt); 
-
-      }
-
-    });
-  }
-
-}
-
-// ========================================================================================
-// compute the thermodynamic properties
-// ========================================================================================
-
-void shallowwaterHybridized::computeThermoProps(const bool & on_side)
-{
-
-  Teuchos::TimeMonitor localtime(*thermoPropFill);
-
-  int spaceDim = wkset->dimension;
-
-  auto props = on_side ? props_side : props_vol;
-  // these are always needed
-  auto rho = on_side ? wkset->getSolutionField("aux rho side") : wkset->getSolutionField("rho");
-  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side") : wkset->getSolutionField("rhoux");
-  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side") : wkset->getSolutionField("rhoE");
-
-  View_AD2 rhouy, rhouz; // TODO not sure this is the best way
-
-  if ( spaceDim > 1 ) {
-    rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : wkset->getSolutionField("rhouy");
-  } 
-  if ( spaceDim > 2 ) {
-    rhouz = on_side ? wkset->getSolutionField("aux rhouz side") : wkset->getSolutionField("rhouz");
-  }
-
-  parallel_for("euler thermo props",
-               RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
-
-    ScalarT gamma = modelparams(gamma_mp_num); 
-    // ScalarT RGas = modelparams(RGas_mp_num);
-    ScalarT MachNum = modelparams(MRef_mp_num);
-
-    for (size_type pt=0; pt<props.extent(1); ++pt) {
-
-      // TODO CHECK ME NON DIM
-      // p0 = (gamma - 1)(rhoE - KE)
-      // KE = .5 \rho \|u\|^2
-      // T = gamma * M_\infty^2 p0/\rho
-      // a_sound = sqrt(T) / M_\infty 
-
-      // TODO SEE ABOVE !!
-
-      props(elem,pt,p0_num) = (gamma - 1.)*(rhoE(elem,pt) - .5*rhoux(elem,pt)*rhoux(elem,pt)/rho(elem,pt));
-
-      if (spaceDim > 1) {
-        props(elem,pt,p0_num) += (gamma - 1.)*(-.5*rhouy(elem,pt)*rhouy(elem,pt)/rho(elem,pt));
-      }
-      if (spaceDim > 2) {
-        props(elem,pt,p0_num) += (gamma - 1.)*(-.5*rhouz(elem,pt)*rhouz(elem,pt)/rho(elem,pt));
-      }
-
-      // pressure done
-
-      props(elem,pt,T_num) = gamma*MachNum*MachNum*props(elem,pt,p0_num)/rho(elem,pt);
-      props(elem,pt,a_num) = sqrt(props(elem,pt,T_num))/MachNum;
-
-    }
-  });
 
 }
 
