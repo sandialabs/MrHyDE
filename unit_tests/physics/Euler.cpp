@@ -8,11 +8,13 @@
 using namespace std;
 using namespace MrHyDE;
 
-Teuchos::RCP<workset> setupDummyWorkset(int & dimension);
+Teuchos::RCP<FunctionManager> setupDummyFunctionManager(int & dimension);
 bool testEVDecomp1D(Teuchos::RCP<euler> module);
 bool testEVDecomp2D(Teuchos::RCP<euler> module);
 bool testEVDecomp3D(Teuchos::RCP<euler> module);
 bool testMatVec(Teuchos::RCP<euler> module);
+bool testThermoProps(Teuchos::RCP<euler> module, vector<ScalarT> & props);
+bool checkClose(View_AD3 & truth, View_AD3 & test);
 bool checkClose(View_AD2 & truth, View_AD2 & test);
 bool checkClose(View_AD1 & truth, View_AD1 & test);
 
@@ -28,14 +30,32 @@ int main(int argc, char * argv[]) {
     bool success;
 
     int dimension = 3; // used partially as a dummy
+    // Properties and reference params which would normally be read in
+    ScalarT cp = 1004.5;
+    ScalarT gamma = 1.4;
+    ScalarT RGas = 287.0;
+    ScalarT URef = 5.0;
+    ScalarT TRef = 293.0;
+    ScalarT rhoRef = 1.1;
+
+    vector<ScalarT> props = {cp,gamma,RGas,URef,TRef,rhoRef};
+
     Teuchos::ParameterList settings;
 
     settings.set<bool>("Roe-like stabilization",true); // We must pick a stabilization method
+    settings.set<ScalarT>("cp",cp);
+    settings.set<ScalarT>("gamma",gamma);
+    settings.set<ScalarT>("RGas",RGas);
+    settings.set<ScalarT>("URef",URef);
+    settings.set<ScalarT>("TRef",TRef);
+    settings.set<ScalarT>("rhoRef",rhoRef);
     
     Teuchos::RCP<euler> module = Teuchos::rcp(new euler(settings, dimension));
 
-    //auto workset = setupDummyWorkset(dimension);
-    // TODO NEED TO ASSIGN WORKSET TO MODULE
+    // create a dummy function manager with workset and assign to the module
+    auto fm = setupDummyFunctionManager(dimension);
+    module->setWorkset(fm->wkset);
+    module->defineFunctions(settings,fm);
 
     // Test mat vec product
     success = testMatVec(module);
@@ -56,9 +76,7 @@ int main(int argc, char * argv[]) {
 
     TEUCHOS_TEST_FOR_EXCEPTION(!success,std::runtime_error,"Euler::eigendecompFluxJacobian() unit test fail (3D)!");
 
-    module->computeThermoProps(false);
-
-//    success = testThermoProps(module);
+    success = testThermoProps(module,props);
 
     TEUCHOS_TEST_FOR_EXCEPTION(!success,std::runtime_error,"Euler::computeThermoProps() unit test fail!")
 
@@ -70,49 +88,93 @@ int main(int argc, char * argv[]) {
   return val;
 }
 
-Teuchos::RCP<workset> setupDummyWorkset(int & dimension) {
+Teuchos::RCP<FunctionManager> setupDummyFunctionManager(int & dimension) {
 
-  // Copied from sandbox for now...
-
-  Teuchos::RCP<DiscretizationInterface> disc = Teuchos::rcp( new DiscretizationInterface() );
-
-  // TODO this gives two-d elements...
+  // Modified from test_functions for now...
   
-  topo_RCP cellTopo = Teuchos::rcp( new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() ) );
-  topo_RCP sideTopo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() ));
+  Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset() );
   
-  vector<basis_RCP> basis = {Teuchos::rcp(new Intrepid2::Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space, double, double>() )};
-  int quadorder = 2;
+  // Define some parameters
   int numElem = 10;
-  vector<size_t> numvars(1,5);
   vector<string> variables = {"rho","rhoux","rhouy","rhouz","rhoE"};
-  vector<string> aux_variables = {"rho","rhoux","rhouy","rhouz","rhoE"};
-  vector<string> param_vars;
-  
-  vector<int> cellinfo = {dimension,1,numElem}; // {dimension,numDiscParams,numElem}
-  DRV ip, wts, sip, swts;
-  
-  disc->getQuadrature(cellTopo, quadorder, ip, wts);
-  disc->getQuadrature(sideTopo, quadorder, sip, swts);
-  int numip = ip.extent(0);
-  cellinfo.push_back(ip.extent(0));
-  cellinfo.push_back(sip.extent(0));
+  vector<string> scalars = {"x","y","z"};
+  int numip = 4;
   vector<string> btypes = {"HGRAD"};
-  vector<Kokkos::View<string**,HostDevice> > bcs;
-  bcs.push_back(Kokkos::View<string**,HostDevice>("bcs",1,1));
-  Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset(cellinfo, numvars, false,
-                                                          btypes, basis, basis, cellTopo) );
-  
   vector<int> usebasis = {0,0,0,0,0};
-  wkset->usebasis = usebasis;
-  wkset->varlist = variables;
-  wkset->set_var_bcs = bcs;
-  
-  // Cannot call this without segfaulting (SolverManager::finalizeWorkset() takes care of something required)
-  //wkset->createSolns();
-  //wkset->addAux(aux_variables,wkset->offsets); // I think this should add to the same workset...
+  vector<vector<size_t>> uvals_index;
+  vector<size_t> u_ind = {0,1,2,3,4};
+  uvals_index.push_back(u_ind);
 
-  return wkset;
+  // Set necessary parameters in workset
+  wkset->usebasis = usebasis;
+  wkset->maxElem = numElem;
+  wkset->numElem = numElem;
+  wkset->numip = numip;
+  wkset->uvals_index = uvals_index; 
+
+  wkset->isInitialized = true;
+  wkset->addSolutionFields(variables, btypes, usebasis);
+  wkset->varlist = variables;
+  wkset->aux_varlist = variables; // trace unknowns are the state
+  wkset->addScalarFields(scalars);
+
+  // Create a function manager
+  Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
+  functionManager->wkset = wkset;
+  
+  //----------------------------------------------------------------------
+  // Fill in some data
+  //----------------------------------------------------------------------
+  
+  // Set the solution fields in the workset
+  View_AD4 sol("sol", numElem, variables.size(), numip, 1);
+  vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2};
+  
+  // This won't actually work on a GPU
+  parallel_for("sol vals",
+               RangePolicy<AssemblyExec>(0,sol.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type var=0; var<sol.extent(1); ++var) {
+      for (size_type pt=0; pt<sol.extent(2); ++pt) {
+        sol(elem,var,pt,0) = solvals[var];
+      }
+    }
+  });
+  
+  wkset->setSolution(sol);
+  
+  // Set the scalar fields in the workset
+  View_Sc2 xip("int pts",numElem,numip);
+  View_Sc2 yip("int pts",numElem,numip);
+  View_Sc2 zip("int pts",numElem,numip);
+  Kokkos::Random_XorShift64_Pool<> rand_pool(1979);
+  Kokkos::fill_random(xip,rand_pool,0.0,1.0);
+  Kokkos::fill_random(yip,rand_pool,0.0,1.0);
+  Kokkos::fill_random(zip,rand_pool,0.0,1.0);
+  
+  wkset->setScalarField(xip,"x");
+  wkset->setScalarField(yip,"y");
+  wkset->setScalarField(zip,"z");
+
+  return functionManager;
+}
+
+bool checkClose(View_AD3 & truth, View_AD3 & test) {
+
+  ScalarT norm = 0.;
+  for (size_t i=0; i<truth.extent(0); i++) {
+    for (size_t j=0; j<truth.extent(1); j++) {
+      for (size_t k=0; k<truth.extent(2); k++) {
+        norm += (truth(i,j,k).val() - test(i,j,k).val())*
+          (truth(i,j,k).val() - test(i,j,k).val());
+      }
+    }
+  }
+
+  if ( std::sqrt(norm > 1e-14) ) {
+    return false;
+  }
+  return true;
 }
 
 bool checkClose(View_AD2 & truth, View_AD2 & test) {
@@ -360,6 +422,82 @@ bool testMatVec(Teuchos::RCP<euler> module) {
   if (!checkClose(yExact,y)) return false;
 
   cout << "PASS :: testMatVec" << endl;
+  return true;
+
+}
+
+bool testThermoProps(Teuchos::RCP<euler> module, vector<ScalarT> & props) {
+
+  auto wkset = module->wkset;
+  auto cp = props[0];
+  auto gamma = props[1];
+  auto RGas = props[2];
+  auto URef = props[3];
+  auto TRef = props[4];
+  auto rhoRef = props[5];
+
+  // create dummy solutions
+  // TODO hardcoded number of variables
+  View_AD4 sol("sol",wkset->numElem,5,wkset->numip,1);
+
+  // rhoE_ref = rhoRef*URef**2
+  ScalarT rho = 2.;
+  ScalarT rhoux = 1.5;
+  ScalarT rhouy = -.5;
+  ScalarT rhouz = 5.;
+  ScalarT rhoE = 10.;
+  ScalarT rhoD = rho*rhoRef;
+  ScalarT rhouxD = rhoux*rhoRef*URef;
+  ScalarT rhouyD = rhouy*rhoRef*URef;
+  ScalarT rhouzD = rhouz*rhoRef*URef;
+  ScalarT rhoED = rhoE*rhoRef*URef*URef;
+
+  // code is non-dimensionalized
+  vector<AD> solvals = {rho,rhoux,rhouy,rhouz,rhoE};
+
+  // This won't actually work on a GPU
+  parallel_for("sol vals",
+               RangePolicy<AssemblyExec>(0,sol.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type var=0; var<sol.extent(1); ++var) {
+      for (size_type pt=0; pt<sol.extent(2); ++pt) {
+        sol(elem,var,pt,0) = solvals[var];
+      }
+    }
+  });
+  
+  wkset->setSolution(sol);
+
+  // get exact thermoprops (will non-dim below)
+  ScalarT KE = .5*(rhouxD*rhouxD + rhouyD*rhouyD + rhouzD*rhouzD)/rhoD;
+  ScalarT p0 = (gamma-1.)*(rhoED - KE);
+  ScalarT T = p0/(RGas*rhoD);
+  ScalarT a = sqrt(gamma*RGas*T);
+
+  p0 = p0/(rhoRef*URef*URef);
+  T = T/TRef;
+  a = a/URef;
+
+  vector<AD> thermvals = {p0,T,a};
+
+  module->computeThermoProps(false); // not on_side
+
+  View_AD3 thermExact("thermExact",wkset->numElem,wkset->numip,3);
+  // Storage here is slightly different from above
+  parallel_for("sol vals",
+               RangePolicy<AssemblyExec>(0,thermExact.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<thermExact.extent(1); ++pt) {
+      for (size_type var=0; var<thermExact.extent(2); ++var) {
+        thermExact(elem,pt,var) = thermvals[var];
+      }
+    }
+  });
+
+  cout << "Checking ThermoProps calculation..." << endl;
+  if (!checkClose(thermExact,module->props_vol)) return false;
+  
+  cout << "PASS :: testThermoProps" << endl;
   return true;
 
 }

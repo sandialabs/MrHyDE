@@ -31,8 +31,12 @@ namespace MrHyDE {
     
     
     /**
-     * Constructor to set up the problem 
+     * @brief Constructor for physics base
+     * 
+     * @param[in] settings  The parameter list of settings
+     * @param[in] dimension_  Spatial dimensionality
      */
+
     physicsbase(Teuchos::ParameterList & settings, const int & dimension_) {
       verbosity = settings.get<int>("verbosity",0);
     };
@@ -179,7 +183,6 @@ namespace MrHyDE {
     
     // On host, so ok
     // Kokkos::View<int**,HostDevice> bcs;
-    
     
   };
   

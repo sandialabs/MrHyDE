@@ -769,7 +769,7 @@ void workset::computeParamSteadySeeded(View_Sc3 param,
 void workset::evaluateSolutionField(const int & fieldnum) {
   
   auto fielddata = soln_fields[fieldnum].data;
-  
+
   bool proceed = true;
   if (soln_fields[fieldnum].derivative_type == "time" ) {
     if (!isTransient) {
@@ -808,7 +808,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
         solvals = uvals[uindex];
       }
     }
-    
+
     int basis_index;
     
     if (soln_fields[fieldnum].variable_type == "param") { // discr. params
@@ -824,7 +824,6 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     //-----------------------------------------------------
     
     int component = soln_fields[fieldnum].component;
-    
     
     if (soln_fields[fieldnum].derivative_type == "div") {
       auto sbasis = basis_div[basis_index];
@@ -967,7 +966,7 @@ void workset::computeSolnSideIP(const int & side) {
       auto csol = this->getSolutionField(var+" side",false);
       auto cbasis = basis_side[usebasis[varind]];
       
-      parallel_for("wkset soln ip HGRAD",
+      parallel_for("wkset soln ip HVOL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
@@ -995,7 +994,7 @@ void workset::computeSolnSideIP(const int & side) {
       auto csolz = this->getSolutionField(var+"[z] side",false);
       auto cbasis = basis_side[usebasis[varind]];
       
-      parallel_for("wkset soln ip HGRAD",
+      parallel_for("wkset soln ip HDIV",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
@@ -1036,7 +1035,7 @@ void workset::computeSolnSideIP(const int & side) {
       auto csolz = this->getSolutionField(var+"[z] side",false);
       auto cbasis = basis_side[usebasis[varind]];
       
-      parallel_for("wkset soln ip HGRAD",
+      parallel_for("wkset soln ip HCURL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();

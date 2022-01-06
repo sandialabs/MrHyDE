@@ -153,7 +153,6 @@ void euler::defineFunctions(Teuchos::ParameterList & fs,
 
 void euler::volumeResidual() {
   
-  int spaceDim = wkset->dimension;
   Vista source_rho, source_rhoux, source_rhouy, source_rhouz, source_rhoE;
 
   // TODO not currently using source terms
@@ -473,7 +472,6 @@ void euler::volumeResidual() {
 
 void euler::boundaryResidual() {
   
-  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
@@ -608,7 +606,6 @@ void euler::computeFlux() {
   // indicates we are at a boundary, then ALL others follow.
   // This is consistent with Peraire, but perhaps could be generalized later.
   
-  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
@@ -758,8 +755,6 @@ void euler::computeInviscidFluxes(const bool & on_side) {
 
   Teuchos::TimeMonitor localtime(*invFluxesFill);
 
-  int spaceDim = wkset->dimension;
-
   // The flux storage is (numElem,numip,eqn,dimension)
   // The face fluxes are defined in terms of the trace variables
   // The volume fluxes are defined in terms of the state
@@ -905,21 +900,25 @@ void euler::computeThermoProps(const bool & on_side)
 
   Teuchos::TimeMonitor localtime(*thermoPropFill);
 
-  int spaceDim = wkset->dimension;
-
   auto props = on_side ? props_side : props_vol;
   // these are always needed
-  auto rho = on_side ? wkset->getSolutionField("aux rho side") : wkset->getSolutionField("rho");
-  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side") : wkset->getSolutionField("rhoux");
-  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side") : wkset->getSolutionField("rhoE");
+  // TODO GET RID OF THESE FALSES AFTER TIM'S CHANGE!!!
+  auto rho = on_side ? wkset->getSolutionField("aux rho side",false) : 
+                       wkset->getSolutionField("rho",false);
+  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side",false) : 
+                         wkset->getSolutionField("rhoux",false);
+  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side",false) : 
+                        wkset->getSolutionField("rhoE",false);
 
   View_AD2 rhouy, rhouz; // TODO not sure this is the best way
 
   if ( spaceDim > 1 ) {
-    rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : wkset->getSolutionField("rhouy");
+    rhouy = on_side ? wkset->getSolutionField("aux rhouy side",false) : 
+                      wkset->getSolutionField("rhouy",false);
   } 
   if ( spaceDim > 2 ) {
-    rhouz = on_side ? wkset->getSolutionField("aux rhouz side") : wkset->getSolutionField("rhouz");
+    rhouz = on_side ? wkset->getSolutionField("aux rhouz side",false) : 
+                      wkset->getSolutionField("rhouz",false);
   }
 
   parallel_for("euler thermo props",
@@ -927,7 +926,6 @@ void euler::computeThermoProps(const bool & on_side)
                KOKKOS_LAMBDA (const int elem ) {
 
     ScalarT gamma = modelparams(gamma_mp_num); 
-    // ScalarT RGas = modelparams(RGas_mp_num);
     ScalarT MachNum = modelparams(MRef_mp_num);
 
     for (size_type pt=0; pt<props.extent(1); ++pt) {
@@ -979,8 +977,6 @@ void euler::computeStabilizationTerm() {
 
   using namespace std;
   
-  int spaceDim = wkset->dimension;
-
   // these are always needed
   auto rho = wkset->getSolutionField("rho");
   auto rho_hat = wkset->getSolutionField("aux rho side");
@@ -1102,7 +1098,6 @@ void euler::computeBoundaryTerm() {
   
   Teuchos::TimeMonitor localtime(*boundCompFill);
 
-  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;

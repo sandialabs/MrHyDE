@@ -352,7 +352,7 @@ namespace MrHyDE {
     vector<vector<int> > vars_HGRAD, vars_HVOL, vars_HDIV, vars_HCURL, vars_HFACE;
     vector<vector<string> > varlist_HGRAD, varlist_HVOL, varlist_HDIV, varlist_HCURL, varlist_HFACE;
     
-    // Storage for integrated quantities TODO where to initialize? OK to do in the postprocess setup?
+    // Storage for integrated quantities
     
     View_Sc1 integrated_quantities;
         

@@ -244,6 +244,11 @@ namespace MrHyDE {
 
     KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
 
+// TODO making this public for now (testing brought this issue up...)
+    View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
+    View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
+    View_AD3 props_vol, props_side; // Storage for the thermodynamic properties
+
   private:
 
     int spaceDim;
@@ -268,9 +273,9 @@ namespace MrHyDE {
 
     bool maxEVstab,roestab; // Options for stabilization
 
-    View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
-    View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
-    View_AD3 props_vol, props_side; // Storage for the thermodynamic properties
+    //View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
+    //View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
+    //View_AD3 props_vol, props_side; // Storage for the thermodynamic properties
 
     Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
     
