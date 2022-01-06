@@ -1197,7 +1197,8 @@ void workset::printScalarFields() {
 //
 //----------------------------------------------------------------
 
-View_AD2 workset::getSolutionField(const string & label, const bool & evaluate) {
+View_AD2 workset::getSolutionField(const string & label, const bool & evaluate, 
+                                   const bool & markUpdated) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
@@ -1221,6 +1222,9 @@ View_AD2 workset::getSolutionField(const string & label, const bool & evaluate) 
     this->checkSolutionFieldAllocation(ind);
     if (evaluate && !soln_fields[ind].isUpdated) {
       this->evaluateSolutionField(ind);
+    }
+    else if (markUpdated) {
+      soln_fields[ind].isUpdated = true;
     }
   }
   outdata = soln_fields[ind].data;
@@ -1642,21 +1646,21 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
-    auto csol = this->getSolutionField(var+pfix,false);
+    auto csol = this->getSolutionField(var+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<varlist_HVOL[current_set].size(); i++) {
     string var = varlist_HVOL[current_set][i];
     int varind = vars_HVOL[current_set][i];
-    auto csol = this->getSolutionField(var+pfix,false);
+    auto csol = this->getSolutionField(var+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<varlist_HFACE[current_set].size(); i++) {
     string var = varlist_HFACE[current_set][i];
     int varind = vars_HFACE[current_set][i];
-    auto csol = this->getSolutionField(var+pfix,false);
+    auto csol = this->getSolutionField(var+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
@@ -1664,16 +1668,16 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
     string var = varlist_HDIV[current_set][i];
     int varind = vars_HDIV[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x]"+pfix,false);
+    auto csol = this->getSolutionField(var+"[x]"+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[y]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[z]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -1682,16 +1686,16 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
     string var = varlist_HCURL[current_set][i];
     int varind = vars_HCURL[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x]"+pfix,false);
+    auto csol = this->getSolutionField(var+"[x]"+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[y]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[z]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -1708,16 +1712,16 @@ void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField("grad("+var+")[x]"+pfix,false);
+    auto csol = this->getSolutionField("grad("+var+")[x]"+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getSolutionField("grad("+var+")[y]"+pfix,false);
+      auto csol = this->getSolutionField("grad("+var+")[y]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getSolutionField("grad("+var+")[z]"+pfix,false);
+      auto csol = this->getSolutionField("grad("+var+")[z]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -1732,7 +1736,7 @@ void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HDIV[current_set].size(); i++) {
     string var = varlist_HDIV[current_set][i];
     int varind = vars_HDIV[current_set][i];
-    auto csol = this->getSolutionField("div("+var+")",false);
+    auto csol = this->getSolutionField("div("+var+")",false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL());
     this->copyData(csol,cnsol);
   }
@@ -1747,16 +1751,16 @@ void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
     string var = varlist_HCURL[current_set][i];
     int varind = vars_HCURL[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField("curl("+var+")[x]"+pfix,false);
+    auto csol = this->getSolutionField("curl("+var+")[x]"+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getSolutionField("curl("+var+")[y]"+pfix,false);
+      auto csol = this->getSolutionField("curl("+var+")[y]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getSolutionField("curl("+var+")[z]"+pfix,false);
+      auto csol = this->getSolutionField("curl("+var+")[z]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -1772,7 +1776,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
-    auto csol = this->getSolutionField(var+" point",false);
+    auto csol = this->getSolutionField(var+" point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1783,7 +1787,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
   for (size_t i=0; i<varlist_HVOL[current_set].size(); i++) {
     string var = varlist_HVOL[current_set][i];
     int varind = vars_HVOL[current_set][i];
-    auto csol = this->getSolutionField(var+" point",false);
+    auto csol = this->getSolutionField(var+" point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1795,7 +1799,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
     string var = varlist_HDIV[current_set][i];
     int varind = vars_HDIV[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false);
+    auto csol = this->getSolutionField(var+"[x] point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1803,7 +1807,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false);
+      auto csol = this->getSolutionField(var+"[y] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1811,7 +1815,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false);
+      auto csol = this->getSolutionField(var+"[z] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1823,7 +1827,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
     string var = varlist_HCURL[current_set][i];
     int varind = vars_HCURL[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false);
+    auto csol = this->getSolutionField(var+"[x] point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1831,7 +1835,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false);
+      auto csol = this->getSolutionField(var+"[y] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1839,7 +1843,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false);
+      auto csol = this->getSolutionField(var+"[z] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1860,7 +1864,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
     size_type dim = newsol.extent(1);
-    auto csol = this->getSolutionField("grad("+var+")[x]"+" point",false);
+    auto csol = this->getSolutionField("grad("+var+")[x]"+" point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1868,7 +1872,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField("grad("+var+")[y]"+" point",false);
+      auto csol = this->getSolutionField("grad("+var+")[y]"+" point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1876,7 +1880,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField("grad("+var+")[z]"+" point",false);
+      auto csol = this->getSolutionField("grad("+var+")[z]"+" point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1891,10 +1895,6 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
 // Set the parameter solutions
 //////////////////////////////////////////////////////////////
 
-
-
-
-
 void workset::setParam(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
@@ -1902,21 +1902,21 @@ void workset::setParam(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
-    auto csol = this->getSolutionField(var+pfix,false);
+    auto csol = this->getSolutionField(var+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<paramvarlist_HVOL.size(); i++) {
     string var = paramvarlist_HVOL[i];
     int varind = paramvars_HVOL[i];
-    auto csol = this->getSolutionField(var+pfix,false);
+    auto csol = this->getSolutionField(var+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
   for (size_t i=0; i<paramvarlist_HFACE.size(); i++) {
     string var = paramvarlist_HFACE[i];
     int varind = paramvars_HFACE[i];
-    auto csol = this->getSolutionField(var+pfix,false);
+    auto csol = this->getSolutionField(var+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
   }
@@ -1924,16 +1924,16 @@ void workset::setParam(View_AD4 newsol, const string & pfix) {
     string var = paramvarlist_HDIV[i];
     int varind = paramvars_HDIV[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x]"+pfix,false);
+    auto csol = this->getSolutionField(var+"[x]"+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[y]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[z]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -1942,16 +1942,16 @@ void workset::setParam(View_AD4 newsol, const string & pfix) {
     string var = paramvarlist_HCURL[i];
     int varind = paramvars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x]"+pfix,false);
+    auto csol = this->getSolutionField(var+"[x]"+pfix,false,true);
     auto cnsol = subview(newsol,ALL(),varind,ALL(),0);
     this->copyData(csol,cnsol);
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[y]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),1);
       this->copyData(csol,cnsol);
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z]"+pfix,false);
+      auto csol = this->getSolutionField(var+"[z]"+pfix,false,true);
       auto cnsol = subview(newsol,ALL(),varind,ALL(),2);
       this->copyData(csol,cnsol);
     }
@@ -1968,7 +1968,7 @@ void workset::setParamPoint(View_AD2 newsol) {
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
-    auto csol = this->getSolutionField(var+" point",false);
+    auto csol = this->getSolutionField(var+" point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1979,7 +1979,7 @@ void workset::setParamPoint(View_AD2 newsol) {
   for (size_t i=0; i<paramvarlist_HVOL.size(); i++) {
     string var = paramvarlist_HVOL[i];
     int varind = paramvars_HVOL[i];
-    auto csol = this->getSolutionField(var+" point",false);
+    auto csol = this->getSolutionField(var+" point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1991,7 +1991,7 @@ void workset::setParamPoint(View_AD2 newsol) {
     string var = paramvarlist_HDIV[i];
     int varind = paramvars_HDIV[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false);
+    auto csol = this->getSolutionField(var+"[x] point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1999,7 +1999,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false);
+      auto csol = this->getSolutionField(var+"[y] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2007,7 +2007,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false);
+      auto csol = this->getSolutionField(var+"[z] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2019,7 +2019,7 @@ void workset::setParamPoint(View_AD2 newsol) {
     string var = paramvarlist_HCURL[i];
     int varind = paramvars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false);
+    auto csol = this->getSolutionField(var+"[x] point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2027,7 +2027,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false);
+      auto csol = this->getSolutionField(var+"[y] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2035,7 +2035,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false);
+      auto csol = this->getSolutionField(var+"[z] point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2056,7 +2056,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
     size_type dim = newsol.extent(1);
-    auto csol = this->getSolutionField("grad("+var+")[x]"+" point",false);
+    auto csol = this->getSolutionField("grad("+var+")[x]"+" point",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2064,7 +2064,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField("grad("+var+")[y]"+" point",false);
+      auto csol = this->getSolutionField("grad("+var+")[y]"+" point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2072,7 +2072,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField("grad("+var+")[z]"+" point",false);
+      auto csol = this->getSolutionField("grad("+var+")[z]"+" point",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {

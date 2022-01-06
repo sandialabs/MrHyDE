@@ -155,7 +155,8 @@ namespace MrHyDE {
     
     void printScalarFields();
     
-    View_AD2 getSolutionField(const string & label, const bool & evaluate = true);
+    View_AD2 getSolutionField(const string & label, const bool & evaluate = true,
+                              const bool & markUpdated = false);
     
     View_Sc2 getScalarField(const string & label);
         

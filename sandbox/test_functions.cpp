@@ -83,9 +83,9 @@ int main(int argc, char * argv[]) {
     vector<string> ref_names, ref_funcs;
     vector<View_AD2> ref_vals;
     
-    auto a = wkset->getSolutionField("a");
-    auto b = wkset->getSolutionField("b");
-    auto c = wkset->getSolutionField("c");
+    auto a = wkset->getSolutionField("a",false);
+    auto b = wkset->getSolutionField("b",false);
+    auto c = wkset->getSolutionField("c",false);
     auto x = wkset->getScalarField("x");
     auto y = wkset->getScalarField("y");
     
