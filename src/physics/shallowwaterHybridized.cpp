@@ -52,10 +52,6 @@ shallowwaterHybridized::shallowwaterHybridized(Teuchos::ParameterList & settings
   
   // Params from input file
 
-  // TODO :: Dimensionless params?
-  // Following Anderson and Tanehill 
-  // V_\infty, L, \rho_\infty, T_\infty are needed
-  
   // Stabilization options, need to choose one
   maxEVstab = settings.get<bool>("max EV stabilization",false);
   roestab = settings.get<bool>("Roe-like stabilization",false);
@@ -65,7 +61,7 @@ shallowwaterHybridized::shallowwaterHybridized(Teuchos::ParameterList & settings
   }
 
   // TODO Will need more so fix here
-  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for euler",1);
+  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for shallow water",1);
   auto modelparams_host = Kokkos::create_mirror_view(modelparams);
 
   // Acceleration due to gravity  units are L/T^2 
@@ -116,16 +112,15 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
 
 void shallowwaterHybridized::volumeResidual() {
   
-  int spaceDim = wkset->dimension;
-  Vista source_H, source_Hux, source_Huy;
+  vector<Vista> sourceterms;
 
-  // TODO not currently using source terms
+  // TODO is this a good way to do this??
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source_H = functionManager->evaluate("source H","ip");
-    source_Hux = functionManager->evaluate("source Hux","ip");
+    sourceterms.push_back(functionManager->evaluate("source H","ip"));
+    sourceterms.push_back(functionManager->evaluate("source Hux","ip"));
     if (spaceDim > 1) {
-      source_Huy = functionManager->evaluate("source Huy","ip");
+      sourceterms.push_back(functionManager->evaluate("source Huy","ip"));
     }
 
     // Update fluxes 
@@ -139,63 +134,53 @@ void shallowwaterHybridized::volumeResidual() {
 
   // The flux storage is (numElem,numip,eqn,dimension)
   
-  if (spaceDim == 1) {
+  // outer loop over equations
+  for (size_t iEqn=0; iEqn<varlist.size(); ++i)) {
+    int basis_num = wkset->usebasis[iEqn];
+    auto basis = wkset->basis[basis_num];
+    auto basis_grad = wkset->basis_grad[basis_num];
+    auto dSi_dt = wkset->getSolutionField(varlist[iEqn]+"_t");
+    auto source_i = sourceterms[iEqn];
+    auto off = subview(wkset->offsets,iEqn,ALL());
 
-    // All equations are of the form
-    // (v_i,d S_i/dt) - (dv_i/dx_1,F_{x,i}) - (v_i,source)
+    if (spaceDim == 1) {
 
-    for (size_t varind=0; varind<varlist.size(); ++i)) {
-      int basis_num = wkset->usebasis[varind];
-      auto basis = wkset->basis[basis_num];
-      auto basis_grad = wkset->basis_grad[basis_num];
-      auto dSi_dt = wkset->getSolutionField(varlist[varind]+"_t");
-      auto off = subview(wkset->offsets,varind,ALL());
+      // All equations are of the form
+      // (v_i,d S_i/dt) - (dv_i/dx_1,F_{x,i}) - (v_i,source)
 
-      parallel_for("shallow water volume resid " + varlist[varind] + " 1D",
+      parallel_for("shallow water volume resid " + varlist[iEqn] + " 1D",
               RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
-            res(elem,off(dof)) += -( fluxes_vol(elem,pt,varind,0)*basis_grad(elem,dof,pt,0) 
-                + source_rho(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-                // TODO this will break... need a way to know which source to nab...
+            res(elem,off(dof)) += -( fluxes_vol(elem,pt,iEqn,0)*basis_grad(elem,dof,pt,0) 
+                + source_i(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
           }
         }
       });
 
     }
+    else if (spaceDim == 2) {
 
-  }
-  else if (spaceDim == 2) {
+      // All equations are of the form
+      // (v_i,d S_i/dt) - (dv_i/dx_1,F_{x,i}) - (dv_i/dx_2,F_{y,i}) - (v_i,source)
 
-    // All equations are of the form
-    // (v_i,d S_i/dt) - (dv_i/dx_1,F_{x,i}) - (dv_i/dx_2,F_{y,i}) - (v_i,source)
-
-    for (size_t varind=0; varind<varlist.size(); ++i)) {
-      int basis_num = wkset->usebasis[varind];
-      auto basis = wkset->basis[basis_num];
-      auto basis_grad = wkset->basis_grad[basis_num];
-      auto dSi_dt = wkset->getSolutionField(varlist[varind]+"_t");
-      auto off = subview(wkset->offsets,varind,ALL());
-
-      parallel_for("shallow water volume resid " + varlist[varind] + " 2D",
+      parallel_for("shallow water volume resid " + varlist[iEqn] + " 2D",
               RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
             res(elem,off(dof)) += -( fluxes_vol(elem,pt,rho_num,0)*basis_grad(elem,dof,pt,0) 
-                + fluxes_vol(elem,pt,varind,1)*basis_grad(elem,dof,pt,1)
-                + source_rho(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
-                // TODO this will break... need a way to know which source to nab...
+                + fluxes_vol(elem,pt,iEqn,1)*basis_grad(elem,dof,pt,1)
+                + source_i(elem,pt)*basis(elem,dof,pt,0) )*wts(elem,pt);
           }
         }
       });
-
     }
-
   }
+
 }
 
 // ========================================================================================
@@ -203,31 +188,18 @@ void shallowwaterHybridized::volumeResidual() {
 
 void shallowwaterHybridized::boundaryResidual() {
   
-  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
 
-  Vista source_rho, source_rhoux, source_rhoE, source_rhouy, source_rhouz;
-
-  string rho_sidetype = bcs(rho_num,cside);
-  string rhoux_sidetype = bcs(rhoux_num,cside);
-  string rhoE_sidetype = bcs(rhoE_num,cside);
-  string rhouy_sidetype = ""; string rhouz_sidetype = "";
-  if (spaceDim > 1) {
-    rhouy_sidetype = bcs(rhouy_num,cside);
-  }
-  if (spaceDim > 2) {
-    rhouz_sidetype = bcs(rhouz_num,cside);
-  }
+  // TODO do we need sources or sidetypes?
 
   {
     Teuchos::TimeMonitor funceval(*boundaryResidualFunc);
 
-    // Update thermodynamic and fluxes properties
+    // Update fluxes
 
-    this->computeThermoProps(true); // on_side
-    this->computeInviscidFluxes(true); // on_side 
+    this->computeFluxVector(true); // on_side 
     this->computeStabilizationTerm();
 
   }
@@ -247,15 +219,15 @@ void shallowwaterHybridized::boundaryResidual() {
   // The boundary conditions are enforced weakly with the trace variables
   // so we ALWAYS compute the aforementioned inner product here
 
-  if (spaceDim == 1) {
-
-    for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
+  // outer loop over equations
+  for (int iEqn=0; iEqn<varlist.size(); ++iEqn) {
   
-      int basis_num = wkset->usebasis[iEqn];
-      auto basis = wkset->basis_side[basis_num];
-      auto off = subview(wkset->offsets,iEqn,ALL());
-      
-      parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
+    int basis_num = wkset->usebasis[iEqn];
+    auto basis = wkset->basis_side[basis_num];
+    auto off = subview(wkset->offsets,iEqn,ALL());
+    
+    if (spaceDim == 1) {
+      parallel_for("shallow water boundary resid " + varlist[iEqn] + " 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -266,19 +238,12 @@ void shallowwaterHybridized::boundaryResidual() {
         }
       });
     }
-  }
-  else if (spaceDim == 2) {
+    else if (spaceDim == 2) {
 
-    // need ny
-    auto ny = wkset->getScalarField("ny side");
+      // need ny
+      auto ny = wkset->getScalarField("ny side");
 
-    for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
-  
-      int basis_num = wkset->usebasis[iEqn];
-      auto basis = wkset->basis_side[basis_num];
-      auto off = subview(wkset->offsets,iEqn,ALL());
-      
-      parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
+      parallel_for("shallow water boundary resid " + varlist[iEqn] + " 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -291,31 +256,7 @@ void shallowwaterHybridized::boundaryResidual() {
       });
     }
   }
-  else if (spaceDim == 3) {
-    // need ny, nz
-    auto ny = wkset->getScalarField("ny side");
-    auto nz = wkset->getScalarField("nz side");
 
-    for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
-  
-      int basis_num = wkset->usebasis[iEqn];
-      auto basis = wkset->basis_side[basis_num];
-      auto off = subview(wkset->offsets,iEqn,ALL());
-      
-      parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += 
-              (fluxes(elem,pt,iEqn,0)*nx(elem,pt) + fluxes(elem,pt,iEqn,1)*ny(elem,pt) 
-               + fluxes(elem,pt,iEqn,2)*nz(elem,pt) +
-                stab(elem,pt,iEqn))*wts(elem,pt)*basis(elem,dof,pt,0);
-          }
-        }
-      });
-    }
-  }
 }
 
 // ========================================================================================
@@ -338,7 +279,6 @@ void shallowwaterHybridized::computeFlux() {
   // indicates we are at a boundary, then ALL others follow.
   // This is consistent with Peraire, but perhaps could be generalized later.
   
-  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
@@ -480,8 +420,6 @@ void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
 
   Teuchos::TimeMonitor localtime(*fluxVectorFill);
 
-  int spaceDim = wkset->dimension;
-
   // The flux storage is (numElem,numip,eqn,dimension)
   // The face fluxes are defined in terms of the trace variables
   // The volume fluxes are defined in terms of the state
@@ -494,8 +432,6 @@ void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
   auto Hux = on_side ? wkset->getSolutionField("aux Hux side") : wkset->getSolutionField("Hux");
   
   // TODO this is the same for face or side, can I collapse?
-  // ? : operator... are they of the same type?
-  // TODO WILL THAT BE BAD??
 
   if (spaceDim == 1) {
 
@@ -559,9 +495,9 @@ void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
 
 void shallowwaterHybridized::computeStabilizationTerm() {
 
-  // The two proposed stabilization matrices in Peraire 2011 are based off of eigendecompositions
+  // The two proposed stabilization matrices in Samii et al. are based off of eigendecompositions
   // of the flux Jacobians
-  // Let A = dF_x(\hat{S})/d\hat{S} n_x + dF_y(\hat{S})/d\hat{S} n_y + dF_z(\hat{S})d\hat{S} n_z
+  // Let A = dF_x(\hat{S})/d\hat{S} n_x + dF_y(\hat{S})/d\hat{S} n_y
   // Then A = R Lambda L.
   //
   // The two options are Stab = R \| Lambda \| L or Stab = \lambda_max I
@@ -573,32 +509,23 @@ void shallowwaterHybridized::computeStabilizationTerm() {
 
   using namespace std;
   
-  int spaceDim = wkset->dimension;
-
   // these are always needed
-  auto rho = wkset->getSolutionField("rho");
-  auto rho_hat = wkset->getSolutionField("aux rho side");
-  auto rhoux = wkset->getSolutionField("rhoux");
-  auto rhoux_hat = wkset->getSolutionField("aux rhoux side");
-  auto rhoE = wkset->getSolutionField("rhoE");
-  auto rhoE_hat = wkset->getSolutionField("aux rhoE side");
+  auto H = wkset->getSolutionField("H");
+  auto H_hat = wkset->getSolutionField("aux H side");
+  auto Hux = wkset->getSolutionField("Hux");
+  auto Hux_hat = wkset->getSolutionField("aux Hux side");
   auto props = props_side; // get the properties evaluated with trace variables
 
   auto stabterm = stab_bound_side;
   auto nx = wkset->getScalarField("nx side");
 
-  View_AD2 rhouy, rhouy_hat, rhouz, rhouz_hat; // only assign if necessary
-  View_Sc2 ny, nz;
+  View_AD2 Huy, Huy_hat; // only assign if necessary
+  View_Sc2 ny;
 
   if (spaceDim > 1) {
-    rhouy = wkset->getSolutionField("rhouy");
-    rhouy_hat = wkset->getSolutionField("aux rhouy side");
+    Huy = wkset->getSolutionField("Huy");
+    Huy_hat = wkset->getSolutionField("aux Huy side");
     ny = wkset->getScalarField("ny side");
-  }
-  if (spaceDim > 2) {
-    rhouz = wkset->getSolutionField("rhouz");
-    rhouz_hat = wkset->getSolutionField("aux rhouz side");
-    nz = wkset->getScalarField("nz side");
   }
 
   parallel_for("euler stabilization",
@@ -612,13 +539,15 @@ void shallowwaterHybridized::computeStabilizationTerm() {
 
     ScalarT gamma = modelparams(gamma_mp_num); 
 
-    deltaS = View_AD1("delta S", spaceDim + 2);
+    size_t nVar = varlist.size()
+
+    deltaS = View_AD1("delta S", nVar);
 
     if (roestab) {
-      Lambda = View_AD1("Lambda", spaceDim + 2); 
-      leftEV = View_AD2("left EV", spaceDim + 2, spaceDim + 2); 
-      rightEV = View_AD2("right EV", spaceDim + 2, spaceDim + 2); 
-      tmp = View_AD1("tmp", spaceDim + 2);
+      Lambda = View_AD1("Lambda", nVar); 
+      leftEV = View_AD2("left EV", nVar, nVar); 
+      rightEV = View_AD2("right EV", nVar, nVar); 
+      tmp = View_AD1("tmp", nVar);
     }
     
     for (size_type pt=0; pt<stabterm.extent(1); ++pt) {
@@ -627,31 +556,24 @@ void shallowwaterHybridized::computeStabilizationTerm() {
       View_AD1 stab_sub = Kokkos::subview( stabterm, elem, pt, Kokkos::ALL());
 
       // form (S - \hat{S})
-      deltaS(rho_num) = rho(elem,pt) - rho_hat(elem,pt);
-      deltaS(rhoux_num) = rhoux(elem,pt) - rhoux_hat(elem,pt);
-      deltaS(rhoE_num) = rhoE(elem,pt) - rhoE_hat(elem,pt);
+      deltaS(H_num) = H(elem,pt) - H_hat(elem,pt);
+      deltaS(Hux_num) = Hux(elem,pt) - Hux_hat(elem,pt);
+      deltaS(HE_num) = HE(elem,pt) - HE_hat(elem,pt);
 
       if (spaceDim > 1) {
-        deltaS(rhouy_num) = rhouy(elem,pt) - rhouy_hat(elem,pt);
-      }
-      if (spaceDim > 2) {
-        deltaS(rhouz_num) = rhouz(elem,pt) - rhouz_hat(elem,pt);
+        deltaS(Huy_num) = Huy(elem,pt) - Huy_hat(elem,pt);
       }
 
       if (roestab) {
         // fill the stabilization matrices
         if (spaceDim == 1) {
           this->eigendecompFluxJacobian(leftEV,Lambda,rightEV,
-              rhoux_hat(elem,pt),rho_hat(elem,pt),props(elem,pt,a_num),gamma);
+              Hux_hat(elem,pt),H_hat(elem,pt));
         } else if (spaceDim == 2) {
           this->eigendecompFluxJacobian(leftEV,Lambda,rightEV,
-              rhoux_hat(elem,pt),rhouy_hat(elem,pt),rho_hat(elem,pt),
-              nx(elem,pt),ny(elem,pt),props(elem,pt,a_num),gamma);
-        } else if (spaceDim == 3) {
-           this->eigendecompFluxJacobian(leftEV,Lambda,rightEV,
-              rhoux_hat(elem,pt),rhouy_hat(elem,pt),rhouz_hat(elem,pt),rho_hat(elem,pt),
-              nx(elem,pt),ny(elem,pt),nz(elem,pt),props(elem,pt,a_num),gamma);
-        }
+              Hux_hat(elem,pt),Huy_hat(elem,pt),H_hat(elem,pt),
+              nx(elem,pt),ny(elem,pt));
+        } 
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the absolute value of the diagonal matrix
@@ -663,11 +585,12 @@ void shallowwaterHybridized::computeStabilizationTerm() {
 
       } else {
         // the stabilization is just the max abs EV times delta S
-        AD vn = nx(elem,pt)*rhoux_hat(elem,pt)/rho_hat(elem,pt);
-        if (spaceDim > 1) vn += ny(elem,pt)*rhouy_hat(elem,pt)/rho_hat(elem,pt);
-        if (spaceDim > 2) vn += nz(elem,pt)*rhouz_hat(elem,pt)/rho_hat(elem,pt);
+        AD vn = nx(elem,pt)*Hux_hat(elem,pt)/rho_hat(elem,pt);
+        AD a = sqrt(H_hat(elem,pt) * modelparams(gravity_mp_num));
+        if (spaceDim > 1) vn += ny(elem,pt)*Huy_hat(elem,pt)/H_hat(elem,pt);
         // max of | vn + a |, | vn - a |
-        AD lambdaMax = max(abs(vn + props(elem,pt,a_num)),abs(vn - props(elem,pt,a_num)));
+        // a = sqrt{gh}
+        AD lambdaMax = max(abs(vn + a)),abs(vn - a));
 
         for (int i=0; i<spaceDim+2; ++i) {
           stab_sub(i) = deltaS(i) * lambdaMax;
@@ -696,7 +619,6 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   
   Teuchos::TimeMonitor localtime(*boundCompFill);
 
-  int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
@@ -878,260 +800,58 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 // ========================================================================================
 
 KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
-        const AD & rhoux, const AD & rho, const AD & a_sound, const ScalarT & gamma) {
+        const AD & Hux, const AD & H) {
 
-  // In 1D, the eigenvalues are ux - a, ux, and ux + a
+  // In 1D, the eigenvalues are Hux - a, ux, and ux + a
   // The right eigenvectors are 
-  // [1, ux - a, a^2/(gamma - 1) + .5*ux**2 - ux*a]^T
-  // [1, ux, 1/2 ux**2]^T
-  // [1, ux + a, a^2/(gamma - 1) + .5*ux**2 + ux*a]^T
+  // [1, ux - a]^T
+  // [1, ux + a]^T
   //
   // The corresponding left eigenvectors are TODO CHECK
-  // [(gamma-1)/4*ux^2/a^2 + ux/(2*a), -(gamma-1)/a^3*ux - 1/(2*a), (gamma-1)/(2*a^2)]
-  // [1 - (gamma-1)/2*ux^2/a^2, (gamma-1)*ux/a^2, -(gamma-1)/a^2]
-  // [(gamma-1)/4*ux^2/a^2 - ux/(2*a), -(gamma-1)/a^3*ux + 1/(2*a), (gamma-1)/(2*a^2)]
+  // 1/2a[ux + a, -1]
+  // 1/2a[-ux + a, 1]
 
   // TODO CHECK BELOW 
+
+  const ScalarT a = sqrt(H*modelparams(gravity_mp_num));
   
-  const ScalarT gm1 = gamma - 1.;
+  rightEV(0,0) = 1.; rightEV(1,0) = Hux/H - a; 
+  rightEV(1,0) = 1.; rightEV(1,1) = Hux/H + a;
 
-  rightEV(0,0) = 1.; rightEV(1,0) = rhoux/rho - a_sound; 
-  rightEV(2,0) = a_sound*a_sound/gm1 + .5*rhoux*rhoux/(rho*rho) - rhoux/rho*a_sound;
+  leftEV(0,0) = (Hux/H + a)/(2.*a); leftEV(0,1) = -1./(2.*a);
+  leftEV(1,0) = (a - Hux/H)/(2.*a); leftEV(1,1) =  1./(2.*a);
 
-  rightEV(0,1) = 1.; rightEV(1,1) = rhoux/rho; rightEV(2,1) = .5*rhoux*rhoux/(rho*rho);
-
-  rightEV(0,2) = 1.; rightEV(1,2) = rhoux/rho + a_sound; 
-  rightEV(2,2) = a_sound*a_sound/gm1 + .5*rhoux*rhoux/(rho*rho) + rhoux/rho*a_sound;
-
-  leftEV(0,0) = gm1/4.*rhoux*rhoux/(rho*rho)/(a_sound*a_sound) + rhoux/rho/(2.*a_sound);
-  leftEV(0,1) = -gm1/(a_sound*a_sound*a_sound)*rhoux/rho - 1./(2.*a_sound);
-  leftEV(0,2) = gm1/(2.*a_sound*a_sound);
-
-  leftEV(1,0) = 1. - gm1/2.*rhoux*rhoux/(rho*rho)/(a_sound*a_sound);
-  leftEV(1,1) = gm1*rhoux/rho/(a_sound*a_sound);
-  leftEV(1,2) = -gm1/(a_sound*a_sound);
-
-  leftEV(2,0) = gm1/4.*rhoux*rhoux/(rho*rho)/(a_sound*a_sound) - rhoux/rho/(2.*a_sound);
-  leftEV(2,1) = -gm1/(a_sound*a_sound*a_sound)*rhoux/rho + 1./(2.*a_sound);
-  leftEV(2,2) = gm1/(2.*a_sound*a_sound);
-
-  Lambda(0) = rhoux/rho - a_sound; Lambda(1) = rhoux/rho; Lambda(2) = rhoux/rho + a_sound; 
+  Lambda(0) = Hux/H - a; Lambda(1) = Hux/H + a_sound; 
   
 }
 
 KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
-    const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny,
-    const AD & a_sound, const ScalarT & gamma) {
+    const AD & Hux, const AD & Huy, const AD & H, const ScalarT & nx, const ScalarT & ny) {
 
-  // This follows Rohde 2001 (AIAA)
+  AD vn = Hux/H*nx + Huy/H*ny;
 
-  AD vn = rhoux/rho*nx + rhouy/rho*ny;
-  AD ek_m = .5 * (rhoux*rhoux + rhouy*rhouy)/(rho*rho);
-  ScalarT gm1 = gamma - 1.;
+  const ScalarT a = sqrt(H*modelparams(gravity_mp_num));
 
   // TODO CHECK BELOW 
 
-  // Equation 11 with the z parts removed/truncated gives the right EVs as
-  // [1, ux - a*nx, uy - a*ny, a^2/(gamma-1) + ek_m - vn*a]^T
-  // [1, ux, uy, ek_m]^T
-  // [1, ux + a*nx, uv + a*ny, a^2/(gamma-1) + ek_m + vn*a]^T
-  // [0, ny, -nx, ux*ny - uy*nx]^T
+  // With eigenvalues vn + a, vn, vn - a (flipped order from above)
 
-  // Equation 16 with the z parts removed/truncated gives the left EVs as
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m + a*vn ), (1 - gamma)*ux - a*nx, (1 - gamma)*uy - a*ny, (gamma - 1) ]
-  // 1/a^2 [ a^2 - (gamma-1)*ek_m, (gamma-1)*ux, (gamma-1)*uy, (1 - gamma) ]
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m - a*vn ), (1 - gamma)*ux + a*nx, (1 - gamma)*uy + a*ny, (gamma - 1) ]
-  // [uy*nx-ux*ny, ny, -nx , 0 ]
-  // 
-  // where equations 23 and 24 have been used appropriately to remove the potential singularity if nx = 0
+  // The right EVs are
+  // [1, ux + a*nx, uy + a*ny]^T
+  // [0, -a*ny, a*nx]^T
+  // [1, ux - a*nx, uv - a*ny]^T
 
-  rightEV(0,0) = 1.; rightEV(1,0) = rhoux/rho - a_sound*nx; rightEV(2,0) = rhouy/rho - a_sound*ny;
-  rightEV(3,0) = a_sound*a_sound/gm1 + ek_m - vn*a_sound;
+  // The left EVs are 
+  // CHECK AND FINISH BELOW
+  // 1/(2*a)*[a + vn, -nx, -ny]
+  // 1/(2*a)*[2*(ux*ny - uy*nx) -2*ny, 2*nx]
+  // 1/(2*a)*[a + vn, nx, ny] 
 
-  rightEV(0,1) = 1.; rightEV(1,1) = rhoux/rho; rightEV(2,1) = rhouy/rho; rightEV(3,1) = ek_m;
+  rightEV(0,0) = 1.; rightEV(1,0) = Hux/H - a*nx; rightEV(2,0) = Huy/H - a*ny;
+  rightEV(0,1) = 0.; rightEV(1,1) = -a*ny; rightEV(2,1) = a*nx;
+  rightEV(0,2) = 1.; rightEV(1,2) = Hux/H + a*nx; rightEV(2,2) = Huy/H + a*ny;
 
-  rightEV(0,2) = 1.; rightEV(1,2) = rhoux/rho + a_sound*nx; rightEV(2,2) = rhouy/rho + a_sound*ny;
-  rightEV(3,2) = a_sound*a_sound/gm1 + ek_m + vn*a_sound;
-
-  rightEV(0,3) = 0.; rightEV(1,3) = ny; rightEV(2,3) = -nx; rightEV(3,3) = rhoux/rho*ny - rhouy/rho*nx;
-
-  leftEV(0,0) = 1./(2.*a_sound*a_sound) * (gm1*ek_m + a_sound*vn);
-  leftEV(0,1) = 1./(2.*a_sound*a_sound) * (-gm1*rhoux/rho - a_sound*nx);
-  leftEV(0,2) = 1./(2.*a_sound*a_sound) * (-gm1*rhouy/rho - a_sound*ny);
-  leftEV(0,3) = 1./(2.*a_sound*a_sound) * gm1;
-
-  leftEV(1,0) = 1./(a_sound*a_sound) * (a_sound*a_sound - gm1*ek_m);
-  leftEV(1,1) = 1./(a_sound*a_sound) * (gm1*rhoux/rho);
-  leftEV(1,2) = 1./(a_sound*a_sound) * (gm1*rhouy/rho);
-  leftEV(1,3) = 1./(a_sound*a_sound) * (-gm1);
-
-  leftEV(2,0) = 1./(2.*a_sound*a_sound) * (gm1*ek_m - a_sound*vn);
-  leftEV(2,1) = 1./(2.*a_sound*a_sound) * (-gm1*rhoux/rho + a_sound*nx);
-  leftEV(2,2) = 1./(2.*a_sound*a_sound) * (-gm1*rhouy/rho + a_sound*ny);
-  leftEV(2,3) = 1./(2.*a_sound*a_sound) * gm1;
-
-  leftEV(3,0) = rhouy/rho*nx - rhoux/rho*ny; leftEV(3,1) = ny; leftEV(3,2) = -nx; leftEV(3,3) = 0.;
-
-  Lambda(0) = vn - a_sound; Lambda(1) = vn; Lambda(2) = vn + a_sound; Lambda(3) = vn;
-
-}
-
-KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
-    const AD & rhoux, const AD & rhouy, const AD & rhouz, const AD & rho, 
-    const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
-    const AD & a_sound, const ScalarT & gamma) {
-
-  // This follows Rohde 2001 (AIAA)
-
-  AD vn = rhoux/rho*nx + rhouy/rho*ny + rhouz/rho*nz;
-  AD ek_m = .5 * (rhoux*rhoux + rhouy*rhouy + rhouz*rhouz)/(rho*rho);
-  ScalarT gm1 = gamma - 1.;
-
-  // Rohde gives three sets of right/left EV pairs.
-  // For our purposes, we choose which pair to use based on largest (magnitude) component of n.
-  // This will avoid the matrices from becoming singular 
-  
-  int whichMat = 1;
-  
-  if ( ( abs(ny) > abs(nx) || abs(nz) > abs(nx) ) ) {
-    
-    // TODO CHECK ME
-
-    // nx out of the running
-    // need a default in case they are equal
-
-    whichMat = 2;
-    if ( abs(nz) > abs(ny) ) whichMat = 3;
-  }
-
-  // The eigenvalues are the same so let's nab those first
-  
-  Lambda(0) = vn - a_sound; Lambda(1) = vn; Lambda(2) = vn + a_sound;
-  Lambda(3) = vn; Lambda(4) = vn;
-
-  // TODO CHECK BELOW 
-
-  // For nx biggest....
-  // Equation 11 gives
-  // [1, ux - a*nx, uy - a*ny, uz - a*nz, a^2/(gamma-1) + ek_m - vn*a]^T
-  // [1, ux, uy, uz, ek_m]^T
-  // [1, ux + a*nx, uv + a*ny, uz + a*nz, a^2/(gamma-1) + ek_m + vn*a]^T
-  // [0, ny, -nx, 0, ux*ny - uy*nx]^T
-  // [0, -nz, 0, nx, uz*nx - ux*nz]^T
-
-  // The left EVs are (equation 16)
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m + a*vn ), (1 - gamma)*ux - a*nx, (1 - gamma)*uy - a*ny, (1 - gamma)*uz - a*nz, (gamma - 1) ]
-  // 1/a^2 [ a^2 - (gamma-1)*ek_m, (gamma-1)*ux, (gamma-1)*uy, (gamma-1)*uz, (1 - gamma) ]
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m - a*vn ), (1 - gamma)*ux + a*nx, (1 - gamma)*uy + a*ny, (1 - gamma)*uz + a*nz, (gamma - 1) ]
-  // [ (uy - vn*ny)/nx, ny, (ny^2-1)/nx, ny*nz/nx, 0 ]
-  // [ (vn*nz - uz)/nx, -nz, -ny*nz/nx, (1-nz^2)/nx, 0 ]
-
-  // For ny biggest....
-  // Equation 13 gives
-  // [1, ux - a*nx, uy - a*ny, uz - a*nz, a^2/(gamma-1) + ek_m - vn*a]^T
-  // [1, ux, uy, uz, ek_m]^T
-  // [1, ux + a*nx, uv + a*ny, uz + a*nz, a^2/(gamma-1) + ek_m + vn*a]^T
-  // [0, ny, -nx, 0, ux*ny - uy*nx]^T
-  // [0, 0, nz, -ny, uy*nz - uz*ny]^T
-
-  // The left EVs are (equation 18)
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m + a*vn ), (1 - gamma)*ux - a*nx, (1 - gamma)*uy - a*ny, (1 - gamma)*uz - a*nz, (gamma - 1) ]
-  // 1/a^2 [ a^2 - (gamma-1)*ek_m, (gamma-1)*ux, (gamma-1)*uy, (gamma-1)*uz, (1 - gamma) ]
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m - a*vn ), (1 - gamma)*ux + a*nx, (1 - gamma)*uy + a*ny, (1 - gamma)*uz + a*nz, (gamma - 1) ]
-  // [ (vn*nx - ux)/ny, (1-nx^2)/ny, -nx, -nx*nz/ny, 0 ]
-  // [ (uz - vn*nz)/ny, nx*nz/ny, nz, (nz^2-1)/ny, 0 ]
-
-  // For nz biggest....
-  // Equation 14 gives
-  // [1, ux - a*nx, uy - a*ny, uz - a*nz, a^2/(gamma-1) + ek_m - vn*a]^T
-  // [1, ux, uy, uz, ek_m]^T
-  // [1, ux + a*nx, uv + a*ny, uz + a*nz, a^2/(gamma-1) + ek_m + vn*a]^T
-  // [0, -nz, 0, nx, uz*nx - ux*nz]^T
-  // [0, 0, nz, -ny, uy*nz - uz*ny]^T
-
-  // The left EVs are (equation 19)
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m + a*vn ), (1 - gamma)*ux - a*nx, (1 - gamma)*uy - a*ny, (1 - gamma)*uz - a*nz, (gamma - 1) ]
-  // 1/a^2 [ a^2 - (gamma-1)*ek_m, (gamma-1)*ux, (gamma-1)*uy, (gamma-1)*uz, (1 - gamma) ]
-  // 1/(2*a^2) [ ( (gamma-1)*ek_m - a*vn ), (1 - gamma)*ux + a*nx, (1 - gamma)*uy + a*ny, (1 - gamma)*uz + a*nz, (gamma - 1) ]
-  // [ (ux-vn*nx)/nz, (nx^2-1)/nz, nx*ny/nz, nx, 0 ]
-  // [ (vn*ny - uy)/nz, -nx*ny/nz, (1-ny^2)/nz, -ny, 0 ]
-
-  // We start by filling in the first three columns/rows which are the same for each pair
-
-  rightEV(0,0) = 1.; rightEV(1,0) = rhoux/rho - a_sound*nx;
-  rightEV(2,0) = rhouy/rho - a_sound*ny; rightEV(3,0) = rhouz/rho - a_sound*nz;
-  rightEV(4,0) = a_sound*a_sound/gm1 + ek_m - vn*a_sound;
-
-  rightEV(0,1) = 1.; rightEV(1,1) = rhoux/rho; rightEV(2,1) = rhouy/rho; 
-  rightEV(3,1) = rhouz/rho; rightEV(4,1) = ek_m;
-
-  rightEV(0,2) = 1.; rightEV(1,2) = rhoux/rho + a_sound*nx; 
-  rightEV(2,2) = rhouy/rho + a_sound*ny; rightEV(3,2) = rhouz/rho + a_sound*nz;
-  rightEV(4,2) = a_sound*a_sound/gm1 + ek_m + vn*a_sound;
-
-  leftEV(0,0) = 1./(2.*a_sound*a_sound) * (gm1*ek_m + a_sound*vn);
-  leftEV(0,1) = 1./(2.*a_sound*a_sound) * (-gm1*rhoux/rho - a_sound*nx);
-  leftEV(0,2) = 1./(2.*a_sound*a_sound) * (-gm1*rhouy/rho - a_sound*ny);
-  leftEV(0,3) = 1./(2.*a_sound*a_sound) * (-gm1*rhouz/rho - a_sound*nz);
-  leftEV(0,4) = 1./(2.*a_sound*a_sound) * gm1;
-
-  leftEV(1,0) = 1./(a_sound*a_sound) * (a_sound*a_sound - gm1*ek_m);
-  leftEV(1,1) = 1./(a_sound*a_sound) * (gm1*rhoux/rho);
-  leftEV(1,2) = 1./(a_sound*a_sound) * (gm1*rhouy/rho);
-  leftEV(1,3) = 1./(a_sound*a_sound) * (gm1*rhouz/rho);
-  leftEV(1,4) = 1./(a_sound*a_sound) * (-gm1);
-
-  leftEV(2,0) = 1./(2.*a_sound*a_sound) * (gm1*ek_m - a_sound*vn);
-  leftEV(2,1) = 1./(2.*a_sound*a_sound) * (-gm1*rhoux/rho + a_sound*nx);
-  leftEV(2,2) = 1./(2.*a_sound*a_sound) * (-gm1*rhouy/rho + a_sound*ny);
-  leftEV(2,3) = 1./(2.*a_sound*a_sound) * (-gm1*rhouz/rho + a_sound*nz);
-  leftEV(2,4) = 1./(2.*a_sound*a_sound) * gm1;
-
-  // now handle the last two columns/rows on a case-by-case basis
-
-  if (whichMat == 1) {
-
-    rightEV(0,3) = 0.; rightEV(1,3) = ny; rightEV(2,3) = -nx; rightEV(3,3) = 0.;
-    rightEV(4,3) = rhoux/rho*ny - rhouy/rho*nx;
-
-    rightEV(0,4) = 0; rightEV(1,4) = -nz; rightEV(2,4) = 0.; rightEV(3,4) = nx;
-    rightEV(4,4) = rhouz/rho*nx - rhoux/rho*nz;
-
-    leftEV(3,0) = (rhouy/rho - vn*ny)/nx; leftEV(3,1) = ny; leftEV(3,2) = (ny*ny-1.)/nx;
-    leftEV(3,3) = ny*nz/nx; leftEV(3,4) = 0.;
-
-    leftEV(4,0) = (vn*nz - rhouz/rho)/nx; leftEV(4,1) = -nz; leftEV(4,2) = -ny*nz/nx;
-    leftEV(4,3) = (1.-nz*nz)/nx; leftEV(4,4) = 0.;
-
-  } else if (whichMat == 2) {
-
-    rightEV(0,3) = 0.; rightEV(1,3) = ny; rightEV(2,3) = -nx; rightEV(3,3) = 0.;
-    rightEV(4,3) = rhoux/rho*ny - rhouy/rho*nx;
-
-    rightEV(0,4) = 0; rightEV(1,4) = 0.; rightEV(2,4) = nz; rightEV(3,4) = -ny;
-    rightEV(4,4) = rhouy/rho*nz - rhouz/rho*ny;
-
-    leftEV(3,0) = (vn*nx - rhoux/rho)/ny; leftEV(3,1) = (1.-nx*nx)/ny; leftEV(3,2) = -nx;
-    leftEV(3,3) = -nx*nz/ny; leftEV(3,4) = 0.;
-
-    leftEV(4,0) = (rhouz/rho - vn*nz)/ny; leftEV(4,1) = nx*nz/ny; leftEV(4,2) = nz;
-    leftEV(4,3) = (nz*nz-1.)/ny; leftEV(4,4) = 0.;
-
-  } else if (whichMat == 3) {
-
-    rightEV(0,3) = 0.; rightEV(1,3) = -nz; rightEV(2,3) = 0.; rightEV(3,3) = nx;
-    rightEV(4,3) = rhouz/rho*nx - rhoux/rho*nz;
-
-    rightEV(0,4) = 0; rightEV(1,4) = 0.; rightEV(2,4) = nz; rightEV(3,4) = -ny;
-    rightEV(4,4) = rhouy/rho*nz - rhouz/rho*ny;
-
-    leftEV(3,0) = (rhoux/rho - vn*nx)/nz; leftEV(3,1) = (nx*nx-1.)/nz; leftEV(3,2) = nx*ny/nz;
-    leftEV(3,3) = nx; leftEV(3,4) = 0.;
-
-    leftEV(4,0) = (vn*ny - rhouy/rho)/nz; leftEV(4,1) = -nx*ny/nz; leftEV(4,2) = (1.-ny*ny)/nz;
-    leftEV(4,3) = -ny; leftEV(4,4) = 0.;
-
-  }
+  Lambda(0) = vn + a; Lambda(1) = vn; Lambda(2) = vn - a;
 
 }
 

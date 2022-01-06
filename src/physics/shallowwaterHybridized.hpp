@@ -107,16 +107,14 @@ namespace MrHyDE {
      * @param[inout] leftEV  Storage for the left eigenvectors
      * @param[inout] Lambda  Storage for the eigenvalues. A vector, not a matrix since it is diagonal.
      * @param[inout] rightEV  Storage for the right eigenvectors
-     * @param[in] rhoux  x-component of the momentum
-     * @param[in] rho  Density
-     * @param[in] a_sound  Speed of sound
-     * @param[in] gamma  Ratio of specific heats
+     * @param[in] Hux  x-component of the depth-weighted velocity
+     * @param[in] H  Depth
      *
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
     KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
-        const AD & rhoux, const AD & rho, const AD & a_sound, const ScalarT & gamma);
+        const AD & Hux, const AD & H);
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
      * This is the 2-D version.
@@ -124,44 +122,18 @@ namespace MrHyDE {
      * @param[inout] leftEV  Storage for the left eigenvectors
      * @param[inout] Lambda  Storage for the eigenvalues. A vector, not a matrix since it is diagonal.
      * @param[inout] rightEV  Storage for the right eigenvectors
-     * @param[in] rhoux  x-component of the momentum
-     * @param[in] rhouy  y-component of the momentum
-     * @param[in] rho  Density
+     * @param[in] Hux  x-component of the depth-weighted velocity 
+     * @param[in] Huy  y-component of the depth-weighted velocity 
+     * @param[in] H  Density
      * @param[in] nx  x-component of the normal vector
      * @param[in] ny  y-component of the normal vector
-     * @param[in] a_sound  Speed of sound
-     * @param[in] gamma  Ratio of specific heats
      *
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
     KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
-        const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny,
-        const AD & a_sound, const ScalarT & gamma);
+        const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny);
 
-    /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
-     * This is the 3-D version.
-     *
-     * @param[inout] leftEV  Storage for the left eigenvectors
-     * @param[inout] Lambda  Storage for the absolute value of the eigenvalues. A vector, not a matrix since it is diagonal.
-     * @param[inout] rightEV  Storage for the right eigenvectors
-     * @param[in] rhoux  x-component of the momentum
-     * @param[in] rhouy  y-component of the momentum
-     * @param[in] rhouz  y-component of the momentum
-     * @param[in] rho  Density
-     * @param[in] nx  x-component of the normal vector
-     * @param[in] ny  y-component of the normal vector
-     * @param[in] nz  z-component of the normal vector
-     * @param[in] a_sound  Speed of sound
-     * @param[in] gamma  Ratio of specific heats
-     *
-     * @details Should be called using the trace variables \f$\hat{S}\f$.
-     */
-
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
-        const AD & rhoux, const AD & rhouy, const AD & rhouz, const AD & rho, 
-        const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
-        const AD & a_sound, const ScalarT & gamma);
 
     /* @brief Computes y = Ax
      *
