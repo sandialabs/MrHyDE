@@ -1247,27 +1247,28 @@ void euler::computeBoundaryTerm() {
 
       } else {
         // Apply the slip condition
-        AD vn = nx(elem,pt)*rhoux_hat(elem,pt)/rho_hat(elem,pt);
-        if (spaceDim > 1) vn += ny(elem,pt)*rhouy_hat(elem,pt)/rho_hat(elem,pt);
-        if (spaceDim > 2) vn += nz(elem,pt)*rhouz_hat(elem,pt)/rho_hat(elem,pt);
+        AD vn = nx(elem,pt)*rhoux(elem,pt)/rho(elem,pt);
+        if (spaceDim > 1) vn += ny(elem,pt)*rhouy(elem,pt)/rho(elem,pt);
+        if (spaceDim > 2) vn += nz(elem,pt)*rhouz(elem,pt)/rho(elem,pt);
 
         // density and energy are matched
         
         bound_sub(rho_num) = rho(elem,pt) - rho_hat(elem,pt);
         bound_sub(rhoE_num) = rhoE(elem,pt) - rhoE_hat(elem,pt);
 
-        // force normal momentum to be zero
+        // force normal velocity to be zero
+        // TODO does this make sense? are units correct? This is from their paper CHECKME!
 
         bound_sub(rhoux_num) = 
-          ( rhoux(elem,pt) - rho(elem,pt)*vn*nx(elem,pt) ) - rhoux_hat(elem,pt);
+          ( rhoux(elem,pt)/rho(elem,pt) - vn*nx(elem,pt) ) - rhoux_hat(elem,pt)/rho_hat(elem,pt);
 
         if (spaceDim > 1) {
           bound_sub(rhouy_num) = 
-            ( rhouy(elem,pt) - rho(elem,pt)*vn*ny(elem,pt) ) - rhouy_hat(elem,pt);
+            ( rhouy(elem,pt)/rho(elem,pt) - vn*ny(elem,pt) ) - rhouy_hat(elem,pt)/rho_hat(elem,pt);
         }
         if (spaceDim > 2) {
           bound_sub(rhouz_num) = 
-            ( rhouz(elem,pt) - rho(elem,pt)*vn*nz(elem,pt) ) - rhouz_hat(elem,pt);
+            ( rhouz(elem,pt)/rho(elem,pt) - vn*nz(elem,pt) ) - rhouz_hat(elem,pt)/rho_hat(elem,pt);
         }
       }
     }

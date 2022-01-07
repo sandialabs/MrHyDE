@@ -216,6 +216,7 @@ void shallowwaterHybridized::boundaryResidual() {
   auto stab = stab_bound_side;
 
   // all boundary contributions are of the form ( F(\hat{S}_i) \cdot n, v_i )
+  // and ( StabTerm, v_i ).
   // The boundary conditions are enforced weakly with the trace variables
   // so we ALWAYS compute the aforementioned inner product here
 
@@ -606,11 +607,11 @@ void shallowwaterHybridized::computeStabilizationTerm() {
 
 void shallowwaterHybridized::computeBoundaryTerm() {
 
-  // The two BC types in Peraire 2011 are inflow/outflow and slip.
+  // The two BC types in Peraire 2011/Samii 2019 are inflow/outflow and slip.
   //
   // The inflow/outflow BC is based off of eigendecompositions
   // of the flux Jacobians
-  // Let A = dF_x(\hat{S})/d\hat{S} n_x + dF_y(\hat{S})/d\hat{S} n_y + dF_z(\hat{S})d\hat{S} n_z
+  // Let A = dF_x(\hat{S})/d\hat{S} n_x + dF_y(\hat{S})/d\hat{S} n_y
   // Then A = R Lambda L.
   //
   // B = A^+ ( S - \hat{S} ) - A^- ( S_\infty - \hat{S} )
@@ -625,53 +626,43 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   // TODO since our BCs come in for the whole state, just need one... TODO CHECK CHECK GENERALIZE??
   string sidetype = bcs(rho_num,cside);
 
+  // TODO Periodic conditions?
   if ( (sidetype != "Far-field") && (sidetype != "Slip") 
         && (sidetype != "interface") ) {
-    cout << "Error :: Euler module does not support your chosen boundary condition!" << endl;
+    cout << "Error :: Shallow water module does not support your chosen boundary condition!" << endl;
   }
 
   // these are always needed
-  auto rho = wkset->getSolutionField("rho");
-  auto rho_hat = wkset->getSolutionField("aux rho side");
-  auto rhoux = wkset->getSolutionField("rhoux");
-  auto rhoux_hat = wkset->getSolutionField("aux rhoux side");
-  auto rhoE = wkset->getSolutionField("rhoE");
-  auto rhoE_hat = wkset->getSolutionField("aux rhoE side");
-  auto props = props_side; // get the properties evaluated with trace variables
+  auto H = wkset->getSolutionField("H");
+  auto H_hat = wkset->getSolutionField("aux H side");
+  auto Hux = wkset->getSolutionField("Hux");
+  auto Hux_hat = wkset->getSolutionField("aux Hux side");
 
   auto boundterm = stab_bound_side;
   auto nx = wkset->getScalarField("nx side");
 
-  View_AD2 rhouy, rhouy_hat, rhouz, rhouz_hat; // and only assign if necessary?
-  View_Sc2 ny, nz;
+  View_AD2 Huy, Huy_hat; // and only assign if necessary?
+  View_Sc2 ny;
 
   if (spaceDim > 1) {
-    rhouy = wkset->getSolutionField("rhouy");
-    rhouy_hat = wkset->getSolutionField("aux rhouy side");
+    Huy = wkset->getSolutionField("Huy");
+    Huy_hat = wkset->getSolutionField("aux Huy side");
     ny = wkset->getScalarField("ny side");
-  }
-  if (spaceDim > 2) {
-    rhouz = wkset->getSolutionField("rhouz");
-    rhouz_hat = wkset->getSolutionField("aux rhouz side");
-    nz = wkset->getScalarField("nz side");
   }
 
   // Get the freestream info if needed
-  Vista source_rho, source_rhoux, source_rhoE, source_rhouy, source_rhouz;
+  Vista source_H, source_Hux, source_Huy;
 
   if (sidetype == "Far-field") { 
-    source_rho = functionManager->evaluate("Far-field rho " + wkset->sidename,"side ip");
-    source_rhoux = functionManager->evaluate("Far-field rhoux " + wkset->sidename,"side ip");
-    source_rhoE = functionManager->evaluate("Far-field rhoE " + wkset->sidename,"side ip");
+    source_H = functionManager->evaluate("Far-field H " + wkset->sidename,"side ip");
+    source_Hux = functionManager->evaluate("Far-field Hux " + wkset->sidename,"side ip");
     if (spaceDim > 1) { 
-      source_rhouy = functionManager->evaluate("Far-field rhouy " + wkset->sidename,"side ip");
+      source_Huy = functionManager->evaluate("Far-field Huy " + wkset->sidename,"side ip");
     }
-    if (spaceDim > 2) { 
-      source_rhouz = functionManager->evaluate("Far-field rhouz " + wkset->sidename,"side ip");
-    }
+   
   }
 
-  parallel_for("euler boundary term",
+  parallel_for("Shallow water boundary term",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
 
@@ -702,27 +693,19 @@ void shallowwaterHybridized::computeBoundaryTerm() {
         // get the local eigendecomposition
         if (spaceDim == 1) {
           this->eigendecompFluxJacobian(leftEV,Lambda,rightEV,
-              rhoux_hat(elem,pt),rho_hat(elem,pt),props(elem,pt,a_num),gamma);
+              Hux_hat(elem,pt),H_hat(elem,pt));
         } else if (spaceDim == 2) {
           this->eigendecompFluxJacobian(leftEV,Lambda,rightEV,
-              rhoux_hat(elem,pt),rhouy_hat(elem,pt),rho_hat(elem,pt),
-              nx(elem,pt),ny(elem,pt),props(elem,pt,a_num),gamma);
-        } else if (spaceDim == 3) {
-           this->eigendecompFluxJacobian(leftEV,Lambda,rightEV,
-              rhoux_hat(elem,pt),rhouy_hat(elem,pt),rhouz_hat(elem,pt),rho_hat(elem,pt),
-              nx(elem,pt),ny(elem,pt),nz(elem,pt),props(elem,pt,a_num),gamma);
+              Hux_hat(elem,pt),Huy_hat(elem,pt),H_hat(elem,pt),
+              nx(elem,pt),ny(elem,pt));
         }
 
         // form (S - \hat{S})
-        deltaS(rho_num) = rho(elem,pt) - rho_hat(elem,pt);
-        deltaS(rhoux_num) = rhoux(elem,pt) - rhoux_hat(elem,pt);
-        deltaS(rhoE_num) = rhoE(elem,pt) - rhoE_hat(elem,pt);
+        deltaS(H_num) = H(elem,pt) - H_hat(elem,pt);
+        deltaS(Hux_num) = Hux(elem,pt) - Hux_hat(elem,pt);
 
         if (spaceDim > 1) {
-          deltaS(rhouy_num) = rhouy(elem,pt) - rhouy_hat(elem,pt);
-        }
-        if (spaceDim > 2) {
-          deltaS(rhouz_num) = rhouz(elem,pt) - rhouz_hat(elem,pt);
+          deltaS(Huy_num) = Huy(elem,pt) - Huy_hat(elem,pt);
         }
 
         // A^+ = R ( Lambda + | Lambda | ) L / 2
@@ -738,15 +721,11 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
         // now form ( S_\infty - \hat{S} )
 
-        deltaS(rho_num) = source_rho(elem,pt) - rho_hat(elem,pt);
-        deltaS(rhoux_num) = source_rhoux(elem,pt) - rhoux_hat(elem,pt);
-        deltaS(rhoE_num) = source_rhoE(elem,pt) - rhoE_hat(elem,pt);
+        deltaS(H_num) = source_H(elem,pt) - H_hat(elem,pt);
+        deltaS(Hux_num) = source_Hux(elem,pt) - Hux_hat(elem,pt);
 
         if (spaceDim > 1) {
-          deltaS(rhouy_num) = source_rhouy(elem,pt) - rhouy_hat(elem,pt);
-        }
-        if (spaceDim > 2) {
-          deltaS(rhouz_num) = source_rhouz(elem,pt) - rhouz_hat(elem,pt);
+          deltaS(rhoH_num) = source_Huy(elem,pt) - Huy_hat(elem,pt);
         }
 
         // A^- = R ( Lambda - | Lambda | ) L / 2
@@ -768,27 +747,21 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
       } else {
         // Apply the slip condition
-        AD vn = nx(elem,pt)*rhoux_hat(elem,pt)/rho_hat(elem,pt);
-        if (spaceDim > 1) vn += ny(elem,pt)*rhouy_hat(elem,pt)/rho_hat(elem,pt);
-        if (spaceDim > 2) vn += nz(elem,pt)*rhouz_hat(elem,pt)/rho_hat(elem,pt);
+        AD vn = nx(elem,pt)*Hux(elem,pt)/H(elem,pt);
+        if (spaceDim > 1) vn += ny(elem,pt)*Huy(elem,pt)/H(elem,pt);
 
-        // density and energy are matched
+        // Height
         
-        bound_sub(rho_num) = rho(elem,pt) - rho_hat(elem,pt);
-        bound_sub(rhoE_num) = rhoE(elem,pt) - rhoE_hat(elem,pt);
+        bound_sub(H_num) = H(elem,pt) - H_hat(elem,pt);
 
-        // force normal momentum to be zero
+        // force normal velocity to be zero
 
-        bound_sub(rhoux_num) = 
-          ( rhoux(elem,pt) - rho(elem,pt)*vn*nx(elem,pt) ) - rhoux_hat(elem,pt);
+        bound_sub(Hux_num) = 
+          ( Hux(elem,pt)/H(elem,pt) - vn*nx(elem,pt) ) - Hux_hat(elem,pt)/H_hat(elem,pt);
 
         if (spaceDim > 1) {
-          bound_sub(rhouy_num) = 
-            ( rhouy(elem,pt) - rho(elem,pt)*vn*ny(elem,pt) ) - rhouy_hat(elem,pt);
-        }
-        if (spaceDim > 2) {
-          bound_sub(rhouz_num) = 
-            ( rhouz(elem,pt) - rho(elem,pt)*vn*nz(elem,pt) ) - rhouz_hat(elem,pt);
+          bound_sub(Huy_num) = 
+            ( Huy(elem,pt) - vn*ny(elem,pt) ) - Huy_hat(elem,pt)/H_hat(elem,pt);
         }
       }
     }
@@ -843,13 +816,17 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & 
 
   // The left EVs are 
   // CHECK AND FINISH BELOW
-  // 1/(2*a)*[a + vn, -nx, -ny]
-  // 1/(2*a)*[2*(ux*ny - uy*nx) -2*ny, 2*nx]
-  // 1/(2*a)*[a + vn, nx, ny] 
+  // 1/(2*a)*[a - vn, nx, ny]
+  // 1/(2*a)*[2*(ux*ny - uy*nx), -2*ny, 2*nx]
+  // 1/(2*a)*[a + vn, -nx, -ny] 
 
   rightEV(0,0) = 1.; rightEV(1,0) = Hux/H - a*nx; rightEV(2,0) = Huy/H - a*ny;
   rightEV(0,1) = 0.; rightEV(1,1) = -a*ny; rightEV(2,1) = a*nx;
   rightEV(0,2) = 1.; rightEV(1,2) = Hux/H + a*nx; rightEV(2,2) = Huy/H + a*ny;
+
+  leftEV(0,0) = .5 - vn/(2.*a); leftEV(0,1) =  nx/(2.*a); leftEV(0,2) =  ny/(2.*a);
+  leftEV(1,0) = (ny*Hux/H - nx*Huy/H)/a; leftEV(1,1) = -ny/a; leftEV(1,2) = nx/a; 
+  leftEV(2,0) = .5 + vn/(2.*a); leftEV(2,1) = -nx/(2.*a); leftEV(2,2) = -ny/(2.*a);
 
   Lambda(0) = vn + a; Lambda(1) = vn; Lambda(2) = vn - a;
 
