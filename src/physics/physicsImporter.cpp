@@ -35,6 +35,7 @@
 #include "llamas.hpp"
 #include "variableDensityNS.hpp"
 #include "euler.hpp"
+#include "shallowwaterHybridized.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -92,6 +93,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // Shallow Water
     if (modname == "shallow water") {
       modules.push_back(Teuchos::rcp(new shallowwater(settings, dimension) ) );
+    }
+
+    // Shallow water hybridized
+    if (modname == "shallow water hybridized") {
+      modules.push_back(Teuchos::rcp(new shallowwaterHybridized(settings, dimension) ) );
     }
     
     // Maxwell
