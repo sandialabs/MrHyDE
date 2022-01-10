@@ -29,7 +29,7 @@ ANONYMOUS:
       Hux:
         all boundaries: 'cos(4.*t - x)'
       Huy:
-        all boundaries: 'sin(4.*t - y)'
+        all boundaries: 'sin(4.*t + y)'
 
   Discretization:
     order:
