@@ -661,6 +661,11 @@ void AssemblyManager<Node>::createCells() {
 template<class Node>
 void AssemblyManager<Node>::allocateCellStorage() {
   
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::allocateCellStorage" << endl;
+    }
+  }
   bool keepnodes = false;
   // There are a few scenarios where we want the cells to keep their nodes
   if (settings->sublist("Solver").get<string>("initial type","L2-projection") == "interpolation") {
@@ -778,7 +783,7 @@ void AssemblyManager<Node>::allocateCellStorage() {
   }
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::createCells" << endl;
+      cout << "**** Finished AssemblyManager::allocateCellStorage" << endl;
     }
   }
 }

@@ -272,9 +272,8 @@ void SubGridDtN2::setUpSubgridModels() {
                                                                          sub_disc, sub_physics,
                                                                          functionManagers, sub_assembler) );
   
-  
   sub_assembler->allocateCellStorage();
-  
+
   /////////////////////////////////////////////////////////////////////////////////////
   // Create a subgrid function mananger
   /////////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +321,6 @@ void SubGridDtN2::setUpSubgridModels() {
       ///////////////////////////////////////////////////////////
       
       this->createNewCells(sgt,mindex);
-      
       
       //////////////////////////////////////////////////////////////
       // New boundary cells (more complicated than interior cells)
