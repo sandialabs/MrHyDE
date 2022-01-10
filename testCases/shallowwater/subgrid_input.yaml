@@ -13,6 +13,7 @@ ANONYMOUS:
     Physics: 
       modules: shallow water hybridized
       Roe-like stabilization: true
+      g: 1. ## gravity is 1
       Initial conditions:
         H: '2.' 
         Hux: 'cos(-x)'
