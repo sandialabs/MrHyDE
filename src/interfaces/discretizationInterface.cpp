@@ -12,6 +12,7 @@
  ************************************************************************/
 
 #include "discretizationInterface.hpp"
+#include "Panzer_NodalFieldPattern.hpp"
 
 // HGRAD basis functions
 #include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
@@ -1012,29 +1013,15 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<CellMetaData>
   
   Teuchos::TimeMonitor localtimer(*physOrientTimer);
   
-  int block = cellData->myBlock;
-  int numNodesPerElem = cellData->cellTopo->getNodeCount();
-  size_type numElem = eIndex.extent(0);
-  
-  Kokkos::DynRankView<stk::mesh::EntityId,AssemblyDevice> currind("current node indices", numElem, numNodesPerElem);
-  auto host_currind = Kokkos::create_mirror_view(currind);
+  auto orientation_host = create_mirror_view(orientation);
   auto host_eIndex = Kokkos::create_mirror_view(eIndex);
-  Kokkos::deep_copy(host_eIndex,eIndex);
-  for (size_t i=0; i<numElem; i++) {
-    vector<stk::mesh::EntityId> stk_nodeids;
+  deep_copy(host_eIndex,eIndex);
+
+  for (size_type i=0; i<host_eIndex.extent(0); i++) {
     LO elemID = host_eIndex(i);
-    if (use_block) {
-      mesh->getNodeIdsForElement(block_stkElems[block][elemID], stk_nodeids);
-    }
-    else {
-      mesh->getNodeIdsForElement(all_stkElems[elemID], stk_nodeids);
-    }
-    for (int n=0; n<numNodesPerElem; n++) {
-      host_currind(i,n) = stk_nodeids[n];
-    }
+    orientation_host(i) = panzer_orientations[elemID];
   }
-  Kokkos::deep_copy(currind, host_currind);
-  OrientTools::getOrientation(orientation, currind, *(cellData->cellTopo));
+  deep_copy(orientation,orientation_host);
 }
 
 // -------------------------------------------------
@@ -1767,6 +1754,48 @@ void DiscretizationInterface::buildDOFManagers() {
       }
     }
     DOF.push_back(setDOF);
+  }
+
+  // Create the vector of panzer orientations
+  {
+    auto oconn = conn->noConnectivityClone();
+    shards::CellTopology topology;
+    std::vector<shards::CellTopology> elementBlockTopologies;
+    oconn->getElementBlockTopologies(elementBlockTopologies);
+
+    topology = elementBlockTopologies.at(0);
+  
+    const int num_nodes_per_cell = topology.getVertexCount();
+
+    size_t totalElem = 0;
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      totalElem += myElements[block].size();
+    }
+
+    // Make sure the conn is setup for a nodal connectivity
+    panzer::NodalFieldPattern pattern(topology);
+    oconn->buildConnectivity(pattern);
+
+    // Initialize the orientations vector
+    panzer_orientations.clear();
+    panzer_orientations.resize(totalElem);
+  
+    using NodeView = Kokkos::View<GO*, Kokkos::DefaultHostExecutionSpace>;
+    
+    // Add owned orientations
+    {
+      for (size_t block=0; block<blocknames.size(); ++block) {
+        for (size_t c=0; c<myElements[block].size(); ++c) {
+          size_t elemID = myElements[block][c];
+          const GO * nodes = oconn->getConnectivity(elemID);
+          NodeView node_view("nodes",num_nodes_per_cell);
+          for (int node=0; node<num_nodes_per_cell; ++node) {
+            node_view(node) = nodes[node];
+          }
+          panzer_orientations[elemID] = Intrepid2::Orientation::getOrientation(topology, node_view);
+        }
+      }
+    }
   }
   
   if (debug_level > 0) {
