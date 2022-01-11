@@ -35,7 +35,7 @@ namespace MrHyDE {
   class shallowwaterHybridized : public physicsbase {
   public:
 
-    shallowwaterHybridized() {} ;
+    shallowwaterHybridized() {};
     
     ~shallowwaterHybridized() {};
     

@@ -1,0 +1,97 @@
+%YAML 1.1
+---
+### Based off of example 1 in Samii, J. Sci. Comp. (2019) ###
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  profile: false
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: -1.0
+    xmax:  1.0
+    ymin: -1.0
+    ymax:  1.0
+  Physics:
+    ## define the coarse scale variables
+    Extra variables:
+      H: HFACE
+      Hux: HFACE
+      Huy: HFACE
+    Initial conditions:
+      H: 2. 
+      Hux: 'cos(-x)'
+      Huy: 'sin(y)'
+
+    Far-field conditions:
+      H:
+        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      Hux:
+        all boundaries: 'cos(4.*t - x)'
+      Huy:
+        all boundaries: 'sin(4.*t + y)'
+
+  Discretization:
+    order:
+      Extra variables:
+        H: 1
+        Hux: 1
+        Huy: 1
+    quadrature: 2
+  Subgrid input file: subgrid_input.yaml
+  Solver:
+    #solver: steady-state
+    initial type: L2-projection-HFACE
+    State boundary L2 linear solver:
+      use preconditioner: false
+    solver: transient
+    workset size: 100
+    nonlinear TOL: 1.0e-06
+    linear TOL: 1.0e-6
+    max nonlinear iters: 10
+    max linear iters: 100
+    final time: 1.
+    delta t: 1e-2
+    use direct solver: false
+    use domain decomposition: false
+    use strong DBCs: true
+    Preconditioner Settings:
+      verbosity: none
+      number of equations: 1
+      multigrid algorithm: unsmoothed
+      'sa: use filtered matrix': true
+      'sa: damping factor': 0.0
+      'coarse: max size': 2000
+      'transpose: use implicit': false
+      'aggregation: type': uncoupled
+      'aggregation: drop scheme': classical
+      'aggregation: drop tol': 0.0
+      'smoother: pre or post': both
+      'smoother: type': SCHWARZ
+      'smoother: params':
+        'schwarz: overlap level': 1
+        'schwarz: combine mode': Zero
+        'schwarz: use reordering': false
+        'schwarz: reordering list':
+          order_method: rcm
+        subdomain solver name: RILUK
+        subdomain solver parameters:
+          'fact: iluk level-of-fill': 1
+          'fact: ilut level-of-fill': 1.75
+          'fact: absolute threshold': 0.0
+          'fact: relative threshold': 1.0
+          'fact: relax value': 0.0
+        #'chebyshev: degree': 2
+        #'chebyshev: ratio eigenvalue': 7.0
+        #'chebyshev: min eigenvalue': 1.0
+        #'chebyshev: zero starting solution': true
+        # 'relaxation: type': Gauss-Seidel #MT Gauss-Seidel
+      'repartition: enable': false
+      'reuse: type': none
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    write solution: true
+    write subgrid solution: true
+    write HFACE variables: true
+...
