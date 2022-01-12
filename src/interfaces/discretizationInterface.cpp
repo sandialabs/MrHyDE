@@ -111,14 +111,6 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   spaceDim = mesh->getDimension();
   mesh->getElementBlockNames(blocknames);
   
-  
-  for (size_t block=0; block<blocknames.size(); ++block) {
-    vector<stk::mesh::Entity> stkElems;
-    mesh->getMyElements(blocknames[block], stkElems);
-    block_stkElems.push_back(stkElems);
-  }
-  mesh->getMyElements(all_stkElems);
-  
   ////////////////////////////////////////////////////////////////////////////////
   // Assemble the information we always store
   ////////////////////////////////////////////////////////////////////////////////
@@ -2292,11 +2284,6 @@ void DiscretizationInterface::purgeMemory() {
   
   DOF.clear();
   side_info.clear();
-}
+  panzer_orientations.clear();
 
-void DiscretizationInterface::purgeStkMemory() {
-
-  all_stkElems.clear();
-  block_stkElems.clear();
-  
 }
