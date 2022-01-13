@@ -13,6 +13,7 @@
 
 #include "discretizationInterface.hpp"
 #include "Panzer_NodalFieldPattern.hpp"
+#include "Panzer_OrientationsInterface.hpp"
 
 // HGRAD basis functions
 #include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
@@ -1008,9 +1009,11 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<CellMetaData>
   auto orientation_host = create_mirror_view(orientation);
   auto host_eIndex = Kokkos::create_mirror_view(eIndex);
   deep_copy(host_eIndex,eIndex);
-
   for (size_type i=0; i<host_eIndex.extent(0); i++) {
     LO elemID = host_eIndex(i);
+    if (use_block) {
+      elemID = myElements[cellData->myBlock][host_eIndex(i)];
+    }
     orientation_host(i) = panzer_orientations[elemID];
   }
   deep_copy(orientation,orientation_host);
@@ -1749,8 +1752,17 @@ void DiscretizationInterface::buildDOFManagers() {
   }
 
   // Create the vector of panzer orientations
+  // Using the panzer orientation interface works, except when also
+  // using an MPI subcommunicator, e.g., in the subgrid models
+  // Leaving here for testing purposes
+
+  //auto pOInt = panzer::OrientationsInterface(DOF[0]);
+  //auto pO_orients = pOInt.getOrientations();
+  //panzer_orientations = *pO_orients;
+  
   {
     auto oconn = conn->noConnectivityClone();
+    
     shards::CellTopology topology;
     std::vector<shards::CellTopology> elementBlockTopologies;
     oconn->getElementBlockTopologies(elementBlockTopologies);
@@ -1785,6 +1797,7 @@ void DiscretizationInterface::buildDOFManagers() {
             node_view(node) = nodes[node];
           }
           panzer_orientations[elemID] = Intrepid2::Orientation::getOrientation(topology, node_view);
+          
         }
       }
     }
