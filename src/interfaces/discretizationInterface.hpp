@@ -16,13 +16,14 @@
  \author Created by T. Wildey
  */
 
-#ifndef DISCINTERFACE_H
-#define DISCINTERFACE_H
+#ifndef MRHYDE_DISCINTERFACE_H
+#define MRHYDE_DISCINTERFACE_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "Panzer_DOFManager.hpp"
 #include "Panzer_BlockedDOFManager.hpp"
+#include "Panzer_ConnManager.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "physicsInterface.hpp"
 #include "cellMetaData.hpp"
@@ -184,8 +185,6 @@ namespace MrHyDE {
 
     void purgeMemory();
     
-    void purgeStkMemory();
-    
     ////////////////////////////////////////////////////////////////////////////////
     // Public data
     ////////////////////////////////////////////////////////////////////////////////
@@ -205,10 +204,9 @@ namespace MrHyDE {
     vector<string> blocknames;
     
     // Purgable
-    vector<stk::mesh::Entity> all_stkElems;
-    vector<vector<stk::mesh::Entity> > block_stkElems;
     vector<Teuchos::RCP<panzer::DOFManager> > DOF;
-    
+    std::vector<Intrepid2::Orientation> panzer_orientations;
+
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;
     vector<size_t> numip, numip_side;
     

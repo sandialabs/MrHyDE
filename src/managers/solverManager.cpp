@@ -1279,6 +1279,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             
           }
           
+          /*
           if (fully_explicit) {
             {
               Teuchos::TimeMonitor localtimer(*normLAtimer);
@@ -1296,6 +1297,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
               
             }
           }
+          */
         }
       }
       
