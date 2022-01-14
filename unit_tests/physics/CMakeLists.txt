@@ -21,7 +21,7 @@ LINK_DIRECTORIES (
 ADD_EXECUTABLE(NavierStokes
 NavierStokes.cpp
 ../../src/physics/navierstokes.cpp
-../../src/managers/FunctionManager.cpp
+../../src/managers/functionManager.cpp
 ../../src/tools/interpreter.cpp
 ../../src/tools/workset.cpp)
 TARGET_LINK_LIBRARIES(NavierStokes ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
@@ -29,7 +29,7 @@ TARGET_LINK_LIBRARIES(NavierStokes ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIE
 ADD_EXECUTABLE(Euler
 Euler.cpp
 ../../src/physics/euler.cpp
-../../src/managers/FunctionManager.cpp
+../../src/managers/functionManager.cpp
 ../../src/tools/interpreter.cpp
 ../../src/tools/workset.cpp
 ../../src/interfaces/discretizationInterface.cpp)
