@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SUBGRIDMACRODATA_H
-#define SUBGRIDMACRODATA_H
+#ifndef MRHYDE_SUBGRIDMACRODATA_H
+#define MRHYDE_SUBGRIDMACRODATA_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

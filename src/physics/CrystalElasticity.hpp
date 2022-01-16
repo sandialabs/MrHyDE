@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef CrystalElasticity_H
-#define CrystalElasticity_H
+#ifndef MRHYDE_CrystalElasticity_H
+#define MRHYDE_CrystalElasticity_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

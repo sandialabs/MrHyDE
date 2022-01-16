@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef NAVIERSTOKES_H
-#define NAVIERSTOKES_H
+#ifndef MRHYDE_NAVIERSTOKES_H
+#define MRHYDE_NAVIERSTOKES_H
 
 #include "physicsBase.hpp"
 

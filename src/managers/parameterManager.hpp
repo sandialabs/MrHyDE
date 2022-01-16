@@ -11,15 +11,15 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef PARAMETER_H
-#define PARAMETER_H
+#ifndef MRHYDE_PARAMETER_MANAGER_H
+#define MRHYDE_PARAMETER_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
-#include "cell.hpp"
-#include "boundaryCell.hpp"
+#include "group.hpp"
+#include "boundaryGroup.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "discretizationInterface.hpp"
 
@@ -59,8 +59,8 @@ namespace MrHyDE {
     
     void setupParameters();
     
-    void setupDiscretizedParameters(std::vector<std::vector<Teuchos::RCP<cell> > > & cells,
-                                    std::vector<std::vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells);
+    void setupDiscretizedParameters(std::vector<std::vector<Teuchos::RCP<Group> > > & groups,
+                                    std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////

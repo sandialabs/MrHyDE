@@ -12,7 +12,6 @@
  ************************************************************************/
 
 #include "assemblyManager.hpp"
-#include "cellMetaData.hpp"
 
 using namespace MrHyDE;
 
@@ -71,10 +70,10 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   // check if we need to assembly volumetric, boundary and face terms
   for (size_t set=0; set<phys->setnames.size(); ++set) {
     vector<bool> set_assemble_vol, set_assemble_bndry, set_assemble_face;
-    for (size_t b=0; b<blocknames.size(); b++) {
-      set_assemble_vol.push_back(phys->setPhysSettings[set][b].template get<bool>("assemble volume terms",true));
-      set_assemble_bndry.push_back(phys->setPhysSettings[set][b].template get<bool>("assemble boundary terms",true));
-      set_assemble_face.push_back(phys->setPhysSettings[set][b].template get<bool>("assemble face terms",false));
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      set_assemble_vol.push_back(phys->setPhysSettings[set][block].template get<bool>("assemble volume terms",true));
+      set_assemble_bndry.push_back(phys->setPhysSettings[set][block].template get<bool>("assemble boundary terms",true));
+      set_assemble_face.push_back(phys->setPhysSettings[set][block].template get<bool>("assemble face terms",false));
     }
     assemble_volume_terms.push_back(set_assemble_vol);
     assemble_boundary_terms.push_back(set_assemble_bndry);
@@ -82,40 +81,40 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   }
   // overwrite assemble_face_terms if HFACE vars are used
   for (size_t set=0; set<assemble_face_terms.size(); ++set) {
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<string> ctypes = phys->unique_types[b];
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      vector<string> ctypes = phys->unique_types[block];
       for (size_t n=0; n<ctypes.size(); n++) {
         if (ctypes[n] == "HFACE") {
-          assemble_face_terms[set][b] = true;
+          assemble_face_terms[set][block] = true;
         }
       }
     }
   }
   
   // determine if we need to build basis functions
-  for (size_t b=0; b<blocknames.size(); b++) {
+  for (size_t block=0; block<blocknames.size(); ++block) {
     bool build_volume = false, build_bndry = false, build_face = false;
   
     for (size_t set=0; set<phys->setnames.size(); ++set) {
       
-      if (assemble_volume_terms[set][b]) {
+      if (assemble_volume_terms[set][block]) {
         build_volume = true;
       }
-      else if (phys->setPhysSettings[set][b].template get<bool>("build volume terms",true) ) {
+      else if (phys->setPhysSettings[set][block].template get<bool>("build volume terms",true) ) {
         build_volume = true;
       }
       
-      if (assemble_boundary_terms[set][b]) {
+      if (assemble_boundary_terms[set][block]) {
         build_bndry = true;
       }
-      else if (phys->setPhysSettings[set][b].template get<bool>("build boundary terms",true)) {
+      else if (phys->setPhysSettings[set][block].template get<bool>("build boundary terms",true)) {
         build_bndry = true;
       }
       
-      if (assemble_face_terms[set][b]) {
+      if (assemble_face_terms[set][block]) {
         build_face = true;
       }
-      else if (phys->setPhysSettings[set][b].template get<bool>("build face terms",false)) {
+      else if (phys->setPhysSettings[set][block].template get<bool>("build face terms",false)) {
         build_face = true;
       }
     }
@@ -127,10 +126,10 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   // needed information from the physics interface
   varlist = phys->varlist;
   
-  // Create cells/boundary cells
-  this->createCells();
+  // Create groups/boundary groups
+  this->createGroups();
   
-  params->setupDiscretizedParameters(cells, boundaryCells);
+  params->setupDiscretizedParameters(groups, boundary_groups);
   
   this->createFixedDOFs();
   
@@ -203,17 +202,17 @@ void AssemblyManager<Node>::createFixedDOFs() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Create the cells
+// Create the groups
 ////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void AssemblyManager<Node>::createCells() {
+void AssemblyManager<Node>::createGroups() {
   
-  Teuchos::TimeMonitor localtimer(*celltimer);
+  Teuchos::TimeMonitor localtimer(*grouptimer);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::createCells ..." << endl;
+      cout << "**** Starting AssemblyManager::createGroups ..." << endl;
     }
   }
   
@@ -233,23 +232,23 @@ void AssemblyManager<Node>::createCells() {
   
   // We want these re-ordered as [block][set][var][dof]
   vector<vector<vector<vector<int> > > > my_offsets;
-  for (size_t b=0; b<blocknames.size(); ++b) {
+  for (size_t block=0; block<blocknames.size(); ++block) {
     vector<vector<vector<int> > > block_offsets;
     for (size_t set=0; set<disc_offsets.size(); ++set) {
-      block_offsets.push_back(disc_offsets[set][b]);
+      block_offsets.push_back(disc_offsets[set][block]);
     }
     my_offsets.push_back(block_offsets);
   }
   
-  for (size_t b=0; b<blocknames.size(); b++) {
-    Teuchos::RCP<CellMetaData> blockCellData;
-    vector<Teuchos::RCP<cell> > blockcells;
-    vector<Teuchos::RCP<BoundaryCell> > bcells;
+  for (size_t block=0; block<blocknames.size(); ++block) {
+    Teuchos::RCP<GroupMetaData> blockGroupData;
+    vector<Teuchos::RCP<Group> > block_groups;
+    vector<Teuchos::RCP<BoundaryGroup> > block_boundary_groups;
     
     vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(blocknames[b], stk_meshElems);
+    mesh->getMyElements(blocknames[block], stk_meshElems);
     
-    topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
+    topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
     int numNodesPerElem = cellTopo->getNodeCount();
     int spaceDim = phys->spaceDim;
     LO numTotalElem = static_cast<LO>(stk_meshElems.size());
@@ -260,9 +259,9 @@ void AssemblyManager<Node>::createCells() {
       vector<size_t> localIds;
       
       Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
-      panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[b], localIds, blocknodes); // fill on host
+      panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[block], localIds, blocknodes); // fill on host
       
-      vector<size_t> myElem = disc->myElements[b];
+      vector<size_t> myElem = disc->myElements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
       auto host_eIDs = Kokkos::create_mirror_view(eIDs);
       for (size_t elem=0; elem<myElem.size(); elem++) {
@@ -271,33 +270,32 @@ void AssemblyManager<Node>::createCells() {
       Kokkos::deep_copy(eIDs, host_eIDs);
       
       // LO is int, but just in case that changes ...
-      LO elemPerCell = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",100));
-      if (elemPerCell == -1) {
-        elemPerCell = numTotalElem;
+      LO elemPerGroup = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",100));
+      if (elemPerGroup == -1) {
+        elemPerGroup = numTotalElem;
       }
       else {
-        elemPerCell = std::min(elemPerCell,numTotalElem);
+        elemPerGroup = std::min(elemPerGroup,numTotalElem);
       }
       
       vector<string> sideSets;
       mesh->getSidesetNames(sideSets);
       vector<bool> aface;
       for (size_t set=0; set<assemble_face_terms.size(); ++set) {
-        aface.push_back(assemble_face_terms[set][b]);
+        aface.push_back(assemble_face_terms[set][block]);
       }
-      blockCellData = Teuchos::rcp( new CellMetaData(settings, cellTopo,
-                                                     phys, b, 0, elemPerCell,
-                                                     build_face_terms[b],
-                                                     aface,
-                                                     sideSets,
-                                                     params->num_discretized_params));
+      blockGroupData = Teuchos::rcp( new GroupMetaData(settings, cellTopo,
+                                                       phys, block, 0, elemPerGroup,
+                                                       build_face_terms[block],
+                                                       aface, sideSets,
+                                                       params->num_discretized_params));
                       
-      disc->setReferenceData(blockCellData);
+      disc->setReferenceData(blockGroupData);
       
-      blockCellData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
+      blockGroupData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
       
       
-      vector<vector<vector<int> > > curroffsets = my_offsets[b];
+      vector<vector<vector<int> > > curroffsets = my_offsets[block];
       vector<Kokkos::View<LO*,AssemblyDevice> > set_numDOF;
       vector<Kokkos::View<LO*,HostDevice> > set_numDOF_host;
       
@@ -312,22 +310,22 @@ void AssemblyManager<Node>::createCells() {
         set_numDOF_host.push_back(numDOF_host);
       }
       
-      blockCellData->set_numDOF = set_numDOF;
-      blockCellData->set_numDOF_host = set_numDOF_host;
+      blockGroupData->set_numDOF = set_numDOF;
+      blockGroupData->set_numDOF_host = set_numDOF_host;
            
-      blockCellData->numDOF = set_numDOF[0];
-      blockCellData->numDOF_host = set_numDOF_host[0];
+      blockGroupData->numDOF = set_numDOF[0];
+      blockGroupData->numDOF_host = set_numDOF_host[0];
       
       //////////////////////////////////////////////////////////////////////////////////
-      // Boundary cells
+      // Boundary groups
       //////////////////////////////////////////////////////////////////////////////////
       
-      if (build_boundary_terms[b]) {
+      if (build_boundary_terms[block]) {
         
-        int numBoundaryElem = elemPerCell;
+        int numBoundaryElem = elemPerGroup;
         
         ///////////////////////////////////////////////////////////////////////////////////
-        // Rules for grouping elements into boundary cells
+        // Rules for grouping elements into boundary groups
         //
         // 1.  All elements must be on the same processor
         // 2.  All elements must be on the same physical side
@@ -339,15 +337,15 @@ void AssemblyManager<Node>::createCells() {
           string sideName = sideSets[side];
           
           vector<stk::mesh::Entity> sideEntities;
-          mesh->getMySides(sideName, blocknames[b], sideEntities);
+          mesh->getMySides(sideName, blocknames[block], sideEntities);
           vector<size_t>             local_side_Ids;
           vector<stk::mesh::Entity> side_output;
           vector<size_t>             local_elem_Ids;
           
-          panzer_stk::workset_utils::getSideElements(*mesh, blocknames[b], sideEntities, local_side_Ids, side_output);
+          panzer_stk::workset_utils::getSideElements(*mesh, blocknames[block], sideEntities, local_side_Ids, side_output);
           
           DRV sidenodes;
-          mesh->getElementVertices(side_output, blocknames[b],sidenodes);
+          mesh->getElementVertices(side_output, blocknames[block],sidenodes);
           
           size_t numSideElem = local_side_Ids.size();
           size_t belemProg = 0;
@@ -404,27 +402,27 @@ void AssemblyManager<Node>::createCells() {
                 Kokkos::deep_copy(host_eIndex2,host_eIndex);
                 Kokkos::deep_copy(sideIndex,host_sideIndex);
                 
-                // Build the Kokkos View of the cell LIDs ------
+                // Build the Kokkos View of the group LIDs ------
                 vector<LIDView> set_LIDs;
                 for (size_t set=0; set<LIDs.size(); ++set) {
-                  LIDView cellLIDs("LIDs",currElem,LIDs[set].extent(1));
+                  LIDView groupLIDs("LIDs",currElem,LIDs[set].extent(1));
                   auto currLIDs = LIDs[set];
-                  parallel_for("assembly copy LIDs bcell",
-                               RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)),
+                  parallel_for("assembly copy LIDs bgrp",
+                               RangePolicy<AssemblyExec>(0,groupLIDs.extent(0)),
                                KOKKOS_LAMBDA (const int e ) {
                     size_t elemID = eIndex(e);
                     for (size_type j=0; j<currLIDs.extent(1); j++) {
-                      cellLIDs(e,j) = currLIDs(elemID,j);
+                      groupLIDs(e,j) = currLIDs(elemID,j);
                     }
                   });
-                  set_LIDs.push_back(cellLIDs);
+                  set_LIDs.push_back(groupLIDs);
                 }
                 
                 //-----------------------------------------------
                 // Set the side information (soon to be removed)-
                 vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
                 for (size_t set=0; set<LIDs.size(); ++set) {
-                  Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(set,b,host_eIndex2);
+                  Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(set,block,host_eIndex2);
                   set_sideinfo.push_back(sideinfo);
                 }
                 
@@ -433,12 +431,13 @@ void AssemblyManager<Node>::createCells() {
                   storeThis = false;
                 }
                 
-                bcells.push_back(Teuchos::rcp(new BoundaryCell(blockCellData, currnodes, eIndex, sideIndex,
-                                                               side, sideName, bcells.size(),
-                                                               disc, storeThis)));
-                bcells[bcells.size()-1]->LIDs = set_LIDs;
-                bcells[bcells.size()-1]->createHostLIDs();
-                bcells[bcells.size()-1]->sideinfo = set_sideinfo;
+                block_boundary_groups.push_back(Teuchos::rcp(new BoundaryGroup(blockGroupData, currnodes, eIndex, sideIndex,
+                                                                               side, sideName, block_boundary_groups.size(),
+                                                                               disc, storeThis)));
+                size_t cindex = block_boundary_groups.size()-1;
+                block_boundary_groups[cindex]->LIDs = set_LIDs;
+                block_boundary_groups[cindex]->createHostLIDs();
+                block_boundary_groups[cindex]->sideinfo = set_sideinfo;
                 prog += currElem;
               }
             }
@@ -447,25 +446,25 @@ void AssemblyManager<Node>::createCells() {
       }
       
       //////////////////////////////////////////////////////////////////////////////////
-      // Cells
+      // Groups
       //////////////////////////////////////////////////////////////////////////////////
       
       LO prog = 0;
-      vector<vector<LO> > groups;
+      vector<vector<LO> > elem_groups;
       
       if (assembly_partitioning == "sequential") {
         while (prog < numTotalElem) {
           
           vector<LO> newgroup;
           
-          LO currElem = elemPerCell;
+          LO currElem = elemPerGroup;
           if (prog+currElem > numTotalElem){
             currElem = numTotalElem-prog;
           }
           for (LO e=prog; e<prog+currElem; ++e) {
             newgroup.push_back(e);
           }
-          groups.push_back(newgroup);
+          elem_groups.push_back(newgroup);
           prog += currElem;
         }
       }
@@ -483,19 +482,19 @@ void AssemblyManager<Node>::createCells() {
         // 1.  All elements must be on the same processor
         // 2.  All elements must either be interior, or
         // 3.  All elements must have the same boundary edges/faces (this is the key difference)
-        // 4.  No more than elemPerCell (= numElem) in a group
+        // 4.  No more than elemPerGroup (= numElem) in a group
         ///////////////////////////////////////////////////////////////////////////////////
         
-        if (bcells.size() > 0) {
+        if (block_boundary_groups.size() > 0) {
           Kokkos::View<bool*> beenadded("been processed",numTotalElem);
           deep_copy(beenadded,false);
           
-          Kokkos::View<bool**> onbndry("onbndry",numTotalElem,bcells.size());
+          Kokkos::View<bool**> onbndry("onbndry",numTotalElem,block_boundary_groups.size());
           deep_copy(onbndry,false);
           
-          for (size_t bc=0; bc<bcells.size(); ++bc) {
-            auto eind = create_mirror_view(bcells[bc]->localElemID);
-            deep_copy(eind,bcells[bc]->localElemID);
+          for (size_t bc=0; bc<block_boundary_groups.size(); ++bc) {
+            auto eind = create_mirror_view(block_boundary_groups[bc]->localElemID);
+            deep_copy(eind,block_boundary_groups[bc]->localElemID);
             
             for (size_type e=0; e<eind.extent(0); ++e) {
               onbndry(eind(e),bc) = true;
@@ -526,31 +525,31 @@ void AssemblyManager<Node>::createCells() {
                   matches = false;
                 }
               }
-              if (matches && static_cast<LO>(newgroup.size()) < elemPerCell) {
+              if (matches && static_cast<LO>(newgroup.size()) < elemPerGroup) {
                 newgroup.push_back(j);
                 beenadded(j) = true;
                 numAdded++;
               }
             }
-            groups.push_back(newgroup);
+            elem_groups.push_back(newgroup);
           }
           
           // Re-order the groups from biggest to smallest
           // This is needed for certain parts of MrHyDE that assume the first
-          // cell contains the most elements
-          for (size_t grp=0; grp<groups.size()-1; ++grp) {
+          // group contains the most elements
+          for (size_t grp=0; grp<elem_groups.size()-1; ++grp) {
             size_t mxgrp_ind = grp;
-            size_t mxgrp = groups[grp].size();
+            size_t mxgrp = elem_groups[grp].size();
             bool perform_swap = false;
-            for (size_t grp2=grp+1; grp2<groups.size(); ++grp2) {
-              if (groups[grp2].size() > mxgrp) {
-                mxgrp = groups[grp2].size();
+            for (size_t grp2=grp+1; grp2<elem_groups.size(); ++grp2) {
+              if (elem_groups[grp2].size() > mxgrp) {
+                mxgrp = elem_groups[grp2].size();
                 mxgrp_ind = grp2;
                 perform_swap = true;
               }
             }
             if (perform_swap) {
-              groups[grp].swap(groups[mxgrp_ind]);
+              elem_groups[grp].swap(elem_groups[mxgrp_ind]);
             }
           }
         }
@@ -559,25 +558,25 @@ void AssemblyManager<Node>::createCells() {
             
             vector<LO> newgroup;
             
-            LO currElem = elemPerCell;
+            LO currElem = elemPerGroup;
             if (prog+currElem > numTotalElem){
               currElem = numTotalElem-prog;
             }
             for (LO e=prog; e<prog+currElem; ++e) {
               newgroup.push_back(e);
             }
-            groups.push_back(newgroup);
+            elem_groups.push_back(newgroup);
             prog += currElem;
           }
         }
         
       }
       
-      elemPerCell = std::min(elemPerCell, static_cast<LO>(groups[0].size()));
+      elemPerGroup = std::min(elemPerGroup, static_cast<LO>(elem_groups[0].size()));
       
-      // Add the cells correspondng to the groups
-      for (size_t grp=0; grp<groups.size(); ++grp) {
-        LO currElem = groups[grp].size();
+      // Add the groups correspondng to the groups
+      for (size_t grp=0; grp<elem_groups.size(); ++grp) {
+        LO currElem = elem_groups[grp].size();
         
         bool storeThis = true;
         if (static_cast<double>(processedElem)/static_cast<double>(numTotalElem) >= storageProportion) {
@@ -593,24 +592,24 @@ void AssemblyManager<Node>::createCells() {
         Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
         
         for (LO e=0; e<currElem; ++e) {
-          host_eIndex(e) = groups[grp][e];
+          host_eIndex(e) = elem_groups[grp][e];
         }
         Kokkos::deep_copy(eIndex,host_eIndex);
         Kokkos::deep_copy(host_eIndex2,host_eIndex);
         
         vector<LIDView> set_LIDs;
         for (size_t set=0; set<LIDs.size(); ++set) {
-          LIDView cellLIDs("LIDs on device",currElem,LIDs[set].extent(1));
+          LIDView groupLIDs("LIDs on device",currElem,LIDs[set].extent(1));
           auto currLIDs = LIDs[set];
           parallel_for("assembly copy nodes",
                        RangePolicy<AssemblyExec>(0,eIndex.extent(0)),
                        KOKKOS_LAMBDA (const int e ) {
             LO elemID = eIndex(e);
             for (size_type j=0; j<currLIDs.extent(1); j++) {
-              cellLIDs(e,j) = currLIDs(eIDs(elemID),j);
+              groupLIDs(e,j) = currLIDs(eIDs(elemID),j);
             }
           });
-          set_LIDs.push_back(cellLIDs);
+          set_LIDs.push_back(groupLIDs);
         }
         
         parallel_for("assembly copy nodes",
@@ -627,47 +626,48 @@ void AssemblyManager<Node>::createCells() {
         // Set the side information (soon to be removed)-
         vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
         for (size_t set=0; set<LIDs.size(); ++set) {
-          Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(set,b,host_eIndex2);
+          Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(set,block,host_eIndex2);
           set_sideinfo.push_back(sideinfo);
         }
         
-        blockcells.push_back(Teuchos::rcp(new cell(blockCellData, currnodes, eIndex,
-                                                   disc, storeThis)));
+        block_groups.push_back(Teuchos::rcp(new Group(blockGroupData, currnodes, eIndex,
+                                                     disc, storeThis)));
         
-        blockcells[blockcells.size()-1]->LIDs = set_LIDs;
-        blockcells[blockcells.size()-1]->createHostLIDs();
-        blockcells[blockcells.size()-1]->sideinfo = set_sideinfo;
+        size_t cindex = block_groups.size()-1;
+        block_groups[cindex]->LIDs = set_LIDs;
+        block_groups[cindex]->createHostLIDs();
+        block_groups[cindex]->sideinfo = set_sideinfo;
         
-        prog += elemPerCell;
+        prog += elemPerGroup;
         
       }
     }    
     else {
-      blockCellData = Teuchos::rcp( new CellMetaData());
+      blockGroupData = Teuchos::rcp( new GroupMetaData());
     }
     
-    cellData.push_back(blockCellData);
-    cells.push_back(blockcells);
-    boundaryCells.push_back(bcells);
+    groupData.push_back(blockGroupData);
+    groups.push_back(block_groups);
+    boundary_groups.push_back(block_boundary_groups);
     
   }
 }
 
 // =======================================================
-// Have the cells compute and store the basis functions
+// Have the groups compute and store the basis functions
 // at the quadrature points (if storage is turned on)
 // =======================================================
 
 template<class Node>
-void AssemblyManager<Node>::allocateCellStorage() {
+void AssemblyManager<Node>::allocateGroupStorage() {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::allocateCellStorage" << endl;
+      cout << "**** Starting AssemblyManager::allocateGroupStorage" << endl;
     }
   }
   bool keepnodes = false;
-  // There are a few scenarios where we want the cells to keep their nodes
+  // There are a few scenarios where we want the groups to keep their nodes
   if (settings->sublist("Solver").get<string>("initial type","L2-projection") == "interpolation") {
     keepnodes = true;
   }
@@ -678,23 +678,23 @@ void AssemblyManager<Node>::allocateCellStorage() {
     keepnodes = true;
   }
   
-  for (size_t b=0; b<cells.size(); ++b) {
-    for (size_t c=0; c<cells[b].size(); ++c) {
-      cells[b][c]->computeBasis(keepnodes);
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      groups[block][grp]->computeBasis(keepnodes);
     }
   }
   
-  for (size_t b=0; b<boundaryCells.size(); ++b) {
-    for (size_t c=0; c<boundaryCells[b].size(); ++c) {
-      boundaryCells[b][c]->computeBasis(keepnodes);
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      boundary_groups[block][grp]->computeBasis(keepnodes);
     }
   }
   
   
   // ==============================================
-  // Inform the user how many cells/bcells are on
+  // Inform the user how many groups are on
   // each processor and much memory is utilized by
-  // the cells/bcells
+  // the groups
   // ==============================================
   
   if (verbosity > 5) {
@@ -703,11 +703,11 @@ void AssemblyManager<Node>::allocateCellStorage() {
     size_t numelements = 0;
     double minsize = 1e100;
     double maxsize = 0.0;
-    for (size_t b=0; b<cells.size(); ++b) {
-      for (size_t c=0; c<cells[b].size(); ++c) {
-        numelements += cells[b][c]->numElem;
-        if (cells[b][c]->storeAll) {
-          auto wts = cells[b][c]->wts;
+    for (size_t block=0; block<groups.size(); ++block) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        numelements += groups[block][grp]->numElem;
+        if (groups[block][grp]->storeAll) {
+          auto wts = groups[block][grp]->wts;
           auto host_wts = create_mirror_view(wts);
           deep_copy(host_wts,wts);
           for (size_type e=0; e<host_wts.extent(0); ++e) {
@@ -729,11 +729,11 @@ void AssemblyManager<Node>::allocateCellStorage() {
     size_t numbndryelements = 0;
     double minbsize = 1e100;
     double maxbsize = 0.0;
-    for (size_t b=0; b<boundaryCells.size(); ++b) {
-      for (size_t c=0; c<boundaryCells[b].size(); ++c) {
-        numbndryelements += boundaryCells[b][c]->numElem;
-        if (boundaryCells[b][c]->storeAll) {
-          auto wts = boundaryCells[b][c]->wts;
+    for (size_t block=0; block<boundary_groups.size(); ++block) {
+      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+        numbndryelements += boundary_groups[block][grp]->numElem;
+        if (boundary_groups[block][grp]->storeAll) {
+          auto wts = boundary_groups[block][grp]->wts;
           auto host_wts = create_mirror_view(wts);
           deep_copy(host_wts,wts);
           for (size_type e=0; e<host_wts.extent(0); ++e) {
@@ -752,38 +752,38 @@ void AssemblyManager<Node>::allocateCellStorage() {
     cout << " - Processor " << Comm->getRank() << " max boundary element size: " << maxbsize << endl;
     
     // Volumetric ip/basis
-    size_t cellstorage = 0;
-    for (size_t b=0; b<cells.size(); ++b) {
-      for (size_t c=0; c<cells[b].size(); ++c) {
-        cellstorage += cells[b][c]->getVolumetricStorage();
+    size_t groupstorage = 0;
+    for (size_t block=0; block<groups.size(); ++block) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        groupstorage += groups[block][grp]->getVolumetricStorage();
       }
     }
-    double totalstorage = static_cast<double>(cellstorage)/1.0e6;
-    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store cell volumetric data" << endl;
+    double totalstorage = static_cast<double>(groupstorage)/1.0e6;
+    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store volumetric data" << endl;
     
     // Face ip/basis
     size_t facestorage = 0;
-    for (size_t b=0; b<cells.size(); ++b) {
-      for (size_t c=0; c<cells[b].size(); ++c) {
-        facestorage += cells[b][c]->getFaceStorage();
+    for (size_t block=0; block<groups.size(); ++block) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        facestorage += groups[block][grp]->getFaceStorage();
       }
     }
     totalstorage = static_cast<double>(facestorage)/1.0e6;
-    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store cell face data" << endl;
+    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store face data" << endl;
     
     // Boundary ip/basis
     size_t boundarystorage = 0;
-    for (size_t b=0; b<boundaryCells.size(); ++b) {
-      for (size_t c=0; c<boundaryCells[b].size(); ++c) {
-        boundarystorage += boundaryCells[b][c]->getStorage();
+    for (size_t block=0; block<boundary_groups.size(); ++block) {
+      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+        boundarystorage += boundary_groups[block][grp]->getStorage();
       }
     }
     totalstorage = static_cast<double>(boundarystorage)/1.0e6;
-    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store boundary cell data" << endl;
+    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store boundary data" << endl;
   }
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::allocateCellStorage" << endl;
+      cout << "**** Finished AssemblyManager::allocategroupstorage" << endl;
     }
   }
 }
@@ -803,40 +803,40 @@ void AssemblyManager<Node>::createWorkset() {
     }
   }
   
-  for (size_t b=0; b<cells.size(); b++) {
-    if (cells[b].size() > 0) {
+  for (size_t block=0; block<groups.size(); ++block) {
+    if (groups[block].size() > 0) {
       vector<int> info;
-      info.push_back(cellData[b]->dimension);
-      info.push_back((int)cellData[b]->numDiscParams);
-      info.push_back(cellData[b]->numElem);
-      info.push_back(cellData[b]->numip);
-      info.push_back(cellData[b]->numsideip);
+      info.push_back(groupData[block]->dimension);
+      info.push_back((int)groupData[block]->numDiscParams);
+      info.push_back(groupData[block]->numElem);
+      info.push_back(groupData[block]->numip);
+      info.push_back(groupData[block]->numsideip);
       info.push_back(phys->setnames.size());
       vector<size_t> numVars;
-      for (size_t set=0; set<cellData[b]->set_numDOF.size(); ++set) {
-        numVars.push_back(cellData[b]->set_numDOF[set].extent(0));
+      for (size_t set=0; set<groupData[block]->set_numDOF.size(); ++set) {
+        numVars.push_back(groupData[block]->set_numDOF[set].extent(0));
       }
       vector<Kokkos::View<string**,HostDevice> > bcs(phys->setnames.size());
       for (size_t set=0; set<phys->setnames.size(); ++set) {
-        Kokkos::View<string**,HostDevice> vbcs = disc->getVarBCs(set,b);
+        Kokkos::View<string**,HostDevice> vbcs = disc->getVarBCs(set,block);
         bcs[set] = vbcs;
       }
       wkset.push_back(Teuchos::rcp( new workset(info,
                                                 numVars,
                                                 isTransient,
-                                                disc->basis_types[b],
-                                                disc->basis_pointers[b],
+                                                disc->basis_types[block],
+                                                disc->basis_pointers[block],
                                                 params->discretized_param_basis,
-                                                mesh->getCellTopology(blocknames[b])) ) );
+                                                mesh->getCellTopology(blocknames[block])) ) );
       
-      wkset[b]->block = b;
-      wkset[b]->set_var_bcs = bcs;
-      wkset[b]->var_bcs = bcs[0];
+      wkset[block]->block = block;
+      wkset[block]->set_var_bcs = bcs;
+      wkset[block]->var_bcs = bcs[0];
     }
     else {
       wkset.push_back(Teuchos::rcp( new workset()));
-      wkset[b]->isInitialized = false;
-      wkset[b]->block = b;
+      wkset[block]->isInitialized = false;
+      wkset[block]->block = block;
     }
   }
   
@@ -910,7 +910,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
     }
   }
   
-  for (size_t block=0; block<cells.size(); block++) {
+  for (size_t block=0; block<groups.size(); block++) {
     this->setInitial(set,rhs,mass,useadjoint,lumpmass,scale,block,block);
   }
     
@@ -930,7 +930,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
 template<class Node>
 void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                                        const bool & lumpmass, const ScalarT & scale,
-                                       const size_t & block, const size_t & cellblock) {
+                                       const size_t & block, const size_t & groupblock) {
 
   typedef typename Node::execution_space LA_exec;
   using namespace std;
@@ -947,17 +947,17 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   bool lump_mass_ = lump_mass;
 
   wkset[block]->updatePhysicsSet(set);
-  cellData[block]->updatePhysicsSet(set);
+  groupData[block]->updatePhysicsSet(set);
   
   auto offsets = wkset[block]->offsets;
-  auto numDOF = cellData[block]->numDOF;
+  auto numDOF = groupData[block]->numDOF;
 
-  for (size_t e=0; e<cells[cellblock].size(); e++) {
+  for (size_t grp=0; grp<groups[groupblock].size(); ++grp) {
 
-    auto LIDs = cells[cellblock][e]->LIDs[set];
+    auto LIDs = groups[groupblock][grp]->LIDs[set];
     
-    auto localrhs = cells[cellblock][e]->getInitial(true, useadjoint);
-    auto localmass = cells[cellblock][e]->getMass();
+    auto localrhs = groups[groupblock][grp]->getInitial(true, useadjoint);
+    auto localmass = groups[groupblock][grp]->getMass();
 
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
@@ -1067,16 +1067,16 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   
   auto diag_view = diagMass->template getLocalView<LA_device>();
   
-  for (size_t b=0; b<cells.size(); b++) {
+  for (size_t block=0; block<groups.size(); ++block) {
     
-    auto offsets = wkset[b]->offsets;
-    auto numDOF = cellData[b]->numDOF;
+    auto offsets = wkset[block]->offsets;
+    auto numDOF = groupData[block]->numDOF;
     
-    for (size_t e=0; e<cells[b].size(); e++) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
       
-      auto LIDs = cells[b][e]->LIDs[set];
+      auto LIDs = groups[block][grp]->LIDs[set];
       
-      Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[b][e]->getWeightedMass(phys->masswts[set][b]);
+      Kokkos::View<ScalarT***,AssemblyDevice> localmass = groups[block][grp]->getWeightedMass(phys->masswts[set][block]);
       
       parallel_for("assembly insert Jac",
                    RangePolicy<LA_exec>(0,LIDs.extent(0)),
@@ -1173,37 +1173,37 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
   auto y_kv = y->template getLocalView<LA_device>();
   auto y_slice = Kokkos::subview(y_kv, Kokkos::ALL(), 0);
   
-  for (size_t b=0; b<cells.size(); b++) {
-    auto offsets = wkset[b]->offsets;
-    auto numDOF = cellData[b]->numDOF;
+  for (size_t block=0; block<groups.size(); ++block) {
+    auto offsets = wkset[block]->offsets;
+    auto numDOF = groupData[block]->numDOF;
     
-    for (size_t c=0; c<cells[b].size(); c++) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
       
-      auto cLIDs = cells[b][c]->LIDs[set];
+      auto cLIDs = groups[block][grp]->LIDs[set];
       
-      if (!cells[b][c]->storeMass) { //cellData->matrix_free) {
-        View_Sc2 twts("physical wts", cells[b][c]->numElem, cellData[b]->ref_ip.extent(0));
+      if (!groups[block][grp]->storeMass) { //groupData->matrix_free) {
+        View_Sc2 twts("physical wts", groups[block][grp]->numElem, groupData[block]->ref_ip.extent(0));
         vector<View_Sc4> tbasis;
-        if (cells[b][c]->storeAll) { // unlikely case, but enabled
-          tbasis = cells[b][c]->basis;
-          twts = cells[b][c]->wts;
+        if (groups[block][grp]->storeAll) { // unlikely case, but enabled
+          tbasis = groups[block][grp]->basis;
+          twts = groups[block][grp]->wts;
         }
         else {
-          disc->getPhysicalVolumetricBasis(cellData[b], cells[b][c]->nodes,
-                                           cells[b][c]->localElemID, twts,
-                                           cells[b][c]->orientation, tbasis, true, false);
+          disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes,
+                                           groups[block][grp]->localElemID, twts,
+                                           groups[block][grp]->orientation, tbasis, true, false);
         }
         
         for (size_type var=0; var<numDOF.extent(0); var++) {
-          int bindex = wkset[b]->usebasis[var];
+          int bindex = wkset[block]->usebasis[var];
           View_Sc4 cbasis = tbasis[bindex];
           
-          string btype = wkset[b]->basis_types[bindex];
+          string btype = wkset[block]->basis_types[bindex];
           auto off = subview(offsets,var,ALL());
-          ScalarT mwt = phys->masswts[set][b][var];
+          ScalarT mwt = phys->masswts[set][block][var];
           
           if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
-            parallel_for("cell get mass",
+            parallel_for("get mass",
                          RangePolicy<AssemblyExec>(0,twts.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
               for (size_type i=0; i<cbasis.extent(1); i++ ) {
@@ -1225,7 +1225,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
             });
           }
           else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
-            parallel_for("cell get mass",
+            parallel_for("get mass",
                          RangePolicy<AssemblyExec>(0,twts.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
               for (size_type i=0; i<cbasis.extent(1); i++ ) {
@@ -1252,9 +1252,9 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
       }
       else {
         
-        View_Sc3 curr_mass = cells[b][c]->local_mass[set];
+        View_Sc3 curr_mass = groups[block][grp]->local_mass[set];
         
-        parallel_for("cell get mass",
+        parallel_for("get mass",
                      RangePolicy<AssemblyExec>(0,curr_mass.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
           for (size_type var=0; var<numDOF.extent(0); var++) {
@@ -1300,17 +1300,17 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
   
   vector<vector<ScalarT> > normwts = phys->normwts[set];
   
-  for (size_t b=0; b<cells.size(); b++) {
+  for (size_t block=0; block<groups.size(); ++block) {
     
-    auto offsets = wkset[b]->offsets;
-    auto numDOF = cellData[b]->numDOF;
+    auto offsets = wkset[block]->offsets;
+    auto numDOF = groupData[block]->numDOF;
     
-    for (size_t e=0; e<cells[b].size(); e++) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
       
       for (size_type n=0; n<numDOF.extent(0); ++n) {
       
-        ScalarT val = normwts[b][n];
-        auto LIDs = cells[b][e]->LIDs[set];
+        ScalarT val = normwts[block][n];
+        auto LIDs = groups[block][grp]->LIDs[set];
         parallel_for("assembly insert Jac",
                      RangePolicy<LA_exec>(0,LIDs.extent(0)),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -1344,13 +1344,13 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
 template<class Node>
 void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & initial, const bool & useadjoint) {
 
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      LIDView_host LIDs = cells[b][e]->LIDs_host[set];
-      Kokkos::View<ScalarT**,AssemblyDevice> localinit = cells[b][e]->getInitial(false, useadjoint);
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      LIDView_host LIDs = groups[block][grp]->LIDs_host[set];
+      Kokkos::View<ScalarT**,AssemblyDevice> localinit = groups[block][grp]->getInitial(false, useadjoint);
       auto host_init = Kokkos::create_mirror_view(localinit);
       Kokkos::deep_copy(host_init,localinit);
-      int numElem = cells[b][e]->numElem;
+      int numElem = groups[block][grp]->numElem;
       for (int c=0; c<numElem; c++) {
         for( size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(c,row);
@@ -1382,13 +1382,13 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
   
   auto localMatrix = mass->getLocalMatrix();
   
-  for (size_t b=0; b<boundaryCells.size(); b++) {
-    wkset[b]->setTime(time);
-    for (size_t e=0; e<boundaryCells[b].size(); e++) {
-      int numElem = boundaryCells[b][e]->numElem;
-      auto LIDs = boundaryCells[b][e]->LIDs_host[set];
-      auto localrhs = boundaryCells[b][e]->getDirichlet(set);
-      auto localmass = boundaryCells[b][e]->getMass(set);
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    wkset[block]->setTime(time);
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      int numElem = boundary_groups[block][grp]->numElem;
+      auto LIDs = boundary_groups[block][grp]->LIDs_host[set];
+      auto localrhs = boundary_groups[block][grp]->getDirichlet(set);
+      auto localmass = boundary_groups[block][grp]->getMass(set);
       auto host_rhs = Kokkos::create_mirror_view(localrhs);
       auto host_mass = Kokkos::create_mirror_view(localmass);
       Kokkos::deep_copy(host_rhs,localrhs);
@@ -1430,11 +1430,11 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
     }
   }
   
-  // Loop over the cells to put ones on the diagonal for DOFs not on Dirichlet boundaries
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      auto LIDs = cells[b][e]->LIDs_host[set];
-      for (size_t c=0; c<cells[b][e]->numElem; c++) {
+  // Loop over the groups to put ones on the diagonal for DOFs not on Dirichlet boundaries
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      auto LIDs = groups[block][grp]->LIDs_host[set];
+      for (size_t c=0; c<groups[block][grp]->numElem; c++) {
         for( size_type row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(c,row);
           if (!isFixedDOF[set](rowIndex)) {
@@ -1479,14 +1479,14 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   
   auto localMatrix = mass->getLocalMatrix();
   
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      int numElem = cells[b][e]->numElem;
-      auto LIDs = cells[b][e]->LIDs_host[set];
-      // Get the requested IC from the cell
-      auto localrhs = cells[b][e]->getInitialFace(true);
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      int numElem = groups[block][grp]->numElem;
+      auto LIDs = groups[block][grp]->LIDs_host[set];
+      // Get the requested IC from the group
+      auto localrhs = groups[block][grp]->getInitialFace(true);
       // Create the mass matrix
-      auto localmass = cells[b][e]->getMassFace();
+      auto localmass = groups[block][grp]->getMassFace();
       auto host_rhs = Kokkos::create_mirror_view(localrhs);
       auto host_mass = Kokkos::create_mirror_view(localmass);
       Kokkos::deep_copy(host_rhs,localrhs);
@@ -1595,12 +1595,12 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
   }
 
   
-  for (size_t b=0; b<cells.size(); b++) {
-    if (cells[b].size() > 0) {
+  for (size_t block=0; block<groups.size(); ++block) {
+    if (groups[block].size() > 0) {
       this->assembleJacRes(set, compute_jacobian,
                            compute_sens, compute_disc_sens, res, J, isTransient,
                            current_time, useadjoint, store_adjPrev, num_active_params,
-                           is_final_time, b, deltat);
+                           is_final_time, block, deltat);
     }
   }
   
@@ -1623,7 +1623,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
                                            const bool & useadjoint, const bool & store_adjPrev,
                                            const int & num_active_params,
                                            const bool & is_final_time,
-                                           const int & b, const ScalarT & deltat) {
+                                           const int & block, const ScalarT & deltat) {
   
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
   
@@ -1657,7 +1657,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   // Determine if we can use the reduced memory version of assembly
   // This is the preferred approach, but not features are enabled yet
   bool reduce_memory = true;
-  if (!data_avail || useadjoint || cellData[b]->multiscale || compute_disc_sens || compute_sens) {
+  if (!data_avail || useadjoint || groupData[block]->multiscale || compute_disc_sens || compute_sens) {
     reduce_memory = false;
   }
   
@@ -1678,24 +1678,24 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     
   if (isTransient) {
     // TMW: tmp fix
-    auto butcher_c = Kokkos::create_mirror_view(wkset[b]->butcher_c);
-    Kokkos::deep_copy(butcher_c, wkset[b]->butcher_c);
-    ScalarT timeval = current_time + butcher_c(wkset[b]->current_stage)*deltat;
+    auto butcher_c = Kokkos::create_mirror_view(wkset[block]->butcher_c);
+    Kokkos::deep_copy(butcher_c, wkset[block]->butcher_c);
+    ScalarT timeval = current_time + butcher_c(wkset[block]->current_stage)*deltat;
     
-    wkset[b]->setTime(timeval);
-    wkset[b]->setDeltat(deltat);
-    wkset[b]->alpha = 1.0/deltat;
+    wkset[block]->setTime(timeval);
+    wkset[block]->setDeltat(deltat);
+    wkset[block]->alpha = 1.0/deltat;
   }
   
-  wkset[b]->isTransient = isTransient;
-  wkset[b]->isAdjoint = useadjoint;
+  wkset[block]->isTransient = isTransient;
+  wkset[block]->isAdjoint = useadjoint;
   
-  int numElem = cellData[b]->numElem;
-  int numDOF = cells[b][0]->LIDs[set].extent(1);
+  int numElem = groupData[block]->numElem;
+  int numDOF = groups[block][0]->LIDs[set].extent(1);
   
   int numParamDOF = 0;
   if (compute_disc_sens) {
-    numParamDOF = cells[b][0]->paramLIDs.extent(1);
+    numParamDOF = groups[block][0]->paramLIDs.extent(1);
   }
   
   // This data needs to be available on Host and Device
@@ -1722,20 +1722,20 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   // Volume contribution
   /////////////////////////////////////////////////////////////////////////////
   
-  // Note: Cannot parallelize over cells since data structures are re-used
+  // Note: Cannot parallelize over groups since data structures are re-used
   
-  for (size_t e=0; e<cells[b].size(); e++) {
+  for (size_t grp=0; grp<groups[block].size(); ++grp) {
 
-    wkset[b]->localEID = e;
+    wkset[block]->localEID = grp;
     
-    if (isTransient && useadjoint && !cells[b][0]->cellData->multiscale) {
+    if (isTransient && useadjoint && !groups[block][0]->groupData->multiscale) {
       if (is_final_time) {
-        cells[b][e]->resetAdjPrev(set,0.0);
+        groups[block][grp]->resetAdjPrev(set,0.0);
       }
     }
  
     /////////////////////////////////////////////////////////////////////////////
-    // Compute the local residual and Jacobian on this cell
+    // Compute the local residual and Jacobian on this group
     /////////////////////////////////////////////////////////////////////////////
     
     bool fixJacDiag = false;
@@ -1748,19 +1748,20 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       //////////////////////////////////////////////////////////////
       
       // Volumetric contribution
-      if (assemble_volume_terms[set][b]) {
-        if (cellData[b]->multiscale) {
-          int sgindex = cells[b][e]->subgrid_model_index[cells[b][e]->subgrid_model_index.size()-1];
-          cells[b][e]->subgridModels[sgindex]->subgridSolver(cells[b][e]->u[set], cells[b][e]->phi[set], wkset[b]->time, isTransient, useadjoint,
-                                                             compute_jacobian, compute_sens, num_active_params,
-                                                             compute_disc_sens, false,
-                                                             *(wkset[b]), cells[b][e]->subgrid_usernum, 0,
-                                                             cells[b][e]->subgradient, store_adjPrev);
+      if (assemble_volume_terms[set][block]) {
+        if (groupData[block]->multiscale) {
+          int sgindex = groups[block][grp]->subgrid_model_index[groups[block][grp]->subgrid_model_index.size()-1];
+          groups[block][grp]->subgridModels[sgindex]->subgridSolver(groups[block][grp]->u[set], groups[block][grp]->phi[set], 
+                                                                    wkset[block]->time, isTransient, useadjoint,
+                                                                    compute_jacobian, compute_sens, num_active_params,
+                                                                    compute_disc_sens, false,
+                                                                    *(wkset[block]), groups[block][grp]->subgrid_usernum, 0,
+                                                                    groups[block][grp]->subgradient, store_adjPrev);
           fixJacDiag = true;
         }
         else {
-          cells[b][e]->updateWorkset(seedwhat);
-          phys->volumeResidual(set,b);
+          groups[block][grp]->updateWorkset(seedwhat);
+          phys->volumeResidual(set,block);
         }
       }
       
@@ -1768,14 +1769,14 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       // Edge/face contribution
       ///////////////////////////////////////////////////////////////////////////
       
-      if (assemble_face_terms[set][b]) {
-        if (cellData[b]->multiscale) {
+      if (assemble_face_terms[set][block]) {
+        if (groupData[block]->multiscale) {
           // do nothing
         }
         else {
-          for (size_t s=0; s<cellData[b]->numSides; s++) {
-            cells[b][e]->updateWorksetFace(s);
-            phys->faceResidual(set,b);
+          for (size_t s=0; s<groupData[block]->numSides; s++) {
+            groups[block][grp]->updateWorksetFace(s);
+            phys->faceResidual(set,block);
           }
         }
       }
@@ -1788,7 +1789,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     
     if (reduce_memory) { // skip local_res and local_J
       this->scatter(set, J_kcrs, res_view,
-                    cells[b][e]->LIDs[set], cells[b][e]->paramLIDs, b,
+                    groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, block,
                     compute_jacobian, compute_sens, compute_disc_sens, useadjoint);
     }
     else { // fill local_res and local_J and then scatter
@@ -1801,34 +1802,34 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       // Use AD residual to update local Jacobian
       if (compute_jacobian) {
         if (compute_disc_sens) {
-          cells[b][e]->updateParamJac(local_J);
+          groups[block][grp]->updateParamJac(local_J);
         }
         else {
-          cells[b][e]->updateJac(useadjoint, local_J);
+          groups[block][grp]->updateJac(useadjoint, local_J);
         }
       }
       
       if (compute_jacobian && fixJacDiag) {
-        cells[b][e]->fixDiagJac(local_J, local_res);
+        groups[block][grp]->fixDiagJac(local_J, local_res);
       }
       
       // Update the local residual
       
       if (useadjoint) {
-        cells[b][e]->updateAdjointRes(compute_jacobian, isTransient,
+        groups[block][grp]->updateAdjointRes(compute_jacobian, isTransient,
                                       false, store_adjPrev,
                                       local_J, local_res);
       }
       else {
-        cells[b][e]->updateRes(compute_sens, local_res);
+        groups[block][grp]->updateRes(compute_sens, local_res);
       }
       
       // Now scatter from local_res and local_J
       
       if (data_avail) {
-        this->scatterRes(res_view, local_res, cells[b][e]->LIDs[set]);
+        this->scatterRes(res_view, local_res, groups[block][grp]->LIDs[set]);
         if (compute_jacobian) {
-          this->scatterJac(set, J_kcrs, local_J, cells[b][e]->LIDs[set], cells[b][e]->paramLIDs, compute_disc_sens);
+          this->scatterJac(set, J_kcrs, local_J, groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, compute_disc_sens);
         }
       }
       else {
@@ -1839,18 +1840,18 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         Kokkos::deep_copy(local_res_ladev,local_res);
         
         if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          this->scatterRes(res_view, local_res_ladev, cells[b][e]->LIDs_host[set]);
+          this->scatterRes(res_view, local_res_ladev, groups[block][grp]->LIDs_host[set]);
           if (compute_jacobian) {
-            this->scatterJac(set, J_kcrs, local_J_ladev, cells[b][e]->LIDs_host[set], cells[b][e]->paramLIDs_host, compute_disc_sens);
+            this->scatterJac(set, J_kcrs, local_J_ladev, groups[block][grp]->LIDs_host[set], groups[block][grp]->paramLIDs_host, compute_disc_sens);
           }
           
         }
         else { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
-          auto LIDs_dev = Kokkos::create_mirror(LA_exec(), cells[b][e]->LIDs[set]);
-          auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), cells[b][e]->paramLIDs);
-          Kokkos::deep_copy(LIDs_dev,cells[b][e]->LIDs[set]);
-          Kokkos::deep_copy(paramLIDs_dev,cells[b][e]->paramLIDs);
+          auto LIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->LIDs[set]);
+          auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->paramLIDs);
+          Kokkos::deep_copy(LIDs_dev,groups[block][grp]->LIDs[set]);
+          Kokkos::deep_copy(paramLIDs_dev,groups[block][grp]->paramLIDs);
           
           this->scatterRes(res_view, local_res_ladev, LIDs_dev);
           if (compute_jacobian) {
@@ -1861,13 +1862,13 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       }
     }
     
-  } // cell loop
+  } // group loop
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  if (assemble_boundary_terms[set][b]) {
+  if (assemble_boundary_terms[set][block]) {
     
     if (!reduce_memory) {
       if (compute_sens) {
@@ -1885,25 +1886,23 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       }
     }
     
-    for (size_t e=0; e < boundaryCells[b].size(); e++) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
       
-      if (boundaryCells[b][e]->numElem > 0) {
+      if (boundary_groups[block][grp]->numElem > 0) {
         
         /////////////////////////////////////////////////////////////////////////////
-        // Compute the local residual and Jacobian on this cell
+        // Compute the local residual and Jacobian on this boundary group
         /////////////////////////////////////////////////////////////////////////////
-        wkset[b]->resetResidual();
-        boundaryCells[b][e]->updateWorkset(seedwhat);
+        wkset[block]->resetResidual();
+        boundary_groups[block][grp]->updateWorkset(seedwhat);
         
-        if (!cellData[b]->multiscale) {
+        if (!groupData[block]->multiscale) {
           Teuchos::TimeMonitor localtimer(*phystimer);
-        //  boundaryCells[b][e]->updateWorkset(seedwhat);
-          phys->boundaryResidual(set,b);
+          phys->boundaryResidual(set,block);
         }
         
         {
-        //  boundaryCells[b][e]->updateWorkset(seedwhat);
-          phys->fluxConditions(set,b);
+          phys->fluxConditions(set,block);
         }
         ///////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
@@ -1911,7 +1910,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         
         if (reduce_memory) { // skip local_res and local_J
           this->scatter(set, J_kcrs, res_view,
-                        boundaryCells[b][e]->LIDs[set], boundaryCells[b][e]->paramLIDs, b,
+                        boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs, block,
                         compute_jacobian, compute_sens, compute_disc_sens, useadjoint);
         }
         else { // fill local_res and local_J and then scatter
@@ -1924,22 +1923,22 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           // Use AD residual to update local Jacobian
           if (compute_jacobian) {
             if (compute_disc_sens) {
-              boundaryCells[b][e]->updateParamJac(local_J);
+              boundary_groups[block][grp]->updateParamJac(local_J);
             }
             else {
-              boundaryCells[b][e]->updateJac(useadjoint, local_J);
+              boundary_groups[block][grp]->updateJac(useadjoint, local_J);
             }
           }
           
           // Update the local residual (forward mode)
           if (!useadjoint) {
-            boundaryCells[b][e]->updateRes(compute_sens, local_res);
+            boundary_groups[block][grp]->updateRes(compute_sens, local_res);
           }
          
           if (data_avail) {
-            this->scatterRes(res_view, local_res, boundaryCells[b][e]->LIDs[set]);
+            this->scatterRes(res_view, local_res, boundary_groups[block][grp]->LIDs[set]);
             if (compute_jacobian) {
-              this->scatterJac(set, J_kcrs, local_J, boundaryCells[b][e]->LIDs[set], boundaryCells[b][e]->paramLIDs, compute_disc_sens);
+              this->scatterJac(set, J_kcrs, local_J, boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs, compute_disc_sens);
             }
           }
           else {
@@ -1950,19 +1949,19 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
             Kokkos::deep_copy(local_res_ladev,local_res);
             
             if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-              this->scatterRes(res_view, local_res_ladev, boundaryCells[b][e]->LIDs_host[set]);
+              this->scatterRes(res_view, local_res_ladev, boundary_groups[block][grp]->LIDs_host[set]);
               if (compute_jacobian) {
                 this->scatterJac(set, J_kcrs, local_J_ladev,
-                                 boundaryCells[b][e]->LIDs_host[set], boundaryCells[b][e]->paramLIDs_host,
+                                 boundary_groups[block][grp]->LIDs_host[set], boundary_groups[block][grp]->paramLIDs_host,
                                  compute_disc_sens);
               }
             }
             else { // LA_device = CUDA, AssemblyDevice = Host
               // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
-              auto LIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->LIDs[set]);
-              auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), boundaryCells[b][e]->paramLIDs);
-              Kokkos::deep_copy(LIDs_dev,boundaryCells[b][e]->LIDs[set]);
-              Kokkos::deep_copy(paramLIDs_dev,boundaryCells[b][e]->paramLIDs);
+              auto LIDs_dev = Kokkos::create_mirror(LA_exec(), boundary_groups[block][grp]->LIDs[set]);
+              auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), boundary_groups[block][grp]->paramLIDs);
+              Kokkos::deep_copy(LIDs_dev,boundary_groups[block][grp]->LIDs[set]);
+              Kokkos::deep_copy(paramLIDs_dev,boundary_groups[block][grp]->paramLIDs);
               
               this->scatterRes(res_view, local_res_ladev, LIDs_dev);
               if (compute_jacobian) {
@@ -2057,49 +2056,49 @@ void AssemblyManager<Node>::dofConstraints(const size_t & set, matrix_RCP & J, v
 
 template<class Node>
 void AssemblyManager<Node>::resetPrevSoln(const size_t & set) {
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      cells[b][e]->resetPrevSoln(set);
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      groups[block][grp]->resetPrevSoln(set);
     }
   }
 }
 
 template<class Node>
 void AssemblyManager<Node>::revertSoln(const size_t & set) {
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      cells[b][e]->revertSoln(set);
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      groups[block][grp]->revertSoln(set);
     }
   }
 }
 
 template<class Node>
 void AssemblyManager<Node>::resetStageSoln(const size_t & set) {
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      cells[b][e]->resetStageSoln(set);
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      groups[block][grp]->resetStageSoln(set);
     }
   }
 }
 
 template<class Node>
 void AssemblyManager<Node>::updateStageNumber(const int & stage) {
-  for (size_t b=0; b<wkset.size(); b++) {
-    wkset[b]->setStage(stage);
+  for (size_t block=0; block<wkset.size(); ++block) {
+    wkset[block]->setStage(stage);
   }
 }
 
 template<class Node>
 void AssemblyManager<Node>::updateStageSoln(const size_t & set)  {
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t e=0; e<cells[b].size(); e++) {
-      cells[b][e]->updateStageSoln(set);
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      groups[block][grp]->updateStageSoln(set);
     }
   }
 }
 
 // ========================================================================================
-// Gather local solutions on cells.
+// Gather local solutions on groups.
 // This intermediate function allows us to copy the data from LA_device to AssemblyDevice only once (if necessary)
 // ========================================================================================
 
@@ -2140,36 +2139,38 @@ void AssemblyManager<Node>::performGather(const size_t & set, ViewType vec_dev, 
   Kokkos::View<int**,AssemblyDevice> offsets;
   LIDView LIDs;
   
-  for (size_t b=0; b<cells.size(); b++) {
-    for (size_t c=0; c<cells[b].size(); c++) {
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
       switch(type) {
         case 0 :
-          LIDs = cells[b][c]->LIDs[set];
-          numDOF = cells[b][c]->cellData->numDOF;
-          data = cells[b][c]->u[set];
-          offsets = wkset[b]->offsets;
+          LIDs = groups[block][grp]->LIDs[set];
+          numDOF = groups[block][grp]->groupData->numDOF;
+          data = groups[block][grp]->u[set];
+          offsets = wkset[block]->offsets;
           break;
         case 1 : // deprecated (u_dot)
           break;
         case 2 :
-          LIDs = cells[b][c]->LIDs[set];
-          numDOF = cells[b][c]->cellData->numDOF;
-          data = cells[b][c]->phi[set];
-          offsets = wkset[b]->offsets;
+          LIDs = groups[block][grp]->LIDs[set];
+          numDOF = groups[block][grp]->groupData->numDOF;
+          data = groups[block][grp]->phi[set];
+          offsets = wkset[block]->offsets;
           break;
         case 3 : // deprecated (phi_dot)
           break;
         case 4:
-          LIDs = cells[b][c]->paramLIDs;
-          numDOF = cells[b][c]->cellData->numParamDOF;
-          data = cells[b][c]->param;
-          offsets = wkset[b]->paramoffsets;
+          LIDs = groups[block][grp]->paramLIDs;
+          numDOF = groups[block][grp]->groupData->numParamDOF;
+          data = groups[block][grp]->param;
+          offsets = wkset[block]->paramoffsets;
           break;
         default :
           cout << "ERROR - NOTHING WAS GATHERED" << endl;
       }
       
-      parallel_for("assembly gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+      parallel_for("assembly gather",
+                   RangePolicy<AssemblyExec>(0,data.extent(0)), 
+                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type var=0; var<offsets.extent(0); var++) {
           for(int dof=0; dof<numDOF(var); dof++ ) {
             data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
@@ -2189,44 +2190,46 @@ template<class Node>
 template<class ViewType>
 void AssemblyManager<Node>::performBoundaryGather(const size_t & set, ViewType vec_dev, const int & type) {
   
-  for (size_t b=0; b<boundaryCells.size(); b++) {
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
     
     Kokkos::View<LO*,AssemblyDevice> numDOF;
     Kokkos::View<ScalarT***,AssemblyDevice> data;
     Kokkos::View<int**,AssemblyDevice> offsets;
     LIDView LIDs;
     
-    for (size_t c=0; c < boundaryCells[b].size(); c++) {
-      if (boundaryCells[b][c]->numElem > 0) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      if (boundary_groups[block][grp]->numElem > 0) {
         
         switch(type) {
           case 0 :
-            LIDs = boundaryCells[b][c]->LIDs[set];
-            numDOF = boundaryCells[b][c]->cellData->numDOF;
-            data = boundaryCells[b][c]->u[set];
-            offsets = wkset[b]->offsets;
+            LIDs = boundary_groups[block][grp]->LIDs[set];
+            numDOF = boundary_groups[block][grp]->groupData->numDOF;
+            data = boundary_groups[block][grp]->u[set];
+            offsets = wkset[block]->offsets;
             break;
           case 1 : // deprecated (u_dot)
             break;
           case 2 :
-            LIDs = boundaryCells[b][c]->LIDs[set];
-            numDOF = boundaryCells[b][c]->cellData->numDOF;
-            data = boundaryCells[b][c]->phi[set];
-            offsets = wkset[b]->offsets;
+            LIDs = boundary_groups[block][grp]->LIDs[set];
+            numDOF = boundary_groups[block][grp]->groupData->numDOF;
+            data = boundary_groups[block][grp]->phi[set];
+            offsets = wkset[block]->offsets;
             break;
           case 3 : // deprecated (phi_dot)
             break;
           case 4:
-            LIDs = boundaryCells[b][c]->paramLIDs;
-            numDOF = boundaryCells[b][c]->cellData->numParamDOF;
-            data = boundaryCells[b][c]->param;
-            offsets = wkset[b]->paramoffsets;
+            LIDs = boundary_groups[block][grp]->paramLIDs;
+            numDOF = boundary_groups[block][grp]->groupData->numParamDOF;
+            data = boundary_groups[block][grp]->param;
+            offsets = wkset[block]->paramoffsets;
             break;
           default :
             cout << "ERROR - NOTHING WAS GATHERED" << endl;
         }
         
-        parallel_for("assembly boundary gather",RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+        parallel_for("assembly boundary gather",
+                     RangePolicy<AssemblyExec>(0,data.extent(0)), 
+                     KOKKOS_LAMBDA (const int elem ) {
           for (size_t var=0; var<numDOF.extent(0); var++) {
             for(int dof=0; dof<numDOF(var); dof++ ) {
               data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
@@ -2369,7 +2372,7 @@ void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewT
   auto fixedDOF = isFixedDOF[set];
   auto res = wkset[block]->res;
   auto offsets = wkset[block]->offsets;
-  auto numDOF = cellData[block]->numDOF;
+  auto numDOF = groupData[block]->numDOF;
   bool compute_sens_ = compute_sens;
 #ifndef MrHyDE_NO_AD
   bool lump_mass_ = lump_mass, isAdjoint_ = isAdjoint, compute_jacobian_ = compute_jacobian;
@@ -2472,7 +2475,7 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
   for (size_t block=0; block<blocknames.size(); ++block) {
     if (wkset[block]->isInitialized) {
       wkset[block]->updatePhysicsSet(set);
-      cellData[block]->updatePhysicsSet(set);
+      groupData[block]->updatePhysicsSet(set);
     }
   }
 }
@@ -2484,8 +2487,8 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
 template<class Node>
 void AssemblyManager<Node>::purgeMemory() {
   
-  //for (size_t block=0; block<cellData.size(); ++block) {
-  //  cellData[block]->clearPhysicalData();
+  //for (size_t block=0; block<groupData.size(); ++block) {
+  //  groupData[block]->clearPhysicalData();
   //}
   
 }

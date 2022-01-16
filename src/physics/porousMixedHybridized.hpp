@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef POROUSMIXEDHYBRID_H
-#define POROUSMIXEDHYBRID_H
+#ifndef MRHYDE_POROUSMIXEDHYBRID_H
+#define MRHYDE_POROUSMIXEDHYBRID_H
 
 #include "physicsBase.hpp"
 

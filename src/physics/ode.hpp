@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef ODE_H
-#define ODE_H
+#ifndef MRHYDE_ODE_H
+#define MRHYDE_ODE_H
 
 #include "physicsBase.hpp"
 

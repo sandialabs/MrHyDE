@@ -17,8 +17,8 @@
  \author Created by T. Wildey
  */
 
-#ifndef MESHINTERFACE_H
-#define MESHINTERFACE_H
+#ifndef MRHYDE_MESHINTERFACE_H
+#define MRHYDE_MESHINTERFACE_H
 
 #include "trilinos.hpp"
 #include "Panzer_STK_MeshFactory.hpp"
@@ -33,9 +33,9 @@
 
 #include "preferences.hpp"
 #include "physicsInterface.hpp"
-#include "cell.hpp"
+#include "group.hpp"
 #include "data.hpp"
-#include "boundaryCell.hpp"
+#include "boundaryGroup.hpp"
 
 namespace MrHyDE {
   
@@ -99,8 +99,8 @@ namespace MrHyDE {
      * This function calls the functions associated with microstructure and sets the data in cells and boundary cells.
      */
     
-    void setMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
-                     vector<vector<Teuchos::RCP<BoundaryCell>>> & bcells);
+    void setMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
+                     vector<vector<Teuchos::RCP<BoundaryGroup>>> & boundary_groups);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -109,8 +109,8 @@ namespace MrHyDE {
      * This function eads in a microstructure from a file and sets the data in the cells and boundary cells.
      */
     
-    void importMeshData(vector<vector<Teuchos::RCP<cell> > > & cells,
-                        vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
+    void importMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
+                        vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -170,8 +170,8 @@ namespace MrHyDE {
      */
     
     void importNewMicrostructure(int & randSeed, View_Sc2 seeds,
-                                 vector<vector<Teuchos::RCP<cell> > > & cells,
-                                 vector<vector<Teuchos::RCP<BoundaryCell> > > & bcells);
+                                 vector<vector<Teuchos::RCP<Group> > > & groups,
+                                 vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups);
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////

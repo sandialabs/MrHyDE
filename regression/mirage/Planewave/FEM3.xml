@@ -12,6 +12,7 @@
     <Parameter name="use direct solver" type="bool" value="false"/>
     <Parameter name="use operator splitting" type="bool" value="true"/>
     <Parameter name="store basis functions" type="bool" value="true"/>
+    <Parameter name="storage proportion" type="double" value="1.0"/>
     <Parameter name="matrix free" type="bool" value="true"/>
     <Parameter name="preconditioner type" type="string" value="Ifpack2"/>
   </ParameterList>

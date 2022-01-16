@@ -15,6 +15,7 @@
 #include "split_mpi_communicators.hpp"
 #include "subgridDtN.hpp"
 #include "subgridDtN2.hpp"
+#include <random>
 
 using namespace MrHyDE;
 
@@ -25,9 +26,9 @@ using namespace MrHyDE;
 MultiscaleManager::MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
                                      Teuchos::RCP<MeshInterface> & mesh_,
                                      Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                                     vector<vector<Teuchos::RCP<cell> > > & cells_,
+                                     vector<vector<Teuchos::RCP<Group> > > & groups_,
                                      vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
-MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManagers(macro_functionManagers_) {
+MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManagers(macro_functionManagers_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -179,7 +180,7 @@ MacroComm(MacroComm_), settings(settings_), cells(cells_), macro_functionManager
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Set the information from the macro-scale that does not depend on the specific cell
+// Set the information from the macro-scale that does not depend on the specific group
 ////////////////////////////////////////////////////////////////////////////////
 
 void MultiscaleManager::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_pointers,
@@ -202,13 +203,13 @@ void MultiscaleManager::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_po
     subgridModels[j]->macro_paramnames = macro_paramnames;
     subgridModels[j]->macro_disc_paramnames = macro_disc_paramnames;
     subgridModels[j]->subgrid_static = subgrid_static;
-    subgridModels[j]->macrosidenames = cells[0][0]->cellData->sidenames;
+    subgridModels[j]->macrosidenames = groups[0][0]->groupData->sidenames;
   }
   
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Initial assignment of subgrid models to cells
+// Initial assignment of subgrid models to groups
 ////////////////////////////////////////////////////////////////////////////////
 
 ScalarT MultiscaleManager::initialize() {
@@ -222,31 +223,30 @@ ScalarT MultiscaleManager::initialize() {
   }
   ScalarT my_cost = 0.0;
   size_t numusers = 0;
-  for (size_t b=0; b<cells.size(); b++) {
+  for (size_t block=0; block<groups.size(); ++block) {
     
     bool uses_subgrid = false;
     for (size_t s=0; s<subgridModels.size(); s++) {
-      if (subgridModels[s]->macro_block == b) {
+      if (subgridModels[s]->macro_block == block) {
         uses_subgrid = true;
       }
     }
     if (uses_subgrid) {
-      for (size_t e=0; e<cells[b].size(); e++) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
         
-        cells[b][e]->updateWorkset(0);
+        groups[block][grp]->updateWorkset(0);
         
         vector<int> sgvotes(subgridModels.size(),0);
         
         for (size_t s=0; s<subgridModels.size(); s++) {
-          if (subgridModels[s]->macro_block == b) {
+          if (subgridModels[s]->macro_block == block) {
             std::stringstream ss;
             ss << s;
-            //auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
-            auto usagecheck = macro_functionManagers[b]->evaluate(subgridModels[s]->name + " usage","ip");
+            auto usagecheck = macro_functionManagers[block]->evaluate(subgridModels[s]->name + " usage","ip");
             
             Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
-                                                                  macro_functionManagers[b]->numElem,
-                                                                  macro_functionManagers[b]->numip);
+                                                                  macro_functionManagers[block]->numElem,
+                                                                  macro_functionManagers[block]->numip);
                                                                   
             parallel_for("assembly copy LIDs",
                          RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
@@ -262,7 +262,7 @@ ScalarT MultiscaleManager::initialize() {
             
             auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
             Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
-            for (size_t p=0; p<cells[b][e]->numElem; p++) {
+            for (size_t p=0; p<groups[block][grp]->numElem; p++) {
               for (size_t j=0; j<host_usagecheck.extent(1); j++) {
                 if (host_usagecheck(p,j) >= 1.0) {
                   sgvotes[s] += 1;
@@ -282,27 +282,27 @@ ScalarT MultiscaleManager::initialize() {
         }
 
         size_t sgusernum = 0;
-        if (subgrid_static) { // only add each cell to one subgrid model
+        if (subgrid_static) { // only add each group to one subgrid model
           
-          sgusernum = subgridModels[sgwinner]->addMacro(cells[b][e]->nodes,
-                                                        cells[b][e]->sideinfo[0],
-                                                        cells[b][e]->LIDs[0],
-                                                        cells[b][e]->orientation);
+          sgusernum = subgridModels[sgwinner]->addMacro(groups[block][grp]->nodes,
+                                                        groups[block][grp]->sideinfo[0],
+                                                        groups[block][grp]->LIDs[0],
+                                                        groups[block][grp]->orientation);
           
         }
         else {
-          for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this cell info to all of them (sgusernum is same for all)
-            sgusernum = subgridModels[s]->addMacro(cells[b][e]->nodes,
-                                                   cells[b][e]->sideinfo[0],
-                                                   cells[b][e]->LIDs[0],
-                                                   cells[b][e]->orientation);
+          for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this group info to all of them (sgusernum is same for all)
+            sgusernum = subgridModels[s]->addMacro(groups[block][grp]->nodes,
+                                                   groups[block][grp]->sideinfo[0],
+                                                   groups[block][grp]->LIDs[0],
+                                                   groups[block][grp]->orientation);
           }
         }
-        cells[b][e]->subgridModels = subgridModels;
-        cells[b][e]->subgrid_model_index.push_back(sgwinner);
-        cells[b][e]->subgrid_usernum = sgusernum;
-        cells[b][e]->cellData->multiscale = true;
-        my_cost = subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
+        groups[block][grp]->subgridModels = subgridModels;
+        groups[block][grp]->subgrid_model_index.push_back(sgwinner);
+        groups[block][grp]->subgrid_usernum = sgusernum;
+        groups[block][grp]->groupData->multiscale = true;
+        my_cost = subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
         numusers += 1;
       }
     }
@@ -324,11 +324,11 @@ ScalarT MultiscaleManager::initialize() {
     for (size_t s=0; s<subgridModels.size(); s++) {
       vector<bool> active(numusers,false);
       size_t numactive = 0;
-      for (size_t b=0; b<cells.size(); b++) {
-        for (size_t e=0; e<cells[b].size(); e++) {
-          //for (int c=0; c<cells[b][e]->numElem; c++) {
-          if (cells[b][e]->subgrid_model_index[0] == s) {
-            size_t usernum = cells[b][e]->subgrid_usernum;
+      for (size_t block=0; block<groups.size(); ++block) {
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          //for (int c=0; c<groups[block][grp]->numElem; c++) {
+          if (groups[block][grp]->subgrid_model_index[0] == s) {
+            size_t usernum = groups[block][grp]->subgrid_usernum;
             active[usernum] = true;
             numactive += 1;
           }
@@ -379,7 +379,7 @@ ScalarT MultiscaleManager::initialize() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Re-assignment of subgrid models to cells
+// Re-assignment of subgrid models to groups
 ////////////////////////////////////////////////////////////////////////////////
 
 ScalarT MultiscaleManager::update() {
@@ -389,14 +389,14 @@ ScalarT MultiscaleManager::update() {
   ScalarT my_cost = 1.0;
   
   if (subgrid_static) {
-    for (size_t b=0; b<cells.size(); b++) {
-      for (size_t e=0; e<cells[b].size(); e++) {
-        if (cells[b][e]->cellData->multiscale) {
-          //int numElem = cells[b][e]->numElem;
+    for (size_t block=0; block<groups.size(); ++block) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        if (groups[block][grp]->groupData->multiscale) {
+          //int numElem = groups[block][grp]->numElem;
           //for (int c=0;c<numElem; c++) {
-          int nummod = cells[b][e]->subgrid_model_index.size();
-          int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
-          cells[b][e]->subgrid_model_index.push_back(oldmodel);
+          int nummod = groups[block][grp]->subgrid_model_index.size();
+          int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
+          groups[block][grp]->subgrid_model_index.push_back(oldmodel);
           my_cost += subgridModels[oldmodel]->cost_estimate;
           //}
         }
@@ -404,23 +404,22 @@ ScalarT MultiscaleManager::update() {
     }
   }
   else {
-    for (size_t b=0; b<cells.size(); b++) {
-      for (size_t e=0; e<cells[b].size(); e++) {
-        if (cells[b][e]->cellData->multiscale) {
+    for (size_t block=0; block<groups.size(); ++block) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        if (groups[block][grp]->groupData->multiscale) {
           
-          cells[b][e]->updateWorkset(0);
+          groups[block][grp]->updateWorkset(0);
           
           vector<int> sgvotes(subgridModels.size(),0);
           
           for (size_t s=0; s<subgridModels.size(); s++) {
-            if (subgridModels[s]->macro_block == b) {
+            if (subgridModels[s]->macro_block == block) {
               std::stringstream ss;
               ss << s;
-              //auto usagecheck = macro_functionManagers[b]->evaluate("Subgrid " + ss.str() + " usage","ip");
-              auto usagecheck = macro_functionManagers[b]->evaluate(subgridModels[s]->name + " usage","ip");
+              auto usagecheck = macro_functionManagers[block]->evaluate(subgridModels[s]->name + " usage","ip");
               Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
-                                                                    macro_functionManagers[b]->numElem,
-                                                                    macro_functionManagers[b]->numip);
+                                                                    macro_functionManagers[block]->numElem,
+                                                                    macro_functionManagers[block]->numip);
                                                                     
               parallel_for("assembly copy LIDs",
                            RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
@@ -437,7 +436,7 @@ ScalarT MultiscaleManager::update() {
               auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
               Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
               
-              for (size_t p=0; p<cells[b][e]->numElem; p++) {
+              for (size_t p=0; p<groups[block][grp]->numElem; p++) {
                 for (size_t j=0; j<host_usagecheck.extent(1); j++) {
                   if (host_usagecheck(p,j) >= 1.0) {
                     sgvotes[s] += 1;
@@ -458,11 +457,11 @@ ScalarT MultiscaleManager::update() {
           
           //for (int c=0;c<numElem; c++) {
           
-          int nummod = cells[b][e]->subgrid_model_index.size();
-          int oldmodel = cells[b][e]->subgrid_model_index[nummod-1];
+          int nummod = groups[block][grp]->subgrid_model_index.size();
+          int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
           if (sgwinner != oldmodel) {
             
-            size_t usernum = cells[b][e]->subgrid_usernum;
+            size_t usernum = groups[block][grp]->subgrid_usernum;
             // get the time/solution from old subgrid model at last time step
             int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
             Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
@@ -478,8 +477,8 @@ ScalarT MultiscaleManager::update() {
             subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
             
           }
-          my_cost += subgridModels[sgwinner]->cost_estimate * cells[b][e]->numElem;
-          cells[b][e]->subgrid_model_index.push_back(sgwinner);
+          my_cost += subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
+          groups[block][grp]->subgrid_model_index.push_back(sgwinner);
           //}
         }
       }
@@ -488,12 +487,12 @@ ScalarT MultiscaleManager::update() {
     for (size_t s=0; s<subgridModels.size(); s++) {
       vector<bool> active(subgridModels[s]->active[0].size(),false);
       size_t numactive = 0;
-      for (size_t b=0; b<cells.size(); b++) {
-        for (size_t e=0; e<cells[b].size(); e++) {
-          //for (int c=0; c<cells[b][e]->numElem; c++) {
-          size_t nindex = cells[b][e]->subgrid_model_index.size();
-          if (cells[b][e]->subgrid_model_index[nindex-1] == s) {
-            size_t usernum = cells[b][e]->subgrid_usernum;
+      for (size_t block=0; block<groups.size(); ++block) {
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          //for (int c=0; c<groups[block][grp]->numElem; c++) {
+          size_t nindex = groups[block][grp]->subgrid_model_index.size();
+          if (groups[block][grp]->subgrid_model_index[nindex-1] == s) {
+            size_t usernum = groups[block][grp]->subgrid_usernum;
             active[usernum] = true;
             numactive += 1;
           }
@@ -538,7 +537,7 @@ void MultiscaleManager::updateParameters(vector<Teuchos::RCP<vector<AD> > > & pa
 Kokkos::View<ScalarT**,HostDevice> MultiscaleManager::getMeanCellFields(const size_t & block, const int & timeindex,
                                                                         const ScalarT & time, const int & numfields) {
   
-  Kokkos::View<ScalarT**,HostDevice> subgrid_cell_fields("subgrid cell fields",cells[block].size(),numfields);
+  Kokkos::View<ScalarT**,HostDevice> subgrid_cell_fields("subgrid cell fields",groups[block].size(),numfields);
   return subgrid_cell_fields;
 }
 

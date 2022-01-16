@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef CDR_H
-#define CDR_H
+#ifndef MRHYDE_CDR_H
+#define MRHYDE_CDR_H
 
 #include "physicsBase.hpp"
 

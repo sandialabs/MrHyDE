@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef POROUSMIXED_H
-#define POROUSMIXED_H
+#ifndef MRHYDE_POROUSMIXED_H
+#define MRHYDE_POROUSMIXED_H
 
 #include "physicsBase.hpp"
 #include "klexpansion.hpp"

@@ -18,8 +18,8 @@
 #include "Teuchos_YamlParameterListCoreHelpers.hpp"
 
 #include "preferences.hpp"
-#include "cell.hpp"
-#include "boundaryCell.hpp"
+#include "group.hpp"
+#include "boundaryGroup.hpp"
 #include "subgridMeshFactory.hpp"
 #include "meshInterface.hpp"
 #include "physicsInterface.hpp"
@@ -77,11 +77,11 @@ namespace MrHyDE {
     
     void setUpSubgridModels();
     
-    void createNewBoundaryCells(SubGridTools2 & sgt, size_t & mindex);
+    void createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex);
 
-    void createNewCells(SubGridTools2 & sgt, size_t & mindex);
+    void createNewGroups(SubGridTools2 & sgt, size_t & mindex);
     
-    void setBoundaryCellAuxLIDs(size_t & mindex);
+    void setBoundaryGroupAuxLIDs(size_t & mindex);
 
     void computeMacroBasisSubgridIP(size_t & mindex);
       
@@ -100,7 +100,7 @@ namespace MrHyDE {
                        const int & num_active_params,
                        const bool & compute_disc_sens, const bool & compute_aux_sens,
                        workset & macrowkset,
-                       const int & usernum, const int & macroelemindex,
+                       const int & macrogrp, const int & macroelemindex,
                        Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -120,7 +120,7 @@ namespace MrHyDE {
     // Compute the initial values for the subgrid solution
     //////////////////////////////////////////////////////////////
     
-    void setInitial(Teuchos::RCP<SG_MultiVector> & initial, const int & usernum, const bool & useadjoint);
+    void setInitial(Teuchos::RCP<SG_MultiVector> & initial, const int & macrogrp, const bool & useadjoint);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute the error for verification
@@ -128,7 +128,7 @@ namespace MrHyDE {
     
     vector<std::pair<string, string> > getErrorList();
     
-    //Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & usernum);
+    //Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time, const int & macrogrp);
     Kokkos::View<ScalarT**,HostDevice> computeError(vector<std::pair<string, string> > & sub_error_list,
                                                     const vector<ScalarT> & times);
     
@@ -139,7 +139,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     Kokkos::View<AD*,AssemblyDevice> computeObjective(const string & response_type, const int & seedwhat,
-                                                      const ScalarT & time, const int & usernum);
+                                                      const ScalarT & time, const int & macrogrp);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Write the solution to a file
@@ -147,7 +147,7 @@ namespace MrHyDE {
     
     void setupCombinedExodus();
     
-    //void writeSolution(const string & filename, const int & usernum);
+    //void writeSolution(const string & filename, const int & macrogrp);
     
     void writeSolution(const string & filename);
     
@@ -159,7 +159,7 @@ namespace MrHyDE {
     
     void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
                     const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
-                    const vector<basis_RCP> & basisTypes, const int & usernum);
+                    const vector<basis_RCP> & basisTypes, const int & macrogrp);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Assemble the projection (mass) matrix
@@ -234,7 +234,7 @@ namespace MrHyDE {
     //
     // ========================================================================================
     
-    void updateLocalData(const int & usernum);
+    void updateLocalData(const int & macrogrp);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -270,8 +270,8 @@ namespace MrHyDE {
     ScalarT macro_deltat;
     
     // Collection of users
-    vector<vector<Teuchos::RCP<cell> > > cells;
-    vector<vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
+    vector<vector<Teuchos::RCP<Group> > > groups;
+    vector<vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;
     
     bool have_mesh_data, have_rotations, have_rotation_phi, compute_mesh_data;
     bool have_multiple_data_files;
@@ -299,7 +299,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> sgfemTotalAddMacroTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro()");
     Teuchos::RCP<Teuchos::Time> sgfemTotalSetUpTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::setUpSubgridModels()");
     Teuchos::RCP<Teuchos::Time> sgfemMeshDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMeshData()");
-    Teuchos::RCP<Teuchos::Time> sgfemSubCellTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create subcells");
+    Teuchos::RCP<Teuchos::Time> sgfemSubCellTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create subgroups");
     Teuchos::RCP<Teuchos::Time> sgfemSubDiscTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create disc. interface");
     Teuchos::RCP<Teuchos::Time> sgfemSubSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create solver interface");
     Teuchos::RCP<Teuchos::Time> sgfemSubICTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN::addMacro - create vectors");

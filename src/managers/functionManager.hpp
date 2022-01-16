@@ -16,8 +16,8 @@
  \author Created by T. Wildey
  */
 
-#ifndef FUNCTION_MANAGER_H
-#define FUNCTION_MANAGER_H
+#ifndef MRHYDE_FUNCTION_MANAGER_H
+#define MRHYDE_FUNCTION_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

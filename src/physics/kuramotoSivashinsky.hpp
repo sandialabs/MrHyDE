@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef KURAMOTO_SIVASHINSKY_H
-#define KURAMOTO_SIVASHINSKY_H
+#ifndef MRHYDE_KURAMOTO_SIVASHINSKY_H
+#define MRHYDE_KURAMOTO_SIVASHINSKY_H
 
 #include "physicsBase.hpp"
 

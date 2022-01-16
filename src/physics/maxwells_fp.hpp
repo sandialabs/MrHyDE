@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MAXWELLS_FP_H
-#define MAXWELLS_FP_H
+#ifndef MRHYDE_MAXWELLS_FP_H
+#define MRHYDE_MAXWELLS_FP_H
 
 #include "physicsBase.hpp"
 

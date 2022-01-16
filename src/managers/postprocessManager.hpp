@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef POSTPROCESS_H
-#define POSTPROCESS_H
+#ifndef MRHYDE_POSTPROCESS_MANAGER_H
+#define MRHYDE_POSTPROCESS_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

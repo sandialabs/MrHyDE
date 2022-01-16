@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SOLSTORAGE_H
-#define SOLSTORAGE_H
+#ifndef MRHYDE_SOLUTION_STORAGE_H
+#define MRHYDE_SOLUTION_STORAGE_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
 ************************************************************************/
 
-#ifndef COMPADRE_TOOLS_H
-#define COMPADRE_TOOLS_H
+#ifndef MRHYDE_COMPADRE_TOOLS_H
+#define MRHYDE_COMPADRE_TOOLS_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

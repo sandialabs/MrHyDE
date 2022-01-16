@@ -16,8 +16,8 @@
  \author Created by T. Wildey
  */
 
-#ifndef PHYSICSINTERFACE_H
-#define PHYSICSINTERFACE_H
+#ifndef MRHYDE_PHYSICSINTERFACE_H
+#define MRHYDE_PHYSICSINTERFACE_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

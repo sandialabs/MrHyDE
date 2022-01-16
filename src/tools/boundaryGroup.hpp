@@ -11,13 +11,13 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef BOUNDCELL_H
-#define BOUNDCELL_H
+#ifndef MRHYDE_BOUNDARYGROUP_H
+#define MRHYDE_BOUNDARYGROUP_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "workset.hpp"
-#include "cellMetaData.hpp"
+#include "groupMetaData.hpp"
 #include "discretizationInterface.hpp"
 
 #include <iostream>     
@@ -25,28 +25,28 @@
 
 namespace MrHyDE {
   
-  class BoundaryCell {
+  class BoundaryGroup {
     
     typedef Tpetra::MultiVector<ScalarT,LO,GO,AssemblyNode> SG_MultiVector;
     typedef Teuchos::RCP<SG_MultiVector> SG_vector_RCP;
     
   public:
     
-    BoundaryCell() {} ;
+    BoundaryGroup() {} ;
     
-    ~BoundaryCell() {} ;
+    ~BoundaryGroup() {} ;
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    BoundaryCell(const Teuchos::RCP<CellMetaData> & cellData_,
-                 const DRV nodes_,
-                 const Kokkos::View<LO*,AssemblyDevice> localID_,
-                 const Kokkos::View<LO*,AssemblyDevice> sideID_,
-                 const int & sidenum_, const string & sidename_,
-                 const int & cellID_,
-                 Teuchos::RCP<DiscretizationInterface> & disc_,
-                 const bool & storeAll_);
+    BoundaryGroup(const Teuchos::RCP<GroupMetaData> & groupData_,
+                  const DRV nodes_,
+                  const Kokkos::View<LO*,AssemblyDevice> localID_,
+                  const Kokkos::View<LO*,AssemblyDevice> sideID_,
+                  const int & sidenum_, const string & sidename_,
+                  const int & groupID_,
+                  Teuchos::RCP<DiscretizationInterface> & disc_,
+                  const bool & storeAll_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -121,7 +121,7 @@ namespace MrHyDE {
     void computeSoln(const int & seedwhat);
     
     ///////////////////////////////////////////////////////////////////////////////////////
-    // Compute the contribution from this cell to the global res, J, Jdot
+    // Compute the contribution from this group to the global res, J, Jdot
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void computeJacRes(const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -202,13 +202,13 @@ namespace MrHyDE {
       auto ulocal = u[0];
       auto currLIDs = LIDs[0];
       {
-        Teuchos::TimeMonitor localtimer(*cellFluxGatherTimer);
+        Teuchos::TimeMonitor localtimer(*fluxGatherTimer);
         
         if (compute_sens) {
           for (size_t var=0; var<ulocal.extent(1); var++) {
             auto u_AD = uvals[var];
             auto offsets = subview(wkset->offsets,var,ALL());
-            parallel_for("bcell flux gather",
+            parallel_for("flux gather",
                          RangePolicy<AssemblyExec>(0,u_AD.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
@@ -221,7 +221,7 @@ namespace MrHyDE {
           for (size_t var=0; var<ulocal.extent(1); var++) {
             auto u_AD = uvals[var];
             auto offsets = subview(wkset->offsets,var,ALL());
-            parallel_for("bcell flux gather",
+            parallel_for("flux gather",
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
@@ -240,15 +240,15 @@ namespace MrHyDE {
       }
       
       {
-        Teuchos::TimeMonitor localtimer(*cellFluxWksetTimer);
+        Teuchos::TimeMonitor localtimer(*fluxWksetTimer);
         wkset->computeSolnSideIP(sidenum);//, u_AD, param_AD);
       }
       
       if (wkset->numAux > 0) {
         
-        Teuchos::TimeMonitor localtimer(*cellFluxAuxTimer);
+        Teuchos::TimeMonitor localtimer(*fluxAuxTimer);
       
-        auto numAuxDOF = cellData->numAuxDOF;
+        auto numAuxDOF = groupData->numAuxDOF;
         
         for (size_type var=0; var<numAuxDOF.extent(0); var++) {
           auto abasis = auxside_basis[auxusebasis[var]];
@@ -259,7 +259,7 @@ namespace MrHyDE {
           //auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
           auto localID = localElemID;
           auto varaux = subview(lambda,ALL(),var,ALL());
-          parallel_for("bcell aux",
+          parallel_for("flux aux",
                        RangePolicy<AssemblyExec>(0,localID.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<abasis.extent(1); ++dof) {
@@ -278,8 +278,8 @@ namespace MrHyDE {
       }
       
       {
-        Teuchos::TimeMonitor localtimer(*cellFluxEvalTimer);
-        cellData->physics_RCP->computeFlux(0,cellData->myBlock);
+        Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
+        groupData->physics_RCP->computeFlux(0,groupData->myBlock);
       }
       
     }
@@ -305,7 +305,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
       
     // Public data 
-    Teuchos::RCP<CellMetaData> cellData;
+    Teuchos::RCP<GroupMetaData> groupData;
     Teuchos::RCP<workset> wkset;
     
     Kokkos::View<LO*,AssemblyDevice> localElemID, localSideID;
@@ -313,7 +313,7 @@ namespace MrHyDE {
     
     // Geometry Information
     size_t numElem = 0; // default value ... used to check if proc. has elements on boundary
-    int sidenum, cellID, wksetBID;
+    int sidenum, groupID, wksetBID;
     DRV nodes;
     vector<View_Sc2> ip, normals, tangents;
     View_Sc2 wts;
@@ -352,24 +352,24 @@ namespace MrHyDE {
     vector<size_t> auxMIDs;
     Kokkos::View<size_t*,AssemblyDevice> auxMIDs_dev;
     
-    vector<size_t> cell_data_seed, cell_data_seedindex;
-    Kokkos::View<ScalarT**,AssemblyDevice> cell_data;
-    vector<ScalarT> cell_data_distance;
+    vector<size_t> data_seed, data_seedindex;
+    Kokkos::View<ScalarT**,AssemblyDevice> data;
+    vector<ScalarT> data_distance;
     
-    // Boundary cells do not have sensors
+    // Boundary groups do not have sensors
     
     // Profile timers
-    Teuchos::RCP<Teuchos::Time> computeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeSolnSideIP()");
-    Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeJacRes() - boundary residual");
-    Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeJacRes() - fill local Jacobian");
-    Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeJacRes() - fill local residual");
-    Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeJacRes() - transient residual");
-    Teuchos::RCP<Teuchos::Time> adjointResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeJacRes() - adjoint residual");
-    Teuchos::RCP<Teuchos::Time> cellFluxGatherTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeFlux - gather solution");
-    Teuchos::RCP<Teuchos::Time> cellFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeFlux - update wkset");
-    Teuchos::RCP<Teuchos::Time> cellFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeFlux - compute aux solution");
-    Teuchos::RCP<Teuchos::Time> cellFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell::computeFlux - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::boundaryCell - build basis");
+    Teuchos::RCP<Teuchos::Time> computeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeSolnSideIP()");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - boundary residual");
+    Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - fill local Jacobian");
+    Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - fill local residual");
+    Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - transient residual");
+    Teuchos::RCP<Teuchos::Time> adjointResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - adjoint residual");
+    Teuchos::RCP<Teuchos::Time> fluxGatherTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - gather solution");
+    Teuchos::RCP<Teuchos::Time> fluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - update wkset");
+    Teuchos::RCP<Teuchos::Time> fluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - compute aux solution");
+    Teuchos::RCP<Teuchos::Time> fluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - physics evaluation");
+    Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup - build basis");
     
   };
   

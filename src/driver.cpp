@@ -102,19 +102,19 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->stk_mesh,
                                                                                                          disc, phys, params));
     
-    mesh->setMeshData(assembler->cells,
-                      assembler->boundaryCells);
+    mesh->setMeshData(assembler->groups,
+                      assembler->boundary_groups);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
     
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    for (size_t b=0; b<mesh->block_names.size(); b++) {
-      functionManagers.push_back(Teuchos::rcp(new FunctionManager(mesh->block_names[b],
-                                                                  assembler->cellData[b]->numElem,
-                                                                  disc->numip[b],
-                                                                  disc->numip_side[b])));
+    for (size_t block=0; block<mesh->block_names.size(); ++block) {
+      functionManagers.push_back(Teuchos::rcp(new FunctionManager(mesh->block_names[block],
+                                                                  assembler->groupData[block]->numElem,
+                                                                  disc->numip[block],
+                                                                  disc->numip_side[block])));
     }
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -128,7 +128,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
-                                                                                             assembler->cells,
+                                                                                             assembler->groups,
                                                                                              functionManagers) );
     
     ///////////////////////////////////////////////////////////////////////////////
@@ -160,21 +160,21 @@ int main(int argc,char * argv[]) {
       mesh->purgeMemory();
     }
     
-    assembler->allocateCellStorage();
+    assembler->allocateGroupStorage();
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
     ////////////////////////////////////////////////////////////////////////////////
     
-    for (size_t b=0; b<functionManagers.size(); b++) {
-      functionManagers[b]->setupLists(params->paramnames,
+    for (size_t block=0; block<functionManagers.size(); ++block) {
+      functionManagers[block]->setupLists(params->paramnames,
                                       params->discretized_param_names);
       
-      functionManagers[b]->wkset = assembler->wkset[b];
-      functionManagers[b]->decomposeFunctions();
+      functionManagers[block]->wkset = assembler->wkset[block];
+      functionManagers[block]->decomposeFunctions();
       
       if (verbosity >= 20) {
-        functionManagers[b]->printFunctions();
+        functionManagers[block]->printFunctions();
       }
     }
     

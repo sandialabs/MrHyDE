@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SHALLOWWATER_H
-#define SHALLOWWATER_H
+#ifndef MRHYDE_SHALLOWWATER_H
+#define MRHYDE_SHALLOWWATER_H
 
 #include "physicsBase.hpp"
 

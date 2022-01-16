@@ -26,7 +26,7 @@
 #include "Panzer_ConnManager.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "physicsInterface.hpp"
-#include "cellMetaData.hpp"
+#include "groupMetaData.hpp"
 
 namespace MrHyDE {
   
@@ -60,9 +60,9 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
-    void setReferenceData(Teuchos::RCP<CellMetaData> & cellData);
+    void setReferenceData(Teuchos::RCP<GroupMetaData> & groupData);
     
-    void getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cellData,
+    void getPhysicalVolumetricData(Teuchos::RCP<GroupMetaData> & groupData,
                                    DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                    vector<View_Sc2> & ip, View_Sc2 wts, View_Sc1 hsize,
                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -72,7 +72,7 @@ namespace MrHyDE {
                                    const bool & recompute_jac = true,
                                    const bool & recompute_orient = true);
     
-    void getPhysicalVolumetricBasis(Teuchos::RCP<CellMetaData> & cellData,
+    void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData,
                                     DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                     View_Sc2 wts,
                                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -80,12 +80,12 @@ namespace MrHyDE {
                                     const bool & recompute_jac,
                                     const bool & recompute_orient);
 
-    void getPhysicalOrientations(Teuchos::RCP<CellMetaData> & cellData,
+    void getPhysicalOrientations(Teuchos::RCP<GroupMetaData> & groupData,
                                  Kokkos::View<LO*,AssemblyDevice> eIndex,
                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                  const bool & use_block);
     
-    void getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, const int & side,
+    void getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & groupData, const int & side,
                              DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                              vector<View_Sc2> & face_ip, View_Sc2 face_wts, vector<View_Sc2> & face_normals, View_Sc1 face_hsize,
@@ -93,7 +93,7 @@ namespace MrHyDE {
                              const bool & recompute_jac = true,
                              const bool & recompute_orient = true);
     
-    void getPhysicalBoundaryData(Teuchos::RCP<CellMetaData> & cellData,
+    void getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData> & groupData,
                                  DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                  Kokkos::View<LO*,AssemblyDevice> localSideID,
                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,

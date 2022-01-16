@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef LINEARELAST_H
-#define LINEARELAST_H
+#ifndef MRHYDE_LINEARELAST_H
+#define MRHYDE_LINEARELAST_H
 
 #include "physicsBase.hpp"
 #include "CrystalElasticity.hpp"

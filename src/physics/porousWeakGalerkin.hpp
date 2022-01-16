@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef POROUSWG_H
-#define POROUSWG_H
+#ifndef MRHYDE_POROUSWG_H
+#define MRHYDE_POROUSWG_H
 
 #include "physicsBase.hpp"
 

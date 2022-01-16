@@ -129,7 +129,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
                               const int & num_active_params,
                               const bool & compute_disc_sens, const bool & compute_aux_sens,
                               workset & macrowkset,
-                              const int & usernum, const int & macroelemindex,
+                              const int & macrogrp, const int & macroelemindex,
                               Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) {
   
   Teuchos::TimeMonitor totalsolvertimer(*sgfemSolverTimer);
@@ -178,11 +178,11 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
   auto u_kv = u->getLocalView<SubgridSolverNode::device_type>();
   Kokkos::deep_copy(u_kv, prev_u_kv);
   
-  this->performGather(usernum, prev_u, 0, 0);
+  this->performGather(macrogrp, prev_u, 0, 0);
   
-  for (size_t b=0; b<assembler->cells.size(); b++) {
-    for (size_t e=0; e<assembler->cells[b].size(); e++) {
-      assembler->cells[b][e]->resetPrevSoln(0);
+  for (size_t block=0; block<assembler->groups.size(); ++block) {
+    for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+      assembler->groups[block][grp]->resetPrevSoln(0);
     }
   }
   
@@ -192,7 +192,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
   
   Teuchos::RCP<SG_MultiVector> d_u = d_um;
   if (compute_sens) {
-    d_u = solver->linalg->getNewVector(0,num_active_params);//Teuchos::rcp( new SG_MultiVector(solver->LA_owned_map, num_active_params)); // reset residual
+    d_u = solver->linalg->getNewVector(0,num_active_params);
   }
   d_u->putScalar(0.0);
   
@@ -211,7 +211,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
       // First, we need to resolve the forward problem
       
       for (int tstep=0; tstep<time_steps; tstep++) {
-        Teuchos::RCP<SG_MultiVector> recu = solver->linalg->getNewOverlappedVector(0);//Teuchos::rcp( new SG_MultiVector(solver->LA_overlapped_map,1)); // reset residual
+        Teuchos::RCP<SG_MultiVector> recu = solver->linalg->getNewOverlappedVector(0);
         
         *recu = *u;
         sgtime += macro_deltat/(ScalarT)time_steps;
@@ -227,7 +227,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         //ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
         this->nonlinearSolver(recu, phi, disc_params, currlambda,
-                              sgtime, isTransient, false, num_active_params, alpha, usernum, false);
+                              sgtime, isTransient, false, num_active_params, alpha, macrogrp, false);
         
         curr_fsol.push_back(recu);
         
@@ -248,13 +248,13 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
         this->nonlinearSolver(curr_fsol[tindex-1], phi, disc_params, currlambda,
-                              sgtime, isTransient, isAdjoint, num_active_params, alpha, usernum, store_adjPrev);
+                              sgtime, isTransient, isAdjoint, num_active_params, alpha, macrogrp, store_adjPrev);
         
         this->computeSolnSens(d_u, compute_sens, curr_fsol[tindex-1],
                               phi, disc_params, currlambda,
-                              sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
+                              sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, macrogrp, subgradient);
         
-        this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
+        this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, macrogrp);
         
       }
     }
@@ -274,22 +274,22 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
-        for (size_t b=0; b<assembler->cells.size(); b++) {
-          for (size_t e=0; e<assembler->cells[b].size(); e++) {
-            assembler->cells[b][e]->resetPrevSoln(0);
-            assembler->cells[b][e]->resetStageSoln(0);
+        for (size_t block=0; block<assembler->groups.size(); ++block) {
+          for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+            assembler->groups[block][grp]->resetPrevSoln(0);
+            assembler->groups[block][grp]->resetStageSoln(0);
           }
         }
         
         this->nonlinearSolver(u, phi, disc_params, currlambda,
-                              sgtime, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
+                              sgtime, isTransient, isAdjoint, num_active_params, alpha, macrogrp, false);
         
         
         this->computeSolnSens(d_u, compute_sens, u,
                               phi, disc_params, currlambda,
-                              sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, usernum, subgradient);
+                              sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, macrogrp, subgradient);
         
-        this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
+        this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, macrogrp);
       }
     }
     
@@ -299,20 +299,20 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
     assembler->wkset[0]->setDeltat(1.0);
     
     this->nonlinearSolver(u, phi, disc_params, lambda,
-                          current_time, isTransient, isAdjoint, num_active_params, alpha, usernum, false);
+                          current_time, isTransient, isAdjoint, num_active_params, alpha, macrogrp, false);
     
     //KokkosTools::print(u);
     
     this->computeSolnSens(d_u, compute_sens, u,
                           phi, disc_params, lambda,
-                          current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, usernum, subgradient);
+                          current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, macrogrp, subgradient);
     
     //KokkosTools::print(d_u);
     if (isAdjoint) {
-      this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
+      this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, macrogrp);
     }
     else {
-      this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, usernum);
+      this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, macrogrp);
     }
     
   }
@@ -380,7 +380,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
                                                Teuchos::RCP<SG_MultiVector> & sub_params,
                                                Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
-                                               const int & num_active_params, const ScalarT & alpha, const int & usernum,
+                                               const int & num_active_params, const ScalarT & alpha, const int & macrogrp,
                                                const bool & store_adjPrev) {
   
   
@@ -433,24 +433,24 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
     assembler->wkset[0]->isTransient = isTransient;
     assembler->wkset[0]->isAdjoint = isAdjoint;
     
-    int numElem = assembler->cells[usernum][0]->numElem;
-    int maxElem = assembler->cells[0][0]->numElem;
+    int numElem = assembler->groups[macrogrp][0]->numElem;
+    int maxElem = assembler->groups[0][0]->numElem;
     
     {
       Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverSetSolnTimer);
-      this->performGather(usernum, sub_u, 0, 0);
+      this->performGather(macrogrp, sub_u, 0, 0);
       if (isAdjoint) {
-        this->performGather(usernum, sub_phi, 2, 0);
+        this->performGather(macrogrp, sub_phi, 2, 0);
       }
-      //this->performGather(usernum, sub_params, 4, 0);
+      //this->performGather(macrogrp, sub_params, 4, 0);
       
-      //this->performBoundaryGather(usernum, sub_u, 0, 0);
+      //this->performBoundaryGather(macrogrp, sub_u, 0, 0);
       //if (isAdjoint) {
-      //  this->performBoundaryGather(usernum, sub_phi, 2, 0);
+      //  this->performBoundaryGather(macrogrp, sub_phi, 2, 0);
       //}
       
-      for (size_t e=0; e < assembler->boundaryCells[usernum].size(); e++) {
-        assembler->boundaryCells[usernum][e]->aux = lambda;
+      for (size_t e=0; e < assembler->boundary_groups[macrogrp].size(); e++) {
+        assembler->boundary_groups[macrogrp][e]->aux = lambda;
       }
     }
     
@@ -468,13 +468,13 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       
       auto res = assembler->wkset[0]->res;
       auto offsets = assembler->wkset[0]->offsets;
-      auto numDOF = assembler->cellData[0]->numDOF;
+      auto numDOF = assembler->groupData[0]->numDOF;
     
-      for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
+      for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
         
         if (isAdjoint) {
           if (is_final_time) {
-            Kokkos::deep_copy(assembler->cells[usernum][e]->adj_prev[0], 0.0);
+            Kokkos::deep_copy(assembler->groups[macrogrp][e]->adj_prev[0], 0.0);
           }
         }
         
@@ -489,7 +489,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         //////////////////////////////////////////////////////////////
         
         // Volumetric contribution
-        assembler->cells[usernum][e]->updateWorkset(seedwhat);
+        assembler->groups[macrogrp][e]->updateWorkset(seedwhat);
         assembler->phys->volumeResidual(0,0);
                 
         //////////////////////////////////////////////////////////////////////////
@@ -499,7 +499,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
         {
           Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverScatterTimer);
         
-          auto LIDs = assembler->cells[usernum][e]->LIDs[0];
+          auto LIDs = assembler->groups[macrogrp][e]->LIDs[0];
           
           parallel_for("assembly insert Jac",
                        RangePolicy<SG_exec>(0,LIDs.extent(0)),
@@ -548,13 +548,13 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       // boundary assembly
       ////////////////////////////////////////////////
       
-      for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
+      for (size_t e=0; e<assembler->boundary_groups[macrogrp].size(); e++) {
 
-        if (assembler->boundaryCells[usernum][e]->numElem > 0) {
+        if (assembler->boundary_groups[macrogrp][e]->numElem > 0) {
           
           int seedwhat = 1;
           
-          assembler->boundaryCells[usernum][e]->updateWorkset(seedwhat);
+          assembler->boundary_groups[macrogrp][e]->updateWorkset(seedwhat);
           assembler->phys->boundaryResidual(0,0);
           
           //////////////////////////////////////////////////////////////////////////
@@ -564,7 +564,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
           {
             Teuchos::TimeMonitor localtimer(*sgfemNonlinearSolverScatterTimer);
             
-            auto LIDs = assembler->boundaryCells[usernum][e]->LIDs[0];
+            auto LIDs = assembler->boundary_groups[macrogrp][e]->LIDs[0];
             
             parallel_for("assembly insert Jac",
                          RangePolicy<SG_exec>(0,LIDs.extent(0)),
@@ -617,17 +617,17 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       
       if (maxElem > numElem) {
         if (data_avail) {
-          auto LIDs = assembler->cells[0][0]->LIDs[0];
+          auto LIDs = assembler->groups[0][0]->LIDs[0];
           this->fixDiagonal(LIDs, localMatrix, numElem);
         }
         else {
           if (use_host_LIDs) {
-            auto LIDs = assembler->cells[0][0]->LIDs_host[0];
+            auto LIDs = assembler->groups[0][0]->LIDs_host[0];
             this->fixDiagonal(LIDs, localMatrix, numElem);
           }
           else {
-            auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->cells[0][0]->LIDs[0]);
-            Kokkos::deep_copy(LIDs_dev, assembler->cells[0][0]->LIDs[0]);
+            auto LIDs_dev = Kokkos::create_mirror(SG_exec(), assembler->groups[0][0]->LIDs[0]);
+            Kokkos::deep_copy(LIDs_dev, assembler->groups[0][0]->LIDs[0]);
             this->fixDiagonal(LIDs_dev, localMatrix, numElem);
           }
         }
@@ -768,7 +768,7 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
                                                const ScalarT & time,
                                                const bool & isTransient, const bool & isAdjoint,
                                                const int & num_active_params, const ScalarT & alpha,
-                                               const ScalarT & lambda_scale, const int & usernum,
+                                               const ScalarT & lambda_scale, const int & macrogrp,
                                                Kokkos::View<ScalarT**,AssemblyDevice> subgradient) {
   
   Teuchos::TimeMonitor localtimer(*sgfemSolnSensTimer);
@@ -826,25 +826,25 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     
     if (multiscale_method != "mortar") {
       
-      int numElem = assembler->cells[usernum][0]->numElem;
-      int snumDOF = assembler->cells[usernum][0]->LIDs[0].extent(1);
+      int numElem = assembler->groups[macrogrp][0]->numElem;
+      int snumDOF = assembler->groups[macrogrp][0]->LIDs[0].extent(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,num_active_params);
       Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,snumDOF);
       
-      for (size_t elem=0; elem<assembler->cells[usernum].size(); elem++) {
+      for (size_t elem=0; elem<assembler->groups[macrogrp].size(); elem++) {
         
         assembler->wkset[0]->localEID = elem;
-        assembler->cells[usernum][elem]->updateData();
+        assembler->groups[macrogrp][elem]->updateData();
         Kokkos::deep_copy(local_res, 0.0);
         
-        assembler->cells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->groups[macrogrp][elem]->computeJacRes(time, isTransient, isAdjoint,
                                                     false, true, num_active_params, false, false, false,
                                                     local_res, local_J,
                                                     assembler->assemble_volume_terms[0][0],
                                                     assembler->assemble_face_terms[0][0]);
         
-        this->updateResSens(true, usernum, elem, dres_view, local_res,
+        this->updateResSens(true, macrogrp, elem, dres_view, local_res,
                             data_avail, use_host_LIDs, true);
           
       }
@@ -852,22 +852,22 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     }
     else {
             
-      int numElem = assembler->boundaryCells[usernum][0]->numElem;
-      int snumDOF = assembler->boundaryCells[usernum][0]->LIDs[0].extent(1);
+      int numElem = assembler->boundary_groups[macrogrp][0]->numElem;
+      int snumDOF = assembler->boundary_groups[macrogrp][0]->LIDs[0].extent(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,num_active_params);
       Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,snumDOF);
       
-      for (size_t elem=0; elem<assembler->boundaryCells[usernum].size(); elem++) {
+      for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
-        assembler->boundaryCells[usernum][elem]->updateData();
+        assembler->boundary_groups[macrogrp][elem]->updateData();
         Kokkos::deep_copy(local_res, 0.0);
         
-        assembler->boundaryCells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->boundary_groups[macrogrp][elem]->computeJacRes(time, isTransient, isAdjoint,
                                                                false, true, num_active_params, false, false, false,
                                                                local_res, local_J);
         
-        this->updateResSens(false, usernum, elem, dres_view, local_res,
+        this->updateResSens(false, macrogrp, elem, dres_view, local_res,
                             data_avail, use_host_LIDs, true);
           
       }
@@ -893,14 +893,14 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     
     if (multiscale_method != "mortar") {
       
-      int numElem = assembler->cells[usernum][0]->numElem;
-      int snumDOF = assembler->cells[usernum][0]->LIDs[0].extent(1);
-      int anumDOF = assembler->cells[usernum][0]->auxLIDs.extent(1);
+      int numElem = assembler->groups[macrogrp][0]->numElem;
+      int snumDOF = assembler->groups[macrogrp][0]->LIDs[0].extent(1);
+      int anumDOF = assembler->groups[macrogrp][0]->auxLIDs.extent(1);
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,1);
       Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,anumDOF);
       
-      for (size_t elem=0; elem<assembler->cells[usernum].size(); elem++) {
+      for (size_t elem=0; elem<assembler->groups[macrogrp].size(); elem++) {
                 
         assembler->wkset[0]->localEID = elem;
         
@@ -908,39 +908,39 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         Kokkos::deep_copy(local_J, 0.0);
         
         // TMW: this may not work properly with new version
-        assembler->cells[usernum][elem]->updateData();
+        assembler->groups[macrogrp][elem]->updateData();
         
-        assembler->cells[usernum][elem]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->groups[macrogrp][elem]->computeJacRes(time, isTransient, isAdjoint,
                                                        true, false, num_active_params, false, true, false,
                                                        local_res, local_J,
                                                        assembler->assemble_volume_terms[0][0],
                                                        assembler->assemble_face_terms[0][0]);
         
-        this->updateResSens(true, usernum, elem, dres_view, local_J,
+        this->updateResSens(true, macrogrp, elem, dres_view, local_J,
                             data_avail, use_host_LIDs, false);
         
       }
     }
     else {
       
-      //int numElem = assembler->boundaryCells[usernum][0]->numElem;
-      //int snumDOF = assembler->boundaryCells[usernum][0]->LIDs.extent(1);
-      //int anumDOF = assembler->boundaryCells[usernum][0]->auxLIDs.extent(1);
+      //int numElem = assembler->boundary_groups[macrogrp][0]->numElem;
+      //int snumDOF = assembler->boundary_groups[macrogrp][0]->LIDs.extent(1);
+      //int anumDOF = assembler->boundary_groups[macrogrp][0]->auxLIDs.extent(1);
       
       auto res_AD = assembler->wkset[0]->res;
       auto offsets = assembler->wkset[0]->offsets;
-      auto numDOF = assembler->cellData[0]->numDOF;
-      auto numAuxDOF = assembler->cellData[0]->numAuxDOF;
-      auto aoffsets = assembler->boundaryCells[usernum][0]->auxoffsets;
+      auto numDOF = assembler->groupData[0]->numDOF;
+      auto numAuxDOF = assembler->groupData[0]->numAuxDOF;
+      auto aoffsets = assembler->boundary_groups[macrogrp][0]->auxoffsets;
       
-      for (size_t elem=0; elem<assembler->boundaryCells[usernum].size(); elem++) {
+      for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
         //-----------------------------------------------
         // Prep the workset
         //-----------------------------------------------
         
         int seedwhat = 4;
-        assembler->boundaryCells[usernum][elem]->updateWorkset(seedwhat);
+        assembler->boundary_groups[macrogrp][elem]->updateWorkset(seedwhat);
           
         //-----------------------------------------------
         // Compute the residual
@@ -953,7 +953,7 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         // Scatter to vectors
         //-----------------------------------------------
         
-        auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs[0];
+        auto LIDs = assembler->boundary_groups[macrogrp][elem]->LIDs[0];
         
 #ifndef MrHyDE_NO_AD
         parallel_for("bcell update aux jac",
@@ -1043,40 +1043,40 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
 //////////////////////////////////////////////////////////////
 
 template<class ResViewType, class DataViewType>
-void SubGridDtN_Solver::updateResSens(const bool & use_cells, const int & usernum, const int & elem, ResViewType dres_view,
+void SubGridDtN_Solver::updateResSens(const bool & use_groups, const int & macrogrp, const int & elem, ResViewType dres_view,
                                       DataViewType data, const bool & data_avail,
                                       const bool & use_host_LIDs, const bool & compute_sens) {
   
   typedef typename SubgridSolverNode::execution_space SG_exec;
 
   if (data_avail) {
-    if (use_cells) {
-      this->updateResSens(dres_view,data,assembler->cells[usernum][elem]->LIDs[0],compute_sens);
+    if (use_groups) {
+      this->updateResSens(dres_view,data,assembler->groups[macrogrp][elem]->LIDs[0],compute_sens);
     }
     else {
-      this->updateResSens(dres_view,data,assembler->boundaryCells[usernum][elem]->LIDs[0],compute_sens);
+      this->updateResSens(dres_view,data,assembler->boundary_groups[macrogrp][elem]->LIDs[0],compute_sens);
     }
   }
   else { // need to send assembly data to solver device
     auto data_sgladev = Kokkos::create_mirror(SG_exec(), data);
     Kokkos::deep_copy(data_sgladev,data);
     if (use_host_LIDs) { // copy already on host device
-      if (use_cells) {
-        this->updateResSens(dres_view, data_sgladev,assembler->cells[usernum][elem]->LIDs_host[0],compute_sens);
+      if (use_groups) {
+        this->updateResSens(dres_view, data_sgladev,assembler->groups[macrogrp][elem]->LIDs_host[0],compute_sens);
       }
       else {
-        this->updateResSens(dres_view, data_sgladev,assembler->boundaryCells[usernum][elem]->LIDs_host[0],compute_sens);
+        this->updateResSens(dres_view, data_sgladev,assembler->boundary_groups[macrogrp][elem]->LIDs_host[0],compute_sens);
       }
     }
     else { // solve on GPU, but assembly on CPU (not common)
-      if (use_cells) {
-        auto LIDs = assembler->cells[usernum][elem]->LIDs[0];
+      if (use_groups) {
+        auto LIDs = assembler->groups[macrogrp][elem]->LIDs[0];
         auto LIDs_sgladev = Kokkos::create_mirror(SG_exec(), LIDs);
         Kokkos::deep_copy(LIDs_sgladev,LIDs);
         this->updateResSens(dres_view,data_sgladev,LIDs_sgladev,compute_sens);
       }
       else {
-        auto LIDs = assembler->boundaryCells[usernum][elem]->LIDs[0];
+        auto LIDs = assembler->boundary_groups[macrogrp][elem]->LIDs[0];
         auto LIDs_sgladev = Kokkos::create_mirror(SG_exec(), LIDs);
         Kokkos::deep_copy(LIDs_sgladev,LIDs);
         this->updateResSens(dres_view,data_sgladev,LIDs_sgladev,compute_sens);
@@ -1133,7 +1133,7 @@ void SubGridDtN_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
                                    const Teuchos::RCP<SG_MultiVector> & disc_params,
                                    const bool & compute_sens, const int macroelemindex,
                                    const ScalarT & time, workset & macrowkset,
-                                   const int & usernum) {
+                                   const int & macrogrp) {
   
   Teuchos::TimeMonitor localtimer(*sgfemFluxTimer);
   if (debug_level > 0) {
@@ -1158,7 +1158,7 @@ void SubGridDtN_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
     
     if (Kokkos::SpaceAccessibility<AssemblyExec, SGS_mem>::accessible) { // can we avoid a copy?
       this->updateFlux(u_kv, du_kv, lambda, dp_kv, compute_sens, macroelemindex,
-                       time, macrowkset, usernum);
+                       time, macrowkset, macrogrp);
     }
     else {
       auto u_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),u_kv);
@@ -1168,7 +1168,7 @@ void SubGridDtN_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
       auto dp_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),dp_kv);
       Kokkos::deep_copy(dp_dev,dp_kv);
       this->updateFlux(u_dev, du_dev, lambda, dp_dev, compute_sens, macroelemindex,
-                       time, macrowkset, usernum);
+                       time, macrowkset, macrogrp);
     }
   }
   if (debug_level > 0) {
@@ -1189,7 +1189,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
                                    ViewType dp_kv,
                                    const bool & compute_sens, const int macroelemindex,
                                    const ScalarT & time, workset & macrowkset,
-                                   const int & usernum) {
+                                   const int & macrogrp) {
   
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
@@ -1200,13 +1200,13 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
   //macrowkset.resetResidual();
   macrowkset.reset();
   
-  for (size_t e=0; e<assembler->boundaryCells[usernum].size(); e++) {
+  for (size_t e=0; e<assembler->boundary_groups[macrogrp].size(); e++) {
 
-    if (assembler->boundaryCells[usernum][e]->sidename == "interior") {
+    if (assembler->boundary_groups[macrogrp][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
-        assembler->boundaryCells[usernum][e]->updateData();
-        assembler->boundaryCells[usernum][e]->updateWorksetBasis();
+        assembler->boundary_groups[macrogrp][e]->updateData();
+        assembler->boundary_groups[macrogrp][e]->updateWorksetBasis();
       }
       
       auto cwts = assembler->wkset[0]->wts_side;
@@ -1214,16 +1214,16 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
       assembler->wkset[0]->sidename = "interior";
       {
         Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
-        assembler->boundaryCells[usernum][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
+        assembler->boundary_groups[macrogrp][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
                                                           0, h, compute_sens);
       }
       
       {
         Teuchos::TimeMonitor localtimer(*sgfemAssembleFluxTimer);
         
-        auto bMIDs = assembler->boundaryCells[usernum][e]->auxMIDs_dev;
+        auto bMIDs = assembler->boundary_groups[macrogrp][e]->auxMIDs_dev;
         for (size_type n=0; n<macrowkset.offsets.extent(0); n++) {
-          auto macrobasis_ip = assembler->boundaryCells[usernum][e]->auxside_basis[macrowkset.usebasis[n]];
+          auto macrobasis_ip = assembler->boundary_groups[macrogrp][e]->auxside_basis[macrowkset.usebasis[n]];
           auto off = Kokkos::subview(macrowkset.offsets, n, Kokkos::ALL());
           auto flux = Kokkos::subview(assembler->wkset[0]->flux, Kokkos::ALL(), n, Kokkos::ALL());
           auto res = macrowkset.res;
@@ -1254,7 +1254,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
 //////////////////////////////////////////////////////////////
 
 void SubGridDtN_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
-                                   const int & usernum, const bool & useadjoint) {
+                                   const int & macrogrp, const bool & useadjoint) {
   
   // TODO :: BWR is this deprecated now?
   initial->putScalar(0.0);
@@ -1273,12 +1273,12 @@ void SubGridDtN_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
    Teuchos::RCP<SG_CrsMatrix>  glmass = Teuchos::rcp(new SG_CrsMatrix(Copy, *owned_map, -1)); // reset Jacobian
    
    
-   //for (size_t b=0; b<cells.size(); b++) {
-   for (size_t e=0; e<cells[usernum].size(); e++) {
-   int numElem = cells[usernum][e]->numElem;
-   vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-   Kokkos::View<ScalarT**,AssemblyDevice> localrhs = cells[usernum][e]->getInitial(true, useadjoint);
-   Kokkos::View<ScalarT***,AssemblyDevice> localmass = cells[usernum][e]->getMass();
+   //for (size_t block=0; block<groups.size(); ++block) {
+   for (size_t e=0; e<groups[macrogrp].size(); e++) {
+   int numElem = groups[macrogrp][e]->numElem;
+   vector<vector<int> > GIDs = groups[macrogrp][e]->GIDs;
+   Kokkos::View<ScalarT**,AssemblyDevice> localrhs = groups[macrogrp][e]->getInitial(true, useadjoint);
+   Kokkos::View<ScalarT***,AssemblyDevice> localmass = groups[macrogrp][e]->getMass();
    
    // assemble into global matrix
    for (int c=0; c<numElem; c++) {
@@ -1315,10 +1315,10 @@ void SubGridDtN_Solver::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
    }
    else {
    
-   for (size_t e=0; e<cells[usernum].size(); e++) {
-   int numElem = cells[usernum][e]->numElem;
-   vector<vector<int> > GIDs = cells[usernum][e]->GIDs;
-   Kokkos::View<ScalarT**,AssemblyDevice> localinit = cells[usernum][e]->getInitial(false, useadjoint);
+   for (size_t e=0; e<groups[macrogrp].size(); e++) {
+   int numElem = groups[macrogrp][e]->numElem;
+   vector<vector<int> > GIDs = groups[macrogrp][e]->GIDs;
+   Kokkos::View<ScalarT**,AssemblyDevice> localinit = groups[macrogrp][e]->getInitial(false, useadjoint);
    for (int c=0; c<numElem; c++) {
    for( size_t row=0; row<GIDs[c].size(); row++ ) {
    int rowIndex = GIDs[c][row];
@@ -1344,10 +1344,10 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
   
   auto localMatrix = mass->getLocalMatrix();
   
-  int usernum = 0;
-  for (size_t e=0; e<assembler->cells[usernum].size(); e++) {
-    LIDView LIDs = assembler->cells[usernum][e]->LIDs[0];
-    Kokkos::View<ScalarT***,AssemblyDevice> localmass = assembler->cells[usernum][e]->getMass();
+  int macrogrp = 0;
+  for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
+    LIDView LIDs = assembler->groups[macrogrp][e]->LIDs[0];
+    Kokkos::View<ScalarT***,AssemblyDevice> localmass = assembler->groups[macrogrp][e]->getMass();
     
     size_type numVals = LIDs.extent(1);
     LO cols[maxDerivs];
@@ -1392,12 +1392,12 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
   
   size_t numpts = pts.extent(1);
   size_t dimpts = pts.extent(2);
-  size_t numLIDs = assembler->cells[0][0]->LIDs[0].extent(1);
+  size_t numLIDs = assembler->groups[0][0]->LIDs[0].extent(1);
   Kokkos::View<int**,AssemblyDevice> owners("owners",numpts,2+numLIDs);
   
-  for (size_t e=0; e<assembler->cells[0].size(); e++) {
-    int numElem = assembler->cells[0][e]->numElem;
-    DRV nodes = assembler->cells[0][e]->nodes;
+  for (size_t e=0; e<assembler->groups[0].size(); e++) {
+    int numElem = assembler->groups[0][e]->numElem;
+    DRV nodes = assembler->groups[0][e]->nodes;
     for (int c=0; c<numElem;c++) {
       //DRV refpts("refpts",1, numpts, dimpts);
       //Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
@@ -1416,9 +1416,9 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
       //CellTools::checkPointwiseInclusion(inRefCell, refpts, *(solver->mesh->cellTopo[0]), 1.0e-12);
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
-          owners(i,0) = e;//cells[0][e]->localElemID[c];
+          owners(i,0) = e;//groups[0][e]->localElemID[c];
           owners(i,1) = c;
-          LIDView LIDs = assembler->cells[0][e]->LIDs[0];
+          LIDView LIDs = assembler->groups[0][e]->LIDs[0];
           for (size_t j=0; j<numLIDs; j++) {
             owners(i,j+2) = LIDs(c,j);
           }
@@ -1438,7 +1438,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
     //for (size_t s=0; s<dimpts; s++) {
     //  cpt(0,0,s) = pts(0,i,s);
     //}
-    DRV nodes = assembler->cells[0][owners(i,0)]->nodes;
+    DRV nodes = assembler->groups[0][owners(i,0)]->nodes;
     DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
     auto tmp2 = subview(cnodes,0,ALL(),ALL());
     auto tmp3 = subview(nodes,owners(i,1),ALL(),ALL());
@@ -1562,9 +1562,9 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
 ////////////////////////////////////////////////////////////////////////////////
 
 void SubGridDtN_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
-  for (size_t b=0; b<assembler->wkset.size(); b++) {
-    assembler->wkset[b]->params = params;
-    assembler->wkset[b]->paramnames = paramnames;
+  for (size_t block=0; block<assembler->wkset.size(); ++block) {
+    assembler->wkset[block]->params = params;
+    assembler->wkset[block]->paramnames = paramnames;
   }
   solver->phys->updateParameters(params, paramnames);
   
@@ -1574,7 +1574,7 @@ void SubGridDtN_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & pa
 //
 // ========================================================================================
 
-void SubGridDtN_Solver::performGather(const size_t & b, const vector_RCP & vec,
+void SubGridDtN_Solver::performGather(const size_t & block, const vector_RCP & vec,
                                       const size_t & type, const size_t & entry) {
     
   typedef typename SubgridSolverNode::memory_space SGS_mem;
@@ -1583,14 +1583,14 @@ void SubGridDtN_Solver::performGather(const size_t & b, const vector_RCP & vec,
   auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
   
   if (Kokkos::SpaceAccessibility<AssemblyExec, SGS_mem>::accessible) { // can we avoid a copy?
-    this->performGather(b, vec_slice, type);
-    this->performBoundaryGather(b, vec_slice, type);
+    this->performGather(block, vec_slice, type);
+    this->performBoundaryGather(block, vec_slice, type);
   }
   else {
     auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
     Kokkos::deep_copy(vec_dev,vec_slice);
-    this->performGather(b, vec_dev, type);
-    this->performBoundaryGather(b, vec_dev, type);
+    this->performGather(block, vec_dev, type);
+    this->performBoundaryGather(block, vec_dev, type);
   }
   
 }
@@ -1600,42 +1600,42 @@ void SubGridDtN_Solver::performGather(const size_t & b, const vector_RCP & vec,
 // ========================================================================================
 
 template<class ViewType>
-void SubGridDtN_Solver::performGather(const size_t & b, ViewType vec_dev, const size_t & type) {
+void SubGridDtN_Solver::performGather(const size_t & block, ViewType vec_dev, const size_t & type) {
 
   Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
   Kokkos::View<int**,AssemblyDevice> offsets;
   LIDView LIDs;
   
-  for (size_t c=0; c < assembler->cells[b].size(); c++) {
+  for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
     switch(type) {
       case 0 :
-        numDOF = assembler->cells[b][c]->cellData->numDOF;
-        data = assembler->cells[b][c]->u[0];
-        LIDs = assembler->cells[b][c]->LIDs[0];
+        numDOF = assembler->groups[block][grp]->groupData->numDOF;
+        data = assembler->groups[block][grp]->u[0];
+        LIDs = assembler->groups[block][grp]->LIDs[0];
         offsets = assembler->wkset[0]->offsets;
         break;
       case 1 : // deprecated (was udot)
         break;
       case 2 :
-        numDOF = assembler->cells[b][c]->cellData->numDOF;
-        data = assembler->cells[b][c]->phi[0];
-        LIDs = assembler->cells[b][c]->LIDs[0];
+        numDOF = assembler->groups[block][grp]->groupData->numDOF;
+        data = assembler->groups[block][grp]->phi[0];
+        LIDs = assembler->groups[block][grp]->LIDs[0];
         offsets = assembler->wkset[0]->offsets;
         break;
       case 3 : // deprecated (was phidot)
         break;
       case 4:
-        numDOF = assembler->cells[b][c]->cellData->numParamDOF;
-        data = assembler->cells[b][c]->param;
-        LIDs = assembler->cells[b][c]->paramLIDs;
+        numDOF = assembler->groups[block][grp]->groupData->numParamDOF;
+        data = assembler->groups[block][grp]->param;
+        LIDs = assembler->groups[block][grp]->paramLIDs;
         offsets = assembler->wkset[0]->paramoffsets;
         break;
       case 5 :
-        numDOF = assembler->cells[b][c]->cellData->numAuxDOF;
-        data = assembler->cells[b][c]->aux;
-        LIDs = assembler->cells[b][c]->auxLIDs;
-        offsets = assembler->cells[b][c]->auxoffsets;
+        numDOF = assembler->groups[block][grp]->groupData->numAuxDOF;
+        data = assembler->groups[block][grp]->aux;
+        LIDs = assembler->groups[block][grp]->auxLIDs;
+        offsets = assembler->groups[block][grp]->auxoffsets;
         break;
       default :
         cout << "ERROR - NOTHING WAS GATHERED" << endl;
@@ -1657,46 +1657,46 @@ void SubGridDtN_Solver::performGather(const size_t & b, ViewType vec_dev, const 
 // ========================================================================================
 
 template<class ViewType>
-void SubGridDtN_Solver::performBoundaryGather(const size_t & b, ViewType vec_dev, const size_t & type) {
+void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec_dev, const size_t & type) {
   
-  if (assembler->boundaryCells.size() > b) {
+  if (assembler->boundary_groups.size() > block) {
     
     Kokkos::View<LO*,AssemblyDevice> numDOF;
     Kokkos::View<ScalarT***,AssemblyDevice> data;
     Kokkos::View<int**,AssemblyDevice> offsets;
     LIDView LIDs;
     
-    for (size_t c=0; c < assembler->boundaryCells[b].size(); c++) {
-      if (assembler->boundaryCells[b][c]->numElem > 0) {
+    for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
+      if (assembler->boundary_groups[block][grp]->numElem > 0) {
         
         switch(type) {
           case 0 :
-            numDOF = assembler->boundaryCells[b][c]->cellData->numDOF;
-            data = assembler->boundaryCells[b][c]->u[0];
-            LIDs = assembler->boundaryCells[b][c]->LIDs[0];
+            numDOF = assembler->boundary_groups[block][grp]->groupData->numDOF;
+            data = assembler->boundary_groups[block][grp]->u[0];
+            LIDs = assembler->boundary_groups[block][grp]->LIDs[0];
             offsets = assembler->wkset[0]->offsets;
             break;
           case 1 : // deprecated (was udot)
             break;
           case 2 :
-            numDOF = assembler->boundaryCells[b][c]->cellData->numDOF;
-            data = assembler->boundaryCells[b][c]->phi[0];
-            LIDs = assembler->boundaryCells[b][c]->LIDs[0];
+            numDOF = assembler->boundary_groups[block][grp]->groupData->numDOF;
+            data = assembler->boundary_groups[block][grp]->phi[0];
+            LIDs = assembler->boundary_groups[block][grp]->LIDs[0];
             offsets = assembler->wkset[0]->offsets;
             break;
           case 3 : // deprecated (was phidot)
             break;
           case 4:
-            numDOF = assembler->boundaryCells[b][c]->cellData->numParamDOF;
-            data = assembler->boundaryCells[b][c]->param;
-            LIDs = assembler->boundaryCells[b][c]->paramLIDs;
+            numDOF = assembler->boundary_groups[block][grp]->groupData->numParamDOF;
+            data = assembler->boundary_groups[block][grp]->param;
+            LIDs = assembler->boundary_groups[block][grp]->paramLIDs;
             offsets = assembler->wkset[0]->paramoffsets;
             break;
           case 5 :
-            numDOF = assembler->boundaryCells[b][c]->cellData->numAuxDOF;
-            data = assembler->boundaryCells[b][c]->aux;
-            LIDs = assembler->boundaryCells[b][c]->auxLIDs;
-            offsets = assembler->boundaryCells[b][c]->auxoffsets;
+            numDOF = assembler->boundary_groups[block][grp]->groupData->numAuxDOF;
+            data = assembler->boundary_groups[block][grp]->aux;
+            LIDs = assembler->boundary_groups[block][grp]->auxLIDs;
+            offsets = assembler->boundary_groups[block][grp]->auxoffsets;
             break;
           default :
             cout << "ERROR - NOTHING WAS GATHERED" << endl;

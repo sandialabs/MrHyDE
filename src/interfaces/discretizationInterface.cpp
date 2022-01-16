@@ -119,9 +119,9 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   vector<vector<int> > orders = phys->unique_orders;
   vector<vector<string> > types = phys->unique_types;
   
-  for (size_t b=0; b<blocknames.size(); b++) {
+  for (size_t block=0; block<blocknames.size(); ++block) {
     
-    string blockID = blocknames[b];
+    string blockID = blocknames[block];
     topo_RCP cellTopo = mesh->getCellTopology(blockID);
     string shape = cellTopo->getName();
     
@@ -142,26 +142,26 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     vector<string> donetypes;
     
     for (size_t set=0; set<phys->setnames.size(); ++set) {
-      Teuchos::ParameterList db_settings = phys->setDiscSettings[set][b];
+      Teuchos::ParameterList db_settings = phys->setDiscSettings[set][block];
       
       ///////////////////////////////////////////////////////////////////////////
       // Get the cardinality of the basis functions  on this block
       ///////////////////////////////////////////////////////////////////////////
       
-      for (size_t n=0; n<orders[b].size(); n++) {
+      for (size_t n=0; n<orders[block].size(); n++) {
         bool go = true;
         for (size_t i=0; i<doneorders.size(); i++){
-          if (doneorders[i] == orders[b][n] && donetypes[i] == types[b][n]) {
+          if (doneorders[i] == orders[block][n] && donetypes[i] == types[block][n]) {
             go = false;
           }
         }
         if (go) {
-          basis_RCP basis = this->getBasis(spaceDim, cellTopo, types[b][n], orders[b][n]);
+          basis_RCP basis = this->getBasis(spaceDim, cellTopo, types[block][n], orders[block][n]);
           int bsize = basis->getCardinality();
           blockcards.push_back(bsize); // cardinality of the basis
           blockbasis.push_back(basis);
-          doneorders.push_back(orders[b][n]);
-          donetypes.push_back(types[b][n]);
+          doneorders.push_back(orders[block][n]);
+          donetypes.push_back(types[block][n]);
         }
       }
     }
@@ -173,14 +173,14 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     ///////////////////////////////////////////////////////////////////////////
     
     int mxorder = 0;
-    for (size_t i=0; i<orders[b].size(); i++) {
-      if (orders[b][i]>mxorder) {
-        mxorder = orders[b][i];
+    for (size_t i=0; i<orders[block].size(); i++) {
+      if (orders[block][i]>mxorder) {
+        mxorder = orders[block][i];
       }
     }
     
     DRV qpts, qwts;
-    int quadorder = phys->setDiscSettings[0][b].get<int>("quadrature",2*mxorder); // hard coded
+    int quadorder = phys->setDiscSettings[0][block].get<int>("quadrature",2*mxorder); // hard coded
     this->getQuadrature(cellTopo, quadorder, qpts, qwts);
     
     ///////////////////////////////////////////////////////////////////////////
@@ -217,7 +217,7 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
       Kokkos::deep_copy(side_qwts,1.0);
     }
     else {
-      int side_quadorder = phys->setDiscSettings[0][b].get<int>("side quadrature",2*mxorder); // hard coded
+      int side_quadorder = phys->setDiscSettings[0][block].get<int>("side quadrature",2*mxorder); // hard coded
       this->getQuadrature(sideTopo, side_quadorder, side_qpts, side_qwts);
     }
     
@@ -447,7 +447,7 @@ void DiscretizationInterface::getQuadrature(const topo_RCP & cellTopo, const int
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cellData) {
+void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & cellData) {
   
   // ------------------------------------
   // Reference ip/wts/normals/tangents
@@ -635,7 +635,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<CellMetaData> & cell
 // Compute the volumetric integration information
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaData> & cellData,
+void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaData> & cellData,
                                                         DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                         vector<View_Sc2> & ip, View_Sc2 wts, View_Sc1 hsize,
                                                         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -877,7 +877,7 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<CellMetaDat
 // Specialized routine to compute just the basis (not GRAD, CURL or DIV) and the wts
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<CellMetaData> & cellData,
+void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & cellData,
                                                          DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                          View_Sc2 wts,
                                                          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -999,7 +999,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<CellMetaDa
 // Get the element orientations
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<CellMetaData> & cellData,
+void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData> & cellData,
                                                       Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                       const bool & use_block) {
@@ -1023,7 +1023,7 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<CellMetaData>
 // Compute the basis functions at the face ip
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & cellData, const int & side,
+void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & cellData, const int & side,
                                                   DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                   vector<View_Sc2> & face_ip, View_Sc2 face_wts,
@@ -1293,7 +1293,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<CellMetaData> & c
 //
 //======================================================================
 
-void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<CellMetaData> & cellData,
+void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData> & cellData,
                                                       DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                       Kokkos::View<LO*,AssemblyDevice> localSideID,
                                                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -1717,20 +1717,20 @@ void DiscretizationInterface::buildDOFManagers() {
     setDOF->setConnManager(conn,*(Commptr->getRawMpiComm()));
     setDOF->setOrientationsRequired(true);
     
-    for (size_t b=0; b<blocknames.size(); b++) {
-      for (size_t j=0; j<phys->varlist[set][b].size(); j++) {
-        topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      for (size_t j=0; j<phys->varlist[set][block].size(); j++) {
+        topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
         basis_RCP basis_pointer = this->getBasis(spaceDim, cellTopo,
-                                                 phys->types[set][b][j],
-                                                 phys->orders[set][b][j]);
+                                                 phys->types[set][block][j],
+                                                 phys->orders[set][block][j]);
         
         Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
         
-        if (phys->useDG[set][b][j]) {
-          setDOF->addField(blocknames[b], phys->varlist[set][b][j], Pattern, panzer::FieldType::DG);
+        if (phys->useDG[set][block][j]) {
+          setDOF->addField(blocknames[block], phys->varlist[set][block][j], Pattern, panzer::FieldType::DG);
         }
         else {
-          setDOF->addField(blocknames[b], phys->varlist[set][b][j], Pattern, panzer::FieldType::CG);
+          setDOF->addField(blocknames[block], phys->varlist[set][block][j], Pattern, panzer::FieldType::CG);
         }
         
       }
@@ -1738,9 +1738,9 @@ void DiscretizationInterface::buildDOFManagers() {
     
     setDOF->buildGlobalUnknowns();
 #ifndef MrHyDE_NO_AD
-    for (size_t b=0; b<blocknames.size(); b++) {
-      int numGIDs = setDOF->getElementBlockGIDCount(blocknames[b]);
-      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + blocknames[b]);
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      int numGIDs = setDOF->getElementBlockGIDCount(blocknames[block]);
+      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + blocknames[block]);
     }
 #endif
     if (verbosity>1) {
@@ -1838,9 +1838,9 @@ void DiscretizationInterface::setBCData() {
     auto currDOF = DOF[set];
     
     int maxvars = 0;
-    for (size_t b=0; b<blocknames.size(); b++) {
-      for (size_t j=0; j<varlist[b].size(); j++) {
-        string var = varlist[b][j];
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      for (size_t j=0; j<varlist[block].size(); j++) {
+        string var = varlist[block][j];
         int num = currDOF->getFieldNum(var);
         maxvars = std::max(num,maxvars);
       }
@@ -1853,11 +1853,11 @@ void DiscretizationInterface::setBCData() {
     vector<vector<GO> > set_point_dofs;
     vector<vector<vector<LO> > > set_dbc_dofs;
     
-    for (size_t b=0; b<blocknames.size(); b++) {
+    for (size_t block=0; block<blocknames.size(); ++block) {
       
       vector<vector<string> > block_var_bcs; // [var][boundary]
       
-      topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
+      topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
       int numSidesPerElem = 2; // default to 1D for some reason
       if (spaceDim == 2) {
         numSidesPerElem = cellTopo->getEdgeCount();
@@ -1866,7 +1866,7 @@ void DiscretizationInterface::setBCData() {
         numSidesPerElem = cellTopo->getFaceCount();
       }
       
-      std::string blockID = blocknames[b];
+      std::string blockID = blocknames[block];
       vector<stk::mesh::Entity> stk_meshElems;
       mesh->getMyElements(blockID, stk_meshElems);
       size_t maxElemLID = 0;
@@ -1880,7 +1880,7 @@ void DiscretizationInterface::setBCData() {
         localelemmap[lid] = i;
       }
 
-      Teuchos::ParameterList blocksettings = phys->setPhysSettings[set][b];
+      Teuchos::ParameterList blocksettings = phys->setPhysSettings[set][block];
     
       Teuchos::ParameterList dbc_settings = blocksettings.sublist("Dirichlet conditions");
       Teuchos::ParameterList nbc_settings = blocksettings.sublist("Neumann conditions");
@@ -1893,7 +1893,7 @@ void DiscretizationInterface::setBCData() {
       Kokkos::View<int****,HostDevice> currside_info;
       if (requires_sideinfo) {
         currside_info = Kokkos::View<int****,HostDevice>("side info",stk_meshElems.size(),
-                                                         varlist[b].size(),numSidesPerElem,2);
+                                                         varlist[block].size(),numSidesPerElem,2);
       }
       else {
         currside_info = Kokkos::View<int****,HostDevice>("side info",1,1,1,2);
@@ -1903,9 +1903,9 @@ void DiscretizationInterface::setBCData() {
       
       std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
 
-      for (size_t j=0; j<varlist[b].size(); j++) {
+      for (size_t j=0; j<varlist[block].size(); j++) {
         vector<string> current_var_bcs(sideSets.size(),"none"); // [boundary]
-        string var = varlist[b][j];
+        string var = varlist[block][j];
         int num = currDOF->getFieldNum(var);
         vector<int> var_offsets = currDOF->getGIDFieldOffsets(blockID,num);
 
@@ -2109,16 +2109,16 @@ void DiscretizationInterface::setDirichletData() {
     
     std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
     
-    for (size_t b=0; b<blocknames.size(); b++) {
+    for (size_t block=0; block<blocknames.size(); ++block) {
       
-      std::string blockID = blocknames[b];
+      std::string blockID = blocknames[block];
       
-      Teuchos::ParameterList dbc_settings = phys->setPhysSettings[set][b].sublist("Dirichlet conditions");
+      Teuchos::ParameterList dbc_settings = phys->setPhysSettings[set][block].sublist("Dirichlet conditions");
       
       std::vector<std::vector<LO> > block_dbc_dofs;
       
-      for (size_t j=0; j<varlist[b].size(); j++) {
-        std::string var = varlist[b][j];
+      for (size_t j=0; j<varlist[block].size(); j++) {
+        std::string var = varlist[block][j];
         int fieldnum = currDOF->getFieldNum(var);
         std::vector<LO> var_dofs;
         for (size_t side=0; side<sideNames.size(); side++ ) {

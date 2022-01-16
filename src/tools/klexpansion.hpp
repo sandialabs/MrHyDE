@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef KLEXP_H
-#define KLEXP_H
+#ifndef MRHYDE_KLEXP_H
+#define MRHYDE_KLEXP_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

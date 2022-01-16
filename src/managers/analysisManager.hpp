@@ -16,8 +16,8 @@
  \author Created by T. Wildey
  */
 
-#ifndef MRHYDE_ANALYSIS_H
-#define MRHYDE_ANALYSIS_H
+#ifndef MRHYDE_ANALYSIS_MANAGER_H
+#define MRHYDE_ANALYSIS_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

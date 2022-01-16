@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef PHYSICSTEST_H
-#define PHYSICSTEST_H
+#ifndef MRHYDE_PHYSICSTEST_H
+#define MRHYDE_PHYSICSTEST_H
 
 #include "physicsBase.hpp"
 

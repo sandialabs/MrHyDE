@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef subgridMesh 
-#define subgridMesh 
+#ifndef MRHYDE_subgridMesh 
+#define MRHYDE_subgridMesh 
 
 #include <Panzer_STK_MeshFactory.hpp>
 #include <Panzer_STK_Interface.hpp>

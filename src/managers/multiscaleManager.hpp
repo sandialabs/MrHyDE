@@ -11,12 +11,12 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MULTISCALE_MANAGER_H
-#define MULTISCALE_MANAGER_H
+#ifndef MRHYDE_MULTISCALE_MANAGER_H
+#define MRHYDE_MULTISCALE_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "cell.hpp"
+#include "group.hpp"
 #include "subgridModel.hpp"
 #include "Amesos2.hpp"
 #include "meshInterface.hpp"
@@ -45,7 +45,7 @@ namespace MrHyDE {
      * @param[in] MacroComm_  MpiCommunicator from the macroscale
      * @param[in] mesh_  Macroscopic mesh
      * @param[in] settings_  ParameterList of settings from the input file
-     * @param[in] cells_  Cells (containers of elements) from the macroscale 
+     * @param[in] groups_  Groups (collections of elements) from the macroscale 
      * @param[in] macro_functionManagers_  Macroscale function managers
      */
     
@@ -54,18 +54,18 @@ namespace MrHyDE {
      * @param[in] MacroComm_  MpiCommunicator from the macroscale
      * @param[in] mesh_  Macroscopic mesh
      * @param[in] settings_  ParameterList of settings from the input file
-     * @param[in] cells_  Cells (containers of elements) from the macroscale 
+     * @param[in] groups_  Groups (collections of elements) from the macroscale 
      * @param[in] macro_functionManagers_  Macroscale function managers
      */
     
     MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
                       Teuchos::RCP<MeshInterface> & mesh_,
                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                      std::vector<std::vector<Teuchos::RCP<cell> > > & cells_,
+                      std::vector<std::vector<Teuchos::RCP<Group> > > & groups_,
                       std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_);
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Set the information from the macro-scale that does not depend on the specific cell
+    // Set the information from the macro-scale that does not depend on the specific group
     ////////////////////////////////////////////////////////////////////////////////
     
     void setMacroInfo(std::vector<std::vector<basis_RCP> > & macro_basis_pointers,
@@ -78,13 +78,13 @@ namespace MrHyDE {
                       std::vector<std::string> & macro_disc_paramnames);
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Initial assignment of subgrid models to cells
+    // Initial assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
     
     ScalarT initialize();
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Re-assignment of subgrid models to cells
+    // Re-assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
     
     ScalarT update();
@@ -120,7 +120,7 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    std::vector<std::vector<Teuchos::RCP<cell> > > cells;
+    std::vector<std::vector<Teuchos::RCP<Group> > > groups;
     std::vector<Teuchos::RCP<workset> > macro_wkset;
     std::vector<std::vector<Teuchos::RCP<SGLA_CrsMatrix> > > subgrid_projection_maps;
     std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;

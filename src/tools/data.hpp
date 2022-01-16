@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef DATA_H
-#define DATA_H
+#ifndef MRHYDE_DATA_H
+#define MRHYDE_DATA_H
 
 #include "trilinos.hpp"
 #include <iostream>     

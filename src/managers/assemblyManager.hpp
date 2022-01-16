@@ -12,19 +12,20 @@
  ************************************************************************/
 
 /** \file   analysisManager.hpp
- \brief  Contains all of the assembly routines in MrHyDE.  Also creates the cells and the worksets.
+ \brief  Contains all of the assembly routines in MrHyDE.  Also creates the elements groups and the worksets.
  \author Created by T. Wildey
  */
 
-#ifndef ASSEMBLYMANAGER_H
-#define ASSEMBLYMANAGER_H
+#ifndef MRHYDE_ASSEMBLY_MANAGER_H
+#define MRHYDE_ASSEMBLY_MANAGER_H
 
 #include "trilinos.hpp"
 #include "Panzer_DOFManager.hpp"
 
 #include "preferences.hpp"
-#include "cell.hpp"
-#include "boundaryCell.hpp"
+#include "groupMetaData.hpp"
+#include "group.hpp"
+#include "boundaryGroup.hpp"
 #include "workset.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
@@ -77,9 +78,9 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void createCells();
+    void createGroups();
     
-    void allocateCellStorage();
+    void allocateGroupStorage();
       
     // ========================================================================================
     // ========================================================================================
@@ -106,7 +107,7 @@ namespace MrHyDE {
     
     void setInitial(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                     const bool & lumpmass, const ScalarT & scale,
-                    const size_t & block, const size_t & cellblock);
+                    const size_t & block, const size_t & groupblock);
     
     void setInitial(const size_t & set, vector_RCP & initial, const bool & useadjoint);
 
@@ -178,7 +179,7 @@ namespace MrHyDE {
     void updatePhysicsSet(const size_t & set);
     
     // ========================================================================================
-    // Gather (TpetraMV -> cell solns)
+    // Gather 
     // ========================================================================================
     
     void performGather(const size_t & set, const vector_RCP & vec, const int & type, const size_t & index);
@@ -190,7 +191,7 @@ namespace MrHyDE {
     void performBoundaryGather(const size_t & set, ViewType vec_dev, const int & type);
     
     // ========================================================================================
-    // Scatter (local data structures -> TpetraMV and TpetraCRS)
+    // Scatter 
     // ========================================================================================
     
     template<class MatType, class LocalViewType, class LIDViewType>
@@ -237,10 +238,10 @@ namespace MrHyDE {
     size_t globalParamUnknowns;
     int verbosity, debug_level;
     
-    // Cells and worksets are unique to each block, but span the physics sets
-    std::vector<Teuchos::RCP<CellMetaData> > cellData;
-    std::vector<std::vector<Teuchos::RCP<cell> > > cells;
-    std::vector<std::vector<Teuchos::RCP<BoundaryCell> > > boundaryCells;
+    // Groupss and worksets are unique to each block, but span the physics sets
+    std::vector<Teuchos::RCP<GroupMetaData> > groupData;
+    std::vector<std::vector<Teuchos::RCP<Group> > > groups;
+    std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;
     std::vector<Teuchos::RCP<workset> > wkset;
     
     bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free;
@@ -262,7 +263,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - multiscale projection");
     Teuchos::RCP<Teuchos::Time> setinittimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setInitial()");
     Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setDirichlet()");
-    Teuchos::RCP<Teuchos::Time> celltimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createCells()");
+    Teuchos::RCP<Teuchos::Time> grouptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createGroups()");
     Teuchos::RCP<Teuchos::Time> wksettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createWorkset()");
     
   };

@@ -196,8 +196,8 @@ void AnalysisManager::run() {
         if (regenerate_grains) {
           auto seeds = solve->mesh->generateNewMicrostructure(sampleints(j));
           solve->mesh->importNewMicrostructure(sampleints(j), seeds,
-                                               solve->assembler->cells,
-                                               solve->assembler->boundaryCells);
+                                               solve->assembler->groups,
+                                               solve->assembler->boundary_groups);
         }
         else if (regenerate_rotations) {
           this->updateRotationData(sampleints(j));
@@ -762,11 +762,11 @@ void AnalysisManager::updateRotationData(const int & newrandseed) {
   // Determine how many seeds there are
   size_t localnumSeeds = 0;
   size_t numSeeds = 0;
-  for (size_t b=0; b<solve->assembler->cells.size(); b++) {
-    for (size_t e=0; e<solve->assembler->cells[b].size(); e++) {
-      for (size_t k=0; k<solve->assembler->cells[b][e]->numElem; k++) {
-        if (solve->assembler->cells[b][e]->cell_data_seed[k] > localnumSeeds) {
-          localnumSeeds = solve->assembler->cells[b][e]->cell_data_seed[k];
+  for (size_t block=0; block<solve->assembler->groups.size(); ++block) {
+    for (size_t grp=0; grp<solve->assembler->groups[block].size(); ++grp) {
+      for (size_t e=0; e<solve->assembler->groups[block][grp]->numElem; ++e) {
+        if (solve->assembler->groups[block][grp]->data_seed[e] > localnumSeeds) {
+          localnumSeeds = solve->assembler->groups[block][grp]->data_seed[e];
         }
       }
     }
@@ -818,24 +818,24 @@ void AnalysisManager::updateRotationData(const int & newrandseed) {
   // Set cell data
   ////////////////////////////////////////////////////////////////////////////////
   
-  for (size_t b=0; b<solve->assembler->cells.size(); b++) {
-    for (size_t e=0; e<solve->assembler->cells[b].size(); e++) {
-      int numElem = solve->assembler->cells[b][e]->numElem;
+  for (size_t block=0; block<solve->assembler->groups.size(); ++block) {
+    for (size_t grp=0; grp<solve->assembler->groups[block].size(); ++grp) {
+      int numElem = solve->assembler->groups[block][grp]->numElem;
       for (int c=0; c<numElem; c++) {
-        int cnode = solve->assembler->cells[b][e]->cell_data_seed[c];
+        int cnode = solve->assembler->groups[block][grp]->data_seed[c];
         for (int i=0; i<9; i++) {
-          solve->assembler->cells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
+          solve->assembler->groups[block][grp]->data(c,i) = rotation_data(cnode,i);
         }
       }
     }
   }
-  for (size_t b=0; b<solve->assembler->boundaryCells.size(); b++) {
-    for (size_t e=0; e<solve->assembler->boundaryCells[b].size(); e++) {
-      int numElem = solve->assembler->boundaryCells[b][e]->numElem;
-      for (int c=0; c<numElem; c++) {
-        int cnode = solve->assembler->boundaryCells[b][e]->cell_data_seed[c];
+  for (size_t block=0; block<solve->assembler->boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<solve->assembler->boundary_groups[block].size(); ++grp) {
+      int numElem = solve->assembler->boundary_groups[block][grp]->numElem;
+      for (int e=0; e<numElem; ++e) {
+        int cnode = solve->assembler->boundary_groups[block][grp]->data_seed[e];
         for (int i=0; i<9; i++) {
-          solve->assembler->boundaryCells[b][e]->cell_data(c,i) = rotation_data(cnode,i);
+          solve->assembler->boundary_groups[block][grp]->data(e,i) = rotation_data(cnode,i);
         }
       }
     }

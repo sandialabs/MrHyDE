@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MSPHASEFIELD_H
-#define MSPHASEFIELD_H
+#ifndef MRHYDE_MSPHASEFIELD_H
+#define MRHYDE_MSPHASEFIELD_H
 
 #include "physicsBase.hpp"
 #include <random>

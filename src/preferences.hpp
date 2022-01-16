@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
 ************************************************************************/
 
-#ifndef PREFERENCES_H
-#define PREFERENCES_H
+#ifndef MRHYDE_PREFERENCES_H
+#define MRHYDE_PREFERENCES_H
 
 #include "PanzerCore_config.hpp"
 #include "Intrepid2_Basis.hpp"

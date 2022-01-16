@@ -11,27 +11,27 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#include "cellMetaData.hpp"
+#include "groupMetaData.hpp"
 using namespace MrHyDE;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-CellMetaData::CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
-                           const topo_RCP & cellTopo_,
-                           const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
-                           const size_t & myBlock_,
-                           const size_t & myLevel_, const int & numElem_,
-                           const bool & build_face_terms_,
-                           const vector<bool> & assemble_face_terms_,
-                           const vector<string> & sidenames_,
-                           const size_t & num_params) :
+GroupMetaData::GroupMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
+                             const topo_RCP & cellTopo_,
+                             const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
+                             const size_t & myBlock_,
+                             const size_t & myLevel_, const int & numElem_,
+                             const bool & build_face_terms_,
+                             const vector<bool> & assemble_face_terms_,
+                             const vector<string> & sidenames_,
+                             const size_t & num_params) :
 assemble_face_terms(assemble_face_terms_), build_face_terms(build_face_terms_),
 myBlock(myBlock_), myLevel(myLevel_), numElem(numElem_),
 physics_RCP(physics_RCP_), sidenames(sidenames_), numDiscParams(num_params),
 cellTopo(cellTopo_) {
 
-  Teuchos::TimeMonitor localtimer(*celltimer);
+  Teuchos::TimeMonitor localtimer(*grptimer);
   
   compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);
   useFineScale = settings->sublist("Postprocess").get<bool>("Use fine scale sensors",true);
@@ -71,8 +71,8 @@ cellTopo(cellTopo_) {
   }
   //response_type = "global";
   response_type = settings->sublist("Postprocess").get("response type", "pointwise");
-  have_cell_phi = false;
-  have_cell_rotation = false;
+  have_phi = false;
+  have_rotation = false;
   have_extra_data = false;
   
   numSets = physics_RCP->setnames.size();
@@ -81,7 +81,7 @@ cellTopo(cellTopo_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void CellMetaData::updatePhysicsSet(const size_t & set) {
+void GroupMetaData::updatePhysicsSet(const size_t & set) {
   if (numSets> 1) {
     numDOF = set_numDOF[set];
     numDOF_host = set_numDOF_host[set];

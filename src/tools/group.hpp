@@ -11,14 +11,14 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef CELL_H
-#define CELL_H
+#ifndef MRHYDE_GROUP_H
+#define MRHYDE_GROUP_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "workset.hpp"
 #include "subgridModel.hpp"
-#include "cellMetaData.hpp"
+#include "groupMetaData.hpp"
 #include "discretizationInterface.hpp"
 
 #include <iostream>     
@@ -26,21 +26,21 @@
 
 namespace MrHyDE {
   
-  class cell {
+  class Group {
   public:
     
-    cell() {} ;
+    Group() {} ;
     
-    ~cell() {} ;
+    ~Group() {} ;
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    cell(const Teuchos::RCP<CellMetaData> & cellData_,
-         const DRV nodes_,
-         const Kokkos::View<LO*,AssemblyDevice> localID_,
-         Teuchos::RCP<DiscretizationInterface> & disc_,
-         const bool & storeAll_);
+    Group(const Teuchos::RCP<GroupMetaData> & groupData_,
+          const DRV nodes_,
+          const Kokkos::View<LO*,AssemblyDevice> localID_,
+          Teuchos::RCP<DiscretizationInterface> & disc_,
+          const bool & storeAll_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +137,7 @@ namespace MrHyDE {
     void updateStageSoln(const size_t & set);
     
     ///////////////////////////////////////////////////////////////////////////////////////
-    // Compute the contribution from this cell to the global res, J, Jdot
+    // Compute the contribution from this group to the global res, J, Jdot
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void computeJacRes(const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -238,7 +238,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpAdjointPrev(const int & numsteps, const int & numstages) {
-      if (cellData->requiresTransient && cellData->requiresAdjoint) {
+      if (groupData->requiresTransient && groupData->requiresAdjoint) {
         for (size_t set=0; set<LIDs.size(); ++set) {
           View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),numsteps);
           adj_prev.push_back(newaprev);
@@ -252,7 +252,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpSubGradient(const int & numParams) {
-      if (cellData->requiresAdjoint) {
+      if (groupData->requiresAdjoint) {
         subgradient = View_Sc2("subgrid gradient",numElem,numParams);
       }
     }
@@ -301,15 +301,15 @@ namespace MrHyDE {
     vector<LIDView_host> LIDs_host;
     LIDView_host paramLIDs_host;
     
-    Teuchos::RCP<CellMetaData> cellData;
+    Teuchos::RCP<GroupMetaData> groupData;
     Teuchos::RCP<workset> wkset;
     vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Kokkos::View<LO*,AssemblyDevice> localElemID;
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
     DRV nodes;
-    vector<size_t> cell_data_seed, cell_data_seedindex;
+    vector<size_t> data_seed, data_seedindex;
     vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
-    size_t subgrid_usernum; // what is the index for this cell in the subgrid model (should be deprecated)
+    size_t subgrid_usernum; // what is the index for this group in the subgrid model (should be deprecated)
     
     Teuchos::RCP<DiscretizationInterface> disc;
     
@@ -351,30 +351,30 @@ namespace MrHyDE {
     View_Sc3 sensorPoints;
     vector<int> sensorElem, mySensorIDs;
     vector<vector<DRV> > sensorBasis, param_sensorBasis, sensorBasisGrad, param_sensorBasisGrad;
-    Kokkos::View<ScalarT**,AssemblyDevice> subgradient, cell_data;
+    Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
-    vector<ScalarT> cell_data_distance;
+    vector<ScalarT> data_distance;
     
     // Profile timers
-    Teuchos::RCP<Teuchos::Time> computeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeSolnVolIP()");
-    Teuchos::RCP<Teuchos::Time> computeSolnFaceTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeSolnFaceIP()");
-    Teuchos::RCP<Teuchos::Time> volumeResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeJacRes() - volume residual");
-    Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeJacRes() - boundary residual");
-    Teuchos::RCP<Teuchos::Time> faceResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeJacRes() - edge/face residual");
-    Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeJacRes() - fill local Jacobian");
-    Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeJacRes() - fill local residual");
-    Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeJacRes() - transient residual");
-    Teuchos::RCP<Teuchos::Time> adjointResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeJacRes() - adjoint residual");
-    Teuchos::RCP<Teuchos::Time> cellFluxGatherTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeFlux - gather solution");
-    Teuchos::RCP<Teuchos::Time> cellFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeFlux - update wkset");
-    Teuchos::RCP<Teuchos::Time> cellFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeFlux - compute aux solution");
-    Teuchos::RCP<Teuchos::Time> cellFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeFlux - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> computeSolAvgTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::computeSolAvg()");
-    Teuchos::RCP<Teuchos::Time> computeNodeSolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::getSolutionAtNodes()");
-    Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::constructor - build basis");
-    Teuchos::RCP<Teuchos::Time> buildFaceBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::constructor - build face basis");
-    Teuchos::RCP<Teuchos::Time> objectiveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::objective");
-    Teuchos::RCP<Teuchos::Time> responseTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cell::response");
+    Teuchos::RCP<Teuchos::Time> computeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolnVolIP()");
+    Teuchos::RCP<Teuchos::Time> computeSolnFaceTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolnFaceIP()");
+    Teuchos::RCP<Teuchos::Time> volumeResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - volume residual");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - boundary residual");
+    Teuchos::RCP<Teuchos::Time> faceResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - edge/face residual");
+    Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - fill local Jacobian");
+    Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - fill local residual");
+    Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - transient residual");
+    Teuchos::RCP<Teuchos::Time> adjointResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - adjoint residual");
+    Teuchos::RCP<Teuchos::Time> groupFluxGatherTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - gather solution");
+    Teuchos::RCP<Teuchos::Time> groupFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - update wkset");
+    Teuchos::RCP<Teuchos::Time> groupFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - compute aux solution");
+    Teuchos::RCP<Teuchos::Time> groupFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - physics evaluation");
+    Teuchos::RCP<Teuchos::Time> computeSolAvgTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolAvg()");
+    Teuchos::RCP<Teuchos::Time> computeNodeSolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::getSolutionAtNodes()");
+    Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::constructor - build basis");
+    Teuchos::RCP<Teuchos::Time> buildFaceBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::constructor - build face basis");
+    Teuchos::RCP<Teuchos::Time> objectiveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::objective");
+    Teuchos::RCP<Teuchos::Time> responseTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::response");
     
   };
   

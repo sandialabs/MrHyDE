@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef STOKES_H
-#define STOKES_H
+#ifndef MRHYDE_STOKES_H
+#define MRHYDE_STOKES_H
 
 #include "physicsBase.hpp"
 

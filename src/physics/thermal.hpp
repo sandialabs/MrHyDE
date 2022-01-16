@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef THERMAL_H
-#define THERMAL_H
+#ifndef MRHYDE_THERMAL_H
+#define MRHYDE_THERMAL_H
 
 #include "physicsBase.hpp"
 #include "vista.hpp"

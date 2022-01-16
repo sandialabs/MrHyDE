@@ -62,7 +62,6 @@ Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
   this->setupParameters();
-  //this->setupDiscretizedParameters(cells,boundaryCells);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -226,8 +225,8 @@ void ParameterManager<Node>::setupParameters() {
 ////////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::RCP<cell> > > & cells,
-                                                        vector<vector<Teuchos::RCP<BoundaryCell> > > & boundaryCells) {
+void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::RCP<Group> > > & groups,
+                                                        vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -262,23 +261,24 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     
     Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern;
     
-    for (size_t b=0; b<blocknames.size(); b++) {
-      auto cellTopo = mesh->getCellTopology(blocknames[b]);
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      auto cellTopo = mesh->getCellTopology(blocknames[block]);
       for (size_t j=0; j<discretized_param_names.size(); j++) {
         basis_RCP cbasis = disc->getBasis(spaceDim, cellTopo,
                                           disc_types[disc_usebasis[j]],
                                           disc_orders[disc_usebasis[j]]);
         
         Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(cbasis));
-        paramDOF->addField(blocknames[b], discretized_param_names[j], Pattern);
+        paramDOF->addField(blocknames[block], discretized_param_names[j], Pattern);
       }
     }
     
     paramDOF->buildGlobalUnknowns();
 #ifndef MrHyDE_NO_AD
-    for (size_t b=0; b<blocknames.size(); b++) {
-      int numGIDs = paramDOF->getElementBlockGIDCount(blocknames[b]);
-      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of discretized parameter degrees of freedom per element on block: " + blocknames[b]);
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      int numGIDs = paramDOF->getElementBlockGIDCount(blocknames[block]);
+      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,
+                                 "Error: maxDerivs is not large enough to support the number of discretized parameter degrees of freedom per element on block: " + blocknames[block]);
     }
 #endif
     paramDOF->getOwnedIndices(paramOwned);
@@ -299,20 +299,20 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     
     Kokkos::View<const LO**,Kokkos::LayoutRight,PHX::Device> LIDs = paramDOF->getLIDs();
         
-    for (size_t b=0; b<cells.size(); b++) {
-      if (cells[b].size() > 0) {
+    for (size_t block=0; block<groups.size(); ++block) {
+      if (groups[block].size() > 0) {
         int numLocalDOF = 0;
         Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
         for (int k=0; k<num_discretized_params; k++) {
           numDOF_KV(k) = paramNumBasis[k];
           numLocalDOF += paramNumBasis[k];
         }
-        cells[b][0]->cellData->numParamDOF = numDOF_KV;
+        groups[block][0]->groupData->numParamDOF = numDOF_KV;
         Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",num_discretized_params);
         Kokkos::deep_copy(numDOF_host, numDOF_KV);
-        cells[b][0]->cellData->numParamDOF_host = numDOF_host;
+        groups[block][0]->groupData->numParamDOF_host = numDOF_host;
         
-        vector<size_t> myElem = disc->myElements[b];
+        vector<size_t> myElem = disc->myElements[block];
         Kokkos::View<size_t*,AssemblyDevice> GEIDs("element IDs on device",myElem.size());
         auto host_GEIDs = Kokkos::create_mirror_view(GEIDs);
         for (size_t elem=0; elem<myElem.size(); elem++) {
@@ -320,38 +320,42 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
         }
         Kokkos::deep_copy(GEIDs, host_GEIDs);
         
-        for (size_t e=0; e<cells[b].size(); e++) {
-          LIDView cellLIDs("cell parameter LIDs",cells[b][e]->numElem, LIDs.extent(1));
-          Kokkos::View<LO*,AssemblyDevice> EIDs = cells[b][e]->localElemID;
-          parallel_for("paramman copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int c ) {
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          LIDView groupLIDs("parameter LIDs",groups[block][grp]->numElem, LIDs.extent(1));
+          Kokkos::View<LO*,AssemblyDevice> EIDs = groups[block][grp]->localElemID;
+          parallel_for("paramman copy LIDs",
+                       RangePolicy<AssemblyExec>(0,groupLIDs.extent(0)), 
+                       KOKKOS_LAMBDA (const int c ) {
             size_t elemID = GEIDs(EIDs(c));
             for (size_type j=0; j<LIDs.extent(1); j++) {
-              cellLIDs(c,j) = LIDs(elemID,j);
+              groupLIDs(c,j) = LIDs(elemID,j);
             }
           });
-          cells[b][e]->setParams(cellLIDs);
-          cells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
+          groups[block][grp]->setParams(groupLIDs);
+          groups[block][grp]->setParamUseBasis(disc_usebasis, paramNumBasis);
         }
       }
     }
-    for (size_t b=0; b<boundaryCells.size(); b++) {
-      if (boundaryCells[b].size() > 0) {
+    for (size_t block=0; block<boundary_groups.size(); ++block) {
+      if (boundary_groups[block].size() > 0) {
         int numLocalDOF = 0;
         for (int k=0; k<num_discretized_params; k++) {
           numLocalDOF += paramNumBasis[k];
         }
         
-        for (size_t e=0; e<boundaryCells[b].size(); e++) {
-          LIDView cellLIDs("bcell parameter LIDs",boundaryCells[b][e]->numElem, LIDs.extent(1));
-          Kokkos::View<LO*,AssemblyDevice> EIDs = boundaryCells[b][e]->localElemID;
-          parallel_for("paramman copy LIDs bcells",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
+        for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+          LIDView groupLIDs("parameter LIDs",boundary_groups[block][grp]->numElem, LIDs.extent(1));
+          Kokkos::View<LO*,AssemblyDevice> EIDs = boundary_groups[block][grp]->localElemID;
+          parallel_for("paramman copy LIDs bgroups",
+                       RangePolicy<AssemblyExec>(0,groupLIDs.extent(0)), 
+                       KOKKOS_LAMBDA (const int e ) {
             size_t elemID = EIDs(e);
             for (size_type j=0; j<LIDs.extent(1); j++) {
-              cellLIDs(e,j) = LIDs(elemID,j);
+              groupLIDs(e,j) = LIDs(elemID,j);
             }
           });
-          boundaryCells[b][e]->setParams(cellLIDs);
-          boundaryCells[b][e]->setParamUseBasis(disc_usebasis, paramNumBasis);
+          boundary_groups[block][grp]->setParams(groupLIDs);
+          boundary_groups[block][grp]->setParamUseBasis(disc_usebasis, paramNumBasis);
         }
       }
     }
@@ -385,7 +389,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     
     //vector< vector<int> > param_nodesOS(numParamUnknownsOS); // should be overlapped
     //vector< vector<int> > param_nodes(numParamUnknowns); // not overlapped -- for bounds
-    vector< vector< vector<ScalarT> > > param_initial_vals; // custom initial guess set by assembler->cells
+    vector< vector< vector<ScalarT> > > param_initial_vals; // custom initial guess set by assembler->groups
     
     vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
     
@@ -397,49 +401,20 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
       param_dofs_OS.push_back(dofs_OS);
     }
     
-    /*
-    Kokkos::View<const LO**,AssemblyDevice> LIDs = paramDOF->getLIDs();
-    
-    auto host_LIDs = Kokkos::create_mirror_view(LIDs);
-    for (size_t b=0; b<blocknames.size(); b++) {
-      for (int num=0; num<num_discretized_params; num++) {
-        vector<int> var_offsets = paramDOF->getGIDFieldOffsets(blocknames[b],num);
-        for (size_t e=0; e<host_LIDs.extent(0); e++) {
-          for (size_t dof=0; dof<var_offsets.size(); dof++) {
-            param_dofs_OS[num].push_back(host_LIDs(e,var_offsets[dof]));
-          }
-        }
-      }
-    }
-    */
-    for (size_t b=0; b<blocknames.size(); b++) {
-      vector<size_t> EIDs = disc->myElements[b];
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      vector<size_t> EIDs = disc->myElements[block];
       for (size_t e=0; e<EIDs.size(); e++) {
         vector<GO> gids;
         size_t elemID = EIDs[e];
-        paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
+        paramDOF->getElementGIDs(elemID, gids, blocknames[block]);
         
         for (int num=0; num<num_discretized_params; num++) {
-          vector<int> var_offsets = paramDOF->getGIDFieldOffsets(blocknames[b],num);
+          vector<int> var_offsets = paramDOF->getGIDFieldOffsets(blocknames[block],num);
           for (size_t dof=0; dof<var_offsets.size(); dof++) {
             param_dofs_OS[num].push_back(gids[var_offsets[dof]]);
           }
         }
       }
-    }
-    
-    //vector<GO> paramOwned_tmp = paramOwned;
-    for (int n=0; n<num_discretized_params; n++) {
-      //std::sort(param_dofs_OS[n].begin(), param_dofs_OS[n].end());
-      //param_dofs_OS[n].erase( std::unique(param_dofs_OS[n].begin(),
-      //                                    param_dofs_OS[n].end()), param_dofs_OS[n].end());
-      //sort(param_dofs_OS[n].begin(),param_dofs_OS[n].end());
-      //sort(paramOwned_tmp.begin(),paramOwned_tmp.end());
-      
-      //set_intersection(param_dofs_OS[n].begin(),param_dofs_OS[n].end(),
-      //                 paramOwned.begin(),paramOwned.end(),
-      //                 back_inserter(param_dofs[n]));
-      
     }
     
     for (int n = 0; n < num_discretized_params; n++) {
@@ -452,27 +427,6 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
       paramNodes.push_back(param_dofs[n]); // store for later use
     }
     
-    /*
-    for (int n=0; n<num_discretized_params; n++) {
-      std::sort(param_nodesOS[n].begin(), param_nodesOS[n].end());
-      param_nodesOS[n].erase( std::unique(param_nodesOS[n].begin(),
-                                          param_nodesOS[n].end()), param_nodesOS[n].end());
-      
-      std::sort(param_nodes[n].begin(), param_nodes[n].end());
-      param_nodes[n].erase( std::unique(param_nodes[n].begin(),
-                                        param_nodes[n].end()), param_nodes[n].end());
-    }*/
-    /*for (int n = 0; n < num_discretized_params; n++) {
-      if (!use_custom_initial_param_guess) {
-        for (size_t i = 0; i < param_nodesOS[n].size(); i++) {
-          paramVec->replaceGlobalValue(paramOwnedAndShared[param_nodesOS[n][i]]
-                                       ,0,initialParamValues[n]);
-        }
-      }
-      paramNodesOS.push_back(param_nodesOS[n]); // store for later use
-      paramNodes.push_back(param_nodes[n]); // store for later use
-    }*/
-    //KokkosTools::print(paramVec);
     Psol.push_back(paramVec);
   }
   else {
@@ -583,13 +537,13 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::s
   if (scalarInitialData) {
     // This will be done on the host for now
     auto initial_kv = initial->getLocalView<HostDevice>();
-    for (size_t block=0; block<assembler->cells.size(); block++) {
+    for (size_t block=0; block<assembler->groups.size(); block++) {
       Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[block]->offsets;
       auto host_offsets = Kokkos::create_mirror_view(offsets);
       Kokkos::deep_copy(host_offsets,offsets);
-      for (size_t cell=0; cell<assembler->cells[block].size(); cell++) {
-        Kokkos::View<LO**,HostDevice> LIDs = assembler->cells[block][cell]->LIDs_host;
-        Kokkos::View<LO*,HostDevice> numDOF = assembler->cells[block][cell]->cellData->numDOF_host;
+      for (size_t group=0; group<assembler->groups[block].size(); group++) {
+        Kokkos::View<LO**,HostDevice> LIDs = assembler->groups[block][group]->LIDs_host;
+        Kokkos::View<LO*,HostDevice> numDOF = assembler->groups[block][group]->groupData->numDOF_host;
         //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int e=0; e<LIDs.extent(0); e++) {
           for (size_t n=0; n<numDOF.extent(0); n++) {

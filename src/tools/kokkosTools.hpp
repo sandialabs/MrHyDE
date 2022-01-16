@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef KKTOOLS_H
-#define KKTOOLS_H
+#ifndef MRHYDE_KOKKOS_TOOLS_H
+#define MRHYDE_KOKKOS_TOOLS_H
 
 #include "trilinos.hpp"
 #include "Teuchos_RCP.hpp"

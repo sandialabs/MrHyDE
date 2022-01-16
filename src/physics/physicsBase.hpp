@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef PHYSBASE_H
-#define PHYSBASE_H
+#ifndef MRHYDE_PHYSICS_BASE_H
+#define MRHYDE_PHYSICS_BASE_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

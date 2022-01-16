@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef CELLMETA_H
-#define CELLMETA_H
+#ifndef MRHYDE_GROUPMETA_H
+#define MRHYDE_GROUPMETA_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -24,17 +24,17 @@
 
 namespace MrHyDE {
   
-  class CellMetaData {
+  class GroupMetaData {
   public:
     
-    CellMetaData() {} ;
+    GroupMetaData() {} ;
     
-    ~CellMetaData() {} ;
+    ~GroupMetaData() {} ;
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    CellMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
+    GroupMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                  const topo_RCP & cellTopo_,
                  const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
                  const size_t & myBlock_,
@@ -87,16 +87,16 @@ namespace MrHyDE {
     bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
     bool mortar_objective;
     bool exodus_sensors = false, compute_sol_avg = false;
-    bool multiscale, have_cell_phi, have_cell_rotation, have_extra_data;
+    bool multiscale, have_phi, have_rotation, have_extra_data;
     
-    // these are common to all elements/cells and are often used on both devices
+    // these are common to all elements/groups and are often used on both devices
     vector<Kokkos::View<int*,AssemblyDevice> > set_numDOF;
     vector<Kokkos::View<int*,HostDevice> > set_numDOF_host;
     
     Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
     Kokkos::View<int*,HostDevice> numDOF_host, numParamDOF_host, numAuxDOF_host;
     
-    Teuchos::RCP<Teuchos::Time> celltimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::cellMetaData::constructor()");
+    Teuchos::RCP<Teuchos::Time> grptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::groupMetaData::constructor()");
   };
   
 }

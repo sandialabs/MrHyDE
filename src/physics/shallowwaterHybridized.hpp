@@ -19,8 +19,8 @@
  * See Samii (J. Sci. Comp. 2019). 
  */
 
-#ifndef SHALLOWWATERHYBRIDIZED_H
-#define SHALLOWWATERHYBRIDIZED_H
+#ifndef MRHYDE_SHALLOWWATERHYBRIDIZED_H
+#define MRHYDE_SHALLOWWATERHYBRIDIZED_H
 
 #include "physicsBase.hpp"
 

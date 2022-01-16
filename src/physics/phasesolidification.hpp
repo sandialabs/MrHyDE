@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef PHASESOLIDIFICATION_H
-#define PHASESOLIDIFICATION_H
+#ifndef MRHYDE_PHASESOLIDIFICATION_H
+#define MRHYDE_PHASESOLIDIFICATION_H
 
 #include "physicsBase.hpp"
 #include <random>

@@ -22,8 +22,8 @@
  * We employ an ideal gas law.
  */
 
-#ifndef CDNS_H
-#define CDNS_H
+#ifndef MRHYDE_CDNS_H
+#define MRHYDE_CDNS_H
 
 #include "physicsBase.hpp"
 

@@ -23,8 +23,8 @@
  * and the density are decoupled.
  */
 
-#ifndef VDNS_H
-#define VDNS_H
+#ifndef MRHYDE_VDNS_H
+#define MRHYDE_VDNS_H
 
 #include "physicsBase.hpp"
 

@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef PHYSICS_IMP_H
-#define PHYSICS_IMP_H
+#ifndef MRHYDE_PHYSICS_IMPORTER_H
+#define MRHYDE_PHYSICS_IMPORTER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

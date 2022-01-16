@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef HELMHOLTZ_H
-#define HELMHOLTZ_H
+#ifndef MRHYDE_HELMHOLTZ_H
+#define MRHYDE_HELMHOLTZ_H
 
 #include "physicsBase.hpp"
 

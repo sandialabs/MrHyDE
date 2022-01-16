@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef BURGERS_H
-#define BURGERS_H
+#ifndef MRHDYE_BURGERS_H
+#define MRHDYE_BURGERS_H
 
 #include "physicsBase.hpp"
 

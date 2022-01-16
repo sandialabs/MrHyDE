@@ -71,7 +71,7 @@ namespace MrHyDE {
                const int & num_active_params,
                const bool & compute_disc_sens, const bool & compute_aux_sens,
                workset & macrowkset,
-               const int & usernum, const int & macroelemindex,
+               const int & macrogrp, const int & macroelemindex,
                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +82,7 @@ namespace MrHyDE {
                          Teuchos::RCP<SG_MultiVector> & sub_phi,
                          Teuchos::RCP<SG_MultiVector> & sub_params, View_Sc3 lambda,
                          const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
-                         const int & num_active_params, const ScalarT & alpha, const int & usernum,
+                         const int & num_active_params, const ScalarT & alpha, const int & macrogrp,
                          const bool & store_adjPrev);
 
     //////////////////////////////////////////////////////////////
@@ -103,7 +103,7 @@ namespace MrHyDE {
                          Teuchos::RCP<SG_MultiVector> & sub_param, View_Sc3 lambda,
                          const ScalarT & time,
                          const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
-                         const ScalarT & lambda_scale, const int & usernum,
+                         const ScalarT & lambda_scale, const int & macrogrp,
                          Kokkos::View<ScalarT**,AssemblyDevice> subgradient);
     
     //////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////
 
     template<class ResViewType, class DataViewType>
-    void updateResSens(const bool & use_cells, const int & usernum, const int & elem, ResViewType dres_view,
+    void updateResSens(const bool & use_cells, const int & macrogrp, const int & elem, ResViewType dres_view,
                        DataViewType data, const bool & data_avail,
                        const bool & use_host_LIDs, const bool & compute_sens);
     
@@ -128,7 +128,7 @@ namespace MrHyDE {
                     const Teuchos::RCP<SG_MultiVector> & disc_params,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
-                    const int & usernum);
+                    const int & macrogrp);
     
     
     template<class ViewType>
@@ -138,7 +138,7 @@ namespace MrHyDE {
                     ViewType dp_kv,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
-                    const int & usernum);
+                    const int & macrogrp);
 
     ///////////////////////////////////////////////////////////////////////////////////////
     // Store macro-dofs and flux (for ML-based subgrid)
@@ -150,7 +150,7 @@ namespace MrHyDE {
     // Compute the initial values for the subgrid solution
     //////////////////////////////////////////////////////////////
     
-    void setInitial(Teuchos::RCP<SG_MultiVector> & initial, const int & usernum, const bool & useadjoint);
+    void setInitial(Teuchos::RCP<SG_MultiVector> & initial, const int & macrogrp, const bool & useadjoint);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Add in the sensor data
@@ -158,7 +158,7 @@ namespace MrHyDE {
     
     void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points, const ScalarT & sensor_loc_tol,
                     const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data, const bool & have_sensor_data,
-                    const vector<basis_RCP> & basisTypes, const int & usernum);
+                    const vector<basis_RCP> & basisTypes, const int & macrogrp);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Assemble the projection (mass) matrix

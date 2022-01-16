@@ -21,8 +21,8 @@
  * We employ an ideal gas law.
  */
 
-#ifndef EULER_H
-#define EULER_H
+#ifndef MRHYDE_EULER_H
+#define MRHYDE_EULER_H
 
 #include "physicsBase.hpp"
 

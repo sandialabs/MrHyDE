@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SUBGRIDMODEL_H
-#define SUBGRIDMODEL_H
+#ifndef MRHYDE_SUBGRIDMODEL_H
+#define MRHYDE_SUBGRIDMODEL_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -53,11 +53,11 @@ namespace MrHyDE {
                                const int & num_active_params,
                                const bool & compute_disc_sens, const bool & compute_aux_sens,
                                workset & macrowkset, const int & macroelemindex,
-                               const int & usernum,
+                               const int & macrogrp,
                                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) = 0;
     
     //virtual Kokkos::View<ScalarT**,AssemblyDevice> computeError(const ScalarT & time,
-    //                                                           const int & usernum) = 0;
+    //                                                           const int & macrogrp) = 0;
     
     virtual vector<std::pair<string, string> > getErrorList() = 0;
     
@@ -69,9 +69,9 @@ namespace MrHyDE {
     virtual Kokkos::View<AD*,AssemblyDevice> computeObjective(const string & response_type,
                                                               const int & seedwhat,
                                                               const ScalarT & time,
-                                                              const int & usernum) = 0;
+                                                              const int & macrogrp) = 0;
     
-    //virtual void writeSolution(const string & filename, const int & usernum) = 0;
+    //virtual void writeSolution(const string & filename, const int & macrogrp) = 0;
     
     virtual void writeSolution(const ScalarT & time) = 0;
     
@@ -79,7 +79,7 @@ namespace MrHyDE {
                             const ScalarT & sensor_loc_tol,
                             const vector<Kokkos::View<ScalarT**,HostDevice> > & sensor_data,
                             const bool & have_sensor_data,
-                            const vector<basis_RCP> & basisTypes, const int & usernum) = 0;
+                            const vector<basis_RCP> & basisTypes, const int & macrogrp) = 0;
     
     virtual matrix_RCP getProjectionMatrix() = 0;
     

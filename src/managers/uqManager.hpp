@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef UQ_MANAGER_H
-#define UQ_MANAGER_H
+#ifndef MRHYDE_UQ_MANAGER_H
+#define MRHYDE_UQ_MANAGER_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"

@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef LLAMAS_H
-#define LLAMAS_H
+#ifndef MRHYDE_LLAMAS_H
+#define MRHYDE_LLAMAS_H
 
 #include "physicsBase.hpp"
 

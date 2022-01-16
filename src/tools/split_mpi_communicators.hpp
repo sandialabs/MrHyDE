@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef SPLITCOMM_H
-#define SPLITCOMM_H
+#ifndef MRHYDE_SPLITCOMM_H
+#define MRHYDE_SPLITCOMM_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
