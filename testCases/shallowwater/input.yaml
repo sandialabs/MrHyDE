@@ -19,7 +19,7 @@ ANONYMOUS:
       Hux: HFACE
       Huy: HFACE
     Initial conditions:
-      H: 2. 
+      H: '2.' 
       Hux: 'cos(-x)'
       Huy: 'sin(y)'
 
@@ -42,8 +42,6 @@ ANONYMOUS:
   Solver:
     #solver: steady-state
     initial type: L2-projection-HFACE
-    State boundary L2 linear solver:
-      use preconditioner: false
     solver: transient
     workset size: 100
     nonlinear TOL: 1.0e-06
@@ -52,42 +50,7 @@ ANONYMOUS:
     max linear iters: 100
     final time: 1.
     delta t: 1e-2
-    use direct solver: false
-    use domain decomposition: false
-    use strong DBCs: true
-    Preconditioner Settings:
-      verbosity: none
-      number of equations: 1
-      multigrid algorithm: unsmoothed
-      'sa: use filtered matrix': true
-      'sa: damping factor': 0.0
-      'coarse: max size': 2000
-      'transpose: use implicit': false
-      'aggregation: type': uncoupled
-      'aggregation: drop scheme': classical
-      'aggregation: drop tol': 0.0
-      'smoother: pre or post': both
-      'smoother: type': SCHWARZ
-      'smoother: params':
-        'schwarz: overlap level': 1
-        'schwarz: combine mode': Zero
-        'schwarz: use reordering': false
-        'schwarz: reordering list':
-          order_method: rcm
-        subdomain solver name: RILUK
-        subdomain solver parameters:
-          'fact: iluk level-of-fill': 1
-          'fact: ilut level-of-fill': 1.75
-          'fact: absolute threshold': 0.0
-          'fact: relative threshold': 1.0
-          'fact: relax value': 0.0
-        #'chebyshev: degree': 2
-        #'chebyshev: ratio eigenvalue': 7.0
-        #'chebyshev: min eigenvalue': 1.0
-        #'chebyshev: zero starting solution': true
-        # 'relaxation: type': Gauss-Seidel #MT Gauss-Seidel
-      'repartition: enable': false
-      'reuse: type': none
+    use direct solver: true
   Analysis: 
     analysis type: forward
   Postprocess: 
