@@ -247,7 +247,7 @@ class Test:
     if inputRange == []: return
     if len(inputRange) != 2:
       print('Length of processor range should be 2: ')
-      print inputRange
+      print(inputRange)
       sys.exit(1)
     inRange = False
     np_min = int(inputRange[0])
@@ -331,12 +331,12 @@ class xml_document:
       stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s    %s' \
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, test.fname[0:-11], test.include_keywords)
-      print stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2)))
+      print(stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2))))
     else :
       stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s' \
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, test.fname[0:-11])
-      print stmt2 #+ ' '*(max(0,len(test.stmt)-len(stmt2)))
+      print(stmt2) #+ ' '*(max(0,len(test.stmt)-len(stmt2)))
     
 
 #===============================================================================
@@ -365,7 +365,7 @@ def serial_testing(opts,listOfTests,doc):
     # default is 32 bit so only add if 64 bit
     if opts.mode_64: cmd += ['--64']
     if test.test_args: cmd += shlex.split(test.test_args)
-    if opts.verbose==1: print 'Executing the command %s' % (cmd)
+    if opts.verbose==1: print('Executing the command %s' % (cmd)) 
     # launch command and wait for completion
     p = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=head)
     test.stdout, test.stderr = p.communicate()
@@ -404,7 +404,7 @@ def launch_test(opts,test,tail):
   test.stmt = 'running on %s procs - %2i:%02i:%02i %s' \
        % (test.nprocs, tm.tm_hour, tm.tm_min, tm.tm_sec, test.fname)
   # launch command
-  if opts.verbose==1 : print 'Executing the command %s' % test.fullpath
+  if opts.verbose==1 : print('Executing the command %s' % test.fullpath)
   p = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=head)
   return p
 
@@ -517,16 +517,16 @@ def batch_testing(opts,listOfTests,doc):
   # old WC ID is FY140238 (2014)
   # old WC ID is FY150006 (2015)
   cmd = ['salloc'] + ['--account=FY150006'] + ['-N1'] + ['--time=00:10:00'] + ['python'] + ['/home/kbelco/srun.py']
-  print 'cmd = %s\n'%cmd
-  print 'head = %s\n'%head
+  print('cmd = %s\n'%cmd)
+  print('head = %s\n'%head)
   p = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=head)
   stdout, stderr = p.communicate()
   status = p.wait()
-  print 'stdout = %s\n'%stdout
-  print 'stderr = %s\n'%stderr
-  print 'status = %d\n'%status
+  print('stdout = %s\n'%stdout)
+  print('stderr = %s\n'%stderr)
+  print('status = %d\n'%status)
   jobid = os.getenv('SLURM_JOB_ID')
-  print 'jobid = %s\n'%jobid
+  print('jobid = %s\n'%jobid)
   return (passed,failed,skipped)
 
 def queryStdout_redsky(opts, test, Pstdout, hostname):
@@ -733,7 +733,7 @@ def queue_testing(opts, listOfTests, doc, hostname):
     os.system('rm %s*' % (testdir))
   else:
     os.system('mkdir %s' % (testdir))
-    os.chmod(s, 0755)
+    os.chmod(s, 0o755)
   for test in listOfTests:
     (head, tail) = os.path.split(test.fullpath)
     nodes = 1
@@ -769,7 +769,7 @@ def queue_testing(opts, listOfTests, doc, hostname):
     f.write('rm -f %s.noel\n'%(tail))
     f.write('exit $status\n')
     f.close()
-    os.chmod(s, 0755)
+    os.chmod(s, 0o755)
     # submit using sbatch or qsub on curie
     qsub_cmd = ['sbatch'] + ['--partition=' + partition] + ['--time=' + test.expected_runtime] + ['--job-name=' + tail] + ['--account=FY150006'] + ['--nodes=' + str(nodes)] + [s]
     if hostname == 'curie':
@@ -787,7 +787,7 @@ def queue_testing(opts, listOfTests, doc, hostname):
       loc = test_stdout.find('Submitted batch job ')
       result = test_stdout[loc+20:loc+28]
       test.jobid = result[0:8]
-    if opts.verbose==1 : print 'Executing the command %s with jobid %s' % (qsub_cmd, test.jobid)
+    if opts.verbose==1 : print('Executing the command %s with jobid %s' % (qsub_cmd, test.jobid))
     test.statusStr = '?'
   # wait for tests to complete
   return queue_results(opts, doc, listOfTests, hostname)
@@ -801,7 +801,7 @@ def clean_test_directories(opts,listOfTests):
     # add the clean option
     cmd += [ '-c' ]
     # launch clean command
-    if opts.verbose==1 : print 'Executing the command %s' % cmd
+    if opts.verbose==1 : print('Executing the command %s' % cmd)
     p = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=head)
 
 def cray_testing(opts,listOfTests):
@@ -1016,7 +1016,7 @@ def main():
 
   # Script takes no arguments
   if args != []:
-    print "Error - Currently there are no arguments to runtests.py. Only options."
+    print("Error - Currently there are no arguments to runtests.py. Only options.")
     sys.exit(1)
 
   # Remove any trailing slash from starting directory
@@ -1031,7 +1031,7 @@ def main():
 
   # error if both options are supplied: --32 and --64
   if opts.mode_32 and opts.mode_64:
-    print 'Error: cannot specify both --32 and --64 bit mode'
+    print('Error: cannot specify both --32 and --64 bit mode')
     sys.exit(0)
   # if neither option is set, default to 32 bit mode
   if False == opts.mode_32 and False == opts.mode_64:
@@ -1054,10 +1054,11 @@ def main():
     # Recursive case
     else:
       if os.path.exists(opts.startingDir):
-        os.path.walk(opts.startingDir, findTests, opts)
+        for directory, dirnames, filenames in os.walk(opts.startingDir):
+          findTests(opts, directory, filenames)
       if opts.listOfTestFileNames == []:
-        print "Did not find any tests with the extension, '%s'." \
-              % opts.extension
+        print("Did not find any tests with the extension, '%s'." \
+              % opts.extension)
         sys.exit(1)
 
   # Convert list of test file names to list of Test objects
@@ -1087,7 +1088,7 @@ def main():
   # this only asks the head node how many cores it has
   # require user to input value on Cray
   if opts.testArgs.find('y') != -1 and opts.smp_cores == 0:
-    print 'Error: pass -S an argument for number of cores to use on Cray'
+    print('Error: pass -S an argument for number of cores to use on Cray')
     sys.exit(-2)
 
   # User passed -S without value, query machine for number of cores
@@ -1106,8 +1107,12 @@ def main():
     tempListOfTests = copy.copy(listOfTests)
     for a in tempListOfTests:
       # skip inactive, not selected or tests that are too big
-      if (not a.active) or (not a.selected) or \
-        (1 < opts.smp_cores and opts.smp_cores < a.nprocs):
+      # logic to prevent a python3 crash
+      if opts.smp_cores == None:
+        corecheck = False
+      else:
+        corecheck = (1 < opts.smp_cores and opts.smp_cores < a.nprocs)
+      if (not a.active) or (not a.selected) or corecheck:
         listOfTests.remove(a)
       else:
         # Initialize test arguments
@@ -1138,17 +1143,17 @@ def main():
   passed  = 0
   failed  = 0
   skipped = 0
-  print
-  print time.asctime()
-  print 'Test Results from Directory: ' + startingDirA
-  print 'Total number of test(s): %i' % (len(listOfTests))
-  if opts.info: print ' Nprocs    Test Name'
-  print '-----------------------------------------------------------------------------------------------'
+  print('')
+  print(time.asctime())
+  print('Test Results from Directory: ' + startingDirA)
+  print('Total number of test(s): %i' % (len(listOfTests)))
+  if opts.info: print(' Nprocs    Test Name')
+  print('-----------------------------------------------------------------------------------------------')
 
   # user wants info on tests, don't run tests
   if opts.info:
     for a in listOfTests:
-      print '    %d\t%s'%(a.nprocs,a.fname)
+      print('    %d\t%s'%(a.nprocs,a.fname))
     sys.exit(0)
 
   allKeywordsInclude = []
@@ -1158,62 +1163,62 @@ def main():
   if opts.listKeywords:
     for a in listOfTests:
       if 0 < len(a.include_keywords):
-        print '  %s -k' % a.fname,
+        print('  %s -k' % a.fname,)
         for k in a.include_keywords:
           allKeywordsInclude.append(k)
-          print ' %s' % (k),
-        print
+          print(' %s' % (k),)
+        print('')
       if 0 < len(a.exclude_keywords):
-        print '  %s -K' % a.fname,
+        print('  %s -K' % a.fname,)
         for k in a.exclude_keywords:
           allKeywordsExclude.append(k)
-          print ' %s' % (k),
-        print
+          print(' %s' % (k),)
+        print('')
       if 0 < len(a.machines):
-        print '  %s -m' % a.fname,
+        print('  %s -m' % a.fname,)
         for k in a.machines:
           allMachines.append(k)
-          print ' %s' % (k),
-        print
+          print(' %s' % (k),)
+        print('')
       if 0 < len(a.machinesExclude):
-        print '  %s -M' % a.fname,
+        print('  %s -M' % a.fname,)
         for k in a.machinesExclude:
           allMachinesExclude.append(k)
-          print ' %s' % (k),
-        print
+          print(' %s' % (k),)
+        print('')
       sys.stdout.flush()
 
   if opts.listKeywords:
-    print
+    print('')
     uniqueKeywords = list(set(allKeywordsInclude))
     uniqueKeywords.sort()
     if 0 < len(uniqueKeywords):
-      print 'Unique include keywords (-k):',
+      print('Unique include keywords (-k):',)
       for k in uniqueKeywords:
-        print ' %s' % (k),
-      print
+        print(' %s' % (k),)
+      print('')
     uniqueKeywordsExclude = list(set(allKeywordsExclude))
     uniqueKeywordsExclude.sort()
     if 0 < len(uniqueKeywordsExclude):
-      print 'Unique exclude keywords (-K):',
+      print('Unique exclude keywords (-K):',)
       for k in uniqueKeywordsExclude:
-        print ' %s' % (k),
-      print
+        print(' %s' % (k),)
+      print('')
     uniqueMachines = list(set(allMachines))
     uniqueMachines.sort()
     if 0 < len(uniqueMachines):
-      print 'Unique machines (-m):',
+      print('Unique machines (-m):',)
       for m in uniqueMachines:
-        print ' %s' % (m),
-      print
+        print(' %s' % (m),)
+      print('')
     uniqueMachinesExclude = list(set(allMachinesExclude))
     uniqueMachinesExclude.sort()
     if 0 < len(uniqueMachinesExclude):
-      print 'Unique exclude machines (-M):',
+      print('Unique exclude machines (-M):',)
       for m in uniqueMachinesExclude:
-        print ' %s' % (m),
-      print
-    print
+        print(' %s' % (m),)
+      print('')
+    print('')
     sys.stdout.flush()
     return
 
@@ -1228,7 +1233,7 @@ def main():
   if hostname == 'redsky' or hostname == 'glory' or hostname == 'skybridge' or hostname == 'curie':
     # ensure we don't enable both batch and queue mode
     if opts.batch and opts.queue:
-      print 'Error: cant request both batch and queue testing mode'
+      print('Error: cant request both batch and queue testing mode')
       sys.exit(-1)
     if opts.batch:
       passed, failed, skipped = batch_testing(opts,listOfTests,doc)
@@ -1249,15 +1254,15 @@ def main():
       passed, failed, skipped = serial_testing(opts,listOfTests,doc)
 
   # Summary output
-  print '-----------------------------------------------------------------------------------------------'
-  print ' Pass: %i    Fail: %i    Skipped: %i    Total: %i' \
-        % (passed, failed, skipped, doc.list_length)
+  print('-----------------------------------------------------------------------------------------------')
+  print(' Pass: %i    Fail: %i    Skipped: %i    Total: %i' \
+        % (passed, failed, skipped, doc.list_length))
 
   totalendtime = time.time()
   totalruntime = totalendtime-totalstarttime
-  print
-  print 'Total Runtime: %10.2fs' % (totalruntime)
-  print time.asctime()
+  print('')
+  print('Total Runtime: %10.2fs' % (totalruntime))
+  print(time.asctime())
 
   sys.exit(0)
 
