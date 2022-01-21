@@ -27,17 +27,21 @@ MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
 # Call bash_profile (which calls bashrc) to set up the environment properly since cron runs in an empty environment
 source ${HOME_DIR}/.bash_profile 
 
-# load the correct modules
-# gcc 6.1 may be causing issues, so we'll try gcc 9.2
-# gcc 9.2 causes issues with TPLs. back to gcc 6.1 for now...
+# load the correct SEMS 2.0 modules
 echo "Nightly MrHyDE tester running..."
 echo "Loading modules..."
-module load sems-devpack-gcc/6.1.0
-module load sems-ninja_fortran/1.8.2
-module load sems-cmake/3.17.1
-module load sems-numpy/1.9.1/base
-#module unload sems-gcc/6.1.0 
-#module load sems-gcc/9.2.0 
+module load sems-gcc/8.3.0
+module load sems-cmake/3.21.1
+module load sems-ninja/1.10.1
+module load sems-boost/1.69.0
+module load sems-openmpi/1.10.7
+module load sems-zlib/1.2.11
+module load sems-hdf5/1.10.7
+module load sems-yaml-cpp/0.6.2
+module load sems-doxygen/1.8.20
+module load sems-netcdf-c/4.7.3
+module load sems-parallel-netcdf/1.12.1
+module load sems-texlive/20200406
 
 cd ${NIGHTLY_FOLDER}
 
@@ -114,7 +118,7 @@ fi
 echo "Starting MrHyDE..."
 cd ${MrHyDE_SOURCE_PREFIX}
 if [ ${SCRIPT_MODE} -eq 1 ]; then
-  git clone https://github.com/TimWildey/MrHyDE.git MrHyDE-source
+  git clone git@gitlab-ex.sandia.gov:mrhyde/MrHyDE.git MrHyDE-source
 fi
 
 # check the exit status of the most recently executed command
@@ -186,11 +190,14 @@ YEAR=$(date | tr " " "\n" | sed '6q;d')
 # finally, send the report
 echo "Sending the report..."
 
+# TODO: avoid putting email addresses straight in the script and instead use an external .email_list file
 # if there's nothing unusual, send a normal email. otherwise, report 'no tests run'
 if [ -z "$STATUS_LOG" ]; then
   cat MrHyDE-nightly-vaporwave.txt | mail -s "MrHyDE on Vaporwave: ${NUM_FAILS} failures" gbharpe@sandia.gov
   cat MrHyDE-nightly-vaporwave.txt | mail -s "MrHyDE on Vaporwave: ${NUM_FAILS} failures" tmwilde@sandia.gov
+  cat MrHyDE-nightly-vaporwave.txt | mail -s "MrHyDE on Vaporwave: ${NUM_FAILS} failures" bwreute@sandia.gov
 else
   echo -e ${STATUS_LOG} | mail -s "MrHyDE on Vaporwave: no tests run" gbharpe@sandia.gov
   echo -e ${STATUS_LOG} | mail -s "MrHyDE on Vaporwave: no tests run" tmwilde@sandia.gov
+  echo -e ${STATUS_LOG} | mail -s "MrHyDE on Vaporwave: no tests run" bwreute@sandia.gov
 fi
