@@ -313,11 +313,11 @@ class xml_document:
     elmt.setAttribute('time', str(runtime))
     if ( len(test.stdout) ):
       e = self.doc.createElement('system-out')
-      e.appendChild(self.doc.createTextNode("\n"+test.stdout))
+      e.appendChild(self.doc.createTextNode("\n"+str(test.stdout)))
       elmt.appendChild(e)
     if ( len(test.stderr) ):
       e = self.doc.createElement('system-err')
-      e.appendChild(self.doc.createTextNode("\n"+test.stderr))
+      e.appendChild(self.doc.createTextNode("\n"+str(test.stderr)))
       elmt.appendChild(e)
     if test.status:
       e = self.doc.createElement('failure')
