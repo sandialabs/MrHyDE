@@ -51,7 +51,32 @@ if hostname != None:
     its.call('sed -i \'1,11d;\' mrhyde.log')
     its.call('sed -i \'/weaver/d\' mrhyde.log')
 
-status += its.call('diff -y %s.log %s.gold' % (root, root))
+# ------------------------------
+flog = '%s.log' % (root)
+reflog = '%s.gold' % (root)
+L2face = []
+L2faceref = []
+L2sub = []
+L2subref = []
+
+for line in open(flog):
+    if "L2-face norm" in line:
+        L2face.append(float(line.split(" = ")[1].split(" ")[0]))
+    elif "L2 norm" in line:
+        L2sub.append(float(line.split(" = ")[1].split(" ")[0]))
+for line in open(reflog):
+    if "L2-face norm" in line:
+        L2faceref.append(float(line.split(" = ")[1].split(" ")[0]))
+    elif "L2 norm" in line:
+        L2subref.append(float(line.split(" = ")[1].split(" ")[0]))
+
+for i in range(len(L2face)):
+    if abs(L2face[i]-L2faceref[i]) > aeps: 
+        status += 1
+        print('   Failure: Absolue error for face too large.')
+    if abs(L2sub[i]-L2subref[i]) > aeps:
+        status += 1
+        print('   Failure: Absolute error for subgrid too large.')
 
 # ------------------------------
 if its.opts.baseline and not status:
