@@ -946,6 +946,9 @@ void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> 
                                                     vector<View_Sc4> & basis_curl, 
                                                     vector<View_Sc3> & basis_div,
                                                     const bool & apply_orientation) {
+
+  Teuchos::TimeMonitor databasetimer(*databaseTotalTimer);
+
   int dimension = groupData->dimension;
   int numip = groupData->ref_ip.extent(0);
   int numElem = basis_database_index.extent(0);

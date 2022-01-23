@@ -265,6 +265,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> physBndryDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - basis");
     Teuchos::RCP<Teuchos::Time> databaseCopyBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - copy");
     Teuchos::RCP<Teuchos::Time> databaseOrientTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - apply orient");
+    Teuchos::RCP<Teuchos::Time> databaseTotalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - total");
   };
   
 }
