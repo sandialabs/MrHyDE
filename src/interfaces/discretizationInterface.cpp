@@ -968,9 +968,12 @@ void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> 
       
     if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
 
-      basis_vals = View_Sc4("basis values", numElem, numb, numip, 1);   
-      basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
-        
+      {
+        Teuchos::TimeMonitor localtimer(*databaseAllocateTimer);
+        basis_vals = View_Sc4("basis values", numElem, numb, numip, 1);   
+        basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
+      }
+
       if (apply_orientation) {
          DRV bvals2;
         {
@@ -1084,7 +1087,10 @@ void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> 
      }
      else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
         
-      basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
+      {
+        Teuchos::TimeMonitor localtimer(*databaseAllocateTimer);
+        basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
+      }
       
       //////////////////////////////
       {
@@ -1106,9 +1112,12 @@ void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> 
     }
     else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
         
-      basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
-      basis_div_vals = View_Sc3("basis div values", numElem, numb, numip); // needs to be rank-3
-        
+      {
+        Teuchos::TimeMonitor localtimer(*databaseAllocateTimer);
+        basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
+        basis_div_vals = View_Sc3("basis div values", numElem, numb, numip); // needs to be rank-3
+      }
+
       if (apply_orientation) {
         DRV bvals2;
         {
@@ -1216,9 +1225,12 @@ void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> 
     }
     else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
         
-      basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
-      basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
-        
+      {
+        Teuchos::TimeMonitor localtimer(*databaseAllocateTimer);
+        basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
+        basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
+      }
+
       if (apply_orientation) {
         DRV bvals2;
         {
