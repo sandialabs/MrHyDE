@@ -40,8 +40,32 @@ sidename(sidename_), disc(disc_)   {
   
   haveBasis = false;
   
+  // Orientations are always stored
   orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
   disc->getPhysicalOrientations(groupData, localElemID, orientation, false);
+  
+  // Integration points, weights, normals, tangents and element sizes are always stored
+  int numip = groupData->ref_side_ip[0].extent(0);
+  wts = View_Sc2("physical wts",numElem, numip);
+  hsize = View_Sc1("physical meshsize",numElem);
+  
+  disc->getPhysicalBoundaryIntegrationData(groupData, nodes, localSideID, ip,
+                                           wts, normals, tangents);
+
+  size_t dimension = groupData->dimension;
+
+  {
+    parallel_for("compute hsize",
+                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                 KOKKOS_LAMBDA (const int e ) {
+      ScalarT vol = 0.0;
+      for (size_type i=0; i<wts.extent(1); i++) {
+        vol += wts(e,i);
+      }
+      ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
+      hsize(e) = std::pow(vol,dimscl);
+    });
+  }
   
 }
 
@@ -51,12 +75,8 @@ sidename(sidename_), disc(disc_)   {
 void BoundaryGroup::computeBasis(const bool & keepnodes) {
   
   if (storeAll && !haveBasis) {
-    int numip = groupData->ref_side_ip[0].extent(0);
-    wts = View_Sc2("physical wts",numElem, numip);
-    hsize = View_Sc1("physical meshsize",numElem);
-    disc->getPhysicalBoundaryData(groupData, nodes, localElemID, localSideID, orientation,
-                                  ip, wts, normals, tangents, hsize,
-                                  basis, basis_grad, basis_curl, basis_div, true, false);
+    disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
+                                   basis, basis_grad, basis_curl, basis_div);
     haveBasis = true;
     if (!keepnodes) {
       nodes = DRV("dummy nodes",1);
@@ -231,54 +251,33 @@ void BoundaryGroup::updateWorksetBasis() {
 
   wkset->numElem = numElem;
   
+  wkset->wts_side = wts;
+  wkset->h = hsize;
+  wkset->setScalarField(ip[0],"x side");
+  wkset->setScalarField(normals[0],"nx side");
+  wkset->setScalarField(tangents[0],"tx side");
+  if (ip.size() > 1) {
+    wkset->setScalarField(ip[1],"y side");
+    wkset->setScalarField(normals[1],"ny side");
+    wkset->setScalarField(tangents[1],"ty side");
+  }
+  if (ip.size() > 2) {
+    wkset->setScalarField(ip[2],"z side");
+    wkset->setScalarField(normals[2],"nz side");
+    wkset->setScalarField(tangents[2],"tz side");
+  }
+    
+
   if (storeAll) {
-    wkset->wts_side = wts;
-    wkset->h = hsize;
-    wkset->setScalarField(ip[0],"x side");
-    wkset->setScalarField(normals[0],"nx side");
-    wkset->setScalarField(tangents[0],"tx side");
-    if (ip.size() > 1) {
-      wkset->setScalarField(ip[1],"y side");
-      wkset->setScalarField(normals[1],"ny side");
-      wkset->setScalarField(tangents[1],"ty side");
-    }
-    if (ip.size() > 2) {
-      wkset->setScalarField(ip[2],"z side");
-      wkset->setScalarField(normals[2],"nz side");
-      wkset->setScalarField(tangents[2],"tz side");
-    }
     wkset->basis_side = basis;
     wkset->basis_grad_side = basis_grad;
   }
   else {
-    int numip = groupData->ref_side_ip[0].extent(0);
-    vector<View_Sc2> tip;
-    vector<View_Sc2> tnormals;
-    vector<View_Sc2> ttangents;
-    View_Sc2 twts("physical wts",numElem, numip);
-    View_Sc1 thsize("physical meshsize",numElem);
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalBoundaryData(groupData, nodes, localElemID,
-                                  localSideID, orientation,
-                                  tip, twts, tnormals, ttangents, thsize,
-                                  tbasis, tbasis_grad, tbasis_curl, tbasis_div, true, false);
+    disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
+                                   tbasis, tbasis_grad, tbasis_curl, tbasis_div);
     
-    wkset->wts_side = twts;
-    wkset->h = thsize;
-    wkset->setScalarField(tip[0],"x side");
-    wkset->setScalarField(tnormals[0],"nx side");
-    wkset->setScalarField(ttangents[0],"tx side");
-    if (tip.size() > 1) {
-      wkset->setScalarField(tip[1],"y side");
-      wkset->setScalarField(tnormals[1],"ny side");
-      wkset->setScalarField(ttangents[1],"ty side");
-    }
-    if (tip.size() > 2) {
-      wkset->setScalarField(tip[2],"z side");
-      wkset->setScalarField(tnormals[2],"nz side");
-      wkset->setScalarField(ttangents[2],"tz side");
-    }
     wkset->basis_side = tbasis;
     wkset->basis_grad_side = tbasis_grad;
   }

@@ -39,6 +39,60 @@ groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
   disc->getPhysicalOrientations(groupData, localElemID,
                                 orientation, true);
   
+  size_type numip = groupData->ref_ip.extent(0);
+  wts = View_Sc2("physical wts",numElem, numip);
+  hsize = View_Sc1("physical hsize",numElem);
+
+  disc->getPhysicalIntegrationData(groupData, nodes, ip, wts);
+
+  size_t dimension = groupData->dimension;
+
+  // -------------------------------------------------
+  // Compute the element sizes (h = vol^(1/dimension))
+  // -------------------------------------------------
+  
+  parallel_for("elem size",
+               RangePolicy<AssemblyExec>(0,wts.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    ScalarT vol = 0.0;
+    for (size_type i=0; i<wts.extent(1); i++) {
+      vol += wts(elem,i);
+    }
+    ScalarT dimscl = 1.0/(ScalarT)dimension;
+    hsize(elem) = std::pow(vol,dimscl);
+  });
+  
+
+  if (groupData->build_face_terms) {
+    for (size_type side=0; side<groupData->numSides; side++) {
+      int numfip = groupData->ref_side_ip[side].extent(0);
+      vector<View_Sc2> face_ip;
+      vector<View_Sc2> face_normals;
+      View_Sc2 face_wts("face wts", numElem, numfip);
+      View_Sc1 face_hsize("face hsize", numElem);
+      vector<View_Sc4> face_basis, face_basis_grad;
+      disc->getPhysicalFaceIntegrationData(groupData, side, nodes, 
+                                           face_ip, face_wts, face_normals);
+          
+          
+      ip_face.push_back(face_ip);
+      wts_face.push_back(face_wts);
+      normals_face.push_back(face_normals);
+      
+      parallel_for("bcell hsize",
+                   RangePolicy<AssemblyExec>(0,face_wts.extent(0)),
+                   KOKKOS_LAMBDA (const int e ) {
+        ScalarT vol = 0.0;
+        for (size_type i=0; i<face_wts.extent(1); i++) {
+          vol += face_wts(e,i);
+        }
+        ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
+        face_hsize(e) = pow(vol,dimscl);
+      });
+      hsize_face.push_back(face_hsize);
+    }   
+  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -47,43 +101,33 @@ groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
 void Group::computeBasis(const bool & keepnodes) {
   
   if (storeAll) {
+    
     if (!haveBasis) {
       // Compute integration data and basis functions
-      size_type numip = groupData->ref_ip.extent(0);
-      wts = View_Sc2("physical wts",numElem, numip);
-      hsize = View_Sc1("physical meshsize",numElem);
-      disc->getPhysicalVolumetricData(groupData, nodes, localElemID,
-                                      ip, wts, hsize, orientation,
-                                      basis, basis_grad, basis_curl,
-                                      basis_div, basis_nodes,true,false);
+      disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
+                                       basis, basis_grad, basis_curl,
+                                       basis_div, basis_nodes, true);
+
       if (groupData->build_face_terms) {
         for (size_type side=0; side<groupData->numSides; side++) {
-          int numip = groupData->ref_side_ip[side].extent(0);
-          vector<View_Sc2> face_ip;
-          vector<View_Sc2> face_normals;
-          View_Sc2 face_wts("face wts", numElem, numip);
-          View_Sc1 face_hsize("face hsize", numElem);
           vector<View_Sc4> face_basis, face_basis_grad;
           
-          disc->getPhysicalFaceData(groupData, side, nodes, localElemID, orientation,
-                                    face_ip, face_wts, face_normals, face_hsize,
-                                    face_basis, face_basis_grad,true,false);
+          disc->getPhysicalFaceBasis(groupData, side, nodes, orientation,
+                                    face_basis, face_basis_grad);
           
-          
-          ip_face.push_back(face_ip);
-          wts_face.push_back(face_wts);
-          normals_face.push_back(face_normals);
-          hsize_face.push_back(face_hsize);
           basis_face.push_back(face_basis);
           basis_grad_face.push_back(face_basis_grad);
         }
         
       }
-    }
-    haveBasis = true;
+      haveBasis = true;
+    }    
     if (!keepnodes) {
       nodes = DRV("empty nodes",1);
     }
+  }
+  else if (groupData->use_basis_database && !keepnodes) {
+    nodes = DRV("empty nodes",1);
   }
   
 }
@@ -294,7 +338,7 @@ void Group::setAuxUseBasis(vector<int> & ausebasis_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void Group::updateWorkset(const int & seedwhat, const bool & override_transient) {
-  
+    
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   
   // Reset the residual and data in the workset
@@ -303,19 +347,18 @@ void Group::updateWorkset(const int & seedwhat, const bool & override_transient)
   wkset->numElem = numElem;
   this->updateData();
   
+  wkset->wts = wts;
+  wkset->h = hsize;
+  wkset->setScalarField(ip[0],"x");
+  if (ip.size() > 1) {
+    wkset->setScalarField(ip[1],"y");
+  }
+  if (ip.size() > 2) {
+    wkset->setScalarField(ip[2],"z");
+  }
+
   // Update the integration info and basis in workset
   if (storeAll) {
-    
-    wkset->wts = wts;
-    wkset->h = hsize;
-    wkset->setScalarField(ip[0],"x");
-    if (ip.size() > 1) {
-      wkset->setScalarField(ip[1],"y");
-    }
-    if (ip.size() > 2) {
-      wkset->setScalarField(ip[2],"z");
-    }
-  
     for (size_t i=0; i<basis.size(); ++i) {
       wkset->basis[i] = basis[i];
     }
@@ -329,26 +372,33 @@ void Group::updateWorkset(const int & seedwhat, const bool & override_transient)
       wkset->basis_curl[i] = basis_curl[i];
     }
   }
+  else if (groupData->use_basis_database) {
+  
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
+    vector<View_Sc3> tbasis_div;
+    disc->copyBasisFromDatabase(groupData, basis_database_index, orientation,
+                                tbasis, tbasis_grad, tbasis_curl, tbasis_div, false);
+    
+    for (size_t i=0; i<tbasis.size(); ++i) {
+      wkset->basis[i] = tbasis[i];
+    }
+    for (size_t i=0; i<tbasis_grad.size(); ++i) {
+      wkset->basis_grad[i] = tbasis_grad[i];
+    }
+    for (size_t i=0; i<tbasis_div.size(); ++i) {
+      wkset->basis_div[i] = tbasis_div[i];
+    }
+    for (size_t i=0; i<tbasis_curl.size(); ++i) {
+      wkset->basis_curl[i] = tbasis_curl[i];
+    }
+    
+  }
   else {
-    vector<View_Sc2> tip;
-    View_Sc2 twts("physical wts",numElem, groupData->ref_ip.extent(0));
-    View_Sc1 thsize("physical meshsize",numElem);
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalVolumetricData(groupData, nodes, localElemID,
-                                    tip, twts, thsize, orientation,
+    disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
                                     tbasis, tbasis_grad, tbasis_curl,
-                                    tbasis_div, tbasis_nodes,true,false);
-    wkset->wts = twts;
-    wkset->h = thsize;
-    
-    wkset->setScalarField(tip[0],"x");
-    if (tip.size() > 1) {
-      wkset->setScalarField(tip[1],"y");
-    }
-    if (tip.size() > 2) {
-      wkset->setScalarField(tip[2],"z");
-    }
+                                    tbasis_div, tbasis_nodes);
     wkset->basis = tbasis;
     wkset->basis_grad = tbasis_grad;
     wkset->basis_div = tbasis_div;
@@ -537,16 +587,20 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
     cwts = wts;
     cbasis = basis[wkset->usebasis[index]];
   }
+  else if (groupData->use_basis_database) {
+    cwts = wts;
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
+    vector<View_Sc3> tbasis_div;
+    disc->copyBasisFromDatabase(groupData, basis_database_index, orientation,
+                                tbasis, tbasis_grad, tbasis_curl, tbasis_div, false);
+    cbasis = tbasis[wkset->usebasis[index]];
+  }
   else {
-    vector<View_Sc2> tip;
-    cwts = View_Sc2("physical wts",numElem, groupData->ref_ip.extent(0));
-    View_Sc1 thsize("physical meshsize",numElem);
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalVolumetricData(groupData, nodes, localElemID,
-                                    tip, cwts, thsize, orientation,
-                                    tbasis, tbasis_grad, tbasis_curl,
-                                    tbasis_div, tbasis_nodes,true,false);
+    disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
+                                     tbasis, tbasis_grad, tbasis_curl,
+                                     tbasis_div, tbasis_nodes);
     cbasis = tbasis[wkset->usebasis[index]];
   }
   
@@ -593,50 +647,30 @@ void Group::updateWorksetFace(const size_t & facenum) {
   
   Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
+  wkset->wts_side = wts_face[facenum];
+  wkset->h = hsize;
+  wkset->setScalarField(ip_face[facenum][0],"x side");
+  wkset->setScalarField(normals_face[facenum][0],"nx side");
+  if (ip_face[facenum].size() > 1) {
+    wkset->setScalarField(ip_face[facenum][1],"y side");
+    wkset->setScalarField(normals_face[facenum][1],"ny side");
+  }
+  if (ip_face[facenum].size() > 2) {
+    wkset->setScalarField(ip_face[facenum][2],"z side");
+    wkset->setScalarField(normals_face[facenum][2],"nz side");
+  }
+    
   // Update the face integration points and basis in workset
   if (storeAll) {
-    wkset->wts_side = wts_face[facenum];
-    wkset->h = hsize;
-    //wkset->setIP(ip_face[facenum]," side");
-    //wkset->setNormals(normals_face[facenum]);
-    wkset->setScalarField(ip_face[facenum][0],"x side");
-    wkset->setScalarField(normals_face[facenum][0],"nx side");
-    if (ip_face[facenum].size() > 1) {
-      wkset->setScalarField(ip_face[facenum][1],"y side");
-      wkset->setScalarField(normals_face[facenum][1],"ny side");
-    }
-    if (ip_face[facenum].size() > 2) {
-      wkset->setScalarField(ip_face[facenum][2],"z side");
-      wkset->setScalarField(normals_face[facenum][2],"nz side");
-    }
     wkset->basis_side = basis_face[facenum];
     wkset->basis_grad_side = basis_grad_face[facenum];
   }
   else {
-    int numip = groupData->ref_side_ip[facenum].extent(0);
-    vector<View_Sc2> tip;
-    vector<View_Sc2> tnormals;
-    View_Sc2 twts("face wts", numElem, numip);
-    View_Sc1 thsize("face hsize", numElem);
     vector<View_Sc4> tbasis, tbasis_grad;
   
-    disc->getPhysicalFaceData(groupData, facenum, nodes, localElemID, orientation,
-                              tip, twts, tnormals, thsize, tbasis, tbasis_grad, true, false);
+    disc->getPhysicalFaceBasis(groupData, facenum, nodes, orientation,
+                               tbasis, tbasis_grad);
     
-    wkset->wts_side = twts;
-    wkset->h = thsize;
-    //wkset->setIP(tip," side");
-    //wkset->setNormals(tnormals);
-    wkset->setScalarField(tip[0],"x side");
-    wkset->setScalarField(tnormals[0],"nx side");
-    if (tip.size() > 1) {
-      wkset->setScalarField(tip[1],"y side");
-      wkset->setScalarField(tnormals[1],"ny side");
-    }
-    if (tip.size() > 2) {
-      wkset->setScalarField(tip[2],"z side");
-      wkset->setScalarField(tnormals[2],"nz side");
-    }
     wkset->basis_side = tbasis;
     wkset->basis_grad_side = tbasis_grad;
   }
@@ -1372,15 +1406,11 @@ View_Sc3 Group::getMass() {
     tbasis = basis;
   }
   else { // goes through this more than once, but really shouldn't be used much anyways
-    vector<View_Sc2> tip;
-    View_Sc2 twts("physical wts",numElem, groupData->ref_ip.extent(0));
-    View_Sc1 thsize("physical meshsize",numElem);
     vector<View_Sc4> tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalVolumetricData(groupData, nodes, localElemID,
-                                    tip, twts, thsize, orientation,
+    disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
                                     tbasis, tbasis_grad, tbasis_curl,
-                                    tbasis_div, tbasis_nodes,true,false);
+                                    tbasis_div, tbasis_nodes);
   }
   
   for (size_type n=0; n<numDOF.extent(0); n++) {
@@ -1433,16 +1463,12 @@ View_Sc3 Group::getWeightedMass(vector<ScalarT> & masswts) {
   auto offsets = wkset->offsets;
   auto numDOF = groupData->numDOF;
   
-  vector<View_Sc2> tip;
-  View_Sc2 twts("physical wts",numElem, groupData->ref_ip.extent(0));
-  View_Sc1 thsize("physical meshsize",numElem);
   vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
   vector<View_Sc3> tbasis_div;
-  disc->getPhysicalVolumetricData(groupData, nodes, localElemID,
-                                  tip, twts, thsize, orientation,
+  disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
                                   tbasis, tbasis_grad, tbasis_curl,
-                                  tbasis_div, tbasis_nodes,true,false);
-  cwts = twts;
+                                  tbasis_div, tbasis_nodes);
+  cwts = wts;
   
   for (size_type n=0; n<numDOF.extent(0); n++) {
     View_Sc4 cbasis = tbasis[wkset->usebasis[n]];
@@ -1480,6 +1506,7 @@ View_Sc3 Group::getWeightedMass(vector<ScalarT> & masswts) {
       });
     }
   }
+  
   if (storeMass) {
     // This assumes they are computed in order
     local_mass.push_back(mass);

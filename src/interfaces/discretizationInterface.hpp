@@ -62,47 +62,57 @@ namespace MrHyDE {
     
     void setReferenceData(Teuchos::RCP<GroupMetaData> & groupData);
     
-    void getPhysicalVolumetricData(Teuchos::RCP<GroupMetaData> & groupData,
-                                   DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                   vector<View_Sc2> & ip, View_Sc2 wts, View_Sc1 hsize,
-                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                   vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                                   vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
-                                   vector<View_Sc4> & basis_nodes,
-                                   const bool & recompute_jac = true,
-                                   const bool & recompute_orient = true);
-    
-    void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData,
-                                    DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                    View_Sc2 wts,
+    void getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
+                                    DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts);
+
+    void getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
+                     DRV nodes, DRV jacobian);
+
+    void getMeasure(Teuchos::RCP<GroupMetaData> & groupData,
+                    DRV jacobian, DRV measure);
+
+    void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes, 
                                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                    vector<View_Sc4> & basis,
-                                    const bool & recompute_jac,
-                                    const bool & recompute_orient);
+                                    vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                                    vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
+                                    vector<View_Sc4> & basis_nodes,
+                                    const bool & apply_orientations = true);
+    
+    void copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
+                               Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
+                               Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                               vector<View_Sc4> & basis, 
+                               vector<View_Sc4> & basis_grad, 
+                               vector<View_Sc4> & basis_curl, 
+                               vector<View_Sc3> & basis_div,
+                               const bool & apply_orientation = false);
+
+    void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
+                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                    vector<View_Sc4> & basis);                                    
 
     void getPhysicalOrientations(Teuchos::RCP<GroupMetaData> & groupData,
                                  Kokkos::View<LO*,AssemblyDevice> eIndex,
                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                  const bool & use_block);
     
-    void getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & groupData, const int & side,
-                             DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                             Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                             vector<View_Sc2> & face_ip, View_Sc2 face_wts, vector<View_Sc2> & face_normals, View_Sc1 face_hsize,
-                             vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                             const bool & recompute_jac = true,
-                             const bool & recompute_orient = true);
-    
-    void getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData> & groupData,
-                                 DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                 Kokkos::View<LO*,AssemblyDevice> localSideID,
-                                 Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                 vector<View_Sc2> & ip, View_Sc2 wts, vector<View_Sc2> & normals,
-                                 vector<View_Sc2> & tangents, View_Sc1 hsize,
-                                 vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                                 vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
-                                 const bool & recompute_jac = true,
-                                 const bool & recompute_orient = true);
+    void getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes, 
+                                        vector<View_Sc2> & face_ip, View_Sc2 face_wts, vector<View_Sc2> & face_normals);
+
+    void getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes, 
+                              Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                              vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad);
+                             
+    void getPhysicalBoundaryIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes, 
+                                            Kokkos::View<LO*,AssemblyDevice> localSideID,
+                                            vector<View_Sc2> & ip, View_Sc2 wts, vector<View_Sc2> & normals,
+                                            vector<View_Sc2> & tangents);
+                                            
+    void getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes, 
+                                  Kokkos::View<LO*,AssemblyDevice> localSideID,
+                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                  vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                                  vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div);
 
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
@@ -253,6 +263,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> physBndryDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - hsize");
     Teuchos::RCP<Teuchos::Time> physBndryDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - wts");
     Teuchos::RCP<Teuchos::Time> physBndryDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - basis");
+    Teuchos::RCP<Teuchos::Time> databaseCopyBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - copy");
+    Teuchos::RCP<Teuchos::Time> databaseOrientTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - apply orient");
   };
   
 }

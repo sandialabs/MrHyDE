@@ -53,8 +53,8 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    //void clearPhysicalData();
-    
+    size_t getDatabaseStorage();
+
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -84,10 +84,15 @@ namespace MrHyDE {
     vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
     vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
         
-    bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles;
+    bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles, use_basis_database = false;
     bool mortar_objective;
     bool exodus_sensors = false, compute_sol_avg = false;
     bool multiscale, have_phi, have_rotation, have_extra_data;
+    
+    // database of physical basis information (optional)
+    vector<View_Sc4> physical_basis, physical_basis_grad, physical_basis_curl;
+    vector<View_Sc3> physical_basis_div;
+    vector<vector<DRV> > physical_side_basis, physical_side_basis_grad, physical_side_basis_div, physical_side_basis_curl;
     
     // these are common to all elements/groups and are often used on both devices
     vector<Kokkos::View<int*,AssemblyDevice> > set_numDOF;

@@ -320,6 +320,7 @@ namespace MrHyDE {
     vector<vector<View_Sc2>> ip_face, normals_face;
     vector<View_Sc2> wts_face;
     vector<View_Sc1> hsize_face;
+    Kokkos::View<LO*,AssemblyDevice> basis_database_index;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     vector<View_Sc3> u, phi;

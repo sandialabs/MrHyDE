@@ -16,8 +16,8 @@
  \author Created by T. Wildey
  */
 
-#ifndef USERINTERFACE_H
-#define USERINTERFACE_H
+#ifndef MRHYDE_USERINTERFACE_H
+#define MRHYDE_USERINTERFACE_H
 
 #include "trilinos.hpp"
 #include "Teuchos_XMLParameterListHelpers.hpp"

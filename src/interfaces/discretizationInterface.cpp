@@ -447,51 +447,51 @@ void DiscretizationInterface::getQuadrature(const topo_RCP & cellTopo, const int
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & cellData) {
+void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & groupData) {
   
   // ------------------------------------
   // Reference ip/wts/normals/tangents
   // ------------------------------------
   
-  size_t dimension = cellData->dimension;
-  size_t block = cellData->myBlock;
+  size_t dimension = groupData->dimension;
+  size_t block = groupData->myBlock;
   
-  cellData->numip = ref_ip[block].extent(0);
-  cellData->numsideip = ref_side_ip[block].extent(0);
-  cellData->ref_ip = ref_ip[block];
-  cellData->ref_wts = ref_wts[block];
+  groupData->numip = ref_ip[block].extent(0);
+  groupData->numsideip = ref_side_ip[block].extent(0);
+  groupData->ref_ip = ref_ip[block];
+  groupData->ref_wts = ref_wts[block];
   
-  auto cellTopo = cellData->cellTopo;
+  auto cellTopo = groupData->cellTopo;
   
   if (dimension == 1) {
     DRV leftpt("refSidePoints",1, dimension);
     Kokkos::deep_copy(leftpt,-1.0);
     DRV rightpt("refSidePoints",1, dimension);
     Kokkos::deep_copy(rightpt,1.0);
-    cellData->ref_side_ip.push_back(leftpt);
-    cellData->ref_side_ip.push_back(rightpt);
+    groupData->ref_side_ip.push_back(leftpt);
+    groupData->ref_side_ip.push_back(rightpt);
     
     DRV leftwt("refSideWts",1, dimension);
     Kokkos::deep_copy(leftwt,1.0);
     DRV rightwt("refSideWts",1, dimension);
     Kokkos::deep_copy(rightwt,1.0);
-    cellData->ref_side_wts.push_back(leftwt);
-    cellData->ref_side_wts.push_back(rightwt);
+    groupData->ref_side_wts.push_back(leftwt);
+    groupData->ref_side_wts.push_back(rightwt);
     
     DRV leftn("refSideNormals",1, dimension);
     Kokkos::deep_copy(leftn,-1.0);
     DRV rightn("refSideNormals",1, dimension);
     Kokkos::deep_copy(rightn,1.0);
-    cellData->ref_side_normals.push_back(leftn);
-    cellData->ref_side_normals.push_back(rightn);
+    groupData->ref_side_normals.push_back(leftn);
+    groupData->ref_side_normals.push_back(rightn);
   }
   else {
-    for (size_t s=0; s<cellData->numSides; s++) {
-      DRV refSidePoints("refSidePoints",cellData->numsideip, dimension);
+    for (size_t s=0; s<groupData->numSides; s++) {
+      DRV refSidePoints("refSidePoints",groupData->numsideip, dimension);
       CellTools::mapToReferenceSubcell(refSidePoints, ref_side_ip[block],
                                        dimension-1, s, *cellTopo);
-      cellData->ref_side_ip.push_back(refSidePoints);
-      cellData->ref_side_wts.push_back(ref_side_wts[block]);
+      groupData->ref_side_ip.push_back(refSidePoints);
+      groupData->ref_side_wts.push_back(ref_side_wts[block]);
       
       DRV refSideNormals("refSideNormals", dimension);
       DRV refSideTangents("refSideTangents", dimension);
@@ -506,10 +506,10 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & cel
         CellTools::getReferenceFaceTangents(refSideTangentsU, refSideTangentsV, s, *cellTopo);
       }
       
-      cellData->ref_side_normals.push_back(refSideNormals);
-      cellData->ref_side_tangents.push_back(refSideTangents);
-      cellData->ref_side_tangentsU.push_back(refSideTangentsU);
-      cellData->ref_side_tangentsV.push_back(refSideTangentsV);
+      groupData->ref_side_normals.push_back(refSideNormals);
+      groupData->ref_side_tangents.push_back(refSideTangents);
+      groupData->ref_side_tangentsU.push_back(refSideTangentsU);
+      groupData->ref_side_tangentsV.push_back(refSideTangentsV);
     }
   }
   
@@ -519,14 +519,14 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & cel
   
   DRV refnodes("nodes on reference element",cellTopo->getNodeCount(),dimension);
   CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *cellTopo);
-  cellData->refnodes = refnodes;
+  groupData->refnodes = refnodes;
   
   // ------------------------------------
   // Get ref basis
   // ------------------------------------
   
-  cellData->basis_pointers = basis_pointers[block];
-  cellData->basis_types = basis_types[block];
+  groupData->basis_pointers = basis_pointers[block];
+  groupData->basis_types = basis_types[block];
   
   for (size_t i=0; i<basis_pointers[block].size(); i++) {
     
@@ -537,20 +537,20 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & cel
         
     if (basis_types[block][i].substr(0,5) == "HGRAD") {
       
-      basisvals = DRV("basisvals",numb, cellData->numip);
-      basis_pointers[block][i]->getValues(basisvals, cellData->ref_ip, Intrepid2::OPERATOR_VALUE);
+      basisvals = DRV("basisvals",numb, groupData->numip);
+      basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0));
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
-      basisgrad = DRV("basisgrad",numb, cellData->numip, dimension);
-      basis_pointers[block][i]->getValues(basisgrad, cellData->ref_ip, Intrepid2::OPERATOR_GRAD);
+      basisgrad = DRV("basisgrad",numb, groupData->numip, dimension);
+      basis_pointers[block][i]->getValues(basisgrad, groupData->ref_ip, Intrepid2::OPERATOR_GRAD);
       
     }
     else if (basis_types[block][i].substr(0,4) == "HVOL") {
       
-      basisvals = DRV("basisvals",numb, cellData->numip);
-      basis_pointers[block][i]->getValues(basisvals, cellData->ref_ip, Intrepid2::OPERATOR_VALUE);
+      basisvals = DRV("basisvals",numb, groupData->numip);
+      basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0));
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
@@ -558,75 +558,75 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & cel
     }
     else if (basis_types[block][i].substr(0,4) == "HDIV") {
       
-      basisvals = DRV("basisvals",numb, cellData->numip, dimension);
-      basis_pointers[block][i]->getValues(basisvals, cellData->ref_ip, Intrepid2::OPERATOR_VALUE);
+      basisvals = DRV("basisvals",numb, groupData->numip, dimension);
+      basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0), dimension);
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
-      basisdiv = DRV("basisdiv",numb, cellData->numip);
-      basis_pointers[block][i]->getValues(basisdiv, cellData->ref_ip, Intrepid2::OPERATOR_DIV);
+      basisdiv = DRV("basisdiv",numb, groupData->numip);
+      basis_pointers[block][i]->getValues(basisdiv, groupData->ref_ip, Intrepid2::OPERATOR_DIV);
       
     }
     else if (basis_types[block][i].substr(0,5) == "HCURL"){
       
-      basisvals = DRV("basisvals",numb, cellData->numip, dimension);
-      basis_pointers[block][i]->getValues(basisvals, cellData->ref_ip, Intrepid2::OPERATOR_VALUE);
+      basisvals = DRV("basisvals",numb, groupData->numip, dimension);
+      basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0), dimension);
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
       if (dimension == 2) {
-        basiscurl = DRV("basiscurl",numb, cellData->numip);
+        basiscurl = DRV("basiscurl",numb, groupData->numip);
       }
       else if (dimension == 3) {
-        basiscurl = DRV("basiscurl",numb, cellData->numip, dimension);
+        basiscurl = DRV("basiscurl",numb, groupData->numip, dimension);
       }
-      basis_pointers[block][i]->getValues(basiscurl, cellData->ref_ip, Intrepid2::OPERATOR_CURL);
+      basis_pointers[block][i]->getValues(basiscurl, groupData->ref_ip, Intrepid2::OPERATOR_CURL);
       
     }
     
-    cellData->ref_basis.push_back(basisvals);
-    cellData->ref_basis_curl.push_back(basiscurl);
-    cellData->ref_basis_grad.push_back(basisgrad);
-    cellData->ref_basis_div.push_back(basisdiv);
-    cellData->ref_basis_nodes.push_back(basisnodes);
+    groupData->ref_basis.push_back(basisvals);
+    groupData->ref_basis_curl.push_back(basiscurl);
+    groupData->ref_basis_grad.push_back(basisgrad);
+    groupData->ref_basis_div.push_back(basisdiv);
+    groupData->ref_basis_nodes.push_back(basisnodes);
   }
   
   // Compute the basis value and basis grad values on reference element
   // at side ip
-  for (size_t s=0; s<cellData->numSides; s++) {
+  for (size_t s=0; s<groupData->numSides; s++) {
     vector<DRV> sbasis, sbasisgrad, sbasisdiv, sbasiscurl;
     for (size_t i=0; i<basis_pointers[block].size(); i++) {
       int numb = basis_pointers[block][i]->getCardinality();
       DRV basisvals, basisgrad, basisdiv, basiscurl;
       if (basis_types[block][i].substr(0,5) == "HGRAD") {
-        basisvals = DRV("basisvals",numb, cellData->numsideip);
-        basis_pointers[block][i]->getValues(basisvals, cellData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
-        basisgrad = DRV("basisgrad",numb, cellData->numsideip, dimension);
-        basis_pointers[block][i]->getValues(basisgrad, cellData->ref_side_ip[s], Intrepid2::OPERATOR_GRAD);
+        basisvals = DRV("basisvals",numb, groupData->numsideip);
+        basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
+        basisgrad = DRV("basisgrad",numb, groupData->numsideip, dimension);
+        basis_pointers[block][i]->getValues(basisgrad, groupData->ref_side_ip[s], Intrepid2::OPERATOR_GRAD);
       }
       else if (basis_types[block][i].substr(0,4) == "HVOL" || basis_types[block][i].substr(0,5) == "HFACE") {
-        basisvals = DRV("basisvals",numb, cellData->numsideip);
-        basis_pointers[block][i]->getValues(basisvals, cellData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
+        basisvals = DRV("basisvals",numb, groupData->numsideip);
+        basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
       }
       else if (basis_types[block][i].substr(0,4) == "HDIV") {
-        basisvals = DRV("basisvals",numb, cellData->numsideip, dimension);
-        basis_pointers[block][i]->getValues(basisvals, cellData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
+        basisvals = DRV("basisvals",numb, groupData->numsideip, dimension);
+        basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
       }
       else if (basis_types[block][i].substr(0,5) == "HCURL"){
-        basisvals = DRV("basisvals",numb, cellData->numsideip, dimension);
-        basis_pointers[block][i]->getValues(basisvals, cellData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
+        basisvals = DRV("basisvals",numb, groupData->numsideip, dimension);
+        basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
       }
       sbasis.push_back(basisvals);
       sbasisgrad.push_back(basisgrad);
       sbasisdiv.push_back(basisdiv);
       sbasiscurl.push_back(basiscurl);
     }
-    cellData->ref_side_basis.push_back(sbasis);
-    cellData->ref_side_basis_grad.push_back(sbasisgrad);
-    cellData->ref_side_basis_div.push_back(sbasisdiv);
-    cellData->ref_side_basis_curl.push_back(sbasiscurl);
+    groupData->ref_side_basis.push_back(sbasis);
+    groupData->ref_side_basis_grad.push_back(sbasisgrad);
+    groupData->ref_side_basis_div.push_back(sbasisdiv);
+    groupData->ref_side_basis_curl.push_back(sbasiscurl);
   }
   
 }
@@ -635,20 +635,98 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & cel
 // Compute the volumetric integration information
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaData> & cellData,
-                                                        DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                                        vector<View_Sc2> & ip, View_Sc2 wts, View_Sc1 hsize,
-                                                        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                        vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                                                        vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
-                                                        vector<View_Sc4> & basis_nodes,
-                                                        const bool & recompute_jac,
-                                                        const bool & recompute_orient) {
+void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
+                                                         DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts) {
+  
+  int dimension = groupData->dimension;
+  int numip = groupData->ref_ip.extent(0);
+  int numElem = nodes.extent(0);
+  
+  // -------------------------------------------------
+  // Compute the integration information
+  // -------------------------------------------------
+  
+  DRV jacobian ("jacobian", numElem, numip, dimension, dimension);
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  DRV tmpip("tmp ip", numElem, numip, dimension);
+  DRV tmpwts("tmp ip wts", numElem, numip);
+  
+  {
+    CellTools::mapToPhysicalFrame(tmpip, groupData->ref_ip, nodes, *(groupData->cellTopo));
+    View_Sc2 x("x",tmpip.extent(0), tmpip.extent(1));
+    auto tmpip_x = subview(tmpip, ALL(), ALL(),0);
+    deep_copy(x,tmpip_x);
+    ip.push_back(x);
+    if (dimension > 1) {
+      View_Sc2 y("y",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_y = subview(tmpip, ALL(), ALL(),1);
+      deep_copy(y,tmpip_y);
+      ip.push_back(y);
+    }
+    if (dimension > 2) {
+      View_Sc2 z("z",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_z = subview(tmpip, ALL(), ALL(),2);
+      deep_copy(z,tmpip_z);
+      ip.push_back(z);
+    }
+    
+  }
+  
+  CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  FuncTools::computeCellMeasure(tmpwts, jacobianDet, groupData->ref_wts);
+  Kokkos::deep_copy(wts,tmpwts);
+  
+}
+                    
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
+                                          DRV nodes, DRV jacobian) {
+
+  CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
+                       
+}
+                    
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::getMeasure(Teuchos::RCP<GroupMetaData> & groupData,
+                                         DRV jacobian, DRV measure) {
+  int numip = groupData->ref_ip.extent(0);
+  int numElem = measure.extent(0);
+  
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  DRV wts("jacobian", numElem, numip);
+  FuncTools::computeCellMeasure(wts, jacobianDet, groupData->ref_wts);
+
+  parallel_for("compute measure",
+               RangePolicy<AssemblyExec>(0,numElem),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<wts.extent(1); ++pt) {
+      measure(elem) += wts(elem,pt);
+    }
+  });
+        
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData,
+                                                         DRV nodes, 
+                                                         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                                         vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                                                         vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
+                                                         vector<View_Sc4> & basis_nodes,
+                                                         const bool & apply_orientations) {
   
   Teuchos::TimeMonitor localtimer(*physVolDataTotalTimer);
   
-  int dimension = cellData->dimension;
-  int numip = cellData->ref_ip.extent(0);
+  int dimension = groupData->dimension;
+  int numip = groupData->ref_ip.extent(0);
   int numElem = nodes.extent(0);
   
   // -------------------------------------------------
@@ -659,34 +737,10 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
   jacobian = DRV("jacobian", numElem, numip, dimension, dimension);
   jacobianDet = DRV("determinant of jacobian", numElem, numip);
   jacobianInv = DRV("inverse of jacobian", numElem, numip, dimension, dimension);
-  tmpip = DRV("tmp ip", numElem, numip, dimension);
-  tmpwts = DRV("tmp ip wts", numElem, numip);
-  
-  {
-    Teuchos::TimeMonitor localtimer(*physVolDataIPTimer);
-    CellTools::mapToPhysicalFrame(tmpip, cellData->ref_ip, nodes, *(cellData->cellTopo));
-    View_Sc2 x("cell x",tmpip.extent(0), tmpip.extent(1));
-    auto tmpip_x = subview(tmpip, ALL(), ALL(),0);
-    deep_copy(x,tmpip_x);
-    ip.push_back(x);
-    if (dimension > 1) {
-      View_Sc2 y("cell y",tmpip.extent(0), tmpip.extent(1));
-      auto tmpip_y = subview(tmpip, ALL(), ALL(),1);
-      deep_copy(y,tmpip_y);
-      ip.push_back(y);
-    }
-    if (dimension > 2) {
-      View_Sc2 z("cell z",tmpip.extent(0), tmpip.extent(1));
-      auto tmpip_z = subview(tmpip, ALL(), ALL(),2);
-      deep_copy(z,tmpip_z);
-      ip.push_back(z);
-    }
-    
-  }
   
   {
     Teuchos::TimeMonitor localtimer(*physVolDataSetJacTimer);
-    CellTools::setJacobian(jacobian, cellData->ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
   }
   
   {
@@ -695,47 +749,15 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
     CellTools::setJacobianInv(jacobianInv, jacobian);
   }
   
-  {
-    Teuchos::TimeMonitor localtimer(*physVolDataWtsTimer);    
-    FuncTools::computeCellMeasure(tmpwts, jacobianDet, cellData->ref_wts);
-    Kokkos::deep_copy(wts,tmpwts);
-  }
-  
-  // -------------------------------------------------
-  // Compute the element sizes (h = vol^(1/dimension))
-  // -------------------------------------------------
-  
-  {
-    Teuchos::TimeMonitor localtimer(*physVolDataHsizeTimer);
-    parallel_for("cell hsize",
-                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                 KOKKOS_LAMBDA (const size_type elem ) {
-      ScalarT vol = 0.0;
-      for (size_type i=0; i<wts.extent(1); i++) {
-        vol += wts(elem,i);
-      }
-      ScalarT dimscl = 1.0/(ScalarT)dimension;
-      hsize(elem) = pow(vol,dimscl);
-    });
-  }
-  
-  // -------------------------------------------------
-  // Compute the element orientations (probably never happens)
-  // -------------------------------------------------
-  
-  if (recompute_orient) {
-    this->getPhysicalOrientations(cellData, eIndex, orientation, true);
-  }
-  
   // -------------------------------------------------
   // Compute the basis functions at the volumetric ip
   // -------------------------------------------------
   
   {
     Teuchos::TimeMonitor localtimer(*physVolDataBasisTimer);
-    for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
+    for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
       
-      int numb = cellData->basis_pointers[i]->getCardinality();
+      int numb = groupData->basis_pointers[i]->getCardinality();
       
       // These will be redefined below for the appropriate basis types
       View_Sc4 basis_vals("tmp basis",1,1,1,1);
@@ -744,14 +766,19 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
       View_Sc4 basis_node_vals("tmp node vals",1,1,1,1);
       View_Sc3 basis_div_vals("tmp div vals",1,1,1);
 
-      if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
+      if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip);
         bvals2 = DRV("basis tmp",numElem,numb,numip);
         
-        FuncTools::HGRADtransformVALUE(bvals1, cellData->ref_basis[i]);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+        FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
+        if (apply_orientations) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -760,25 +787,30 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
         bgrad1 = DRV("basis grad tmp",numElem,numb,numip,dimension);
         bgrad2 = DRV("basis grad",numElem,numb,numip,dimension);
         
-        FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, cellData->ref_basis_grad[i]);
-        OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                              cellData->basis_pointers[i].get());
+        FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, groupData->ref_basis_grad[i]);
+        if (apply_orientations) {
+          OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bgrad2 = bgrad1;
+        }
         basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_grad_vals,bgrad2);
         
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HVOL"){
+      else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
         
         DRV bvals1;
         bvals1 = DRV("basis",numElem,numb,numip);
         
-        FuncTools::HGRADtransformVALUE(bvals1, cellData->ref_basis[i]);
+        FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
         
         basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals1);
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HDIV" ) {
+      else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
         
         {
           Teuchos::TimeMonitor localtimer(*physVolDataBasisDivValTimer);
@@ -786,19 +818,29 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
           bvals1 = DRV("basis",numElem,numb,numip,dimension);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
           
-          FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, cellData->ref_basis[i]);
-          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                cellData->basis_pointers[i].get());
+          FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, groupData->ref_basis[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bvals2 = bvals1;
+          }
           basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_vals,bvals2);
         }
         
-        if (cellData->requireBasisAtNodes) {
+        if (groupData->requireBasisAtNodes) {
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1),dimension);
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
-          FuncTools::HDIVtransformVALUE(bvals_tmp, jacobian, jacobianDet, cellData->ref_basis_nodes[i]);
-          OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
-                                                cellData->basis_pointers[i].get());
+          FuncTools::HDIVtransformVALUE(bvals_tmp, jacobian, jacobianDet, groupData->ref_basis_nodes[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bnode_vals = bvals_tmp;
+          }
           basis_node_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_node_vals,bnode_vals);
         }
@@ -810,14 +852,19 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
           bdiv1 = DRV("basis",numElem,numb,numip);
           bdiv2 = DRV("basis tmp",numElem,numb,numip);
           
-          FuncTools::HDIVtransformDIV(bdiv1, jacobianDet, cellData->ref_basis_div[i]);
-          OrientTools::modifyBasisByOrientation(bdiv2, bdiv1, orientation,
-                                                cellData->basis_pointers[i].get());
+          FuncTools::HDIVtransformDIV(bdiv1, jacobianDet, groupData->ref_basis_div[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bdiv2, bdiv1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bdiv2 = bdiv1;
+          }
           basis_div_vals = View_Sc3("basis div values", numElem, numb, numip); // needs to be rank-3
           Kokkos::deep_copy(basis_div_vals,bdiv2);
         }
       }
-      else if (cellData->basis_types[i].substr(0,5) == "HCURL"){
+      else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
         
         {
           Teuchos::TimeMonitor localtimer(*physVolDataBasisCurlValTimer);
@@ -826,19 +873,29 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
           bvals1 = DRV("basis",numElem,numb,numip,dimension);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
           
-          FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, cellData->ref_basis[i]);
-          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                cellData->basis_pointers[i].get());
+          FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, groupData->ref_basis[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bvals2 = bvals1;
+          }
           basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_vals,bvals2);
         }
         
-        if (cellData->requireBasisAtNodes) {
+        if (groupData->requireBasisAtNodes) {
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1),dimension);
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
-          FuncTools::HCURLtransformVALUE(bvals_tmp, jacobianInv, cellData->ref_basis_nodes[i]);
-          OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
-                                                cellData->basis_pointers[i].get());
+          FuncTools::HCURLtransformVALUE(bvals_tmp, jacobianInv, groupData->ref_basis_nodes[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bnode_vals = bvals_tmp;
+          }
           basis_node_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_node_vals,bnode_vals);
           
@@ -851,9 +908,14 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
           bcurl1 = DRV("basis",numElem,numb,numip,dimension);
           bcurl2 = DRV("basis tmp",numElem,numb,numip,dimension);
           
-          FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, cellData->ref_basis_curl[i]);
-          OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
-                                                cellData->basis_pointers[i].get());
+          FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, groupData->ref_basis_curl[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bcurl2 = bcurl1;
+          }
           basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
           if (spaceDim == 2) {
             auto sub_bcv = subview(basis_curl_vals,ALL(),ALL(),ALL(),0);
@@ -873,38 +935,437 @@ void DiscretizationInterface::getPhysicalVolumetricData(Teuchos::RCP<GroupMetaDa
   }
 }
 
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
+                                                    Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
+                                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                                    vector<View_Sc4> & basis, 
+                                                    vector<View_Sc4> & basis_grad, 
+                                                    vector<View_Sc4> & basis_curl, 
+                                                    vector<View_Sc3> & basis_div,
+                                                    const bool & apply_orientation) {
+  int dimension = groupData->dimension;
+  int numip = groupData->ref_ip.extent(0);
+  int numElem = basis_database_index.extent(0);
+  
+  auto basis_index = basis_database_index;
+  
+  for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
+      
+    int numb = groupData->basis_pointers[i]->getCardinality();
+      
+    // These will be redefined below for the appropriate basis types
+    View_Sc4 basis_vals("tmp basis",1,1,1,1);
+    View_Sc4 basis_grad_vals("tmp grad vals",1,1,1,1);
+    View_Sc4 basis_curl_vals("tmp curl vals",1,1,1,1);
+    //View_Sc4 basis_node_vals("tmp node vals",1,1,1,1);
+    View_Sc3 basis_div_vals("tmp div vals",1,1,1);
+      
+    if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
+
+      basis_vals = View_Sc4("basis values", numElem, numb, numip, 1);   
+      basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
+        
+      if (apply_orientation) {
+         DRV bvals2;
+        {
+          DRV bvals1("basis tmp",numElem,numb,numip);
+          bvals2 = DRV("basis tmp",numElem,numb,numip);
+      
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+            auto database = groupData->physical_basis[i];
+            parallel_for("group copy HGRAD basis",
+                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO index = basis_index(elem);
+               for (size_type dof=0; dof<database.extent(1); ++dof) {
+                for (size_type pt=0; pt<database.extent(2); ++pt) {
+                  bvals1(elem,dof,pt) = database(index,dof,pt,0);
+                }
+              }
+            });
+          }
+          //////////////////////////////
+
+          {
+            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+        } // bvals1 goes out of scope
+
+        auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+        Kokkos::deep_copy(basis_vals_slice,bvals2);
+
+      } // bvals2 goes out of scope 
+      else { // just need to copy once 
+        
+        //////////////////////////////
+        {
+          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          auto database = groupData->physical_basis[i];
+          parallel_for("group copy HGRAD basis",
+                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            LO index = basis_index(elem);
+             for (size_type dof=0; dof<database.extent(1); ++dof) {
+              for (size_type pt=0; pt<database.extent(2); ++pt) {
+                basis_vals(elem,dof,pt,0) = database(index,dof,pt,0);
+              }
+            }
+          });
+        }
+        //////////////////////////////
+
+      } 
+
+      if (apply_orientation) {
+        DRV bgrad2;
+        {
+          DRV bgrad1("basis grad tmp",numElem,numb,numip,dimension);
+          bgrad2 = DRV("basis grad tmp",numElem,numb,numip,dimension);
+        
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+            auto database = groupData->physical_basis_grad[i];
+            parallel_for("group copy HGRAD basis grad",
+                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO index = basis_index(elem);
+              for (size_type dof=0; dof<database.extent(1); ++dof) {
+                for (size_type pt=0; pt<database.extent(2); ++pt) {
+                  for (size_type dim=0; dim<database.extent(3); ++dim) {
+                    bgrad1(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                  }
+                }
+              }
+            });
+          }
+          //////////////////////////////
+          
+          {
+            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
+            OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          
+        } // bgrad1 goes out of scope
+        Kokkos::deep_copy(basis_grad_vals,bgrad2);
+      } // bgrad2 goes out of scope
+      else {
+        //////////////////////////////
+        {
+          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          auto database = groupData->physical_basis_grad[i];
+          parallel_for("group copy HGRAD basis grad",
+                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            LO index = basis_index(elem);
+            for (size_type dof=0; dof<database.extent(1); ++dof) {
+              for (size_type pt=0; pt<database.extent(2); ++pt) {
+                for (size_type dim=0; dim<database.extent(3); ++dim) {
+                  basis_grad_vals(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                }
+              }
+            }
+          });
+        }
+        //////////////////////////////
+          
+      }
+     }
+     else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
+        
+      basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
+      
+      //////////////////////////////
+      {
+        Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+        auto database = groupData->physical_basis[i];
+        parallel_for("group copy HVOL basis",
+                     RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          LO index = basis_index(elem);
+          for (size_type dof=0; dof<database.extent(1); ++dof) {
+            for (size_type pt=0; pt<database.extent(2); ++pt) {
+              basis_vals(elem,dof,pt,0) = database(index,dof,pt,0);
+            }
+          }
+        });
+      }
+      //////////////////////////////
+
+    }
+    else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
+        
+      basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
+      basis_div_vals = View_Sc3("basis div values", numElem, numb, numip); // needs to be rank-3
+        
+      if (apply_orientation) {
+        DRV bvals2;
+        {
+          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
+          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
+          
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+            auto database = groupData->physical_basis[i];
+            parallel_for("group copy HGRAD basis grad",
+                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO index = basis_index(elem);
+              for (size_type dof=0; dof<database.extent(1); ++dof) {
+                for (size_type pt=0; pt<database.extent(2); ++pt) {
+                  for (size_type dim=0; dim<database.extent(3); ++dim) {
+                    bvals1(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                  }
+                }
+              }
+            });
+          }
+          //////////////////////////////
+
+          {
+            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          
+        } // bvals1 goes out of scope
+        Kokkos::deep_copy(basis_vals,bvals2);
+      } // bvals1 goes out of scope
+      else {
+        //////////////////////////////
+        {
+          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          auto database = groupData->physical_basis[i];
+          parallel_for("group copy HGRAD basis grad",
+                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            LO index = basis_index(elem);
+            for (size_type dof=0; dof<database.extent(1); ++dof) {
+              for (size_type pt=0; pt<database.extent(2); ++pt) {
+                for (size_type dim=0; dim<database.extent(3); ++dim) {
+                  basis_vals(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                }
+              }
+            }
+          });
+        }
+        //////////////////////////////
+      }
+
+      if (apply_orientation) {
+        DRV bdiv2;
+        {
+          DRV bdiv1("basis",numElem,numb,numip);
+          bdiv2 = DRV("basis tmp",numElem,numb,numip);
+          
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+            auto database = groupData->physical_basis_div[i];
+            parallel_for("group copy HVOL basis",
+                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO index = basis_index(elem);
+              for (size_type dof=0; dof<database.extent(1); ++dof) {
+                for (size_type pt=0; pt<database.extent(2); ++pt) {
+                  bdiv1(elem,dof,pt) = database(index,dof,pt);
+                }
+              }
+            });
+          }
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
+            OrientTools::modifyBasisByOrientation(bdiv2, bdiv1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+         
+        } // bdiv1 goes out of scope
+        Kokkos::deep_copy(basis_div_vals,bdiv2);
+      }// bdiv2 goes out of scope
+      else {
+        //////////////////////////////
+        {
+          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          auto database = groupData->physical_basis_div[i];
+          parallel_for("group copy HVOL basis",
+                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            LO index = basis_index(elem);
+            for (size_type dof=0; dof<database.extent(1); ++dof) {
+              for (size_type pt=0; pt<database.extent(2); ++pt) {
+                basis_div_vals(elem,dof,pt) = database(index,dof,pt);
+              }
+            }
+          });
+        }
+        //////////////////////////////
+      }
+    }
+    else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
+        
+      basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
+      basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
+        
+      if (apply_orientation) {
+        DRV bvals2;
+        {
+          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
+          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
+          
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          
+            auto database = groupData->physical_basis[i];
+            parallel_for("group copy HGRAD basis grad",
+                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO index = basis_index(elem);
+              for (size_type dof=0; dof<database.extent(1); ++dof) {
+                for (size_type pt=0; pt<database.extent(2); ++pt) {
+                  for (size_type dim=0; dim<database.extent(3); ++dim) {
+                    bvals1(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                  }
+                }
+              }
+            });
+          }
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseOrientTimer); 
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+        } // bvals1 goes out of scope
+        Kokkos::deep_copy(basis_vals,bvals2);
+      } // bvals2 goes out of scope
+      else {
+        //////////////////////////////
+        {
+          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          
+          auto database = groupData->physical_basis[i];
+          parallel_for("group copy HGRAD basis grad",
+                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            LO index = basis_index(elem);
+            for (size_type dof=0; dof<database.extent(1); ++dof) {
+              for (size_type pt=0; pt<database.extent(2); ++pt) {
+                for (size_type dim=0; dim<database.extent(3); ++dim) {
+                  basis_vals(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                }
+              }
+            }
+          });
+        }
+        //////////////////////////////
+      }
+        
+      if (apply_orientation) {
+        DRV bcurl2;
+        {
+          DRV bcurl1("basis",numElem,numb,numip,dimension);
+          bcurl2 = DRV("basis tmp",numElem,numb,numip,dimension);
+          
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          
+            auto database = groupData->physical_basis_curl[i];
+            parallel_for("group copy HGRAD basis grad",
+                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO index = basis_index(elem);
+              for (size_type dof=0; dof<database.extent(1); ++dof) {
+                for (size_type pt=0; pt<database.extent(2); ++pt) {
+                  for (size_type dim=0; dim<database.extent(3); ++dim) {
+                    bcurl1(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                  }
+                }
+              }
+            });
+          }
+          //////////////////////////////
+          {
+            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
+            OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+        } // bcurl1 goes out of scope
+        if (spaceDim == 2) {
+          auto sub_bcv = subview(basis_curl_vals,ALL(),ALL(),ALL(),0);
+          deep_copy(sub_bcv,bcurl2);
+        }
+        else {
+          Kokkos::deep_copy(basis_curl_vals, bcurl2);
+        }
+      } // bcurl2 goes out of scope
+      else {
+        //////////////////////////////
+        {
+          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
+          
+          auto database = groupData->physical_basis_curl[i];
+          parallel_for("group copy HGRAD basis grad",
+                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            LO index = basis_index(elem);
+            for (size_type dof=0; dof<database.extent(1); ++dof) {
+              for (size_type pt=0; pt<database.extent(2); ++pt) {
+                for (size_type dim=0; dim<database.extent(3); ++dim) {
+                  basis_curl_vals(elem,dof,pt,dim) = database(index,dof,pt,dim);
+                }
+              }
+            }
+          });
+        }
+        //////////////////////////////
+      }
+    }
+    basis.push_back(basis_vals);
+    basis_grad.push_back(basis_grad_vals);
+    basis_div.push_back(basis_div_vals);
+    basis_curl.push_back(basis_curl_vals);
+    //basis_nodes.push_back(basis_node_vals);
+  }
+}
+
 // -------------------------------------------------
 // Specialized routine to compute just the basis (not GRAD, CURL or DIV) and the wts
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & cellData,
-                                                         DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                                         View_Sc2 wts,
+void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                                          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                         vector<View_Sc4> & basis,
-                                                         const bool & recompute_jac,
-                                                         const bool & recompute_orient) {
+                                                         vector<View_Sc4> & basis) {
   
   Teuchos::TimeMonitor localtimer(*physVolDataTotalTimer);
   
-  int dimension = cellData->dimension;
-  int numip = cellData->ref_ip.extent(0);
-  int numElem = nodes.extent(0);
+  int dimension = groupData->dimension;
+  int numip = groupData->ref_ip.extent(0);
+  int numElem = orientation.extent(0);
   
   // -------------------------------------------------
   // Compute the integration information
   // -------------------------------------------------
   
-  DRV jacobian, jacobianDet, jacobianInv, tmpip, tmpwts;
+  DRV jacobian, jacobianDet, jacobianInv;
   jacobian = DRV("jacobian", numElem, numip, dimension, dimension);
   jacobianDet = DRV("determinant of jacobian", numElem, numip);
   jacobianInv = DRV("inverse of jacobian", numElem, numip, dimension, dimension);
-  tmpip = DRV("tmp ip", numElem, numip, dimension);
-  tmpwts = DRV("tmp ip wts", numElem, numip);
     
   {
     Teuchos::TimeMonitor localtimer(*physVolDataSetJacTimer);
-    CellTools::setJacobian(jacobian, cellData->ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
   }
   
   {
@@ -912,79 +1373,65 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
     CellTools::setJacobianDet(jacobianDet, jacobian);
     CellTools::setJacobianInv(jacobianInv, jacobian);
   }
-  
-  {
-    Teuchos::TimeMonitor localtimer(*physVolDataWtsTimer);
-    FuncTools::computeCellMeasure(tmpwts, jacobianDet, cellData->ref_wts);
-    Kokkos::deep_copy(wts,tmpwts);
-  }
     
-  // -------------------------------------------------
-  // Compute the element orientations (probably never happens)
-  // -------------------------------------------------
-  
-  if (recompute_orient) {
-    this->getPhysicalOrientations(cellData, eIndex, orientation, true);
-  }
-  
   // -------------------------------------------------
   // Compute the basis functions at the volumetric ip
   // -------------------------------------------------
   
   {
     Teuchos::TimeMonitor localtimer(*physVolDataBasisTimer);
-    for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
+    for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
       
-      int numb = cellData->basis_pointers[i]->getCardinality();
+      int numb = groupData->basis_pointers[i]->getCardinality();
       
       // These will be redefined below for the appropriate basis types
       View_Sc4 basis_vals("tmp basis",1,1,1,1);
       
-      if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
+      if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
         DRV bvals1("basis",numElem,numb,numip);
         DRV bvals2("basis tmp",numElem,numb,numip);
-        FuncTools::HGRADtransformVALUE(bvals1, cellData->ref_basis[i]);
+        FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
         
         
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HVOL"){
+      else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
         
         DRV bvals1("basis",numElem,numb,numip);
-        FuncTools::HGRADtransformVALUE(bvals1, cellData->ref_basis[i]);
+        FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
         
         basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals1);
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HDIV" ) {
+      else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
         
         {
           Teuchos::TimeMonitor localtimer(*physVolDataBasisDivValTimer);
           DRV bvals1("basis",numElem,numb,numip,dimension);
           DRV bvals2("basis tmp",numElem,numb,numip,dimension);
-          FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, cellData->ref_basis[i]);
+          FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, groupData->ref_basis[i]);
           OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                cellData->basis_pointers[i].get());
+                                                groupData->basis_pointers[i].get());
           basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_vals,bvals2);
         }
         
       }
-      else if (cellData->basis_types[i].substr(0,5) == "HCURL"){
+      else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
         
         {
           Teuchos::TimeMonitor localtimer(*physVolDataBasisCurlValTimer);
           
           DRV bvals1("basis",numElem,numb,numip,dimension);
           DRV bvals2("basis tmp",numElem,numb,numip,dimension);
-          FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, cellData->ref_basis[i]);
+          FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, groupData->ref_basis[i]);
           OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                cellData->basis_pointers[i].get());
+                                                groupData->basis_pointers[i].get());
           basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_vals,bvals2);
         }
@@ -999,7 +1446,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
 // Get the element orientations
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData> & cellData,
+void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData> & groupData,
                                                       Kokkos::View<LO*,AssemblyDevice> eIndex,
                                                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                       const bool & use_block) {
@@ -1012,7 +1459,7 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
   for (size_type i=0; i<host_eIndex.extent(0); i++) {
     LO elemID = host_eIndex(i);
     if (use_block) {
-      elemID = myElements[cellData->myBlock][host_eIndex(i)];
+      elemID = myElements[groupData->myBlock][host_eIndex(i)];
     }
     orientation_host(i) = panzer_orientations[elemID];
   }
@@ -1023,37 +1470,29 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
 // Compute the basis functions at the face ip
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & cellData, const int & side,
-                                                  DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                                  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                  vector<View_Sc2> & face_ip, View_Sc2 face_wts,
-                                                  vector<View_Sc2> & face_normals, View_Sc1 face_hsize,
-                                                  vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                                                  const bool & recompute_jac,
-                                                  const bool & recompute_orient) {
+void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes, 
+                                                             vector<View_Sc2> & face_ip, View_Sc2 face_wts,
+                                                             vector<View_Sc2> & face_normals) {
   
   Teuchos::TimeMonitor localtimer(*physFaceDataTotalTimer);
   
-  auto ref_ip = cellData->ref_side_ip[side];
-  auto ref_wts = cellData->ref_side_wts[side];
+  auto ref_ip = groupData->ref_side_ip[side];
+  auto ref_wts = groupData->ref_side_wts[side];
   
-  int dimension = cellData->dimension;
+  int dimension = groupData->dimension;
   int numip = ref_ip.extent(0);
   int numElem = nodes.extent(0);
   
   // Step 1: fill in ip_side, wts_side and normals
-  DRV sip, jac, jacDet, jacInv, swts, snormals, tangents;
-  sip = DRV("side ip", numElem, numip, dimension);
-  jac = DRV("bijac", numElem, numip, dimension, dimension);
-  jacDet = DRV("bijacDet", numElem, numip);
-  jacInv = DRV("bijacInv", numElem, numip, dimension, dimension);
-  swts = DRV("wts_side", numElem, numip);
-  snormals = DRV("normals", numElem, numip, dimension);
-  tangents = DRV("tangents", numElem, numip, dimension);
+  DRV sip("side ip", numElem, numip, dimension);
+  DRV jacobian ("side jac", numElem, numip, dimension, dimension);
+  DRV swts("wts_side", numElem, numip);
+  DRV snormals("normals", numElem, numip, dimension);
+  DRV tangents("tangents", numElem, numip, dimension);
   
   {
     Teuchos::TimeMonitor localtimer(*physFaceDataIPTimer);
-    CellTools::mapToPhysicalFrame(sip, ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::mapToPhysicalFrame(sip, ref_ip, nodes, *(groupData->cellTopo));
     
     View_Sc2 x("cell face x",sip.extent(0), sip.extent(1));
     auto sip_x = subview(sip, ALL(), ALL(),0);
@@ -1077,21 +1516,15 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
   
   {
     Teuchos::TimeMonitor localtimer(*physFaceDataSetJacTimer);
-    CellTools::setJacobian(jac, ref_ip, nodes, *(cellData->cellTopo));
-  }
-  
-  {
-    Teuchos::TimeMonitor localtimer(*physFaceDataOtherJacTimer);
-    CellTools::setJacobianInv(jacInv, jac);
-    CellTools::setJacobianDet(jacDet, jac);
+    CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
   }
   
   {
     Teuchos::TimeMonitor localtimer(*physFaceDataWtsTimer);
     
     if (dimension == 2) {
-      auto ref_tangents = cellData->ref_side_tangents[side];
-      RealTools::matvec(tangents, jac, ref_tangents);
+      auto ref_tangents = groupData->ref_side_tangents[side];
+      RealTools::matvec(tangents, jacobian, ref_tangents);
       
       DRV rotation("rotation matrix",dimension,dimension);
       rotation(0,0) = 0;  rotation(0,1) = 1;
@@ -1104,14 +1537,14 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
     }
     else if (dimension == 3) {
       
-      auto ref_tangentsU = cellData->ref_side_tangentsU[side];
-      auto ref_tangentsV = cellData->ref_side_tangentsV[side];
+      auto ref_tangentsU = groupData->ref_side_tangentsU[side];
+      auto ref_tangentsV = groupData->ref_side_tangentsV[side];
       
       DRV faceTanU("face tangent U", numElem, numip, dimension);
       DRV faceTanV("face tangent V", numElem, numip, dimension);
       
-      RealTools::matvec(faceTanU, jac, ref_tangentsU);
-      RealTools::matvec(faceTanV, jac, ref_tangentsV);
+      RealTools::matvec(faceTanU, jacobian, ref_tangentsU);
+      RealTools::matvec(faceTanV, jacobian, ref_tangentsV);
       
       RealTools::vecprod(snormals, faceTanU, faceTanV);
       
@@ -1159,45 +1592,38 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
     
     Kokkos::deep_copy(face_wts,swts);
   }
-  
-  // -------------------------------------------------
-  // Compute the element sizes (h = face_vol^(1/dimension-1))
-  // -------------------------------------------------
-  
-  {
-    Teuchos::TimeMonitor localtimer(*physFaceDataHsizeTimer);
+}
+
+
+
+void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes, 
+                                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                                   vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad) {
     
-    {
-      using std::pow;
-      using std::sqrt;
-      parallel_for("bcell hsize",
-                   RangePolicy<AssemblyExec>(0,face_wts.extent(0)),
-                   KOKKOS_LAMBDA (const int e ) {
-        ScalarT vol = 0.0;
-        for (size_type i=0; i<face_wts.extent(1); i++) {
-          vol += face_wts(e,i);
-        }
-        ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
-        face_hsize(e) = pow(vol,dimscl);
-      });
-    }
-  }
+  Teuchos::TimeMonitor localtimer(*physFaceDataTotalTimer);
   
-  // -------------------------------------------------
-  // Compute the element orientations
-  // -------------------------------------------------
+  auto ref_ip = groupData->ref_side_ip[side];
+  auto ref_wts = groupData->ref_side_wts[side];
   
-  if (recompute_orient) {
-    this->getPhysicalOrientations(cellData, eIndex, orientation, true);
-  }
+  int dimension = groupData->dimension;
+  int numip = ref_ip.extent(0);
+  int numElem = nodes.extent(0);
+  
+  // Step 1: fill in ip_side, wts_side and normals
+  DRV jacobian("face jac", numElem, numip, dimension, dimension);
+  DRV jacobianDet("face jacDet", numElem, numip);
+  DRV jacobianInv("face jacInv", numElem, numip, dimension, dimension);
+  CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
+  CellTools::setJacobianInv(jacobianInv, jacobian);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
   
   // Step 2: define basis functions at these integration points
   
   {
     Teuchos::TimeMonitor localtimer(*physFaceDataBasisTimer);
     
-    for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
-      int numb = cellData->basis_pointers[i]->getCardinality();
+    for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
+      int numb = groupData->basis_pointers[i]->getCardinality();
       
       // These will be defined below for the appropriate basis types
       View_Sc4 basis_vals("tmp basis vals",1,1,1,1);
@@ -1205,9 +1631,9 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
       
       // div and curl values are not currently used on boundaries
       
-      auto ref_basis_vals = cellData->ref_side_basis[side][i];
+      auto ref_basis_vals = groupData->ref_side_basis[side][i];
       
-      if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
+      if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
         
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip);
@@ -1215,24 +1641,24 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
         
-        auto ref_basis_grad_vals = cellData->ref_side_basis_grad[side][i];
+        auto ref_basis_grad_vals = groupData->ref_side_basis_grad[side][i];
         DRV bgrad1, bgrad2;
         bgrad1 = DRV("basis",numElem,numb,numip,dimension);
         bgrad2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
-        FuncTools::HGRADtransformGRAD(bgrad1, jacInv, ref_basis_grad_vals);
+        FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, ref_basis_grad_vals);
         OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_grad_vals = View_Sc4("face basis grad vals",numElem,numb,numip,dimension); // Needs to be rank-4
         Kokkos::deep_copy(basis_grad_vals,bgrad2);
         
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HVOL"){
+      else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
         
         DRV bvals1;
         bvals1 = DRV("basis",numElem,numb,numip);
@@ -1242,32 +1668,32 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals1);
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HDIV" ) {
+      else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
         
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip,dimension);
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
-        FuncTools::HDIVtransformVALUE(bvals1, jac, jacDet, ref_basis_vals);
+        FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
         
       }
-      else if (cellData->basis_types[i].substr(0,5) == "HCURL"){
+      else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip,dimension);
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
-        FuncTools::HCURLtransformVALUE(bvals1, jacInv, ref_basis_vals);
+        FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
         
       }
-      else if (cellData->basis_types[i].substr(0,5) == "HFACE"){
+      else if (groupData->basis_types[i].substr(0,5) == "HFACE"){
         
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip);
@@ -1275,7 +1701,7 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -1293,25 +1719,19 @@ void DiscretizationInterface::getPhysicalFaceData(Teuchos::RCP<GroupMetaData> & 
 //
 //======================================================================
 
-void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData> & cellData,
-                                                      DRV nodes, Kokkos::View<LO*,AssemblyDevice> eIndex,
-                                                      Kokkos::View<LO*,AssemblyDevice> localSideID,
-                                                      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                      vector<View_Sc2> & ip, View_Sc2 wts,
-                                                      vector<View_Sc2> & normals, vector<View_Sc2> & tangents, View_Sc1 hsize,
-                                                      vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
-                                                      vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
-                                                      const bool & recompute_jac,
-                                                      const bool & recompute_orient) {
+void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
+                                                                 Kokkos::View<LO*,AssemblyDevice> localSideID,
+                                                                 vector<View_Sc2> & ip, View_Sc2 wts,
+                                                                 vector<View_Sc2> & normals, vector<View_Sc2> & tangents) {
   
   Teuchos::TimeMonitor localtimer(*physBndryDataTotalTimer);
   
-  int dimension = cellData->dimension;
+  int dimension = groupData->dimension;
   
   auto localSideID_host = Kokkos::create_mirror_view(localSideID);
   Kokkos::deep_copy(localSideID_host,localSideID);
-  DRV ref_ip = cellData->ref_side_ip[localSideID_host(0)];
-  DRV ref_wts = cellData->ref_side_wts[localSideID_host(0)];
+  DRV ref_ip = groupData->ref_side_ip[localSideID_host(0)];
+  DRV ref_wts = groupData->ref_side_wts[localSideID_host(0)];
   
   int numip = ref_ip.extent(0);
   int numElem = nodes.extent(0);
@@ -1320,18 +1740,17 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
   // Compute the integration information
   // -------------------------------------------------
   
-  DRV tmpip, ijac, ijacDet, ijacInv, tmpwts, tmpnormals, tmptangents;
-  tmpip = DRV("side ip", numElem, numip, dimension);
-  ijac = DRV("bijac", numElem, numip, dimension, dimension);
-  ijacDet = DRV("bijacDet", numElem, numip);
-  ijacInv = DRV("bijacInv", numElem, numip, dimension, dimension);
-  tmpwts = DRV("wts_side", numElem, numip);
-  tmpnormals = DRV("normals", numElem, numip, dimension);
-  tmptangents = DRV("tangents", numElem, numip, dimension);
+  DRV tmpip("side ip", numElem, numip, dimension);
+  DRV jacobian("bijac", numElem, numip, dimension, dimension);
+  //DRV jacobianDet("bijacDet", numElem, numip);
+  //DRV jacobianInv("bijacInv", numElem, numip, dimension, dimension);
+  DRV tmpwts("wts_side", numElem, numip);
+  DRV tmpnormals("normals", numElem, numip, dimension);
+  DRV tmptangents("tangents", numElem, numip, dimension);
   
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataIPTimer);
-    CellTools::mapToPhysicalFrame(tmpip, ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::mapToPhysicalFrame(tmpip, ref_ip, nodes, *(groupData->cellTopo));
     View_Sc2 x("cell face x",tmpip.extent(0), tmpip.extent(1));
     auto tip_x = subview(tmpip, ALL(), ALL(),0);
     deep_copy(x,tip_x);
@@ -1353,20 +1772,20 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
   
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataSetJacTimer);
-    CellTools::setJacobian(ijac, ref_ip, nodes, *(cellData->cellTopo));
+    CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
   }
   
-  {
-    Teuchos::TimeMonitor localtimer(*physBndryDataOtherJacTimer);
-    CellTools::setJacobianInv(ijacInv, ijac);
-    CellTools::setJacobianDet(ijacDet, ijac);
-  }
+  //{
+  //  Teuchos::TimeMonitor localtimer(*physBndryDataOtherJacTimer);
+  //  CellTools::setJacobianInv(jacobianInv, jacobian);
+  //  CellTools::setJacobianDet(jacobianDet, jacobian);
+  //}
   
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataWtsTimer);
     if (dimension == 1) {
       Kokkos::deep_copy(tmpwts,1.0);
-      auto ref_normals = cellData->ref_side_normals[localSideID_host(0)];
+      auto ref_normals = groupData->ref_side_normals[localSideID_host(0)];
       parallel_for("bcell 1D normal copy",
                    RangePolicy<AssemblyExec>(0,tmpnormals.extent(0)),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1375,8 +1794,8 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
       
     }
     else if (dimension == 2) {
-      DRV ref_tangents = cellData->ref_side_tangents[localSideID_host(0)];
-      RealTools::matvec(tmptangents, ijac, ref_tangents);
+      DRV ref_tangents = groupData->ref_side_tangents[localSideID_host(0)];
+      RealTools::matvec(tmptangents, jacobian, ref_tangents);
       
       DRV rotation("rotation matrix",dimension,dimension);
       auto rotation_host = Kokkos::create_mirror_view(rotation);
@@ -1391,14 +1810,14 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
     }
     else if (dimension == 3) {
       
-      DRV ref_tangentsU = cellData->ref_side_tangentsU[localSideID_host(0)];
-      DRV ref_tangentsV = cellData->ref_side_tangentsV[localSideID_host(0)];
+      DRV ref_tangentsU = groupData->ref_side_tangentsU[localSideID_host(0)];
+      DRV ref_tangentsV = groupData->ref_side_tangentsV[localSideID_host(0)];
       
       DRV faceTanU("face tangent U", numElem, numip, dimension);
       DRV faceTanV("face tangent V", numElem, numip, dimension);
       
-      RealTools::matvec(faceTanU, ijac, ref_tangentsU);
-      RealTools::matvec(faceTanV, ijac, ref_tangentsV);
+      RealTools::matvec(faceTanU, jacobian, ref_tangentsU);
+      RealTools::matvec(faceTanV, jacobian, ref_tangentsV);
       
       RealTools::vecprod(tmpnormals, faceTanU, faceTanV);
       
@@ -1446,26 +1865,6 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
   }
   
   // -------------------------------------------------
-  // Compute the element sizes (h = bndry_vol^(1/dimension-1))
-  // -------------------------------------------------
-  
-  {
-    Teuchos::TimeMonitor localtimer(*physBndryDataHsizeTimer);
-    using std::pow;
-    using std::sqrt;
-    parallel_for("bcell hsize",
-                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                 KOKKOS_LAMBDA (const int e ) {
-      ScalarT vol = 0.0;
-      for (size_type i=0; i<wts.extent(1); i++) {
-        vol += wts(e,i);
-      }
-      ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
-      hsize(e) = pow(vol,dimscl);
-    });
-  }
-  
-  // -------------------------------------------------
   // Rescale the normals
   // -------------------------------------------------
   
@@ -1503,21 +1902,47 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
       }
     });
   }
+}
+
+//======================================================================
+//
+//======================================================================
+
+void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
+                                                       Kokkos::View<LO*,AssemblyDevice> localSideID,
+                                                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                                       vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                                                       vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div) {
+                                                      
+  Teuchos::TimeMonitor localtimer(*physBndryDataTotalTimer);
+  
+  int dimension = groupData->dimension;
+  
+  auto localSideID_host = Kokkos::create_mirror_view(localSideID);
+  Kokkos::deep_copy(localSideID_host,localSideID);
+  DRV ref_ip = groupData->ref_side_ip[localSideID_host(0)];
+  DRV ref_wts = groupData->ref_side_wts[localSideID_host(0)];
+  
+  int numip = ref_ip.extent(0);
+  int numElem = nodes.extent(0);
   
   // -------------------------------------------------
-  // Compute the element orientations
+  // Compute the integration information
   // -------------------------------------------------
   
-  if (recompute_orient) {
-    this->getPhysicalOrientations(cellData, eIndex, orientation, false);
-  }
+  DRV jacobian = DRV("bijac", numElem, numip, dimension, dimension);
+  DRV jacobianDet = DRV("bijacDet", numElem, numip);
+  DRV jacobianInv = DRV("bijacInv", numElem, numip, dimension, dimension);
+  CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
+  CellTools::setJacobianInv(jacobianInv, jacobian);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
   
   {
     Teuchos::TimeMonitor localtimer(*physBndryDataBasisTimer);
     
-    for (size_t i=0; i<cellData->basis_pointers.size(); i++) {
+    for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
       
-      int numb = cellData->basis_pointers[i]->getCardinality();
+      int numb = groupData->basis_pointers[i]->getCardinality();
       
       // These will be redefined below for the appropriate basis type
       View_Sc4 basis_vals("tmp basis vals",1,1,1,1);
@@ -1525,9 +1950,9 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
       View_Sc4 basis_curl_vals("tmp curl vals",1,1,1,1);
       View_Sc3 basis_div_vals("tmp div vals",1,1,1);
       
-      DRV ref_basis_vals = cellData->ref_side_basis[localSideID_host(0)][i];
+      DRV ref_basis_vals = groupData->ref_side_basis[localSideID_host(0)][i];
       
-      if (cellData->basis_types[i].substr(0,5) == "HGRAD"){
+      if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
         
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip);
@@ -1535,7 +1960,7 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -1544,16 +1969,16 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
         bgrad1 = DRV("basis",numElem,numb,numip,dimension);
         bgrad2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
-        DRV ref_bgrad_vals = cellData->ref_side_basis_grad[localSideID_host(0)][i];
-        FuncTools::HGRADtransformGRAD(bgrad1, ijacInv, ref_bgrad_vals);
+        DRV ref_bgrad_vals = groupData->ref_side_basis_grad[localSideID_host(0)][i];
+        FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, ref_bgrad_vals);
         
         OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_grad_vals,bgrad2);
         
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HVOL"){ // does not require orientations
+      else if (groupData->basis_types[i].substr(0,4) == "HVOL"){ // does not require orientations
         
         DRV bvals1;
         bvals1 = DRV("basis",numElem,numb,numip);
@@ -1563,7 +1988,7 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals1);
       }
-      else if (cellData->basis_types[i].substr(0,5) == "HFACE"){
+      else if (groupData->basis_types[i].substr(0,5) == "HFACE"){
         
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip);
@@ -1571,31 +1996,31 @@ void DiscretizationInterface::getPhysicalBoundaryData(Teuchos::RCP<GroupMetaData
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
       }
-      else if (cellData->basis_types[i].substr(0,4) == "HDIV"){
+      else if (groupData->basis_types[i].substr(0,4) == "HDIV"){
         
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip,dimension);
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
-        FuncTools::HDIVtransformVALUE(bvals1, ijac, ijacDet, ref_basis_vals);
+        FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
       }
-      else if (cellData->basis_types[i].substr(0,5) == "HCURL"){
+      else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
         DRV bvals1, bvals2;
         bvals1 = DRV("basis",numElem,numb,numip,dimension);
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
-        FuncTools::HCURLtransformVALUE(bvals1, ijacInv, ref_basis_vals);
+        FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, ref_basis_vals);
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              cellData->basis_pointers[i].get());
+                                              groupData->basis_pointers[i].get());
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
       }

@@ -13,7 +13,9 @@
     <Parameter name="use operator splitting" type="bool" value="true"/>
     <Parameter name="store basis functions" type="bool" value="true"/>
     <Parameter name="storage proportion" type="double" value="1.0"/>
+    <Parameter name="database TOL" type="double" value="1.0e-10"/>
     <Parameter name="matrix free" type="bool" value="true"/>
+    <Parameter name="use basis database" type="bool" value="true"/>
     <Parameter name="preconditioner type" type="string" value="Ifpack2"/>
   </ParameterList>
   <ParameterList name="Solver Options">

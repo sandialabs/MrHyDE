@@ -40,7 +40,8 @@ cellTopo(cellTopo_) {
   mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
   //storeAll = false;//settings->sublist("Solver").get<bool>("store all cell data",true);
   matrix_free = settings->sublist("Solver").get<bool>("matrix free",false);
-  
+  use_basis_database = settings->sublist("Solver").get<bool>("use basis database",false);
+
   requiresTransient = true;
   if (settings->sublist("Solver").get<string>("solver","steady-state") == "steady-state") {
     requiresTransient = false;
@@ -86,4 +87,26 @@ void GroupMetaData::updatePhysicsSet(const size_t & set) {
     numDOF = set_numDOF[set];
     numDOF_host = set_numDOF_host[set];
   }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Get the storage required for the integration/basis info
+///////////////////////////////////////////////////////////////////////////////////////
+
+size_t GroupMetaData::getDatabaseStorage() {
+  size_t mystorage = 0;
+  size_t scalarcost = sizeof(ScalarT); // 8 bytes per double
+  for (size_t k=0; k<physical_basis.size(); ++k) {
+    mystorage += scalarcost*physical_basis[k].size();
+  }
+  for (size_t k=0; k<physical_basis_grad.size(); ++k) {
+    mystorage += scalarcost*physical_basis_grad[k].size();
+  }
+  for (size_t k=0; k<physical_basis_curl.size(); ++k) {
+    mystorage += scalarcost*physical_basis_curl[k].size();
+  }
+  for (size_t k=0; k<physical_basis_div.size(); ++k) {
+    mystorage += scalarcost*physical_basis_div[k].size();
+  }
+  return mystorage;
 }

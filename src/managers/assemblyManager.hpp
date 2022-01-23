@@ -265,7 +265,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setDirichlet()");
     Teuchos::RCP<Teuchos::Time> grouptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createGroups()");
     Teuchos::RCP<Teuchos::Time> wksettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createWorkset()");
-    
+    Teuchos::RCP<Teuchos::Time> groupdatabaseCreatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dataBase - assignment");
+    Teuchos::RCP<Teuchos::Time> groupdatabaseBasistimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dataBase - basis");
   };
   
 }

@@ -13,6 +13,10 @@
 
 #include "assemblyManager.hpp"
 
+// Remove this when done testing
+#include "Intrepid2_CellTools.hpp"
+
+
 using namespace MrHyDE;
 
 // ========================================================================================
@@ -666,7 +670,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       cout << "**** Starting AssemblyManager::allocateGroupStorage" << endl;
     }
   }
-  bool keepnodes = false;
+
+  bool keepnodes = false;  
   // There are a few scenarios where we want the groups to keep their nodes
   if (settings->sublist("Solver").get<string>("initial type","L2-projection") == "interpolation") {
     keepnodes = true;
@@ -678,6 +683,143 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     keepnodes = true;
   }
   
+  for (size_t block=0; block<groups.size(); ++block) {
+    
+    if (groupData[block]->use_basis_database) {
+
+      vector<std::pair<size_t,size_t> > first_users; // stores <grpID,elemID>
+      size_t totalelem = 0;
+      int dimension = groupData[block]->dimension;
+      int numip = groupData[block]->ref_ip.extent(0);
+        
+      {
+        Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
+
+        // Not very memory efficient
+        vector<DRV> jacobians, measures;
+        vector<Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>> orientations;
+  
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          groups[block][grp]->storeAll = false;
+          int numElem = groups[block][grp]->numElem;
+
+          DRV jacobian("jacobian", numElem, numip, dimension, dimension);
+          disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+        
+          DRV measure("jacobian", numElem);
+          disc->getMeasure(groupData[block], jacobian, measure);
+
+          jacobians.push_back(jacobian);
+          measures.push_back(measure);
+          orientations.push_back(groups[block][grp]->orientation);
+        }
+
+        double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0-13);
+      
+        //Kokkos::Timer timer;
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          totalelem += groups[block][grp]->numElem;
+          Kokkos::View<LO*,AssemblyDevice> index("basis database index",groups[block][grp]->numElem);
+          for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+            bool found = false;
+            size_t prog = 0;
+            while (!found && prog<first_users.size()) {
+              size_t refgrp = first_users[prog].first;
+              size_t refelem = first_users[prog].second;
+
+              // Check #1: element measures
+              ScalarT diff = abs(measures[grp](e)-measures[refgrp](refelem));
+              ScalarT refmeas = std::pow(measures[refgrp](refelem),1.0/dimension);
+            
+              if (abs(diff/refmeas)<database_TOL) { 
+
+               // Check #2: element Jacobians
+
+                ScalarT diff2 = 0.0;              
+                for (size_type pt=0; pt<jacobians[grp].extent(1); ++pt) {
+                  for (size_type d0=0; d0<jacobians[grp].extent(2); ++d0) {
+                    for (size_type d1=0; d1<jacobians[grp].extent(3); ++d1) {
+                      diff2 += abs(jacobians[grp](e,pt,d0,d1) - jacobians[refgrp](refelem,pt,d0,d1));
+                    }
+                  }
+                }
+
+                if (abs(diff2/refmeas)<database_TOL) { 
+               
+                // Check #3: element orientations
+
+                  string orient = orientations[grp](e).to_string();
+                  string reforient = orientations[refgrp](refelem).to_string();
+                  if (orient == reforient) { // if all 3 checks have passed
+                    found = true;
+                    index(e) = prog;                
+                  }
+                  else {
+                    ++prog;
+                  }
+
+                }
+                else {
+                  ++prog;
+                }
+              }
+              else {
+                ++prog;
+              }
+            }
+            if (!found) {
+              index(e) = first_users.size();
+              std::pair<size_t,size_t> newuj{grp,e};
+              first_users.push_back(newuj);
+            }
+          }
+          groups[block][grp]->basis_database_index = index;
+        }
+      }
+      if (verbosity > 5) {
+        cout << " - Processor " << Comm->getRank() << ": Number of elements on block " << blocknames[block] << ": " << totalelem << endl;
+        cout << " - Processor " << Comm->getRank() << ": Number of unique Jacobians on block " << blocknames[block] << ": " << first_users.size() << endl;
+        cout << " - Processor " << Comm->getRank() << ": Database memory savings on " << blocknames[block] << ": " 
+             << (100.0 - 100.0*((double)first_users.size()/(double)totalelem)) << "%" << endl;
+      }
+
+      {
+        Teuchos::TimeMonitor localtimer(*groupdatabaseBasistimer);
+      
+        // Create a new list of nodes associated with the first users
+        size_t database_numElem = first_users.size();
+        DRV database_nodes("nodes for the database",database_numElem, groups[block][0]->nodes.extent(1), dimension);
+        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_orientation("database orientations",database_numElem);
+      
+        for (size_t e=0; e<first_users.size(); ++e) {
+          size_t refgrp = first_users[e].first;
+          size_t refelem = first_users[e].second;
+          for (size_type node=0; node<database_nodes.extent(1); ++node) {
+            for (size_type dim=0; dim<database_nodes.extent(2); ++dim) {
+              database_nodes(e,node,dim) = groups[block][refgrp]->nodes(refelem,node,dim);
+            }
+          }
+          database_orientation(e) = groups[block][refgrp]->orientation(refelem);
+        }
+        vector<View_Sc2> tip;
+        View_Sc2 twts("physical wts",database_numElem, groupData[block]->ref_ip.extent(0));
+        View_Sc1 thsize("physical meshsize",database_numElem);
+        vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+        vector<View_Sc3> tbasis_div;
+      
+        disc->getPhysicalVolumetricBasis(groupData[block], database_nodes, database_orientation,
+                                        tbasis, tbasis_grad, tbasis_curl,
+                                        tbasis_div, tbasis_nodes, true);
+        groupData[block]->physical_basis = tbasis;
+        groupData[block]->physical_basis_grad = tbasis_grad;
+        groupData[block]->physical_basis_div = tbasis_div;
+        groupData[block]->physical_basis_curl = tbasis_curl;
+      }
+      
+    }
+
+  }     
+
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       groups[block][grp]->computeBasis(keepnodes);
@@ -706,18 +848,16 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     for (size_t block=0; block<groups.size(); ++block) {
       for (size_t grp=0; grp<groups[block].size(); ++grp) {
         numelements += groups[block][grp]->numElem;
-        if (groups[block][grp]->storeAll) {
-          auto wts = groups[block][grp]->wts;
-          auto host_wts = create_mirror_view(wts);
-          deep_copy(host_wts,wts);
-          for (size_type e=0; e<host_wts.extent(0); ++e) {
-            double currsize = 0.0;
-            for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
-              currsize += host_wts(e,pt);
-            }
-            maxsize = std::max(currsize,maxsize);
-            minsize = std::min(currsize,minsize);
+        auto wts = groups[block][grp]->wts;
+        auto host_wts = create_mirror_view(wts);
+        deep_copy(host_wts,wts);
+        for (size_type e=0; e<host_wts.extent(0); ++e) {
+          double currsize = 0.0;
+          for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
+            currsize += host_wts(e,pt);
           }
+          maxsize = std::max(currsize,maxsize);
+          minsize = std::min(currsize,minsize);
         }
       }
     }
@@ -732,7 +872,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     for (size_t block=0; block<boundary_groups.size(); ++block) {
       for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
         numbndryelements += boundary_groups[block][grp]->numElem;
-        if (boundary_groups[block][grp]->storeAll) {
+        //if (boundary_groups[block][grp]->storeAll) {
           auto wts = boundary_groups[block][grp]->wts;
           auto host_wts = create_mirror_view(wts);
           deep_copy(host_wts,wts);
@@ -744,7 +884,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
             maxbsize = std::max(currsize,maxbsize);
             minbsize = std::min(currsize,minbsize);
           }
-        }
+        //}
       }
     }
     cout << " - Processor " << Comm->getRank() << " has " << numbndryelements << " boundary elements" << endl;
@@ -754,8 +894,13 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     // Volumetric ip/basis
     size_t groupstorage = 0;
     for (size_t block=0; block<groups.size(); ++block) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
-        groupstorage += groups[block][grp]->getVolumetricStorage();
+      if (groupData[block]->use_basis_database) {
+        groupstorage += groupData[block]->getDatabaseStorage();
+      }
+      else {
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          groupstorage += groups[block][grp]->getVolumetricStorage();
+        }
       }
     }
     double totalstorage = static_cast<double>(groupstorage)/1.0e6;
@@ -1190,8 +1335,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
         }
         else {
           disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes,
-                                           groups[block][grp]->localElemID, twts,
-                                           groups[block][grp]->orientation, tbasis, true, false);
+                                           groups[block][grp]->orientation, tbasis);
         }
         
         for (size_type var=0; var<numDOF.extent(0); var++) {

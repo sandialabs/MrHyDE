@@ -189,6 +189,7 @@ int main(int argc,char * argv[]) {
     
     // Make sure all processes are caught up at this point
     Kokkos::fence();
+    Comm->barrier();
     
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
