@@ -81,10 +81,6 @@ namespace MrHyDE {
     void copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
                                Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
                                Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                               vector<View_Sc4> & basis, 
-                               vector<View_Sc4> & basis_grad, 
-                               vector<View_Sc4> & basis_curl, 
-                               vector<View_Sc3> & basis_div,
                                const bool & apply_orientation = false);
 
     void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,

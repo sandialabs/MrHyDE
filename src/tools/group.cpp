@@ -373,25 +373,11 @@ void Group::updateWorkset(const int & seedwhat, const bool & override_transient)
     }
   }
   else if (groupData->use_basis_database) {
-  
-    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
-    vector<View_Sc3> tbasis_div;
-    disc->copyBasisFromDatabase(groupData, basis_database_index, orientation,
-                                tbasis, tbasis_grad, tbasis_curl, tbasis_div, false);
-    
-    for (size_t i=0; i<tbasis.size(); ++i) {
-      wkset->basis[i] = tbasis[i];
-    }
-    for (size_t i=0; i<tbasis_grad.size(); ++i) {
-      wkset->basis_grad[i] = tbasis_grad[i];
-    }
-    for (size_t i=0; i<tbasis_div.size(); ++i) {
-      wkset->basis_div[i] = tbasis_div[i];
-    }
-    for (size_t i=0; i<tbasis_curl.size(); ++i) {
-      wkset->basis_curl[i] = tbasis_curl[i];
-    }
-    
+    disc->copyBasisFromDatabase(groupData, basis_database_index, orientation, false);
+    wkset->basis = groupData->physical_basis;
+    wkset->basis_grad = groupData->physical_basis_grad;
+    wkset->basis_div = groupData->physical_basis_div;
+    wkset->basis_curl = groupData->physical_basis_curl;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
@@ -589,11 +575,9 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   }
   else if (groupData->use_basis_database) {
     cwts = wts;
-    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
-    vector<View_Sc3> tbasis_div;
-    disc->copyBasisFromDatabase(groupData, basis_database_index, orientation,
-                                tbasis, tbasis_grad, tbasis_curl, tbasis_div, false);
-    cbasis = tbasis[wkset->usebasis[index]];
+    disc->copyBasisFromDatabase(groupData, basis_database_index, orientation, false);
+                                
+    cbasis = groupData->physical_basis[wkset->usebasis[index]];
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;

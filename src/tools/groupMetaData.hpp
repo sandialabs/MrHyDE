@@ -89,7 +89,11 @@ namespace MrHyDE {
     bool exodus_sensors = false, compute_sol_avg = false;
     bool multiscale, have_phi, have_rotation, have_extra_data;
     
-    // database of physical basis information (optional)
+    // database of database basis information (optional)
+    vector<View_Sc4> database_basis, database_basis_grad, database_basis_curl;
+    vector<View_Sc3> database_basis_div;
+    
+    // storage of physical basis info to avoid reallocations
     vector<View_Sc4> physical_basis, physical_basis_grad, physical_basis_curl;
     vector<View_Sc3> physical_basis_div;
     vector<vector<DRV> > physical_side_basis, physical_side_basis_grad, physical_side_basis_div, physical_side_basis_curl;

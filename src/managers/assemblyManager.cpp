@@ -810,10 +810,38 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         disc->getPhysicalVolumetricBasis(groupData[block], database_nodes, database_orientation,
                                         tbasis, tbasis_grad, tbasis_curl,
                                         tbasis_div, tbasis_nodes, true);
-        groupData[block]->physical_basis = tbasis;
-        groupData[block]->physical_basis_grad = tbasis_grad;
-        groupData[block]->physical_basis_div = tbasis_div;
-        groupData[block]->physical_basis_curl = tbasis_curl;
+        groupData[block]->database_basis = tbasis;
+        groupData[block]->database_basis_grad = tbasis_grad;
+        groupData[block]->database_basis_div = tbasis_div;
+        groupData[block]->database_basis_curl = tbasis_curl;
+
+        
+  
+        int numElem = groupData[block]->numElem;
+        for (size_t i=0; i<groupData[block]->basis_pointers.size(); i++) {
+          int numb = groupData[block]->basis_pointers[i]->getCardinality();
+          View_Sc4 basis, basis_grad, basis_curl;
+          View_Sc3 basis_div;
+          if (groupData[block]->basis_types[i].substr(0,5) == "HGRAD"){
+            basis = View_Sc4("basis values", numElem, numb, numip, 1);
+            basis_grad = View_Sc4("basis grad values", numElem, numb, numip, dimension);
+          }
+          else if (groupData[block]->basis_types[i].substr(0,4) == "HVOL"){ 
+            basis = View_Sc4("basis values", numElem, numb, numip, 1);
+          }
+          else if (groupData[block]->basis_types[i].substr(0,4) == "HDIV" ) {
+            basis = View_Sc4("basis values", numElem, numb, numip, dimension);
+            basis_div = View_Sc3("basis div values", numElem, numb, numip);
+          }
+          else if (groupData[block]->basis_types[i].substr(0,5) == "HCURL"){
+            basis = View_Sc4("basis values", numElem, numb, numip, dimension);
+            basis_curl = View_Sc4("basis curl values", numElem, numb, numip, dimension);
+          }
+          groupData[block]->physical_basis.push_back(basis);
+          groupData[block]->physical_basis_grad.push_back(basis_grad);
+          groupData[block]->physical_basis_div.push_back(basis_div);
+          groupData[block]->physical_basis_curl.push_back(basis_curl);
+        }
       }
       
     }
