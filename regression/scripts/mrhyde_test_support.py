@@ -12,13 +12,13 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
 
   internal_status = 0
 
-  if verbose: print cmd
+  if verbose: print(cmd)
   p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
   stdout = ''
   stderr = ''
   if verbose == True:
-    # if len(stdout) > 0: print stdout
+    # if len(stdout) > 0: print(stdout)
     while True:
       out = p.stdout.read(1)
       if out == '' and p.poll() != None:
@@ -33,7 +33,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
     stdout, stderr = p.communicate()
   internal_status = p.wait()
 
-  if stderr: print stderr
+  if stderr: print(stderr)
   if logfile:
     f = open(logfile, 'w')
     f.writelines(stdout)
@@ -41,7 +41,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
   if not ignore_status:
     status += internal_status
     if internal_status != 0:
-      print '  ==> Execution failed with status = %i!\n' %(internal_status)
+      print('  ==> Execution failed with status = %i!\n' %(internal_status))
       sys.exit(status)
 
   return status
@@ -106,7 +106,7 @@ class mrhyde_test_support:
 
     # error if both options are supplied: --32 and --64
     if self.opts.mode_32 and self.opts.mode_64:
-       print 'Error: cannot specify both --32 and --64 bit mode'
+       print('Error: cannot specify both --32 and --64 bit mode')
        sys.exit(0)
     # if neither option is set, default to 32 bit mode
     if False == self.opts.mode_32 and False == self.opts.mode_64:
@@ -142,6 +142,7 @@ class mrhyde_test_support:
   def set_cray(self):
     self.opts.cray = True
 
+  # This is the main routine for running MyHyDE tests
   def call(self, cmd, logfile=None, ignore_status=False):
     status = 0
 
@@ -161,12 +162,28 @@ class mrhyde_test_support:
         # replace mpiexec with quiet aprun
         cmd = cmd.replace('mpiexec', 'aprun -q')
 
-    if self.opts.verbose == True: print '---> ' + cmd
+    if self.opts.verbose == True: print('---> ' + cmd)
     elif self.opts.quiet == True: pass
-    else:                         print '  ' + cmd
+    else:                         print('  ' + cmd)
 
     syscmd(cmd, status, logfile, self.opts.verbose, ignore_status)
 
+    return status
+
+  # This is the main routine for cleaning mrhyde.log files after they are generated
+  def clean_log(self, logfile='mrhyde.log'):
+    status = 0
+    # grab a hostname from the user's environment
+    hostname = os.getenv('HOSTNAME')
+    # if there is a hostname, 
+    if hostname != None:
+      # on weaver, there's often a large amount of garbage that is printed to stdout, and consequently the logfile
+      # this deletes the first 11 lines of garbage and additionally any lines that contain 'weaver'
+      if hostname.find('weaver') != -1:
+        status += os.system('sed -i \'1,11d;\' ' + logfile)
+        status += os.system('sed -i \'/weaver/d\' ' + logfile)
+    
+    # return the sum of the exit codes from the shell commands
     return status
 
   def wrap_cmd(self, exe, root, np=None, args='', env=''):
@@ -257,7 +274,7 @@ class mrhyde_test_support:
       fb.write(struct.pack('i',10))
       fb.write('Straight3d')
     else:
-      print 'Error: Can not determine curve type (nsd=%i).' % (nsd)
+      print('Error: Can not determine curve type (nsd=%i).' % (nsd))
       status = 1
     lines.append('skewed\n\n')
     # binary write user curve type name
