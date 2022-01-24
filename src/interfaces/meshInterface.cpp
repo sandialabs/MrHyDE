@@ -428,7 +428,9 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
           if (settings->sublist("Postprocess").get("write group number",false)) {
             stk_mesh->addCellField("group number", block_names[i]);
           }
-          
+          if (settings->sublist("Solver").get<bool>("use basis database",false)) {
+            stk_mesh->addCellField("unique Jacobian ID", block_names[i]);
+          }
           if (settings->isSublist("Parameters")) {
             Teuchos::ParameterList parameters = settings->sublist("Parameters");
             Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();

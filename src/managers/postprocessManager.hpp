@@ -491,7 +491,7 @@ namespace MrHyDE {
     
     bool compute_response, compute_error, compute_subgrid_error, compute_weighted_norm;
     bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
-    int write_frequency, write_cell_number;  ///< Solution write frequency (1/timesteps) 
+    int write_frequency, write_cell_number, write_database_id;  ///< Solution write frequency (1/timesteps) 
     std::string exodus_filename, cellfield_reduction;
     int spaceDim;                                                // spatial dimension
     int numNodesPerElem;                                         // nodes on each element
