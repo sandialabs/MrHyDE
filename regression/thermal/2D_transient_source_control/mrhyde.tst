@@ -44,12 +44,8 @@ if its.opts.preprocess:
   status += its.call('echo "  No preprocessing, yet."')
 
 status += its.call('mpiexec -n 4 ../../mrhyde >& mrhyde.log')
+status += its.clean_log()
 status += its.call('rm final_params.dat param_stash.dat')
-hostname = os.getenv('HOSTNAME')
-if hostname != None:
-  if hostname.find('weaver') != -1:
-    its.call('sed -i \'1,11d;\' mrhyde.log')
-    its.call('sed -i \'/weaver/d\' mrhyde.log')
 
 status += its.call('diff -y %s.log %s.gold' % (root, root))
 
