@@ -62,7 +62,6 @@ w = refHline.split()
 refHerr = float(w[9])
 
 if abs(Herr-refHerr) > aeps :
-  status += 1
   print('  Failure: L2 error for H too large.')
 
 for line in open(flog):
@@ -76,7 +75,6 @@ w = refHuline.split()
 refHuerr = float(w[9])
 
 if abs(Huerr-refHuerr) > aeps :
-  status += 1
   print('  Failure: L2 error for uy too large.')
 
 for line in open(flog):
@@ -90,31 +88,13 @@ w = refHvline.split()
 refHverr = float(w[9])
 
 if abs(Hverr-refHverr) > aeps :
-  status += 1
   print('  Failure: L2 error for Hv too large.')
 
 # ------------------------------
 # ------------------------------
 # ------------------------------
-if its.opts.baseline and not status:
-  if its.opts.verbose != 'none': print('---> Baseline %s' % (root))
-  try :
-    shutil.copy2('%s.ocs' %(root), 'ref/%s.ocs' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.rst' %(root), 'ref/%s.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.adj.rst' %(root), 'ref/%s.adj.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
 # ------------------------------
 if its.opts.graphics and not status:

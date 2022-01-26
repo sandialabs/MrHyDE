@@ -174,7 +174,7 @@ class mrhyde_test_support:
   def clean_log(self, logfile='mrhyde.log'):
     status = 0
     # grab a hostname from the user's environment
-    hostname = os.getenv('HOSTNAME')
+    hostname = os.getenv('HOSTNAME')    
     # if there is a hostname, 
     if hostname != None:
       # on weaver, there's often a large amount of garbage that is printed to stdout, and consequently the logfile
@@ -182,6 +182,9 @@ class mrhyde_test_support:
       if hostname.find('weaver') != -1:
         status += os.system('sed -i \'1,11d;\' ' + logfile)
         status += os.system('sed -i \'/weaver/d\' ' + logfile)
+
+    # IOSS may provide garbage to stdout which will interfere with logfile validation
+    status += os.system('sed -i \'/IOSS/d\' ' + logfile)
     
     # return the sum of the exit codes from the shell commands
     return status

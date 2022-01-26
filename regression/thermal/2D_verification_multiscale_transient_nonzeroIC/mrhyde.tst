@@ -68,32 +68,13 @@ for line in open(reflog):
 
 for i in range(len(L2face)):
     if abs(L2face[i]-L2faceref[i]) > aeps: 
-        status += 1
         print('   Failure: Absolue error for face too large.')
     if abs(L2sub[i]-L2subref[i]) > aeps:
-        status += 1
         print('   Failure: Absolute error for subgrid too large.')
 
 # ------------------------------
-if its.opts.baseline and not status:
-  if its.opts.verbose != 'none': print('---> Baseline %s' % (root))
-  try :
-    shutil.copy2('%s.ocs' %(root), 'ref/%s.ocs' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.rst' %(root), 'ref/%s.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.adj.rst' %(root), 'ref/%s.adj.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
 # ------------------------------
 if its.opts.graphics and not status:

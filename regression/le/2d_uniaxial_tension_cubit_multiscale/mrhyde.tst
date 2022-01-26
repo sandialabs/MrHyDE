@@ -62,7 +62,6 @@ w = refdxline.split()
 refdxerr = float(w[9])
 
 if abs(dxerr-refdxerr) > aeps :
-  status += 1
   print('  Failure: L2-face error for dx too large.')
 
 for line in open(flog):
@@ -76,7 +75,6 @@ w = refdyline.split()
 refdyerr = float(w[9])
 
 if abs(dyerr-refdyerr) > aeps :
-  status += 1
   print('  Failure: L2-face error for dy too large.')
 
 
@@ -91,7 +89,6 @@ w = refdxline.split()
 refdxerr = float(w[11])
 
 if abs(dxerr-refdxerr) > aeps :
-  status += 1
   print('  Failure: L2 error for dx too large.')
 
 for line in open(flog):
@@ -105,31 +102,13 @@ w = refdyline.split()
 refdyerr = float(w[11])
 
 if abs(dyerr-refdyerr) > aeps :
-  status += 1
   print('  Failure: L2 error for dy too large.')
 
 # ------------------------------
 # ------------------------------
 # ------------------------------
-if its.opts.baseline and not status:
-  if its.opts.verbose != 'none': print('---> Baseline %s' % (root))
-  try :
-    shutil.copy2('%s.ocs' %(root), 'ref/%s.ocs' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.rst' %(root), 'ref/%s.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.adj.rst' %(root), 'ref/%s.adj.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
 # ------------------------------
 if its.opts.graphics and not status:

@@ -62,7 +62,6 @@ w = refuxline.split()
 refuxerr = float(w[9])
 
 if abs(uxerr-refuxerr) > aeps :
-  status += 1
   print('  Failure: L2 error for ux too large.')
 
 for line in open(flog):
@@ -76,7 +75,6 @@ w = refuyline.split()
 refuyerr = float(w[9])
 
 if abs(uyerr-refuyerr) > aeps :
-  status += 1
   print('  Failure: L2 error for uy too large.')
 
 for line in open(flog):
@@ -90,31 +88,13 @@ w = refprline.split()
 refprerr = float(w[9])
 
 if abs(prerr-refprerr) > aeps :
-  status += 1
   print('  Failure: L2 error for pr too large.')
 
 # ------------------------------
 # ------------------------------
 # ------------------------------
-if its.opts.baseline and not status:
-  if its.opts.verbose != 'none': print('---> Baseline %s' % (root))
-  try :
-    shutil.copy2('%s.ocs' %(root), 'ref/%s.ocs' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.rst' %(root), 'ref/%s.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.adj.rst' %(root), 'ref/%s.adj.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
 # ------------------------------
 if its.opts.graphics and not status:

@@ -73,29 +73,11 @@ for line in open(reflog):
 
 for chk in range(3):
   if abs(refdat[chk]-testdat[chk]) > aeps :
-    status += 1
     print('  Failure: gradient error is too large.')
 
 # ------------------------------
-if its.opts.baseline and not status:
-  if its.opts.verbose != 'none': print('---> Baseline %s' % (root))
-  try :
-    shutil.copy2('%s.ocs' %(root), 'ref/%s.ocs' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.rst' %(root), 'ref/%s.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.adj.rst' %(root), 'ref/%s.adj.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
 # ------------------------------
 if its.opts.graphics and not status:

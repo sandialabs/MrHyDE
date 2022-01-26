@@ -51,25 +51,8 @@ status += its.call('rm final_params.dat param_stash.dat ROL_out.txt')
 status += its.call('diff -y %s.log %s.gold' % (root, root))
 
 # ------------------------------
-if its.opts.baseline and not status:
-  if its.opts.verbose != 'none': print(('---> Baseline %s' % (root)))
-  try :
-    shutil.copy2('%s.ocs' %(root), 'ref/%s.ocs' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.rst' %(root), 'ref/%s.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
-  try :
-    shutil.copy2('%s.adj.rst' %(root), 'ref/%s.adj.rst' %(root))
-  except (IOError, os.error) as why:
-    print(why)
-    status += 1
 
 # ------------------------------
 if its.opts.graphics and not status:
