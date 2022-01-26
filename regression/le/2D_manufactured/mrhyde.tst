@@ -7,7 +7,6 @@ import string
 import shutil
 sys.path.append("../../scripts")
 from mrhyde_test_support import *
-#from numpy import isnan, isinf
 #from math import isnan, isinf
 
 # ==============================================================================

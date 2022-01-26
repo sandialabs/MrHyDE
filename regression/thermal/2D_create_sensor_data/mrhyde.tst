@@ -5,7 +5,6 @@ import sys, os
 import subprocess as sp
 import string
 import shutil
-import numpy as np
 sys.path.append("../../scripts")
 from mrhyde_test_support import *
 
@@ -50,15 +49,22 @@ status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
 
 err = 0.0
 
-flog = np.genfromtxt('sensor.objval.out')
-reflog = np.genfromtxt('sensor.objval.gold')
-for j in range(flog.size):
-  err += abs(flog[j]-reflog[j])
+# read the list of files to compare
+filenames = ['sensor.objval', 'sensor.objgrad']
+for filename in filenames:
+  # this creates a list filled with strings from each line of the file
+  outfile = open(filename+'.out','r')
+  outfilevalues = outfile.readlines()
+  outfile.close()
 
-flog = np.genfromtxt('sensor.objgrad.out')
-reflog = np.genfromtxt('sensor.objgrad.gold')
-for j in range(flog.size):
-  err += abs(flog[j]-reflog[j])
+  # this creates a list filled with strings from each line of the file
+  reffile = open(filename+'.gold','r')
+  reffilevalues = reffile.readlines()
+  reffile.close()
+
+  # convert the strings to floats and compute the error
+  for i in range(0, len(outfilevalues)):
+    err += abs(float(outfilevalues[i]) - float(reffilevalues[i]))
 
 if err > aeps:
   status += 1
