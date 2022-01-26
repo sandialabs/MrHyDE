@@ -1251,7 +1251,7 @@ void workset::checkSolutionFieldAllocation(const size_t & ind) {
 void workset::checkScalarFieldAllocation(const size_t & ind) {
   
   if (!scalar_fields[ind].isInitialized) {
-    if (soln_fields[ind].isOnSide) {
+    if (scalar_fields[ind].isOnSide) {
       scalar_fields[ind].initialize(maxElem,numsideip);
     }
     else{
@@ -1631,6 +1631,7 @@ void workset::setScalarField(View_Sc2 newdata, const string & expression) {
   }
   else {
     scalar_fields[ind].data = newdata;
+    scalar_fields[ind].isInitialized = true;
   }
 }
 
