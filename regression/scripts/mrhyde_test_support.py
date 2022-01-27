@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #-------------------------------------------------------------------------------
 
+from __future__ import print_function
 import optparse
 import subprocess as sp
 import sys, os
@@ -17,21 +18,14 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
 
   stdout = ''
   stderr = ''
-  if verbose == True:
-    # if len(stdout) > 0: print(stdout)
-    while True:
-      out = p.stdout.read(1)
-      if out == '' and p.poll() != None:
-        break
-      if out != '':
-        sys.stdout.write(out)
-        sys.stdout.flush()
-        stdout += out
 
-    stderr = p.stderr.read()
+  if verbose == True:
+    with p.stdout:
+      for line in iter(p.stdout.readline, b''): 
+        print(line.decode('ascii'), end='')
   else:
     stdout, stderr = p.communicate()
-  internal_status = p.wait()
+    internal_status = p.wait()
 
   if stderr: print(stderr)
   if logfile:
