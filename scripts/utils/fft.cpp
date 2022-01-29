@@ -4,18 +4,14 @@
 #include <stdio.h>
 #include <iostream>
 #include <cmath>
-
-# define PI 3.14159265358979323846
+#include "trilinos.hpp"
 
 int main(int argc, char * argv[]) {
 
-  //Teuchos::GlobalMPISession mpiSession(&argc, &argv, 0);
-  //Teuchos::RCP<Teuchos::MpiComm<int>> Comm = Teuchos::rcp( new Teuchos::MpiComm<int>(MPI_COMM_WORLD) );
-  int err = MPI_Init(&argc,&argv);
-  int nProcs;
-  MPI_Comm_size(MPI_COMM_WORLD,&nProcs);
-  int myRank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&myRank);
+  Teuchos::GlobalMPISession mpiSession(&argc, &argv, 0);
+  Teuchos::RCP<MpiComm> Comm = Teuchos::rcp( new MpiComm(MPI_COMM_WORLD) );
+  int nProcs = mpiSession.getNProc();
+  int myRank = mpiSession.getRank();
 
   // each MPI process will own a certain number of E and B time series data corresponding
   // to different spatial locations
@@ -77,8 +73,6 @@ int main(int argc, char * argv[]) {
 
   fftw_destroy_plan(p);
   fftw_free(myData);
-
-  MPI_Finalize();
 
   return 0;
 

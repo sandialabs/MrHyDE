@@ -47,6 +47,7 @@ IF(MrHyDE_ENABLE_FFTW)
   ## C, intel math library needed
   TARGET_LINK_LIBRARIES(fft ${FFTW3_LIB} m)
   TARGET_LINK_OPTIONS(fft PRIVATE -mkl)
+  TARGET_LINK_LIBRARIES(fft ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 ENDIF()
 
 ADD_EXECUTABLE(mrhyde
