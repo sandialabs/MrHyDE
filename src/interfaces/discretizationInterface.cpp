@@ -2699,7 +2699,9 @@ Kokkos::View<string**,HostDevice> DiscretizationInterface::getVarBCs(const size_
 
 void DiscretizationInterface::purgeMemory() {
   
-  DOF.clear();
+  for (size_t j=0; j<DOF.size(); ++j) {
+    DOF[j] = Teuchos::null;//.clear();
+  }
   side_info.clear();
   panzer_orientations.clear();
 
