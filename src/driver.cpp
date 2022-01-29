@@ -154,7 +154,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     // Purge Panzer memory before solving
     ////////////////////////////////////////////////////////////////////////////////
-    
+
     if (settings->get<bool>("enable memory purge",true)) {
       disc->purgeMemory();
       mesh->purgeMemory();
@@ -167,12 +167,9 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     for (size_t block=0; block<functionManagers.size(); ++block) {
-      functionManagers[block]->setupLists(params->paramnames,
-                                      params->discretized_param_names);
-      
+      functionManagers[block]->setupLists(params->paramnames, params->discretized_param_names);
       functionManagers[block]->wkset = assembler->wkset[block];
       functionManagers[block]->decomposeFunctions();
-      
       if (verbosity >= 20) {
         functionManagers[block]->printFunctions();
       }
