@@ -2233,6 +2233,11 @@ void AssemblyManager<Node>::resetPrevSoln(const size_t & set) {
       groups[block][grp]->resetPrevSoln(set);
     }
   }
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      boundary_groups[block][grp]->resetPrevSoln(set);
+    }
+  }
 }
 
 template<class Node>
@@ -2242,6 +2247,11 @@ void AssemblyManager<Node>::revertSoln(const size_t & set) {
       groups[block][grp]->revertSoln(set);
     }
   }
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      boundary_groups[block][grp]->revertSoln(set);
+    }
+  }
 }
 
 template<class Node>
@@ -2249,6 +2259,11 @@ void AssemblyManager<Node>::resetStageSoln(const size_t & set) {
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       groups[block][grp]->resetStageSoln(set);
+    }
+  }
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      boundary_groups[block][grp]->resetStageSoln(set);
     }
   }
 }
@@ -2265,6 +2280,11 @@ void AssemblyManager<Node>::updateStageSoln(const size_t & set)  {
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       groups[block][grp]->updateStageSoln(set);
+    }
+  }
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      boundary_groups[block][grp]->updateStageSoln(set);
     }
   }
 }

@@ -120,6 +120,14 @@ namespace MrHyDE {
     
     void computeSoln(const int & seedwhat);
     
+    void resetPrevSoln(const size_t & set);
+
+    void revertSoln(const size_t & set);
+
+    void resetStageSoln(const size_t & set);
+
+    void updateStageSoln(const size_t & set);
+
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute the contribution from this group to the global res, J, Jdot
     ///////////////////////////////////////////////////////////////////////////////////////

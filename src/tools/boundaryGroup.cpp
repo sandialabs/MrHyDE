@@ -338,6 +338,124 @@ void BoundaryGroup::computeSoln(const int & seedwhat) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// Reset the data stored in the previous step solutions
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryGroup::resetPrevSoln(const size_t & set) {
+  
+  if (groupData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_prev = u_prev[set];
+    
+    // shift previous step solns
+    if (sol_prev.extent(3)>1) {
+      parallel_for("Group reset prev soln 1",
+                   TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
+          for (size_type j=0; j<sol_prev.extent(2); j++) {
+            for (size_type s=sol_prev.extent(3)-1; s>0; s--) {
+              sol_prev(elem,i,j,s) = sol_prev(elem,i,j,s-1);
+            }
+          }
+        }
+      });
+    }
+    
+    // copy current u into first step
+    parallel_for("Group reset prev soln 2",
+                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<sol.extent(2); j++) {
+          sol_prev(elem,i,j,0) = sol(elem,i,j);
+        }
+      }
+    });
+  }
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Revert the solution (time step failed)
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryGroup::revertSoln(const size_t & set) {
+  
+  if (groupData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_prev = u_prev[set];
+    
+    // copy current u into first step
+    parallel_for("Group reset prev soln 2",
+                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<sol.extent(2); j++) {
+          sol(elem,i,j) = sol_prev(elem,i,j,0);
+        }
+      }
+    });
+  }
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Reset the data stored in the previous stage solutions
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryGroup::resetStageSoln(const size_t & set) {
+  
+  if (groupData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_stage = u_stage[set];
+    
+    parallel_for("Group reset stage 1",
+                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<sol_stage.extent(2); j++) {
+          for (size_type k=0; k<sol_stage.extent(3); k++) {
+            sol_stage(elem,i,j,k) = sol(elem,i,j);
+          }
+        }
+      }
+    });
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Update the data stored in the previous stage solutions
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryGroup::updateStageSoln(const size_t & set) {
+  
+  if (groupData->requiresTransient) {
+    auto sol = u[set];
+    auto sol_stage = u_stage[set];
+    
+    // add u into the current stage soln (done after stage solution is computed)
+    auto stage = wkset->current_stage;
+    parallel_for("wkset transient sol seedwhat 1",
+                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      //int stage = snum(0);
+      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<sol_stage.extent(2); j++) {
+          sol_stage(elem,i,j,stage) = sol(elem,i,j);
+        }
+      }
+    });
+  }
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
 // Compute the contribution from this group to the global res, J, Jdot
 ///////////////////////////////////////////////////////////////////////////////////////
 
