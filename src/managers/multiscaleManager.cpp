@@ -308,9 +308,27 @@ ScalarT MultiscaleManager::initialize() {
     }
   }
   
+  std::vector<std::string> appends;
+  if (settings->sublist("Analysis").get<std::string>("analysis type","forward") == "UQ") {
+    if (settings->sublist("Postprocess").get("write subgrid solution",false)) {
+      int numsamples = settings->sublist("Analysis").sublist("UQ").get<int>("samples",100);
+      for (int j=0; j<numsamples; ++j) {
+        std::stringstream ss;
+        ss << "_" << j;
+        appends.push_back(ss.str());
+      }
+    }
+    else {
+      appends = {""};
+    }
+  }
+  else {
+    appends = {""};
+  }
+
   bool write_subgrid_soln = settings->sublist("Postprocess").get<bool>("write subgrid solution",false);
   for (size_t s=0; s<subgridModels.size(); s++) {
-    subgridModels[s]->finalize(MacroComm->getSize(), MacroComm->getRank(), write_subgrid_soln);
+    subgridModels[s]->finalize(MacroComm->getSize(), MacroComm->getRank(), write_subgrid_soln, appends);
   }
   
   ////////////////////////////////////////////////////////////////////////////////

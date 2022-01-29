@@ -331,7 +331,7 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
         int numsamples = settings->sublist("Analysis").sublist("UQ").get<int>("samples",100);
         for (int j=0; j<numsamples; ++j) {
           std::stringstream ss;
-          ss << j;
+          ss << "_" << j;
           appends.push_back(ss.str());
         }
       }

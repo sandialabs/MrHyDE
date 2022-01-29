@@ -44,7 +44,8 @@ namespace MrHyDE {
     
     
     virtual void finalize(const int & globalSize, const int & globalPID,
-                          const bool & write_subgrid_soln) = 0;
+                          const bool & write_subgrid_soln,
+                          vector<string> & appends) = 0;
     
     virtual void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
                                Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
@@ -73,7 +74,7 @@ namespace MrHyDE {
     
     //virtual void writeSolution(const string & filename, const int & macrogrp) = 0;
     
-    virtual void writeSolution(const ScalarT & time) = 0;
+    virtual void writeSolution(const ScalarT & time, const string & append="") = 0;
     
     virtual void addSensors(const Kokkos::View<ScalarT**,HostDevice> sensor_points,
                             const ScalarT & sensor_loc_tol,

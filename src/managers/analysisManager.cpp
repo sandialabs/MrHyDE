@@ -204,7 +204,7 @@ void AnalysisManager::run() {
         }
         
         std::stringstream ss;
-        ss << j;
+        ss << "_" << j;
         postproc->append = ss.str();
         
         solve->forwardModel(objfun);

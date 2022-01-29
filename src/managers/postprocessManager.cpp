@@ -3594,7 +3594,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
   
   if (write_subgrid_solution && multiscale_manager->subgridModels.size() > 0) {
     for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
-      multiscale_manager->subgridModels[m]->writeSolution(currenttime);
+      multiscale_manager->subgridModels[m]->writeSolution(currenttime, append);
     }
   }
 }

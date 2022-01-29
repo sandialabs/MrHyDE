@@ -110,7 +110,7 @@ int SubGridDtN2::addMacro(DRV & macronodes_,
 ////////////////////////////////////////////////////////////////////////////////
 
 void SubGridDtN2::finalize(const int & globalSize, const int & globalPID,
-                           const bool & write_subgrid_soln) {
+                           const bool & write_subgrid_soln, vector<string> & appends) {
   
   // globalRank and globalPID are associated with the global MPI communicator
   // only needed to define a unique output file
@@ -131,7 +131,7 @@ void SubGridDtN2::finalize(const int & globalSize, const int & globalPID,
       combined_mesh_filename = "subgrid_output" + ss.str();
     }
 
-    this->setupCombinedExodus();
+    this->setupCombinedExodus(appends);
   }
   
 }
@@ -1082,7 +1082,7 @@ Kokkos::View<AD*,AssemblyDevice> SubGridDtN2::computeObjective(const string & re
 // Write the solution to a file
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void SubGridDtN2::setupCombinedExodus() {
+void SubGridDtN2::setupCombinedExodus(vector<string> & appends) {
   
   Teuchos::TimeMonitor meshsetuptimer(*sgfemCombinedMeshSetupTimer);
   
@@ -1150,68 +1150,66 @@ void SubGridDtN2::setupCombinedExodus() {
     //////////////////////////////////////////////////////////////
     
     vector<string> vartypes = sub_physics->types[0][0];
-    
     vector<string> subeBlocks;
     combined_mesh->getElementBlockNames(subeBlocks);
-    for (size_t j=0; j<sub_physics->varlist[0][0].size(); j++) {
-      if (vartypes[j] == "HGRAD") {
-        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j], subeBlocks[0]);
-      }
-      else if (vartypes[j] == "HVOL"){
-        combined_mesh->addCellField(sub_physics->varlist[0][0][j], subeBlocks[0]);
-      }
-      else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL"){
-        combined_mesh->addCellField(sub_physics->varlist[0][0][j]+"x", subeBlocks[0]);
-        combined_mesh->addCellField(sub_physics->varlist[0][0][j]+"y", subeBlocks[0]);
-        combined_mesh->addCellField(sub_physics->varlist[0][0][j]+"z", subeBlocks[0]);
+      
+    for (size_t app=0; app<appends.size(); ++app) {
+      string capp = appends[app];
+      
+      for (size_t j=0; j<sub_physics->varlist[0][0].size(); j++) {
+        if (vartypes[j] == "HGRAD") {
+          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp, subeBlocks[0]);
+        }
+        else if (vartypes[j] == "HVOL"){
+          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp, subeBlocks[0]);
+        }
+        else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL"){
+          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp+"x", subeBlocks[0]);
+          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp+"y", subeBlocks[0]);
+          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp+"z", subeBlocks[0]);
         
-        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+"x", subeBlocks[0]);
-        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+"y", subeBlocks[0]);
-        combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+"z", subeBlocks[0]);
+          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp+"x", subeBlocks[0]);
+          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp+"y", subeBlocks[0]);
+          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp+"z", subeBlocks[0]);
+        }
+      }
+    
+      Teuchos::ParameterList efields;
+      if (settings->sublist("Postprocess").isSublist(subeBlocks[0])) {
+        efields = settings->sublist("Postprocess").sublist(subeBlocks[0]).sublist("Extra fields");
+      }
+      else {
+        efields = settings->sublist("Postprocess").sublist("Extra fields");
+      }
+      Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
+      while (ef_itr != efields.end()) {
+        combined_mesh->addSolutionField(ef_itr->first+capp, subeBlocks[0]);
+        ef_itr++;
+      }
+    
+      Teuchos::ParameterList ecfields;
+      if (settings->sublist("Postprocess").isSublist(subeBlocks[0])) {
+        ecfields = settings->sublist("Postprocess").sublist(subeBlocks[0]).sublist("Extra cell fields");
+      }
+      else {
+        ecfields = settings->sublist("Postprocess").sublist("Extra cell fields");
+      }
+      Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
+      while (ecf_itr != ecfields.end()) {
+        combined_mesh->addCellField(ecf_itr->first+capp, subeBlocks[0]);
+        ecf_itr++;
+      }
+    
+    
+      // Add derived quantities from physics modules
+      for (size_t j=0; j<sub_physics->modules[0][0].size(); ++j) {
+        std::vector<string> derivedlist = sub_physics->modules[0][0][j]->getDerivedNames();
+        for (size_t k=0; k<derivedlist.size(); ++k) {
+          combined_mesh->addCellField(derivedlist[k]+capp, subeBlocks[0]);
+        }
       }
     }
-    //vector<string> subextrafieldnames = sub_physics->getExtraFieldNames(0);
-    //for (size_t j=0; j<subextrafieldnames.size(); j++) {
-    //  combined_mesh->addSolutionField(subextrafieldnames[j], subeBlocks[0]);
-    //}
-    Teuchos::ParameterList efields;
-    if (settings->sublist("Postprocess").isSublist(subeBlocks[0])) {
-      efields = settings->sublist("Postprocess").sublist(subeBlocks[0]).sublist("Extra fields");
-    }
-    else {
-      efields = settings->sublist("Postprocess").sublist("Extra fields");
-    }
-    Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
-    while (ef_itr != efields.end()) {
-      combined_mesh->addSolutionField(ef_itr->first, subeBlocks[0]);
-      ef_itr++;
-    }
-    
-    //vector<string> subextracellfields = sub_physics->getExtraCellFieldNames(0);
-    //for (size_t j=0; j<subextracellfields.size(); j++) {
-    //  combined_mesh->addCellField(subextracellfields[j], subeBlocks[0]);
-    //}
-    Teuchos::ParameterList ecfields;
-    if (settings->sublist("Postprocess").isSublist(subeBlocks[0])) {
-      ecfields = settings->sublist("Postprocess").sublist(subeBlocks[0]).sublist("Extra cell fields");
-    }
-    else {
-      ecfields = settings->sublist("Postprocess").sublist("Extra cell fields");
-    }
-    Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
-    while (ecf_itr != ecfields.end()) {
-      combined_mesh->addCellField(ecf_itr->first, subeBlocks[0]);
-      ecf_itr++;
-    }
-    
-    // Add derived quantities from physics modules
-    for (size_t j=0; j<sub_physics->modules[0][0].size(); ++j) {
-      std::vector<string> derivedlist = sub_physics->modules[0][0][j]->getDerivedNames();
-      for (size_t k=0; k<derivedlist.size(); ++k) {
-        combined_mesh->addCellField(derivedlist[k], subeBlocks[0]);
-      }
-    }
-    
+
     combined_mesh->addCellField("mesh_data_seed", subeBlocks[0]);
     combined_mesh->addCellField("mesh_data", subeBlocks[0]);
     
@@ -1250,7 +1248,7 @@ void SubGridDtN2::setupCombinedExodus() {
 // Write the current states to the combined output file
 //////////////////////////////////////////////////////////////
 
-void SubGridDtN2::writeSolution(const ScalarT & time) {
+void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
   
   Teuchos::TimeMonitor outputtimer(*sgfemCombinedMeshOutputTimer);
   
@@ -1302,7 +1300,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time) {
             }
           }
         }
-        combined_mesh->setSolutionFieldData(varlist[n], blockID, myElements, soln_computed);
+        combined_mesh->setSolutionFieldData(varlist[n]+append, blockID, myElements, soln_computed);
       }
       else if (vartypes[n] == "HVOL") {
         
@@ -1319,7 +1317,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time) {
             }
           }
         }
-        combined_mesh->setCellFieldData(varlist[n], blockID, myElements, soln_computed);
+        combined_mesh->setCellFieldData(varlist[n]+append, blockID, myElements, soln_computed);
         
       }
       else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") {
@@ -1351,9 +1349,9 @@ void SubGridDtN2::writeSolution(const ScalarT & time) {
             }
           }
         }
-        combined_mesh->setCellFieldData(varlist[n]+"x", blockID, myElements, soln_x);
-        combined_mesh->setCellFieldData(varlist[n]+"y", blockID, myElements, soln_y);
-        combined_mesh->setCellFieldData(varlist[n]+"z", blockID, myElements, soln_z);
+        combined_mesh->setCellFieldData(varlist[n]+append+"x", blockID, myElements, soln_x);
+        combined_mesh->setCellFieldData(varlist[n]+append+"y", blockID, myElements, soln_y);
+        combined_mesh->setCellFieldData(varlist[n]+append+"z", blockID, myElements, soln_z);
         
         if (sub_assembler->groupData[0]->requireBasisAtNodes) {
           Kokkos::View<ScalarT**,HostDevice> soln_nx("soln",myElements.size(), numNodesPerElem);
@@ -1380,9 +1378,9 @@ void SubGridDtN2::writeSolution(const ScalarT & time) {
               }
             }
           }
-          combined_mesh->setSolutionFieldData(varlist[n]+"x", blockID, myElements, soln_nx);
-          combined_mesh->setSolutionFieldData(varlist[n]+"y", blockID, myElements, soln_ny);
-          combined_mesh->setSolutionFieldData(varlist[n]+"z", blockID, myElements, soln_nz);
+          combined_mesh->setSolutionFieldData(varlist[n]+append+"x", blockID, myElements, soln_nx);
+          combined_mesh->setSolutionFieldData(varlist[n]+append+"y", blockID, myElements, soln_ny);
+          combined_mesh->setSolutionFieldData(varlist[n]+append+"z", blockID, myElements, soln_nz);
         }
       }
     }
@@ -1423,7 +1421,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time) {
     vector<string> extrafieldnames = sub_postproc->extrafields_list[0];
     for (size_t j=0; j<extrafieldnames.size(); j++) {
       Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
-      combined_mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efdata);
+      combined_mesh->setSolutionFieldData(extrafieldnames[j]+append, blockID, myElements, efdata);
     }
     
     ////////////////////////////////////////////////////////////////
@@ -1458,7 +1456,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time) {
     
     for (size_t j=0; j<extracellfieldnames.size(); j++) {
       auto ccd = subview(ecd,ALL(),j);
-      combined_mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, ccd);
+      combined_mesh->setCellFieldData(extracellfieldnames[j]+append, blockID, myElements, ccd);
     }
     
     ////////////////////////////////////////////////////////////////
@@ -1492,7 +1490,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time) {
     
     for (size_t j=0; j<dqnames.size(); j++) {
       auto ccd = subview(dq,ALL(),j);
-      combined_mesh->setCellFieldData(dqnames[j], blockID, myElements, ccd);
+      combined_mesh->setCellFieldData(dqnames[j]+append, blockID, myElements, ccd);
     }
     
     if (isTD) {

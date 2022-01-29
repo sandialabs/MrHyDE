@@ -75,7 +75,8 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void finalize(const int & globalSize, const int & globalPID, const bool & write_subgrid_soln);
+    void finalize(const int & globalSize, const int & globalPID, const bool & write_subgrid_soln,
+                  vector<string> & appends);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -137,13 +138,13 @@ namespace MrHyDE {
     // Write the solution to a file
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setupCombinedExodus();
+    void setupCombinedExodus(vector<string> & appends);
     
     //void writeSolution(const string & filename, const int & macrogrp);
     
     void writeSolution(const string & filename);
     
-    void writeSolution(const ScalarT & time);
+    void writeSolution(const ScalarT & time, const string & append="");
     
     ////////////////////////////////////////////////////////////////////////////////
     // Add in the sensor data
