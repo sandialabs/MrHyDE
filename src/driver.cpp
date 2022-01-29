@@ -36,6 +36,7 @@ int main(int argc,char * argv[]) {
   using namespace MrHyDE;
   
   int verbosity = 0;
+  int debug_level = 0;
   bool profile = false;
   
   Kokkos::initialize();
@@ -64,6 +65,7 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<Teuchos::ParameterList> settings = UserInterface(input_file_name);
     
     verbosity = settings->get<int>("verbosity",0);
+    debug_level = settings->get<int>("debug level",0);
     profile = settings->get<bool>("profile",false);
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -156,8 +158,25 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
 
     if (settings->get<bool>("enable memory purge",true)) {
+      if (debug_level > 0 && Comm->getRank() == 0) {
+        std::cout << "******** Starting driver memory purge ..." << std::endl;
+      }
       disc->purgeMemory();
       mesh->purgeMemory();
+      assembler->purgeMemory();
+      params->purgeMemory();
+      phys->purgeMemory();
+
+      if (!settings->sublist("Postprocess").get("write solution",false) && 
+          !settings->sublist("Postprocess").get("create optimization movie",false)) {
+        mesh->stk_mesh = Teuchos::null;
+        disc->mesh = Teuchos::null;
+        assembler->mesh = Teuchos::null;
+        params->mesh = Teuchos::null;
+      }
+      if (debug_level > 0 && Comm->getRank() == 0) {
+        std::cout << "******** Finished driver memory purge ..." << std::endl;
+      }      
     }
     
     assembler->allocateGroupStorage();
@@ -182,7 +201,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<AnalysisManager> analysis = Teuchos::rcp( new AnalysisManager(Comm, settings,
-                                                                             solve, postproc, params) );
+                                                                               solve, postproc, params) );
     
     // Make sure all processes are caught up at this point
     Kokkos::fence();

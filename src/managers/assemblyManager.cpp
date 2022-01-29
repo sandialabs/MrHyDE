@@ -2678,11 +2678,7 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
 
 template<class Node>
 void AssemblyManager<Node>::purgeMemory() {
-  
-  //for (size_t block=0; block<groupData.size(); ++block) {
-  //  groupData[block]->clearPhysicalData();
-  //}
-  
+  // nothing here
 }
 
 

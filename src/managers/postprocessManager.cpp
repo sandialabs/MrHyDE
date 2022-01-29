@@ -3201,6 +3201,12 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
   
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      std::cout << "******** Starting PostprocessManager::writeSolution() ..." << std::endl;
+    }
+  }
+
   plot_times.push_back(currenttime);
   
   for (size_t block=0; block<blocknames.size(); ++block) {
@@ -3595,6 +3601,12 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
   if (write_subgrid_solution && multiscale_manager->subgridModels.size() > 0) {
     for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
       multiscale_manager->subgridModels[m]->writeSolution(currenttime, append);
+    }
+  }
+
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      std::cout << "******** Finished PostprocessManager::writeSolution() ..." << std::endl;
     }
   }
 }

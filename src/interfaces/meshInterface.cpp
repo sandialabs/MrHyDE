@@ -1525,9 +1525,5 @@ void MeshInterface::purgeMemory() {
   efield_vals.clear();
   meas.reset();
   
-  bool write_solution = settings->sublist("Postprocess").get("write solution",false);
-  bool create_optim_movie = settings->sublist("Postprocess").get("create optimization movie",false);
-  if (!write_solution && !create_optim_movie) {
-    stk_mesh = Teuchos::null;
-  }
+  
 }

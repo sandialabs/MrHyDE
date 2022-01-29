@@ -1011,9 +1011,7 @@ vector<ScalarT> ParameterManager<Node>::getFractionalParams(const std::string & 
 
 template<class Node>
 void ParameterManager<Node>::purgeMemory() {
-    
-  // nothing to purge here
-  
+  // nothing here  
 }
 
 
