@@ -933,8 +933,6 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         // Step 3a: volumetric database
         /////////////////////////////////////////////////////////////////////////////
 
-        cout << "Starting volume database ... " << endl;
-
         {
           size_t database_numElem = first_users.size();
           DRV database_nodes("nodes for the database",database_numElem, groups[block][0]->nodes.extent(1), dimension);
@@ -1007,7 +1005,6 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           /////////////////////////////////////////////////////////////////////////////
           // Step 3b: database of mass matrices while we have basis and wts
           /////////////////////////////////////////////////////////////////////////////
-        cout << "Starting volume mass matrices ... " << endl;
         
           // Create a database of mass matrices
           if (groupData[block]->use_mass_database) {
@@ -1063,7 +1060,6 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         /////////////////////////////////////////////////////////////////////////////
         // Step 3c: boundary database
         /////////////////////////////////////////////////////////////////////////////
-        cout << "Starting boundary database ... " << endl;
         
         {
           size_t database_boundary_numElem = first_boundary_users.size();
@@ -1141,8 +1137,6 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       /////////////////////////////////////////////////////////////////////////////
       // Step 4: allocate for physical quantities
       /////////////////////////////////////////////////////////////////////////////
-        
-      cout << "Starting allocate physical ... " << endl;
         
       int numElem = groupData[block]->numElem;
       for (size_t i=0; i<groupData[block]->basis_pointers.size(); i++) {
