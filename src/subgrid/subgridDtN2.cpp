@@ -423,15 +423,14 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
     });
     
     // Either compute or reuse the eIndex and sideIndex
-    Kokkos::View<int*,AssemblyDevice> eIndex, sideIndex;
+    Kokkos::View<int*,AssemblyDevice> eIndex;
+    LO sideIndex = s;
     if (mindex == 0) {
       eIndex = Kokkos::View<int*,AssemblyDevice>("element indices",cgroup.size());
-      sideIndex = Kokkos::View<int*,AssemblyDevice>("local side indices",cgroup.size());
       parallel_for("subgrid bcell group",
                    RangePolicy<AssemblyExec>(0,currnodes.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         eIndex(e) = group_KV(e);
-        sideIndex(e) = s;
       });
     }
     else {
@@ -439,16 +438,13 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
       int maxElem = boundary_groups[0][s]->numElem;
       if (numElem == maxElem) { // reuse if possible
         eIndex = boundary_groups[0][s]->localElemID;
-        sideIndex = boundary_groups[0][s]->localSideID;
       }
       else {
         eIndex = Kokkos::View<int*,AssemblyDevice>("element indices",cgroup.size());
-        sideIndex = Kokkos::View<int*,AssemblyDevice>("local side indices",cgroup.size());
         parallel_for("subgrid LIDs",
                      RangePolicy<AssemblyExec>(0,numElem),
                      KOKKOS_LAMBDA (const int e ) {
           eIndex(e) = group_KV(e);
-          sideIndex(e) = s;
         });
       }
     }

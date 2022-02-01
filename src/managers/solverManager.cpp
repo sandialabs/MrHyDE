@@ -42,7 +42,10 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   
   numEvaluations = 0;
   setnames = phys->setnames;
-  
+  store_vectors = true;
+  if (setnames.size() > 1) {
+    store_vectors = false;
+  }
   // Get the required information from the settings
   spaceDim = mesh->stk_mesh->getDimension();
   isInitial = false;
@@ -197,21 +200,16 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   phys->setWorkset(assembler->wkset);
   params->wkset = assembler->wkset;
   
-  //---------------------------------------------------
-  // Mass matrix (lumped and maybe full) for explicit
-  //---------------------------------------------------
   
-  if (fully_explicit) {
-    this->setupExplicitMass();
+  if (store_vectors) {
+    for (size_t set=0; set<numSets; ++set) {
+      res.push_back(linalg->getNewVector(set));
+      res_over.push_back(linalg->getNewOverlappedVector(set));
+      du_over.push_back(linalg->getNewOverlappedVector(set));
+      du.push_back(linalg->getNewVector(set));
+    }
   }
-  
-  for (size_t set=0; set<numSets; ++set) {
-    res.push_back(linalg->getNewVector(set));
-    res_over.push_back(linalg->getNewOverlappedVector(set));
-    du_over.push_back(linalg->getNewOverlappedVector(set));
-    du.push_back(linalg->getNewVector(set));
-  }
-  
+
   /////////////////////////////////////////////////////////////////////////////
   
   this->setBatchID(Comm->getRank());
@@ -264,6 +262,21 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     }
   }
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::completeSetup() {
+
+  //---------------------------------------------------
+  // Mass matrix (lumped and maybe full) for explicit
+  //---------------------------------------------------
+  
+  if (fully_explicit) {
+    this->setupExplicitMass();
+  }
 }
 
 // ========================================================================================
@@ -392,17 +405,15 @@ void SolverManager<Node>::setupExplicitMass() {
       linalg->fillComplete(explicitMass[set]);
     }
     
-    //KokkosTools::print(explicitMass[set],"explicit mass");
-    //KokkosTools::print(diagMass[set],"diag mass");
-    //linalg->resetJacobian(); // doesn't actually erase the mass matrix ... just sets a recompute flag
-    
-    q_pcg.push_back(linalg->getNewVector(set));
-    z_pcg.push_back(linalg->getNewVector(set));
-    p_pcg.push_back(linalg->getNewVector(set));
-    r_pcg.push_back(linalg->getNewVector(set));
-    if (assembler->matrix_free) {
-      q_pcg_over.push_back(linalg->getNewOverlappedVector(set));
-      p_pcg_over.push_back(linalg->getNewOverlappedVector(set));
+    if (store_vectors) {
+      q_pcg.push_back(linalg->getNewVector(set));
+      z_pcg.push_back(linalg->getNewVector(set));
+      p_pcg.push_back(linalg->getNewVector(set));
+      r_pcg.push_back(linalg->getNewVector(set));
+      if (assembler->matrix_free) {
+        q_pcg_over.push_back(linalg->getNewOverlappedVector(set));
+        p_pcg_over.push_back(linalg->getNewOverlappedVector(set));
+      }
     }
   }
   
@@ -1077,7 +1088,7 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u)
   for (int ss=0; ss<subcycles; ++ss) {
     for (size_t set=0; set<setnames.size(); ++set) {
       assembler->updatePhysicsSet(set);
-      vector_RCP zero_soln = linalg->getNewOverlappedVector(set);
+      vector_RCP zero_soln;// = linalg->getNewOverlappedVector(set);
       this->nonlinearSolver(set, u[set], zero_soln);
     }
   }
@@ -1166,11 +1177,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     }
   }
   
-  vector<vector_RCP> zero_vec;
-  for (size_t set=0; set<initial.size(); ++set) {
-    zero_vec.push_back(linalg->getNewOverlappedVector(set));
-    zero_vec[set]->putScalar(0.0);
-  }
+  vector<vector_RCP> zero_vec(initial.size());
   
   current_time = start_time;
   if (!is_adjoint) { // forward solve - adaptive time stepping
@@ -1479,6 +1486,20 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
   bool proceed = true;
   ScalarT alpha = 1.0;
   
+  vector_RCP current_res, current_res_over, current_du, current_du_over;
+  if (store_vectors) {
+    current_res = res[set];
+    current_res_over = res_over[set];
+    current_du = du[set];
+    current_du_over = du_over[set];
+  }
+  else {
+    current_res = linalg->getNewVector(set);
+    current_res_over = linalg->getNewOverlappedVector(set);
+    current_du = linalg->getNewVector(set);
+    current_du_over = linalg->getNewOverlappedVector(set);
+  }
+
   while (proceed) {
     
     multiscale_manager->reset();
@@ -1495,7 +1516,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
-    res_over[set]->putScalar(0.0);
+    current_res_over->putScalar(0.0);
     
     if (build_jacobian) {
       J_over->resumeFill();
@@ -1508,27 +1529,27 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     }
     
     assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
-                              res_over[set], J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
     
-    linalg->exportVectorFromOverlapped(set, res[set], res_over[set]);
+    linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
     
     if (is_adjoint) {
       ScalarT cdt = 0.0;
       if (solver_type == "transient") {
         cdt = deltat;
       }
-      postproc->computeObjectiveGradState(set, u,current_time+cdt,deltat,res[set]);
+      postproc->computeObjectiveGradState(set, u, current_time+cdt, deltat, current_res);
     }
     
     if (debug_level>2) {
-      KokkosTools::print(res[set],"residual from solver interface");
+      KokkosTools::print(current_res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     
     {
       Teuchos::TimeMonitor localtimer(*normLAtimer);
-      res[set]->normInf(resnorm);
+      current_res->normInf(resnorm);
     }
     
     bool solve = true;
@@ -1553,11 +1574,11 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       alpha *= 0.5;
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(-1.0*alpha, *(du_over[set]), 1.0);
+        phi->update(-1.0*alpha, *(current_du_over), 1.0);
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        u->update(-1.0*alpha, *(du_over[set]), 1.0);
+        u->update(-1.0*alpha, *(current_du_over), 1.0);
       }
       if (Comm->getRank() == 0 && verbosity > 1) {
         cout << "***** Backtracking: new learning rate = " << alpha << endl;
@@ -1596,19 +1617,19 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       if (debug_level>2) {
         KokkosTools::print(J,"Jacobian from solver interface");
       }
-      du[set]->putScalar(0.0);
-      du_over[set]->putScalar(0.0);
-      linalg->linearSolver(set, J, res[set], du[set]);
-      linalg->importVectorToOverlapped(set, du_over[set], du[set]);
+      current_du->putScalar(0.0);
+      current_du_over->putScalar(0.0);
+      linalg->linearSolver(set, J, current_res, current_du);
+      linalg->importVectorToOverlapped(set, current_du_over, current_du);
       
       alpha = 1.0;
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(alpha, *(du_over[set]), 1.0);
+        phi->update(alpha, *(current_du_over), 1.0);
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        u->update(alpha, *(du_over[set]), 1.0);
+        u->update(alpha, *(current_du_over), 1.0);
       }
     }
     NLiter++; // increment number of iterations
@@ -1675,20 +1696,34 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   
   bool build_jacobian = false;
   
+  vector_RCP current_res, current_res_over, current_du, current_du_over;
+  if (store_vectors) {
+    current_res = res[set];
+    current_res_over = res_over[set];
+    current_du = du[set];
+    current_du_over = du_over[set];
+  }
+  else {
+    current_res = linalg->getNewVector(set);
+    current_res_over = linalg->getNewOverlappedVector(set);
+    current_du = linalg->getNewVector(set);
+    current_du_over = linalg->getNewOverlappedVector(set);
+  }
+
   // *********************** COMPUTE THE RESIDUAL **************************
     
-  res_over[set]->putScalar(0.0);
+  current_res_over->putScalar(0.0);
   matrix_RCP J_over;
   
   assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
-                            res_over[set], J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                            current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                             params->num_active_params, params->Psol[0], is_final_time, deltat);
   
   
-  linalg->exportVectorFromOverlapped(set, res[set], res_over[set]);
+  linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
   
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
-  res[set]->norm2(rnorm);
+  current_res->norm2(rnorm);
   
   // *********************** SOLVE THE LINEAR SYSTEM **************************
   
@@ -1700,32 +1735,32 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
     
     ScalarT wt = deltat*butcher_b(stage);
     
-    du_over[set]->putScalar(0.0);
-    du[set]->putScalar(0.0);
+    current_du_over->putScalar(0.0);
+    current_du->putScalar(0.0);
     
     if (!assembler->lump_mass) {
-      res[set]->scale(wt);
+      current_res->scale(wt);
       if (assembler->matrix_free) {
-        this->matrixFreePCG(set, res[set], du[set], diagMass[set],
+        this->matrixFreePCG(set, current_res, current_du, diagMass[set],
                             settings->sublist("Solver").get("linear TOL",1.0e-2),
                             settings->sublist("Solver").get("max linear iters",100));
       }
       else {
         if (use_custom_PCG) {
-          this->PCG(set, explicitMass[set], res[set], du[set], diagMass[set],
+          this->PCG(set, explicitMass[set], current_res, current_du, diagMass[set],
                     settings->sublist("Solver").get("linear TOL",1.0e-2),
                     settings->sublist("Solver").get("max linear iters",100));
         }
         else {
-          linalg->linearSolverL2(set, explicitMass[set], res[set], du[set]);
+          linalg->linearSolverL2(set, explicitMass[set], current_res, current_du);
         }
       }
     }
     else {
       typedef typename Node::execution_space LA_exec;
       
-      auto du_view = du[set]->template getLocalView<LA_device>();
-      auto res_view = res[set]->template getLocalView<LA_device>();
+      auto du_view = current_du->template getLocalView<LA_device>();
+      auto res_view = current_res->template getLocalView<LA_device>();
       auto dm_view = diagMass[set]->template getLocalView<LA_device>();
       
       parallel_for("explicit solver apply invdiag",
@@ -1734,9 +1769,9 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
         du_view(k,0) = wt*res_view(k,0)/dm_view(k,0);
       });
     }
-    linalg->importVectorToOverlapped(set, du_over[set], du[set]);
+    linalg->importVectorToOverlapped(set, current_du_over, current_du);
     
-    u->update(1.0, *(du_over[set]), 1.0);
+    u->update(1.0, *(current_du_over), 1.0);
     
   }
   
@@ -2199,33 +2234,51 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
   ScalarT rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
   ScalarT one = 1.0, zero = 0.0;
   
-  p_pcg[set]->putScalar(zero);
-  q_pcg[set]->putScalar(zero);
-  r_pcg[set]->putScalar(zero);
-  z_pcg[set]->putScalar(zero);
+  vector_RCP p, q, r, z, p_over, q_over;
+  if (store_vectors) {
+    p = p_pcg[set];
+    q = q_pcg[set];
+    r = r_pcg[set];
+    z = z_pcg[set];
+    p_over = p_pcg_over[set];
+    q_over = q_pcg_over[set];
+  }
+  else {
+    p = linalg->getNewVector(set);
+    q = linalg->getNewVector(set);
+    r = linalg->getNewVector(set);
+    z = linalg->getNewVector(set);
+    p_over = linalg->getNewOverlappedVector(set);
+    q_over = linalg->getNewOverlappedVector(set);
+  }
+   
+  p->putScalar(zero);
+  q->putScalar(zero);
+  r->putScalar(zero);
+  z->putScalar(zero);
   
-  p_pcg_over[set]->putScalar(zero);
-  q_pcg_over[set]->putScalar(zero);
+  p_over->putScalar(zero);
+  q_over->putScalar(zero);
   
   int iter=0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   
   {
     Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-    linalg->importVectorToOverlapped(set, p_pcg_over[set], x);
-    assembler->applyMassMatrixFree(set, p_pcg_over[set], q_pcg_over[set]);
-    linalg->exportVectorFromOverlapped(set, q_pcg[set], q_pcg_over[set]);
+    linalg->importVectorToOverlapped(set, p_over, x);
+    assembler->applyMassMatrixFree(set, p_over, q_over);
+    linalg->exportVectorFromOverlapped(set, q, q_over);
   }
   
-  r_pcg[set]->assign(*b);
-  r_pcg[set]->update(-one,*(q_pcg[set]),one);
+  r->assign(*b);
+  r->update(-one,*q,one);
   
-  r_pcg[set]->norm2(rnorm);
+  r->norm2(rnorm);
   ScalarT r0 = rnorm[0];
   
   auto M_view = M->template getLocalView<LA_device>();
-  auto r_view = r_pcg[set]->template getLocalView<LA_device>();
-  auto z_view = z_pcg[set]->template getLocalView<LA_device>();
+  auto r_view = r->template getLocalView<LA_device>();
+  auto z_view = z->template getLocalView<LA_device>();
   
   while (iter<maxiter && rnorm[0]/r0>tol) {
     
@@ -2239,31 +2292,31 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
     }
     
     rho1 = rho;
-    r_pcg[set]->dot(*(z_pcg[set]), dotprod);
+    r->dot(*z, dotprod);
     rho = dotprod[0];
     if (iter == 0) {
-      p_pcg[set]->assign(*(z_pcg[set]));
+      p->assign(*z);
     }
     else {
       beta = rho/rho1;
-      p_pcg[set]->update(one,*(z_pcg[set]),beta);
+      p->update(one,*z,beta);
     }
     
     {
       Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-      linalg->importVectorToOverlapped(set, p_pcg_over[set], p_pcg[set]);
-      q_pcg_over[set]->putScalar(zero);
-      assembler->applyMassMatrixFree(set, p_pcg_over[set], q_pcg_over[set]);
-      linalg->exportVectorFromOverlapped(set, q_pcg[set], q_pcg_over[set]);
+      linalg->importVectorToOverlapped(set, p_over, p);
+      q_over->putScalar(zero);
+      assembler->applyMassMatrixFree(set, p_over, q_over);
+      linalg->exportVectorFromOverlapped(set, q, q_over);
     }
     
-    p_pcg[set]->dot(*(q_pcg[set]),dotprod);
+    p->dot(*q,dotprod);
     pq = dotprod[0];
     alpha = rho/pq;
     
-    x->update(alpha,*(p_pcg[set]),one);
-    r_pcg[set]->update(-one*alpha,*(q_pcg[set]),one);
-    r_pcg[set]->norm2(rnorm);
+    x->update(alpha,*p,one);
+    r->update(-one*alpha,*q,one);
+    r->norm2(rnorm);
     
     iter++;
   }

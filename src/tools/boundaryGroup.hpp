@@ -42,7 +42,7 @@ namespace MrHyDE {
     BoundaryGroup(const Teuchos::RCP<GroupMetaData> & groupData_,
                   const DRV nodes_,
                   const Kokkos::View<LO*,AssemblyDevice> localID_,
-                  const Kokkos::View<LO*,AssemblyDevice> sideID_,
+                  LO & sideID_,
                   const int & sidenum_, const string & sidename_,
                   const int & groupID_,
                   Teuchos::RCP<DiscretizationInterface> & disc_,
@@ -316,7 +316,8 @@ namespace MrHyDE {
     Teuchos::RCP<GroupMetaData> groupData;
     Teuchos::RCP<workset> wkset;
     
-    Kokkos::View<LO*,AssemblyDevice> localElemID, localSideID;
+    Kokkos::View<LO*,AssemblyDevice> localElemID;
+    LO localSideID;
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     
     // Geometry Information
@@ -327,6 +328,7 @@ namespace MrHyDE {
     View_Sc2 wts;
     View_Sc1 hsize;
     bool storeAll, haveBasis;
+    Kokkos::View<LO*,AssemblyDevice> basis_database_index;
     
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
     string sidename;

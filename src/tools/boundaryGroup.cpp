@@ -25,7 +25,7 @@ using namespace MrHyDE;
 BoundaryGroup::BoundaryGroup(const Teuchos::RCP<GroupMetaData> & groupData_,
                              const DRV nodes_,
                              const Kokkos::View<LO*,AssemblyDevice> localID_,
-                             const Kokkos::View<LO*,AssemblyDevice> sideID_,
+                             LO & sideID_,
                              const int & sidenum_, const string & sidename_,
                              const int & groupID_,
                              Teuchos::RCP<DiscretizationInterface> & disc_,
@@ -81,6 +81,9 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
     if (!keepnodes) {
       nodes = DRV("dummy nodes",1);
     }
+  }
+  else if (groupData->use_basis_database && !keepnodes) {
+    nodes = DRV("empty nodes",1);
   }
   
 }
@@ -267,10 +270,20 @@ void BoundaryGroup::updateWorksetBasis() {
     wkset->setScalarField(tangents[2],"tz side");
   }
     
+//KokkosTools::print(basis[0]);
+//KokkosTools::print(basis[1]);
+//disc->copySideBasisFromDatabase(groupData, basis_database_index, orientation, false, false);
+//KokkosTools::print(groupData->physical_side_basis[0]);
+//KokkosTools::print(groupData->physical_side_basis[1]);
 
   if (storeAll) {
     wkset->basis_side = basis;
     wkset->basis_grad_side = basis_grad;
+  }
+  else if (groupData->use_basis_database) {
+    disc->copySideBasisFromDatabase(groupData, basis_database_index, orientation, false, false);
+    wkset->basis_side = groupData->physical_side_basis;
+    wkset->basis_grad_side = groupData->physical_side_basis_grad;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;

@@ -41,6 +41,8 @@ cellTopo(cellTopo_) {
   //storeAll = false;//settings->sublist("Solver").get<bool>("store all cell data",true);
   matrix_free = settings->sublist("Solver").get<bool>("matrix free",false);
   use_basis_database = settings->sublist("Solver").get<bool>("use basis database",false);
+  use_mass_database = settings->sublist("Solver").get<bool>("use mass database",false);
+  store_mass = settings->sublist("Solver").get<bool>("store mass",true);
 
   requiresTransient = true;
   if (settings->sublist("Solver").get<string>("solver","steady-state") == "steady-state") {

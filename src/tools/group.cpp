@@ -649,6 +649,11 @@ void Group::updateWorksetFace(const size_t & facenum) {
     wkset->basis_side = basis_face[facenum];
     wkset->basis_grad_side = basis_grad_face[facenum];
   }
+  else if (groupData->use_basis_database) {
+    disc->copyFaceBasisFromDatabase(groupData, basis_database_index, orientation, facenum, false, false);
+    wkset->basis_side = groupData->physical_side_basis;
+    wkset->basis_grad_side = groupData->physical_side_basis_grad;
+  }
   else {
     vector<View_Sc4> tbasis, tbasis_grad;
   
@@ -1440,60 +1445,84 @@ View_Sc3 Group::getMass() {
 View_Sc3 Group::getWeightedMass(vector<ScalarT> & masswts) {
   
   size_t set = wkset->current_set;
-  
-  View_Sc3 mass("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
-  View_Sc2 cwts;
-  
-  auto offsets = wkset->offsets;
   auto numDOF = groupData->numDOF;
   
-  vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
-  vector<View_Sc3> tbasis_div;
-  disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
-                                  tbasis, tbasis_grad, tbasis_curl,
-                                  tbasis_div, tbasis_nodes);
-  cwts = wts;
-  
-  for (size_type n=0; n<numDOF.extent(0); n++) {
-    View_Sc4 cbasis = tbasis[wkset->usebasis[n]];
-    
-    string btype = wkset->basis_types[wkset->usebasis[n]];
-    auto off = subview(offsets,n,ALL());
-    ScalarT mwt = masswts[n];
-    
-    if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+  View_Sc3 mass("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
+  if (groupData->use_mass_database) {
+    auto index = basis_database_index;
+    auto dmass = groupData->database_mass[set];
+
+    for (size_type n=0; n<numDOF.extent(0); n++) {
       parallel_for("Group get mass",
                    RangePolicy<AssemblyExec>(0,mass.extent(0)),
                    KOKKOS_LAMBDA (const size_type e ) {
-        for(size_type i=0; i<cbasis.extent(1); i++ ) {
-          for(size_type j=0; j<cbasis.extent(1); j++ ) {
-            for(size_type k=0; k<cbasis.extent(2); k++ ) {
-              mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
-            }
-          }
-        }
-      });
-    }
-    else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
-      parallel_for("Group get mass",
-                   RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                   KOKKOS_LAMBDA (const size_type e ) {
-        for (size_type i=0; i<cbasis.extent(1); i++ ) {
-          for (size_type j=0; j<cbasis.extent(1); j++ ) {
-            for (size_type k=0; k<cbasis.extent(2); k++ ) {
-              for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
-                mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
-              }
-            }
+        LO eindex = index(e);
+        for (size_type i=0; i<mass.extent(1); i++ ) {
+          for (size_type j=0; j<mass.extent(2); j++ ) {
+            mass(e,i,j) = dmass(eindex,i,j);
           }
         }
       });
     }
   }
+  else {
+    auto cwts = wts;
+    auto offsets = wkset->offsets;
+    vector<View_Sc4> tbasis;
+    
+    if (storeAll) {
+      tbasis = basis;
+    }
+    else if (groupData->use_basis_database) {
+      disc->copyBasisFromDatabase(groupData, basis_database_index, orientation, false, true);
+      tbasis = groupData->physical_basis;
+    }
+    else {
+      disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
+                                       tbasis);
+    }
+
+    for (size_type n=0; n<numDOF.extent(0); n++) {
+      View_Sc4 cbasis = tbasis[wkset->usebasis[n]];
+    
+      string btype = wkset->basis_types[wkset->usebasis[n]];
+      auto off = subview(offsets,n,ALL());
+      ScalarT mwt = masswts[n];
+    
+      if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+        parallel_for("Group get mass",
+                     RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                     KOKKOS_LAMBDA (const size_type e ) {
+          for(size_type i=0; i<cbasis.extent(1); i++ ) {
+            for(size_type j=0; j<cbasis.extent(1); j++ ) {
+              for(size_type k=0; k<cbasis.extent(2); k++ ) {
+                mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
+              }
+            }
+          }
+        });
+      }
+      else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+        parallel_for("Group get mass",
+                     RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                     KOKKOS_LAMBDA (const size_type e ) {
+          for (size_type i=0; i<cbasis.extent(1); i++ ) {
+            for (size_type j=0; j<cbasis.extent(1); j++ ) {
+              for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                  mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                }
+              }
+            }
+          }
+        });
+      }
+    }
   
-  if (storeMass) {
-    // This assumes they are computed in order
-    local_mass.push_back(mass);
+    if (storeMass) {
+      // This assumes they are computed in order
+      local_mass.push_back(mass);
+    }
   }
   return mass;
 }

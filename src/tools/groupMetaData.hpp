@@ -84,19 +84,24 @@ namespace MrHyDE {
     vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
     vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
         
-    bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles, use_basis_database = false;
+    bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles, use_basis_database = false, use_mass_database = false;
     bool mortar_objective;
-    bool exodus_sensors = false, compute_sol_avg = false;
+    bool exodus_sensors = false, compute_sol_avg = false, store_mass = true;
     bool multiscale, have_phi, have_rotation, have_extra_data;
     
     // database of database basis information (optional)
-    vector<View_Sc4> database_basis, database_basis_grad, database_basis_curl;
-    vector<View_Sc3> database_basis_div;
+    vector<View_Sc4> database_basis, database_basis_grad, database_basis_curl; // [basis type]
+    vector<View_Sc3> database_basis_div;  // [basis type]
+    vector<View_Sc4> database_side_basis, database_side_basis_grad;
+    vector<vector<View_Sc4> > database_face_basis, database_face_basis_grad;
+
+    // database of mass matrices
+    vector<View_Sc3> database_mass;  // [set](dof,dof) 
     
     // storage of physical basis info to avoid reallocations
     vector<View_Sc4> physical_basis, physical_basis_grad, physical_basis_curl;
     vector<View_Sc3> physical_basis_div;
-    vector<vector<DRV> > physical_side_basis, physical_side_basis_grad, physical_side_basis_div, physical_side_basis_curl;
+    vector<View_Sc4> physical_side_basis, physical_side_basis_grad;
     
     // these are common to all elements/groups and are often used on both devices
     vector<Kokkos::View<int*,AssemblyDevice> > set_numDOF;

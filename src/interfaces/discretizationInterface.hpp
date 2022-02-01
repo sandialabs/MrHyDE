@@ -81,7 +81,8 @@ namespace MrHyDE {
     void copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
                                Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
                                Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                               const bool & apply_orientation = false);
+                               const bool & apply_orientation = false,
+                               const bool & just_basis = false);
 
     void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -98,18 +99,31 @@ namespace MrHyDE {
     void getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes, 
                               Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                               vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad);
-                             
+
+    void copyFaceBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
+                                   Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
+                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                   const size_t & facenum,
+                                   const bool & apply_orientation = false,
+                                   const bool & just_basis = false);
+                         
     void getPhysicalBoundaryIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes, 
-                                            Kokkos::View<LO*,AssemblyDevice> localSideID,
+                                            LO & localSideID,
                                             vector<View_Sc2> & ip, View_Sc2 wts, vector<View_Sc2> & normals,
                                             vector<View_Sc2> & tangents);
                                             
     void getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes, 
-                                  Kokkos::View<LO*,AssemblyDevice> localSideID,
+                                  LO & localSideID,
                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                   vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                   vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div);
 
+    void copySideBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
+                                   Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
+                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                   const bool & apply_orientation = false,
+                                   const bool & just_basis = false);
+    
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     

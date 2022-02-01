@@ -279,15 +279,13 @@ void SubGridDtN::setUpSubgridModels() {
         currElem = cgroup.size()-prog;
       }
       Kokkos::View<int*,AssemblyDevice> eIndex("element indices",currElem);
-      Kokkos::View<int*,AssemblyDevice> sideIndex("local side indices",currElem);
+      LO sideIndex = unique_local_sides[s];
       DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
       auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
       Kokkos::View<int*,HostDevice> host_eIndex2("element indices",currElem);
-      auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
       auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
       for (size_t e=0; e<currElem; e++) {
         host_eIndex(e) = cgroup[e+prog];
-        host_sideIndex(e) = unique_local_sides[s];
         for (int n=0; n<numNodesPerElem; n++) {
           for (int m=0; m<dimension; m++) {
             host_currnodes(e,n,m) = nodes(connectivity[host_eIndex(e)][n],m);
@@ -299,7 +297,6 @@ void SubGridDtN::setUpSubgridModels() {
       Kokkos::deep_copy(currnodes,host_currnodes);
       Kokkos::deep_copy(eIndex,host_eIndex);
       Kokkos::deep_copy(host_eIndex2,host_eIndex);
-      Kokkos::deep_copy(sideIndex,host_sideIndex); 
       
       // Build the Kokkos View of the cell LIDs ------
       vector<LIDView> vLIDs;
@@ -593,7 +590,7 @@ void SubGridDtN::setUpSubgridModels() {
         Kokkos::View<LO*,AssemblyDevice> localID;
         LIDView LIDs;
         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
-        Kokkos::View<LO*,AssemblyDevice> sideID;
+        LO sideID;
         int sidenum = boundary_groups[0][s]->sidenum;
         
         if (numElem == maxElem) { // reuse if possible
@@ -606,19 +603,18 @@ void SubGridDtN::setUpSubgridModels() {
           localID = Kokkos::View<LO*,AssemblyDevice>("local elem ids",numElem);
           LIDs = LIDView("LIDs",numElem,boundary_groups[0][s]->LIDs[0].extent(1));
           orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("orientation",numElem);
-          sideID = Kokkos::View<LO*,AssemblyDevice>("side IDs",numElem);
           
           Kokkos::View<LO*,AssemblyDevice> localID_0 = boundary_groups[0][s]->localElemID;
           LIDView LIDs_0 = boundary_groups[0][s]->LIDs[0];
           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation_0 = boundary_groups[0][s]->orientation;
-          Kokkos::View<LO*,AssemblyDevice> sideID_0 = boundary_groups[0][s]->localSideID;
+          sideID = boundary_groups[0][s]->localSideID;
           
           parallel_for("subgrid LIDs",
                        RangePolicy<AssemblyExec>(0,numElem),
                        KOKKOS_LAMBDA (const int e ) {
             localID(e) = localID_0(e);
             orientation(e) = orientation_0(e);
-            sideID(e) = sideID_0(e);
+            //sideID(e) = sideID_0(e);
             for (size_type j=0; j<LIDs_0.extent(1); j++) {
               LIDs(e,j) = LIDs_0(e,j);
             }

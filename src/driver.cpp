@@ -178,8 +178,10 @@ int main(int argc,char * argv[]) {
         std::cout << "******** Finished driver memory purge ..." << std::endl;
       }      
     }
-    
+
     assembler->allocateGroupStorage();
+
+    solve->completeSetup();
     
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
