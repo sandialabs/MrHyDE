@@ -255,15 +255,15 @@ void AssemblyManager<Node>::createGroups() {
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
     int numNodesPerElem = cellTopo->getNodeCount();
     int spaceDim = phys->spaceDim;
-    LO numTotalElem = static_cast<LO>(stk_meshElems.size());
-    LO processedElem = 0;
+    size_t numTotalElem = stk_meshElems.size();
+    size_t processedElem = 0;
     
     if (numTotalElem>0) {
       
-      vector<size_t> localIds;
+      //vector<size_t> localIds;
       
-      Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
-      panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[block], localIds, blocknodes); // fill on host
+      //Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
+      //panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[block], localIds, blocknodes); // fill on host
       
       vector<size_t> myElem = disc->myElements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
@@ -274,12 +274,13 @@ void AssemblyManager<Node>::createGroups() {
       Kokkos::deep_copy(eIDs, host_eIDs);
       
       // LO is int, but just in case that changes ...
-      LO elemPerGroup = static_cast<LO>(settings->sublist("Solver").get<int>("workset size",100));
-      if (elemPerGroup == -1) {
+      size_t elemPerGroup;
+      int tmp_elemPerGroup = settings->sublist("Solver").get<int>("workset size",100);
+      if (tmp_elemPerGroup == -1) {
         elemPerGroup = numTotalElem;
       }
       else {
-        elemPerGroup = std::min(elemPerGroup,numTotalElem);
+        elemPerGroup = std::min(static_cast<size_t>(tmp_elemPerGroup),numTotalElem);
       }
       
       vector<string> sideSets;
@@ -454,19 +455,19 @@ void AssemblyManager<Node>::createGroups() {
       // Groups
       //////////////////////////////////////////////////////////////////////////////////
       
-      LO prog = 0;
-      vector<vector<LO> > elem_groups;
+      size_t prog = 0;
+      vector<vector<size_t> > elem_groups;
       
       if (assembly_partitioning == "sequential") {
         while (prog < numTotalElem) {
           
-          vector<LO> newgroup;
+          vector<size_t> newgroup;
           
-          LO currElem = elemPerGroup;
+          size_t currElem = elemPerGroup;
           if (prog+currElem > numTotalElem){
             currElem = numTotalElem-prog;
           }
-          for (LO e=prog; e<prog+currElem; ++e) {
+          for (size_t e=prog; e<prog+currElem; ++e) {
             newgroup.push_back(e);
           }
           elem_groups.push_back(newgroup);
@@ -507,11 +508,11 @@ void AssemblyManager<Node>::createGroups() {
           }
           
           
-          LO numAdded=0;
+          size_t numAdded=0;
           while (numAdded < numTotalElem) {
-            vector<LO> newgroup;
+            vector<size_t> newgroup;
             bool foundind = false;
-            LO refind = 0;
+            size_t refind = 0;
             while (!foundind && refind<numTotalElem) {
               if (!beenadded(refind)) {
                 foundind = true;
@@ -523,14 +524,14 @@ void AssemblyManager<Node>::createGroups() {
             newgroup.push_back(refind);
             beenadded(refind) = true;
             numAdded++;
-            for (LO j=refind+1; j<numTotalElem; ++j) {
+            for (size_t j=refind+1; j<numTotalElem; ++j) {
               bool matches = true;
               for (size_type k=0; k<onbndry.extent(1); ++k) {
                 if (onbndry(j,k) != onbndry(refind,k)) {
                   matches = false;
                 }
               }
-              if (matches && static_cast<LO>(newgroup.size()) < elemPerGroup) {
+              if (matches && newgroup.size() < elemPerGroup) {
                 newgroup.push_back(j);
                 beenadded(j) = true;
                 numAdded++;
@@ -561,13 +562,13 @@ void AssemblyManager<Node>::createGroups() {
         else {
           while (prog < numTotalElem) {
             
-            vector<LO> newgroup;
+            vector<size_t> newgroup;
             
-            LO currElem = elemPerGroup;
+            size_t currElem = elemPerGroup;
             if (prog+currElem > numTotalElem){
               currElem = numTotalElem-prog;
             }
-            for (LO e=prog; e<prog+currElem; ++e) {
+            for (size_t e=prog; e<prog+currElem; ++e) {
               newgroup.push_back(e);
             }
             elem_groups.push_back(newgroup);
@@ -577,11 +578,11 @@ void AssemblyManager<Node>::createGroups() {
         
       }
       
-      elemPerGroup = std::min(elemPerGroup, static_cast<LO>(elem_groups[0].size()));
+      elemPerGroup = std::min(elemPerGroup, elem_groups[0].size());
       
       // Add the groups correspondng to the groups
       for (size_t grp=0; grp<elem_groups.size(); ++grp) {
-        LO currElem = elem_groups[grp].size();
+        size_t currElem = elem_groups[grp].size();
         
         bool storeThis = true;
         if (static_cast<double>(processedElem)/static_cast<double>(numTotalElem) >= storageProportion) {
@@ -596,7 +597,7 @@ void AssemblyManager<Node>::createGroups() {
         auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
         Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
         
-        for (LO e=0; e<currElem; ++e) {
+        for (size_t e=0; e<currElem; ++e) {
           host_eIndex(e) = elem_groups[grp][e];
         }
         Kokkos::deep_copy(eIndex,host_eIndex);
@@ -616,7 +617,10 @@ void AssemblyManager<Node>::createGroups() {
           });
           set_LIDs.push_back(groupLIDs);
         }
-        
+          
+        mesh->getElementVertices(elem_groups[grp], blocknames[block],currnodes);
+          
+        /*
         parallel_for("assembly copy nodes",
                      RangePolicy<AssemblyExec>(0,eIndex.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
@@ -627,7 +631,8 @@ void AssemblyManager<Node>::createGroups() {
             }
           }
         });
-        
+        */
+
         // Set the side information (soon to be removed)-
         vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
         for (size_t set=0; set<LIDs.size(); ++set) {
