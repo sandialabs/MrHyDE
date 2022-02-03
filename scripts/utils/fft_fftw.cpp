@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cmath>
 #include "trilinos.hpp"
+#include "netcdf.h"
 
 int main(int argc, char * argv[]) {
 
@@ -70,6 +71,8 @@ int main(int argc, char * argv[]) {
       }
     }
   }
+
+  int err = nc_create_par();
 
   fftw_destroy_plan(p);
   fftw_free(myData);

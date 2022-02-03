@@ -38,16 +38,16 @@ ENDIF()
 
 IF(MrHyDE_ENABLE_FFTW)
   ## stand-alone target for now
-  ADD_EXECUTABLE(fft 
-  ../scripts/utils/fft.cpp)
-  TARGET_INCLUDE_DIRECTORIES(fft PUBLIC 
+  ADD_EXECUTABLE(fft_fftw 
+  ../scripts/utils/fft_fftw.cpp)
+  TARGET_INCLUDE_DIRECTORIES(fft_fftw PUBLIC 
     ${MrHyDE_FFTW_INCLUDE_DIR})
   ## for intel builds on HPCs
   FIND_LIBRARY(FFTW3_LIB NAMES fftw3xc_intel PATHS ${MrHyDE_FFTW_LIB_DIR} NO_DEFAULT_PATH)
   ## C, intel math library needed
-  TARGET_LINK_LIBRARIES(fft ${FFTW3_LIB} m)
-  TARGET_LINK_OPTIONS(fft PRIVATE -mkl)
-  TARGET_LINK_LIBRARIES(fft ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+  TARGET_LINK_LIBRARIES(fft_fftw ${FFTW3_LIB} m)
+  TARGET_LINK_OPTIONS(fft_fftw PRIVATE -mkl)
+  TARGET_LINK_LIBRARIES(fft_fftw ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 ENDIF()
 
 ADD_EXECUTABLE(mrhyde
