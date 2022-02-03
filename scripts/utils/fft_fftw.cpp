@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cmath>
 #include "trilinos.hpp"
-#include "netcdf.h"
+#include "hdf5.h"
 
 int main(int argc, char * argv[]) {
 
@@ -19,14 +19,71 @@ int main(int argc, char * argv[]) {
   
   // they will be transformed to the frequency domain
   // hence we need a bunch of 1D transforms on each MPI process
-
-  fftw_complex *myData;
+ 
+  // TODO FOO to determine number of histories, load in data, etc.
 
   int num_histories = 5; // number of time histories owned by the process
+
+  int num_sensors_total = 20; // TODO also garbage
 
   int num_snaps = 10; // number of equispaced snapshots in the time domain
   int space_dim = 3; // spatial dimension
   int num_fields = space_dim*2*num_histories; // E and B fields with space_dim components each
+
+  // PHDF5 creation
+  // TODO SETUP MPI COMMUNICATOR BETWEEN PROCESSES THAT ACTUALLY HAVE SENSORS
+  
+  herr_t err; // HDF5 return value
+  hid_t f_id; // HDF5 file ID
+
+  // file access property list
+  hid_t fapl_id;
+  fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+
+  // store MPI IO params
+  MPI_Comm sensor_comm = MPI_COMM_WORLD;
+  MPI_Info info = MPI_INFO_NULL;
+  
+  err = H5Pset_fapl_mpio(fapl_id, sensor_comm, info);
+
+  // create the file
+  f_id = H5Fcreate("test.h5",H5F_ACC_TRUNC, // overwrites file if it exists
+                   H5P_DEFAULT,fapl_id);
+
+  // free the file access template
+  err = H5Pclose(fapl_id);
+
+  // create the dataspace
+
+  hid_t ds_id;
+  hsize_t dims[4] = {num_sensors_total,num_snaps,num_snaps,num_snaps};
+  ds_id = H5Screate_simple(4, dims, // [sensor_id,F_x,F_y,F_z]
+                           NULL);
+
+  // need to create a new hdf5 datatype which matches fftw_complex
+  hsize_t comp_dims[2] = {1,1};
+  hid_t complex_id = H5Tarray_create2(H5T_NATIVE_DOUBLE,2,comp_dims);
+  
+  // create the B and E frequency domain storage
+  hid_t Bfield_id, Efield_id;
+  Bfield_id = H5Dcreate2(f_id,"B_freq",complex_id,ds_id,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+  Efield_id = H5Dcreate2(f_id,"E_freq",complex_id,ds_id,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+
+  // set up the portion of the files this process will access
+
+  //hsize_t start[4] = {my_sensor_start,0,0,0};
+  //hsize_t count[4] = {num_sensors,num_snaps,num_snaps,num_snaps};
+
+  // Memory, file dataspace??
+  // TODO HERE
+
+  //err = H5Sselect_hyperslab(BLAH,H5S_SELECT_SET,start,NULL, // contiguous
+  //                          count,NULL); // contiguous 
+
+  // FFTW example
+
+  fftw_complex *myData;
+
 
   // we will perform ffts of the columns
 
@@ -71,8 +128,6 @@ int main(int argc, char * argv[]) {
       }
     }
   }
-
-  int err = nc_create_par();
 
   fftw_destroy_plan(p);
   fftw_free(myData);
