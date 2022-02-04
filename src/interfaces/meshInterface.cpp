@@ -181,6 +181,8 @@ settings(settings_), Commptr(Commptr_) {
   }
   
   stk_mesh->getElementBlockNames(block_names);
+  stk_mesh->getSidesetNames(side_names);
+  stk_mesh->getNodesetNames(node_sets);
 
   for (size_t b=0; b<block_names.size(); b++) {
     cellTopo.push_back(stk_mesh->getCellTopology(block_names[b]));
@@ -272,7 +274,9 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
   meshmod_layer_size = settings->sublist("Solver").get<ScalarT>("solution based mesh mod layer thickness",0.1);
   
   stk_mesh->getElementBlockNames(block_names);
-  
+  stk_mesh->getSidesetNames(side_names);
+  stk_mesh->getNodesetNames(node_sets);
+
   for (size_t b=0; b<block_names.size(); b++) {
     cellTopo.push_back(stk_mesh->getCellTopology(block_names[b]));
   }
@@ -1520,10 +1524,10 @@ void MeshInterface::readExodusData() {
 
 void MeshInterface::purgeMemory() {
   
-  mesh_factory.reset();
+  mesh_factory = Teuchos::null;
   nfield_vals.clear();
   efield_vals.clear();
-  meas.reset();
+  meas = Teuchos::null;
   
   
 }

@@ -111,7 +111,8 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   
   spaceDim = mesh->getDimension();
   mesh->getElementBlockNames(blocknames);
-  
+  mesh->getSidesetNames(sidenames);
+
   ////////////////////////////////////////////////////////////////////////////////
   // Assemble the information we always store
   ////////////////////////////////////////////////////////////////////////////////
@@ -238,9 +239,9 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
   
   this->buildDOFManagers();
   
-  this->setBCData();
+  //this->setBCData();
   
-  this->setDirichletData();
+  //this->setDirichletData();
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -2712,7 +2713,49 @@ void DiscretizationInterface::buildDOFManagers() {
         setDOF->printFieldInformation(std::cout);
       }
     }
-    DOF.push_back(setDOF);
+
+    // Instead of storing the DOF manager, which holds onto the mesh, we extract what we need
+    //DOF.push_back(setDOF);
+    Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = setDOF->getLIDs();
+    DOF_LIDs.push_back(setLIDs);
+
+    vector<GO> owned, ownedAndShared;
+    setDOF->getOwnedIndices(owned);
+    setDOF->getOwnedAndGhostedIndices(ownedAndShared);
+    DOF_owned.push_back(owned);
+    DOF_ownedAndShared.push_back(ownedAndShared);
+
+    vector<vector<vector<GO>>> set_GIDs;
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      vector<vector<GO>> block_GIDs;
+      for (size_t elem=0; elem<myElements[block].size(); ++elem) {
+        vector<GO> gids;
+        setDOF->getElementGIDs(elem, gids, blocknames[block]);
+        block_GIDs.push_back(gids);
+      }
+      set_GIDs.push_back(block_GIDs);
+    }
+    DOF_GIDs.push_back(set_GIDs);
+
+    vector<vector<string> > varlist = phys->varlist[set];
+    vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      vector<vector<int> > celloffsets;
+      for (size_t j=0; j<varlist[block].size(); j++) {
+        string var = varlist[block][j];
+        int num = setDOF->getFieldNum(var);
+        vector<int> var_offsets = setDOF->getGIDFieldOffsets(blocknames[block],num);
+
+        celloffsets.push_back(var_offsets);
+      }
+      set_offsets.push_back(celloffsets);
+    }
+    offsets.push_back(set_offsets);
+
+    this->setBCData(set,setDOF);
+
+    this->setDirichletData(set,setDOF);
+
   }
 
   // Create the vector of panzer orientations
@@ -2778,7 +2821,7 @@ void DiscretizationInterface::buildDOFManagers() {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void DiscretizationInterface::setBCData() {
+void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer::DOFManager> & DOF) {
   
   Teuchos::TimeMonitor localtimer(*setbctimer);
   
@@ -2797,22 +2840,12 @@ void DiscretizationInterface::setBCData() {
   mesh->getSidesetNames(sideSets);
   mesh->getNodesetNames(nodeSets);
   
-  for (size_t set=0; set<phys->setnames.size(); ++set) {
+  //for (size_t set=0; set<phys->setnames.size(); ++set) {
     vector<vector<string> > varlist = phys->varlist[set];
-    auto currDOF = DOF[set];
+    //auto currDOF = DOF[set];
     
-    int maxvars = 0;
-    for (size_t block=0; block<blocknames.size(); ++block) {
-      for (size_t j=0; j<varlist[block].size(); j++) {
-        string var = varlist[block][j];
-        int num = currDOF->getFieldNum(var);
-        maxvars = std::max(num,maxvars);
-      }
-    }
-  
     vector<Kokkos::View<int****,HostDevice> > set_side_info;
     vector<vector<vector<string> > > set_var_bcs; // [block][var][boundary]
-    vector<vector<vector<int> > > set_offsets; // [block][var][dof]
     
     vector<vector<GO> > set_point_dofs;
     vector<vector<vector<LO> > > set_dbc_dofs;
@@ -2853,7 +2886,7 @@ void DiscretizationInterface::setBCData() {
       Teuchos::ParameterList flux_settings = blocksettings.sublist("Flux conditions");
       bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
       
-      vector<vector<int> > celloffsets;
+      
       Kokkos::View<int****,HostDevice> currside_info;
       if (requires_sideinfo) {
         currside_info = Kokkos::View<int****,HostDevice>("side info",stk_meshElems.size(),
@@ -2868,13 +2901,9 @@ void DiscretizationInterface::setBCData() {
       std::string perBCs = settings->sublist("Mesh").get<string>("Periodic Boundaries","");
 
       for (size_t j=0; j<varlist[block].size(); j++) {
-        vector<string> current_var_bcs(sideSets.size(),"none"); // [boundary]
         string var = varlist[block][j];
-        int num = currDOF->getFieldNum(var);
-        vector<int> var_offsets = currDOF->getGIDFieldOffsets(blockID,num);
-
-        celloffsets.push_back(var_offsets);
-      
+        vector<string> current_var_bcs(sideSets.size(),"none"); // [boundary]
+        
         for (size_t side=0; side<sideSets.size(); side++ ) {
           string sideName = sideSets[side];
           
@@ -2978,15 +3007,16 @@ void DiscretizationInterface::setBCData() {
             for( size_t i=0; i<side_output.size(); i++ ) {
               local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
               size_t localid = localelemmap[local_elem_Ids[i]];
-              currDOF->getElementGIDs(localid,elemGIDs,blockID);
-              block_dbc_dofs.push_back(elemGIDs[var_offsets[local_node_Ids[i]]]);
+              elemGIDs = DOF_GIDs[set][block][localid];
+              //currDOF->getElementGIDs(localid,elemGIDs,blockID);
+              block_dbc_dofs.push_back(elemGIDs[offsets[set][block][j][local_node_Ids[i]]]);
             }
           }
           
         }
       }
     
-      set_offsets.push_back(celloffsets);
+      
       set_var_bcs.push_back(block_var_bcs);
       set_side_info.push_back(currside_info);
       
@@ -3022,8 +3052,8 @@ void DiscretizationInterface::setBCData() {
       delete [] block_dbc_dofs_global;
       
       vector<GO> dbc_final;
-      vector<GO> ownedAndShared;
-      currDOF->getOwnedAndGhostedIndices(ownedAndShared);
+      vector<GO> ownedAndShared = DOF_ownedAndShared[set];
+      //currDOF->getOwnedAndGhostedIndices(ownedAndShared);
       
       sort(all_dbcs.begin(),all_dbcs.end());
       sort(ownedAndShared.begin(),ownedAndShared.end());
@@ -3034,14 +3064,12 @@ void DiscretizationInterface::setBCData() {
       set_point_dofs.push_back(dbc_final);
       
     } // blocks
-      
     
-    offsets.push_back(set_offsets);
     var_bcs.push_back(set_var_bcs);
     side_info.push_back(set_side_info);
     point_dofs.push_back(set_point_dofs);
     
-  } // sets
+  //} // sets
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -3053,7 +3081,7 @@ void DiscretizationInterface::setBCData() {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void DiscretizationInterface::setDirichletData() {
+void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<panzer::DOFManager> & DOF) {
   
   Teuchos::TimeMonitor localtimer(*setdbctimer);
   
@@ -3066,10 +3094,10 @@ void DiscretizationInterface::setDirichletData() {
   vector<string> sideNames;
   mesh->getSidesetNames(sideNames);
   
-  for (size_t set=0; set<phys->setnames.size(); ++set) {
+  //for (size_t set=0; set<phys->setnames.size(); ++set) {
     
     vector<vector<string> > varlist = phys->varlist[set];
-    auto currDOF = DOF[set];
+    //auto currDOF = DOF[set];
     
     std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
     
@@ -3083,7 +3111,9 @@ void DiscretizationInterface::setDirichletData() {
       
       for (size_t j=0; j<varlist[block].size(); j++) {
         std::string var = varlist[block][j];
-        int fieldnum = currDOF->getFieldNum(var);
+        
+        int fieldnum = DOF->getFieldNum(var);
+
         std::vector<LO> var_dofs;
         for (size_t side=0; side<sideNames.size(); side++ ) {
           std::string sideName = sideNames[side];
@@ -3106,8 +3136,8 @@ void DiscretizationInterface::setDirichletData() {
             
             for( size_t i=0; i<side_output.size(); i++ ) {
               LO local_EID = mesh->elementLocalId(side_output[i]);
-              auto elemLIDs = currDOF->getElementLIDs(local_EID);
-              const std::pair<vector<int>,vector<int> > SideIndex = currDOF->getGIDFieldOffsets_closure(blockID, fieldnum,
+              auto elemLIDs = DOF->getElementLIDs(local_EID);
+              const std::pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldnum,
                                                                                                         spaceDim-1,
                                                                                                         local_side_Ids[i]);
               const vector<int> sideOffset = SideIndex.first;
@@ -3129,7 +3159,7 @@ void DiscretizationInterface::setDirichletData() {
     
     dbc_dofs.push_back(set_dbc_dofs);
     
-  }
+  //}
   
   if (debug_level > 0) {
     if (Commptr->getRank() == 0) {
@@ -3213,6 +3243,13 @@ DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RC
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & block, const size_t & elem) {
+  return DOF_GIDs[set][block][elem];
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
 Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhysicalData(DRV phys_pts, DRV nodes,
                                                                                          topo_RCP & cellTopo,
                                                                                          const ScalarT & tol) {
@@ -3241,12 +3278,11 @@ DRV DiscretizationInterface::applyOrientation(DRV basis, Kokkos::DynRankView<Int
 
 Kokkos::View<string**,HostDevice> DiscretizationInterface::getVarBCs(const size_t & set, const size_t & block) {
   
-  vector<string> sideSets;
-  mesh->getSidesetNames(sideSets);
+  
   size_t numvars = var_bcs[set][block].size();
-  Kokkos::View<string**,HostDevice> bcs("BCs for each variable",numvars, sideSets.size());
+  Kokkos::View<string**,HostDevice> bcs("BCs for each variable",numvars, sidenames.size());
   for (size_t var=0; var<numvars; ++var) {
-    for (size_t side=0; side<sideSets.size(); ++side) {
+    for (size_t side=0; side<sidenames.size(); ++side) {
       bcs(var,side) = var_bcs[set][block][var][side];
     }
   }
@@ -3257,11 +3293,20 @@ Kokkos::View<string**,HostDevice> DiscretizationInterface::getVarBCs(const size_
 // After the setup phase, we can get rid of a few things
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+void DiscretizationInterface::purgeLIDs() {
+  
+  DOF_LIDs.clear();
+  
+}
+
 void DiscretizationInterface::purgeMemory() {
   
-  for (size_t j=0; j<DOF.size(); ++j) {
-    DOF[j] = Teuchos::null;//.clear();
-  }
+  //for (size_t j=0; j<DOF.size(); ++j) {
+  //  DOF[j] = Teuchos::null;//.clear();
+  //}
+  DOF_GIDs.clear();
+  DOF_owned.clear();
+  DOF_ownedAndShared.clear();
   side_info.clear();
   panzer_orientations.clear();
 

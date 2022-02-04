@@ -101,11 +101,20 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
                                                                                                         mesh->stk_mesh, phys, disc));
     
-    Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh->stk_mesh,
+    Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh,
                                                                                                          disc, phys, params));
     
     mesh->setMeshData(assembler->groups,
                       assembler->boundary_groups);
+    
+    if (!settings->sublist("Postprocess").get("write solution",false) && 
+        !settings->sublist("Postprocess").get("create optimization movie",false)) {
+      mesh->stk_mesh = Teuchos::null;
+      disc->mesh = Teuchos::null;
+      disc->purgeLIDs();
+      assembler->mesh = Teuchos::null;
+      params->mesh = Teuchos::null;
+    }
     
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
@@ -167,6 +176,7 @@ int main(int argc,char * argv[]) {
       params->purgeMemory();
       phys->purgeMemory();
 
+      /*
       if (!settings->sublist("Postprocess").get("write solution",false) && 
           !settings->sublist("Postprocess").get("create optimization movie",false)) {
         mesh->stk_mesh = Teuchos::null;
@@ -176,7 +186,8 @@ int main(int argc,char * argv[]) {
       }
       if (debug_level > 0 && Comm->getRank() == 0) {
         std::cout << "******** Finished driver memory purge ..." << std::endl;
-      }      
+      } */
+           
     }
 
     assembler->allocateGroupStorage();

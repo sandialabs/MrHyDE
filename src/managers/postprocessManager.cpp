@@ -150,11 +150,13 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     mesh->stk_optimization_mesh->setupExodusFile("optimization_"+exodus_filename);
   }
   
-  mesh->stk_mesh->getElementBlockNames(blocknames);
-  mesh->stk_mesh->getSidesetNames(sideSets);
+  //mesh->stk_mesh->getElementBlockNames(blocknames);
+  //mesh->stk_mesh->getSidesetNames(sideSets);
+  blocknames = phys->blocknames;
+  sideSets = phys->sidenames;
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
-  spaceDim = mesh->stk_mesh->getDimension();
+  spaceDim = phys->spaceDim;//mesh->stk_mesh->getDimension();
     
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"

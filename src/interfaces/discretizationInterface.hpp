@@ -42,9 +42,9 @@ namespace MrHyDE {
     ~DiscretizationInterface() {} ;
     
     DiscretizationInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                   Teuchos::RCP<MpiComm> & Comm_,
-                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
-                   Teuchos::RCP<PhysicsInterface> & phys_);
+                            Teuchos::RCP<MpiComm> & Comm_,
+                            Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                            Teuchos::RCP<PhysicsInterface> & phys_);
                    
     //////////////////////////////////////////////////////////////////////////////////////
     // Create a pointer to an Intrepid or Panzer basis
@@ -155,9 +155,9 @@ namespace MrHyDE {
     
     void buildDOFManagers();
     
-    void setBCData();
+    void setBCData(const size_t & set, Teuchos::RCP<panzer::DOFManager> & DOF);
     
-    void setDirichletData();
+    void setDirichletData(const size_t & set, Teuchos::RCP<panzer::DOFManager> & DOF);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,6 +171,8 @@ namespace MrHyDE {
 
     vector<vector<int> > getOffsets(const int & set, const int & block);
     
+    vector<GO> getGIDs(const size_t & set, const size_t & block, const size_t & elem);
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -203,6 +205,8 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    void purgeLIDs();
+
     void purgeMemory();
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -221,10 +225,14 @@ namespace MrHyDE {
     
     vector<vector<vector<GO> > > point_dofs; // [set][block][dof]
     vector<vector<vector<vector<LO> > > > dbc_dofs; // [set][block][dof]
-    vector<string> blocknames;
+    vector<string> blocknames, sidenames;
     
     // Purgable
-    vector<Teuchos::RCP<panzer::DOFManager> > DOF;
+    //vector<Teuchos::RCP<panzer::DOFManager> > DOF;
+    std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> DOF_LIDs;
+    std::vector<std::vector<GO> > DOF_owned, DOF_ownedAndShared;
+    std::vector<std::vector<std::vector<std::vector<GO>>>> DOF_GIDs; // [set][block][elem][gid] may consider a different storage strategy
+    
     std::vector<Intrepid2::Orientation> panzer_orientations;
 
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;

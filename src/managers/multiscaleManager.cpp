@@ -85,14 +85,15 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
       string subgrid_model_type = subgrid_pl->get<string>("subgrid model","DtN2");
       string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
       std::vector<string> macro_blocknames;
-      mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
+      //mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
+      macro_blocknames = mesh_->block_names;
       int macro_block = 0; // default to single block case
       for (size_t m=0; m<macro_blocknames.size(); ++m) {
         if (macro_blocknames[m] == macro_block_name) {
           macro_block = m;
         }
       }
-      topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
+      topo_RCP macro_topo = mesh_->cellTopo[macro_block]; //mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
       if (subgrid_model_type == "DtN") {
         subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo,
                                                              num_macro_time_steps,
@@ -117,14 +118,15 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
         string subgrid_model_type = subgrid_pl->get<string>("subgrid model","DtN2");
         string macro_block_name = subgrid_pl->get<string>("macro block","eblock-0_0_0");
         std::vector<string> macro_blocknames;
-        mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
+        //mesh_->stk_mesh->getElementBlockNames(macro_blocknames);
+        macro_blocknames = mesh_->block_names;
         int macro_block = 0; // default to single block case
         for (size_t m=0; m<macro_blocknames.size(); ++m) {
           if (macro_blocknames[m] == macro_block_name) {
             macro_block = m;
           }
         }
-        topo_RCP macro_topo = mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
+        topo_RCP macro_topo = mesh_->cellTopo[macro_block]; //stk_mesh->getCellTopology(macro_blocknames[macro_block]);
         
         if (subgrid_model_type == "DtN") {
           subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo,

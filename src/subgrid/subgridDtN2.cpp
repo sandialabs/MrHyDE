@@ -235,7 +235,7 @@ void SubGridDtN2::setUpSubgridModels() {
   sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->stk_mesh,
                                                                      sub_physics, sub_disc));
   
-  sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->stk_mesh,
+  sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                        sub_disc, sub_physics, sub_params));
   
   //sub_assembler->allocateGroupStorage();
@@ -395,7 +395,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
   Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs;
   
   if (mindex == 0) {
-    LIDs = sub_disc->DOF[0]->getLIDs(); // hard coded
+    LIDs = sub_disc->DOF_LIDs[0];//DOF[0]->getLIDs(); // hard coded
   }
   
   for (size_t s=0; s<elem_groups.size(); s++) {

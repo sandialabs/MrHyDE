@@ -168,10 +168,11 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   
   for (size_t set=0; set<setnames.size(); ++set) {
     vector<GO> owned, ownedAndShared;
-    
-    disc->DOF[set]->getOwnedIndices(owned);
+    owned = disc->DOF_owned[set];
+    ownedAndShared = disc->DOF_ownedAndShared[set];
+    //disc->DOF[set]->getOwnedIndices(owned);
     LO numUnknowns = (LO)owned.size();
-    disc->DOF[set]->getOwnedAndGhostedIndices(ownedAndShared);
+    //disc->DOF[set]->getOwnedAndGhostedIndices(ownedAndShared);
     GO localNumUnknowns = numUnknowns;
     
     GO globalNumUnknowns = 0;
@@ -193,9 +194,8 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
-          vector<GO> gids;
           size_t elemID = EIDs[e];
-          disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
+          vector<GO> gids = disc->getGIDs(set,b,elemID); //DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             LO ind1 = overlapped_map[set]->getLocalElement(gids[i]);
             maxEntriesPerRow[ind1] += gids.size();
@@ -219,9 +219,9 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
-          vector<GO> gids;
           size_t elemID = EIDs[e];
-          disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
+          vector<GO> gids = disc->getGIDs(set,b,elemID);
+          //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             GO ind1 = gids[i];
             overlapped_graph[set]->insertGlobalIndices(ind1,gids);
@@ -270,9 +270,9 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
           vector<GO> gids;
           size_t elemID = EIDs[e];
           params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
-          vector<GO> stategids;
+          vector<GO> stategids = disc->getGIDs(0,b,elemID);
           // TMW: warning - this is hard coded to one physics set
-          disc->DOF[0]->getElementGIDs(elemID, stategids, blocknames[b]);
+          //disc->DOF[0]->getElementGIDs(elemID, stategids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             GO ind1 = gids[i];
             param_overlapped_graph->insertGlobalIndices(ind1,stategids);

@@ -193,7 +193,7 @@ namespace MrHyDE {
     bool meshmod_usesmoother;
     ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
     
-    vector<string> block_names, nfield_names, efield_names;
+    vector<string> block_names, side_names, node_sets, nfield_names, efield_names;
     int numResponses;
     std::default_random_engine generator;
     

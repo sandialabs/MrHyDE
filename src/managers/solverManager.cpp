@@ -47,7 +47,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     store_vectors = false;
   }
   // Get the required information from the settings
-  spaceDim = mesh->stk_mesh->getDimension();
+  spaceDim = phys->spaceDim;//mesh->stk_mesh->getDimension();
   isInitial = false;
   initial_time = settings->sublist("Solver").get<double>("initial time",0.0);
   current_time = initial_time;
@@ -127,7 +127,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   
   // needed information from the mesh
-  mesh->stk_mesh->getElementBlockNames(blocknames);
+  blocknames = phys->blocknames;
+  //mesh->stk_mesh->getElementBlockNames(blocknames);
   
   // needed information from the physics interface
   numVars = phys->numVars; //
@@ -364,7 +365,7 @@ void SolverManager<Node>::setupExplicitMass() {
       overlapped_graph->fillComplete();
       
       vector<GO> owned;
-      disc->DOF[set]->getOwnedIndices(owned);
+      disc->DOF_owned[set];//DOF[set]->getOwnedIndices(owned);
       vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getNodeNumElements(), 0);
       for (size_t i=0; i<owned.size(); ++i) {
         LO ind1 = linalg->overlapped_map[set]->getLocalElement(owned[i]);

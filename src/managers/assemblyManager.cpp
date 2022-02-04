@@ -26,7 +26,7 @@ using namespace MrHyDE;
 template<class Node>
 AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_,
                                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                                       Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                       Teuchos::RCP<MeshInterface> & mesh_,
                                        Teuchos::RCP<DiscretizationInterface> & disc_,
                                        Teuchos::RCP<PhysicsInterface> & phys_,
                                        Teuchos::RCP<ParameterManager<Node>> & params_) :
@@ -69,8 +69,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   }
   
   // needed information from the mesh
-  mesh->getElementBlockNames(blocknames);
-  
+  //blocknames = mesh->block_names;
+  mesh->stk_mesh->getElementBlockNames(blocknames);
+
   // check if we need to assembly volumetric, boundary and face terms
   for (size_t set=0; set<phys->setnames.size(); ++set) {
     vector<bool> set_assemble_vol, set_assemble_bndry, set_assemble_face;
@@ -163,7 +164,7 @@ void AssemblyManager<Node>::createFixedDOFs() {
   for (size_t set=0; set<dbc_dofs.size(); ++set) {
     vector<vector<Kokkos::View<LO*,LA_device> > > set_fixedDOF;
     
-    int numLocalDof = disc->DOF[set]->getNumOwnedAndGhosted();
+    int numLocalDof = disc->DOF_ownedAndShared[set].size();//DOF[set]->getNumOwnedAndGhosted();
     Kokkos::View<bool*,LA_device> set_isFixedDOF("logicals for fixed DOFs",numLocalDof);
     auto fixed_host = Kokkos::create_mirror_view(set_isFixedDOF);
     for (size_t block=0; block<dbc_dofs[set].size(); block++) {
@@ -223,11 +224,12 @@ void AssemblyManager<Node>::createGroups() {
   double storageProportion = settings->sublist("Solver").get<double>("storage proportion",1.0);
   
   vector<stk::mesh::Entity> all_meshElems;
-  mesh->getMyElements(all_meshElems);
+  mesh->stk_mesh->getMyElements(all_meshElems);
+  
   
   vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> > LIDs;
-  for (size_t set=0; set<disc->DOF.size(); ++set) {
-    Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = disc->DOF[set]->getLIDs();
+  for (size_t set=0; set<disc->DOF_LIDs.size(); ++set) {
+    Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = disc->DOF_LIDs[set];//DOF[set]->getLIDs();
     LIDs.push_back(setLIDs);
   }
    
@@ -250,9 +252,9 @@ void AssemblyManager<Node>::createGroups() {
     vector<Teuchos::RCP<BoundaryGroup> > block_boundary_groups;
     
     vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(blocknames[block], stk_meshElems);
+    mesh->stk_mesh->getMyElements(blocknames[block], stk_meshElems);
     
-    topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
+    topo_RCP cellTopo = mesh->stk_mesh->getCellTopology(blocknames[block]);
     int numNodesPerElem = cellTopo->getNodeCount();
     int spaceDim = phys->spaceDim;
     size_t numTotalElem = stk_meshElems.size();
@@ -283,8 +285,8 @@ void AssemblyManager<Node>::createGroups() {
         elemPerGroup = std::min(static_cast<size_t>(tmp_elemPerGroup),numTotalElem);
       }
       
-      vector<string> sideSets;
-      mesh->getSidesetNames(sideSets);
+      vector<string> sideSets;// = mesh->side_names;
+      mesh->stk_mesh->getSidesetNames(sideSets);
       vector<bool> aface;
       for (size_t set=0; set<assemble_face_terms.size(); ++set) {
         aface.push_back(assemble_face_terms[set][block]);
@@ -342,15 +344,15 @@ void AssemblyManager<Node>::createGroups() {
           string sideName = sideSets[side];
           
           vector<stk::mesh::Entity> sideEntities;
-          mesh->getMySides(sideName, blocknames[block], sideEntities);
+          mesh->stk_mesh->getMySides(sideName, blocknames[block], sideEntities);
           vector<size_t>             local_side_Ids;
           vector<stk::mesh::Entity> side_output;
           vector<size_t>             local_elem_Ids;
           
-          panzer_stk::workset_utils::getSideElements(*mesh, blocknames[block], sideEntities, local_side_Ids, side_output);
+          panzer_stk::workset_utils::getSideElements(*(mesh->stk_mesh), blocknames[block], sideEntities, local_side_Ids, side_output);
           
           DRV sidenodes;
-          mesh->getElementVertices(side_output, blocknames[block],sidenodes);
+          mesh->stk_mesh->getElementVertices(side_output, blocknames[block],sidenodes);
           
           size_t numSideElem = local_side_Ids.size();
           size_t belemProg = 0;
@@ -395,7 +397,7 @@ void AssemblyManager<Node>::createGroups() {
                 LO sideIndex;
 
                 for (size_t e=0; e<currElem; e++) {
-                  host_eIndex(e) = mesh->elementLocalId(side_output[group[e+prog]]);
+                  host_eIndex(e) = mesh->stk_mesh->elementLocalId(side_output[group[e+prog]]);
                   sideIndex = local_side_Ids[group[e+prog]];
                   for (size_type n=0; n<host_currnodes.extent(1); n++) {
                     for (size_type m=0; m<host_currnodes.extent(2); m++) {
@@ -618,21 +620,8 @@ void AssemblyManager<Node>::createGroups() {
           set_LIDs.push_back(groupLIDs);
         }
           
-        mesh->getElementVertices(elem_groups[grp], blocknames[block],currnodes);
-          
-        /*
-        parallel_for("assembly copy nodes",
-                     RangePolicy<AssemblyExec>(0,eIndex.extent(0)),
-                     KOKKOS_LAMBDA (const int e ) {
-          LO elemID = eIndex(e);
-          for (size_type pt=0; pt<currnodes.extent(1); ++pt) {
-            for (size_type dim=0; dim<currnodes.extent(2); ++dim) {
-              currnodes(e,pt,dim) = blocknodes(elemID,pt,dim);
-            }
-          }
-        });
-        */
-
+        mesh->stk_mesh->getElementVertices(elem_groups[grp], blocknames[block],currnodes);
+        
         // Set the side information (soon to be removed)-
         vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
         for (size_t set=0; set<LIDs.size(); ++set) {
@@ -1333,8 +1322,8 @@ void AssemblyManager<Node>::createWorkset() {
                                                 disc->basis_types[block],
                                                 disc->basis_pointers[block],
                                                 params->discretized_param_basis,
-                                                mesh->getCellTopology(blocknames[block])) ) );
-      
+                                                groupData[block]->cellTopo)));
+                                                //mesh->cellTopo[block]) ) );
       wkset[block]->block = block;
       wkset[block]->set_var_bcs = bcs;
       wkset[block]->var_bcs = bcs[0];

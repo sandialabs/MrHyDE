@@ -27,6 +27,7 @@
 #include "group.hpp"
 #include "boundaryGroup.hpp"
 #include "workset.hpp"
+#include "meshInterface.hpp"
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "parameterManager.hpp"
@@ -64,7 +65,7 @@ namespace MrHyDE {
     
     AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_,
                     Teuchos::RCP<Teuchos::ParameterList> & settings,
-                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                    Teuchos::RCP<MeshInterface> & mesh_,
                     Teuchos::RCP<DiscretizationInterface> & disc_,
                     Teuchos::RCP<PhysicsInterface> & phys_,
                     Teuchos::RCP<ParameterManager<Node> > & params_);
@@ -231,7 +232,8 @@ namespace MrHyDE {
     std::vector<std::string> blocknames;
     std::vector<std::vector<std::vector<std::string> > > varlist; // [set][block][var]
     
-    Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
+    //Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
+    Teuchos::RCP<MeshInterface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> phys;
     
