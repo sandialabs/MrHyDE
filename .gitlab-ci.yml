@@ -5,10 +5,10 @@ test-sems-modules:
     - source /projects/sems/modulefiles/utils/sems-modules-init.sh
     - module av
 
-test-nightly-folder-access:
-  stage: test
-  script:
-    - echo "This checks the present directory and looks for access to the MrHyDE/nightly folder"
-    - echo "Specifically, this will allow the gitlab-ci runner to use vaporwave's nightly Trilinos build for testing"
-    - pwd
-    - cat /home/MrHyDE/nightly/logs/log_serial.log
+# test-nightly-folder-access:
+#   stage: test
+#   script:
+#     - echo "This checks the present directory and looks for access to the MrHyDE/nightly folder"
+#     - echo "Specifically, this will allow the gitlab-ci runner to use vaporwave's nightly Trilinos build for testing"
+#     - pwd
+#     - cat /home/MrHyDE/nightly/logs/log_serial.log
