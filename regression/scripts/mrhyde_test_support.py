@@ -13,6 +13,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
 
   internal_status = 0
 
+  # start the command
   if verbose: print(cmd)
   p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
 
@@ -23,10 +24,11 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
     with p.stdout:
       for line in iter(p.stdout.readline, b''): 
         print(line.decode('ascii'), end='')
-    internal_status = p.wait()
   else:
     stdout, stderr = p.communicate()
-    internal_status = p.wait()
+  
+  # wait for the command to finish and grab the exit status
+  internal_status = p.wait()
 
   if stderr: print(stderr)
   if logfile:
