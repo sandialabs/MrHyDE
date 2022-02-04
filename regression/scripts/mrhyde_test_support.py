@@ -23,6 +23,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
     with p.stdout:
       for line in iter(p.stdout.readline, b''): 
         print(line.decode('ascii'), end='')
+    internal_status = p.wait()
   else:
     stdout, stderr = p.communicate()
     internal_status = p.wait()
