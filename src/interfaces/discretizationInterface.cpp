@@ -2716,6 +2716,7 @@ void DiscretizationInterface::buildDOFManagers() {
 
     // Instead of storing the DOF manager, which holds onto the mesh, we extract what we need
     //DOF.push_back(setDOF);
+    
     Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = setDOF->getLIDs();
     DOF_LIDs.push_back(setLIDs);
 
@@ -2725,15 +2726,23 @@ void DiscretizationInterface::buildDOFManagers() {
     DOF_owned.push_back(owned);
     DOF_ownedAndShared.push_back(ownedAndShared);
 
-    vector<vector<vector<GO>>> set_GIDs;
+    size_t maxE = 0; 
     for (size_t block=0; block<blocknames.size(); ++block) {
-      vector<vector<GO>> block_GIDs;
+      for (size_t elem=0; elem<myElements[block].size(); ++elem) {
+        maxE = std::max(maxE,myElements[block][elem]);
+      }
+    }
+    vector<vector<GO>> set_GIDs(maxE+1);
+    
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      
       for (size_t elem=0; elem<myElements[block].size(); ++elem) {
         vector<GO> gids;
-        setDOF->getElementGIDs(elem, gids, blocknames[block]);
-        block_GIDs.push_back(gids);
+        setDOF->getElementGIDs(myElements[block][elem], gids, blocknames[block]);
+        set_GIDs[myElements[block][elem]] = gids;
       }
-      set_GIDs.push_back(block_GIDs);
+      //set_GIDs.push_back(block_GIDs);
+      
     }
     DOF_GIDs.push_back(set_GIDs);
 
@@ -2751,6 +2760,7 @@ void DiscretizationInterface::buildDOFManagers() {
       set_offsets.push_back(celloffsets);
     }
     offsets.push_back(set_offsets);
+    
 
     this->setBCData(set,setDOF);
 
@@ -3007,7 +3017,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
             for( size_t i=0; i<side_output.size(); i++ ) {
               local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
               size_t localid = localelemmap[local_elem_Ids[i]];
-              elemGIDs = DOF_GIDs[set][block][localid];
+              elemGIDs = DOF_GIDs[set][localid];
               //currDOF->getElementGIDs(localid,elemGIDs,blockID);
               block_dbc_dofs.push_back(elemGIDs[offsets[set][block][j][local_node_Ids[i]]]);
             }
@@ -3244,7 +3254,8 @@ DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RC
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & block, const size_t & elem) {
-  return DOF_GIDs[set][block][elem];
+  //return DOF_GIDs[set][block][elem];
+  return DOF_GIDs[set][elem];
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

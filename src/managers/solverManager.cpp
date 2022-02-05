@@ -365,7 +365,8 @@ void SolverManager<Node>::setupExplicitMass() {
       overlapped_graph->fillComplete();
       
       vector<GO> owned;
-      disc->DOF_owned[set];//DOF[set]->getOwnedIndices(owned);
+      //disc->DOF[set]->getOwnedIndices(owned);
+      disc->DOF_owned[set];//->getOwnedIndices(owned);
       vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getNodeNumElements(), 0);
       for (size_t i=0; i<owned.size(); ++i) {
         LO ind1 = linalg->overlapped_map[set]->getLocalElement(owned[i]);

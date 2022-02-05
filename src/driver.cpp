@@ -107,6 +107,7 @@ int main(int argc,char * argv[]) {
     mesh->setMeshData(assembler->groups,
                       assembler->boundary_groups);
     
+    
     if (!settings->sublist("Postprocess").get("write solution",false) && 
         !settings->sublist("Postprocess").get("create optimization movie",false)) {
       mesh->stk_mesh = Teuchos::null;
@@ -116,6 +117,7 @@ int main(int argc,char * argv[]) {
       params->mesh = Teuchos::null;
     }
     
+
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
@@ -176,17 +178,9 @@ int main(int argc,char * argv[]) {
       params->purgeMemory();
       phys->purgeMemory();
 
-      /*
-      if (!settings->sublist("Postprocess").get("write solution",false) && 
-          !settings->sublist("Postprocess").get("create optimization movie",false)) {
-        mesh->stk_mesh = Teuchos::null;
-        disc->mesh = Teuchos::null;
-        assembler->mesh = Teuchos::null;
-        params->mesh = Teuchos::null;
-      }
       if (debug_level > 0 && Comm->getRank() == 0) {
         std::cout << "******** Finished driver memory purge ..." << std::endl;
-      } */
+      } 
            
     }
 

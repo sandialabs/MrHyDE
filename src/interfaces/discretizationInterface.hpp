@@ -231,7 +231,7 @@ namespace MrHyDE {
     //vector<Teuchos::RCP<panzer::DOFManager> > DOF;
     std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> DOF_LIDs;
     std::vector<std::vector<GO> > DOF_owned, DOF_ownedAndShared;
-    std::vector<std::vector<std::vector<std::vector<GO>>>> DOF_GIDs; // [set][block][elem][gid] may consider a different storage strategy
+    std::vector<std::vector<std::vector<GO>>> DOF_GIDs; // [set][elem][gid] may consider a different storage strategy
     
     std::vector<Intrepid2::Orientation> panzer_orientations;
 

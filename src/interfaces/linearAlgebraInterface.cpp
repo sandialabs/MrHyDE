@@ -195,7 +195,8 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
         vector<size_t> EIDs = disc->myElements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
           size_t elemID = EIDs[e];
-          vector<GO> gids = disc->getGIDs(set,b,elemID); //DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
+          vector<GO> gids = disc->getGIDs(set,b,elemID); //
+          //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             LO ind1 = overlapped_map[set]->getLocalElement(gids[i]);
             maxEntriesPerRow[ind1] += gids.size();

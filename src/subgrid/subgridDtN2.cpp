@@ -395,7 +395,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
   Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs;
   
   if (mindex == 0) {
-    LIDs = sub_disc->DOF_LIDs[0];//DOF[0]->getLIDs(); // hard coded
+    LIDs = sub_disc->DOF_LIDs[0];//->getLIDs(); // hard coded
   }
   
   for (size_t s=0; s<elem_groups.size(); s++) {

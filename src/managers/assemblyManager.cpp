@@ -164,7 +164,8 @@ void AssemblyManager<Node>::createFixedDOFs() {
   for (size_t set=0; set<dbc_dofs.size(); ++set) {
     vector<vector<Kokkos::View<LO*,LA_device> > > set_fixedDOF;
     
-    int numLocalDof = disc->DOF_ownedAndShared[set].size();//DOF[set]->getNumOwnedAndGhosted();
+    int numLocalDof = disc->DOF_ownedAndShared[set].size();//
+    //int numLocalDof = disc->DOF[set]->getNumOwnedAndGhosted();
     Kokkos::View<bool*,LA_device> set_isFixedDOF("logicals for fixed DOFs",numLocalDof);
     auto fixed_host = Kokkos::create_mirror_view(set_isFixedDOF);
     for (size_t block=0; block<dbc_dofs[set].size(); block++) {
@@ -263,9 +264,8 @@ void AssemblyManager<Node>::createGroups() {
     if (numTotalElem>0) {
       
       //vector<size_t> localIds;
-      
       //Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
-      //panzer_stk::workset_utils::getIdsAndVertices(*mesh, blocknames[block], localIds, blocknodes); // fill on host
+      //panzer_stk::workset_utils::getIdsAndVertices(*(mesh->stk_mesh), blocknames[block], localIds, blocknodes); // fill on host
       
       vector<size_t> myElem = disc->myElements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
@@ -460,7 +460,7 @@ void AssemblyManager<Node>::createGroups() {
       size_t prog = 0;
       vector<vector<size_t> > elem_groups;
       
-      if (assembly_partitioning == "sequential") {
+      if (assembly_partitioning == "sequential") { // default
         while (prog < numTotalElem) {
           
           vector<size_t> newgroup;
@@ -619,8 +619,13 @@ void AssemblyManager<Node>::createGroups() {
           });
           set_LIDs.push_back(groupLIDs);
         }
-          
-        mesh->stk_mesh->getElementVertices(elem_groups[grp], blocknames[block],currnodes);
+        
+        vector<size_t> local_grp(elem_groups[grp].size());
+        for (size_t e=0; e<local_grp.size(); ++e) {
+          local_grp[e] = host_eIDs(elem_groups[grp][e]);
+        }
+
+        mesh->stk_mesh->getElementVertices(local_grp, blocknames[block], currnodes);
         
         // Set the side information (soon to be removed)-
         vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
@@ -1904,13 +1909,14 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
     for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
       int numElem = boundary_groups[block][grp]->numElem;
       auto LIDs = boundary_groups[block][grp]->LIDs_host[set];
+
       auto localrhs = boundary_groups[block][grp]->getDirichlet(set);
       auto localmass = boundary_groups[block][grp]->getMass(set);
       auto host_rhs = Kokkos::create_mirror_view(localrhs);
       auto host_mass = Kokkos::create_mirror_view(localmass);
       Kokkos::deep_copy(host_rhs,localrhs);
       Kokkos::deep_copy(host_mass,localmass);
-      
+  
       size_t numVals = LIDs.extent(1);
       // assemble into global matrix
       for (int c=0; c<numElem; c++) {
