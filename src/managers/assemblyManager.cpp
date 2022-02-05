@@ -694,7 +694,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       size_type numip = groupData[block]->ref_ip.extent(0);
       size_type numsideip = groupData[block]->ref_side_ip[0].extent(0);
 
-      double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0-13);
+      double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0-10);
             
       /////////////////////////////////////////////////////////////////////////////
       // Step 1: determine the unique elements
@@ -709,6 +709,35 @@ void AssemblyManager<Node>::allocateGroupStorage() {
 
         Kokkos::View<ScalarT****,HostDevice> db_jacobians("jacobians for data base",1,numip,dimension,dimension);
         Kokkos::View<ScalarT*,HostDevice> db_measures("measures for data base",1);
+        
+        // There are only so many unique orientation
+        // Creating a short list of the unique ones and the index for each element 
+        vector<string> unique_orients;
+        vector<vector<size_t> > all_orients;
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          vector<size_t> grp_orient(groups[block][grp]->numElem);
+          for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+            string orient = groups[block][grp]->orientation(e).to_string();
+            bool found = false;
+            size_t oprog = 0;
+            while (!found && oprog<unique_orients.size()) {
+              if (orient == unique_orients[oprog]) {
+                found = true;
+              }
+              else {
+                ++oprog;
+              }
+            }
+            if (found) {
+              grp_orient[e] = oprog;
+            }
+            else {
+              unique_orients.push_back(orient);
+              grp_orient[e] = unique_orients.size()-1;
+            }
+          }
+          all_orients.push_back(grp_orient);
+        }
         
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           groups[block][grp]->storeAll = false;
@@ -726,7 +755,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           disc->getMeasure(groupData[block], jacobian, measure);
           auto measure_host = create_mirror_view(measure);
           deep_copy(measure_host,measure);
-          
+  
           for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
             bool found = false;
             size_t prog = 0;
@@ -734,15 +763,15 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               size_t refgrp = first_users[prog].first;
               size_t refelem = first_users[prog].second;
 
-              // Check #1: element measures
-              ScalarT diff = abs(measure_host(e)-db_measures(prog));
-              ScalarT refmeas = std::pow(db_measures(prog),1.0/dimension);
-              if (abs(diff/refmeas)<database_TOL) { 
-              
-                // Check #2: element orientations
-                string orient = groups[block][grp]->orientation(e).to_string();
-                string reforient = groups[block][refgrp]->orientation(refelem).to_string();
-                if (orient == reforient) {
+              // Check #1: element orientations
+              size_t orient = all_orients[grp][e];
+              size_t reforient = all_orients[refgrp][refelem];
+              if (orient == reforient) {
+                
+                // Check #2: element measures
+                ScalarT diff = abs(measure_host(e)-db_measures(prog));
+                ScalarT refmeas = std::pow(db_measures(prog),1.0/dimension);
+                if (abs(diff/refmeas)<database_TOL) { 
                 
                   // Check #3: element Jacobians
                   ScalarT diff2 = 0.0; 
@@ -806,6 +835,35 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         Kokkos::View<ScalarT****,HostDevice> db_jacobians("jacobians for data base",1,numip,dimension,dimension);
         Kokkos::View<ScalarT*,HostDevice> db_measures("measures for data base",1);
       
+        // There are only so many unique orientation
+        // Creating a short list of the unique ones and the index for each element 
+        vector<string> unique_orients;
+        vector<vector<size_t> > all_orients;
+        for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+          vector<size_t> grp_orient(boundary_groups[block][grp]->numElem);
+          for (size_t e=0; e<boundary_groups[block][grp]->numElem; ++e) {
+            string orient = boundary_groups[block][grp]->orientation(e).to_string();
+            bool found = false;
+            size_t oprog = 0;
+            while (!found && oprog<unique_orients.size()) {
+              if (orient == unique_orients[oprog]) {
+                found = true;
+              }
+              else {
+                ++oprog;
+              }
+            }
+            if (found) {
+              grp_orient[e] = oprog;
+            }
+            else {
+              unique_orients.push_back(orient);
+              grp_orient[e] = unique_orients.size()-1;
+            }
+          }
+          all_orients.push_back(grp_orient);
+        }
+        
         for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
           boundary_groups[block][grp]->storeAll = false;
           boundaryelem += boundary_groups[block][grp]->numElem;
@@ -836,30 +894,30 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               if (localSideID == boundary_groups[block][refgrp]->localSideID &&
                   sidenum == boundary_groups[block][refgrp]->sidenum) {
 
-                // Check #1: element measures
-                ScalarT diff = abs(measure_host(e)-db_measures(prog));
-                ScalarT refmeas = std::pow(db_measures(prog),1.0/dimension);
-            
-                if (abs(diff/refmeas)<database_TOL) { 
+                // Check #1: element orientations
 
-                 // Check #2: element Jacobians
+                size_t orient = all_orients[grp][e];
+                size_t reforient = all_orients[refgrp][refelem];
+                if (orient == reforient) { // if all 3 checks have passed
+                    
+                  // Check #2: element measures
+                  ScalarT diff = abs(measure_host(e)-db_measures(prog));
+                  ScalarT refmeas = std::pow(db_measures(prog),1.0/dimension);
+            
+                  if (abs(diff/refmeas)<database_TOL) { 
+
+                    // Check #3: element Jacobians
   
-                  ScalarT diff2 = 0.0;              
-                  for (size_type pt=0; pt<jacobian_host.extent(1); ++pt) {
-                    for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
-                      for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
-                        diff2 += abs(jacobian_host(e,pt,d0,d1) - db_jacobians(prog,pt,d0,d1));
+                    ScalarT diff2 = 0.0;              
+                    for (size_type pt=0; pt<jacobian_host.extent(1); ++pt) {
+                      for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
+                        for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
+                          diff2 += abs(jacobian_host(e,pt,d0,d1) - db_jacobians(prog,pt,d0,d1));
+                        }
                       }
                     }
-                  }
 
-                  if (abs(diff2/refmeas)<database_TOL) { 
-               
-                  // Check #3: element orientations
-
-                    string orient = boundary_groups[block][grp]->orientation(e).to_string();
-                    string reforient = boundary_groups[block][refgrp]->orientation(refelem).to_string();
-                    if (orient == reforient) { // if all 3 checks have passed
+                    if (abs(diff2/refmeas)<database_TOL) { 
                       found = true;
                       index(e) = prog;                
                     }
