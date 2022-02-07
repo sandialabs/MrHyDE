@@ -105,11 +105,11 @@ int main(int argc, char * argv[]) {
   dx = 2.*PI/(num_snaps);
 
   // can we transform a sine wave?
-  for (unsigned int i=0; i<num_snaps; i++) {
-    x = i*dx;
-    for (unsigned int j=0; j<num_fields; j++) {
-      myEData[i*num_fields+j][0] = std::sin(x); myEData[i*num_fields+j][1] = 0.;
-      myBData[i*num_fields+j][0] = std::cos(x); myBData[i*num_fields+j][1] = 0.;
+  for (unsigned int i=0; i<num_fields; i++) {
+    for (unsigned int j=0; j<num_snaps; j++) {
+      x = j*dx;
+      myEData[i*num_snaps+j][0] = std::sin(x); myEData[i*num_snaps+j][1] = 1.;
+      myBData[i*num_snaps+j][0] = std::cos(x); myBData[i*num_snaps+j][1] = 1.;
     }
   }
 
@@ -117,9 +117,9 @@ int main(int argc, char * argv[]) {
   int n[] = {num_snaps}; // of size num_snaps...
   int howmany = num_fields; // of which there are num_fields...
   // TODO I am just starting from the basic FFTW example, this can be modified
-  // the beginning of each data line is contiguous in memory
-  int idist = 1, odist = 1;
-  int istride = num_fields, ostride = num_fields; // distance between elements in a data line
+  // the beginning of each data line is spaced by num_fields in memory
+  int idist = num_fields, odist = num_fields;
+  int istride = 1, ostride = 1; // distance between elements in a data line
   int *inembed = n, *onembed = n; // TODO don't fully understand this
 
   fftw_plan Ep,Bp;
@@ -131,16 +131,16 @@ int main(int argc, char * argv[]) {
                                          myBData,onembed,ostride,odist,
                                          FFTW_FORWARD, FFTW_ESTIMATE); // forward transform
 
-  fftw_execute_dft(Ep, myEData, myEData);
-  fftw_execute_dft(Bp, myBData, myBData);
+  //fftw_execute_dft(Ep, myEData, myEData);
+  //fftw_execute_dft(Bp, myBData, myBData);
 
-//  if (myRank == 0) {
-//    for (unsigned int i=0; i<num_snaps; ++i) {
-//      for (unsigned int j=0; j<num_fields; ++j) {
-//        std::cout << " i,j :: " << i << ", " << j << " " << myData[i*ostride + j][0] << " + j*" << myData[i*ostride + j][1] << std::endl;
-//      }
-//    }
-//  }
+  if (myRank == 0) {
+    for (unsigned int i=0; i<num_fields; ++i) {
+      for (unsigned int j=0; j<num_snaps; ++j) {
+        std::cout << " i,j :: " << i << ", " << j << " " << myEData[i*ostride + j][0] << " + j*" << myEData[i*ostride + j][1] << std::endl;
+      }
+    }
+  }
 
   err = H5Dwrite(Efield_id,complex_id,ms_id,ds_id,H5P_DEFAULT,myEData);
   err = H5Dwrite(Bfield_id,complex_id,ms_id,ds_id,H5P_DEFAULT,myBData);
