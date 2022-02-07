@@ -33,7 +33,7 @@ shallowwater::shallowwater(Teuchos::ParameterList & settings, const int & dimens
   mybasistypes.push_back("HGRAD");
   
   
-  //gravity = settings->sublist("Physics").get<ScalarT>("gravity",9.8);
+  gravity = settings.get<ScalarT>("gravity",9.8);
   
   formparam = settings.get<ScalarT>("form_param",1.0);
   
@@ -53,6 +53,7 @@ void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("bottom friction",fs.get<string>("bottom friction","1.0"),"ip");
   functionManager->addFunction("viscosity",fs.get<string>("viscosity","0.0"),"ip");
   functionManager->addFunction("Coriolis",fs.get<string>("Coriolis","0.0"),"ip");
+  functionManager->addFunction("source H",fs.get<string>("source H","0.0"),"ip");
   functionManager->addFunction("source Hu",fs.get<string>("source Hu","0.0"),"ip");
   functionManager->addFunction("source Hv",fs.get<string>("source Hv","0.0"),"ip");
   functionManager->addFunction("flux left",fs.get<string>("flux left","0.0"),"side ip");
@@ -70,7 +71,7 @@ void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
 
 void shallowwater::volumeResidual() {
   
-  Vista bath, bath_x, bath_y, visc, cor, bfric, source_Hu, source_Hv;
+  Vista bath, bath_x, bath_y, visc, cor, bfric, source_H, source_Hu, source_Hv;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -79,6 +80,7 @@ void shallowwater::volumeResidual() {
     bath_y = functionManager->evaluate("bathymetry_y","ip");
     visc = functionManager->evaluate("viscosity","ip");
     cor = functionManager->evaluate("Coriolis","ip");
+    source_H = functionManager->evaluate("source H","ip");
     source_Hu = functionManager->evaluate("source Hu","ip");
     source_Hv = functionManager->evaluate("source Hv","ip");
   }
@@ -118,10 +120,10 @@ void shallowwater::volumeResidual() {
   parallel_for("SW volume resid",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
-    ScalarT gravity = 9.8;
+    //ScalarT gravity = 1.0;//9.8;
     for (size_type pt=0; pt<Hbasis.extent(2); pt++ ) {
       
-      AD f = xi_dot(elem,pt)*wts(elem,pt);
+      AD f = (xi_dot(elem,pt) - source_H(elem,pt))*wts(elem,pt);
       AD Fx = -Hu(elem,pt)*wts(elem,pt);
       AD Fy = -Hv(elem,pt)*wts(elem,pt);
       for (size_type dof=0; dof<Hbasis.extent(1); dof++ ) {
@@ -133,14 +135,14 @@ void shallowwater::volumeResidual() {
       AD uHv = Hu(elem,pt)*Hv(elem,pt)/H;
       AD vHv = Hv(elem,pt)*Hv(elem,pt)/H;
       
-      f = (Hu_dot(elem,pt) - gravity*xi(elem,pt)*bath_x(elem,pt))*wts(elem,pt);
+      f = (Hu_dot(elem,pt) - gravity*xi(elem,pt)*bath_x(elem,pt) - source_Hu(elem,pt))*wts(elem,pt);
       Fx = -(uHu + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
       Fy = -uHv*wts(elem,pt);
       for (size_type dof=0; dof<Hubasis.extent(1); dof++ ) {
         res(elem,Huoff(dof)) += f*Hubasis(elem,dof,pt,0) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
       }
       
-      f = (Hv_dot(elem,pt) - gravity*xi(elem,pt)*bath_y(elem,pt))*wts(elem,pt);
+      f = (Hv_dot(elem,pt) - gravity*xi(elem,pt)*bath_y(elem,pt) - source_Hv(elem,pt))*wts(elem,pt);
       Fx = -uHv*wts(elem,pt);
       Fy = -(vHv + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
       

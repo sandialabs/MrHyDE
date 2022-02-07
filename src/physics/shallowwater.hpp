@@ -66,8 +66,7 @@ namespace MrHyDE {
   private:
     
     int H_num, Hu_num, Hv_num;
-    ScalarT alpha;
-    //ScalarT gravity;
+    ScalarT alpha, gravity;
     
     ScalarT formparam;
     
