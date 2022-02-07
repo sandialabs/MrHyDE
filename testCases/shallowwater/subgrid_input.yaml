@@ -16,7 +16,7 @@ ANONYMOUS:
       max EV stabilization: true
       g: 1. ## gravity is 1
       Initial conditions:
-        H: '2.' 
+        H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
         Hux: 'cos(-x)'
         Huy: 'sin(y)'
       Far-field conditions:
