@@ -328,6 +328,79 @@ int main(int argc, char * argv[]) {
       ref_funcs.push_back(test);
     }
 
+    {
+      string name = "SW MS 1";
+      string test = "-3.0*exp(sin(3.0*a)*sin(3.0*b) - sin(3.0*c))*cos(3.0*c) - sin(a - 4.0*c) + cos(b + 4.0*c)" ;
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = -3.0*exp(sin(3.0*a(elem,pt))*sin(3.0*b(elem,pt)) - sin(3.0*c(elem,pt)))*cos(3.0*c(elem,pt)) 
+                          - sin(a(elem,pt) - 4.0*c(elem,pt)) + cos(b(elem,pt) + 4.0*c(elem,pt));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+
+    }
+
+    {
+      // FIRST LINE OK
+      // SECOND LINE OK
+      // For some reason, the 2sin(3C) in the 6exp term seems to be the one that is breaking this...
+      // What is going on?
+      string name = "SW MS 2";
+      string test = "(-0.75*(sin(3.0*a)*sin(b + 4.0*c)*cos(3.0*b) + sin(3.0*b)*cos(3.0*a)*cos(a - 4.0*c))*(exp(sin(3.0*a)*sin(3.0*b) - sin(3.0*c)) + 2.0)"
+      "*exp(sin(3.0*a)*sin(3.0*b) - sin(3.0*c))*cos(a - 4.0*c) + (0.5*exp(sin(3.0*a)*sin(3.0*b)) + 1.0*exp(sin(3.0*c)))^3"
+      "*(12.0*exp(sin(3.0*a)*sin(3.0*b) - sin(3.0*c))*sin(3.0*b)*cos(3.0*a) + 6.0*exp(2*sin(3.0*a)*sin(3.0*b) - 2.*sin(3.0*c))*sin(3.0*b)*cos(3.0*a) + 8.0*sin(a - 4.0*c))*exp(-3*sin(3.0*c))"
+      " + (0.5*exp(sin(3.0*a)*sin(3.0*b) - sin(3.0*c)) + 1)^2*(-2*sin(a - 4.0*c) + cos(b + 4.0*c))*cos(a - 4.0*c))/((0.5*exp(sin(3.0*a)*sin(3.0*b) - sin(3.0*c)) + 1)^2*(exp(sin(3.0*a)*sin(3.0*b) - sin(3.0*c)) + 2.0))";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        AD A,B,C;
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          A = a(elem,pt); B = b(elem,pt); C = c(elem,pt);
+          ref(elem,pt) = (-0.75*(sin(3.0*A)*sin(B + 4.0*C)*cos(3.0*B) + sin(3.0*B)*cos(3.0*A)*cos(A - 4.0*C))*(exp(sin(3.0*A)*sin(3.0*B) - sin(3.0*C)) + 2.0)
+            *exp(sin(3.0*A)*sin(3.0*B) - sin(3.0*C))*cos(A - 4.0*C) + pow(0.5*exp(sin(3.0*A)*sin(3.0*B)) + 1.0*exp(sin(3.0*C)),3)
+            *(12.0*exp(sin(3.0*A)*sin(3.0*B) - sin(3.0*C))*sin(3.0*B)*cos(3.0*A) + 6.0*exp(2*sin(3.0*A)*sin(3.0*B) - 2.*sin(3.0*C))*sin(3.0*B)*cos(3.0*A) + 8.0*sin(A - 4.0*C))*exp(-3*sin(3.0*C))
+            + pow(0.5*exp(sin(3.0*A)*sin(3.0*B) - sin(3.0*C)) + 1,2)*(-2*sin(A - 4.0*C) + cos(B + 4.0*C))*cos(A - 4.0*C))/(pow(0.5*exp(sin(3.0*A)*sin(3.0*B) - sin(3.0*C)) + 1,2)*(exp(sin(3.0*A)*sin(3.0*B) - sin(3.0*C)) + 2.0));
+
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+
+    }
+
+    {
+      string name = "SW MS 3";
+      string test = "6.0*exp(2*sin(3.0*a)*sin(3.0*b) - 2*sin(3.0*c))*sin(3.0*b)*cos(3.0*a)" ;
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        AD A,B,C;
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          A = a(elem,pt); B = b(elem,pt); C = c(elem,pt);
+          ref(elem,pt) = 6.0*exp(2*sin(3.0*A)*sin(3.0*B) - 2*sin(3.0*C))*sin(3.0*B)*cos(3.0*A);
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+
+    }
+
     //----------------------------------------------------------------------
     // Make sure everything is defined properly and setup decompositions
     //----------------------------------------------------------------------
