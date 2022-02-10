@@ -79,13 +79,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
     string currop = "";
     currbranch += s[0];
     bool found = false;
-    for (size_t k=0; k<branches.size(); k++) {
+    /*for (size_t k=0; k<branches.size(); k++) {
       if (branches[k].expression == currbranch) {
         found = true;
         branches[index].dep_list.push_back(k);
         branches[index].dep_ops.push_back(currop);
       }
-    }
+    }*/
     if (!found) {
       Branch nbranch = Branch(currbranch);
       branches.push_back(nbranch);
@@ -147,13 +147,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         }
         else if (paren == 0 && s[i] == '+' && currbranch.length() > 0){
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -165,13 +165,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         }
         else if (paren == 0 && s[i] == '-' && currbranch.length() > 0) {
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -194,13 +194,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
           }
           else if (num_pm>0) {
             bool found = false;
-            for (size_t k=0; k<branches.size(); k++) {
+            /*for (size_t k=0; k<branches.size(); k++) {
               if (branches[k].expression == currbranch) {
                 found = true;
                 branches[index].dep_list.push_back(k);
                 branches[index].dep_ops.push_back(currop);
               }
-            }
+            }*/
             if (!found) {
               Branch nbranch = Branch(currbranch);
               branches.push_back(nbranch);
@@ -230,13 +230,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         }
         else if (paren == 0 && s[i] == '*'){
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -248,13 +248,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         }
         else if (paren == 0 && s[i] == '/') {
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -266,13 +266,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         }
         else if ( paren == 0 && s[i] == '<') {
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -290,13 +290,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         }
         else if ( paren == 0 && s[i] == '>') {
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -319,13 +319,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         
         if (i == s.length()-1 && num_mdp > 0) {
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -351,13 +351,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         }
         else if ( paren == 0 && s[i] == '^') {
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
@@ -373,13 +373,13 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         
         if (i == s.length()-1 && num_pow > 0) {
           bool found = false;
-          for (size_t k=0; k<branches.size(); k++) {
+          /*for (size_t k=0; k<branches.size(); k++) {
             if (branches[k].expression == currbranch) {
               found = true;
               branches[index].dep_list.push_back(k);
               branches[index].dep_ops.push_back(currop);
             }
-          }
+          }*/
           if (!found) {
             Branch nbranch = Branch(currbranch);
             branches.push_back(nbranch);
