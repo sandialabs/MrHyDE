@@ -704,6 +704,300 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       // Step 1a: volumetric elements
       /////////////////////////////////////////////////////////////////////////////
       
+      /*
+      // For each element, search db for match
+      // The match must have the same basis values and the appropriate derivative values
+      size_t numbasis = groupData[block]->basis_pointers.size();
+      vector<View_Sc4> db_basis(numbasis), db_basis_grad(numbasis), db_basis_curl(numbasis);
+      vector<View_Sc3> db_basis_div(numbasis);
+      
+      {
+
+        Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
+
+        Kokkos::View<ScalarT*,HostDevice> db_measures("measures for data base",0);
+        
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+
+          groups[block][grp]->storeAll = false;
+          totalelem += groups[block][grp]->numElem;
+          Kokkos::View<LO*,AssemblyDevice> index("basis database index",groups[block][grp]->numElem);
+
+          // Get the Jacobian for this group
+          DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
+          disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+          
+          // Get the measures for this group
+          DRV measure("measure", groups[block][grp]->numElem);
+          disc->getMeasure(groupData[block], jacobian, measure);
+          auto measure_host = create_mirror_view(measure);
+          deep_copy(measure_host,measure);
+  
+          vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+          vector<View_Sc3> tbasis_div;
+
+          // Create an index for the basis type so we don't need to keep checking
+          // 0 = HGRAD, 1 = HDIV, 2 = HCURL, 3 = HVOL, 4 = HFACE
+          //vector<size_t> basis_type(tbasis.size());
+          
+          disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes, 
+                                           groups[block][grp]->orientation,
+                                           tbasis, tbasis_grad, tbasis_curl,
+                                           tbasis_div, tbasis_nodes, true);
+
+          for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+
+            bool found = false;
+            size_t db_itr = 0;
+            while (!found && db_itr<first_users.size()) {
+              ScalarT refmeas = measure_host(e);//std::pow(measure_host(e),1.0/dimension);
+              if (abs(db_measures(db_itr) - measure_host(e))/refmeas < database_TOL) {
+                bool ruled_out = false;
+
+                for (size_t i=0; i<groupData[block]->basis_pointers.size(); i++) {
+
+                  // First, check the basis values
+                  View_Sc4 cbasis = tbasis[i];
+                  View_Sc4 dbasis = db_basis[i];
+                  
+                  ScalarT scale = 0.0;
+                  for (size_type dof=0; dof<cbasis.extent(1); ++dof) {
+                    for (size_type pt=0; pt<cbasis.extent(2); ++pt) {
+                      for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
+                        scale += abs(cbasis(e,dof,pt,dim));
+                      }
+                    }
+                  }
+                  size_type dof=0;
+                  while (!ruled_out && dof<cbasis.extent(1)) {
+                    size_type ip = 0;
+                    while (!ruled_out && ip<cbasis.extent(2)) {
+                      size_type dim=0;
+                      while (!ruled_out && dim<cbasis.extent(3)) {
+                        if (abs(cbasis(e,dof,ip,dim)-dbasis(db_itr,dof,ip,dim))/scale < database_TOL) {
+                          ++dim;
+                        }
+                        else {
+                          ruled_out = true;
+                        }
+                      }
+                      ++ip;
+                    }
+                    ++dof;
+                  }
+
+                  if (!ruled_out) {
+
+                    // Now check derivatives, but just one per basis type
+                    if (tbasis_grad[i].extent(0) == groups[block][grp]->numElem) { // HGRAD basis
+                      View_Sc4 cbasis_deriv = tbasis_grad[i];
+                      View_Sc4 dbasis_deriv = db_basis_grad[i];
+                      size_type dof=0;
+                      ScalarT scale = 0.0;
+                      for (size_type dof=0; dof<cbasis_deriv.extent(1); ++dof) {
+                        for (size_type pt=0; pt<cbasis_deriv.extent(2); ++pt) {
+                          for (size_type dim=0; dim<cbasis_deriv.extent(3); ++dim) {
+                            scale += abs(cbasis_deriv(e,dof,pt,dim));
+                          }
+                        }
+                      }
+                      while (!ruled_out && dof<cbasis_deriv.extent(1)) {
+                        size_type ip = 0;
+                        while (!ruled_out && ip<cbasis_deriv.extent(2)) {
+                          size_type dim=0;
+                          while (!ruled_out && dim<cbasis_deriv.extent(3)) {
+                            if (abs(cbasis_deriv(e,dof,ip,dim)-dbasis_deriv(db_itr,dof,ip,dim))/scale < database_TOL) {
+                              ++dim;
+                            }
+                            else {
+                              ruled_out = true;
+                            }
+                          }
+                          if (!ruled_out) {
+                            ++ip;
+                          }
+                        }
+                        if (!ruled_out) {
+                          ++dof;
+                        }
+                      }
+                    }
+                    else if (tbasis_curl[i].extent(0) == groups[block][grp]->numElem) { // HCURL basis
+                      View_Sc4 cbasis_deriv = tbasis_curl[i];
+                      View_Sc4 dbasis_deriv = db_basis_curl[i];
+                      size_type dof=0;
+                      ScalarT scale = 0.0;
+                      for (size_type dof=0; dof<cbasis_deriv.extent(1); ++dof) {
+                        for (size_type pt=0; pt<cbasis_deriv.extent(2); ++pt) {
+                          for (size_type dim=0; dim<cbasis_deriv.extent(3); ++dim) {
+                            scale += abs(cbasis_deriv(e,dof,pt,dim));
+                          }
+                        }
+                      }
+                      while (!ruled_out && dof<cbasis_deriv.extent(1)) {
+                        size_type ip = 0;
+                        while (!ruled_out && ip<cbasis_deriv.extent(2)) {
+                          size_type dim=0;
+                          while (!ruled_out && dim<cbasis_deriv.extent(3)) {
+                            if (abs(cbasis_deriv(e,dof,ip,dim)-dbasis_deriv(db_itr,dof,ip,dim))/scale < database_TOL) {
+                              ++dim;
+                            }
+                            else {
+                              ruled_out = true;
+                            }
+                          }
+                          if (!ruled_out) {
+                            ++ip;
+                          }
+                        }
+                        if (!ruled_out) {
+                          ++dof;
+                        }
+                      }
+                    }
+                    else if (tbasis_div[i].extent(0) == groups[block][grp]->numElem) { // HDIV basis
+                      View_Sc3 cbasis_deriv = tbasis_div[i];
+                      View_Sc3 dbasis_deriv = db_basis_div[i];
+                      size_type dof=0;
+                      ScalarT scale = 0.0;
+                      for (size_type dof=0; dof<cbasis_deriv.extent(1); ++dof) {
+                        for (size_type pt=0; pt<cbasis_deriv.extent(2); ++pt) {
+                          scale += abs(cbasis_deriv(e,dof,pt));
+                        }
+                      }
+                      while (!ruled_out && dof<cbasis_deriv.extent(1)) {
+                        size_type ip = 0;
+                        while (!ruled_out && ip<cbasis_deriv.extent(2)) {
+                          if (abs(cbasis_deriv(e,dof,ip)-dbasis_deriv(db_itr,dof,ip))/scale < database_TOL) {
+                            ++ip;
+                          }
+                          else {
+                            ruled_out = true;
+                          }
+                        }
+                        if (!ruled_out) {
+                          ++dof;
+                        }
+                      }
+                    }
+                  }
+                }
+                if (ruled_out) {
+                  ++db_itr;
+                }
+                else {
+                  found = true;
+                  index(e) = db_itr;
+                }
+              }
+              else {
+                ++db_itr;
+              }
+            }
+            if (!found) {
+              index(e) = first_users.size();
+              std::pair<size_t,size_t> newuj{grp,e};
+              first_users.push_back(newuj);
+
+              // Resize measures and basis/ and add new one
+              size_t pad = 100;
+              bool resize = false;
+              if (first_users.size() >= db_measures.extent(0)) {
+                resize = true;
+                Kokkos::resize(db_measures, pad+db_measures.extent(0));
+                //cout << "db size = " << db_measures.extent(0) << endl;
+              }
+                for (size_t n=0; n<db_basis.size(); ++n) {
+                  if (resize) {
+                    Kokkos::resize(db_basis[n], pad+db_basis[n].extent(0), 
+                                   tbasis[n].extent(1), tbasis[n].extent(2), tbasis[n].extent(3) );  
+                  }
+                  auto db_slice = subview(db_basis[n], first_users.size()-1, ALL(), ALL(), ALL());
+                  auto jac_slice = subview(tbasis[n], e, ALL(), ALL(), ALL());
+                  deep_copy(db_slice,jac_slice);
+                }
+                
+                // HGRAD
+                for (size_t n=0; n<db_basis_grad.size(); ++n) {
+                  if (tbasis_grad[n].extent(0) == groups[block][grp]->numElem) {
+                    if (resize) {
+                      Kokkos::resize(db_basis_grad[n], pad+db_basis_grad[n].extent(0), 
+                                     tbasis_grad[n].extent(1), tbasis_grad[n].extent(2), tbasis_grad[n].extent(3) );  
+                    }
+                    auto db_slice = subview(db_basis_grad[n], first_users.size()-1, ALL(), ALL(), ALL());
+                    auto jac_slice = subview(tbasis_grad[n], e, ALL(), ALL(), ALL());
+                    deep_copy(db_slice,jac_slice);
+                  }
+                }
+                
+                // HCURL
+                for (size_t n=0; n<db_basis_curl.size(); ++n) {
+                  if (tbasis_curl[n].extent(0) == groups[block][grp]->numElem) {
+                    if (resize) {
+                      Kokkos::resize(db_basis_curl[n], pad+db_basis_curl[n].extent(0), 
+                                     tbasis_curl[n].extent(1), tbasis_curl[n].extent(2), tbasis_curl[n].extent(3) );  
+                    }
+                    auto db_slice = subview(db_basis_curl[n], first_users.size()-1, ALL(), ALL(), ALL());
+                    auto jac_slice = subview(tbasis_curl[n], e, ALL(), ALL(), ALL());
+                    deep_copy(db_slice,jac_slice);
+                  }
+                }
+                
+                // HDIV
+                for (size_t n=0; n<db_basis_div.size(); ++n) {
+                  if (tbasis_div[n].extent(0) == groups[block][grp]->numElem) {
+                    if (resize) {
+                      Kokkos::resize(db_basis_div[n], pad+db_basis_div[n].extent(0), 
+                                     tbasis_div[n].extent(1), tbasis_div[n].extent(2) );  
+                    }
+                    auto db_slice = subview(db_basis_div[n], first_users.size()-1, ALL(), ALL());
+                    auto jac_slice = subview(tbasis_div[n], e, ALL(), ALL());
+                    deep_copy(db_slice,jac_slice);
+                  }
+                }
+                
+                
+              //}
+              db_measures(first_users.size()-1) = measure_host(e);
+            }
+            
+          }
+        
+          groups[block][grp]->basis_database_index = index;
+        } 
+      
+        if (first_users.size() < db_measures.extent(0)) {
+          Kokkos::resize(db_measures, first_users.size());
+          for (size_t n=0; n<db_basis.size(); ++n) {
+            Kokkos::resize(db_basis[n], first_users.size(),
+                           db_basis[n].extent(1), db_basis[n].extent(2), db_basis[n].extent(3) );  
+          }    
+          // HGRAD
+          for (size_t n=0; n<db_basis_grad.size(); ++n) {
+            Kokkos::resize(db_basis_grad[n], first_users.size(),
+                           db_basis_grad[n].extent(1), db_basis_grad[n].extent(2), db_basis_grad[n].extent(3) );  
+          }      
+          // HCURL
+          for (size_t n=0; n<db_basis_curl.size(); ++n) {
+            Kokkos::resize(db_basis_curl[n], first_users.size(),
+                           db_basis_curl[n].extent(1), db_basis_curl[n].extent(2), db_basis_curl[n].extent(3) );  
+          }
+                
+                // HDIV
+          for (size_t n=0; n<db_basis_div.size(); ++n) {
+            Kokkos::resize(db_basis_div[n], first_users.size(),
+                           db_basis_div[n].extent(1), db_basis_div[n].extent(2) );  
+          }
+        }           
+
+        groupData[block]->database_basis = db_basis;
+        groupData[block]->database_basis_grad = db_basis_grad;
+        groupData[block]->database_basis_div = db_basis_div;
+        groupData[block]->database_basis_curl = db_basis_curl;
+
+      }
+*/
+
       {
         Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
 
@@ -712,6 +1006,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         
         // There are only so many unique orientation
         // Creating a short list of the unique ones and the index for each element 
+
         vector<string> unique_orients;
         vector<vector<size_t> > all_orients;
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
@@ -738,6 +1033,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           }
           all_orients.push_back(grp_orient);
         }
+        
         
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           groups[block][grp]->storeAll = false;
@@ -807,14 +1103,14 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               // Resize Jacobians and add new one
               if (first_users.size() > db_jacobians.extent(0)) {
                 Kokkos::resize(db_jacobians, 2*db_jacobians.extent(0), numip, dimension, dimension);
-                //cout << "New db_jacobian size = " << db_jacobians.extent(0) << endl;
+                cout << "New db_jacobian size = " << db_jacobians.extent(0) << endl;
               }
               auto db_slice = subview(db_jacobians, first_users.size()-1, ALL(), ALL(), ALL());
               auto jac_slice = subview(jacobian, e, ALL(), ALL(), ALL());
               deep_copy(db_slice,jac_slice);
 
               // Resize measures and add new one
-              if (first_users.size() >= db_measures.extent(0)) {
+              if (first_users.size() > db_measures.extent(0)) {
                 Kokkos::resize(db_measures, 2*db_measures.extent(0));
                 //cout << "New db_measures size = " << db_measures.extent(0) << endl;
               }
@@ -982,7 +1278,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       /////////////////////////////////////////////////////////////////////////////
       // Step 3: build the database basis
       /////////////////////////////////////////////////////////////////////////////
-      
+
       {
         Teuchos::TimeMonitor localtimer(*groupdatabaseBasistimer);
       
@@ -991,6 +1287,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         /////////////////////////////////////////////////////////////////////////////
 
         {
+
+          
           size_t database_numElem = first_users.size();
           DRV database_nodes("nodes for the database",database_numElem, groups[block][0]->nodes.extent(1), dimension);
           Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_orientation("database orientations",database_numElem);
@@ -1035,6 +1333,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           deep_copy(database_orientation, database_orientation_host);
           deep_copy(database_wts, database_wts_host);
 
+          
           vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
           vector<View_Sc3> tbasis_div;
       
@@ -1065,6 +1364,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         
           // Create a database of mass matrices
           if (groupData[block]->use_mass_database) {
+            size_t database_numElem = first_users.size();
             for (size_t set=0; set<phys->setnames.size(); ++set) {
               View_Sc3 mass("local mass",database_numElem, groups[block][0]->LIDs[set].extent(1), 
                              groups[block][0]->LIDs[set].extent(1));
