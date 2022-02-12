@@ -17,6 +17,9 @@ ANONYMOUS:
   Physics:
     modules: shallow water
     gravity: 1.0
+    bathymetry: 0.
+    bathymetry_x: 0.
+    bathymetry_y: 0.
     ## define the coarse scale variables
     Initial conditions:
       H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
