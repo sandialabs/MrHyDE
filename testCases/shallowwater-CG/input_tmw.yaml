@@ -1,0 +1,80 @@
+%YAML 1.1
+---
+### Based off of example 1 in Samii, J. Sci. Comp. (2019) ###
+ANONYMOUS:
+  verbosity: 10
+  debug level: 0
+  profile: false
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: -1.0
+    xmax:  1.0
+    ymin: -1.0
+    ymax:  1.0
+    NX: 80
+    NY: 80
+  Physics:
+    modules: shallow water
+    gravity: 1.0
+    ## define the coarse scale variables
+    Initial conditions:
+      H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
+      Hu: 'cos(-x)'
+      Hv: 'sin(y)'
+
+    Dirichlet conditions:
+      static data: false
+      H:
+        all boundaries: '2. + Hexp'
+      Hu:
+        #left: 0.0
+        #right: 0.0
+        all boundaries: 'cos(4.*t - x)'
+      Hv:
+        #top: 0.0
+        #bottom: 0.0
+        all boundaries: 'sin(4.*t + y)'
+  Functions:
+    bathymetry: '0.0'
+    Hexp: 'exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+    source H: '-3.0*Hexp*cos(3.0*t) + sin(4.0*t - x) + cos(4.0*t + y)'
+    source Hu: '(-0.75*(sin(3.0*x)*sin(4.0*t + y)*cos(3.0*y) + sin(3.0*y)*cos(3.0*x)*cos(4.0*t - x))*(Hexp + 2.0)*Hexp*cos(4.0*t - x) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0*exp(sin(3.0*t)))^3*(6.0*Hexp*Hexp*sin(3.0*y)*cos(3.0*x) + 12.0*Hexp*sin(3.0*y)*cos(3.0*x) - 8.0*sin(4.0*t - x))*exp(-3*sin(3.0*t)) + (0.5*Hexp + 1)^2*(2*sin(4.0*t - x) + cos(4.0*t + y))*cos(4.0*t - x))/((0.5*Hexp + 1)^2*(Hexp + 2.0))'
+    source Hv: '(-0.75*(sin(3.0*x)*sin(4.0*t + y)*cos(3.0*y) + sin(3.0*y)*cos(3.0*x)*cos(4.0*t - x))*(Hexp + 2.0)*Hexp*sin(4.0*t + y) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0*exp(sin(3.0*t)))^3*(6.0*Hexp*Hexp*sin(3.0*x)*cos(3.0*y) + 12.0*Hexp*sin(3.0*x)*cos(3.0*y) + 8.0*cos(4.0*t + y))*exp(-3*sin(3.0*t)) + (0.5*Hexp + 1)^2*(sin(4.0*t - x) + 2*cos(4.0*t + y))*sin(4.0*t + y))/((0.5*Hexp + 1)^2*(Hexp + 2.0))'
+  Discretization:
+    order:
+      H: 1
+      Hu: 1
+      Hv: 1
+    quadrature: 2
+  #Subgrid input file: subgrid_input.yaml
+  Solver:
+    #solver: steady-state
+    #initial type: interpolation #L2-projection-HFACE
+    solver: transient
+    transient Butcher tableau: BWE #DIRK-1,2
+    workset size: 100
+    nonlinear TOL: 1.0e-06
+    linear TOL: 1.0e-6
+    max nonlinear iters: 10
+    max linear iters: 100
+    final time: 1.e-2
+    delta t: 1.25e-3
+    use direct solver: false
+    #matrix free: true
+    #fully explicit: true
+    #use custom PCG: true
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    write solution: true
+    write frequency: 1
+    write subgrid solution: true
+    write HFACE variables: true
+    compute errors: true
+    True solutions:
+      H: '2. + Hexp'
+      Hu: 'cos(4*t-x)'
+      Hv: 'sin(4*t+y)'
+  
+...
