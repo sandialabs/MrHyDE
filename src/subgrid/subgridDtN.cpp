@@ -923,6 +923,7 @@ void SubGridDtN::finalize(const int & globalSize, const int & globalPID,
   // only needed to define a unique output file
   
   if (macroData.size() > 0) {
+
     this->setUpSubgridModels();
     sub_assembler->updatePhysicsSet(0);
     //size_t defblock = 0;
@@ -930,7 +931,7 @@ void SubGridDtN::finalize(const int & globalSize, const int & globalPID,
     //  sub_physics->setAuxVars(defblock, macro_varlist);
     //}
   }
-  
+
   if (write_subgrid_soln) {
     std::stringstream ss;
     ss << "_" << name << ".exo." << globalSize << "." << globalPID;

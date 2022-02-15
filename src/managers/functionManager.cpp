@@ -130,7 +130,7 @@ void FunctionManager::decomposeFunctions() {
         int iter = 0;
         
         while (!done && iter < maxiter) {
-          
+
           iter++;
           size_t Nbranches = forests[fiter].trees[titer].branches.size();
           
