@@ -898,27 +898,28 @@ void euler::computeInviscidFluxes(const bool & on_side) {
 void euler::computeThermoProps(const bool & on_side)
 {
 
+  // TODO :: getSolutionField("blah",false) for testing?
+
   Teuchos::TimeMonitor localtime(*thermoPropFill);
 
   auto props = on_side ? props_side : props_vol;
   // these are always needed
-  // TODO GET RID OF THESE FALSES AFTER TIM'S CHANGE!!!
-  auto rho = on_side ? wkset->getSolutionField("aux rho side",false) : 
-                       wkset->getSolutionField("rho",false);
-  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side",false) : 
-                         wkset->getSolutionField("rhoux",false);
-  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side",false) : 
-                        wkset->getSolutionField("rhoE",false);
+  auto rho = on_side ? wkset->getSolutionField("aux rho side") : 
+                       wkset->getSolutionField("rho");
+  auto rhoux = on_side ? wkset->getSolutionField("aux rhoux side") : 
+                         wkset->getSolutionField("rhoux");
+  auto rhoE = on_side ? wkset->getSolutionField("aux rhoE side") : 
+                        wkset->getSolutionField("rhoE");
 
   View_AD2 rhouy, rhouz; // TODO not sure this is the best way
 
   if ( spaceDim > 1 ) {
-    rhouy = on_side ? wkset->getSolutionField("aux rhouy side",false) : 
-                      wkset->getSolutionField("rhouy",false);
+    rhouy = on_side ? wkset->getSolutionField("aux rhouy side") : 
+                      wkset->getSolutionField("rhouy");
   } 
   if ( spaceDim > 2 ) {
-    rhouz = on_side ? wkset->getSolutionField("aux rhouz side",false) : 
-                      wkset->getSolutionField("rhouz",false);
+    rhouz = on_side ? wkset->getSolutionField("aux rhouz side") : 
+                      wkset->getSolutionField("rhouz");
   }
 
   parallel_for("euler thermo props",
@@ -978,11 +979,11 @@ void euler::computeStabilizationTerm() {
   using namespace std;
   
   // these are always needed
-  auto rho = wkset->getSolutionField("rho");
+  auto rho = wkset->getSolutionField("rho side");
   auto rho_hat = wkset->getSolutionField("aux rho side");
-  auto rhoux = wkset->getSolutionField("rhoux");
+  auto rhoux = wkset->getSolutionField("rhoux side");
   auto rhoux_hat = wkset->getSolutionField("aux rhoux side");
-  auto rhoE = wkset->getSolutionField("rhoE");
+  auto rhoE = wkset->getSolutionField("rhoE side");
   auto rhoE_hat = wkset->getSolutionField("aux rhoE side");
   auto props = props_side; // get the properties evaluated with trace variables
 
@@ -993,12 +994,12 @@ void euler::computeStabilizationTerm() {
   View_Sc2 ny, nz;
 
   if (spaceDim > 1) {
-    rhouy = wkset->getSolutionField("rhouy");
+    rhouy = wkset->getSolutionField("rhouy side");
     rhouy_hat = wkset->getSolutionField("aux rhouy side");
     ny = wkset->getScalarField("ny side");
   }
   if (spaceDim > 2) {
-    rhouz = wkset->getSolutionField("rhouz");
+    rhouz = wkset->getSolutionField("rhouz side");
     rhouz_hat = wkset->getSolutionField("aux rhouz side");
     nz = wkset->getScalarField("nz side");
   }
@@ -1110,11 +1111,11 @@ void euler::computeBoundaryTerm() {
   }
 
   // these are always needed
-  auto rho = wkset->getSolutionField("rho");
+  auto rho = wkset->getSolutionField("rho side");
   auto rho_hat = wkset->getSolutionField("aux rho side");
-  auto rhoux = wkset->getSolutionField("rhoux");
+  auto rhoux = wkset->getSolutionField("rhoux side");
   auto rhoux_hat = wkset->getSolutionField("aux rhoux side");
-  auto rhoE = wkset->getSolutionField("rhoE");
+  auto rhoE = wkset->getSolutionField("rhoE side");
   auto rhoE_hat = wkset->getSolutionField("aux rhoE side");
   auto props = props_side; // get the properties evaluated with trace variables
 
@@ -1125,12 +1126,12 @@ void euler::computeBoundaryTerm() {
   View_Sc2 ny, nz;
 
   if (spaceDim > 1) {
-    rhouy = wkset->getSolutionField("rhouy");
+    rhouy = wkset->getSolutionField("rhouy side");
     rhouy_hat = wkset->getSolutionField("aux rhouy side");
     ny = wkset->getScalarField("ny side");
   }
   if (spaceDim > 2) {
-    rhouz = wkset->getSolutionField("rhouz");
+    rhouz = wkset->getSolutionField("rhouz side");
     rhouz_hat = wkset->getSolutionField("aux rhouz side");
     nz = wkset->getScalarField("nz side");
   }
