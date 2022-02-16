@@ -54,3 +54,7 @@ TARGET_LINK_LIBRARIES(test_series_ABC ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRA
 ADD_EXECUTABLE(test_DOFManagers
 test_DOFManagers.cpp)
 TARGET_LINK_LIBRARIES(test_DOFManagers ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+ADD_EXECUTABLE(test_PanzerStk
+test_PanzerStk.cpp)
+TARGET_LINK_LIBRARIES(test_PanzerStk ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
