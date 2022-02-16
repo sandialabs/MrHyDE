@@ -494,9 +494,9 @@ void shallowwaterHybridized::computeStabilizationTerm() {
   using namespace std;
   
   // these are always needed
-  auto H = wkset->getSolutionField("H");
+  auto H = wkset->getSolutionField("H side");
   auto H_hat = wkset->getSolutionField("aux H side");
-  auto Hux = wkset->getSolutionField("Hux");
+  auto Hux = wkset->getSolutionField("Hux side");
   auto Hux_hat = wkset->getSolutionField("aux Hux side");
 
   auto stabterm = stab_bound_side;
@@ -506,7 +506,7 @@ void shallowwaterHybridized::computeStabilizationTerm() {
   View_Sc2 ny;
 
   if (spaceDim > 1) {
-    Huy = wkset->getSolutionField("Huy");
+    Huy = wkset->getSolutionField("Huy side");
     Huy_hat = wkset->getSolutionField("aux Huy side");
     ny = wkset->getScalarField("ny side");
   }
@@ -573,7 +573,7 @@ void shallowwaterHybridized::computeStabilizationTerm() {
         AD lambdaMax = max(abs(vn + a),abs(vn - a));
 
         for (int i=0; i<spaceDim + 1; ++i) {
-          stab_sub(i) = deltaS(i) * lambdaMax;
+          deltaS(i) * lambdaMax;
         }
       }
     }
@@ -612,9 +612,9 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   }
 
   // these are always needed
-  auto H = wkset->getSolutionField("H");
+  auto H = wkset->getSolutionField("H side");
   auto H_hat = wkset->getSolutionField("aux H side");
-  auto Hux = wkset->getSolutionField("Hux");
+  auto Hux = wkset->getSolutionField("Hux side");
   auto Hux_hat = wkset->getSolutionField("aux Hux side");
 
   auto boundterm = stab_bound_side;
@@ -624,7 +624,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   View_Sc2 ny;
 
   if (spaceDim > 1) {
-    Huy = wkset->getSolutionField("Huy");
+    Huy = wkset->getSolutionField("Huy side");
     Huy_hat = wkset->getSolutionField("aux Huy side");
     ny = wkset->getScalarField("ny side");
   }
