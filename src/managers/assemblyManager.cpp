@@ -694,7 +694,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       size_type numip = groupData[block]->ref_ip.extent(0);
       size_type numsideip = groupData[block]->ref_side_ip[0].extent(0);
 
-      double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0-10);
+      double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0e-10);
             
       /////////////////////////////////////////////////////////////////////////////
       // Step 1: determine the unique elements
