@@ -23,26 +23,35 @@ int main(int argc, char * argv[]) {
   Kokkos::initialize();
   
   {
-    
-    // ==========================================================
-    // Create a mesh from the file defined by the user
-    // ==========================================================
-    
-    std::string input_file_name = argv[1];
-    RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
-    
-    Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
-    pl->set("File Name",input_file_name);
-    
-    mesh_factory->setParameterList(pl);
-    Teuchos::RCP<panzer_stk::STK_Interface> mesh = mesh_factory->buildUncommitedMesh(*(Comm->getRawMpiComm()));
-    
-    mesh_factory->completeMeshConstruction(*mesh,*(Comm->getRawMpiComm()));
-    
-    if (Comm->getRank() == 0) {
-      mesh->printMetaData(std::cout);
+    int numIters = 1;
+    if (argc == 3) {
+      numIters = atoi(argv[2]);
     }
+    for (int iter=0; iter<numIters; ++iter) {
     
+      if (Comm->getRank() == 0) {
+        std::cout << "PanzerStk Test: Processing mesh " << iter+1 << " out of " << numIters << std::endl;
+      }
+      // ==========================================================
+      // Create a mesh from the file defined by the user
+      // ==========================================================
+    
+      std::string input_file_name = argv[1];
+      RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
+    
+      Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
+      pl->set("File Name",input_file_name);
+    
+      mesh_factory->setParameterList(pl);
+      Teuchos::RCP<panzer_stk::STK_Interface> mesh = mesh_factory->buildUncommitedMesh(*(Comm->getRawMpiComm()));
+    
+      mesh_factory->completeMeshConstruction(*mesh,*(Comm->getRawMpiComm()));
+    
+      if (Comm->getRank() == 0) {
+        mesh->printMetaData(std::cout);
+      }
+    
+    }
   }
   
   Kokkos::finalize();
