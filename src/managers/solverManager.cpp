@@ -334,8 +334,7 @@ void SolverManager<Node>::setupExplicitMass() {
                                                                             static_cast<int>(maxEntries)));
       
       Teuchos::RCP<LA_CrsGraph> overlapped_graph = Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map[set],
-                                                                                maxEntriesPerRow,
-                                                                                Tpetra::StaticProfile));
+                                                                                maxEntriesPerRow));
       
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;

@@ -1916,7 +1916,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     use_jacobi = false;
   }
   
-  typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_type local_matrix;
+  typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_device_type local_matrix;
   local_matrix localMatrix;
   
   // TMW TODO: This probably won't work if the LA_device is not the AssemblyDevice

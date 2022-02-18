@@ -214,8 +214,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       maxEntries = std::max(maxEntries,curr_maxEntries);
       
       overlapped_graph.push_back(Teuchos::rcp(new LA_CrsGraph(overlapped_map[set],
-                                                              curr_maxEntries,
-                                                              Tpetra::StaticProfile)));
+                                                              curr_maxEntries)));
     
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
