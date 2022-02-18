@@ -1453,9 +1453,9 @@ void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_
     
     vector_RCP prod = linalg->getNewVector(set);
     
-    auto wts_view = norm_wts[set]->template getLocalView<LA_device>();
-    auto prod_view = prod->template getLocalView<LA_device>();
-    auto soln_view = soln->template getLocalView<LA_device>();
+    auto wts_view = norm_wts[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto prod_view = prod->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto soln_view = soln->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,prod_view.extent(0)),
                  KOKKOS_LAMBDA (const int k ) {
@@ -2312,7 +2312,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     if (objectives[r].type == "integrated control"){
       auto grad_over = linalg->getNewOverlappedVector(set);
       auto grad_tmp = linalg->getNewVector(set);
-      auto grad_view = grad_over->template getLocalView<LA_device>();
+      auto grad_view = grad_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       size_t block = objectives[r].block;
       
       auto offsets = assembler->wkset[block]->offsets;
@@ -2541,7 +2541,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     else if (objectives[r].type == "integrated response") {
       auto grad_over = linalg->getNewOverlappedVector(set);
       auto grad_tmp = linalg->getNewVector(set);
-      auto grad_view = grad_over->template getLocalView<LA_device>();
+      auto grad_view = grad_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       size_t block = objectives[r].block;
       
       auto offsets = assembler->wkset[block]->offsets;
@@ -2810,7 +2810,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       
       auto grad_over = linalg->getNewOverlappedVector(set);
       auto grad_tmp = linalg->getNewVector(set);
-      auto grad_view = grad_over->template getLocalView<LA_device>();
+      auto grad_view = grad_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       
       for (size_t pt=0; pt<objectives[r].numSensors; ++pt) {
         size_t tindex = 0;
@@ -3061,8 +3061,8 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   
   size_t set = 0; // hard coded for now
   
-  auto u_kv = u[set]->template getLocalView<LA_device>();
-  auto adjoint_kv = adjoint[set]->template getLocalView<LA_device>();
+  auto u_kv = u[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto adjoint_kv = adjoint[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   if (params->num_active_params > 0) {
   
@@ -3075,7 +3075,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     vector_RCP res_over = linalg->getNewOverlappedVector(set,params->num_active_params);
     matrix_RCP J_over = linalg->getNewOverlappedMatrix(set);
     
-    auto res_kv = res->template getLocalView<LA_device>();
+    auto res_kv = res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     
     res_over->putScalar(0.0);
     
@@ -3136,7 +3136,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   if (numDiscParams > 0) {
     //params->sacadoizeParams(false);
     vector_RCP a_owned = linalg->getNewVector(set);
-    auto ao_kv = a_owned->template getLocalView<LA_device>();
+    auto ao_kv = a_owned->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     for (size_t i=0; i<ao_kv.extent(0); i++) {
       ao_kv(i,0) = adjoint_kv(i,0);
     }
@@ -3156,7 +3156,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
     vector_RCP sens_over = linalg->getNewParamOverlappedVector(); //Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
     vector_RCP sens = linalg->getNewParamVector();
-    auto sens_kv = sens->template getLocalView<LA_device>();
+    auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     
     linalg->exportParamMatrixFromOverlapped(J, J_over);
     linalg->fillCompleteParam(set,J);

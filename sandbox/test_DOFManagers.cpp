@@ -65,7 +65,6 @@ int main(int argc, char * argv[]) {
     }
     vector<string> blocknames;
     mesh->getElementBlockNames(blocknames);
-    int spaceDim = mesh->getDimension();
     
     // ==========================================================
     // Define the connectivity manager

@@ -1103,7 +1103,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               // Resize Jacobians and add new one
               if (first_users.size() > db_jacobians.extent(0)) {
                 Kokkos::resize(db_jacobians, 2*db_jacobians.extent(0), numip, dimension, dimension);
-                cout << "New db_jacobian size = " << db_jacobians.extent(0) << endl;
+                //cout << "New db_jacobian size = " << db_jacobians.extent(0) << endl;
               }
               auto db_slice = subview(db_jacobians, first_users.size()-1, ALL(), ALL(), ALL());
               auto jac_slice = subview(jacobian, e, ALL(), ALL(), ALL());
@@ -1800,8 +1800,8 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   
   bool fix_zero_rows = true;
   
-  auto localMatrix = mass->getLocalMatrix();
-  auto rhs_view = rhs->template getLocalView<LA_device>();
+  auto localMatrix = mass->getLocalMatrixHost();
+  auto rhs_view = rhs->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   bool lump_mass_ = lump_mass;
 
   wkset[block]->updatePhysicsSet(set);
@@ -1919,11 +1919,13 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_type local_matrix;
   local_matrix localMatrix;
   
+  // TMW TODO: This probably won't work if the LA_device is not the AssemblyDevice
+
   if (compute_matrix) {
-    localMatrix = mass->getLocalMatrix();
+    localMatrix = mass->getLocalMatrixDevice();
   }
   
-  auto diag_view = diagMass->template getLocalView<LA_device>();
+  auto diag_view = diagMass->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   for (size_t block=0; block<groups.size(); ++block) {
     
@@ -2025,10 +2027,10 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
     use_atomics_ = true;
   }
   
-  auto x_kv = x->template getLocalView<LA_device>();
+  auto x_kv = x->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto x_slice = Kokkos::subview(x_kv, Kokkos::ALL(), 0);
   
-  auto y_kv = y->template getLocalView<LA_device>();
+  auto y_kv = y->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto y_slice = Kokkos::subview(y_kv, Kokkos::ALL(), 0);
   
   for (size_t block=0; block<groups.size(); ++block) {
@@ -2176,7 +2178,7 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
     }
   }
   
-  auto wts_view = wts->template getLocalView<LA_device>();
+  auto wts_view = wts->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   vector<vector<ScalarT> > normwts = phys->normwts[set];
   
@@ -2260,7 +2262,11 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
     }
   }
   
-  auto localMatrix = mass->getLocalMatrix();
+  // TMW TODO: The Dirichlet BCs are being applied on the host
+  //           This is expensive and unnecessary if the LA_Device is not the host device
+  //           Will take a fair bit of work to generalize to all cases
+
+  auto localMatrix = mass->getLocalMatrixHost();
   
   for (size_t block=0; block<boundary_groups.size(); ++block) {
     wkset[block]->setTime(time);
@@ -2358,7 +2364,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
     }
   }
   
-  auto localMatrix = mass->getLocalMatrix();
+  auto localMatrix = mass->getLocalMatrixHost();
   
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
@@ -2510,13 +2516,13 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   
   // Kokkos::CRSMatrix and Kokkos::View for J and res
   // Scatter needs to be on LA_device
-  typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_type local_matrix;
+  typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_device_type local_matrix;
   local_matrix J_kcrs;
   if (compute_jacobian) {
-    J_kcrs = J->getLocalMatrix();
+    J_kcrs = J->getLocalMatrixDevice();
   }
   
-  auto res_view = res->template getLocalView<LA_device>();
+  auto res_view = res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   typedef typename Node::execution_space LA_exec;
   
@@ -3008,7 +3014,7 @@ void AssemblyManager<Node>::performGather(const size_t & set, const vector_RCP &
   
   typedef typename LA_device::memory_space LA_mem;
   
-  auto vec_kv = vec->template getLocalView<LA_device>();
+  auto vec_kv = vec->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   // Even if there are multiple vectors, we only use one at a time
   auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);

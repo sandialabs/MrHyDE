@@ -147,7 +147,7 @@ void shallowwater::volumeResidual() {
       Fy = -(vHv + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
       
       for (size_type dof=0; dof<Hvbasis.extent(1); dof++ ) {
-        res(elem,Hvoff(dof)) += f*Hubasis(elem,dof,pt,0) + Fx*Hubasis_grad(elem,dof,pt,0) + Fy*Hubasis_grad(elem,dof,pt,1);
+        res(elem,Hvoff(dof)) += f*Hvbasis(elem,dof,pt,0) + Fx*Hvbasis_grad(elem,dof,pt,0) + Fy*Hvbasis_grad(elem,dof,pt,1);
       }
       
     }

@@ -636,7 +636,7 @@ AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, con
     Kokkos::deep_copy(zpt,z);
   }
   
-  wkset->setTime(t);
+  //wkset->setTime(t);
   
   // evaluate the response
   auto ddata = functionManagers[block]->evaluate("Dirichlet " + var + " " + gside,"point");
@@ -828,6 +828,7 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
                                         const std::string & sidename) {
   
   // evaluate
+  
   auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[set][block][var] + " " + sidename,"side ip");
   
   //View_Sc2 dvals("temp dnvals", dvals_AD.extent(0), dvals_AD.extent(1));

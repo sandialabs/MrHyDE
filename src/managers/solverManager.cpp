@@ -375,8 +375,7 @@ void SolverManager<Node>::setupExplicitMass() {
       }
       
       explicitMass.push_back(Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map[set],
-                                                           maxOwnedEntriesPerRow,
-                                                           Tpetra::StaticProfile)));
+                                                           maxOwnedEntriesPerRow)));
       
       mass = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
     }
@@ -1287,7 +1286,12 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             assembler->updateStageSoln(set); // moves the stage solution into u_stage (avoids mem transfer)
             
           }
-          
+          if (usestrongDBCs) {
+            for (size_t block=0; block<assembler->wkset.size(); ++block) {
+              assembler->wkset[block]->setTime(current_time+deltat);
+            }
+            this->setDirichlet(set,u[set]);
+          }
           /*
           if (fully_explicit) {
             {
@@ -1475,6 +1479,17 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
   resnorm_first[0] = 10*NLtol;
   resnorm_scaled[0] = resnorm_first[0];
   resnorm[0] = resnorm_first[0];
+  
+  if (isTransient) {
+    for (size_t block=0; block<assembler->wkset.size(); ++block) {
+      auto butcher_c = Kokkos::create_mirror_view(assembler->wkset[block]->butcher_c);
+      Kokkos::deep_copy(butcher_c, assembler->wkset[block]->butcher_c);
+      ScalarT timeval = current_time + butcher_c(assembler->wkset[block]->current_stage)*deltat;
+      assembler->wkset[block]->setTime(timeval);
+      assembler->wkset[block]->setDeltat(deltat);
+      assembler->wkset[block]->alpha = 1.0/deltat;
+    }
+  }
   
   if (usestrongDBCs) {
     this->setDirichlet(set, u);
@@ -1761,9 +1776,9 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
     else {
       typedef typename Node::execution_space LA_exec;
       
-      auto du_view = current_du->template getLocalView<LA_device>();
-      auto res_view = current_res->template getLocalView<LA_device>();
-      auto dm_view = diagMass[set]->template getLocalView<LA_device>();
+      auto du_view = current_du->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto res_view = current_res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto dm_view = diagMass[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       
       parallel_for("explicit solver apply invdiag",
                    RangePolicy<LA_exec>(0,du_view.extent(0)),
@@ -1817,7 +1832,7 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
   typedef typename Node::execution_space LA_exec;
   
   if (usestrongDBCs) {
-    auto u_kv = u->template getLocalView<LA_device>();
+    auto u_kv = u->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     //auto meas_kv = meas->getLocalView<HostDevice>();
     
     if (!scalarDirichletData[set]) {
@@ -1852,7 +1867,7 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
       }
     }
     else {
-      auto dbc_kv = fixedDOF_soln[set]->template getLocalView<LA_device>();
+      auto dbc_kv = fixedDOF_soln[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       for (size_t block=0; block<dbcDOFs.size(); ++block) {
         for (size_t v=0; v<dbcDOFs[block].size(); v++) {
           if (dbcDOFs[block][v].extent(0)>0) {
@@ -1942,7 +1957,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
     if (have_initial_conditions[set]) {
       if (scalarInitialData[set]) {
         
-        auto initial_kv = initial->template getLocalView<LA_device>();
+        auto initial_kv = initial->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
         
         for (size_t block=0; block<assembler->groupData.size(); block++) {
           
@@ -2172,9 +2187,9 @@ void SolverManager<Node>::PCG(const size_t & set, matrix_RCP & J, vector_RCP & b
   r_pcg[set]->norm2(rnorm);
   ScalarT r0 = rnorm[0];
   
-  auto M_view = M->template getLocalView<LA_device>();
-  auto r_view = r_pcg[set]->template getLocalView<LA_device>();
-  auto z_view = z_pcg[set]->template getLocalView<LA_device>();
+  auto M_view = M->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto r_view = r_pcg[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto z_view = z_pcg[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   while (iter<maxiter && rnorm[0]/r0>tol) {
     
@@ -2278,9 +2293,9 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
   r->norm2(rnorm);
   ScalarT r0 = rnorm[0];
   
-  auto M_view = M->template getLocalView<LA_device>();
-  auto r_view = r->template getLocalView<LA_device>();
-  auto z_view = z->template getLocalView<LA_device>();
+  auto M_view = M->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto r_view = r->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto z_view = z->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   while (iter<maxiter && rnorm[0]/r0>tol) {
     

@@ -238,8 +238,8 @@ namespace MrHyDE {
       
       Teuchos::RCP<V> dest = Teuchos::rcp( new V(src->getMap(),1));
       
-      auto src_kv = src->template getLocalView<V_device>();
-      auto dest_kv = dest->template getLocalView<V_device>();
+      auto src_kv = src->template getLocalView<V_device>(Tpetra::Access::ReadWrite);
+      auto dest_kv = dest->template getLocalView<V_device>(Tpetra::Access::ReadWrite);
       Kokkos::deep_copy(dest_kv, src_kv);
       
       return dest;

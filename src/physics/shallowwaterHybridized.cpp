@@ -189,7 +189,7 @@ void shallowwaterHybridized::boundaryResidual() {
   
   auto bcs = wkset->var_bcs;
 
-  int cside = wkset->currentside;
+  //int cside = wkset->currentside;
 
   // TODO do we need sources or sidetypes?
 
@@ -221,7 +221,7 @@ void shallowwaterHybridized::boundaryResidual() {
   // so we ALWAYS compute the aforementioned inner product here
 
   // outer loop over equations
-  for (int iEqn=0; iEqn<varlist.size(); ++iEqn) {
+  for (size_t iEqn=0; iEqn<varlist.size(); ++iEqn) {
   
     int basis_num = wkset->usebasis[iEqn];
     auto basis = wkset->basis_side[basis_num];
@@ -333,7 +333,7 @@ void shallowwaterHybridized::computeFlux() {
         parallel_for("Shallow water flux 1D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
-          for (int iEqn=0; iEqn<nVar; ++iEqn) {
+          for (size_t iEqn=0; iEqn<nVar; ++iEqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,iEqn,pt) = fluxes(elem,pt,iEqn,0)*nx(elem,pt)
                 + stab(elem,pt,iEqn);
@@ -348,7 +348,7 @@ void shallowwaterHybridized::computeFlux() {
         parallel_for("Shallow water flux 2D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
-          for (int iEqn=0; iEqn<nVar; ++iEqn) {
+          for (size_t iEqn=0; iEqn<nVar; ++iEqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,iEqn,pt) = fluxes(elem,pt,iEqn,0)*nx(elem,pt)
                 + fluxes(elem,pt,iEqn,1)*ny(elem,pt) + stab(elem,pt,iEqn);

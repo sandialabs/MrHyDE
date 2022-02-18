@@ -114,7 +114,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     static void print(Teuchos::RCP<MpiComm> & Comm, vector_RCP & V, const string & message="") {
-      auto V_kv = V->getLocalView<HostDevice>();
+      auto V_kv = V->getLocalView<HostDevice>(Tpetra::Access::ReadWrite);
       
       std::cout << std::endl;
       std::cout << message << std::endl;

@@ -111,13 +111,12 @@ int main(int argc,char * argv[]) {
     if (!settings->sublist("Postprocess").get("write solution",false) && 
         !settings->sublist("Postprocess").get("create optimization movie",false)) {
       mesh->stk_mesh = Teuchos::null;
+      mesh->mesh_factory = Teuchos::null;
       disc->mesh = Teuchos::null;
       disc->purgeLIDs();
-      assembler->mesh = Teuchos::null;
       params->mesh = Teuchos::null;
     }
     
-
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////
@@ -183,11 +182,11 @@ int main(int argc,char * argv[]) {
       } 
            
     }
-
+    
     assembler->allocateGroupStorage();
 
     solve->completeSetup();
-    
+
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the functions
     ////////////////////////////////////////////////////////////////////////////////

@@ -232,7 +232,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       
       overlapped_graph[set]->fillComplete();
       
-      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], curr_maxEntries, Tpetra::StaticProfile)));
+      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], curr_maxEntries)));
       
       overlapped_matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(overlapped_graph[set])));
       

@@ -174,8 +174,8 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
   // Set the initial conditions
   //////////////////////////////////////////////////////////////
   
-  auto prev_u_kv = prev_u->getLocalView<SubgridSolverNode::device_type>();
-  auto u_kv = u->getLocalView<SubgridSolverNode::device_type>();
+  auto prev_u_kv = prev_u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
+  auto u_kv = u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
   Kokkos::deep_copy(u_kv, prev_u_kv);
   
   this->performGather(macrogrp, prev_u, 0, 0);
@@ -418,8 +418,8 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
   int iter = 0;
   Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
   
-  auto localMatrix = sub_J_over->getLocalMatrix();
-  auto res_view = res_over->template getLocalView<SubgridSolverNode::device_type>();
+  auto localMatrix = sub_J_over->getLocalMatrixDevice();
+  auto res_view = res_over->template getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
   
   while (iter < sub_maxNLiter && resnorm_scaled[0] > sub_NLtol) {
     
@@ -814,7 +814,7 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
   
   //ScalarT scale = -1.0*lambda_scale;
   
-  auto dres_view = d_sub_res_over->getLocalView<SG_device>();
+  auto dres_view = d_sub_res_over->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
   
   //assembler->wkset[0]->setTime(time);
   assembler->wkset[0]->isTransient = isTransient;
@@ -874,8 +874,8 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       
     }
     
-    auto sub_phi_kv = sub_phi->getLocalView<SG_device>();
-    auto d_sub_res_over_kv = d_sub_res_over->getLocalView<SG_device>();
+    auto sub_phi_kv = sub_phi->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
+    auto d_sub_res_over_kv = d_sub_res_over->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
     
     auto subgrad_host = Kokkos::create_mirror_view(subgradient);
     
@@ -992,13 +992,13 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       
       int numsubDerivs = d_sub_u_over->getNumVectors();
       
-      auto d_sub_u_over_kv = d_sub_u_over->getLocalView<SG_device>();
-      auto d_sub_res_kv = d_sub_res->getLocalView<SG_device>();
+      auto d_sub_u_over_kv = d_sub_u_over->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
+      auto d_sub_res_kv = d_sub_res->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
       for (int c=0; c<numsubDerivs; c++) {
         Teuchos::RCP<SG_MultiVector> x = solver->linalg->getNewOverlappedVector(0); //Teuchos::rcp(new SG_MultiVector(solver->LA_overlapped_map,1));
         Teuchos::RCP<SG_MultiVector> b = solver->linalg->getNewVector(0); //Teuchos::rcp(new SG_MultiVector(solver->LA_owned_map,1));
-        auto b_kv = Kokkos::subview(b->getLocalView<SG_device>(),Kokkos::ALL(),0);
-        auto x_kv = Kokkos::subview(x->getLocalView<SG_device>(),Kokkos::ALL(),0);
+        auto b_kv = Kokkos::subview(b->getLocalView<SG_device>(Tpetra::Access::ReadWrite),Kokkos::ALL(),0);
+        auto x_kv = Kokkos::subview(x->getLocalView<SG_device>(Tpetra::Access::ReadWrite),Kokkos::ALL(),0);
         
         auto u_sv = Kokkos::subview(d_sub_u_over_kv,Kokkos::ALL(),c);
         auto res_sv = Kokkos::subview(d_sub_res_kv,Kokkos::ALL(),c);
@@ -1144,8 +1144,8 @@ void SubGridDtN_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
     
   typedef typename SubgridSolverNode::memory_space SGS_mem;
   
-  auto u_kv = u->getLocalView<SubgridSolverNode::device_type>();
-  auto du_kv = d_u->getLocalView<SubgridSolverNode::device_type>();
+  auto u_kv = u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
+  auto du_kv = d_u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
   
   // TMW: The discretized parameters are not fully enabled at the subgrid level
   //      This causes errors if there are no discretized parameters, so it is hacked for now.
@@ -1342,7 +1342,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
   matrix_RCP mass = solver->linalg->getNewOverlappedMatrix(0);
   //Teuchos::rcp( new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph) );
   
-  auto localMatrix = mass->getLocalMatrix();
+  auto localMatrix = mass->getLocalMatrixDevice();
   
   int macrogrp = 0;
   for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
@@ -1579,7 +1579,7 @@ void SubGridDtN_Solver::performGather(const size_t & block, const vector_RCP & v
     
   typedef typename SubgridSolverNode::memory_space SGS_mem;
   
-  auto vec_kv = vec->getLocalView<SubgridSolverNode::device_type>();
+  auto vec_kv = vec->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
   auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
   
   if (Kokkos::SpaceAccessibility<AssemblyExec, SGS_mem>::accessible) { // can we avoid a copy?

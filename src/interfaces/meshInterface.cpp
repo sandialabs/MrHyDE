@@ -1524,7 +1524,7 @@ void MeshInterface::readExodusData() {
 
 void MeshInterface::purgeMemory() {
   
-  mesh_factory = Teuchos::null;
+  
   nfield_vals.clear();
   efield_vals.clear();
   meas = Teuchos::null;

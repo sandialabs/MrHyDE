@@ -28,11 +28,11 @@ ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                                    Teuchos::RCP<PhysicsInterface> & phys_,
                                    Teuchos::RCP<DiscretizationInterface> & disc_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_), settings(settings_) {
+Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
-  
+  mesh = mesh_;
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {
@@ -497,7 +497,7 @@ vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
   vector<ScalarT> discLocalParams(numParams);
   vector<ScalarT> discParams(numParams);
   //auto Psol_2d = Psol[0]->getLocalView<Kokkos::Device<Node::execution_space,Node::memory_space>>();
-  auto Psol_2d = Psol[0]->template getLocalView<LA_device>();
+  auto Psol_2d = Psol[0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto Psol_host = Kokkos::create_mirror_view(Psol_2d);
   for (size_t i = 0; i < paramOwned.size(); i++) {
     int gid = paramOwned[i];
