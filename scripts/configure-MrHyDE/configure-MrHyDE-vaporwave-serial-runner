@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Machine name: vaporwave
+# Machine type: linux workstation with GPU
+# Build type: in-source serial (Gitlab runner)
+
+# Modules used (SEMS 2.0):
+#  1) sems-gcc/8.3.0      3) sems-ninja/1.10.1   5) sems-openmpi/1.10.7   7) sems-hdf5/1.10.7      9) sems-doxygen/1.8.20  11) sems-parallel-netcdf/1.12.1
+#  2) sems-cmake/3.21.1   4) sems-boost/1.69.0   6) sems-zlib/1.2.11      8) sems-yaml-cpp/0.6.2  10) sems-netcdf-c/4.7.3  12) sems-texlive/20200406
+
+EXTRA_ARGS=$@
+
+TRILINOS_SOURCE_PREFIX="/ascldap/users/MrHyDE/nightly/Trilinos"
+
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source"
+TRILINOS_INSTALL="${TRILINOS_SOURCE_PREFIX}/Trilinos-build/lib/cmake/Trilinos"
+
+MrHyDE_SOURCE="$(pwd)/.."
+MrHyDE_BUILD="$(pwd)"
+
+cmake \
+  -G "Ninja" \
+  -D CMAKE_CXX_LINK_FLAGS="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
+  -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
+  -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+  -D MrHyDE_BUILD_DOXYGEN=true \
+  -D CMAKE_INSTALL_PREFIX:PATH=${MrHyDE_BUILD} \
+  ${EXTRA-ARGS} \
+  ${MrHyDE_SOURCE}
