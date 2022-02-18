@@ -1,17 +1,31 @@
 variables:
   GIT_STRATEGY: clone
 
-test-sems-modules:
-  stage: test
+configure-build-test:
+  stage: build
   script:
-    - echo "This job tests whether the sems modules are available to the Gitlab runner or not"
     - source /projects/sems/modulefiles/utils/sems-modules-init.sh
-    - module av
+    - module load sems-gcc/8.3.0
+    - module load sems-cmake/3.21.1
+    - module load sems-ninja/1.10.1
+    - module load sems-boost/1.69.0
+    - module load sems-openmpi/1.10.7
+    - module load sems-zlib/1.2.11
+    - module load sems-hdf5/1.10.7
+    - module load sems-yaml-cpp/0.6.2
+    - module load sems-doxygen/1.8.20
+    - module load sems-netcdf-c/4.7.3
+    - module load sems-parallel-netcdf/1.12.1
+    - module load sems-texlive/20200406
+    - mkdir build
+    - cd build
+    - ../scripts/configure-MrHyDE/configure-MrHyDE-vaporwave-serial-runner | tee ../runner_log.txt
+    - ninja | tee -a ../runner_log.txt
+    - cd ../regression
+    - ln -s ../build/src/mrhyde mrhyde
+    - ./runtests.py | tee -a ../runner_log.txt
+    - cd ..
 
-test-nightly-folder-access:
-  stage: test
-  script:
-    - echo "This checks the present directory and looks for access to the MrHyDE/nightly folder"
-    - echo "Specifically, this will allow the gitlab-ci runner to use vaporwave's nightly Trilinos build for testing"
-    - pwd
-    - cat /home/MrHyDE/nightly/logs/log_serial.log
+  artifacts:
+    paths:
+      - Makefile
