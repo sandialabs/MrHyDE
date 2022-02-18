@@ -1264,7 +1264,7 @@ def main():
   print('Total Runtime: %10.2fs' % (totalruntime))
   print(time.asctime())
 
-  sys.exit(0)
+  sys.exit(failed)
 
 #-------------------------------------------------------------------------------
 
