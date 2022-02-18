@@ -28,4 +28,4 @@ configure-build-test:
 
   artifacts:
     paths:
-      - Makefile
+      - runner_log.txt
