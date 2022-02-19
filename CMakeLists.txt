@@ -8,6 +8,9 @@ SET(TRILINOS_DIR ${Trilinos_INSTALL_DIR})
 SET(Trilinos_SRC_DIR ${Trilinos_SRC_DIR})
 
 set(CMAKE_PREFIX_PATH ${TRILINOS_DIR} ${CMAKE_PREFIX_PATH})
+
+PROJECT(mrhyde)
+
 find_package(Trilinos REQUIRED)
 
 IF(NOT Trilinos_FOUND)
@@ -201,7 +204,7 @@ SET(CMAKE_Fortran_FLAGS  "${Trilinos_Fortran_COMPILER_FLAGS} ${CMAKE_Fortran_FLA
 # End of setup and error checking
 #  NOTE: PROJECT command checks for compilers, so this statement
 #        is moved AFTER setting CMAKE_CXX_COMPILER from Trilinos
-PROJECT(mrhyde)
+#PROJECT(mrhyde)
 
 # SET(CMAKE_CXX_FLAGS  "${Trilinos_CXX_COMPILER_FLAGS} ${CMAKE_CXX_FLAGS}")
 
