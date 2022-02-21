@@ -5,9 +5,18 @@
 
 #include "Kokkos_Core.hpp"
 
+#include "Intrepid2_Basis.hpp"
+#include "Intrepid2_HGRAD_HEX_C1_FEM.hpp"
+#include "Intrepid2_HCURL_HEX_I1_FEM.hpp"
+#include "Intrepid2_HDIV_HEX_I1_FEM.hpp"
+#include "Intrepid2_HVOL_C0_FEM.hpp"
+
 #include "Panzer_STK_MeshFactory.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "Panzer_STK_ExodusReaderFactory.hpp"
+#include "Panzer_STKConnManager.hpp"
+#include "Panzer_IntrepidFieldPattern.hpp"
+#include "Panzer_DOFManager.hpp"
 
 using namespace std;
 using Teuchos::RCP;
@@ -15,38 +24,36 @@ using Teuchos::rcp;
 
 int main(int argc, char * argv[]) {
   
-  // Pause for 10s to see how much memory is used
-  sleep(10);
-
   TEUCHOS_TEST_FOR_EXCEPTION(argc==1,std::runtime_error,"Error: this test requires a mesh file");
   
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
   Teuchos::RCP<Teuchos::MpiComm<int>> Comm = Teuchos::rcp( new Teuchos::MpiComm<int>(MPI_COMM_WORLD) );
 
   // Pause for 10s to see how much memory is used
-  sleep(10);
+  if (Comm->getRank() == 0) {
+    std::cout << "MPI is set up" << std::endl;
+  }
+    
+  sleep(5);
 
   Kokkos::initialize();
   
+  typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
+  typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
+  
   // Pause for 10s to see how much memory is used
-  sleep(10);
+  if (Comm->getRank() == 0) {
+    std::cout << "Kokkos is set up" << std::endl;
+  }
+    
+  sleep(5);
 
   {
-    int numIters = 1;
-    if (argc == 3) {
-      numIters = atoi(argv[2]);
-    }
-
+    
     // ==========================================================
     // Create a series of meshes from the file defined by the user
     // ==========================================================
-    
-    for (int iter=0; iter<numIters; ++iter) {
-    
-      if (Comm->getRank() == 0) {
-        std::cout << "PanzerStk Test: Processing mesh " << iter+1 << " out of " << numIters << std::endl;
-      }
-      
+    {
       std::string input_file_name = argv[1];
       RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
     
@@ -57,40 +64,65 @@ int main(int argc, char * argv[]) {
       Teuchos::RCP<panzer_stk::STK_Interface> mesh = mesh_factory->buildUncommitedMesh(*(Comm->getRawMpiComm()));
     
       mesh_factory->completeMeshConstruction(*mesh,*(Comm->getRawMpiComm()));
-    
       if (Comm->getRank() == 0) {
         mesh->printMetaData(std::cout);
       }
     
-    }
+      // Pause for 10s to see how much memory is used
+      if (Comm->getRank() == 0) {
+        std::cout << "Mesh has been finalized" << std::endl;
+      }
+      sleep(10);
 
-    // Pause for 10s to see how much memory is used
-    sleep(10);
-
-    /*
-    // ==========================================================
-    // Create a series of meshes from the file defined by the user
-    // ==========================================================
+      std::vector<string> blocknames;
+      mesh->getElementBlockNames(blocknames);
     
-    int numGrp = 10000;
-    int numElem = 100;
-    int numip = 8;
-    int numDOF = 8;
-    int dim = 3;
+      // ==========================================================
+      // Test out a DOF managers
+      // ==========================================================
+    
+      bool addDOF = true;
+      bool buildUnknowns = true;
+      if (addDOF) { // all DOF objects are scoped by this flag
+        Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
+        Teuchos::RCP<panzer::DOFManager> DOF = Teuchos::rcp(new panzer::DOFManager());
+        DOF->setConnManager(conn,*(Comm->getRawMpiComm()));
+        DOF->setOrientationsRequired(true);
+      
+        for (size_t b=0; b<blocknames.size(); b++) {
+          topo_RCP cellTopo = mesh->getCellTopology(blocknames[b]);
+          basis_RCP basis = Teuchos::rcp(new Intrepid2::Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
+          Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis));
+          DOF->addField(blocknames[b], "T", Pattern, panzer::FieldType::CG);
+        }
+        if (buildUnknowns) {
+          DOF->buildGlobalUnknowns();
+          if (Comm->getRank() == 0) {
+            DOF->printFieldInformation(std::cout);
+            std::cout << "================================================" << std::endl << std::endl;
+          }
+        }
+        if (Comm->getRank() == 0) {
+          std::cout << "DOF manager has been set up" << std::endl;
+        }
+        sleep(10);
 
-    size_t totalcost = sizeof(double)*numGrp*numElem*numip*numDOF*dim;
-
-    std::cout << "Allocating " << static_cast<double>(totalcost)/1.0e6 << " MB in basis data" << std::endl;
-    std::vector<Kokkos::View<double****> > basis_vals;
-    for (int j=0; j<numGrp; ++j) {
-      Kokkos::View<double****> A("basis vals",numElem,numDOF,numip,dim);
-      basis_vals.push_back(A);
-    //  usleep(10000);
-
+        //DOF = Teuchos::null;
+        //conn = Teuchos::null;
+        //mesh = Teuchos::null;
+        //mesh_factory = Teuchos::null;
+        
+        if (Comm->getRank() == 0) {
+          std::cout << "DOF manager has been destroyed" << std::endl;
+        }
+        sleep(10);
+      }
+    }
+    if (Comm->getRank() == 0) {
+      std::cout << "Mesh has been destroyed" << std::endl;
     }
     sleep(10);
-    */
-   
+    
   }
   
   Kokkos::finalize();
