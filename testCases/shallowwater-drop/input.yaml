@@ -8,10 +8,10 @@ ANONYMOUS:
   Mesh:
     dimension: 2
     element type: quad
-    xmin: -1.0
-    xmax:  1.0
-    ymin: -1.0
-    ymax:  1.0
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
     NX: 40
     NY: 40
   Physics:
@@ -21,17 +21,17 @@ ANONYMOUS:
       Hux: HFACE
       Huy: HFACE
     Initial conditions:
-      H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
-      Hux: 'cos(-x)'
-      Huy: 'sin(y)'
+      H: '1. + exp( -100.0*(x-0.5)^2 - 100.0*(y-0.5)^2 )'
+      Hux: '0.0'
+      Huy: '0.0'
     Dirichlet conditions:
-      static data: false
-      H:
-        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      scalar data: true
       Hux:
-        all boundaries: 'cos(4.*t - x)'
+        left: 0.0
+        right: 0.0
       Huy:
-        all boundaries: 'sin(4.*t + y)'
+        top: 0.0
+        bottom: 0.0
       #Far-field conditions:
       #  H:
       #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'

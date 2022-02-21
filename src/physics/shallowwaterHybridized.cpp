@@ -356,6 +356,7 @@ void shallowwaterHybridized::computeFlux() {
           }
         });
       } 
+      
     } 
     else {
       cout << "Something's gone wrong... shallowwaterHybridized computeFlux()" << endl;
@@ -573,7 +574,7 @@ void shallowwaterHybridized::computeStabilizationTerm() {
         AD lambdaMax = max(abs(vn + a),abs(vn - a));
 
         for (int i=0; i<spaceDim + 1; ++i) {
-          deltaS(i) * lambdaMax;
+          stab_sub(i) = deltaS(i) * lambdaMax;
         }
       }
     }

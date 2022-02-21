@@ -1,0 +1,46 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    debug level: 0
+    verbosity: 10
+    subgrid model: DtN
+    Mesh:
+      mesh type: panzer
+      element type: quad
+      refinements: 0
+      dimension: 2
+      blocknames: eblock
+    Physics: 
+      modules: shallow water hybridized
+      #Roe-like stabilization: true
+      max EV stabilization: true
+      g: 1. ## gravity is 1
+      Initial conditions:
+        H: '1. + exp( -100.0*(x-0.5)^2 - 100.0*(y-0.5)^2 )'
+        Hux: '0.0'
+        Huy: '0.0'
+      #Far-field conditions:
+      #  H:
+      #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      #  Hux:
+      #    all boundaries: 'cos(4.*t - x)'
+      #  Huy:
+      #    all boundaries: 'sin(4.*t + y)'
+    Functions:
+    Solver:
+      solver: transient
+      nonlinear TOL: 1.0e-06
+      linear TOL: 1.0e-6
+      max nonlinear iters: 10
+      max linear iters: 100
+      use direct solver: true
+    Discretization:
+      order:
+        H: 1
+        Hux: 1
+        Huy: 1
+      quadrature: 2
+    Postprocess: 
+      store aux and flux: false
+...
