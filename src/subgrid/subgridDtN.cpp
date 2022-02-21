@@ -934,8 +934,14 @@ void SubGridDtN::finalize(const int & globalSize, const int & globalPID,
 
   if (write_subgrid_soln) {
     std::stringstream ss;
-    ss << "_" << name << ".exo." << globalSize << "." << globalPID;
-    combined_mesh_filename = "subgrid_data/subgrid_combined_output" + ss.str();
+    if (globalSize > 1) {
+      ss << "_" << name << ".exo." << globalSize << "." << globalPID;
+      combined_mesh_filename = "subgrid_output" + ss.str();
+    }
+    else {
+      ss << "_" << name << ".exo";
+      combined_mesh_filename = "subgrid_output" + ss.str();
+    }
     
     this->setupCombinedExodus(appends);
   }
