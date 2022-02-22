@@ -32,13 +32,13 @@ ANONYMOUS:
         all boundaries: 'cos(4.*t - x)'
       Huy:
         all boundaries: 'sin(4.*t + y)'
-      #Far-field conditions:
-      #  H:
-      #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-      #  Hux:
-      #    all boundaries: 'cos(4.*t - x)'
-      #  Huy:
-      #    all boundaries: 'sin(4.*t + y)'
+        #Far-field conditions:
+        #  H:
+        #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+        #  Hux:
+        #    all boundaries: 'cos(4.*t - x)'
+        #  Huy:
+        #    all boundaries: 'sin(4.*t + y)'
 
   Discretization:
     order:
@@ -66,4 +66,9 @@ ANONYMOUS:
     write solution: true
     write subgrid solution: true
     write HFACE variables: true
+    compute errors: true
+    True solutions:
+      H: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      Hux: 'cos(4.*t-x)'
+      Huy: 'sin(4.*t-y)'
 ...

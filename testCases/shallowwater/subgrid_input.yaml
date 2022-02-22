@@ -20,18 +20,19 @@ ANONYMOUS:
         H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
         Hux: 'cos(-x)'
         Huy: 'sin(y)'
-      #Far-field conditions:
-      #  H:
-      #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-      #  Hux:
-      #    all boundaries: 'cos(4.*t - x)'
-      #  Huy:
-      #    all boundaries: 'sin(4.*t + y)'
-    Functions:
-      H source: '-3.0*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y))*cos(3.0*t) + sin(4.0*t - x) + cos(4.0*t + y)'
-      Hux source: '(-0.75*(sin(3.0*x)*sin(4.0*t + y)*cos(3.0*y) + sin(3.0*y)*cos(3.0*x)*cos(4.0*t - x))*(exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y))*cos(4.0*t - x) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0*exp(sin(3.0*t)))^3*(6.0*exp(-2*sin(3.0*t) + 2*sin(3.0*x)*sin(3.0*y))*sin(3.0*y)*cos(3.0*x) + 12.0*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y))*sin(3.0*y)*cos(3.0*x) - 8.0*sin(4.0*t - x))*exp(-3*sin(3.0*t)) + (0.5*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 1)^2*(2*sin(4.0*t - x) + cos(4.0*t + y))*cos(4.0*t - x))/((0.5*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 2.0))' 
-      Huy source: '(-0.75*(sin(3.0*x)*sin(4.0*t + y)*cos(3.0*y) + sin(3.0*y)*cos(3.0*x)*cos(4.0*t - x))*(exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y))*sin(4.0*t + y) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0*exp(sin(3.0*t)))^3*(6.0*exp(-2*sin(3.0*t) + 2*sin(3.0*x)*sin(3.0*y))*sin(3.0*x)*cos(3.0*y) + 12.0*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y))*sin(3.0*x)*cos(3.0*y) + 8.0*cos(4.0*t + y))*exp(-3*sin(3.0*t)) + (0.5*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 1)^2*(sin(4.0*t - x) + 2*cos(4.0*t + y))*sin(4.0*t + y))/((0.5*exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(-sin(3.0*t) + sin(3.0*x)*sin(3.0*y)) + 2.0))'
-
+        #Far-field conditions:
+        #  H:
+        #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+        #  Hux:
+        #    all boundaries: 'cos(4.*t - x)'
+        #  Huy:
+        #    all boundaries: 'sin(4.*t + y)'
+    Fuctions:
+      Hexp: 'exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      source H: '-3.0*Hexp*cos(3.0*t) + sin(4.0*t - x) + cos(4.0*t + y)'
+      source Hux: '(-0.75*(sin(3.0*x)*sin(4.0*t + y)*cos(3.0*y) + sin(3.0*y)*cos(3.0*x)*cos(4.0*t - x))*(Hexp + 2.0)*Hexp*cos(4.0*t - x) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0*exp(sin(3.0*t)))^3*(6.0*Hexp*Hexp*sin(3.0*y)*cos(3.0*x) + 12.0*Hexp*sin(3.0*y)*cos(3.0*x) - 8.0*sin(4.0*t - x))*exp(-3*sin(3.0*t)) + (0.5*Hexp + 1)^2*(2*sin(4.0*t - x) + cos(4.0*t + y))*cos(4.0*t - x))/((0.5*Hexp + 1)^2*(Hexp + 2.0))'
+    source Huy: '(-0.75*(sin(3.0*x)*sin(4.0*t + y)*cos(3.0*y) + sin(3.0*y)*cos(3.0*x)*cos(4.0*t - x))*(Hexp + 2.0)*Hexp*sin(4.0*t + y) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0*exp(sin(3.0*t)))^3*(6.0*Hexp*Hexp*sin(3.0*x)*cos(3.0*y) + 12.0*Hexp*sin(3.0*x)*cos(3.0*y) + 8.0*cos(4.0*t + y))*exp(-3*sin(3.0*t)) + (0.5*Hexp + 1)^2*(sin(4.0*t - x) + 2*cos(4.0*t + y))*sin(4.0*t + y))/((0.5*Hexp + 1)^2*(Hexp + 2.0))'
+ 
     Solver:
       solver: transient
       nonlinear TOL: 1.0e-06
@@ -47,4 +48,9 @@ ANONYMOUS:
       quadrature: 2
     Postprocess: 
       store aux and flux: false
+      compute errors: true
+      True solutions:
+        H: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+        Hux: 'cos(4.*t-x)'
+        Huy: 'sin(4.*t+y)'
 ...
