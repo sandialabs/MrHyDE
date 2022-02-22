@@ -284,6 +284,8 @@ void shallowwaterHybridized::computeFlux() {
   int cside = wkset->currentside;
   string sidetype = bcs(H_num,cside);
 
+  size_t nVar = wkset->varlist.size();
+
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
 
@@ -309,7 +311,7 @@ void shallowwaterHybridized::computeFlux() {
       parallel_for("Shallow water boundary flux copy",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
-        for (int ieqn=0; ieqn<spaceDim+1; ++ieqn) {
+        for (int ieqn=0; ieqn<nVar; ++ieqn) {
           for (size_type pt=0; pt<bound.extent(1); ++pt) {
             interfaceFlux(elem,ieqn,pt) = bound(elem,pt,ieqn);
           }
@@ -325,8 +327,6 @@ void shallowwaterHybridized::computeFlux() {
       auto stab = stab_bound_side;
 
       auto interfaceFlux = wkset->flux;
-
-      size_t nVar = wkset->varlist.size();
 
       if (spaceDim == 1) {
 
@@ -506,6 +506,8 @@ void shallowwaterHybridized::computeStabilizationTerm() {
   View_AD2 Huy, Huy_hat; // only assign if necessary
   View_Sc2 ny;
 
+  size_t nVar = wkset->varlist.size();
+
   if (spaceDim > 1) {
     Huy = wkset->getSolutionField("Huy side");
     Huy_hat = wkset->getSolutionField("aux Huy side");
@@ -520,8 +522,6 @@ void shallowwaterHybridized::computeStabilizationTerm() {
     View_AD1 Lambda; // diagonal matrix
     View_AD1 deltaS; // S - \hat{S} vector
     View_AD1 tmp; // temporary vector
-
-    size_t nVar = wkset->varlist.size();
 
     deltaS = View_AD1("delta S", nVar);
 
@@ -558,7 +558,7 @@ void shallowwaterHybridized::computeStabilizationTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the absolute value of the diagonal matrix
-        for (int i=0; i<spaceDim + 1; ++i) {
+        for (int i=0; i<nVar; ++i) {
           tmp(i) *= abs( Lambda(i) );
         }
         // R tmp = R AbsLambda L deltaS --> stab_sub 
@@ -573,7 +573,7 @@ void shallowwaterHybridized::computeStabilizationTerm() {
         // a = sqrt{gh}
         AD lambdaMax = max(abs(vn + a),abs(vn - a));
 
-        for (int i=0; i<spaceDim + 1; ++i) {
+        for (int i=0; i<nVar; ++i) {
           stab_sub(i) = deltaS(i) * lambdaMax;
         }
       }
@@ -621,6 +621,8 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   auto boundterm = stab_bound_side;
   auto nx = wkset->getScalarField("nx side");
 
+  size_t nVar = wkset->varlist.size();
+
   View_AD2 Huy, Huy_hat; // and only assign if necessary?
   View_Sc2 ny;
 
@@ -654,11 +656,11 @@ void shallowwaterHybridized::computeBoundaryTerm() {
     if (sidetype == "Far-field") {
 
       // allocate storage
-      deltaS = View_AD1("delta S", spaceDim + 1);
-      Lambda = View_AD1("Lambda", spaceDim + 1); 
-      leftEV = View_AD2("left EV", spaceDim + 1, spaceDim + 1); 
-      rightEV = View_AD2("right EV", spaceDim + 1, spaceDim + 1); 
-      tmp = View_AD1("tmp", spaceDim + 1);
+      deltaS = View_AD1("delta S", nVar);
+      Lambda = View_AD1("Lambda", nVar); 
+      leftEV = View_AD2("left EV", nVar, nVar); 
+      rightEV = View_AD2("right EV", nVar, nVar); 
+      tmp = View_AD1("tmp", nVar);
     }
     
     for (size_type pt=0; pt<boundterm.extent(1); ++pt) {
@@ -691,7 +693,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the diagonal matrix
-        for (int i=0; i<spaceDim + 1; ++i) {
+        for (int i=0; i<nVar; ++i) {
           tmp(i) *= ( Lambda(i) + abs( Lambda(i) ) ) / 2.;
         }
         // R tmp = A^+ deltaS --> bound_sub 
@@ -711,7 +713,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the diagonal matrix
-        for (int i=0; i<spaceDim + 1; ++i) {
+        for (int i=0; i<nVar; ++i) {
           tmp(i) *= ( Lambda(i) - abs( Lambda(i) ) ) / 2.;
         }
         // R tmp = A^- deltaS --> deltaS
@@ -719,7 +721,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
         // finalize
         
-        for (int i=0; i<spaceDim + 1; ++i) {
+        for (int i=0; i<nVar; ++i) {
           bound_sub(i) -= deltaS(i);
         }
 
