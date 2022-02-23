@@ -9,7 +9,10 @@ SET(Trilinos_SRC_DIR ${Trilinos_SRC_DIR})
 
 set(CMAKE_PREFIX_PATH ${TRILINOS_DIR} ${CMAKE_PREFIX_PATH})
 
-PROJECT(mrhyde)
+#PROJECT(mrhyde)
+project(mrhyde
+  LANGUAGES NONE  # Defined below after reading in compilers
+)
 
 find_package(Trilinos REQUIRED)
 
@@ -200,6 +203,11 @@ SET(CMAKE_CXX_FLAGS  "${Trilinos_CXX_COMPILER_FLAGS} ${CMAKE_CXX_FLAGS}")
 SET(CMAKE_C_FLAGS  "${Trilinos_C_COMPILER_FLAGS} ${CMAKE_C_FLAGS}")
 SET(CMAKE_Fortran_FLAGS  "${Trilinos_Fortran_COMPILER_FLAGS} ${CMAKE_Fortran_FLAGS}")
 
+enable_language(C)
+enable_language(CXX)
+if (CMAKE_Fortran_COMPILER)
+  enable_language(Fortran)
+endif()
 #
 # End of setup and error checking
 #  NOTE: PROJECT command checks for compilers, so this statement
