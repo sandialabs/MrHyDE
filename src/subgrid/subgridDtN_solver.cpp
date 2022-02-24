@@ -549,7 +549,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
       ////////////////////////////////////////////////
       
       for (size_t e=0; e<assembler->boundary_groups[macrogrp].size(); e++) {
-
+        assembler->wkset[0]->isOnSide = true;
         if (assembler->boundary_groups[macrogrp][e]->numElem > 0) {
           
           int seedwhat = 1;
@@ -609,6 +609,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sub_u,
 #endif
           }
         }
+        assembler->wkset[0]->isOnSide = false;
       }
       
       //////////////////////////////////////////////////////////////////////////
@@ -857,7 +858,7 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,num_active_params);
       Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,snumDOF);
-      
+      assembler->wkset[0]->isOnSide = true;
       for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
         assembler->boundary_groups[macrogrp][elem]->updateData();
@@ -871,7 +872,7 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
                             data_avail, use_host_LIDs, true);
           
       }
-      
+      assembler->wkset[0]->isOnSide = false;
     }
     
     auto sub_phi_kv = sub_phi->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
@@ -882,7 +883,8 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
     for (int p=0; p<num_active_params; p++) {
       auto sub_res_sv = Kokkos::subview(d_sub_res_over_kv,Kokkos::ALL(),p);
       ScalarT subgrad = 0.0;
-      parallel_reduce(RangePolicy<SG_exec>(0,sub_phi_kv.extent(0)), KOKKOS_LAMBDA (const int i, ScalarT& update) {
+      parallel_reduce(RangePolicy<SG_exec>(0,sub_phi_kv.extent(0)), 
+                      KOKKOS_LAMBDA (const int i, ScalarT& update) {
         update += sub_phi_kv(i,0) * sub_res_sv(i);
       }, subgrad);
       subgrad_host(p,0) = subgrad;
@@ -933,6 +935,7 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       auto numAuxDOF = assembler->groupData[0]->numAuxDOF;
       auto aoffsets = assembler->boundary_groups[macrogrp][0]->auxoffsets;
       
+      assembler->wkset[0]->isOnSide = true;
       for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
         //-----------------------------------------------
@@ -975,6 +978,7 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
         });
 #endif
       }
+      assembler->wkset[0]->isOnSide = false;
     }
     
     if (solver->Comm->getSize() > 1) {
@@ -1199,7 +1203,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
   
   //macrowkset.resetResidual();
   macrowkset.reset();
-  
+  assembler->wkset[0]->isOnSide = true;
   for (size_t e=0; e<assembler->boundary_groups[macrogrp].size(); e++) {
 
     if (assembler->boundary_groups[macrogrp][e]->sidename == "interior") {
@@ -1241,7 +1245,8 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
       }
     }
   }
-  
+  assembler->wkset[0]->isOnSide = false;
+
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
       cout << "**** Finished SubGridDtN_Solver::updateFlux ..." << endl;

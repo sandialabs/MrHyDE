@@ -40,6 +40,9 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   numsideip = cellinfo[4];
   numSets = cellinfo[5];
   
+  isOnSide = false;
+  isOnPoint = false;
+
   if (dimension == 2) {
     numsides = celltopo->getSideCount();
   }
@@ -59,21 +62,21 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   scalar_fields.push_back(ScalarField("y"));
   scalar_fields.push_back(ScalarField("z"));
   
-  scalar_fields.push_back(ScalarField("x side"));
-  scalar_fields.push_back(ScalarField("y side"));
-  scalar_fields.push_back(ScalarField("z side"));
+  side_scalar_fields.push_back(ScalarField("x"));
+  side_scalar_fields.push_back(ScalarField("y"));
+  side_scalar_fields.push_back(ScalarField("z"));
   
-  scalar_fields.push_back(ScalarField("nx side"));
-  scalar_fields.push_back(ScalarField("ny side"));
-  scalar_fields.push_back(ScalarField("nz side"));
+  side_scalar_fields.push_back(ScalarField("n[x]"));
+  side_scalar_fields.push_back(ScalarField("n[y]"));
+  side_scalar_fields.push_back(ScalarField("n[z]"));
   
-  scalar_fields.push_back(ScalarField("tx side"));
-  scalar_fields.push_back(ScalarField("ty side"));
-  scalar_fields.push_back(ScalarField("tz side"));
+  side_scalar_fields.push_back(ScalarField("t[x]"));
+  side_scalar_fields.push_back(ScalarField("t[y]"));
+  side_scalar_fields.push_back(ScalarField("t[z]"));
   
-  scalar_fields.push_back(ScalarField("x point"));
-  scalar_fields.push_back(ScalarField("y point"));
-  scalar_fields.push_back(ScalarField("z point"));
+  point_scalar_fields.push_back(ScalarField("x"));
+  point_scalar_fields.push_back(ScalarField("y"));
+  point_scalar_fields.push_back(ScalarField("z"));
   
   // these can point to different arrays
   wts = View_Sc2("ip wts",numElem,numip);
@@ -311,14 +314,14 @@ void workset::addSolutionField(string & var, size_t & set_index,
     soln_fields.push_back(SolutionField("grad("+var+")[y]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField("grad("+var+")[z]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField(var+"_t", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+" side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[x] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[y] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[z] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+" point", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[x] point", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[y] point", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[z] point", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField("grad("+var+")[x]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField("grad("+var+")[y]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField("grad("+var+")[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField("grad("+var+")[x]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField("grad("+var+")[y]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField("grad("+var+")[z]", set_index, soltype, var_index));
   
   }
   else if (basistype.substr(0,4) == "HDIV" ) {
@@ -330,20 +333,20 @@ void workset::addSolutionField(string & var, size_t & set_index,
     soln_fields.push_back(SolutionField(var+"_t[x]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField(var+"_t[y]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField(var+"_t[z]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[x] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[y] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[z] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[x] point", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[y] point", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[z] point", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,4) == "HVOL") {
     
     soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
     soln_fields.push_back(SolutionField(var+"_t", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+" side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+" point", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,5) == "HCURL") {
@@ -357,17 +360,17 @@ void workset::addSolutionField(string & var, size_t & set_index,
     soln_fields.push_back(SolutionField(var+"_t[x]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField(var+"_t[y]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField(var+"_t[z]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[x] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[y] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[z] side", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[x] point", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[y] point", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[z] point", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,5) == "HFACE") {
     
-    soln_fields.push_back(SolutionField(var+" side", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
     
   }
 }
@@ -398,6 +401,12 @@ void workset::reset() {
 void workset::resetSolutionFields() {
   for (size_t f=0; f<soln_fields.size(); ++f) {
     soln_fields[f].isUpdated = false;
+  }
+  for (size_t f=0; f<side_soln_fields.size(); ++f) {
+    side_soln_fields[f].isUpdated = false;
+  }
+  for (size_t f=0; f<point_soln_fields.size(); ++f) {
+    point_soln_fields[f].isUpdated = false;
   }
 }
 
@@ -775,7 +784,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     if (!isTransient) {
       proceed = false;
     }
-    else if (soln_fields[fieldnum].isOnSide) {
+    else if (isOnSide) {
       proceed = false;
     }
     else if (soln_fields[fieldnum].variable_type == "param") {
@@ -785,7 +794,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
   if (soln_fields[fieldnum].variable_type == "aux") {
     proceed = false;
   }
-  if (soln_fields[fieldnum].isPoint) {
+  if (isOnPoint) {
     proceed = false;
   }
   
@@ -847,7 +856,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     else {
       View_Sc4 cbasis;
       if (soln_fields[fieldnum].derivative_type == "grad") {
-        if (soln_fields[fieldnum].isOnSide) {
+        if (isOnSide) {
           cbasis = basis_grad_side[basis_index];
         }
         else {
@@ -855,7 +864,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
         }
       }
       else if (soln_fields[fieldnum].derivative_type == "curl") {
-        if (soln_fields[fieldnum].isOnSide) {
+        if (isOnSide) {
           // not implemented
         }
         else {
@@ -863,7 +872,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
         }
       }
       else {
-        if (soln_fields[fieldnum].isOnSide) {
+        if (isOnSide) {
           cbasis = basis_side[basis_index];
         }
         else {
@@ -894,6 +903,119 @@ void workset::evaluateSolutionField(const int & fieldnum) {
   
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+// Compute the seeded solutions at specified side ip
+////////////////////////////////////////////////////////////////////////////////////
+
+void workset::evaluateSideSolutionField(const int & fieldnum) {
+  
+  auto fielddata = side_soln_fields[fieldnum].data;
+  
+  bool proceed = true;
+  if (side_soln_fields[fieldnum].derivative_type == "time" ) {
+    if (!isTransient) {
+      proceed = false;
+    }
+    else if (isOnSide) {
+      proceed = false;
+    }
+    else if (side_soln_fields[fieldnum].variable_type == "param") {
+      proceed = false;
+    }
+  }
+  if (side_soln_fields[fieldnum].variable_type == "aux") {
+    proceed = false;
+  }
+  if (isOnPoint) {
+    proceed = false;
+  }
+  
+  if (proceed) {
+    
+    //-----------------------------------------------------
+    // Get the appropriate view of seeded solution values
+    //-----------------------------------------------------
+    
+    size_t sindex = side_soln_fields[fieldnum].set_index;
+    size_t vindex = side_soln_fields[fieldnum].variable_index;
+    
+    View_AD2 solvals;
+    size_t uindex = uvals_index[side_soln_fields[fieldnum].set_index][side_soln_fields[fieldnum].variable_index];
+    if (side_soln_fields[fieldnum].variable_type == "solution") { // solution
+      if (side_soln_fields[fieldnum].derivative_type == "time" ) {
+        solvals = u_dotvals[uindex];
+      }
+      else {
+        solvals = uvals[uindex];
+      }
+    }
+
+    int basis_index;
+    
+    if (side_soln_fields[fieldnum].variable_type == "param") { // discr. params
+      solvals = pvals[side_soln_fields[fieldnum].variable_index];
+      basis_index = paramusebasis[vindex];
+    }
+    else {
+      basis_index = set_usebasis[sindex][vindex];//soln_fields[fieldnum].basis_index;
+    }
+    
+    //-----------------------------------------------------
+    // Get the appropriate basis values and evaluate the fields
+    //-----------------------------------------------------
+    
+    int component = side_soln_fields[fieldnum].component;
+    
+    if (side_soln_fields[fieldnum].derivative_type == "div") {
+      auto sbasis = basis_div[basis_index];
+      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
+        }
+        for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
+          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+          }
+        }
+      });
+      
+    }
+    else {
+      View_Sc4 cbasis;
+      if (side_soln_fields[fieldnum].derivative_type == "grad") {
+        cbasis = basis_grad_side[basis_index];
+      }
+      else {
+        cbasis = basis_side[basis_index];
+      }
+      
+      auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
+      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+      
+      parallel_for("wkset soln ip HGRAD",
+                   TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
+        }
+        for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
+          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+          }
+        }
+      });
+    }
+    
+    side_soln_fields[fieldnum].isUpdated = true;
+  }
+  
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the solutions at the side ip
@@ -918,10 +1040,10 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[uvals_index[current_set][varind]];
       
-      auto csol = this->getSolutionField(var+" side",false);
-      auto csol_x = this->getSolutionField("grad("+var+")[x] side",false);
-      auto csol_y = this->getSolutionField("grad("+var+")[y] side",false);
-      auto csol_z = this->getSolutionField("grad("+var+")[z] side",false);
+      auto csol = this->getSolutionField(var,false);
+      auto csol_x = this->getSolutionField("grad("+var+")[x]",false);
+      auto csol_y = this->getSolutionField("grad("+var+")[y]",false);
+      auto csol_z = this->getSolutionField("grad("+var+")[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
       auto cbasis_grad = basis_grad_side[usebasis[varind]];
       
@@ -963,7 +1085,7 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[uvals_index[current_set][varind]];
       
-      auto csol = this->getSolutionField(var+" side",false);
+      auto csol = this->getSolutionField(var,false);
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HVOL",
@@ -989,9 +1111,9 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[uvals_index[current_set][varind]];
       
-      auto csolx = this->getSolutionField(var+"[x] side",false);
-      auto csoly = this->getSolutionField(var+"[y] side",false);
-      auto csolz = this->getSolutionField(var+"[z] side",false);
+      auto csolx = this->getSolutionField(var+"[x]",false);
+      auto csoly = this->getSolutionField(var+"[y]",false);
+      auto csolz = this->getSolutionField(var+"[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HDIV",
@@ -1030,9 +1152,9 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto cuvals = uvals[uvals_index[current_set][varind]];
       
-      auto csolx = this->getSolutionField(var+"[x] side",false);
-      auto csoly = this->getSolutionField(var+"[y] side",false);
-      auto csolz = this->getSolutionField(var+"[z] side",false);
+      auto csolx = this->getSolutionField(var+"[x]",false);
+      auto csoly = this->getSolutionField(var+"[y]",false);
+      auto csolz = this->getSolutionField(var+"[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
       
       parallel_for("wkset soln ip HCURL",
@@ -1085,7 +1207,7 @@ void workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,Assembly
     string var = aux_varlist[i];
     
     soln_fields.push_back(SolutionField("aux "+var,0,"aux",i)); // TMW: I think this is hard-coded for one basis type
-    soln_fields.push_back(SolutionField("aux "+var+" side",0,"aux",i));
+    side_soln_fields.push_back(SolutionField("aux "+var,0,"aux",i));
     
     //soln_fields.push_back(SolutionField("aux "+var,0,"aux",i,"HGRAD",0,"",0,0,numip,false,false));
     //soln_fields.push_back(SolutionField("aux "+var+" side",0,"aux",i,"HGRAD",0,"",0,0,numsideip,true,false));
@@ -1186,15 +1308,30 @@ void workset::printSolutionFields() {
 }
 
 void workset::printScalarFields() {
-  cout << "Currently defined scalar fields are: " << endl;
-  for (size_t f=0; f<scalar_fields.size(); ++f) {
-    cout << scalar_fields[f].expression << endl;
+  if (isOnSide) {
+    cout << "Currently defined side scalar fields are: " << endl;
+    for (size_t f=0; f<side_scalar_fields.size(); ++f) {
+      cout << side_scalar_fields[f].expression << endl;
+    }
   }
+  else if (isOnPoint) {
+    cout << "Currently defined point scalar fields are: " << endl;
+    for (size_t f=0; f<point_scalar_fields.size(); ++f) {
+      cout << point_scalar_fields[f].expression << endl;
+    }
+  }
+  else {
+    cout << "Currently defined scalar fields are: " << endl;
+    for (size_t f=0; f<scalar_fields.size(); ++f) {
+      cout << scalar_fields[f].expression << endl;
+    }
+  }
+  
 }
 
-//----------------------------------------------------------------
-//
-//----------------------------------------------------------------
+//////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////
 
 View_AD2 workset::getSolutionField(const string & label, const bool & evaluate, 
                                    const bool & markUpdated) {
@@ -1203,87 +1340,205 @@ View_AD2 workset::getSolutionField(const string & label, const bool & evaluate,
   
   View_AD2 outdata;
   
-  bool found = false;
-  size_t ind = 0;
-  while (!found && ind<soln_fields.size()) {
-    if (label == soln_fields[ind].expression) {
-      found = true;
+  if (isOnSide) {
+    bool found = false;
+    size_t ind = 0;
+    while (!found && ind<side_soln_fields.size()) {
+      if (label == side_soln_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a side solution field named " << label << std::endl;
+      this->printSolutionFields();
     }
     else {
-      ++ind;
+      this->checkSolutionFieldAllocation(ind);
+      if (evaluate && !side_soln_fields[ind].isUpdated) {
+        this->evaluateSideSolutionField(ind);
+      }
+      else if (markUpdated) {
+        side_soln_fields[ind].isUpdated = true;
+      }
     }
+    outdata = side_soln_fields[ind].data;
   }
-  if (!found) {
-    std::cout << "Error: could not find a field named " << label << std::endl;
-    this->printSolutionFields();
+  else if (isOnPoint) {
+    bool found = false;
+    size_t ind = 0;
+    while (!found && ind<point_soln_fields.size()) {
+      if (label == point_soln_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a point solution field named " << label << std::endl;
+      this->printSolutionFields();
+    }
+    else {
+      this->checkSolutionFieldAllocation(ind);
+      if (evaluate && !point_soln_fields[ind].isUpdated) {
+        this->evaluateSolutionField(ind);
+      }
+      else if (markUpdated) {
+        point_soln_fields[ind].isUpdated = true;
+      }
+    }
+    outdata = point_soln_fields[ind].data;
   }
   else {
-    this->checkSolutionFieldAllocation(ind);
-    if (evaluate && !soln_fields[ind].isUpdated) {
-      this->evaluateSolutionField(ind);
+    bool found = false;
+    size_t ind = 0;
+    while (!found && ind<soln_fields.size()) {
+      if (label == soln_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
     }
-    else if (markUpdated) {
-      soln_fields[ind].isUpdated = true;
+    if (!found) {
+      std::cout << "Error: could not find a field named " << label << std::endl;
+      this->printSolutionFields();
     }
+    else {
+      this->checkSolutionFieldAllocation(ind);
+      if (evaluate && !soln_fields[ind].isUpdated) {
+        this->evaluateSolutionField(ind);
+      }
+      else if (markUpdated) {
+        soln_fields[ind].isUpdated = true;
+      }
+    }
+    outdata = soln_fields[ind].data;
   }
-  outdata = soln_fields[ind].data;
-  
   return outdata;
   
 }
 
+//////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////
+
 void workset::checkSolutionFieldAllocation(const size_t & ind) {
   
-  if (!soln_fields[ind].isInitialized) {
-    if (soln_fields[ind].isOnSide) {
-      soln_fields[ind].initialize(maxElem,numsideip);
+  if (isOnSide) {
+    if (!side_soln_fields[ind].isInitialized) {
+      side_soln_fields[ind].initialize(maxElem,numsideip);
     }
-    else if (soln_fields[ind].isPoint) {
-      soln_fields[ind].initialize(maxElem,1);
+  }
+  else if (isOnPoint) {
+    if (!point_soln_fields[ind].isInitialized) {
+      point_soln_fields[ind].initialize(maxElem,1);
     }
-    else {
+  }
+  else {
+    if (!soln_fields[ind].isInitialized) {
       soln_fields[ind].initialize(maxElem,numip);
     }
   }
   
 }
 
+//////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////
+
 void workset::checkScalarFieldAllocation(const size_t & ind) {
   
-  if (!scalar_fields[ind].isInitialized) {
-    if (scalar_fields[ind].isOnSide) {
-      scalar_fields[ind].initialize(maxElem,numsideip);
+  if (isOnSide) {
+    if (!side_scalar_fields[ind].isInitialized) {
+      side_scalar_fields[ind].initialize(maxElem,numsideip);
     }
-    else{
+  }
+  else if (isOnPoint) {
+    if (!point_scalar_fields[ind].isInitialized) {
+      point_scalar_fields[ind].initialize(maxElem,1);
+    }
+  }
+  else {
+    if (!scalar_fields[ind].isInitialized) {
       scalar_fields[ind].initialize(maxElem,numip);
     }
   }
-  
 }
+
+//////////////////////////////////////////////////////////////
+// 
+//////////////////////////////////////////////////////////////
 
 View_Sc2 workset::getScalarField(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
   View_Sc2 outdata;
-  
   bool found = false;
   size_t ind = 0;
-  while (!found && ind<scalar_fields.size()) {
-    if (label == scalar_fields[ind].expression) {
-      found = true;
+    
+  if (isOnSide) {
+    while (!found && ind<side_scalar_fields.size()) {
+      if (label == side_scalar_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a side scalar field named " << label << std::endl;
+      this->printScalarFields();
     }
     else {
-      ++ind;
+      this->checkScalarFieldAllocation(ind);
+      outdata = side_scalar_fields[ind].data;
     }
+  
   }
-  if (!found) {
-    std::cout << "Error: could not find a scalar field named " << label << std::endl;
-    this->printScalarFields();
+  else if (isOnPoint) {
+    while (!found && ind<point_scalar_fields.size()) {
+      if (label == point_scalar_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a side scalar field named " << label << std::endl;
+      this->printScalarFields();
+    }
+    else {
+      this->checkScalarFieldAllocation(ind);
+      outdata = point_scalar_fields[ind].data;
+    }
+  
   }
   else {
-    this->checkScalarFieldAllocation(ind);
-    outdata = scalar_fields[ind].data;
+    while (!found && ind<scalar_fields.size()) {
+      if (label == scalar_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a side scalar field named " << label << std::endl;
+      this->printScalarFields();
+    }
+    else {
+      this->checkScalarFieldAllocation(ind);
+      outdata = scalar_fields[ind].data;
+    }
+  
   }
+  
+  
   
   return outdata;
 }
@@ -1617,22 +1872,61 @@ void workset::setScalarField(View_Sc2 newdata, const string & expression) {
   
   bool found = false;
   size_t ind = 0;
-  while (!found && ind<scalar_fields.size()) {
-    if (expression == scalar_fields[ind].expression) {
-      found = true;
+  if (isOnSide) {
+    while (!found && ind<side_scalar_fields.size()) {
+      if (expression == side_scalar_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a scalar field named " << expression << std::endl;
+      this->printScalarFields();
     }
     else {
-      ++ind;
+      side_scalar_fields[ind].data = newdata;
+      side_scalar_fields[ind].isInitialized = true;
     }
   }
-  if (!found) {
-    std::cout << "Error: could not find a scalar field named " << expression << std::endl;
-    this->printScalarFields();
+  else if (isOnPoint) {
+    while (!found && ind<point_scalar_fields.size()) {
+      if (expression == point_scalar_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a scalar field named " << expression << std::endl;
+      this->printScalarFields();
+    }
+    else {
+      point_scalar_fields[ind].data = newdata;
+      point_scalar_fields[ind].isInitialized = true;
+    }
   }
   else {
-    scalar_fields[ind].data = newdata;
-    scalar_fields[ind].isInitialized = true;
+    while (!found && ind<scalar_fields.size()) {
+      if (expression == scalar_fields[ind].expression) {
+        found = true;
+      }
+      else {
+        ++ind;
+      }
+    }
+    if (!found) {
+      std::cout << "Error: could not find a scalar field named " << expression << std::endl;
+      this->printScalarFields();
+    }
+    else {
+      scalar_fields[ind].data = newdata;
+      scalar_fields[ind].isInitialized = true;
+    }  
   }
+  
 }
 
 //////////////////////////////////////////////////////////////
@@ -1776,7 +2070,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
-    auto csol = this->getSolutionField(var+" point",false,true);
+    auto csol = this->getSolutionField(var,false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1787,7 +2081,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
   for (size_t i=0; i<varlist_HVOL[current_set].size(); i++) {
     string var = varlist_HVOL[current_set][i];
     int varind = vars_HVOL[current_set][i];
-    auto csol = this->getSolutionField(var+" point",false,true);
+    auto csol = this->getSolutionField(var,false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1799,7 +2093,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
     string var = varlist_HDIV[current_set][i];
     int varind = vars_HDIV[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false,true);
+    auto csol = this->getSolutionField(var+"[x]",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1807,7 +2101,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false,true);
+      auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1815,7 +2109,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false,true);
+      auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1827,7 +2121,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
     string var = varlist_HCURL[current_set][i];
     int varind = vars_HCURL[current_set][i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false,true);
+    auto csol = this->getSolutionField(var+"[x]",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1835,7 +2129,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false,true);
+      auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1843,7 +2137,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false,true);
+      auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1864,7 +2158,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
     size_type dim = newsol.extent(1);
-    auto csol = this->getSolutionField("grad("+var+")[x]"+" point",false,true);
+    auto csol = this->getSolutionField("grad("+var+")[x]",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1872,7 +2166,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField("grad("+var+")[y]"+" point",false,true);
+      auto csol = this->getSolutionField("grad("+var+")[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1880,7 +2174,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField("grad("+var+")[z]"+" point",false,true);
+      auto csol = this->getSolutionField("grad("+var+")[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -1968,7 +2262,7 @@ void workset::setParamPoint(View_AD2 newsol) {
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
-    auto csol = this->getSolutionField(var+" point",false,true);
+    auto csol = this->getSolutionField(var,false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1979,7 +2273,7 @@ void workset::setParamPoint(View_AD2 newsol) {
   for (size_t i=0; i<paramvarlist_HVOL.size(); i++) {
     string var = paramvarlist_HVOL[i];
     int varind = paramvars_HVOL[i];
-    auto csol = this->getSolutionField(var+" point",false,true);
+    auto csol = this->getSolutionField(var,false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1991,7 +2285,7 @@ void workset::setParamPoint(View_AD2 newsol) {
     string var = paramvarlist_HDIV[i];
     int varind = paramvars_HDIV[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false,true);
+    auto csol = this->getSolutionField(var+"[x]",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -1999,7 +2293,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false,true);
+      auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2007,7 +2301,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false,true);
+      auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2019,7 +2313,7 @@ void workset::setParamPoint(View_AD2 newsol) {
     string var = paramvarlist_HCURL[i];
     int varind = paramvars_HCURL[i];
     size_type dim = newsol.extent(3);
-    auto csol = this->getSolutionField(var+"[x] point",false,true);
+    auto csol = this->getSolutionField(var+"[x]",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2027,7 +2321,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField(var+"[y] point",false,true);
+      auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2035,7 +2329,7 @@ void workset::setParamPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField(var+"[z] point",false,true);
+      auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2056,7 +2350,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
     string var = paramvarlist_HGRAD[i];
     int varind = paramvars_HGRAD[i];
     size_type dim = newsol.extent(1);
-    auto csol = this->getSolutionField("grad("+var+")[x]"+" point",false,true);
+    auto csol = this->getSolutionField("grad("+var+")[x]",false,true);
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
@@ -2064,7 +2358,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
-      auto csol = this->getSolutionField("grad("+var+")[y]"+" point",false,true);
+      auto csol = this->getSolutionField("grad("+var+")[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -2072,7 +2366,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
       });
     }
     if (dim>2) {
-      auto csol = this->getSolutionField("grad("+var+")[z]"+" point",false,true);
+      auto csol = this->getSolutionField("grad("+var+")[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
                    KOKKOS_LAMBDA (const int elem ) {

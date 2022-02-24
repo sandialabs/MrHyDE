@@ -2270,6 +2270,7 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
   
   for (size_t block=0; block<boundary_groups.size(); ++block) {
     wkset[block]->setTime(time);
+    wkset[block]->isOnSide = true;
     for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
       int numElem = boundary_groups[block][grp]->numElem;
       auto LIDs = boundary_groups[block][grp]->LIDs_host[set];
@@ -2315,8 +2316,10 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
         }
       }
     }
+    wkset[block]->isOnSide = false;
   }
   
+
   // Loop over the groups to put ones on the diagonal for DOFs not on Dirichlet boundaries
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
@@ -2661,10 +2664,12 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           // do nothing
         }
         else {
+          wkset[block]->isOnSide = true;
           for (size_t s=0; s<groupData[block]->numSides; s++) {
             groups[block][grp]->updateWorksetFace(s);
             phys->faceResidual(set,block);
           }
+          wkset[block]->isOnSide =false;
         }
       }
       
@@ -2757,6 +2762,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   
   if (assemble_boundary_terms[set][block]) {
     
+    wkset[block]->isOnSide = true;
+
     if (!reduce_memory) {
       if (compute_sens) {
         local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
@@ -2861,7 +2868,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         
       }
     } // element loop
-    
+    wkset[block]->isOnSide = false;
   }
   
   // Apply constraints, e.g., strongly imposed Dirichlet

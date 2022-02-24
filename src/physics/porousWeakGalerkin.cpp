@@ -356,15 +356,15 @@ void porousWeakGalerkin::boundaryResidual() {
   auto res = wkset->res;
   View_Sc2 nx, ny, nz;
   View_AD2 ux, uy, uz;
-  nx = wkset->getScalarField("nx side");
-  ux = wkset->getSolutionField("u[x] side");
+  nx = wkset->getScalarField("n[x]");
+  ux = wkset->getSolutionField("u[x]");
   if (spaceDim > 1) {
-    ny = wkset->getScalarField("ny side");
-    uy = wkset->getSolutionField("u[y] side");
+    ny = wkset->getScalarField("n[y]");
+    uy = wkset->getSolutionField("u[y]");
   }
   if (spaceDim > 2) {
-    nz = wkset->getScalarField("nz side");
-    uz = wkset->getSolutionField("u[z] side");
+    nz = wkset->getScalarField("n[z]");
+    uz = wkset->getSolutionField("u[z]");
   }
   
   
@@ -393,7 +393,7 @@ void porousWeakGalerkin::boundaryResidual() {
   }
   else if (bcs(pintnum,cside) == "interface") {
     auto off = subview(wkset->offsets, unum, ALL());
-    auto lambda = wkset->getSolutionField("aux pbndry side");
+    auto lambda = wkset->getSolutionField("aux pbndry");
     parallel_for("porous WG bndry resid MS Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -430,15 +430,15 @@ void porousWeakGalerkin::faceResidual() {
   // Since normals get recomputed often, this needs to be reset
   View_Sc2 nx, ny, nz;
   View_AD2 tx, ty, tz;
-  nx = wkset->getScalarField("nx side");
-  tx = wkset->getSolutionField("t[x] side");
+  nx = wkset->getScalarField("n[x]");
+  tx = wkset->getSolutionField("t[x]");
   if (spaceDim > 1) {
-    ny = wkset->getScalarField("ny side");
-    ty = wkset->getSolutionField("t[y] side");
+    ny = wkset->getScalarField("n[y]");
+    ty = wkset->getSolutionField("t[y]");
   }
   if (spaceDim > 2) {
-    nz = wkset->getScalarField("nz side");
-    tz = wkset->getSolutionField("t[z] side");
+    nz = wkset->getScalarField("n[z]");
+    tz = wkset->getSolutionField("t[z]");
   }
   
   auto wts = wkset->wts_side;
@@ -450,7 +450,7 @@ void porousWeakGalerkin::faceResidual() {
     // include <pbndry, v \cdot n> in velocity equation
     auto basis = wkset->basis_side[u_basis];
     auto off = subview(wkset->offsets, unum, ALL());
-    auto pbndry = wkset->getSolutionField("pbndry side");
+    auto pbndry = wkset->getSolutionField("pbndry");
     
     parallel_for("porous WG face resid pbndry",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -514,15 +514,15 @@ void porousWeakGalerkin::computeFlux() {
   
   View_Sc2 nx, ny, nz;
   View_AD2 tx, ty, tz;
-  nx = wkset->getScalarField("nx side");
-  tx = wkset->getSolutionField("t[x] side");
+  nx = wkset->getScalarField("n[x]");
+  tx = wkset->getSolutionField("t[x]");
   if (spaceDim > 1) {
-    ny = wkset->getScalarField("ny side");
-    ty = wkset->getSolutionField("t[y] side");
+    ny = wkset->getScalarField("n[y]");
+    ty = wkset->getSolutionField("t[y]");
   }
   if (spaceDim > 2) {
-    nz = wkset->getScalarField("nz side");
-    tz = wkset->getSolutionField("t[z] side");
+    nz = wkset->getScalarField("n[z]");
+    tz = wkset->getSolutionField("t[z]");
   }
   
   // Just need the basis for the number of active elements (any side basis will do)

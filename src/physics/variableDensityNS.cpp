@@ -1253,14 +1253,14 @@ std::vector< std::vector<string> > VDNS::setupIntegratedQuantities(const int & s
       // 4 -- "velocity" flux on the boundary (scaled by gamma)
       string hf,vf;
       if (spaceDim == 1) {
-        hf = "(gamma-1.)*lambda*(nx*grad(T)[x])";
-        vf = "gamma*nx*ux";
+        hf = "(gamma-1.)*lambda*(n[x]*grad(T)[x])";
+        vf = "gamma*n[x]*ux";
       } else if (spaceDim == 2) {
-        hf = "(gamma-1.)*lambda*(nx*grad(T)[x] + ny*grad(T)[y])";
-        vf = "gamma*(nx*ux + ny*uy)";
+        hf = "(gamma-1.)*lambda*(n[x]*grad(T)[x] + n[y]*grad(T)[y])";
+        vf = "gamma*(n[x]*ux + n[y]*uy)";
       } else if (spaceDim == 3) {
-        hf = "(gamma-1.)*lambda*(nx*grad(T)[x] + ny*grad(T)[y] + nz*grad(T)[z])";
-        vf = "gamma*(nx*ux + ny*uy + nz*uz)";
+        hf = "(gamma-1.)*lambda*(n[x]*grad(T)[x] + n[y]*grad(T)[y] + n[z]*grad(T)[z])";
+        vf = "gamma*(n[x]*ux + n[y]*uy + n[z]*uz)";
       }
       IQdata = {hf,"VDNS bnd heat flux (scaled by gamma - 1)","boundary"};
       integrandsNamesAndTypes.push_back(IQdata);

@@ -45,12 +45,13 @@ namespace MrHyDE {
       // defaults
       derivative_type = ""; // grad, curl, div, time
       component = 0; //component_; // x, y, z
-      isOnSide = false;
-      isPoint = false;
+      //isOnSide = false;
+      //isPoint = false;
       isUpdated = false;
       isInitialized = false;
       
       // Check if the field is on a side
+      /*
       {
         size_t found = expression.find("side");
         if (found!=std::string::npos) {
@@ -65,7 +66,7 @@ namespace MrHyDE {
           isPoint = true;
         }
       }
-      
+      */
       // Check if the field is a component of a vector
       {
         size_t xfound = expression.find("[x]");
@@ -126,7 +127,7 @@ namespace MrHyDE {
     
     string expression, variable_type, basis_type, derivative_type;
     size_t set_index, variable_index, component;
-    bool isUpdated, isOnSide, isPoint, isInitialized;
+    bool isUpdated, isInitialized; //isOnSide, isPoint;
     View_AD2 data;
     
   };
@@ -147,11 +148,12 @@ namespace MrHyDE {
     ScalarField(const string & expression_) {
                 
       expression = expression_;
-      isOnSide = false;
-      isPoint = false;
+      //isOnSide = false;
+      //isPoint = false;
       isUpdated = false;
       isInitialized = false;
       
+      /*
       // Check if the field is on a side
       {
         size_t found = expression.find("side");
@@ -167,9 +169,10 @@ namespace MrHyDE {
           isPoint = true;
         }
       }
-      
+      */
     }
     
+
     // =================================================================
     // =================================================================
     
@@ -182,7 +185,7 @@ namespace MrHyDE {
     // =================================================================
     
     string expression;
-    bool isUpdated, isOnSide, isPoint, isInitialized;
+    bool isUpdated,  isInitialized; //isOnSide, isPoint,
     View_Sc2 data;
     
   };

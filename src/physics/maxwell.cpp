@@ -296,8 +296,8 @@ void maxwell::boundaryResidual() {
   
   if (spaceDim == 2) {
     View_Sc2 nx, ny;
-    nx = wkset->getScalarField("nx side");
-    ny = wkset->getScalarField("ny side");
+    nx = wkset->getScalarField("n[x]");
+    ny = wkset->getScalarField("n[y]");
     
     //double gamma = 0.0;
     if (bcs(Bnum,cside) == "Neumann") { // Really ABC
@@ -313,12 +313,12 @@ void maxwell::boundaryResidual() {
   }
   else if (spaceDim == 3) {
     View_Sc2 nx, ny, nz;
-    nx = wkset->getScalarField("nx side");
-    ny = wkset->getScalarField("ny side");
-    nz = wkset->getScalarField("nz side");
-    auto Ex = wkset->getSolutionField("E[x] side");
-    auto Ey = wkset->getSolutionField("E[y] side");
-    auto Ez = wkset->getSolutionField("E[z] side");
+    nx = wkset->getScalarField("n[x]");
+    ny = wkset->getScalarField("n[y]");
+    nz = wkset->getScalarField("n[z]");
+    auto Ex = wkset->getSolutionField("E[x]");
+    auto Ey = wkset->getSolutionField("E[y]");
+    auto Ez = wkset->getSolutionField("E[z]");
     auto off = subview(wkset->offsets, Enum, ALL());
     auto basis = wkset->basis_side[wkset->usebasis[Enum]];
     
@@ -345,9 +345,9 @@ void maxwell::boundaryResidual() {
       
       
       /*
-      auto Bx = wkset->getSolutionField("B[x] side");
-      auto By = wkset->getSolutionField("B[y] side");
-      auto Bz = wkset->getSolutionField("B[z] side");
+      auto Bx = wkset->getSolutionField("B[x]");
+      auto By = wkset->getSolutionField("B[y]");
+      auto Bz = wkset->getSolutionField("B[z]");
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {

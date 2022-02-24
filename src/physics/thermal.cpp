@@ -202,41 +202,26 @@ void thermal::boundaryResidual() {
     });
   }
   else if (bcs(e_num,cside) == "weak Dirichlet" || bcs(e_num,cside) == "interface") {
-    auto T = wkset->getSolutionField("e side"); //e_side;
-    auto dTdx = wkset->getSolutionField("grad(e)[x] side"); //dedx_side;
-    auto dTdy = wkset->getSolutionField("grad(e)[y] side"); //dedy_side;
-    auto dTdz = wkset->getSolutionField("grad(e)[z] side"); //dedz_side;
-    auto nx = wkset->getScalarField("nx side");
-    auto ny = wkset->getScalarField("ny side");
-    auto nz = wkset->getScalarField("nz side");
+    auto T = wkset->getSolutionField("e"); //e_side;
+    auto dTdx = wkset->getSolutionField("grad(e)[x]"); //dedx_side;
+    auto dTdy = wkset->getSolutionField("grad(e)[y]"); //dedy_side;
+    auto dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_side;
+    auto nx = wkset->getScalarField("n[x]");
+    auto ny = wkset->getScalarField("n[y]");
+    auto nz = wkset->getScalarField("n[z]");
     Vista bdata;
+    
     if (bcs(e_num,cside) == "weak Dirichlet") {
       bdata = nsource;
     }
     else if (bcs(e_num,cside) == "interface") {
-      bdata = wkset->getSolutionField("aux e side");
+      bdata = wkset->getSolutionField("aux e");
     }
     
     parallel_for("Thermal bndry resid wD",
                  TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      /*
-      int myscratch = elem % scratch.extent(0);
-      for (size_type pt=team.team_rank(); pt<wts.extent(1); pt+=team.team_size() ) {
-        scratch(myscratch,pt,0) = 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt));
-        scratch(myscratch,pt,0) += -diff_side(elem,pt)*dTdx(elem,pt)*nx(elem,pt);
-        if (dim>1) {
-          scratch(myscratch,pt,0) += -diff_side(elem,pt)*dTdy(elem,pt)*ny(elem,pt);
-          if (dim>2) {
-            scratch(myscratch,pt,0) += -diff_side(elem,pt)*dTdz(elem,pt)*nz(elem,pt);
-          }
-        }
-        scratch(myscratch,pt,1) = -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt));
-        scratch(myscratch,pt,0) *= wts(elem,pt);
-        scratch(myscratch,pt,1) *= wts(elem,pt);
-      }
-       */
       if (dim == 1) {
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -264,23 +249,9 @@ void thermal::boundaryResidual() {
           }
         }
       }
-      /*
-      for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
-        for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-          ScalarT gradv_dot_n = basis_grad(elem,dof,pt,0)*nx(elem,pt);
-          if (dim > 1) {
-            gradv_dot_n += basis_grad(elem,dof,pt,1)*ny(elem,pt);
-          }
-          if (dim > 2) {
-            gradv_dot_n += basis_grad(elem,dof,pt,2)*nz(elem,pt);
-          }
-          res(elem,off(dof)) += scratch(myscratch,pt,0)*basis(elem,dof,pt,0) + scratch(myscratch,pt,1)*gradv_dot_n;
-        }
-      }*/
+      
     });
-    //if (wkset->isAdjoint) {
-    //  adjrhs(e,resindex) += sf*diff_side(e,k)*gradv_dot_n*lambda - weakDiriScale*lambda*basis(e,i,k);
-    //}
+    
   }
   
 }
@@ -306,16 +277,16 @@ void thermal::computeFlux() {
   
   View_Sc2 nx, ny, nz;
   View_AD2 T, dTdx, dTdy, dTdz;
-  nx = wkset->getScalarField("nx side");
-  T = wkset->getSolutionField("e side");
-  dTdx = wkset->getSolutionField("grad(e)[x] side"); //dedx_side;
+  nx = wkset->getScalarField("n[x]");
+  T = wkset->getSolutionField("e");
+  dTdx = wkset->getSolutionField("grad(e)[x]"); //dedx_side;
   if (spaceDim > 1) {
-    ny = wkset->getScalarField("ny side");
-    dTdy = wkset->getSolutionField("grad(e)[y] side"); //dedy_side;
+    ny = wkset->getScalarField("n[y]");
+    dTdy = wkset->getSolutionField("grad(e)[y]"); //dedy_side;
   }
   if (spaceDim > 2) {
-    nz = wkset->getScalarField("nz side");
-    dTdz = wkset->getSolutionField("grad(e)[z] side"); //dedz_side;
+    nz = wkset->getScalarField("n[z]");
+    dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_side;
   }
   
   auto h = wkset->h;
@@ -325,7 +296,7 @@ void thermal::computeFlux() {
     //Teuchos::TimeMonitor localtime(*fluxFill);
     
     auto fluxT = subview(wkset->flux, ALL(), e_num, ALL());
-    auto lambda = wkset->getSolutionField("aux e side");
+    auto lambda = wkset->getSolutionField("aux e");
     
     {
       Teuchos::TimeMonitor localtime(*fluxFill);
@@ -435,9 +406,9 @@ std::vector< std::vector<string> > thermal::setupIntegratedQuantities(const int 
 
   // TODO -- BWR assumes the diffusion coefficient is 1.
   // I was getting all zeroes if I used "diff"
-  string integrand = "(nx*grad(e)[x])";
-  if (spaceDim == 2) integrand = "(nx*grad(e)[x] + ny*grad(e)[y])";
-  if (spaceDim == 3) integrand = "(nx*grad(e)[x] + ny*grad(e)[y] + nz*grad(e)[z])";
+  string integrand = "(n[x]*grad(e)[x])";
+  if (spaceDim == 2) integrand = "(n[x]*grad(e)[x] + n[y]*grad(e)[y])";
+  if (spaceDim == 3) integrand = "(n[x]*grad(e)[x] + n[y]*grad(e)[y] + n[z]*grad(e)[z])";
 
   IQ = {integrand,"thermal bnd heat flux","boundary"};
   integrandsNamesAndTypes.push_back(IQ);

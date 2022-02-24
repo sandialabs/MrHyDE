@@ -221,6 +221,7 @@ void BoundaryGroup::updateWorkset(const int & seedwhat, const bool & override_tr
   wkset->sidename = sidename;
   wkset->currentside = sidenum;
   wkset->numElem = numElem;
+  
   this->updateData();
   
   // Update the integration info and basis in workset
@@ -256,18 +257,18 @@ void BoundaryGroup::updateWorksetBasis() {
   
   wkset->wts_side = wts;
   wkset->h = hsize;
-  wkset->setScalarField(ip[0],"x side");
-  wkset->setScalarField(normals[0],"nx side");
-  wkset->setScalarField(tangents[0],"tx side");
+  wkset->setScalarField(ip[0],"x");
+  wkset->setScalarField(normals[0],"n[x]");
+  wkset->setScalarField(tangents[0],"t[x]");
   if (ip.size() > 1) {
-    wkset->setScalarField(ip[1],"y side");
-    wkset->setScalarField(normals[1],"ny side");
-    wkset->setScalarField(tangents[1],"ty side");
+    wkset->setScalarField(ip[1],"y");
+    wkset->setScalarField(normals[1],"n[y]");
+    wkset->setScalarField(tangents[1],"t[y]");
   }
   if (ip.size() > 2) {
-    wkset->setScalarField(ip[2],"z side");
-    wkset->setScalarField(normals[2],"nz side");
-    wkset->setScalarField(tangents[2],"tz side");
+    wkset->setScalarField(ip[2],"z");
+    wkset->setScalarField(normals[2],"n[z]");
+    wkset->setScalarField(tangents[2],"t[z]");
   }
     
 //KokkosTools::print(basis[0]);
@@ -312,7 +313,7 @@ void BoundaryGroup::computeSoln(const int & seedwhat) {
       auto abasis = auxside_basis[auxusebasis[var]];
       auto off = subview(auxoffsets,var,ALL());
       string varname = wkset->aux_varlist[var];
-      auto local_aux = wkset->getSolutionField("aux "+varname+" side",false);
+      auto local_aux = wkset->getSolutionField("aux "+varname,false);
       Kokkos::deep_copy(local_aux,0.0);
       auto localID = localElemID;
       auto varaux = subview(aux,ALL(),var,ALL());

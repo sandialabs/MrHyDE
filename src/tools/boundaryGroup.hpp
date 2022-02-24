@@ -201,6 +201,7 @@ namespace MrHyDE {
       wkset->sidename = sidename;
       wkset->currentside = sidenum;
       wkset->numElem = numElem;
+      //wkset->isOnSide = true;
       //wkset->h = hsize;
       //this->updateWorksetBasis();
       
@@ -262,7 +263,7 @@ namespace MrHyDE {
           auto abasis = auxside_basis[auxusebasis[var]];
           auto off = subview(auxoffsets,var,ALL());
           string varname = wkset->aux_varlist[var];
-          auto local_aux = wkset->getSolutionField("aux "+varname+" side",false);
+          auto local_aux = wkset->getSolutionField("aux "+varname,false);
           Kokkos::deep_copy(local_aux,0.0);
           //auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
           auto localID = localElemID;
@@ -289,6 +290,7 @@ namespace MrHyDE {
         Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
         groupData->physics_RCP->computeFlux(0,groupData->myBlock);
       }
+      //wkset->isOnSide = false;
       
     }
     

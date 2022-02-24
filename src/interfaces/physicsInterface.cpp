@@ -724,15 +724,17 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
     View_Sc2 ptx("ptx",Nelem,Npts), pty("pty",Nelem,Npts), ptz("ptz",Nelem,Npts);
     ptx = pts[0];
     
+    wkset->isOnPoint = true;
+
     View_Sc2 x,y,z;
-    x = wkset->getScalarField("x point");
+    x = wkset->getScalarField("x");
     if (dim > 1) {
       pty = pts[1];
-      y = wkset->getScalarField("y point");
+      y = wkset->getScalarField("y");
     }
     if (dim > 2) {
       ptz = pts[2];
-      z = wkset->getScalarField("z point");
+      z = wkset->getScalarField("z");
     }
     
     
@@ -772,6 +774,7 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
         }
       }
     }
+    wkset->isOnPoint = false;
   }
    
   return ivals;
@@ -886,18 +889,14 @@ int PhysicsInterface::getUniqueIndex(const int & set, const int & block, const s
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
-  if (debug_level > 1) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Starting PhysicsInterface volume residual ..." << endl;
-    }
+  if (debug_level > 1 && Commptr->getRank() == 0) {
+    cout << "**** Starting PhysicsInterface volume residual ..." << endl;
   }
   for (size_t i=0; i<modules[set][block].size(); i++) {
     modules[set][block][i]->volumeResidual();
   }
-  if (debug_level > 1) {
-    if (Commptr->getRank() == 0) {
-      cout << "**** Finished PhysicsInterface volume residual" << endl;
-    }
+  if (debug_level > 1 && Commptr->getRank() == 0) {
+    cout << "**** Finished PhysicsInterface volume residual" << endl;
   }
 }
 
@@ -905,8 +904,14 @@ void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) {
+  if (debug_level > 1 && Commptr->getRank() == 0) {
+    cout << "**** Starting PhysicsInterface boundary residual ..." << endl;
+  }
   for (size_t i=0; i<modules[set][block].size(); i++) {
     modules[set][block][i]->boundaryResidual();
+  }
+  if (debug_level > 1 && Commptr->getRank() == 0) {
+    cout << "**** Finished PhysicsInterface boundary residual" << endl;
   }
 }
 
@@ -914,8 +919,14 @@ void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) 
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
+  if (debug_level > 1 && Commptr->getRank() == 0) {
+    cout << "**** Starting PhysicsInterface compute flux ..." << endl;
+  }
   for (size_t i=0; i<modules[set][block].size(); i++) {
     modules[set][block][i]->computeFlux();
+  }
+  if (debug_level > 1 && Commptr->getRank() == 0) {
+    cout << "**** Finished PhysicsInterface compute flux" << endl;
   }
 }
 

@@ -52,7 +52,7 @@ ANONYMOUS:
         integrand: '1.'
         location: 'boundary'
       left:
-        integrand: 'nx*grad(e)[x] + ny*grad(e)[y]'
+        integrand: 'n[x]*grad(e)[x] + n[y]*grad(e)[y]'
         location: 'boundary'
         boundary names: 'left'
       bnd e:

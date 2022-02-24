@@ -451,21 +451,21 @@ void porousMixed::boundaryResidual() {
   
   View_Sc2 nx, ny, nz;
   View_AD2 ux, uy, uz;
-  nx = wkset->getScalarField("nx side");
+  nx = wkset->getScalarField("n[x]");
   
   if (spaceDim == 1) {
-    ux = wkset->getSolutionField("u side");
+    ux = wkset->getSolutionField("u");
   }
   else {
-    ux = wkset->getSolutionField("u[x] side");
+    ux = wkset->getSolutionField("u[x]");
   }
   if (spaceDim > 1) {
-    ny = wkset->getScalarField("ny side");
-    uy = wkset->getSolutionField("u[y] side");
+    ny = wkset->getScalarField("n[y]");
+    uy = wkset->getSolutionField("u[y]");
   }
   if (spaceDim > 2) {
-    nz = wkset->getScalarField("nz side");
-    uz = wkset->getSolutionField("u[z] side");
+    nz = wkset->getScalarField("n[z]");
+    uz = wkset->getSolutionField("u[z]");
   }
   
   Vista bsource;
@@ -503,7 +503,7 @@ void porousMixed::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == "interface") {
-    auto lambda = wkset->getSolutionField("aux "+auxvar+" side");
+    auto lambda = wkset->getSolutionField("aux "+auxvar);
     parallel_for("porous HDIV boundary resid MS Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -542,8 +542,8 @@ void porousMixed::computeFlux() {
     View_Sc2 nx, ny, nz;
     View_AD2 ux, uy, uz;
     if (spaceDim == 1) {
-      nx = wkset->getScalarField("nx side");
-      ux = wkset->getSolutionField("u side");
+      nx = wkset->getScalarField("n[x]");
+      ux = wkset->getSolutionField("u");
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -554,10 +554,10 @@ void porousMixed::computeFlux() {
       });
     }
     else if (spaceDim == 2) {
-      nx = wkset->getScalarField("nx side");
-      ux = wkset->getSolutionField("u[x] side");
-      ny = wkset->getScalarField("ny side");
-      uy = wkset->getSolutionField("u[y] side");
+      nx = wkset->getScalarField("n[x]");
+      ux = wkset->getSolutionField("u[x]");
+      ny = wkset->getScalarField("n[y]");
+      uy = wkset->getSolutionField("u[y]");
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -569,12 +569,12 @@ void porousMixed::computeFlux() {
       });
     }
     else if (spaceDim == 3) {
-      nx = wkset->getScalarField("nx side");
-      ux = wkset->getSolutionField("u[x] side");
-      ny = wkset->getScalarField("ny side");
-      uy = wkset->getSolutionField("u[y] side");
-      nz = wkset->getScalarField("nz side");
-      uz = wkset->getSolutionField("u[z] side");
+      nx = wkset->getScalarField("n[x]");
+      ux = wkset->getSolutionField("u[x]");
+      ny = wkset->getScalarField("n[y]");
+      uy = wkset->getSolutionField("u[y]");
+      nz = wkset->getScalarField("n[z]");
+      uz = wkset->getSolutionField("u[z]");
       
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),

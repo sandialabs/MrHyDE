@@ -211,7 +211,7 @@ void shallowwaterHybridized::boundaryResidual() {
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
 
   // These are always needed
-  auto nx = wkset->getScalarField("nx side");
+  auto nx = wkset->getScalarField("n[x]");
   auto fluxes = fluxes_side;
   auto stab = stab_bound_side;
 
@@ -242,7 +242,7 @@ void shallowwaterHybridized::boundaryResidual() {
     else if (spaceDim == 2) {
 
       // need ny
-      auto ny = wkset->getScalarField("ny side");
+      auto ny = wkset->getScalarField("n[y]");
 
       parallel_for("shallow water boundary resid " + varlist[iEqn] + " 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -321,7 +321,7 @@ void shallowwaterHybridized::computeFlux() {
     else if (sidetype == "interface") {
       
       // These are always needed
-      auto nx = wkset->getScalarField("nx side");
+      auto nx = wkset->getScalarField("n[x]");
 
       auto fluxes = fluxes_side;
       auto stab = stab_bound_side;
@@ -343,7 +343,7 @@ void shallowwaterHybridized::computeFlux() {
       } 
       else if (spaceDim == 2) {
         // second normal needed
-        auto ny = wkset->getScalarField("ny side");
+        auto ny = wkset->getScalarField("n[y]");
 
         parallel_for("Shallow water flux 2D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -413,8 +413,8 @@ void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
 
   auto fluxes = on_side ? fluxes_side : fluxes_vol;
   // these are always needed
-  auto H = on_side ? wkset->getSolutionField("aux H side") : wkset->getSolutionField("H");
-  auto Hux = on_side ? wkset->getSolutionField("aux Hux side") : wkset->getSolutionField("Hux");
+  auto H = on_side ? wkset->getSolutionField("aux H") : wkset->getSolutionField("H");
+  auto Hux = on_side ? wkset->getSolutionField("aux Hux") : wkset->getSolutionField("Hux");
   
   // TODO this is the same for face or side, can I collapse?
 
@@ -440,7 +440,7 @@ void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
   } 
   else if (spaceDim == 2) {
     // get the second scaled velocity component
-    auto Huy = on_side ? wkset->getSolutionField("aux Huy side") : wkset->getSolutionField("Huy");
+    auto Huy = on_side ? wkset->getSolutionField("aux Huy") : wkset->getSolutionField("Huy");
 
     parallel_for("shallow water fluxes 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -495,13 +495,13 @@ void shallowwaterHybridized::computeStabilizationTerm() {
   using namespace std;
   
   // these are always needed
-  auto H = wkset->getSolutionField("H side");
-  auto H_hat = wkset->getSolutionField("aux H side");
-  auto Hux = wkset->getSolutionField("Hux side");
-  auto Hux_hat = wkset->getSolutionField("aux Hux side");
+  auto H = wkset->getSolutionField("H");
+  auto H_hat = wkset->getSolutionField("aux H");
+  auto Hux = wkset->getSolutionField("Hux");
+  auto Hux_hat = wkset->getSolutionField("aux Hux");
 
   auto stabterm = stab_bound_side;
-  auto nx = wkset->getScalarField("nx side");
+  auto nx = wkset->getScalarField("n[x]");
 
   View_AD2 Huy, Huy_hat; // only assign if necessary
   View_Sc2 ny;
@@ -509,9 +509,9 @@ void shallowwaterHybridized::computeStabilizationTerm() {
   size_t nVar = wkset->varlist.size();
 
   if (spaceDim > 1) {
-    Huy = wkset->getSolutionField("Huy side");
-    Huy_hat = wkset->getSolutionField("aux Huy side");
-    ny = wkset->getScalarField("ny side");
+    Huy = wkset->getSolutionField("Huy");
+    Huy_hat = wkset->getSolutionField("aux Huy");
+    ny = wkset->getScalarField("n[y]");
   }
 
   parallel_for("euler stabilization",
@@ -613,13 +613,13 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   }
 
   // these are always needed
-  auto H = wkset->getSolutionField("H side");
-  auto H_hat = wkset->getSolutionField("aux H side");
-  auto Hux = wkset->getSolutionField("Hux side");
-  auto Hux_hat = wkset->getSolutionField("aux Hux side");
+  auto H = wkset->getSolutionField("H");
+  auto H_hat = wkset->getSolutionField("aux H");
+  auto Hux = wkset->getSolutionField("Hux");
+  auto Hux_hat = wkset->getSolutionField("aux Hux");
 
   auto boundterm = stab_bound_side;
-  auto nx = wkset->getScalarField("nx side");
+  auto nx = wkset->getScalarField("n[x]");
 
   size_t nVar = wkset->varlist.size();
 
@@ -627,9 +627,9 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   View_Sc2 ny;
 
   if (spaceDim > 1) {
-    Huy = wkset->getSolutionField("Huy side");
-    Huy_hat = wkset->getSolutionField("aux Huy side");
-    ny = wkset->getScalarField("ny side");
+    Huy = wkset->getSolutionField("Huy");
+    Huy_hat = wkset->getSolutionField("aux Huy");
+    ny = wkset->getScalarField("n[y]");
   }
 
   // Get the freestream info if needed

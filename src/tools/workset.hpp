@@ -90,6 +90,8 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////////
     
     void evaluateSolutionField(const int & fieldnum);
+
+    void evaluateSideSolutionField(const int & fieldnum);
         
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the solutions at the side ip
@@ -294,7 +296,7 @@ namespace MrHyDE {
     // Used by physics modules to determine the proper contribution to the boundary residual
     
     bool isAdjoint, onlyTransient, isTransient;
-    bool isInitialized, usebcs;
+    bool isInitialized, usebcs, isOnSide, isOnPoint;
     topo_RCP celltopo;
     size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set, numSets;
     int dimension, numElem, current_stage;
@@ -312,8 +314,8 @@ namespace MrHyDE {
     
     size_t block, localEID, globalEID;
     
-    vector<SolutionField> soln_fields;
-    vector<ScalarField> scalar_fields;
+    vector<SolutionField> soln_fields, side_soln_fields, point_soln_fields;
+    vector<ScalarField> scalar_fields, side_scalar_fields, point_scalar_fields;
     
     View_Sc1 h;
     View_Sc2 wts, wts_side;

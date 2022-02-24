@@ -1064,22 +1064,21 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
         }
         if (have_face_errs) {
+          assembler->wkset[altblock]->isOnSide = true;
           for (size_t face=0; face<assembler->groups[block][cell]->groupData->numSides; face++) {
             // TMW - hard coded for now
             for (size_t set=0; set<assembler->wkset[altblock]->numSets; ++set) {
               assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][cell]->u[set], seedwhat);
             }
-            //assembler->groups[block][cell]->computeSolnFaceIP(face);
             assembler->groups[block][cell]->updateWorksetFace(face);
             assembler->wkset[altblock]->resetSolutionFields();
-            //assembler->groups[block][cell]->computeSolnFaceIP(face, seedwhat);
             for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
               string varname = error_list[altblock][etype].first;
               if (error_list[altblock][etype].second == "L2 FACE") {
                 // compute the true z-component of grad
                 string expression = varname;
                 auto tsol = functionManagers[altblock]->evaluate("true "+expression,"side ip");
-                auto sol = assembler->wkset[altblock]->getSolutionField(expression+" side");
+                auto sol = assembler->wkset[altblock]->getSolutionField(expression);
                 auto wts = assembler->groups[block][cell]->wkset->wts_side;
                 
                 // add in the L2 difference at the volumetric ip
@@ -1104,6 +1103,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               }
             }
           }
+          assembler->wkset[altblock]->isOnSide = false;
         }
       }
       assembler->wkset[altblock]->isTransient = isTransient;
@@ -1345,6 +1345,8 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
 
       } else if (integratedQuantities[iLocal][iIQ].location == "boundary") {
 
+        assembler->wkset[globalBlock]->isOnSide = true;
+
         for (size_t cell=0; cell<assembler->boundary_groups[globalBlock].size(); ++cell) {
 
           localContribution = 0.; // zero out this cell's contribution
@@ -1363,7 +1365,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
             // evaluate the integrand at integration points
             auto integrand = functionManagers[globalBlock]->evaluate(
                   integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
-
+            
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                             KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                               for (size_t pt=0; pt<wts.extent(1); pt++) {
@@ -1380,6 +1382,9 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           // add in this cell's contribution to running total
           integral += localContribution;
         } // end loop over boundary groups
+        
+        assembler->wkset[globalBlock]->isOnSide = false;
+        
       } // end if volume or boundary
       // finalize the integral
       integratedQuantities[iLocal][iIQ].val(0) = integral;
@@ -1843,15 +1848,15 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           size_t block = objectives[r].block;
           size_t cell = objectives[r].sensor_owners(pt,0);
           size_t elem = objectives[r].sensor_owners(pt,1);
-          
-          auto x = assembler->wkset[block]->getScalarField("x point");
+          assembler->wkset[block]->isOnPoint = true;
+          auto x = assembler->wkset[block]->getScalarField("x");
           x(0,0) = objectives[r].sensor_points(pt,0);
           if (spaceDim > 1) {
-            auto y = assembler->wkset[block]->getScalarField("y point");
+            auto y = assembler->wkset[block]->getScalarField("y");
             y(0,0) = objectives[r].sensor_points(pt,1);
           }
           if (spaceDim > 2) {
-            auto z = assembler->wkset[block]->getScalarField("z point");
+            auto z = assembler->wkset[block]->getScalarField("z");
             z(0,0) = objectives[r].sensor_points(pt,2);
           }
           
@@ -2033,6 +2038,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             }
             
           }
+          assembler->wkset[block]->isOnPoint = false;
+
         } // found time
       } // sensor points
       
@@ -2114,6 +2121,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           params->sacadoizeParams(false);
           ScalarT regwt = objectives[r].regularizations[reg].weight;
           size_t block = objectives[r].block;
+          assembler->wkset[block]->isOnSide = true;
           for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
             if (assembler->boundary_groups[block][grp]->sidename == bname) {
               
@@ -2220,6 +2228,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             }
           }
           
+          assembler->wkset[block]->isOnSide = false;
         }
         
       }
@@ -2828,14 +2837,16 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           size_t cell = objectives[r].sensor_owners(pt,0);
           size_t elem = objectives[r].sensor_owners(pt,1);
           
-          auto x = assembler->wkset[block]->getScalarField("x point");
+          assembler->wkset[block]->isOnSide = true;
+
+          auto x = assembler->wkset[block]->getScalarField("x");
           x(0,0) = objectives[r].sensor_points(pt,0);
           if (spaceDim > 1) {
-            auto y = assembler->wkset[block]->getScalarField("y point");
+            auto y = assembler->wkset[block]->getScalarField("y");
             y(0,0) = objectives[r].sensor_points(pt,1);
           }
           if (spaceDim > 2) {
-            auto z = assembler->wkset[block]->getScalarField("z point");
+            auto z = assembler->wkset[block]->getScalarField("z");
             z(0,0) = objectives[r].sensor_points(pt,2);
           }
           
@@ -3020,6 +3031,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           assembler->scatterRes(grad_view, local_grad, assembler->groups[block][cell]->LIDs[set]);
           
+          assembler->wkset[block]->isOnSide = false;
         }
       }
       
@@ -3320,7 +3332,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_faceavg = Kokkos::create_mirror_view(soln_faceavg_dev);
             
             Kokkos::View<ScalarT*,AssemblyDevice> face_measure_dev("face measure",myElements.size());
-            
+            assembler->wkset[block]->isOnSide = true;
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               for (size_t face=0; face<assembler->groupData[block]->numSides; face++) {
@@ -3331,7 +3343,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
                 //assembler->groups[block][grp]->computeSolnFaceIP(face);
                 assembler->groups[block][grp]->updateWorksetFace(face);
                 auto wts = assembler->wkset[block]->wts_side;
-                auto sol = assembler->wkset[block]->getSolutionField(varlist[set][block][n]+" side");
+                auto sol = assembler->wkset[block]->getSolutionField(varlist[set][block][n]);
                 parallel_for("postproc plot HFACE",
                              RangePolicy<AssemblyExec>(0,eID.extent(0)),
                              KOKKOS_LAMBDA (const int elem ) {
@@ -3346,6 +3358,8 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
                 });
               }
             }
+            
+            assembler->wkset[block]->isOnSide = false;
             parallel_for("postproc plot HFACE 2",
                          RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {

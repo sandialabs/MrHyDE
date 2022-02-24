@@ -350,6 +350,7 @@ void Group::updateWorkset(const int & seedwhat, const bool & override_transient)
   wkset->wts = wts;
   wkset->h = hsize;
   wkset->setScalarField(ip[0],"x");
+  
   if (ip.size() > 1) {
     wkset->setScalarField(ip[1],"y");
   }
@@ -633,15 +634,16 @@ void Group::updateWorksetFace(const size_t & facenum) {
   
   wkset->wts_side = wts_face[facenum];
   wkset->h = hsize;
-  wkset->setScalarField(ip_face[facenum][0],"x side");
-  wkset->setScalarField(normals_face[facenum][0],"nx side");
+  
+  wkset->setScalarField(ip_face[facenum][0],"x");
+  wkset->setScalarField(normals_face[facenum][0],"n[x]");
   if (ip_face[facenum].size() > 1) {
-    wkset->setScalarField(ip_face[facenum][1],"y side");
-    wkset->setScalarField(normals_face[facenum][1],"ny side");
+    wkset->setScalarField(ip_face[facenum][1],"y");
+    wkset->setScalarField(normals_face[facenum][1],"n[y]");
   }
   if (ip_face[facenum].size() > 2) {
-    wkset->setScalarField(ip_face[facenum][2],"z side");
-    wkset->setScalarField(normals_face[facenum][2],"nz side");
+    wkset->setScalarField(ip_face[facenum][2],"z");
+    wkset->setScalarField(normals_face[facenum][2],"n[z]");
   }
     
   // Update the face integration points and basis in workset

@@ -299,22 +299,22 @@ void helmholtz::boundaryResidual() {
   auto uibasis_grad = wkset->basis_grad_side[ui_basis_num];
   
   View_Sc2 nx,ny,nz;
-  nx = wkset->getScalarField("nx side");
+  nx = wkset->getScalarField("n[x]");
   
   View_AD2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
-  Ur = wkset->getSolutionField("ureal side");
-  Ui = wkset->getSolutionField("uimag side");
-  dUr_dx = wkset->getSolutionField("grad(ureal)[x] side");
-  dUi_dx = wkset->getSolutionField("grad(uimag)[x] side");
+  Ur = wkset->getSolutionField("ureal");
+  Ui = wkset->getSolutionField("uimag");
+  dUr_dx = wkset->getSolutionField("grad(ureal)[x]");
+  dUi_dx = wkset->getSolutionField("grad(uimag)[x]");
   if (spaceDim > 1) {
-    ny = wkset->getScalarField("ny side");
-    dUr_dy = wkset->getSolutionField("grad(ureal)[y] side");
-    dUi_dy = wkset->getSolutionField("grad(uimag)[y] side");
+    ny = wkset->getScalarField("n[y]");
+    dUr_dy = wkset->getSolutionField("grad(ureal)[y]");
+    dUi_dy = wkset->getSolutionField("grad(uimag)[y]");
   }
   if (spaceDim > 2) {
-    nz = wkset->getScalarField("nz side");
-    dUr_dz = wkset->getSolutionField("grad(ureal)[z] side");
-    dUi_dz = wkset->getSolutionField("grad(uimag)[z] side");
+    nz = wkset->getScalarField("n[z]");
+    dUr_dz = wkset->getSolutionField("grad(ureal)[z]");
+    dUi_dz = wkset->getSolutionField("grad(uimag)[z]");
   }
   
   //Robin boundary condition of form alpha*u + dudn - source = 0, where u is the state and dudn is its normal derivative
