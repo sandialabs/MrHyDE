@@ -67,6 +67,13 @@ sidename(sidename_), disc(disc_)   {
     });
   }
   
+  basis_index = Kokkos::View<LO*,AssemblyDevice>("basis index",numElem);
+  parallel_for("compute hsize",
+               RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
+               KOKKOS_LAMBDA (const int e ) {
+    basis_index(e) = e;
+  });
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -257,6 +264,8 @@ void BoundaryGroup::updateWorksetBasis() {
   
   wkset->wts_side = wts;
   wkset->h = hsize;
+  wkset->basis_index = basis_index;
+
   wkset->setScalarField(ip[0],"x");
   wkset->setScalarField(normals[0],"n[x]");
   wkset->setScalarField(tangents[0],"t[x]");
@@ -270,21 +279,15 @@ void BoundaryGroup::updateWorksetBasis() {
     wkset->setScalarField(normals[2],"n[z]");
     wkset->setScalarField(tangents[2],"t[z]");
   }
-    
-//KokkosTools::print(basis[0]);
-//KokkosTools::print(basis[1]);
-//disc->copySideBasisFromDatabase(groupData, basis_database_index, orientation, false, false);
-//KokkosTools::print(groupData->physical_side_basis[0]);
-//KokkosTools::print(groupData->physical_side_basis[1]);
 
   if (storeAll) {
     wkset->basis_side = basis;
     wkset->basis_grad_side = basis_grad;
   }
   else if (groupData->use_basis_database) {
-    disc->copySideBasisFromDatabase(groupData, basis_database_index, orientation, false, false);
-    wkset->basis_side = groupData->physical_side_basis;
-    wkset->basis_grad_side = groupData->physical_side_basis_grad;
+    //disc->copySideBasisFromDatabase(groupData, basis_database_index, orientation, false, false);
+    wkset->basis_side = groupData->database_side_basis;//physical_side_basis;
+    wkset->basis_grad_side = groupData->database_side_basis_grad;//physical_side_basis_grad;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;

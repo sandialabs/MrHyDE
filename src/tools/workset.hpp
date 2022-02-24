@@ -367,6 +367,8 @@ namespace MrHyDE {
     View_Sc3 rotation;
     View_Sc2 rotation_phi, extra_data;
     
+    Kokkos::View<LO*,AssemblyDevice> basis_index;
+    
     // Profile timers
     Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update - integration data");
     Teuchos::RCP<Teuchos::Time> worksetUpdateBasisMMTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update::multiplyMeasure");

@@ -3589,7 +3589,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         auto jacnum = Kokkos::create_mirror_view(jacnum_dev);
         
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          auto index = assembler->groups[block][grp]->basis_database_index;
+          auto index = assembler->groups[block][grp]->basis_index;
           auto eID = assembler->groups[block][grp]->localElemID;
           parallel_for("postproc plot param HVOL",
                        RangePolicy<AssemblyExec>(0,eID.extent(0)),

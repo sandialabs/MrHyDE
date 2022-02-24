@@ -1117,7 +1117,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               db_measures(first_users.size()-1) = measure(e);
             }
           }
-          groups[block][grp]->basis_database_index = index;
+          groups[block][grp]->basis_index = index;
         }
       }
 
@@ -1256,7 +1256,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               db_measures(first_boundary_users.size()-1) = measure(e);
             }
           }
-          boundary_groups[block][grp]->basis_database_index = index;
+          boundary_groups[block][grp]->basis_index = index;
         }
       }
     
@@ -2112,7 +2112,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
         
         if (groupData[block]->use_mass_database) {
           auto curr_mass = groupData[block]->database_mass[set];
-          auto index = groups[block][grp]->basis_database_index;
+          auto index = groups[block][grp]->basis_index;
           parallel_for("get mass",
                        RangePolicy<AssemblyExec>(0,index.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {

@@ -330,7 +330,7 @@ namespace MrHyDE {
     View_Sc2 wts;
     View_Sc1 hsize;
     bool storeAll, haveBasis;
-    Kokkos::View<LO*,AssemblyDevice> basis_database_index;
+    Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
     string sidename;

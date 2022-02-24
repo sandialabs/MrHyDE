@@ -61,19 +61,21 @@ void Burgers::volumeResidual() {
   auto off = wkset->getOffsets("u");
   auto u = wkset->getSolutionField("u");
   auto dudt = wkset->getSolutionField("u_t");
-  
+  auto bindex = wkset->basis_index;
+
   // Solves dudt + div (1/2*v u^2 - eps grad u) = source(x,t)
   if (wkset->dimension == 1) {
     auto dudx = wkset->getSolutionField("grad(u)[x]");
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
+      LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
         AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = (eps(elem,pt)*dudx(elem,pt) - vx(elem,pt)*usq)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
+          res(elem,off(dof)) += f*basis(bind,dof,pt,0) + Fx*basis_grad(bind,dof,pt,0);
         }
       }
     });
@@ -85,6 +87,7 @@ void Burgers::volumeResidual() {
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
+      LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
         AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
@@ -92,7 +95,7 @@ void Burgers::volumeResidual() {
         AD Fy = (eps(elem,pt)*dudy(elem,pt) - vy(elem,pt)*usq)*wts(elem,pt);
         
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
+          res(elem,off(dof)) += f*basis(bind,dof,pt,0) + Fx*basis_grad(bind,dof,pt,0) + Fy*basis_grad(bind,dof,pt,1);
         }
       }
     });
@@ -106,6 +109,7 @@ void Burgers::volumeResidual() {
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
+      LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
         AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
@@ -114,7 +118,7 @@ void Burgers::volumeResidual() {
         AD Fz = (eps(elem,pt)*dudz(elem,pt) - vz(elem,pt)*usq)*wts(elem,pt);
         
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
+          res(elem,off(dof)) += f*basis(bind,dof,pt,0) + Fx*basis_grad(bind,dof,pt,0) + Fy*basis_grad(bind,dof,pt,1) + Fz*basis_grad(bind,dof,pt,2);
         }
       }
     });
