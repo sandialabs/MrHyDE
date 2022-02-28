@@ -228,11 +228,7 @@ void AssemblyManager<Node>::createGroups() {
   mesh->stk_mesh->getMyElements(all_meshElems);
   
   
-  vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> > LIDs;
-  for (size_t set=0; set<disc->DOF_LIDs.size(); ++set) {
-    Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = disc->DOF_LIDs[set];//DOF[set]->getLIDs();
-    LIDs.push_back(setLIDs);
-  }
+  auto LIDs = disc->DOF_LIDs;
    
   // Disc manager stores offsets as [set][block][var][dof]
   vector<vector<vector<vector<int> > > > disc_offsets = disc->offsets;
@@ -1490,46 +1486,6 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           
         }
       }
-
-      /////////////////////////////////////////////////////////////////////////////
-      // Step 4: allocate for physical quantities
-      /////////////////////////////////////////////////////////////////////////////
-        
-      int numElem = groupData[block]->numElem;
-      for (size_t i=0; i<groupData[block]->basis_pointers.size(); i++) {
-        int numb = groupData[block]->basis_pointers[i]->getCardinality();
-        View_Sc4 basis, basis_grad, basis_curl;
-        View_Sc3 basis_div;
-        View_Sc4 side_basis, side_basis_grad;
-        
-        if (groupData[block]->basis_types[i].substr(0,5) == "HGRAD"){
-          basis = View_Sc4("basis values", numElem, numb, numip, 1);
-          basis_grad = View_Sc4("basis grad values", numElem, numb, numip, dimension);
-          side_basis = View_Sc4("basis values", numElem, numb, numsideip, 1);
-          side_basis_grad = View_Sc4("basis grad values", numElem, numb, numsideip, dimension);
-        }
-        else if (groupData[block]->basis_types[i].substr(0,4) == "HVOL"){ 
-          basis = View_Sc4("basis values", numElem, numb, numip, 1);
-          side_basis = View_Sc4("basis values", numElem, numb, numsideip, 1);
-        }
-        else if (groupData[block]->basis_types[i].substr(0,4) == "HDIV" ) {
-          basis = View_Sc4("basis values", numElem, numb, numip, dimension);
-          basis_div = View_Sc3("basis div values", numElem, numb, numip);
-          side_basis = View_Sc4("basis values", numElem, numb, numsideip, dimension);
-        }
-        else if (groupData[block]->basis_types[i].substr(0,5) == "HCURL"){
-          basis = View_Sc4("basis values", numElem, numb, numip, dimension);
-          basis_curl = View_Sc4("basis curl values", numElem, numb, numip, dimension);
-          side_basis = View_Sc4("basis values", numElem, numb, numsideip, dimension);
-        }
-        groupData[block]->physical_basis.push_back(basis);
-        groupData[block]->physical_basis_grad.push_back(basis_grad);
-        groupData[block]->physical_basis_div.push_back(basis_div);
-        groupData[block]->physical_basis_curl.push_back(basis_curl);
-        groupData[block]->physical_side_basis.push_back(side_basis);
-        groupData[block]->physical_side_basis_grad.push_back(side_basis_grad);
-      }
-      
     }
   }    
 
@@ -2269,7 +2225,7 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
   auto localMatrix = mass->getLocalMatrixHost();
   
   for (size_t block=0; block<boundary_groups.size(); ++block) {
-    wkset[block]->setTime(time);
+    //wkset[block]->setTime(time);
     wkset[block]->isOnSide = true;
     for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
       int numElem = boundary_groups[block][grp]->numElem;
@@ -2991,10 +2947,18 @@ void AssemblyManager<Node>::resetStageSoln(const size_t & set) {
 }
 
 template<class Node>
-void AssemblyManager<Node>::updateStageNumber(const int & stage) {
+void AssemblyManager<Node>::updateStage(const int & stage, const ScalarT & current_time,
+                                        const ScalarT & deltat) {
   for (size_t block=0; block<wkset.size(); ++block) {
     wkset[block]->setStage(stage);
+    auto butcher_c = Kokkos::create_mirror_view(wkset[block]->butcher_c);
+    Kokkos::deep_copy(butcher_c, wkset[block]->butcher_c);
+    ScalarT timeval = current_time + butcher_c(stage)*deltat;
+    wkset[block]->setTime(timeval);
+    wkset[block]->setDeltat(deltat);
+    wkset[block]->alpha = 1.0/deltat;
   }
+  
 }
 
 template<class Node>

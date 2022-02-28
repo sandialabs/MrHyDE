@@ -149,6 +149,7 @@ void Group::createHostLIDs() {
   if (!Kokkos::SpaceAccessibility<HostExec, AssemblyDevice::memory_space>::accessible) {
     data_avail = false;
   }
+  
   LIDs_host = vector<LIDView_host>(LIDs.size());
   for (size_t set=0; set<LIDs.size(); ++set) {
     if (data_avail) {
@@ -272,10 +273,10 @@ void Group::setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, 
     
     if (groupData->requiresTransient) {
       newuprev = View_Sc4("u previous",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps);
-      newustage = View_Sc4("u stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages);
+      newustage = View_Sc4("u stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages-1);
       if (groupData->requiresAdjoint) {
         newphiprev = View_Sc4("phi previous",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps);
-        newphistage = View_Sc4("phi stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages);
+        newphistage = View_Sc4("phi stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages-1);
       }
       else {
         newphiprev = View_Sc4("phi previous",1,1,1,1);
@@ -771,18 +772,20 @@ void Group::resetStageSoln(const size_t & set) {
     auto sol = u[set];
     auto sol_stage = u_stage[set];
     
-    parallel_for("Group reset stage 1",
-                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
-        for (size_type j=0; j<sol_stage.extent(2); j++) {
-          for (size_type k=0; k<sol_stage.extent(3); k++) {
-            sol_stage(elem,i,j,k) = sol(elem,i,j);
+    if (sol_stage.extent(3) > 0) {
+      parallel_for("Group reset stage 1",
+                   TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
+          for (size_type j=0; j<sol_stage.extent(2); j++) {
+            for (size_type k=0; k<sol_stage.extent(3); k++) {
+              sol_stage(elem,i,j,k) = sol(elem,i,j);
+            }
           }
         }
-      }
-    });
+      });
+    }
   }
 }
 
@@ -798,17 +801,18 @@ void Group::updateStageSoln(const size_t & set) {
     
     // add u into the current stage soln (done after stage solution is computed)
     auto stage = wkset->current_stage;
-    parallel_for("wkset transient sol seedwhat 1",
-                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      //int stage = snum(0);
-      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
-        for (size_type j=0; j<sol_stage.extent(2); j++) {
-          sol_stage(elem,i,j,stage) = sol(elem,i,j);
+    if (stage < sol_stage.extent_int(3)) {
+      parallel_for("wkset transient sol seedwhat 1",
+                   TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
+          for (size_type j=0; j<sol_stage.extent(2); j++) {
+            sol_stage(elem,i,j,stage) = sol(elem,i,j);
+          }
         }
-      }
-    });
+      });
+    }
   }
   
 }
@@ -1643,10 +1647,13 @@ void Group::updateData() {
   if (groupData->have_phi) {
     wkset->have_rotation_phi = true;
     wkset->rotation_phi = data;
+    wkset->allocateRotations();
   }
   else if (groupData->have_rotation) {
     wkset->have_rotation = true;
+    wkset->allocateRotations();
     auto rot = wkset->rotation;
+    
     parallel_for("Group update data",
                  RangePolicy<AssemblyExec>(0,data.extent(0)),
                  KOKKOS_LAMBDA (const size_type e ) {
@@ -1660,6 +1667,10 @@ void Group::updateData() {
       rot(e,2,1) = data(e,7);
       rot(e,2,2) = data(e,8);
     });
+
+    //KokkosTools::print(wkset->rotation);
+    //KokkosTools::print(rot);
+
   }
   else if (groupData->have_extra_data) {
     wkset->extra_data = data;

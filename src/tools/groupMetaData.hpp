@@ -98,11 +98,6 @@ namespace MrHyDE {
     // database of mass matrices
     vector<View_Sc3> database_mass;  // [set](dof,dof) 
     
-    // storage of physical basis info to avoid reallocations
-    vector<View_Sc4> physical_basis, physical_basis_grad, physical_basis_curl;
-    vector<View_Sc3> physical_basis_div;
-    vector<View_Sc4> physical_side_basis, physical_side_basis_grad;
-    
     // these are common to all elements/groups and are often used on both devices
     vector<Kokkos::View<int*,AssemblyDevice> > set_numDOF;
     vector<Kokkos::View<int*,HostDevice> > set_numDOF_host;

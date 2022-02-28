@@ -73,7 +73,6 @@
 #include "Intrepid2_Orientation.hpp"
 #include "Intrepid2_OrientationTools.hpp"
 
-
 #include "Panzer_STKConnManager.hpp"
 #include "Panzer_IntrepidFieldPattern.hpp"
 #include "Panzer_STK_SetupUtilities.hpp"
@@ -945,6 +944,7 @@ void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> 
                                                     const bool & apply_orientation,
                                                     const bool & just_basis) {
 
+  /*
   Teuchos::TimeMonitor databasetimer(*databaseTotalTimer);
 
   int dimension = groupData->dimension;
@@ -1325,6 +1325,7 @@ void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> 
     }
     
   }
+  */
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1336,7 +1337,7 @@ void DiscretizationInterface::copyFaceBasisFromDatabase(Teuchos::RCP<GroupMetaDa
                                                         const size_t & facenum,
                                                         const bool & apply_orientation,
                                                         const bool & just_basis) {
-
+  /*
   Teuchos::TimeMonitor databasetimer(*databaseTotalTimer);
 
   int dimension = groupData->dimension;
@@ -1604,6 +1605,7 @@ void DiscretizationInterface::copyFaceBasisFromDatabase(Teuchos::RCP<GroupMetaDa
     }
     
   }
+  */
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1614,7 +1616,7 @@ void DiscretizationInterface::copySideBasisFromDatabase(Teuchos::RCP<GroupMetaDa
                                                         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                         const bool & apply_orientation,
                                                         const bool & just_basis) {
-
+  /*
   Teuchos::TimeMonitor databasetimer(*databaseTotalTimer);
 
   int dimension = groupData->dimension;
@@ -1881,7 +1883,7 @@ void DiscretizationInterface::copySideBasisFromDatabase(Teuchos::RCP<GroupMetaDa
       }
     }
     
-  }
+  }*/
 }
 
 // -------------------------------------------------
@@ -2716,9 +2718,9 @@ void DiscretizationInterface::buildDOFManagers() {
 
     // Instead of storing the DOF manager, which holds onto the mesh, we extract what we need
     //DOF.push_back(setDOF);
-    
     Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = setDOF->getLIDs();
     DOF_LIDs.push_back(setLIDs);
+    
 
     vector<GO> owned, ownedAndShared;
     setDOF->getOwnedIndices(owned);
@@ -3307,7 +3309,7 @@ Kokkos::View<string**,HostDevice> DiscretizationInterface::getVarBCs(const size_
 void DiscretizationInterface::purgeLIDs() {
   
   DOF_LIDs.clear();
-  
+
 }
 
 void DiscretizationInterface::purgeMemory() {

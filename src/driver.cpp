@@ -107,16 +107,17 @@ int main(int argc,char * argv[]) {
     mesh->setMeshData(assembler->groups,
                       assembler->boundary_groups);
     
-    
-    if (!settings->sublist("Postprocess").get("write solution",false) && 
-        !settings->sublist("Postprocess").get("create optimization movie",false)) {
-      mesh->stk_mesh = Teuchos::null;
-      mesh->mesh_factory = Teuchos::null;
-      disc->mesh = Teuchos::null;
+    if (settings->get<bool>("enable memory purge",true)) {
       disc->purgeLIDs();
-      params->mesh = Teuchos::null;
+      if (!settings->sublist("Postprocess").get("write solution",false) && 
+          !settings->sublist("Postprocess").get("create optimization movie",false)) {
+        mesh->stk_mesh = Teuchos::null;
+        mesh->mesh_factory = Teuchos::null;
+        disc->mesh = Teuchos::null;
+        params->mesh = Teuchos::null;
+      }
     }
-    
+
     ////////////////////////////////////////////////////////////////////////////////
     // Create the function managers
     ////////////////////////////////////////////////////////////////////////////////

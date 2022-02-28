@@ -173,7 +173,7 @@ namespace MrHyDE {
     
     void resetStageSoln(const size_t & set);
     
-    void updateStageNumber(const int & stage);
+    void updateStage(const int & stage, const ScalarT & current_time, const ScalarT & deltat);
     
     void updateStageSoln(const size_t & set);
     

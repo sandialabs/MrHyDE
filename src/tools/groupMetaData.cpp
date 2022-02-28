@@ -98,17 +98,29 @@ void GroupMetaData::updatePhysicsSet(const size_t & set) {
 size_t GroupMetaData::getDatabaseStorage() {
   size_t mystorage = 0;
   size_t scalarcost = sizeof(ScalarT); // 8 bytes per double
-  for (size_t k=0; k<physical_basis.size(); ++k) {
-    mystorage += scalarcost*physical_basis[k].size();
+  for (size_t k=0; k<database_basis.size(); ++k) {
+    mystorage += scalarcost*database_basis[k].size();
   }
-  for (size_t k=0; k<physical_basis_grad.size(); ++k) {
-    mystorage += scalarcost*physical_basis_grad[k].size();
+  for (size_t k=0; k<database_basis_grad.size(); ++k) {
+    mystorage += scalarcost*database_basis_grad[k].size();
   }
-  for (size_t k=0; k<physical_basis_curl.size(); ++k) {
-    mystorage += scalarcost*physical_basis_curl[k].size();
+  for (size_t k=0; k<database_basis_curl.size(); ++k) {
+    mystorage += scalarcost*database_basis_curl[k].size();
   }
-  for (size_t k=0; k<physical_basis_div.size(); ++k) {
-    mystorage += scalarcost*physical_basis_div[k].size();
+  for (size_t k=0; k<database_basis_div.size(); ++k) {
+    mystorage += scalarcost*database_basis_div[k].size();
+  }
+  for (size_t k=0; k<database_side_basis.size(); ++k) {
+    mystorage += scalarcost*database_side_basis[k].size();
+  }
+  for (size_t k=0; k<database_side_basis_grad.size(); ++k) {
+    mystorage += scalarcost*database_side_basis_grad[k].size();
+  }
+  for (size_t k=0; k<database_face_basis.size(); ++k) {
+    mystorage += scalarcost*database_face_basis[k].size();
+  }
+  for (size_t k=0; k<database_face_basis_grad.size(); ++k) {
+    mystorage += scalarcost*database_face_basis_grad[k].size();
   }
   return mystorage;
 }

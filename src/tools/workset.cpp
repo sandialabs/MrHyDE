@@ -77,14 +77,10 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   point_scalar_fields.push_back(ScalarField("x"));
   point_scalar_fields.push_back(ScalarField("y"));
   point_scalar_fields.push_back(ScalarField("z"));
-  
-  // these can point to different arrays
-  wts = View_Sc2("ip wts",numElem,numip);
-  wts_side = View_Sc2("ip side wts",numElem,numsideip);
     
   have_rotation = false;
   have_rotation_phi = false;
-  rotation = View_Sc3("rotation matrix",numElem,3,3);
+  rotation = View_Sc3("rotation matrix",1,3,3);
   
   int maxb = 0;
   for (size_t i=0; i<basis_pointers.size(); i++) {
@@ -2404,5 +2400,15 @@ void workset::updatePhysicsSet(const size_t & current_set_) {
       varlist = set_varlist[current_set];
       var_bcs = set_var_bcs[current_set];
     }
+  }
+}
+
+//////////////////////////////////////////////////////////////
+// Allocate the rotation tensor
+//////////////////////////////////////////////////////////////
+
+void workset::allocateRotations() {
+  if (rotation.extent(0) < numElem) {
+    rotation = View_Sc3("rotations", numElem, 3, 3);
   }
 }

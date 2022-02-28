@@ -34,6 +34,7 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
   debug_level = settings->get<int>("debug level",0);
+  verbosity = settings->get<int>("verbosity",0);
   if (debug_level > 0) {
     if (MacroComm->getRank() == 0) {
       cout << "**** Starting MultiscaleManager manager constructor ..." << endl;
@@ -402,128 +403,133 @@ ScalarT MultiscaleManager::initialize() {
 // Re-assignment of subgrid models to groups
 ////////////////////////////////////////////////////////////////////////////////
 
-ScalarT MultiscaleManager::update() {
+void MultiscaleManager::update() {
   
   Teuchos::TimeMonitor localtimer(*updatetimer);
   
   ScalarT my_cost = 1.0;
   
-  if (subgrid_static) {
-    for (size_t block=0; block<groups.size(); ++block) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
-        if (groups[block][grp]->groupData->multiscale) {
-          //int numElem = groups[block][grp]->numElem;
-          //for (int c=0;c<numElem; c++) {
-          int nummod = groups[block][grp]->subgrid_model_index.size();
-          int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
-          groups[block][grp]->subgrid_model_index.push_back(oldmodel);
-          my_cost += subgridModels[oldmodel]->cost_estimate;
-          //}
+  if (subgridModels.size() > 0) {
+  
+    if (subgrid_static) {
+      for (size_t block=0; block<groups.size(); ++block) {
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          if (groups[block][grp]->groupData->multiscale) {
+            int nummod = groups[block][grp]->subgrid_model_index.size();
+            int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
+            groups[block][grp]->subgrid_model_index.push_back(oldmodel);
+            my_cost += subgridModels[oldmodel]->cost_estimate;
+          }
         }
       }
     }
-  }
-  else {
-    for (size_t block=0; block<groups.size(); ++block) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
-        if (groups[block][grp]->groupData->multiscale) {
+    else {
+      for (size_t block=0; block<groups.size(); ++block) {
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          if (groups[block][grp]->groupData->multiscale) {
           
-          groups[block][grp]->updateWorkset(0);
+            groups[block][grp]->updateWorkset(0);
           
-          vector<int> sgvotes(subgridModels.size(),0);
+            vector<int> sgvotes(subgridModels.size(),0);
           
-          for (size_t s=0; s<subgridModels.size(); s++) {
-            if (subgridModels[s]->macro_block == block) {
-              std::stringstream ss;
-              ss << s;
-              auto usagecheck = macro_functionManagers[block]->evaluate(subgridModels[s]->name + " usage","ip");
-              Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
-                                                                    macro_functionManagers[block]->numElem,
-                                                                    macro_functionManagers[block]->numip);
+            for (size_t s=0; s<subgridModels.size(); s++) {
+              if (subgridModels[s]->macro_block == block) {
+                std::stringstream ss;
+                ss << s;
+                auto usagecheck = macro_functionManagers[block]->evaluate(subgridModels[s]->name + " usage","ip");
+                Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
+                                                                      macro_functionManagers[block]->numElem,
+                                                                      macro_functionManagers[block]->numip);
                                                                     
-              parallel_for("assembly copy LIDs",
-                           RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
-                           KOKKOS_LAMBDA (const int i ) {
-                for (size_type j=0; j<usagecheck_tmp.extent(1); j++) {
+                parallel_for("assembly copy LIDs",
+                             RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
+                             KOKKOS_LAMBDA (const int i ) {
+                  for (size_type j=0; j<usagecheck_tmp.extent(1); j++) {
 #ifndef MrHyDE_NO_AD
-                  usagecheck_tmp(i,j) = usagecheck(i,j).val();
+                    usagecheck_tmp(i,j) = usagecheck(i,j).val();
 #else
-                  usagecheck_tmp(i,j) = usagecheck(i,j);
+                    usagecheck_tmp(i,j) = usagecheck(i,j);
 #endif
-                }
-              });
+                  }
+                });
               
-              auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
-              Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
+                auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
+                Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
               
-              for (size_t p=0; p<groups[block][grp]->numElem; p++) {
-                for (size_t j=0; j<host_usagecheck.extent(1); j++) {
-                  if (host_usagecheck(p,j) >= 1.0) {
-                    sgvotes[s] += 1;
+                for (size_t p=0; p<groups[block][grp]->numElem; p++) {
+                  for (size_t j=0; j<host_usagecheck.extent(1); j++) {
+                    if (host_usagecheck(p,j) >= 1.0) {
+                      sgvotes[s] += 1;
+                    }
                   }
                 }
               }
             }
+            int maxvotes = -1;
+            int sgwinner = -1;
+            for (size_t i=0; i<sgvotes.size(); i++) {
+              if (sgvotes[i] >= maxvotes) {
+                maxvotes = sgvotes[i];
+                sgwinner = i;
+              }
+            }
+          
+          
+          
+            int nummod = groups[block][grp]->subgrid_model_index.size();
+            int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
+            if (sgwinner != oldmodel) {
+            
+              size_t usernum = groups[block][grp]->subgrid_usernum;
+              // get the time/solution from old subgrid model at last time step
+              int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
+              Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
+              ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
+              Teuchos::RCP<SGLA_MultiVector> projvec = subgridModels[sgwinner]->getVector();
+              subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
+            
+              Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->getVector();
+              subgrid_projection_solvers[sgwinner]->setB(projvec);
+              subgrid_projection_solvers[sgwinner]->setX(newvec);
+            
+              subgrid_projection_solvers[sgwinner]->solve();
+              subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
+            
+            }
+            my_cost += subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
+            groups[block][grp]->subgrid_model_index.push_back(sgwinner);
+          
           }
-          int maxvotes = -1;
-          int sgwinner = -1;
-          for (size_t i=0; i<sgvotes.size(); i++) {
-            if (sgvotes[i] >= maxvotes) {
-              maxvotes = sgvotes[i];
-              sgwinner = i;
+        }
+      }
+    
+      for (size_t s=0; s<subgridModels.size(); s++) {
+        vector<bool> active(subgridModels[s]->active[0].size(),false);
+        size_t numactive = 0;
+        for (size_t block=0; block<groups.size(); ++block) {
+          for (size_t grp=0; grp<groups[block].size(); ++grp) {
+            size_t nindex = groups[block][grp]->subgrid_model_index.size();
+            if (groups[block][grp]->subgrid_model_index[nindex-1] == s) {
+              size_t usernum = groups[block][grp]->subgrid_usernum;
+              active[usernum] = true;
+              numactive += 1;
             }
           }
-          
-          
-          //for (int c=0;c<numElem; c++) {
-          
-          int nummod = groups[block][grp]->subgrid_model_index.size();
-          int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
-          if (sgwinner != oldmodel) {
-            
-            size_t usernum = groups[block][grp]->subgrid_usernum;
-            // get the time/solution from old subgrid model at last time step
-            int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
-            Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
-            ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
-            Teuchos::RCP<SGLA_MultiVector> projvec = subgridModels[sgwinner]->getVector();
-            subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
-            
-            Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->getVector();
-            subgrid_projection_solvers[sgwinner]->setB(projvec);
-            subgrid_projection_solvers[sgwinner]->setX(newvec);
-            
-            subgrid_projection_solvers[sgwinner]->solve();
-            subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
-            
-          }
-          my_cost += subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
-          groups[block][grp]->subgrid_model_index.push_back(sgwinner);
-          //}
         }
+        subgridModels[s]->active.push_back(active);
       }
-    }
-    
-    for (size_t s=0; s<subgridModels.size(); s++) {
-      vector<bool> active(subgridModels[s]->active[0].size(),false);
-      size_t numactive = 0;
-      for (size_t block=0; block<groups.size(); ++block) {
-        for (size_t grp=0; grp<groups[block].size(); ++grp) {
-          //for (int c=0; c<groups[block][grp]->numElem; c++) {
-          size_t nindex = groups[block][grp]->subgrid_model_index.size();
-          if (groups[block][grp]->subgrid_model_index[nindex-1] == s) {
-            size_t usernum = groups[block][grp]->subgrid_usernum;
-            active[usernum] = true;
-            numactive += 1;
-          }
-          //}
-        }
-      }
-      subgridModels[s]->active.push_back(active);
     }
   }
+      
+  ScalarT gmin = 0.0;
+  Teuchos::reduceAll(*MacroComm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
+  ScalarT gmax = 0.0;
+  Teuchos::reduceAll(*MacroComm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
+
+  if (MacroComm->getRank() == 0 && verbosity > 10) {
+    cout << "***** Multiscale Load Balancing Factor " << gmax/gmin <<  endl;
+  }
   
-  return my_cost;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

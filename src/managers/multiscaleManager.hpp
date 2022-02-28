@@ -87,7 +87,7 @@ namespace MrHyDE {
     // Re-assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
     
-    ScalarT update();
+    void update();
     
     void reset();
     
@@ -116,7 +116,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     bool subgrid_static;
-    int debug_level;
+    int debug_level, verbosity;
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<Teuchos::ParameterList> settings;

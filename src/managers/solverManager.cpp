@@ -1088,7 +1088,10 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u)
   for (int ss=0; ss<subcycles; ++ss) {
     for (size_t set=0; set<setnames.size(); ++set) {
       assembler->updatePhysicsSet(set);
-      vector_RCP zero_soln;// = linalg->getNewOverlappedVector(set);
+      vector_RCP zero_soln;
+      if (usestrongDBCs) {
+        this->setDirichlet(set, u[set]);
+      }
       this->nonlinearSolver(set, u[set], zero_soln);
     }
   }
@@ -1133,6 +1136,7 @@ void SolverManager<Node>::adjointModel(vector<ScalarT> & gradient) {
       if (!fnd) {
         cout << "UNABLE TO FIND FORWARD SOLUTION" << endl;
       }
+      
       this->nonlinearSolver(0, u[0], phi[0]);
       
       postproc->computeSensitivities(u, phi, current_time, deltat, gradient);
@@ -1211,12 +1215,11 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     int maxCuts = maxTimeStepCuts; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
     bool write_this_step = false;
-    //double ampMax = amplification_factor; // for exlicit methods, maximum applification allowed in a time step
     
-    vector<vector_RCP> u_prev, u_stage;
+    vector<vector_RCP> u_prev;
     for (size_t set=0; set<initial.size(); ++set) {
       u_prev.push_back(linalg->getNewOverlappedVector(set));
-      u_stage.push_back(linalg->getNewOverlappedVector(set));
+      //u_stage.push_back(linalg->getNewOverlappedVector(set));
     }
     
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
@@ -1241,7 +1244,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           numstages = assembler->wkset[0]->butcher_A.extent(0);
       
           // Increment the previous step solutions (shift history and moves u into first spot)
-          assembler->resetPrevSoln(set); //
+          assembler->resetPrevSoln(set); 
           
           // Reset the stage solutions (sets all to zero)
           assembler->resetStageSoln(set);
@@ -1250,66 +1253,38 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           // Allow the groups to change subgrid model
           ////////////////////////////////////////////////////////////////////////
           
-          if (multiscale_manager->subgridModels.size() > 0) {
-            Teuchos::TimeMonitor localtimer(*msprojtimer);
-            ScalarT my_cost = multiscale_manager->update();
-            ScalarT gmin = 0.0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
-            ScalarT gmax = 0.0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
-            if (Comm->getRank() == 0 && verbosity > 10) {
-              cout << "***** Multiscale Load Balancing Factor " << gmax/gmin <<  endl;
-            }
-          }
-          
+          multiscale_manager->update();
+          vector_RCP u_stage = linalg->getNewOverlappedVector(set);
+
           u_prev[set]->assign(*(u[set]));
           auto BDF_wts = assembler->wkset[0]->BDF_wts;
           
           for (int stage = 0; stage<numstages; stage++) {
             // Need a stage solution
             // Set the initial guess for stage solution
-            u_stage[set]->assign(*(u_prev[set]));
+            u_stage->assign(*(u_prev[set]));
             
-            assembler->updateStageNumber(stage); // could probably just += 1 in wksets
+            // Updates the current time and sets the stage number in wksets
+            assembler->updateStage(stage, current_time, deltat); 
             
+            if (usestrongDBCs) {
+              this->setDirichlet(set, u_stage);
+            }
+  
             if (fully_explicit) {
-              status += this->explicitSolver(set, u_stage[set], zero_vec[set], stage);
+              status += this->explicitSolver(set, u_stage, zero_vec[set], stage);
             }
             else {
-              status += this->nonlinearSolver(set, u_stage[set], zero_vec[set]);
+              status += this->nonlinearSolver(set, u_stage, zero_vec[set]);
             }
             
-            u[set]->update(1.0, *(u_stage[set]), 1.0);
+            u[set]->update(1.0, *u_stage, 1.0);
             u[set]->update(-1.0, *(u_prev[set]), 1.0);
             
-            assembler->updateStageSoln(set); // moves the stage solution into u_stage (avoids mem transfer)
+            assembler->updateStageSoln(set); // moves the stage solution into u_stage
             
           }
-          if (usestrongDBCs) {
-            for (size_t block=0; block<assembler->wkset.size(); ++block) {
-              assembler->wkset[block]->setTime(current_time+deltat);
-            }
-            this->setDirichlet(set,u[set]);
-          }
-          /*
-          if (fully_explicit) {
-            {
-              Teuchos::TimeMonitor localtimer(*normLAtimer);
-              Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
-              Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> uprevnorm(1);
-              
-              u[set]->normInf(unorm);
-              u_prev[set]->normInf(uprevnorm);
-              
-              if (uprevnorm[0] > 1.0e-100) {
-                if (unorm[0]/uprevnorm[0] > ampMax) {
-                  status += 1;
-                }
-              }
-              
-            }
-          }
-          */
+          
         }
       }
       
@@ -1478,21 +1453,6 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
   resnorm_first[0] = 10*NLtol;
   resnorm_scaled[0] = resnorm_first[0];
   resnorm[0] = resnorm_first[0];
-  
-  if (isTransient) {
-    for (size_t block=0; block<assembler->wkset.size(); ++block) {
-      auto butcher_c = Kokkos::create_mirror_view(assembler->wkset[block]->butcher_c);
-      Kokkos::deep_copy(butcher_c, assembler->wkset[block]->butcher_c);
-      ScalarT timeval = current_time + butcher_c(assembler->wkset[block]->current_stage)*deltat;
-      assembler->wkset[block]->setTime(timeval);
-      assembler->wkset[block]->setDeltat(deltat);
-      assembler->wkset[block]->alpha = 1.0/deltat;
-    }
-  }
-  
-  if (usestrongDBCs) {
-    this->setDirichlet(set, u);
-  }
   
   int maxiter = maxNLiter;
   if (is_adjoint) {
@@ -2121,7 +2081,6 @@ void SolverManager<Node>::finalizeMultiscale() {
   if (multiscale_manager->subgridModels.size() > 0 ) {
     for (size_t k=0; k<multiscale_manager->subgridModels.size(); k++) {
       multiscale_manager->subgridModels[k]->paramvals_KVAD = params->paramvals_KVAD;
-      //  multiscale_manager->subgridModels[k]->wkset[0]->paramnames = paramnames;
     }
     
     multiscale_manager->macro_wkset = assembler->wkset;
@@ -2137,10 +2096,8 @@ void SolverManager<Node>::finalizeMultiscale() {
     ScalarT my_cost = multiscale_manager->initialize();
     ScalarT gmin = 0.0;
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
-    //Comm->MinAll(&my_cost, &gmin, 1);
     ScalarT gmax = 0.0;
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
-    //Comm->MaxAll(&my_cost, &gmax, 1);
     
     if (Comm->getRank() == 0 && verbosity>0) {
       cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
@@ -2168,27 +2125,41 @@ void SolverManager<Node>::PCG(const size_t & set, matrix_RCP & J, vector_RCP & b
   ScalarT rho = 1.0, rho1 = 0.0, alpha = 0.0, beta = 1.0, pq = 0.0;
   ScalarT one = 1.0, zero = 0.0;
   
-  p_pcg[set]->putScalar(zero);
-  q_pcg[set]->putScalar(zero);
-  r_pcg[set]->putScalar(zero);
-  z_pcg[set]->putScalar(zero);
+  vector_RCP p, q, r, z;
+  if (store_vectors) {
+    p = p_pcg[set];
+    q = q_pcg[set];
+    r = r_pcg[set];
+    z = z_pcg[set];
+  }
+  else {
+    p = linalg->getNewVector(set);
+    q = linalg->getNewVector(set);
+    r = linalg->getNewVector(set);
+    z = linalg->getNewVector(set);
+  }
+  
+  p->putScalar(zero);
+  q->putScalar(zero);
+  r->putScalar(zero);
+  z->putScalar(zero);
   
   int iter=0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   {
     Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-    J->apply(*x,*(q_pcg[set]));
+    J->apply(*x,*q);
   }
   
-  r_pcg[set]->assign(*b);
-  r_pcg[set]->update(-one,*(q_pcg[set]),one);
+  r->assign(*b);
+  r->update(-one,*q,one);
   
-  r_pcg[set]->norm2(rnorm);
+  r->norm2(rnorm);
   ScalarT r0 = rnorm[0];
   
   auto M_view = M->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-  auto r_view = r_pcg[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-  auto z_view = z_pcg[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto r_view = r->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto z_view = z->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   while (iter<maxiter && rnorm[0]/r0>tol) {
     
@@ -2202,28 +2173,28 @@ void SolverManager<Node>::PCG(const size_t & set, matrix_RCP & J, vector_RCP & b
     }
     
     rho1 = rho;
-    r_pcg[set]->dot(*(z_pcg[set]), dotprod);
+    r->dot(*z, dotprod);
     rho = dotprod[0];
     if (iter == 0) {
-      p_pcg[set]->assign(*(z_pcg[set]));
+      p->assign(*z);
     }
     else {
       beta = rho/rho1;
-      p_pcg[set]->update(one,*(z_pcg[set]),beta);
+      p->update(one,*z,beta);
     }
     
     {
       Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-      J->apply(*(p_pcg[set]),*(q_pcg[set]));
+      J->apply(*p,*q);
     }
     
-    p_pcg[set]->dot(*(q_pcg[set]),dotprod);
+    p->dot(*q,dotprod);
     pq = dotprod[0];
     alpha = rho/pq;
     
-    x->update(alpha,*(p_pcg[set]),one);
-    r_pcg[set]->update(-one*alpha,*(q_pcg[set]),one);
-    r_pcg[set]->norm2(rnorm);
+    x->update(alpha,*p,one);
+    r->update(-one*alpha,*q,one);
+    r->norm2(rnorm);
     
     iter++;
   }

@@ -99,13 +99,23 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void BoundaryGroup::createHostLIDs() {
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<HostExec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
   
+  LIDs_host = vector<LIDView_host>(LIDs.size());
   for (size_t set=0; set<LIDs.size(); ++set) {
-    auto LIDs_tmp = Kokkos::create_mirror_view(LIDs[set]);
-    Kokkos::deep_copy(LIDs_tmp,LIDs[set]);
-    LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
-    Kokkos::deep_copy(currLIDs_host,LIDs_tmp);
-    LIDs_host.push_back(currLIDs_host);
+    if (data_avail) {
+      LIDs_host[set] = LIDs[set];
+    }
+    else {
+      auto LIDs_tmp = Kokkos::create_mirror_view(LIDs[set]);
+      Kokkos::deep_copy(LIDs_tmp,LIDs[set]);
+      LIDView_host currLIDs_host("LIDs on host",LIDs[set].extent(0), LIDs[set].extent(1));
+      Kokkos::deep_copy(currLIDs_host,LIDs_tmp);
+      LIDs_host[set] = currLIDs_host;
+    }
   }
   
 }
@@ -165,16 +175,16 @@ void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const int & nu
         maxnbasis = groupData->set_numDOF_host[set](i);
       }
     }
-    View_Sc3 newu("u",numElem,groupData->set_numDOF[set].extent(0),maxnbasis);
+    View_Sc3 newu("u bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis);
     u.push_back(newu);
     if (groupData->requiresAdjoint) {
-      View_Sc3 newphi("phi",numElem,groupData->set_numDOF[set].extent(0),maxnbasis);
+      View_Sc3 newphi("phi bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis);
       phi.push_back(newphi);
     }
     if (groupData->requiresTransient) {
-      View_Sc4 newuprev("u previous",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps);
+      View_Sc4 newuprev("u previous bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps);
       u_prev.push_back(newuprev);
-      View_Sc4 newustage("u stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages);
+      View_Sc4 newustage("u stages bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages-1);
       u_stage.push_back(newustage);
     }
   }
@@ -837,10 +847,13 @@ void BoundaryGroup::updateData() {
   if (groupData->have_phi) {
     wkset->have_rotation_phi = true;
     wkset->rotation_phi = data;
+    wkset->allocateRotations();
   }
   else if (groupData->have_rotation) {
     wkset->have_rotation = true;
+    wkset->allocateRotations();
     auto rot = wkset->rotation;
+    
     parallel_for("update data",
                  RangePolicy<AssemblyExec>(0,data.extent(0)),
                  KOKKOS_LAMBDA (const size_type e ) {
@@ -854,6 +867,7 @@ void BoundaryGroup::updateData() {
       rot(e,2,1) = data(e,7);
       rot(e,2,2) = data(e,8);
     });
+  
   }
   else if (groupData->have_extra_data) {
     wkset->extra_data = data;
