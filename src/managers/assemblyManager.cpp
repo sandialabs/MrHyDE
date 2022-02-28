@@ -2326,6 +2326,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   auto localMatrix = mass->getLocalMatrixHost();
   
   for (size_t block=0; block<groups.size(); ++block) {
+    wkset[block]->isOnSide = true;
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       int numElem = groups[block][grp]->numElem;
       auto LIDs = groups[block][grp]->LIDs_host[set];
@@ -2370,6 +2371,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
         }
       }
     }
+    wkset[block]->isOnSide = false;
   }
 
   // make sure we don't have any rows of all zeroes
