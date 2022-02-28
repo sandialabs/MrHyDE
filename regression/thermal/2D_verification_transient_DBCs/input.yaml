@@ -1,0 +1,42 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 10
+    NY: 10
+  Physics: 
+    modules: thermal
+    Dirichlet conditions:
+      static data: false
+      e:
+        all boundaries: 't'
+    Initial conditions:
+      e: '0.0'
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Functions:
+    thermal source: '1.0'
+  Solver:
+    solver: transient
+    transient Butcher tableau: 'BWE'
+    transient BDF order: 1
+    final time: 1.0
+    number of steps: 10
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+    True solutions:
+      e: t
+...
