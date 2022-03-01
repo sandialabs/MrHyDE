@@ -3006,7 +3006,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
             isDiri = true;
           }
           
-          if (isDiri) {
+          if (isDiri && !use_weak_dbcs) {
             vector<stk::mesh::Entity> nodeEntities;
             mesh->getMyNodes(nodeName, blockID, nodeEntities);
             vector<GO> elemGIDs;
@@ -3118,7 +3118,8 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
       std::string blockID = blocknames[block];
       
       Teuchos::ParameterList dbc_settings = phys->setPhysSettings[set][block].sublist("Dirichlet conditions");
-      
+      bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
+
       std::vector<std::vector<LO> > block_dbc_dofs;
       
       for (size_t j=0; j<varlist[block].size(); j++) {
@@ -3138,7 +3139,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
             haveDirichlet = true;
           }
           
-          if (isDiri) {
+          if (isDiri  && !use_weak_dbcs) {
             
             vector<size_t>             local_side_Ids;
             vector<stk::mesh::Entity>  side_output;
