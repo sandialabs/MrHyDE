@@ -18,7 +18,7 @@ ANONYMOUS:
     eblock-0_0: 
       modules: thermal
       Dirichlet conditions:
-        use weak Dirichlet: true
+        #use weak Dirichlet: true
         e:
           left: '0.0'
           right: '0.0'
@@ -34,7 +34,7 @@ ANONYMOUS:
       side quadrature: 8
   Solver: 
     solver: steady-state
-    use strong DBCs: false
+    #use strong DBCs: false
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-12
   Analysis: 
