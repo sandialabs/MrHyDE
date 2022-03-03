@@ -1277,6 +1277,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             else {
               status += this->nonlinearSolver(set, u_stage, zero_vec[set]);
             }
+
+            // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
             
             u[set]->update(1.0, *u_stage, 1.0);
             u[set]->update(-1.0, *(u_prev[set]), 1.0);

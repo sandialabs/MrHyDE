@@ -34,3 +34,12 @@ Euler.cpp
 ../../src/tools/workset.cpp
 ../../src/interfaces/discretizationInterface.cpp)
 TARGET_LINK_LIBRARIES(Euler ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
+ADD_EXECUTABLE(shallowwaterHybridized
+shallowwaterHybridized.cpp
+../../src/physics/shallowwaterHybridized.cpp
+../../src/managers/functionManager.cpp
+../../src/tools/interpreter.cpp
+../../src/tools/workset.cpp
+../../src/interfaces/discretizationInterface.cpp)
+TARGET_LINK_LIBRARIES(shallowwaterHybridized ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

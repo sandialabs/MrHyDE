@@ -60,6 +60,7 @@ shallowwaterHybridized::shallowwaterHybridized(Teuchos::ParameterList & settings
   }
 
   // TODO Will need more so fix here
+  // TODO apparently this functionality is not needed UPDATE
   modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for shallow water",1);
   auto modelparams_host = Kokkos::create_mirror_view(modelparams);
 
@@ -755,7 +756,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
         const AD & Hux, const AD & H) {
 
-  // In 1D, the eigenvalues are Hux - a, ux, and ux + a
+  // In 1D, the eigenvalues are ux - a and ux + a
   // The right eigenvectors are 
   // [1, ux - a]^T
   // [1, ux + a]^T
@@ -769,7 +770,7 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & 
   AD a = sqrt(H*modelparams(gravity_mp_num));
   
   rightEV(0,0) = 1.; rightEV(1,0) = Hux/H - a; 
-  rightEV(1,0) = 1.; rightEV(1,1) = Hux/H + a;
+  rightEV(0,1) = 1.; rightEV(1,1) = Hux/H + a;
 
   leftEV(0,0) = (Hux/H + a)/(2.*a); leftEV(0,1) = -1./(2.*a);
   leftEV(1,0) = (a - Hux/H)/(2.*a); leftEV(1,1) =  1./(2.*a);
@@ -786,6 +787,8 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & 
   AD a = sqrt(H*modelparams(gravity_mp_num));
 
   // With eigenvalues vn + a, vn, vn - a (flipped order from above)
+  // See e.g. Li, Liu (2001) -- note there is a typo in their expression
+  // for (A,B) \cdot n (entry 2,3 should be u n_y)
 
   // The right EVs are
   // [1, ux + a*nx, uy + a*ny]^T
@@ -797,9 +800,9 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & 
   // 1/(2*a)*[2*(ux*ny - uy*nx), -2*ny, 2*nx]
   // 1/(2*a)*[a + vn, -nx, -ny] 
 
-  rightEV(0,0) = 1.; rightEV(1,0) = Hux/H - a*nx; rightEV(2,0) = Huy/H - a*ny;
+  rightEV(0,0) = 1.; rightEV(1,0) = Hux/H + a*nx; rightEV(2,0) = Huy/H + a*ny;
   rightEV(0,1) = 0.; rightEV(1,1) = -a*ny; rightEV(2,1) = a*nx;
-  rightEV(0,2) = 1.; rightEV(1,2) = Hux/H + a*nx; rightEV(2,2) = Huy/H + a*ny;
+  rightEV(0,2) = 1.; rightEV(1,2) = Hux/H - a*nx; rightEV(2,2) = Huy/H - a*ny;
 
   leftEV(0,0) = .5 - vn/(2.*a); leftEV(0,1) =  nx/(2.*a); leftEV(0,2) =  ny/(2.*a);
   leftEV(1,0) = (ny*Hux/H - nx*Huy/H)/a; leftEV(1,1) = -ny/a; leftEV(1,2) = nx/a; 

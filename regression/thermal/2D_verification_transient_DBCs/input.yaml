@@ -29,7 +29,10 @@ ANONYMOUS:
   Solver:
     solver: transient
     transient Butcher tableau: 'BWE'
-    transient BDF order: 1
+    transient BDF order: 3
+    transient startup BDF order: 1
+    transient startup Butcher tableau: DIRK-3,3
+    transient startup steps: 5
     final time: 1.0
     number of steps: 10
   Analysis: 
