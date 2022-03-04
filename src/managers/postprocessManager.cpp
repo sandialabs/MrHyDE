@@ -3894,10 +3894,8 @@ ScalarT PostprocessManager<Node>::makeSomeNoise(ScalarT stdev) {
 
 template<class Node>
 void PostprocessManager<Node>::addSensors() {
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::addSensors ..." << endl;
-    }
+  if (debug_level > 0 && Comm->getRank() == 0) {
+    cout << "**** Starting PostprocessManager::addSensors ..." << endl;
   }
     
   // Reading in sensors from a mesh file only works on a single element block (for now)
@@ -3916,10 +3914,8 @@ void PostprocessManager<Node>::addSensors() {
     }
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished PostprocessManager::addSensors ..." << endl;
-    }
+  if (debug_level > 0 && Comm->getRank() == 0) {
+    cout << "**** Finished PostprocessManager::addSensors ..." << endl;
   }
   
 }
