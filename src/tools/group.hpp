@@ -352,6 +352,8 @@ namespace MrHyDE {
     View_Sc3 sensorPoints;
     vector<int> sensorElem, mySensorIDs;
     vector<vector<DRV> > sensorBasis, param_sensorBasis, sensorBasisGrad, param_sensorBasisGrad;
+
+    
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
     vector<ScalarT> data_distance;
