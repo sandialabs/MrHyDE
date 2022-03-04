@@ -571,8 +571,6 @@ void Group::computeSolAvg() {
 
 void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   
-  // THIS FUNCTION ASSUMES THAT THE WORKSET BASIS HAS BEEN UPDATED
-  
   Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
   
   // Figure out which basis we need
@@ -580,17 +578,13 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   wkset->isVar(var,index);
   
   View_Sc4 cbasis;
-  View_Sc2 cwts;
+  auto cwts = wts;
 
   auto bindex = basis_index;
   if (storeAll) {
-    cwts = wts;
     cbasis = basis[wkset->usebasis[index]];
   }
   else if (groupData->use_basis_database) {
-    cwts = wts;
-    //disc->copyBasisFromDatabase(groupData, basis_database_index, orientation, false);
-                                
     cbasis = groupData->database_basis[wkset->usebasis[index]];//physical_basis[wkset->usebasis[index]];
   }
   else {
