@@ -27,8 +27,7 @@ Group::Group(const Teuchos::RCP<GroupMetaData> & groupData_,
 groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
 {
   numElem = nodes.extent(0);
-  useSensors = false;
-
+  
   storeAll = storeAll_;
   haveBasis = false;
   storeMass = true;

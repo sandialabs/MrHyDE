@@ -333,7 +333,6 @@ namespace MrHyDE {
     vector<View_Sc4> basis, basis_grad, basis_curl, basis_nodes;
     vector<View_Sc3> basis_div, local_mass;
     
-    //vector<vector<DRV> > basis_face, basis_grad_face;
     vector<vector<View_Sc4>> basis_face, basis_grad_face;
     View_Sc1 hsize;
     
@@ -345,15 +344,9 @@ namespace MrHyDE {
     vector<DRV> auxbasis, auxbasisGrad; // this does cause a problem
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
-    // Sensor information
-    bool storeAll, storeMass, useSensors, usealtsol = false, haveBasis;
-    size_t numSensors;
-    vector<Kokkos::View<ScalarT**,HostDevice> > sensorLocations, sensorData;
-    View_Sc3 sensorPoints;
-    vector<int> sensorElem, mySensorIDs;
-    vector<vector<DRV> > sensorBasis, param_sensorBasis, sensorBasisGrad, param_sensorBasisGrad;
+    // Storage information
+    bool storeAll, storeMass, usealtsol = false, haveBasis;
 
-    
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
     vector<ScalarT> data_distance;
