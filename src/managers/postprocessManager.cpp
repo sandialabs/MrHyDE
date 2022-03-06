@@ -1878,8 +1878,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           View_AD2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
           
           for (size_type var=0; var<numDOF.extent(0); var++) {
-            auto cbasis = objectives[r].sensor_basis[pt][assembler->wkset[block]->usebasis[var]];
-            auto cbasis_grad = objectives[r].sensor_basis_grad[pt][assembler->wkset[block]->usebasis[var]];
+            auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
+            auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
             auto u_sv = subview(u_ip, var, ALL());
             auto u_dof_sv = subview(u_dof, var, ALL());
             auto ugrad_sv = subview(ugrad_ip, var, ALL());
@@ -1887,9 +1887,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             parallel_for("cell response sensor uip",
                          RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                          KOKKOS_LAMBDA (const int dof ) {
-              u_sv(0) += u_dof_sv(dof)*cbasis(0,dof,0,0);
+              u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
               for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(0,dof,0,dim);
+                ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
               }
             });
           }
@@ -1918,8 +1918,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             
             for (size_type var=0; var<numParamDOF.extent(0); var++) {
               int bnum = assembler->wkset[block]->paramusebasis[var];
-              auto cbasis = objectives[r].sensor_basis[pt][bnum];
-              auto cbasis_grad = objectives[r].sensor_basis_grad[pt][bnum];
+              auto cbasis = objectives[r].sensor_basis[bnum];
+              auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
               auto p_sv = subview(p_ip, var, ALL());
               auto p_dof_sv = subview(p_dof, var, ALL());
               auto pgrad_sv = subview(pgrad_ip, var, ALL());
@@ -1927,9 +1927,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               parallel_for("cell response sensor uip",
                            RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                            KOKKOS_LAMBDA (const int dof ) {
-                p_sv(0) += p_dof_sv(dof)*cbasis(0,dof,0,0);
+                p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
                 for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                  pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(0,dof,0,dim);
+                  pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
                 }
               });
             }
@@ -1998,8 +1998,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               for (size_type var=0; var<numParamDOF.extent(0); var++) {
                 int bnum = assembler->wkset[block]->paramusebasis[var];
-                auto cbasis = objectives[r].sensor_basis[pt][bnum];
-                auto cbasis_grad = objectives[r].sensor_basis_grad[pt][bnum];
+                auto cbasis = objectives[r].sensor_basis[bnum];
+                auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
                 auto p_sv = subview(p_ip, var, ALL());
                 auto p_dof_sv = subview(p_dof, var, ALL());
                 auto pgrad_sv = subview(pgrad_ip, var, ALL());
@@ -2007,9 +2007,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                 parallel_for("cell response sensor uip",
                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                              KOKKOS_LAMBDA (const int dof ) {
-                  p_sv(0) += p_dof_sv(dof)*cbasis(0,dof,0,0);
+                  p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
                   for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(0,dof,0,dim);
+                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
                   }
                 });
               }
@@ -2871,8 +2871,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           View_AD2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
           
           for (size_type var=0; var<numDOF.extent(0); var++) {
-            auto cbasis = objectives[r].sensor_basis[pt][assembler->wkset[block]->usebasis[var]];
-            auto cbasis_grad = objectives[r].sensor_basis_grad[pt][assembler->wkset[block]->usebasis[var]];
+            auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
+            auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
             auto u_sv = subview(u_ip, var, ALL());
             auto u_dof_sv = subview(u_dof, var, ALL());
             auto ugrad_sv = subview(ugrad_ip, var, ALL());
@@ -2880,9 +2880,9 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             parallel_for("cell response sensor uip",
                          RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                          KOKKOS_LAMBDA (const int dof ) {
-              u_sv(0) += u_dof_sv(dof)*cbasis(0,dof,0,0);
+              u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
               for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(0,dof,0,dim);
+                ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
               }
             });
           }
@@ -2908,8 +2908,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             
             for (size_type var=0; var<numParamDOF.extent(0); var++) {
               int bnum = assembler->wkset[block]->paramusebasis[var];
-              auto cbasis = objectives[r].sensor_basis[pt][bnum];
-              auto cbasis_grad = objectives[r].sensor_basis_grad[pt][bnum];
+              auto cbasis = objectives[r].sensor_basis[bnum];
+              auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
               auto p_sv = subview(p_ip, var, ALL());
               auto p_dof_sv = subview(p_dof, var, ALL());
               auto pgrad_sv = subview(pgrad_ip, var, ALL());
@@ -2917,9 +2917,9 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               parallel_for("cell response sensor uip",
                            RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                            KOKKOS_LAMBDA (const int dof ) {
-                p_sv(0) += p_dof_sv(dof)*cbasis(0,dof,0,0);
+                p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
                 for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                  pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(0,dof,0,dim);
+                  pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
                 }
               });
             }
@@ -2988,13 +2988,13 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               std::string btype = assembler->wkset[block]->basis_types[bnum];
               if (btype == "HDIV" || btype == "HCURL") {
                 if (w==0) {
-                  auto cbasis = objectives[r].sensor_basis[pt][bnum];
+                  auto cbasis = objectives[r].sensor_basis[bnum];
                   int nn = n; // TMW - temp
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
                         for (size_type d=0; d<cbasis.extent(3); d++) {
-                          local_grad(elem,offsets(nn,j),0) += -totaldiff.fastAccessDx(offsets(nn,i))*cbasis(0,j,s,d);
+                          local_grad(elem,offsets(nn,j),0) += -totaldiff.fastAccessDx(offsets(nn,i))*cbasis(pt,j,s,d);
                         }
                       }
                     }
@@ -3003,24 +3003,24 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
               else {
                 if (w==0) {
-                  auto cbasis = objectives[r].sensor_basis[pt][bnum];
+                  auto cbasis = objectives[r].sensor_basis[bnum];
                   int nn = n; //TMW - temp
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
-                        local_grad(elem,offsets(nn,j),0) += -totaldiff.fastAccessDx(offsets(nn,i))*cbasis(0,j,s,0);
+                        local_grad(elem,offsets(nn,j),0) += -totaldiff.fastAccessDx(offsets(nn,i))*cbasis(pt,j,s,0);
                       }
                     }
                   }
                 }
                 else {
-                  auto cbasis = objectives[r].sensor_basis_grad[pt][bnum];
+                  auto cbasis = objectives[r].sensor_basis_grad[bnum];
                   auto cbasis_sv = subview(cbasis,ALL(),ALL(),ALL(),w-1);
                   int nn = n; //TMW - temp
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
-                        local_grad(elem,offsets(nn,j),0) += -totaldiff.fastAccessDx(offsets(nn,i))*cbasis_sv(0,j,s);
+                        local_grad(elem,offsets(nn,j),0) += -totaldiff.fastAccessDx(offsets(nn,i))*cbasis_sv(pt,j,s);
                       }
                     }
                   }
@@ -4039,6 +4039,33 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
     // Evaluate the basis functions and grads for each sensor point
     // ========================================
     
+    vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasis;
+    vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasisGrad;
+    for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
+      auto basis_ptr = assembler->disc->basis_pointers[block][k];
+      string basis_type = assembler->disc->basis_types[block][k];
+      int bnum = basis_ptr->getCardinality();
+      
+      if (basis_type == "HGRAD") {
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
+        csensorBasis.push_back(cbasis);
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, spaceDim);
+        csensorBasisGrad.push_back(cbasisgrad);
+      }
+      else if (basis_type == "HVOL") {
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
+        csensorBasis.push_back(cbasis);
+      }
+      else if (basis_type == "HDIV") {
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+        csensorBasis.push_back(cbasis);
+      }
+      else if (basis_type == "HCURL") {
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+        csensorBasis.push_back(cbasis);
+      }
+    }
+     
     for (size_type pt=0; pt<spts.extent(0); ++pt) {
       
       DRV cpt("point",1,1,spaceDim);
@@ -4051,52 +4078,57 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
       auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
       deep_copy(cnodes_sv,nodes_sv);
+
+      DRV refpt("refsenspts",1,spaceDim);
+      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
       DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
-      DRV refpt("refsenspts",1,spaceDim);
+      
       for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
         refpt(0,d) = refpt_tmp(0,0,d);
       }
       
-      vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasis;
-      vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasisGrad;
       
       auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
-      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       corientation(0) = orient(sowners(pt,1));
-      
+    
+
       for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
         auto basis_ptr = assembler->disc->basis_pointers[block][k];
         string basis_type = assembler->disc->basis_types[block][k];
         auto cellTopo = assembler->groupData[block]->cellTopo;
         
         Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
-        
-        if (basis_type == "HGRAD" || basis_type == "HVOL") {
-          
-          DRV bvals = assembler->disc->evaluateBasis(basis_ptr, refpt, corientation);
-          
-          bvals2 = Kokkos::View<ScalarT****,AssemblyDevice>("sensor basis",bvals.extent(0),bvals.extent(1),
-                                                            bvals.extent(2),spaceDim);
-          
-          auto bvals2_sv = subview(bvals2,ALL(),ALL(),ALL(),0);
-          deep_copy(bvals2_sv,bvals);
-          
+        DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
+
+        if (basis_type == "HGRAD") {
+          auto bvals_sv = subview(bvals,0,ALL(),ALL());
+          auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),0);
+          deep_copy(bvals2_sv,bvals_sv);
           DRV bgradvals = assembler->disc->evaluateBasisGrads(basis_ptr, cnodes, refpt, cellTopo, corientation);
-          bgradvals2 = Kokkos::View<ScalarT****,AssemblyDevice>("sensor basis",bgradvals.extent(0),
-                                                                bgradvals.extent(1),bgradvals.extent(2),spaceDim);
-          
-          deep_copy(bgradvals2,bgradvals);
-          
+          auto bgrad_sv = subview(csensorBasisGrad[k],pt,ALL(),ALL(),ALL());
+          deep_copy(bgrad_sv,bgradvals);
         }
-        csensorBasis.push_back(bvals2);
-        csensorBasisGrad.push_back(bgradvals2);
+        else if (basis_type == "HVOL") {
+          auto bvals_sv = subview(bvals,0,ALL(),ALL());
+          auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),0);
+          deep_copy(bvals2_sv,bvals_sv);
+        }
+        else if (basis_type == "HDIV") {
+          auto bvals_sv = subview(bvals,0,ALL(),ALL(),ALL());
+          auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),ALL());
+          deep_copy(bvals2_sv,bvals_sv);
+        }
+        else if (basis_type == "HCURL") {
+          auto bvals_sv = subview(bvals,0,ALL(),ALL(),ALL());
+          auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),ALL());
+          deep_copy(bvals2_sv,bvals_sv);
+        }
       }
-      
-      objectives[objID].sensor_basis.push_back(csensorBasis);
-      objectives[objID].sensor_basis_grad.push_back(csensorBasisGrad);
-      
     }
+    objectives[objID].sensor_basis = csensorBasis;
+    objectives[objID].sensor_basis_grad = csensorBasisGrad;
+      
   }
   
   if (debug_level > 0) {
@@ -4194,76 +4226,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   Kokkos::View<int*[2],HostDevice> spts_owners("sensor owners",spts_host.extent(0));
   Kokkos::View<bool*,HostDevice> spts_found("sensors found",spts_host.extent(0));
   
-  for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-    
-    auto nodes = assembler->groups[block][grp]->nodes;
-    auto nodes_host = create_mirror_view(nodes);
-    deep_copy(nodes_host,nodes);
-    
-    // Create a bounding box for the element
-    // This serves as a preprocessing check to avoid unnecessary inclusion checks
-    // If a sensor point is not in the box, then it is not in the element
-    Kokkos::View<double**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),spaceDim);
-    for (size_type p=0; p<nodes_host.extent(0); ++p) {
-      for (size_type dim=0; dim<nodes_host.extent(2); ++dim) {
-        double dmin = 1.0e300;
-        double dmax = -1.0e300;
-        for (size_type k=0; k<nodes_host.extent(1); ++k) {
-          dmin = std::min(dmin,nodes_host(p,k,dim));
-          dmax = std::max(dmax,nodes_host(p,k,dim));
-        }
-        nodebox(p,dim,0) = dmin;
-        nodebox(p,dim,1) = dmax;
-      }
-    }
-    
-    for (size_type pt=0; pt<spts_host.extent(0); ++pt) {
-      if (!spts_found(pt)) {
-        for (size_type p=0; p<nodebox.extent(0); ++p) {
-          bool proceed = true;
-          if (spts_host(pt,0)<nodebox(p,0,0) || spts_host(pt,0)>nodebox(p,0,1)) {
-            proceed = false;
-          }
-          if (proceed && spaceDim > 1) {
-            if (spts_host(pt,1)<nodebox(p,1,0) || spts_host(pt,1)>nodebox(p,1,1)) {
-              proceed = false;
-            }
-          }
-          if (proceed && spaceDim > 2) {
-            if (spts_host(pt,2)<nodebox(p,2,0) || spts_host(pt,2)>nodebox(p,2,1)) {
-              proceed = false;
-            }
-          }
-          
-          if (proceed) {
-            // Need to use DRV, which are on AssemblyDevice
-            // We have less control here
-            DRV phys_pt("phys_pt",1,1,spaceDim);
-            auto phys_pt_host = create_mirror_view(phys_pt);
-            for (size_type d=0; d<spts_host.extent(1); ++d) {
-              phys_pt_host(0,0,d) = spts_host(pt,d);
-            }
-            deep_copy(phys_pt,phys_pt_host);
-            DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
-            auto n_sub = subview(nodes,p,ALL(),ALL());
-            auto cn_sub = subview(cnodes,0,ALL(),ALL());
-            Kokkos::deep_copy(cn_sub,n_sub);
-            
-            auto inRefCell = assembler->disc->checkInclusionPhysicalData(phys_pt,cnodes,
-                                                                         assembler->groupData[block]->cellTopo,
-                                                                         1.0e-15);
-            auto inRef_host = create_mirror_view(inRefCell);
-            deep_copy(inRef_host,inRefCell);
-            if (inRef_host(0,0)) {
-              spts_found(pt) = true;
-              spts_owners(pt,0) = grp;
-              spts_owners(pt,1) = p;
-            }
-          }
-        }
-      }// found
-    } // pt
-  } // elem
+  this->locateSensorPoints(block, spts_host, spts_owners, spts_found);
   
   // ========================================
   // Determine the number of sensors on this proc
@@ -4339,64 +4302,8 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     // Evaluate the basis functions and grads for each sensor point
     // ========================================
     
-    for (size_type pt=0; pt<spts.extent(0); ++pt) {
-      
-      DRV cpt("point",1,1,spaceDim);
-      auto cpt_sub = subview(cpt,0,0,ALL());
-      auto pp_sub = subview(spts,pt,ALL());
-      Kokkos::deep_copy(cpt_sub,pp_sub);
-      
-      auto nodes = assembler->groups[block][sowners(pt,0)]->nodes;
-      auto nodes_sv = subview(nodes,sowners(pt,1),ALL(),ALL());
-      DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
-      auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
-      deep_copy(cnodes_sv,nodes_sv);
-      
-      DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
-      DRV refpt("refsenspts",1,spaceDim);
-      for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
-        refpt(0,d) = refpt_tmp(0,0,d);
-      }
-      
-      vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasis;
-      vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasisGrad;
-      
-      auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
-      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
-      corientation(0) = orient(sowners(pt,1));
-      
-      for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
-        auto basis_ptr = assembler->disc->basis_pointers[block][k];
-        string basis_type = assembler->disc->basis_types[block][k];
-        auto cellTopo = assembler->groupData[block]->cellTopo;
-        
-        Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
-        
-        if (basis_type == "HGRAD" || basis_type == "HVOL") {
-          
-          DRV bvals = assembler->disc->evaluateBasis(basis_ptr, refpt, corientation);
-          
-          bvals2 = Kokkos::View<ScalarT****,AssemblyDevice>("sensor basis",bvals.extent(0),bvals.extent(1),
-                                                            bvals.extent(2),spaceDim);
-          
-          auto bvals2_sv = subview(bvals2,ALL(),ALL(),ALL(),0);
-          deep_copy(bvals2_sv,bvals);
-          
-          DRV bgradvals = assembler->disc->evaluateBasisGrads(basis_ptr, cnodes, refpt, cellTopo, corientation);
-          bgradvals2 = Kokkos::View<ScalarT****,AssemblyDevice>("sensor basis",bgradvals.extent(0),
-                                                                bgradvals.extent(1),bgradvals.extent(2),spaceDim);
-          
-          deep_copy(bgradvals2,bgradvals);
-          
-        }
-        csensorBasis.push_back(bvals2);
-        csensorBasisGrad.push_back(bgradvals2);
-      }
-      
-      objectives[objID].sensor_basis.push_back(csensorBasis);
-      objectives[objID].sensor_basis_grad.push_back(csensorBasisGrad);
-      
-    }
+    this->computeSensorBasis(objID);
+    
   }
   
   if (debug_level > 0) {
@@ -4407,6 +4314,292 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   
 }
 
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
+    
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting PostprocessManager::importSensorsOnGrid() ..." << endl;
+    }
+  }
+  
+  size_t block = objectives[objID].block;
+  
+  // ========================================
+  // Save the locations in the appropriate view
+  // ========================================
+  
+
+  Kokkos::View<ScalarT**,HostDevice> spts_host;// = sdata.getPoints();
+  std::vector<Kokkos::View<ScalarT**,HostDevice> >  sensor_data_host;
+  
+  // Check that the data matches the expected format
+  if (spts_host.extent(1) != static_cast<size_type>(spaceDim)) {
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
+                               "Error: sensor points dimension does not match simulation dimension");
+  }
+  
+  // ========================================
+  // Determine which element contains each sensor point
+  // Note: a given processor might not find any
+  // ========================================
+  
+  Kokkos::View<int*[2],HostDevice> spts_owners("sensor owners",spts_host.extent(0));
+  Kokkos::View<bool*,HostDevice> spts_found("sensors found",spts_host.extent(0));
+  
+  this->locateSensorPoints(block, spts_host, spts_owners, spts_found);
+
+  // ========================================
+  // Determine the number of sensors on this proc
+  // ========================================
+  
+  size_t numFound = 0;
+  for (size_type pt=0; pt<spts_found.extent(0); ++pt) {
+    if (spts_found(pt)) {
+      numFound++;
+    }
+  }
+  
+  objectives[objID].numSensors = numFound;
+  objectives[objID].sensor_found = spts_found;
+  
+  if (numFound > 0) {
+    
+    // ========================================
+    // Create and store more compact Views based on number of sensors on this proc
+    // ========================================
+    
+    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
+    Kokkos::View<ScalarT*,AssemblyDevice> stime;
+    Kokkos::View<ScalarT**,AssemblyDevice> sdat;
+    Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
+        
+    auto spts_tmp = create_mirror_view(spts);
+    
+    size_t prog=0;
+    
+    for (size_type pt=0; pt<spts_host.extent(0); ++pt) {
+      if (spts_found(pt)) {
+        for (size_type j=0; j<sowners.extent(1); ++j) {
+          sowners(prog,j) = spts_owners(pt,j);
+        }
+        for (size_type j=0; j<spts.extent(1); ++j) {
+          spts_tmp(prog,j) = spts_host(pt,j);
+        }
+        prog++;
+      }
+    }
+    deep_copy(spts,spts_tmp);
+    
+    objectives[objID].sensor_points = spts;
+    objectives[objID].sensor_times = stime;
+    objectives[objID].sensor_data = sdat;
+    objectives[objID].sensor_owners = sowners;
+    
+    // ========================================
+    // Evaluate the basis functions and grads for each sensor point
+    // ========================================
+    
+    this->computeSensorBasis(objID);
+  }
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished SensorManager::importSensorsOnGrid() ..." << endl;
+    }
+  }
+
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
+    
+  size_t block = objectives[objID].block;
+  auto spts = objectives[objID].sensor_points;
+  auto sowners = objectives[objID].sensor_owners;
+
+  vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasis;
+  vector<Kokkos::View<ScalarT****,AssemblyDevice> > csensorBasisGrad;
+  for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
+    auto basis_ptr = assembler->disc->basis_pointers[block][k];
+    string basis_type = assembler->disc->basis_types[block][k];
+    int bnum = basis_ptr->getCardinality();
+      
+    if (basis_type == "HGRAD") {
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
+      csensorBasis.push_back(cbasis);
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, spaceDim);
+      csensorBasisGrad.push_back(cbasisgrad);
+    }
+    else if (basis_type == "HVOL") {
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
+      csensorBasis.push_back(cbasis);
+    }
+    else if (basis_type == "HDIV") {
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+      csensorBasis.push_back(cbasis);
+    }
+    else if (basis_type == "HCURL") {
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+      csensorBasis.push_back(cbasis);
+    }
+  }
+
+     
+  for (size_type pt=0; pt<spts.extent(0); ++pt) {
+      
+    DRV cpt("point",1,1,spaceDim);
+    auto cpt_sub = subview(cpt,0,0,ALL());
+    auto pp_sub = subview(spts,pt,ALL());
+    Kokkos::deep_copy(cpt_sub,pp_sub);
+      
+    auto nodes = assembler->groups[block][sowners(pt,0)]->nodes;
+    auto nodes_sv = subview(nodes,sowners(pt,1),ALL(),ALL());
+    DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
+    auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
+    deep_copy(cnodes_sv,nodes_sv);
+
+    DRV refpt("refsenspts",1,spaceDim);
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
+      
+    DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
+      
+    for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
+      refpt(0,d) = refpt_tmp(0,0,d);
+    }
+      
+      
+    auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
+    corientation(0) = orient(sowners(pt,1));
+    
+
+    for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
+      auto basis_ptr = assembler->disc->basis_pointers[block][k];
+      string basis_type = assembler->disc->basis_types[block][k];
+      auto cellTopo = assembler->groupData[block]->cellTopo;
+        
+      Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
+      DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
+
+      if (basis_type == "HGRAD") {
+        auto bvals_sv = subview(bvals,0,ALL(),ALL());
+        auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),0);
+        deep_copy(bvals2_sv,bvals_sv);
+          
+        DRV bgradvals = assembler->disc->evaluateBasisGrads(basis_ptr, cnodes, refpt, cellTopo, corientation);
+        auto bgradvals_sv = subview(bgradvals,0,ALL(),ALL(),ALL());
+        auto bgrad_sv = subview(csensorBasisGrad[k],pt,ALL(),ALL(),ALL());
+        deep_copy(bgrad_sv,bgradvals_sv);
+      }
+      else if (basis_type == "HVOL") {
+        auto bvals_sv = subview(bvals,0,ALL(),ALL());
+        auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),0);
+        deep_copy(bvals2_sv,bvals_sv);
+      }
+      else if (basis_type == "HDIV") {
+        auto bvals_sv = subview(bvals,0,ALL(),ALL(),ALL());
+        auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),ALL());
+        deep_copy(bvals2_sv,bvals_sv);
+      }
+      else if (basis_type == "HCURL") {
+        auto bvals_sv = subview(bvals,0,ALL(),ALL(),ALL());
+        auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),ALL());
+        deep_copy(bvals2_sv,bvals_sv);
+      }
+    }
+  }
+  objectives[objID].sensor_basis = csensorBasis;
+  objectives[objID].sensor_basis_grad = csensorBasisGrad;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::locateSensorPoints(const int & block, 
+                                                  Kokkos::View<ScalarT**,HostDevice> spts_host,
+                                                  Kokkos::View<int*[2],HostDevice> spts_owners, 
+                                                  Kokkos::View<bool*,HostDevice> spts_found) {
+  
+  for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+    
+    auto nodes = assembler->groups[block][grp]->nodes;
+    auto nodes_host = create_mirror_view(nodes);
+    deep_copy(nodes_host,nodes);
+    
+    // Create a bounding box for the element
+    // This serves as a preprocessing check to avoid unnecessary inclusion checks
+    // If a sensor point is not in the box, then it is not in the element
+    Kokkos::View<double**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),spaceDim);
+    for (size_type p=0; p<nodes_host.extent(0); ++p) {
+      for (size_type dim=0; dim<nodes_host.extent(2); ++dim) {
+        double dmin = 1.0e300;
+        double dmax = -1.0e300;
+        for (size_type k=0; k<nodes_host.extent(1); ++k) {
+          dmin = std::min(dmin,nodes_host(p,k,dim));
+          dmax = std::max(dmax,nodes_host(p,k,dim));
+        }
+        nodebox(p,dim,0) = dmin;
+        nodebox(p,dim,1) = dmax;
+      }
+    }
+    
+    for (size_type pt=0; pt<spts_host.extent(0); ++pt) {
+      if (!spts_found(pt)) {
+        for (size_type p=0; p<nodebox.extent(0); ++p) {
+          bool proceed = true;
+          if (spts_host(pt,0)<nodebox(p,0,0) || spts_host(pt,0)>nodebox(p,0,1)) {
+            proceed = false;
+          }
+          if (proceed && spaceDim > 1) {
+            if (spts_host(pt,1)<nodebox(p,1,0) || spts_host(pt,1)>nodebox(p,1,1)) {
+              proceed = false;
+            }
+          }
+          if (proceed && spaceDim > 2) {
+            if (spts_host(pt,2)<nodebox(p,2,0) || spts_host(pt,2)>nodebox(p,2,1)) {
+              proceed = false;
+            }
+          }
+          
+          if (proceed) {
+            // Need to use DRV, which are on AssemblyDevice
+            // We have less control here
+            DRV phys_pt("phys_pt",1,1,spaceDim);
+            auto phys_pt_host = create_mirror_view(phys_pt);
+            for (size_type d=0; d<spts_host.extent(1); ++d) {
+              phys_pt_host(0,0,d) = spts_host(pt,d);
+            }
+            deep_copy(phys_pt,phys_pt_host);
+            DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
+            auto n_sub = subview(nodes,p,ALL(),ALL());
+            auto cn_sub = subview(cnodes,0,ALL(),ALL());
+            Kokkos::deep_copy(cn_sub,n_sub);
+            
+            auto inRefCell = assembler->disc->checkInclusionPhysicalData(phys_pt,cnodes,
+                                                                         assembler->groupData[block]->cellTopo,
+                                                                         1.0e-15);
+            auto inRef_host = create_mirror_view(inRefCell);
+            deep_copy(inRef_host,inRefCell);
+            if (inRef_host(0,0)) {
+              spts_found(pt) = true;
+              spts_owners(pt,0) = grp;
+              spts_owners(pt,1) = p;
+            }
+          }
+        }
+      }// found
+    } // pt
+  } // elem
+}
+
+// ========================================================================================
+// ========================================================================================
 
 // Explicit template instantiations
 template class MrHyDE::PostprocessManager<SolverNode>;

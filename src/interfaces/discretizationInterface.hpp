@@ -135,6 +135,10 @@ namespace MrHyDE {
     DRV evaluateBasis(const basis_RCP & basis_pointer, const DRV & evalpts,
                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation);
     
+    DRV evaluateBasis(const int & block, const int & basisID, const DRV & nodes, 
+                      const DRV & evalpts, topo_RCP & cellTopo,
+                      Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation);
+
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     

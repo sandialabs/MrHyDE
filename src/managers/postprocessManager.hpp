@@ -98,6 +98,11 @@ namespace MrHyDE {
         response = objsettings.get<string>("response","0.0");
         functionManager_->addFunction(name+" response",response,"point");
         response_file = objsettings.get<string>("response file","sensor."+name);
+        compute_sensor_soln = objsettings.get<bool>("compute sensor solution",false);
+        compute_sensor_average_soln = objsettings.get<bool>("compute sensor average solution",false);
+        if (compute_sensor_soln && compute_sensor_average_soln) {
+          // throw an error
+        }      
       }
       else if (type == "integrated response") {
         response = objsettings.get<string>("response","0.0");
@@ -138,15 +143,17 @@ namespace MrHyDE {
     // Data specific to sensors
     string sensor_points_file, sensor_data_file;
     size_t numSensors;
+    bool compute_sensor_soln, compute_sensor_average_soln;
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_data;   // Ns x Nt
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_points; // Ns x dim
     Kokkos::View<ScalarT*,AssemblyDevice>  sensor_times;  // Nt
     Kokkos::View<int*[2],HostDevice>       sensor_owners; // Ns x (cell elem)
     Kokkos::View<bool*,HostDevice>         sensor_found;
-    vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > sensor_basis;       // [Ns][basis](elem,dof,pt,dim)
-    vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > sensor_basis_grad;  // [Ns][basis](elem,dof,pt,dim)
+    vector<Kokkos::View<ScalarT****,AssemblyDevice> > sensor_basis;       //[basis](Ns,dof,pt,dim)
+    vector<Kokkos::View<ScalarT****,AssemblyDevice> > sensor_basis_grad;  // [basis](Ns,dof,pt,dim)
     //vector<vector<Kokkos::View<ScalarT***,AssemblyDevice> > >  sensor_basis_div;   // [Ns][basis](elem,dof,pt)
     //vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > sensor_basis_curl;  // [Ns][basis](elem,dof,pt,dim)
+    vector<Kokkos::View<ScalarT**,HostDevice> > sensor_solution_data; // [time] (sensor,sol)
   };
   
   // ========================================================================================
@@ -445,11 +452,6 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    //void resetGradient();
-    
-    // ========================================================================================
-    // ========================================================================================
-    
     void addSensors();
     
     // ========================================================================================
@@ -461,7 +463,24 @@ namespace MrHyDE {
     // ========================================================================================
     
     void importSensorsFromFiles(const int & objID);
+
+    // ========================================================================================
+    // ========================================================================================
+
+    void importSensorsOnGrid(const int & objID);
     
+    // ========================================================================================
+    // ========================================================================================
+
+    void computeSensorBasis(const int & objID);
+   
+    // ========================================================================================
+    // ========================================================================================
+
+    void locateSensorPoints(const int & block, Kokkos::View<ScalarT**,HostDevice> spts_host,
+                            Kokkos::View<int*[2],HostDevice> spts_owners, 
+                            Kokkos::View<bool*,HostDevice> spts_found);
+
     // ========================================================================================
     // ========================================================================================
         
