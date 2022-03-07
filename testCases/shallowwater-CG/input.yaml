@@ -54,7 +54,7 @@ ANONYMOUS:
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: .5
+    final time: 1e-2
     delta t: 1e-3
     use direct solver: false
   Analysis: 

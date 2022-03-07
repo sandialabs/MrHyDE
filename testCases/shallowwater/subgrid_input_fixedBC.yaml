@@ -1,0 +1,49 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    debug level: 0
+    verbosity: 0
+    subgrid model: DtN
+    Mesh:
+      mesh type: panzer
+      element type: quad
+      refinements: 0
+      dimension: 2
+      blocknames: eblock
+    Physics: 
+      modules: shallow water hybridized
+      #Roe-like stabilization: true
+      max EV stabilization: true
+      g: 1. ## gravity is 1
+      Initial conditions:
+        H: '2. + ss' 
+        Hux: 'ss'
+        Huy: 'ss'
+    Functions:
+      source H: '(2.0*pi*sin(pi*(2*x + 2*y)) + 1.5*cos(pi*(2*x - 2*y)) - 1.5*cos(pi*(2*x + 2*y)))*exp(3.0*t)'
+      source Hux: '(4*pi*(0.5*exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 1)^2*exp(6.0*t)*sin(2*pi*x)*sin(pi*(2*x + 2*y)) - 0.5*pi*(exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 2.0)*exp(9.0*t)*sin(2*pi*x)^2*sin(2*pi*y)*sin(pi*(2*x + 2*y)) + (0.25*exp(3.0*t)*cos(pi*(2*x - 2*y)) - 0.25*exp(3.0*t)*cos(pi*(2*x + 2*y)) + 1)^3*(1.0*pi*exp(3.0*t)*cos(pi*(4*x - 2*y)) - 1.0*pi*exp(3.0*t)*cos(pi*(4*x + 2*y)) + 6.0*sin(2*pi*x) + 8.0*pi*cos(2*pi*x))*exp(3.0*t))*sin(2*pi*y)/((0.5*exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 1)^2*(exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 2.0))'
+      source Huy: '(4*pi*(0.5*exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 1)^2*exp(6.0*t)*sin(2*pi*y)*sin(pi*(2*x + 2*y)) - 0.5*pi*(exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 2.0)*exp(9.0*t)*sin(2*pi*x)*sin(2*pi*y)^2*sin(pi*(2*x + 2*y)) + (0.25*exp(3.0*t)*cos(pi*(2*x - 2*y)) - 0.25*exp(3.0*t)*cos(pi*(2*x + 2*y)) + 1)^3*(1.0*pi*exp(3.0*t)*cos(pi*(2*x - 4*y)) - 1.0*pi*exp(3.0*t)*cos(pi*(2*x + 4*y)) + 6.0*sin(2*pi*y) + 8.0*pi*cos(2*pi*y))*exp(3.0*t))*sin(2*pi*x)/((0.5*exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 1)^2*(exp(3.0*t)*sin(2*pi*x)*sin(2*pi*y) + 2.0))' 
+      ss: 'sin(2.*pi*x)*sin(2.*pi*y)'
+ 
+    Solver:
+      solver: transient
+      nonlinear TOL: 1.0e-06
+      linear TOL: 1.0e-6
+      max nonlinear iters: 10
+      max linear iters: 100
+      use direct solver: true
+    Discretization:
+      order:
+        H: 1
+        Hux: 1
+        Huy: 1
+      quadrature: 2
+    Postprocess: 
+      store aux and flux: false
+      compute errors: true
+      True solutions:
+        H: '2. + ss*exp(3.*t)'
+        Hux: 'ss*exp(3.*t)'
+        Huy: 'ss*exp(3.*t)'
+...
