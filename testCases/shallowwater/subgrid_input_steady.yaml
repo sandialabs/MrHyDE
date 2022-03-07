@@ -1,0 +1,55 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    debug level: 0
+    verbosity: 0
+    subgrid model: DtN
+    Mesh:
+      mesh type: panzer
+      element type: quad
+      refinements: 0
+      dimension: 2
+      blocknames: eblock
+    Physics: 
+      modules: shallow water hybridized
+      #Roe-like stabilization: true
+      max EV stabilization: true
+      g: 1. ## gravity is 1
+      Initial conditions:
+        H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
+        Hux: 'cos(-x)'
+        Huy: 'sin(y)'
+        #Far-field conditions:
+        #  H:
+        #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+        #  Hux:
+        #    all boundaries: 'cos(4.*t - x)'
+        #  Huy:
+        #    all boundaries: 'sin(4.*t + y)'
+    Fuctions:
+      source H: '-sin(x) + cos(y)'
+      source Hux: '(-0.75*(sin(3.0*x)*sin(y)*cos(3.0*y) + sin(3.0*y)*cos(x)*cos(3.0*x))*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(sin(3.0*x)*sin(3.0*y))*cos(x) + 12.0*(0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0)^4*exp(sin(3.0*x)*sin(3.0*y))*sin(3.0*y)*cos(3.0*x) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(-2*sin(x) + cos(y))*cos(x))/((0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0))'
+      source Huy: '(-0.75*(sin(3.0*x)*sin(y)*cos(3.0*y) + sin(3.0*y)*cos(x)*cos(3.0*x))*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(sin(3.0*x)*sin(3.0*y))*sin(y) + 12.0*(0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0)^4*exp(sin(3.0*x)*sin(3.0*y))*sin(3.0*x)*cos(3.0*y) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(-sin(x) + 2*cos(y))*sin(y))/((0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0))'
+ 
+    Solver:
+      solver: transient
+      nonlinear TOL: 1.0e-06
+      linear TOL: 1.0e-6
+      max nonlinear iters: 10
+      max linear iters: 100
+      use direct solver: true
+    Discretization:
+      order:
+        H: 1
+        Hux: 1
+        Huy: 1
+      quadrature: 2
+    Postprocess: 
+      store aux and flux: false
+      compute errors: true
+      True solutions:
+        H: '2. + exp( sin(3.*x)*sin(3.*y) )'
+        Hux: 'cos(-x)'
+        Huy: 'sin(y)'
+...

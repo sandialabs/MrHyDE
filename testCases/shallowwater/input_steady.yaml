@@ -27,11 +27,11 @@ ANONYMOUS:
     Dirichlet conditions:
       static data: false
       H:
-        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y) )'
       Hux:
-        all boundaries: 'cos(4.*t - x)'
+        all boundaries: 'cos(-x)'
       Huy:
-        all boundaries: 'sin(4.*t + y)'
+        all boundaries: 'sin(y)'
         #Far-field conditions:
         #  H:
         #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
@@ -47,11 +47,11 @@ ANONYMOUS:
         Hux: 1
         Huy: 1
     quadrature: 2
-  Subgrid input file: subgrid_input.yaml
+  Subgrid input file: subgrid_input_steady.yaml
   Solver:
-    #solver: steady-state
+    solver: steady-state
     initial type: L2-projection-HFACE
-    solver: transient
+    #solver: transient
     workset size: 100
     nonlinear TOL: 1.0e-06
     linear TOL: 1.0e-6
@@ -68,7 +68,7 @@ ANONYMOUS:
     write HFACE variables: true
     compute errors: true
     True solutions:
-      H: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-      Hux: 'cos(4.*t-x)'
-      Huy: 'sin(4.*t+y)'
+      H: '2. + exp( sin(3.*x)*sin(3.*y) )'
+      Hux: 'cos(-x)'
+      Huy: 'sin(y)'
 ...
