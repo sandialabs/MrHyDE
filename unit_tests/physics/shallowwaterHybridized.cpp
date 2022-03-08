@@ -13,6 +13,8 @@ bool testEVDecomp1D(Teuchos::RCP<shallowwaterHybridized> module);
 bool testEVDecomp2D(Teuchos::RCP<shallowwaterHybridized> module);
 bool testMatVec(Teuchos::RCP<shallowwaterHybridized> module);
 bool testStabTerm(Teuchos::RCP<shallowwaterHybridized> module);
+bool testFluxes2D(Teuchos::RCP<shallowwaterHybridized> module);
+bool checkClose(View_AD4 & truth, View_AD4 & test);
 bool checkClose(View_AD3 & truth, View_AD3 & test);
 bool checkClose(View_AD2 & truth, View_AD2 & test);
 bool checkClose(View_AD1 & truth, View_AD1 & test);
@@ -64,6 +66,10 @@ int main(int argc, char * argv[]) {
     success = testStabTerm(module);
     
     TEUCHOS_TEST_FOR_EXCEPTION(!success,std::runtime_error,"shallowwaterHybridized::computeStabilizationTerm() unit test fail (2D)!");
+
+    success = testFluxes2D(module);
+
+    TEUCHOS_TEST_FOR_EXCEPTION(!success,std::runtime_error,"shallowwaterHybridized::computeFluxVector() unit test fail (2D)!");
 
   }
   
@@ -163,6 +169,26 @@ Teuchos::RCP<FunctionManager> setupDummyFunctionManager(int & dimension) {
   wkset->setScalarField(zip,"z");
 
   return functionManager;
+}
+
+bool checkClose(View_AD4 & truth, View_AD4 & test) {
+
+  ScalarT norm = 0.;
+  for (size_t i=0; i<truth.extent(0); i++) {
+    for (size_t j=0; j<truth.extent(1); j++) {
+      for (size_t k=0; k<truth.extent(2); k++) {
+        for (size_t l=0; k<truth.extent(3); k++) {
+        norm += (truth(i,j,k,l).val() - test(i,j,k,l).val())*
+          (truth(i,j,k,l).val() - test(i,j,k,l).val());
+        }
+      }
+    }
+  }
+
+  if ( std::sqrt(norm > 1e-14) ) {
+    return false;
+  }
+  return true;
 }
 
 bool checkClose(View_AD3 & truth, View_AD3 & test) {
@@ -392,6 +418,89 @@ bool testStabTerm(Teuchos::RCP<shallowwaterHybridized> module) {
   return true;
 }
   
+bool testFluxes2D(Teuchos::RCP<shallowwaterHybridized> module) {
+
+  auto wkset = module->wkset;
+
+  // Set the solution fields in the workset
+  View_AD4 sol("sol", wkset->numElem, wkset->varlist.size(), wkset->numip, 1);
+  vector<AD> solvals = {11.292988634298153,-5.3214599334179,-5.340172901622864};
+
+  // This won't actually work on a GPU
+  parallel_for("sol vals",
+               RangePolicy<AssemblyExec>(0,sol.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type var=0; var<sol.extent(1); ++var) {
+      for (size_type pt=0; pt<sol.extent(2); ++pt) {
+        sol(elem,var,pt,0) = solvals[var];
+      }
+    }
+  });
+  
+  wkset->setSolution(sol);
+  
+  // now the aux vars
+  vector<AD> auxvals = {19.950422663930343,-24.170846656508235,119.77858155615492};
+ 
+  // This won't actually work on a GPU
+  parallel_for("aux vals",
+               RangePolicy<AssemblyExec>(0,sol.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type var=0; var<sol.extent(1); ++var) {
+      for (size_type pt=0; pt<sol.extent(2); ++pt) {
+        sol(elem,var,pt,0) = auxvals[var];
+      }
+    }
+  });
+
+  wkset->setAux(sol);
+
+  View_AD4 fluxExact = View_AD4("fluxExact",wkset->numElem,
+                                wkset->numip,wkset->varlist.size(),module->spaceDim); 
+  vector<AD> FxExactVals = {-5.3214599334179, 628.0500281064968, 2.5163857906668476};
+  vector<AD> FyExactVals = {-5.340172901622864, 2.5163857906668476, 628.0676948909696};
+
+  parallel_for("fluxexact",
+               RangePolicy<AssemblyExec>(0,fluxExact.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<fluxExact.extent(1); ++pt) {
+      for (size_type var=0; var<fluxExact.extent(2); ++var) {
+        fluxExact(elem,pt,var,0) = FxExactVals[var];
+        fluxExact(elem,pt,var,1) = FyExactVals[var];
+      }
+    }
+  });
+
+  module->computeFluxVector(false);
+
+  cout << "Checking fluxes..." << endl;
+  if (!checkClose(fluxExact,module->fluxes_vol)) return false;
+
+  // now aux
+
+  FxExactVals = {-24.170846656508235, 1981.5690654679377, -145.11721261736545};
+  FyExactVals = {119.77858155615492, -145.11721261736545, 2671.413035360087};
+
+  parallel_for("fluxexact",
+               RangePolicy<AssemblyExec>(0,fluxExact.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<fluxExact.extent(1); ++pt) {
+      for (size_type var=0; var<fluxExact.extent(2); ++var) {
+        fluxExact(elem,pt,var,0) = FxExactVals[var];
+        fluxExact(elem,pt,var,1) = FyExactVals[var];
+      }
+    }
+  });
+  module->computeFluxVector(true);
+
+  cout << "Checking fluxes (aux)..." << endl;
+  if (!checkClose(fluxExact,module->fluxes_side)) return false;
+
+  cout << "PASS :: testFluxes2D" << endl;
+  return true;
+
+}
+
 bool testMatVec(Teuchos::RCP<shallowwaterHybridized> module) {
 
   View_AD2 A = View_AD2("A_mat",6,6);
