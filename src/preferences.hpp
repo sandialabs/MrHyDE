@@ -64,6 +64,13 @@ typedef panzer::GlobalOrdinal GO;
   #define VectorSize maxDerivs
 #endif
 
+// Sets default behavior for evaluating solution fields using basis functions
+// Can be explicitly overruled regardless of choice
+#ifdef MrHyDE_NO_SOL_FIELD_EVAL
+  #define SOL_FIELD_EVAL false // Useful for certain unit tests
+#else
+  #define SOL_FIELD_EVAL true // otherwise this should be chosen
+#endif
 
 #define PI 3.141592653589793238463
 typedef Teuchos::MpiComm<int> MpiComm;

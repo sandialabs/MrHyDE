@@ -157,7 +157,7 @@ namespace MrHyDE {
     
     void printScalarFields();
     
-    View_AD2 getSolutionField(const string & label, const bool & evaluate = true,
+    View_AD2 getSolutionField(const string & label, const bool & evaluate = SOL_FIELD_EVAL,
                               const bool & markUpdated = false);
     
     View_Sc2 getScalarField(const string & label);
@@ -271,6 +271,15 @@ namespace MrHyDE {
     void setParamPoint(View_AD2 newsol);
     
     void setParamGradPoint(View_AD2 newsol);
+
+    /**
+     * @brief Set the value of the aux variables at the integration points
+     * 
+     * The new solution values must be ordered as the variables are in aux_varlist.
+     * 
+     * @param[in] newsol  The new solution values
+     * @param[in] pfix  Optional suffix to the variable string
+     */ 
     
     void setAux(View_AD4 newsol, const string & pfix = "");
     
