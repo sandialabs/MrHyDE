@@ -22,8 +22,8 @@ ANONYMOUS:
     bathymetry_y: 0.
     Initial conditions:
       H: '2. + ss' 
-      Hux: 'ss'
-      Huy: 'ss'
+      Hu: 'ss'
+      Hv: 'ss'
     Dirichlet conditions:
       static data: true
       H:
@@ -64,4 +64,9 @@ ANONYMOUS:
     write solution: true
     write subgrid solution: true
     write HFACE variables: true
+    compute errors: true
+    True solutions:
+      H: '2. + ss*exp(3.*t)'
+      Hu: 'ss*exp(3.*t)'
+      Hv: 'ss*exp(3.*t)'
 ...
