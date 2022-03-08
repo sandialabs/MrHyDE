@@ -112,8 +112,6 @@ Teuchos::RCP<FunctionManager> setupDummyFunctionManager(int & dimension) {
   Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
   functionManager->wkset = wkset;
 
-  // TODO NEED TO CALL DEFINE FUNCTIONS OR STORAGE WILL NOT BE INITIALIZED!
-  
   //----------------------------------------------------------------------
   // Fill in some data
   //----------------------------------------------------------------------
@@ -298,7 +296,7 @@ bool testStabTerm(Teuchos::RCP<shallowwaterHybridized> module) {
 
   // Set the solution fields in the workset
   View_AD4 sol("sol", wkset->numElem, wkset->varlist.size(), wkset->numip, 1);
-  vector<AD> solvals = {2.106198651957023,20.29578789184809,-8.907009253869521};
+  vector<AD> solvals = {14.05058372085475,-47.548104009458434,-3.665477736805561};
 
   // This won't actually work on a GPU
   parallel_for("sol vals",
@@ -314,7 +312,7 @@ bool testStabTerm(Teuchos::RCP<shallowwaterHybridized> module) {
   wkset->setSolution(sol);
   
   // now the aux vars
-  vector<AD> auxvals = {18.02986291669018,65.69856604816376,-99.11630490323755};
+  vector<AD> auxvals = {4.260916195707914,-2.938711226880664,12.295799778378594};
  
   // This won't actually work on a GPU
   parallel_for("aux vals",
@@ -332,7 +330,7 @@ bool testStabTerm(Teuchos::RCP<shallowwaterHybridized> module) {
   // Set the scalar fields in the workset
   View_Sc2 nx("int pts",wkset->numElem,wkset->numip);
   View_Sc2 ny("int pts",wkset->numElem,wkset->numip);
-  ScalarT nxVal = -0.3626199950449087; ScalarT nyVal = 0.9319370897188449;
+  ScalarT nxVal = 0.5586803483930811; ScalarT nyVal = -0.8293830648858135;
 
   parallel_for("normals",
                RangePolicy<AssemblyExec>(0,nx.extent(0)),
@@ -346,14 +344,51 @@ bool testStabTerm(Teuchos::RCP<shallowwaterHybridized> module) {
   wkset->setScalarField(nx,"n[x]");
   wkset->setScalarField(ny,"n[y]");
 
-  vector<AD> stabExactVals = {-210.7632278618866,-1176.3687708722225,2434.4149753086303};
   View_AD3 stabExact = View_AD3("stabExact",wkset->numElem,wkset->numip,wkset->varlist.size()); 
+  vector<AD> stabExactVals = {56.623325001331374,-210.5408037820637,138.96559181837443};
+
+  parallel_for("stabexact",
+               RangePolicy<AssemblyExec>(0,stabExact.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<stabExact.extent(1); ++pt) {
+      for (size_type var=0; var<stabExact.extent(2); ++var) {
+        stabExact(elem,pt,var) = stabExactVals[var];
+      }
+    }
+  });
 
   module->computeStabilizationTerm();
 
-  cout << "Checking stabilization..." << endl;
+  cout << "Checking stabilization... (Roe-like)" << endl;
   if (!checkClose(stabExact,module->stab_bound_side)) return false;
 
+  // now check max-EV
+
+  module->roestab = false;
+  module->maxEVstab = true;
+
+  stabExactVals = {90.49511309124402,-412.36661351587117,-147.54511428575358};
+  parallel_for("stabexact",
+               RangePolicy<AssemblyExec>(0,stabExact.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<stabExact.extent(1); ++pt) {
+      for (size_type var=0; var<stabExact.extent(2); ++var) {
+        stabExact(elem,pt,var) = stabExactVals[var];
+      }
+    }
+  });
+
+  module->computeStabilizationTerm();
+
+  cout << "Checking stabilization... (max EV)" << endl;
+  if (!checkClose(stabExact,module->stab_bound_side)) return false;
+
+  // change back JIC
+
+  module->roestab = true;
+  module->maxEVstab = false;
+
+  cout << "PASS :: testStabTerm" << endl;
   return true;
 }
   
