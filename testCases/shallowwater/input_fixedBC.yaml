@@ -21,24 +21,20 @@ ANONYMOUS:
       Hux: HFACE
       Huy: HFACE
     Initial conditions:
-      H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
-      Hux: 'cos(-x)'
-      Huy: 'sin(y)'
+      H: '2. + ss' 
+      Hux: 'ss'
+      Huy: 'ss'
     Dirichlet conditions:
-      static data: false
+      static data: true
       H:
-        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+        all boundaries: '2.'
       Hux:
-        all boundaries: 'cos(4.*t - x)'
+        all boundaries: '0.'
       Huy:
-        all boundaries: 'sin(4.*t + y)'
-        #Far-field conditions:
-        #  H:
-        #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-        #  Hux:
-        #    all boundaries: 'cos(4.*t - x)'
-        #  Huy:
-        #    all boundaries: 'sin(4.*t + y)'
+        all boundaries: '0.'
+
+  Functions:
+    ss: 'sin(2.*pi*x)*sin(2.*pi*y)'
 
   Discretization:
     order:
@@ -47,7 +43,7 @@ ANONYMOUS:
         Hux: 1
         Huy: 1
     quadrature: 2
-  Subgrid input file: subgrid_input.yaml
+  Subgrid input file: subgrid_input_fixedBC.yaml
   Solver:
     #solver: steady-state
     initial type: L2-projection-HFACE
@@ -68,7 +64,7 @@ ANONYMOUS:
     write HFACE variables: true
     compute errors: true
     True solutions:
-      H: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-      Hux: 'cos(4.*t-x)'
-      Huy: 'sin(4.*t+y)'
+      H: '2. + ss*exp(3.*t)'
+      Hux: 'ss*exp(3.*t)'
+      Huy: 'ss*exp(3.*t)'
 ...

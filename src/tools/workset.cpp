@@ -2387,6 +2387,21 @@ void workset::setParamGradPoint(View_AD2 newsol) {
 
 }
 
+void workset::setAux(View_AD4 newsol, const string & pfix) {
+  // newsol has dims numElem x numvars x numip x dimension
+  // however, this numElem may be smaller than the size of the data arrays
+
+  // currently the new solution must be ordered appropriately
+  
+  for (size_t i=0; i<aux_varlist.size(); i++) {
+    string var = aux_varlist[i];
+    auto csol = this->getSolutionField("aux "+var+pfix,false,true);
+    auto cnsol = subview(newsol,ALL(),i,ALL(),0);
+    this->copyData(csol,cnsol);
+  }
+  
+}
+
 //////////////////////////////////////////////////////////////
 // Set the solution at a point
 //////////////////////////////////////////////////////////////

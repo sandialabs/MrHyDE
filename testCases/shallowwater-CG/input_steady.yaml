@@ -1,0 +1,66 @@
+%YAML 1.1
+---
+### Based off of example 1 in Samii, J. Sci. Comp. (2019) ###
+ANONYMOUS:
+  verbosity: 10
+  debug level: 0
+  profile: false
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: -1.0
+    xmax:  1.0
+    ymin: -1.0
+    ymax:  1.0
+    NX: 40
+    NY: 40
+  Physics:
+    modules: shallow water
+    gravity: 1.0
+    bathymetry: 0.
+    bathymetry_x: 0.
+    bathymetry_y: 0.
+    ## define the coarse scale variables
+    Initial conditions:
+      H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
+      Hu: 'cos(-x)'
+      Hv: 'sin(y)'
+
+    Dirichlet conditions:
+      static data: false
+      H:
+        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y) )'
+      Hu:
+        all boundaries: 'cos(-x)'
+      Hv:
+        all boundaries: 'sin(y)'
+  Functions:
+    source H: '-sin(x) + cos(y)'
+    source Hu: '(-0.75*(sin(3.0*x)*sin(y)*cos(3.0*y) + sin(3.0*y)*cos(x)*cos(3.0*x))*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(sin(3.0*x)*sin(3.0*y))*cos(x) + 12.0*(0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0)^4*exp(sin(3.0*x)*sin(3.0*y))*sin(3.0*y)*cos(3.0*x) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(-2*sin(x) + cos(y))*cos(x))/((0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0))'
+    source Hv: '(-0.75*(sin(3.0*x)*sin(y)*cos(3.0*y) + sin(3.0*y)*cos(x)*cos(3.0*x))*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(sin(3.0*x)*sin(3.0*y))*sin(y) + 12.0*(0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0)^4*exp(sin(3.0*x)*sin(3.0*y))*sin(3.0*x)*cos(3.0*y) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(-sin(x) + 2*cos(y))*sin(y))/((0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0))'
+  Discretization:
+    order:
+      H: 1
+      Hu: 1
+      Hv: 1
+    quadrature: 2
+  #Subgrid input file: subgrid_input.yaml
+  Solver:
+    solver: steady-state
+    #initial type: L2-projection-HFACE
+    #solver: transient
+    workset size: 100
+    nonlinear TOL: 1.0e-06
+    linear TOL: 1.0e-6
+    max nonlinear iters: 10
+    max linear iters: 100
+    final time: .5
+    delta t: 1e-3
+    use direct solver: false
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    write solution: true
+    write subgrid solution: true
+    write HFACE variables: true
+...
