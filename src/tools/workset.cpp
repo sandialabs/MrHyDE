@@ -2408,7 +2408,7 @@ void workset::updatePhysicsSet(const size_t & current_set_) {
 //////////////////////////////////////////////////////////////
 
 void workset::allocateRotations() {
-  if (rotation.extent(0) < numElem) {
+  if (rotation.extent_int(0) < numElem) {
     rotation = View_Sc3("rotations", numElem, 3, 3);
   }
 }
