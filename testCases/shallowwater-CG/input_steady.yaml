@@ -27,7 +27,7 @@ ANONYMOUS:
       Hv: 'sin(y)'
 
     Dirichlet conditions:
-      static data: false
+      static data: true
       H:
         all boundaries: '2. + exp( sin(3.*x)*sin(3.*y) )'
       Hu:
@@ -35,6 +35,7 @@ ANONYMOUS:
       Hv:
         all boundaries: 'sin(y)'
   Functions:
+    #bathymetry: '0.'
     source H: '-sin(x) + cos(y)'
     source Hu: '(-0.75*(sin(3.0*x)*sin(y)*cos(3.0*y) + sin(3.0*y)*cos(x)*cos(3.0*x))*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(sin(3.0*x)*sin(3.0*y))*cos(x) + 12.0*(0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0)^4*exp(sin(3.0*x)*sin(3.0*y))*sin(3.0*y)*cos(3.0*x) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(-2*sin(x) + cos(y))*cos(x))/((0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0))'
     source Hv: '(-0.75*(sin(3.0*x)*sin(y)*cos(3.0*y) + sin(3.0*y)*cos(x)*cos(3.0*x))*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0)*exp(sin(3.0*x)*sin(3.0*y))*sin(y) + 12.0*(0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1.0)^4*exp(sin(3.0*x)*sin(3.0*y))*sin(3.0*x)*cos(3.0*y) + (0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(-sin(x) + 2*cos(y))*sin(y))/((0.5*exp(sin(3.0*x)*sin(3.0*y)) + 1)^2*(exp(sin(3.0*x)*sin(3.0*y)) + 2.0))'
@@ -46,15 +47,15 @@ ANONYMOUS:
     quadrature: 2
   #Subgrid input file: subgrid_input.yaml
   Solver:
-    solver: steady-state
+    #solver: steady-state
     #initial type: L2-projection-HFACE
-    #solver: transient
+    solver: transient
     workset size: 100
     nonlinear TOL: 1.0e-06
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: .5
+    final time: 1e-1
     delta t: 1e-3
     use direct solver: false
   Analysis: 
@@ -63,4 +64,9 @@ ANONYMOUS:
     write solution: true
     write subgrid solution: true
     write HFACE variables: true
+    compute errors: true
+    True solutions:
+      H: '2. + exp( sin(3.*x)*sin(3.*y) )'
+      Hu: 'cos(-x)'
+      Hv: 'sin(y)'
 ...

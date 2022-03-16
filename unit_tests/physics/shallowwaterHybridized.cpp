@@ -14,6 +14,7 @@ bool testEVDecomp2D(Teuchos::RCP<shallowwaterHybridized> module);
 bool testMatVec(Teuchos::RCP<shallowwaterHybridized> module);
 bool testStabTerm(Teuchos::RCP<shallowwaterHybridized> module);
 bool testFluxes2D(Teuchos::RCP<shallowwaterHybridized> module);
+bool testBoundTerm(Teuchos::RCP<shallowwaterHybridized> module);
 bool checkClose(View_AD4 & truth, View_AD4 & test);
 bool checkClose(View_AD3 & truth, View_AD3 & test);
 bool checkClose(View_AD2 & truth, View_AD2 & test);
@@ -46,6 +47,14 @@ int main(int argc, char * argv[]) {
     auto fm = setupDummyFunctionManager(dimension);
     module->setWorkset(fm->wkset);
     module->defineFunctions(settings,fm);
+    // manually add far-field boundary functions for a dummy side
+    // TODO this are just scalars
+    string FF_H = "8.2641";
+    string FF_Hux = "-2.5930";
+    string FF_Huy = "3.8813";
+    fm->addFunction("Far-field H dummy side",FF_H,"side ip");
+    fm->addFunction("Far-field Hux dummy side",FF_Hux,"side ip");
+    fm->addFunction("Far-field Huy dummy side",FF_Huy,"side ip");
 
     // Test mat vec product
     success = testMatVec(module);
@@ -70,6 +79,11 @@ int main(int argc, char * argv[]) {
     success = testFluxes2D(module);
 
     TEUCHOS_TEST_FOR_EXCEPTION(!success,std::runtime_error,"shallowwaterHybridized::computeFluxVector() unit test fail (2D)!");
+
+    // TODO this most likely needs to be last because of the wkset manipulation inside this call
+    success = testBoundTerm(module);
+    
+    TEUCHOS_TEST_FOR_EXCEPTION(!success,std::runtime_error,"shallowwaterHybridized::computeBoundaryTerm() unit test fail (2D)!");
 
   }
   
@@ -499,6 +513,89 @@ bool testFluxes2D(Teuchos::RCP<shallowwaterHybridized> module) {
   cout << "PASS :: testFluxes2D" << endl;
   return true;
 
+}
+
+bool testBoundTerm(Teuchos::RCP<shallowwaterHybridized> module) {
+
+  auto wkset = module->wkset;
+
+  // Set the solution fields in the workset
+  View_AD4 sol("sol", wkset->numElem, wkset->varlist.size(), wkset->numip, 1);
+  vector<AD> solvals = {2.94365581827988,-3.8599844842692432,-2.872519206216664};
+  // This won't actually work on a GPU
+  parallel_for("sol vals",
+               RangePolicy<AssemblyExec>(0,sol.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type var=0; var<sol.extent(1); ++var) {
+      for (size_type pt=0; pt<sol.extent(2); ++pt) {
+        sol(elem,var,pt,0) = solvals[var];
+      }
+    }
+  });
+  
+  wkset->setSolution(sol);
+  
+  // now the aux vars
+  vector<AD> auxvals = {18.83628298115209,150.70038078116735,-132.9723052638858};
+ 
+  // This won't actually work on a GPU
+  parallel_for("aux vals",
+               RangePolicy<AssemblyExec>(0,sol.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type var=0; var<sol.extent(1); ++var) {
+      for (size_type pt=0; pt<sol.extent(2); ++pt) {
+        sol(elem,var,pt,0) = auxvals[var];
+      }
+    }
+  });
+
+  wkset->setAux(sol);
+
+  // Set the scalar fields in the workset
+  View_Sc2 nx("int pts",wkset->numElem,wkset->numip);
+  View_Sc2 ny("int pts",wkset->numElem,wkset->numip);
+  ScalarT nxVal = 0.5810472058516332; ScalarT nyVal = -0.813869857269582;
+
+  parallel_for("normals",
+               RangePolicy<AssemblyExec>(0,nx.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem) {
+    for (size_type pt=0; pt<nx.extent(1); ++pt) {
+      nx(elem,pt) = nxVal;
+      ny(elem,pt) = nyVal;
+    }
+  });
+  
+  wkset->setScalarField(nx,"n[x]");
+  wkset->setScalarField(ny,"n[y]");
+
+  View_AD3 boundExact = View_AD3("boundExact",wkset->numElem,wkset->numip,wkset->varlist.size()); 
+  vector<AD> boundExactVals = {-223.78009784975117,-3559.7743785911575,3845.2179032564363};
+
+  parallel_for("boundexact",
+               RangePolicy<AssemblyExec>(0,boundExact.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<boundExact.extent(1); ++pt) {
+      for (size_type var=0; var<boundExact.extent(2); ++var) {
+        boundExact(elem,pt,var) = boundExactVals[var];
+      }
+    }
+  });
+
+  // manipulate workset for far-field type
+  
+  Kokkos::View<string**,HostDevice> var_bcs("var bcs",1,1);
+  var_bcs(0,0) = "Far-field";
+  wkset->var_bcs = var_bcs;
+  wkset->currentside = 0;
+  wkset->sidename = "dummy side";
+
+  module->computeBoundaryTerm();
+
+  cout << "Checking boundary condition... (far-field)" << endl;
+  if (!checkClose(boundExact,module->stab_bound_side)) return false;
+
+  cout << "PASS :: testBoundTerm" << endl;
+  return true;
 }
 
 bool testMatVec(Teuchos::RCP<shallowwaterHybridized> module) {

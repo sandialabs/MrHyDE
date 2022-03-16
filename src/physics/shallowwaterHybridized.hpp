@@ -145,7 +145,10 @@ namespace MrHyDE {
 
     KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
 
+// TODO This needs to be handled in a better way, temporary!
+#ifndef MrHyDE_UNITTEST_HIDE_PRIVATE_VARS
   private:
+#endif
 
     int spaceDim;
     

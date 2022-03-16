@@ -44,3 +44,4 @@ shallowwaterHybridized.cpp
 ../../src/interfaces/discretizationInterface.cpp)
 TARGET_LINK_LIBRARIES(shallowwaterHybridized ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 TARGET_COMPILE_DEFINITIONS(shallowwaterHybridized PRIVATE MrHyDE_NO_SOL_FIELD_EVAL)
+TARGET_COMPILE_DEFINITIONS(shallowwaterHybridized PRIVATE MrHyDE_UNITTEST_HIDE_PRIVATE_VARS)

@@ -23,7 +23,6 @@ cmake \
   -D CMAKE_CXX_LINK_FLAGS="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
   -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
   -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
-  -D MrHyDE_BUILD_DOXYGEN=true \
   -D CMAKE_INSTALL_PREFIX:PATH=${MrHyDE_BUILD} \
   ${EXTRA-ARGS} \
   ${MrHyDE_SOURCE}
