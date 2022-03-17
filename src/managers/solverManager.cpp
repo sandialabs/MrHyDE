@@ -1580,7 +1580,6 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       }
     }
     
-    
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
     if (solve) {

@@ -996,7 +996,7 @@ void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   // Update the groups for this macro-element (or set of macro-elements)
   this->updateLocalData(macrogrp);
   
-  // Copy the locak data (look into using subviews for this)
+  // Copy the local data (look into using subviews for this)
   // Solver does not know about localData
   Kokkos::View<ScalarT***,AssemblyDevice> coarse_u("local u",groups[macrogrp][0]->numElem,
                                                    coarse_fwdsoln.extent(1),
