@@ -2623,6 +2623,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     
   if (isTransient) {
     // TMW: tmp fix
+    // TODO what is this comment? We should discuss
     auto butcher_c = Kokkos::create_mirror_view(wkset[block]->butcher_c);
     Kokkos::deep_copy(butcher_c, wkset[block]->butcher_c);
     ScalarT timeval = current_time + butcher_c(wkset[block]->current_stage)*deltat;

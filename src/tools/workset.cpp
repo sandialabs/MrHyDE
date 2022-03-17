@@ -522,7 +522,7 @@ void workset::computeSolnTransientSeeded(const size_t & set,
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
         auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
         
-        parallel_for("wkset transient sol seedwhat 1",
+        parallel_for("wkset transient sol seedwhat 2",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
@@ -579,7 +579,7 @@ void workset::computeSolnTransientSeeded(const size_t & set,
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
         auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-        parallel_for("wkset transient sol seedwhat 1",
+        parallel_for("wkset transient sol seedwhat 3",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();

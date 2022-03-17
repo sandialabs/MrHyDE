@@ -134,6 +134,17 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Perform the nonlinear solve to update the state and adjoint
+     * 
+     * @param[in] set  The index of the physics set
+     * @param[inout] u The state. An initial guess on entry, the solution on exit
+     * @param[inout] phi The adjoint variables.
+     * 
+     * This is at the global level.
+     * @todo Someone needs to check this description
+     */
+
     int nonlinearSolver(const size_t & set, vector_RCP & u, vector_RCP & phi);
     
     int explicitSolver(const size_t & set, vector_RCP & u, vector_RCP & phi, const int & stage);

@@ -67,6 +67,31 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////////
     // Compute the seeded solutions for general transient problems
     ////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @brief Compute the solution \f$z_i\f$ for general transient problems.
+     * Can seed a number of current and previous solutions with ADs. 
+     * 
+     * Uses the BDF formula and Butcher tableau to compute
+     * \f[
+     * z_i = u_n + \sum_{j=1}^i \frac{a_{ij}}{b_j} \left(z_j - u_n\right)
+     * \f]
+     * where \f$ i = 1, \dots, s\f$ is the stage number, \f$a_{ij}\f$ the Butcher
+     * tableau, \f$b_j\f$ the BDF-coefficients, and \f$z_i\f$ the state at stage \f$i\f$.
+     * If ADs are used, this also seeds the appropriate solution which is controlled
+     * with the seedwhat switch which can take values:
+     *  - 1 (current stage solution)
+     *  - 2 (previous step solution)
+     *  - 3 (previous stage solution)
+     * 
+     * @param[in] set The set ID number
+     * @param[in] u current stage solution
+     * @param[in] u_prev  \f$u_n\f$
+     * @param[in] u_stage \f$z_j\f$ (previous stages)
+     * @param[in] seedwhat Switch to select which solution to seed
+     * @param[in] index  (Optional) Index of the previous stage to be seeded. 
+     *  Appropriate for seedwhat\f$=3\f$.
+     */
     
     void computeSolnTransientSeeded(const size_t & set,
                                     View_Sc3 u,

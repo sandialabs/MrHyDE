@@ -459,8 +459,6 @@ void MultiscaleManager::update() {
               }
             }
           
-          
-          
             int nummod = groups[block][grp]->subgrid_model_index.size();
             int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
             if (sgwinner != oldmodel) {

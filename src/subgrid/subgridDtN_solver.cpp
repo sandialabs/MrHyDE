@@ -56,7 +56,10 @@ settings(settings_), assembler(assembler_) {
   res = solver->linalg->getNewVector(0);
   J = solver->linalg->getNewOverlappedMatrix(0);
   
+  // Initialize storage for intermediate and final stage solutions
   u = solver->linalg->getNewOverlappedVector(0);
+  u_prev = solver->linalg->getNewOverlappedVector(0);
+  u_stage = solver->linalg->getNewOverlappedVector(0);
   phi = solver->linalg->getNewOverlappedVector(0);
   
   if (LocalComm->getSize() > 1) {
@@ -121,7 +124,6 @@ settings(settings_), assembler(assembler_) {
 
 void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
                               View_Sc3 coarse_phi,
-                              Teuchos::RCP<SG_MultiVector> & prev_u,
                               Teuchos::RCP<SG_MultiVector> & prev_phi,
                               Teuchos::RCP<SG_MultiVector> & disc_params,
                               const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -144,7 +146,6 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
   ScalarT macro_deltat = macrowkset.deltat;
 
   Kokkos::deep_copy(subgradient, 0.0);
-  
   
   if (std::abs(current_time - final_time) < 1.0e-12)
     is_final_time = true;
@@ -174,19 +175,41 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
   //////////////////////////////////////////////////////////////
   // Set the initial conditions
   //////////////////////////////////////////////////////////////
+
+  // TODO what is going on here?
+  // Does this type of structure eliminate the need for what we discussed?
+  // getLocalView is the data owned by this MPI process (obtained on the specified memory space)
+  // TODO is u here defined over all groups? It seems so given the gather code...
   
-  auto prev_u_kv = prev_u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
-  auto u_kv = u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
-  Kokkos::deep_copy(u_kv, prev_u_kv);
+  // TODO going to change this to assign but ask about it...
+  //auto prev_u_kv = prev_u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
+  //auto u_kv = u->getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
+  //Kokkos::deep_copy(u_kv, prev_u_kv);
+
+  auto current_stage = macrowkset.current_stage;
+
+  if (current_stage == 0) {
+
+    // TODO is this robust to the timestep cutting that occurs at the coarse scale?
+    // I don't think so...
+    // But I don't think the code that was there originally (using SolutionStorage) was either... could be wrong
+    // TODO I am also concerned that we are not respecting the iterations of the coarse scale solver.
+    // E.g., for the first stage, the subgrid solver is called multiple times until convergence
+    // In that case, the solution is probably stacking up incorrectly
+    u_prev->assign(*u); // overwrite u_n on first stage
+
+    // prepare the group storage by shifting old data and copying u_n into first slot
+
+    this->resetGroupStorage("prev");
+    this->resetGroupStorage("stage");
+
+  } 
+
+  u_stage->assign(*u_prev); // set initial guess for stage solution (always u_n)
   
-  this->performGather(macrogrp, prev_u, 0, 0);
-  
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-    for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-      assembler->groups[block][grp]->resetPrevSoln(0);
-    }
-  }
-  
+  // this moves u_stage to the groups
+  this->performGather(macrogrp, u_stage, 0, 0);
+
   //////////////////////////////////////////////////////////////
   // Use the coarse scale solution to solve local transient/nonlinear problem
   //////////////////////////////////////////////////////////////
@@ -198,16 +221,18 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
   d_u->putScalar(0.0);
   
   res->putScalar(0.0);
-  
+
   //ScalarT h = 0.0;
   //assembler->wkset[0]->resetFlux();
   
   if (isTransient) {
     ScalarT sgtime = time - macro_deltat;
-    Teuchos::RCP<SG_MultiVector> prev_u = u;
     vector<Teuchos::RCP<SG_MultiVector> > curr_fsol;
     vector<ScalarT> subsolvetimes;
     subsolvetimes.push_back(sgtime);
+
+    // TODO I am not touching the adjoint at this point
+    // so this may break or behave unexpectedly
     if (isAdjoint) {
       // First, we need to resolve the forward problem
       
@@ -265,14 +290,24 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         // and the subgrid is BWE
         // If we update the stage, BDF, RK info correctly, then
         // the correct "z" should get constructed by the nonlinear solver
+
+        // TODO to start we will assume the synchronous case
+        // notably, the sub timestepping probably won'twork
         sgtime += macro_deltat/(ScalarT)time_steps;
         // set du/dt and \lambda
         alpha = (ScalarT)time_steps/macro_deltat;
+        
+        // TODO should we copy every time?
+        // TODO device concerns?
 
-        assembler->wkset[0]->BDF_wts(0) = 1.0;//alpha;
-        assembler->wkset[0]->BDF_wts(1) = -1.0;//-alpha;
+        assembler->wkset[0]->butcher_A = macrowkset.butcher_A;
+        assembler->wkset[0]->butcher_b = macrowkset.butcher_b;
+        assembler->wkset[0]->butcher_c = macrowkset.butcher_c;
+
+        assembler->wkset[0]->BDF_wts = macrowkset.BDF_wts;
 
         // TODO what is alpha?
+        // TODO is this workset guaranteed to be the macro workset?
         assembler->wkset[0]->alpha = alpha;
         assembler->wkset[0]->setDeltat(1.0/alpha);
 
@@ -280,21 +315,36 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;
         
-        for (size_t block=0; block<assembler->groups.size(); ++block) {
-          for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-            assembler->groups[block][grp]->resetPrevSoln(0);
-            assembler->groups[block][grp]->resetStageSoln(0);
-          }
-        }
+        // TODO do we need a d_ustage??
         
-        this->nonlinearSolver(u, phi, disc_params, currlambda,
+        this->nonlinearSolver(u_stage, phi, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, alpha, macrogrp, false);
         
-        this->computeSolnSens(d_u, compute_sens, u,
+        this->computeSolnSens(d_u, compute_sens, u_stage,
                               phi, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, alpha, lambda_scale, macrogrp, subgradient);
         
-        this->updateFlux(u, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, macrogrp);
+        this->updateFlux(u_stage, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, macrogrp);
+
+        // TODO for the very first iteration, this matches -- then things diverge
+        KokkosTools::print(u_stage);
+
+        // TODO update u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
+        // TODO BUT recall that u is just a copy of the data that is passed in at
+        // the beginning of the routine... we need persistent storage throughout the loop
+
+        // update u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
+
+        u->update(1.0, *u_stage, 1.0);
+        u->update(-1.0, *u_prev, 1.0);
+
+        // update the stage storage at the group level
+
+        this->updateGroupStorage("stage");
+
+        // TODO some form of gather step when timestep is completed
+        // (Ensure u is correct like in solverManager 1370-ish)
+
       }
     }
     
@@ -306,13 +356,10 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
     this->nonlinearSolver(u, phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, macrogrp, false);
     
-    //KokkosTools::print(u);
-    
     this->computeSolnSens(d_u, compute_sens, u,
                           phi, disc_params, lambda,
                           current_time, isTransient, isAdjoint, num_active_params, alpha, 1.0, macrogrp, subgradient);
     
-    //KokkosTools::print(d_u);
     if (isAdjoint) {
       this->updateFlux(phi, d_u, lambda, disc_params, compute_sens, macroelemindex, time, macrowkset, macrogrp);
     }
@@ -798,7 +845,6 @@ void SubGridDtN_Solver::computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u,
       use_host_LIDs = true;
     }
   }
-  
   
   Teuchos::RCP<SG_MultiVector> d_sub_res_over = d_sub_res_overm;
   Teuchos::RCP<SG_MultiVector> d_sub_res = d_sub_resm;
@@ -1723,4 +1769,43 @@ void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec
     }
   }
   
+}
+
+void SubGridDtN_Solver::resetGroupStorage( const string & target ) {
+
+  if ( ! ( (target == "prev") || (target == "stage") ) ) {
+    cout << "Error :: SubgridDtN_solver::resetGroupStorage received an unknown target : "
+         << target << endl;
+  }
+
+  // loop over element block and groups and reset the desired solution storage    
+
+  for (size_t block=0; block<assembler->groups.size(); ++block) {
+    for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+      if (target == "prev") {
+        assembler->groups[block][grp]->resetPrevSoln(0);
+      } 
+      else if (target == "stage") {
+        assembler->groups[block][grp]->resetStageSoln(0);
+      }     
+    }
+  }
+
+}
+
+void SubGridDtN_Solver::updateGroupStorage( const string & target ) {
+
+  if ( !(target == "stage") ) {
+    cout << "Error :: SubgridDtN_solver::updateGroupStorage received an unknown target : "
+         << target << endl;
+  }
+
+  // loop over element block and groups and update/shift the stage solution storage
+
+  for (size_t block=0; block<assembler->groups.size(); ++block) {
+    for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+      assembler->groups[block][grp]->updateStageSoln(0);
+    }
+  }
+
 }

@@ -1295,7 +1295,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     vector<vector_RCP> u_prev;
     for (size_t set=0; set<initial.size(); ++set) {
       u_prev.push_back(linalg->getNewOverlappedVector(set));
-      //u_stage.push_back(linalg->getNewOverlappedVector(set));
     }
     
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
@@ -1329,10 +1328,11 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           ////////////////////////////////////////////////////////////////////////
           
           multiscale_manager->update();
+
           vector_RCP u_stage = linalg->getNewOverlappedVector(set);
 
           u_prev[set]->assign(*(u[set]));
-          
+
           for (int stage=0; stage<numstages[set]; stage++) {
             // Need a stage solution
             // Set the initial guess for stage solution
@@ -1551,6 +1551,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
 
   while (proceed) {
     
+    // TODO this does nothing currently
     multiscale_manager->reset();
 
     gNLiter = NLiter;
@@ -1650,7 +1651,6 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
         proceed = false;
       }
     }
-    
     
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     

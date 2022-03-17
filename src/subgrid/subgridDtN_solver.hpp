@@ -62,7 +62,6 @@ namespace MrHyDE {
     
     void solve(View_Sc3 coarse_u,
                View_Sc3 coarse_phi,
-               Teuchos::RCP<SG_MultiVector> & prev_u,
                Teuchos::RCP<SG_MultiVector> & prev_phi,
                Teuchos::RCP<SG_MultiVector> & disc_params,
                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -217,7 +216,24 @@ namespace MrHyDE {
     
     template<class ViewType>
     void performBoundaryGather(const size_t & block, ViewType vec_dev, const size_t & type);
+
+    /** 
+     * Resets the solution storage for all groups
+     * 
+     * @param[in] target The type of solution storage to reset. Choose either **prev** or **stage**. 
+     * 
+     */
+
+    void resetGroupStorage( const string & target );
     
+    /** 
+     * Updates solution storage for all groups
+     * 
+     * @param[in] target The type of solution storage to reset. Optional, only **stage** does anything. 
+     * 
+     */
+
+    void updateGroupStorage( const string & target = "stage" );
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -232,7 +248,7 @@ namespace MrHyDE {
     // Linear algebra / solver objects
     Teuchos::RCP<SG_Map> param_overlapped_map;
     Teuchos::RCP<SG_MultiVector> res, res_over, d_um, du, du_glob;
-    Teuchos::RCP<SG_MultiVector> u, phi;
+    Teuchos::RCP<SG_MultiVector> u, u_prev, u_stage, phi;
     Teuchos::RCP<SG_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
     Teuchos::RCP<SG_CrsMatrix>  J, sub_J_over;
     

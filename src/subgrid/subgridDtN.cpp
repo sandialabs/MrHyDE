@@ -398,7 +398,6 @@ void SubGridDtN::setUpSubgridModels() {
                                                                          sub_disc, sub_physics,
                                                                          functionManagers, sub_assembler) );
   
-  
   sub_assembler->allocateGroupStorage();
   
   /////////////////////////////////////////////////////////////////////////////////////
@@ -993,7 +992,7 @@ void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   // Update the groups for this macro-element (or set of macro-elements)
   this->updateLocalData(macrogrp);
   
-  // Copy the locak data (look into using subviews for this)
+  // Copy the local data (look into using subviews for this)
   // Solver does not know about localData
   Kokkos::View<ScalarT***,AssemblyDevice> coarse_u("local u",groups[macrogrp][0]->numElem,
                                                    coarse_fwdsoln.extent(1),
@@ -1027,6 +1026,7 @@ void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   }
   
   // Extract the previous solution as the initial guess/condition for subgrid problems
+  // TODO remove this?
   Teuchos::RCP<SG_MultiVector> prev_fwdsoln, prev_adjsoln;
   {
     Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
@@ -1078,7 +1078,8 @@ void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
   sub_solver->solve(coarse_u, coarse_phi,
-                    prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
+                    //prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
+                    prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
                     Psol[0],
                     time, isTransient, isAdjoint, compute_jacobian,
                     compute_sens, num_active_params, compute_disc_sens, compute_aux_sens,
