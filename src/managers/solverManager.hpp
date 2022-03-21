@@ -175,8 +175,9 @@ namespace MrHyDE {
     
     int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, debug_level, maxNLiter, time_order, subcycles;
     
-    int BDForder, startupBDForder, startupSteps, numEvaluations, maxTimeStepCuts;
-    string ButcherTab, startupButcherTab;
+    vector<int> BDForder, startupBDForder, startupSteps; // [set]
+    int numEvaluations, maxTimeStepCuts;
+    vector<string> ButcherTab, startupButcherTab; // [set]
     
     ScalarT NLtol, NLabstol,final_time, lintol, current_time, initial_time, deltat, amplification_factor;
     
@@ -201,8 +202,8 @@ namespace MrHyDE {
     vector<vector_RCP> res, res_over, du, du_over;
     vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg, p_pcg_over, q_pcg_over;
     
-    Kokkos::View<ScalarT**,HostDevice> butcher_A;
-    Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
+    vector<Kokkos::View<ScalarT**,HostDevice> > butcher_A; // [set]
+    vector<Kokkos::View<ScalarT*,HostDevice> > butcher_b, butcher_c; // [set]
     
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver()");

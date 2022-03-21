@@ -79,35 +79,39 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   maxTimeStepCuts = settings->sublist("Solver").get<int>("maximum time step cuts",5);
   amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
   
-  ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
-  BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
-  if (BDForder>1) {
-    if (ButcherTab == "custom") {
-      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
-      cout << "The code will run, but the results may be nonsense" << endl;
-    }
-    else {
-      if (ButcherTab != "BWE" && ButcherTab != "DIRK-1,1") {
-        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
-      }
-    }
-  }
-  
-  // Additional parameters for higher-order BDF methods that require some startup procedure
-  startupButcherTab = settings->sublist("Solver").get<string>("transient startup Butcher tableau",ButcherTab);
-  startupBDForder = settings->sublist("Solver").get<int>("transient startup BDF order",BDForder);
-  startupSteps = settings->sublist("Solver").get<int>("transient startup steps",BDForder);
-  if (startupBDForder>1) {
-    if (startupButcherTab == "custom") {
-      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
-      cout << "The code will run, but the results may be nonsense" << endl;
-    }
-    else {
-      if (startupButcherTab != "BWE" && startupButcherTab != "DIRK-1,1") {
-        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
-      }
-    }
-  }
+  // TODO REMOVE ME
+//  // The Butcher tableau and BDF coefficients can vary by physics set
+//  // If they are universal, we get the values here.
+//  // If set-specific values are supplied later, they are overwritten
+//  ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
+//  BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
+//  if (BDForder>1) {
+//    if (ButcherTab == "custom") {
+//      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
+//      cout << "The code will run, but the results may be nonsense" << endl;
+//    }
+//    else {
+//      if (ButcherTab != "BWE" && ButcherTab != "DIRK-1,1") {
+//        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
+//      }
+//    }
+//  }
+//  
+//  // Additional parameters for higher-order BDF methods that require some startup procedure
+//  startupButcherTab = settings->sublist("Solver").get<string>("transient startup Butcher tableau",ButcherTab);
+//  startupBDForder = settings->sublist("Solver").get<int>("transient startup BDF order",BDForder);
+//  startupSteps = settings->sublist("Solver").get<int>("transient startup steps",BDForder);
+//  if (startupBDForder>1) {
+//    if (startupButcherTab == "custom") {
+//      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
+//      cout << "The code will run, but the results may be nonsense" << endl;
+//    }
+//    else {
+//      if (startupButcherTab != "BWE" && startupButcherTab != "DIRK-1,1") {
+//        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
+//      }
+//    }
+//  }
   
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
@@ -118,6 +122,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   if (!isTransient) {
     deltat = 1.0;
   }
+  // TODO should this also be an option?
   fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
   
   if (fully_explicit && Comm->getRank() == 0) {
@@ -133,7 +138,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   // needed information from the physics interface
   numVars = phys->numVars; //
   vector<vector<vector<string> > > phys_varlist = phys->varlist;
-  size_t numSets = phys->setnames.size();
+  size_t numSets = setnames.size();
   
   // needed information from the disc interface
   vector<vector<int> > cards = disc->cards;
@@ -172,6 +177,71 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     numBasis.push_back(set_numBasis);
     maxBasis.push_back(set_maxBasis);
     
+  }
+
+  // TODO Keeping a separate loop for now for clarity
+  // we can combine if we stick with this
+
+  for (size_t set=0; set<numSets; ++set) {
+
+    // The Butcher tableau and BDF coefficients can vary by physics set.
+    // TODO NOT YET BY BLOCK
+    // If they are universal, we get the values here.
+    // If set-specific values are supplied later, they are overwritten
+
+    string myButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
+    int myBDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
+
+    // Additional parameters for higher-order BDF methods that require some startup procedure
+    string myStartupButcherTab = settings->sublist("Solver").get<string>("transient startup Butcher tableau",myButcherTab);
+    int myStartupBDForder = settings->sublist("Solver").get<int>("transient startup BDF order",myBDForder);
+    int myStartupSteps = settings->sublist("Solver").get<int>("transient startup steps",myBDForder);
+
+    // TODO allow to vary by block...
+    auto setSolverSettings = phys->setSolverSettings[set][0];
+
+    if (setSolverSettings.isSublist(setnames[set])) {
+      myButcherTab = 
+        setSolverSettings.sublist(setnames[set]).get<string>("transient Butcher tableau",myButcherTab);
+      myBDForder = 
+        setSolverSettings.sublist(setnames[set]).get<int>("transient BDF order",1);
+      myStartupButcherTab = 
+        setSolverSettings.sublist(setnames[set]).get<string>("transient startup Butcher tableau",myStartupButcherTableau);
+      myStartupBDForder = 
+        setSolverSettings.sublist(setnames[set]).get<int>("transient startup BDF order",myStartupBDForder);
+      myStartupSteps = 
+        setSolverSettings.sublist(setnames[set]).get<int>("transient startup steps",myStartupSteps);
+    }
+
+    if (myBDForder>1) {
+      if (myButcherTab == "custom") {
+        cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
+        cout << "The code will run, but the results may be nonsense" << endl;
+      }
+      else {
+        if (myButcherTab != "BWE" && myButcherTab != "DIRK-1,1") {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
+        }
+      }
+    }
+    if (myStartupBDForder>1) {
+      if (myStartupButcherTab == "custom") {
+        cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
+        cout << "The code will run, but the results may be nonsense" << endl;
+      }
+      else {
+        if (myStartupButcherTab != "BWE" && myStartupButcherTab != "DIRK-1,1") {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
+        }
+      }
+    }
+
+    ButcherTab.push_back(myButcherTab);
+    BDForder.push_back(myBDForder);
+    startupButcherTab.push_back(myStartupButcherTab); 
+    startupBDForder.push_back(myStartupBDForder);
+    startupStets.push_back(myStartupSteps);
+
   }
   
   /////////////////////////////////////////////////////////////////////////////
@@ -1340,8 +1410,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     
     size_t set = 0;
     // Just getting the number of times from first physics set should be fine
+    // TODO will this be affected by having physics sets with different timesteppers?
     size_t numFwdSteps = postproc->soln[set]->times[0].size()-1;
-    
     
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       size_t cindex = numFwdSteps-timeiter;
