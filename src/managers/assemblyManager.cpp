@@ -505,7 +505,6 @@ void AssemblyManager<Node>::createGroups() {
             }
           }
           
-          
           size_t numAdded=0;
           while (numAdded < numTotalElem) {
             vector<size_t> newgroup;
@@ -1646,6 +1645,16 @@ void AssemblyManager<Node>::createWorkset() {
       wkset[block]->block = block;
       wkset[block]->set_var_bcs = bcs;
       wkset[block]->var_bcs = bcs[0];
+      // initialize BDF_wts vector (empty views)
+      vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpBDF_wts(phys->setnames.size());
+      wkset[block]->set_BDF_wts = tmpBDF_wts;
+      // initial Butcher tableau vectors (empty views);
+      vector<Kokkos::View<ScalarT**,AssemblyDevice> > tmpbutcher_A(phys->setnames.size());
+      vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_b(phys->setnames.size());
+      vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_c(phys->setnames.size());
+      wkset[block]->set_butcher_A = tmpbutcher_A;
+      wkset[block]->set_butcher_b = tmpbutcher_b;
+      wkset[block]->set_butcher_c = tmpbutcher_c;
     }
     else {
       wkset.push_back(Teuchos::rcp( new workset()));
@@ -2952,6 +2961,7 @@ template<class Node>
 void AssemblyManager<Node>::updateStage(const int & stage, const ScalarT & current_time,
                                         const ScalarT & deltat) {
   for (size_t block=0; block<wkset.size(); ++block) {
+    cout << "1/2 UPDATE :: BLOCK " << block << " :: RANK " << Comm->getRank() << endl;
     wkset[block]->setStage(stage);
     auto butcher_c = Kokkos::create_mirror_view(wkset[block]->butcher_c);
     Kokkos::deep_copy(butcher_c, wkset[block]->butcher_c);
@@ -2959,6 +2969,7 @@ void AssemblyManager<Node>::updateStage(const int & stage, const ScalarT & curre
     wkset[block]->setTime(timeval);
     wkset[block]->setDeltat(deltat);
     wkset[block]->alpha = 1.0/deltat;
+    cout << "2/2 UPDATE :: BLOCK " << block << " :: RANK " << Comm->getRank() << endl;
   }
   
 }

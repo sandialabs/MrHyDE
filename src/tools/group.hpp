@@ -91,8 +91,20 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each variable will use
     ///////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @brief Define which basis each variable will use.
+     * 
+     * @todo Is that really true? Seems like this allocates scalar storage for the solution
+     * and required solution history.
+     * 
+     * @param[in] usebasis_ Which basis should each variable use for each physics set
+     * @param[in] numsteps  Number of BDF steps for each physics set
+     * @param[in] numstages Number of RK stages for each physics set
+     * 
+     */ 
     
-    void setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, const int & numstages);
+    void setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & numsteps, const vector<int> & numstages);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each discretized parameter will use
@@ -236,13 +248,21 @@ namespace MrHyDE {
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @brief Setup scalar views for the time history of the adjoint.
+     * 
+     * @param[in] numsteps Number of BDF steps for each physics set
+     * @param[in] numstages Number of RK stages for each physics set
+     * 
+     */
     
-    void setUpAdjointPrev(const int & numsteps, const int & numstages) {
+    void setUpAdjointPrev(const vector<int> & numsteps, const vector<int> & numstages) {
       if (groupData->requiresTransient && groupData->requiresAdjoint) {
         for (size_t set=0; set<LIDs.size(); ++set) {
-          View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),numsteps);
+          View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),numsteps[set]);
           adj_prev.push_back(newaprev);
-          View_Sc3 newastage("previous stage adjoint",numElem,LIDs[set].extent(1),numstages);
+          View_Sc3 newastage("previous stage adjoint",numElem,LIDs[set].extent(1),numstages[set]);
           adj_stage_prev.push_back(newastage);
         }
       }

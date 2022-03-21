@@ -683,6 +683,7 @@ void SubGridDtN::setUpSubgridModels() {
       }
       macroData[mindex]->bcs = currbcs;
       
+      // TODO in all this I am assuming only one physics set!
       for (size_t grp=0; grp<groups[mindex].size(); ++grp) {
         groups[mindex][grp]->setWorkset(sub_assembler->wkset[0]);
         groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],

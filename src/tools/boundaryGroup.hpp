@@ -91,8 +91,20 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each variable will use
     ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, const int & numstages);
+
+    /**
+     * @brief Define which basis each variable will use.
+     * 
+     * @todo Is that really true? Seems like this allocates scalar storage for the solution
+     * and required solution history.
+     * 
+     * @param[in] usebasis_ Which basis should each variable use for each physics set
+     * @param[in] numsteps  Number of BDF steps for each physics set
+     * @param[in] numstages Number of RK stages for each physics set
+     * 
+     */   
+
+    void setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & numsteps, const vector<int> & numstages);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each discretized parameter will use
