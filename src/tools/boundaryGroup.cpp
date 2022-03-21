@@ -164,7 +164,7 @@ void BoundaryGroup::addAuxVars(const vector<string> & auxlist_) {
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const int & numsteps, const int & numstages) {
+void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & numsteps, const vector<int> & numstages) {
   vector<vector<int> > usebasis = usebasis_;
   
   // Set up the containers for usual solution storage
@@ -182,9 +182,9 @@ void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const int & nu
       phi.push_back(newphi);
     }
     if (groupData->requiresTransient) {
-      View_Sc4 newuprev("u previous bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps);
+      View_Sc4 newuprev("u previous bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps[set]);
       u_prev.push_back(newuprev);
-      View_Sc4 newustage("u stages bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages-1);
+      View_Sc4 newustage("u stages bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages[set]-1);
       u_stage.push_back(newustage);
     }
   }
@@ -238,12 +238,11 @@ void BoundaryGroup::updateWorkset(const int & seedwhat, const bool & override_tr
   wkset->sidename = sidename;
   wkset->currentside = sidenum;
   wkset->numElem = numElem;
-  
+
   this->updateData();
   
   // Update the integration info and basis in workset
   this->updateWorksetBasis();
-  
   // Map the gathered solution to seeded version in workset
   if (groupData->requiresTransient && !override_transient) {
     for (size_t set=0; set<groupData->numSets; ++set) {
@@ -712,7 +711,7 @@ View_Sc2 BoundaryGroup::getDirichlet(const size_t & set) {
   auto numDOF = groupData->numDOF;
   auto cwts = wts;
   auto cnormals = normals;
-  
+
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
       auto dip = groupData->physics_RCP->getDirichlet(n,set,groupData->myBlock, sidename);

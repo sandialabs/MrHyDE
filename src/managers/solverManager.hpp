@@ -67,13 +67,37 @@ namespace MrHyDE {
 
     // ========================================================================================
     // ========================================================================================
+
+    /**
+     * @brief Set the RK Butcher tableau.
+     * 
+     * The RK scheme can change for each physics set, if desired.
+     * This is done within the input file with the physics set sublist under the Solver section.
+     * 
+     * @todo Add ability to change RK scheme for different blocks.
+     * 
+     * @param[in] tableau The requested Butcher tableau
+     * @param[in] set The set index
+     */
     
-    void setButcherTableau(const string & tableau);
+    void setButcherTableau(const vector<string> & tableau, const int & set);
     
     // ========================================================================================
     // ========================================================================================
+
+    /**
+     * @brief Set the BDF weights given a requested order.
+     * 
+     * The BDF integration weights can be specified for each physics set, if desired.
+     * This is done within the input file with the physics set sublist under the Solver section.
+     * 
+     * @todo Add ability to change time integration for different blocks.
+     * 
+     * @param[in] order The requested BDF order
+     * @param[in] set The set index
+     */
     
-    void setBackwardDifference(const int & order);
+    void setBackwardDifference(const vector<int> & order, const int & set);
     
     // ========================================================================================
     // ========================================================================================
@@ -173,9 +197,11 @@ namespace MrHyDE {
     Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     
-    int verbosity, batchID, spaceDim, numsteps, numstages, gNLiter, debug_level, maxNLiter, time_order, subcycles;
+    int verbosity, batchID, spaceDim, gNLiter, debug_level, maxNLiter, subcycles;
     
-    vector<int> BDForder, startupBDForder, startupSteps; // [set]
+    // numsteps of BDF scheme
+    // numstages of RK
+    vector<int> BDForder, startupBDForder, startupSteps, numsteps, numstages; // [set]
     int numEvaluations, maxTimeStepCuts;
     vector<string> ButcherTab, startupButcherTab; // [set]
     
@@ -202,8 +228,8 @@ namespace MrHyDE {
     vector<vector_RCP> res, res_over, du, du_over;
     vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg, p_pcg_over, q_pcg_over;
     
-    vector<Kokkos::View<ScalarT**,HostDevice> > butcher_A; // [set]
-    vector<Kokkos::View<ScalarT*,HostDevice> > butcher_b, butcher_c; // [set]
+    Kokkos::View<ScalarT**,HostDevice> butcher_A; 
+    Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
     
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver()");
