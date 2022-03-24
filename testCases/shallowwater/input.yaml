@@ -38,13 +38,13 @@ ANONYMOUS:
         all boundaries: 'cos(4.*t - x)'
       Huy:
         all boundaries: 'sin(4.*t + y)'
-        #Far-field conditions:
-        #  H:
-        #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-        #  Hux:
-        #    all boundaries: 'cos(4.*t - x)'
-        #  Huy:
-        #    all boundaries: 'sin(4.*t + y)'
+      #Far-field conditions:
+      #  H:
+      #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      #  Hux:
+      #    all boundaries: 'cos(4.*t - x)'
+      #  Huy:
+      #    all boundaries: 'sin(4.*t + y)'
 
   Discretization:
     order:
