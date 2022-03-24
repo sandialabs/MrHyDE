@@ -99,12 +99,13 @@ namespace MrHyDE {
      * and required solution history.
      * 
      * @param[in] usebasis_ Which basis should each variable use for each physics set
-     * @param[in] numsteps  Number of BDF steps for each physics set
-     * @param[in] numstages Number of RK stages for each physics set
+     * @param[in] maxnumsteps  Maximum number of BDF steps for each physics set
+     * @param[in] maxnumstages Maximum number of RK stages for each physics set
      * 
      */ 
     
-    void setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & numsteps, const vector<int> & numstages);
+    void setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, 
+                     const vector<int> & maxnumstages);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each discretized parameter will use
@@ -252,17 +253,17 @@ namespace MrHyDE {
     /**
      * @brief Setup scalar views for the time history of the adjoint.
      * 
-     * @param[in] numsteps Number of BDF steps for each physics set
-     * @param[in] numstages Number of RK stages for each physics set
+     * @param[in] maxnumsteps  Maximum number of BDF steps for each physics set
+     * @param[in] maxnumstages Maximum number of RK stages for each physics set
      * 
      */
     
-    void setUpAdjointPrev(const vector<int> & numsteps, const vector<int> & numstages) {
+    void setUpAdjointPrev(const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
       if (groupData->requiresTransient && groupData->requiresAdjoint) {
         for (size_t set=0; set<LIDs.size(); ++set) {
-          View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),numsteps[set]);
+          View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),maxnumsteps[set]);
           adj_prev.push_back(newaprev);
-          View_Sc3 newastage("previous stage adjoint",numElem,LIDs[set].extent(1),numstages[set]);
+          View_Sc3 newastage("previous stage adjoint",numElem,LIDs[set].extent(1),maxnumstages[set]);
           adj_stage_prev.push_back(newastage);
         }
       }

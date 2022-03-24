@@ -164,7 +164,7 @@ void BoundaryGroup::addAuxVars(const vector<string> & auxlist_) {
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & numsteps, const vector<int> & numstages) {
+void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
   vector<vector<int> > usebasis = usebasis_;
   
   // Set up the containers for usual solution storage
@@ -182,9 +182,9 @@ void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<i
       phi.push_back(newphi);
     }
     if (groupData->requiresTransient) {
-      View_Sc4 newuprev("u previous bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps[set]);
+      View_Sc4 newuprev("u previous bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumsteps[set]);
       u_prev.push_back(newuprev);
-      View_Sc4 newustage("u stages bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages[set]-1);
+      View_Sc4 newustage("u stages bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumstages[set]-1);
       u_stage.push_back(newustage);
     }
   }

@@ -197,20 +197,19 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
     int myStartupSteps = settings->sublist("Solver").get<int>("transient startup steps",myBDForder);
 
     // TODO allow to vary by block...
+    // Check if there are settings unique to each set
     auto setSolverSettings = phys->setSolverSettings[set][0]; // [set][block]
 
-    if (setSolverSettings.isSublist(setnames[set])) {
-      myButcherTab = 
-        setSolverSettings.sublist(setnames[set]).get<string>("transient Butcher tableau",myButcherTab);
-      myBDForder = 
-        setSolverSettings.sublist(setnames[set]).get<int>("transient BDF order",1);
-      myStartupButcherTab = 
-        setSolverSettings.sublist(setnames[set]).get<string>("transient startup Butcher tableau",myStartupButcherTab);
-      myStartupBDForder = 
-        setSolverSettings.sublist(setnames[set]).get<int>("transient startup BDF order",myStartupBDForder);
-      myStartupSteps = 
-        setSolverSettings.sublist(setnames[set]).get<int>("transient startup steps",myStartupSteps);
-    }
+    myButcherTab = 
+      setSolverSettings.get<string>("transient Butcher tableau",myButcherTab);
+    myBDForder = 
+      setSolverSettings.get<int>("transient BDF order",1);
+    myStartupButcherTab = 
+      setSolverSettings.get<string>("transient startup Butcher tableau",myStartupButcherTab);
+    myStartupBDForder = 
+      setSolverSettings.get<int>("transient startup BDF order",myStartupBDForder);
+    myStartupSteps = 
+      setSolverSettings.get<int>("transient startup steps",myStartupSteps);
 
     if (myBDForder>1) {
       if (myButcherTab == "custom") {
@@ -255,9 +254,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   
   assembler->createWorkset();
   
-  // initialize vector which holds the total BDF steps and RK stages for each set 
+  // initialize vector which holds the number BDF steps and RK stages for each set 
   numsteps.resize(numSets,0);
   numstages.resize(numSets,0);
+  maxnumsteps.resize(numSets,0);
+  maxnumstages.resize(numSets,0);
 
   // set for all physics sets
   for (size_t set=0; set<numSets; ++set) {
@@ -753,7 +754,8 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
   
     int newnumstages = butcher_A.extent(0);
     // TODO same here?? why?
-    numstages[set] = std::max(numstages[set],newnumstages);
+    maxnumstages[set] = std::max(numstages[set],newnumstages);
+    numstages[set] = newnumstages;
   
     assembler->wkset[block]->set_butcher_A[set] = dev_butcher_A;//block_butcher_A;
     assembler->wkset[block]->set_butcher_b[set] = dev_butcher_b;//block_butcher_b;
@@ -845,13 +847,15 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
       int newnumsteps = BDF_wts.extent(0)-1;
       // TODO why this logic? Is the so the storage get set up correctly?
       // Not so it actually reflects the total number of steps? 
-      numsteps[set] = std::max(numsteps[set],newnumsteps);
+      maxnumsteps[set] = std::max(maxnumsteps[set],newnumsteps);
+      numsteps[set] = newnumsteps;
 
     }
     else { // for steady state solves, u_dot = 0.0*u
       BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",1);
       BDF_wts(0) = 1.0;
       numsteps[set] = 1;
+      maxnumsteps[set] = 1;
     }
 
     dev_BDF_wts = Kokkos::View<ScalarT*,AssemblyDevice>("BDF weights on device",BDF_wts.extent(0));
@@ -973,8 +977,8 @@ void SolverManager<Node>::finalizeWorkset() {
       }
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
-        assembler->groups[block][grp]->setUseBasis(block_useBasis, numsteps, numstages);
-        assembler->groups[block][grp]->setUpAdjointPrev(numsteps, numstages);
+        assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
+        assembler->groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
         assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
       }
       
@@ -986,7 +990,7 @@ void SolverManager<Node>::finalizeWorkset() {
         for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
           if (assembler->boundary_groups[block][grp]->numElem > 0) {
             assembler->boundary_groups[block][grp]->setWorkset(assembler->wkset[block]);
-            assembler->boundary_groups[block][grp]->setUseBasis(block_useBasis, numsteps, numstages);
+            assembler->boundary_groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
           }
         }
       }
@@ -1347,7 +1351,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     }
     
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
-      
       int status = 0;
       if (Comm->getRank() == 0 && verbosity > 0) {
         cout << endl << endl << "*******************************************************" << endl;
@@ -1355,10 +1358,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         cout << "**** Current time is " << current_time << endl << endl;
         cout << "*******************************************************" << endl << endl << endl;
       }
-      
       for (int ss=0; ss<subcycles; ++ss) {
         for (size_t set=0; set<u.size(); ++set) {
-          
           // TODO this needs to come first now, so that updatePhysicsSet can pick out the
           // time integration info
           if (BDForder[set] > 1 && stepProg == startupSteps[set]) {
@@ -1377,7 +1378,14 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           // need this data (even if no blocks on that process have elements in that set)
           // TODO discuss... but hacked to work for now by ensuring that
           // all RK/BDF data is shared regardless
-          numstages[set] =  assembler->wkset[0]->butcher_A.extent(0);
+
+          // OK SO THIS LINE IS DANGEROUS... 
+          // For the same reasons as above...
+          // butcher_A will not get updated if there are no groups on a particular
+          // block for that physics set...
+          // which means we can pull the incorrect number of stages
+          // TODO this should now get updated as appropriate
+          //numstages[set] = assembler->wkset[0]->butcher_A.extent(0);
       
           // Increment the previous step solutions (shift history and moves u into first spot)
           assembler->resetPrevSoln(set); 
@@ -1398,8 +1406,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             // Need a stage solution
             // Set the initial guess for stage solution
             u_stage->assign(*(u_prev[set]));
-   
-            // TODO even with hack above updatestage hangs
             // Updates the current time and sets the stage number in wksets
             assembler->updateStage(stage, current_time, deltat); 
 
@@ -1418,11 +1424,9 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             
             u[set]->update(1.0, *u_stage, 1.0);
             u[set]->update(-1.0, *(u_prev[set]), 1.0);
-            
             assembler->updateStageSoln(set); // moves the stage solution into u_stage
 
           }
-          
         }
       }
       

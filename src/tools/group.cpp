@@ -231,7 +231,7 @@ void Group::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const 
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void Group::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & numsteps, const vector<int> & numstages) {
+void Group::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
   vector<vector<int> > usebasis = usebasis_;
   
   // Set up the containers for usual solution storage
@@ -271,11 +271,11 @@ void Group::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & nu
     View_Sc4 newuprev, newustage, newphiprev, newphistage;
     
     if (groupData->requiresTransient) {
-      newuprev = View_Sc4("u previous",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps[set]);
-      newustage = View_Sc4("u stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages[set]-1);
+      newuprev = View_Sc4("u previous",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumsteps[set]);
+      newustage = View_Sc4("u stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumstages[set]-1);
       if (groupData->requiresAdjoint) {
-        newphiprev = View_Sc4("phi previous",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numsteps[set]);
-        newphistage = View_Sc4("phi stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,numstages[set]-1);
+        newphiprev = View_Sc4("phi previous",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumsteps[set]);
+        newphistage = View_Sc4("phi stages",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumstages[set]-1);
       }
       else {
         newphiprev = View_Sc4("phi previous",1,1,1,1);
