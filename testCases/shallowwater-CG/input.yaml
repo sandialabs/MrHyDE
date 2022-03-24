@@ -56,7 +56,7 @@ ANONYMOUS:
     max nonlinear iters: 10
     max linear iters: 100
     final time: 1e-2
-    delta t: 1e-3
+    delta t: 1.0e-3
     use direct solver: false
   Analysis: 
     analysis type: forward
@@ -64,4 +64,9 @@ ANONYMOUS:
     write solution: true
     write subgrid solution: true
     write HFACE variables: true
+    compute errors: true
+    True solutions:
+      H: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      Hu: 'cos(4*t-x)'
+      Hv: 'sin(4*t+y)'
 ...

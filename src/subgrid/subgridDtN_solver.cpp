@@ -27,8 +27,8 @@ SubGridDtN_Solver::SubGridDtN_Solver(const Teuchos::RCP<MpiComm> & LocalComm,
                                      Teuchos::RCP<PhysicsInterface> & physics,
                                      Teuchos::RCP<AssemblyManager<SubgridSolverNode> > & assembler_,
                                      Teuchos::RCP<ParameterManager<SubgridSolverNode>> & params,
-                                     ScalarT & macro_deltat_, size_t & numMacroDOF) :
-settings(settings_), macro_deltat(macro_deltat_), assembler(assembler_) {
+                                     size_t & numMacroDOF) :
+settings(settings_), assembler(assembler_) {
   
   verbosity = settings->get<int>("verbosity",0);
   debug_level = settings->get<int>("debug level",0);
@@ -141,7 +141,8 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
   ScalarT current_time = time;
   //int macroDOF = macrowkset.numDOF;
   //bool usesubadjoint = false;
-  
+  ScalarT macro_deltat = macrowkset.deltat;
+
   Kokkos::deep_copy(subgradient, 0.0);
   
   
@@ -269,7 +270,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         
         assembler->wkset[0]->alpha = alpha;
         assembler->wkset[0]->setDeltat(1.0/alpha);
-        
+
         Kokkos::View<ScalarT***,AssemblyDevice> currlambda = lambda;
         
         ScalarT lambda_scale = 1.0;//-(current_time-sgtime)/deltat;

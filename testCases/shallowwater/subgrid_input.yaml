@@ -17,7 +17,10 @@ ANONYMOUS:
       max EV stabilization: true
       g: 1. ## gravity is 1
       Initial conditions:
-        H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
+        #H: '2.0+sin(pi*x)*sin(pi*y)' #'2. + exp( sin(3.*x)*sin(3.*y) )'
+        #Hux: '0.0' #'cos(-x)'
+        #Huy: '0.0' #'sin(y)'
+        H: '2. + exp( sin(3.*x)*sin(3.*y) )'
         Hux: 'cos(-x)'
         Huy: 'sin(y)'
         #Far-field conditions:
@@ -46,7 +49,8 @@ ANONYMOUS:
         Hux: 1
         Huy: 1
       quadrature: 2
-    Postprocess: 
+    Postprocess:
+      write solution: true
       store aux and flux: false
       compute errors: true
       True solutions:

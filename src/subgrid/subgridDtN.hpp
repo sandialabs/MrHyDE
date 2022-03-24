@@ -56,8 +56,7 @@ namespace MrHyDE {
     
     SubGridDtN(const Teuchos::RCP<MpiComm> & LocalComm_,
                Teuchos::RCP<Teuchos::ParameterList> & settings_,
-               topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
-               ScalarT & macro_deltat_);
+               topo_RCP & macro_cellTopo_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -258,9 +257,6 @@ namespace MrHyDE {
     
     // Dynamic - depend on the macro-element
     vector<Teuchos::RCP<SubGridMacroData> > macroData;
-    
-    int num_macro_time_steps;
-    ScalarT macro_deltat;
     
     // Collection of users
     vector<vector<Teuchos::RCP<Group> > > groups;

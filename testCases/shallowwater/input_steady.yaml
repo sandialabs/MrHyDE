@@ -17,9 +17,9 @@ ANONYMOUS:
   Physics:
     ## define the coarse scale variables
     Extra variables:
-      H: HFACE
-      Hux: HFACE
-      Huy: HFACE
+      H: HGRAD
+      Hux: HGRAD
+      Huy: HGRAD
     Initial conditions:
       H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
       Hux: 'cos(-x)'
@@ -49,9 +49,9 @@ ANONYMOUS:
     quadrature: 2
   Subgrid input file: subgrid_input_steady.yaml
   Solver:
-    solver: steady-state
-    initial type: L2-projection-HFACE
-    #solver: transient
+    #solver: steady-state
+    #initial type: L2-projection-HFACE
+    solver: transient
     workset size: 100
     nonlinear TOL: 1.0e-06
     linear TOL: 1.0e-6

@@ -20,10 +20,8 @@ using namespace MrHyDE;
 
 SubGridDtN::SubGridDtN(const Teuchos::RCP<MpiComm> & LocalComm_,
                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                       topo_RCP & macro_cellTopo_, int & num_macro_time_steps_,
-                       ScalarT & macro_deltat_) :
-settings(settings_), macro_cellTopo(macro_cellTopo_),
-num_macro_time_steps(num_macro_time_steps_), macro_deltat(macro_deltat_) {
+                       topo_RCP & macro_cellTopo_) :
+settings(settings_), macro_cellTopo(macro_cellTopo_) {
   
   name = settings->name();
   LocalComm = LocalComm_;
@@ -394,8 +392,7 @@ void SubGridDtN::setUpSubgridModels() {
 
   size_t numMacroDOF = macroData[0]->macroLIDs.extent(1);
   sub_solver = Teuchos::rcp( new SubGridDtN_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
-                                                   sub_assembler, sub_params, macro_deltat,
-                                                   numMacroDOF) );
+                                                   sub_assembler, sub_params, numMacroDOF) );
   
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                          sub_disc, sub_physics,

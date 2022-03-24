@@ -55,7 +55,6 @@ namespace MrHyDE {
                       Teuchos::RCP<PhysicsInterface> & physics,
                       Teuchos::RCP<AssemblyManager<SubgridSolverNode> > & assembler,
                       Teuchos::RCP<ParameterManager<SubgridSolverNode> > & params,
-                      ScalarT & macro_deltat_,
                       size_t & numMacroDOF);
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -229,7 +228,6 @@ namespace MrHyDE {
     string macroshape, shape, multiscale_method, error_type;
     int nummacroVars, numrefine, assemble_together;
     topo_RCP cellTopo, macro_cellTopo;
-    ScalarT macro_deltat;
     
     // Linear algebra / solver objects
     Teuchos::RCP<SG_Map> param_overlapped_map;

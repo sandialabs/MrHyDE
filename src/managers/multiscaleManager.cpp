@@ -78,9 +78,6 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
     // Define the subgrid models specified in the input file
     ////////////////////////////////////////////////////////////////////////////////
     
-    int  num_macro_time_steps = settings->sublist("Solver").get("number of steps",1);
-    ScalarT finaltime = settings->sublist("Solver").get<ScalarT>("final time",1.0);
-    ScalarT macro_deltat = finaltime/num_macro_time_steps;
     if (single_model) {
       Teuchos::RCP<Teuchos::ParameterList> subgrid_pl = subgrid_model_pls[0];
       string subgrid_model_type = subgrid_pl->get<string>("subgrid model","DtN2");
@@ -96,19 +93,13 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
       }
       topo_RCP macro_topo = mesh_->cellTopo[macro_block]; //mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
       if (subgrid_model_type == "DtN") {
-        subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo,
-                                                             num_macro_time_steps,
-                                                             macro_deltat) ) );
+        subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo) ) );
       }
       else if (subgrid_model_type == "Explicit FEM") {
-        // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
-        //                                                         num_macro_time_steps,
-        //                                                         macro_deltat) ) );
+        // not implemented
       }
       else if (subgrid_model_type == "DtN2") {
-        subgridModels.push_back(Teuchos::rcp( new SubGridDtN2(Comm, subgrid_pl, macro_topo,
-                                                              num_macro_time_steps,
-                                                              macro_deltat) ) );
+        subgridModels.push_back(Teuchos::rcp( new SubGridDtN2(Comm, subgrid_pl, macro_topo) ) );
       }
       subgridModels[subgridModels.size()-1]->macro_block = macro_block;
       subgridModels[subgridModels.size()-1]->usage = "1.0";
@@ -130,19 +121,13 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
         topo_RCP macro_topo = mesh_->cellTopo[macro_block]; //stk_mesh->getCellTopology(macro_blocknames[macro_block]);
         
         if (subgrid_model_type == "DtN") {
-          subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo,
-                                                               num_macro_time_steps,
-                                                               macro_deltat ) ) );
+          subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo) ) );
         }
         else if (subgrid_model_type == "Explicit FEM") {
-          // subgridModels.push_back(Teuchos::rcp( new SubGridExpFEM(Comm, subgrid_pl, macro_topo,
-          //                                                          num_macro_time_steps,
-          //                                                          macro_deltat ) ) );
+          // not implemented
         }
         else if (subgrid_model_type == "DtN2") {
-          subgridModels.push_back(Teuchos::rcp( new SubGridDtN2(Comm, subgrid_pl, macro_topo,
-                                                                num_macro_time_steps,
-                                                                macro_deltat ) ) );
+          subgridModels.push_back(Teuchos::rcp( new SubGridDtN2(Comm, subgrid_pl, macro_topo) ) );
         }
         subgridModels[subgridModels.size()-1]->macro_block = macro_block;
         string usage;

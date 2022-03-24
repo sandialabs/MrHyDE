@@ -8,24 +8,30 @@ ANONYMOUS:
   Mesh:
     dimension: 2
     element type: quad
-    xmin: -1.0
+    xmin: 0.0 #-1.0
     xmax:  1.0
-    ymin: -1.0
+    ymin: 0.0 #-1.0
     ymax:  1.0
     NX: 40
     NY: 40
   Physics:
     ## define the coarse scale variables
     Extra variables:
-      H: HFACE
-      Hux: HFACE
-      Huy: HFACE
+      H: HGRAD
+      Hux: HGRAD
+      Huy: HGRAD
     Initial conditions:
-      H: '2. + exp( sin(3.*x)*sin(3.*y) )' 
+      H: '2. + exp( sin(3.*x)*sin(3.*y) )'
       Hux: 'cos(-x)'
       Huy: 'sin(y)'
     Dirichlet conditions:
       static data: false
+      #Hux:
+      #  left: '0.0'
+      #  right: '0.0'
+      #Huy:
+      #  top: '0.0'
+      # bottom: '0.0'
       H:
         all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
       Hux:
@@ -50,15 +56,16 @@ ANONYMOUS:
   Subgrid input file: subgrid_input.yaml
   Solver:
     #solver: steady-state
-    initial type: L2-projection-HFACE
+    #initial type: L2-projection-HFACE
     solver: transient
     workset size: 100
     nonlinear TOL: 1.0e-06
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: 1.e-2
+    final time: 1.e-1
     delta t: 1.e-3
+    #number of steps: 100
     use direct solver: true
   Analysis: 
     analysis type: forward
