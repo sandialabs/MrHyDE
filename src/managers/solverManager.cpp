@@ -1420,7 +1420,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             u[set]->update(-1.0, *(u_prev[set]), 1.0);
             
             assembler->updateStageSoln(set); // moves the stage solution into u_stage
-            
+
           }
           
         }
@@ -1631,7 +1631,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     current_res_over->putScalar(0.0);
-    
+
     if (build_jacobian) {
       J_over->resumeFill();
       J_over->setAllToScalar(0.0);

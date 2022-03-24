@@ -2972,6 +2972,7 @@ template<class Node>
 void AssemblyManager<Node>::updateStage(const int & stage, const ScalarT & current_time,
                                         const ScalarT & deltat) {
   for (size_t block=0; block<wkset.size(); ++block) {
+    cout << "1/2 UPDATE :: BLOCK " << block << " :: RANK " << Comm->getRank() << endl;
     wkset[block]->setStage(stage);
     auto butcher_c = Kokkos::create_mirror_view(wkset[block]->butcher_c);
     Kokkos::deep_copy(butcher_c, wkset[block]->butcher_c);
@@ -2979,6 +2980,7 @@ void AssemblyManager<Node>::updateStage(const int & stage, const ScalarT & curre
     wkset[block]->setTime(timeval);
     wkset[block]->setDeltat(deltat);
     wkset[block]->alpha = 1.0/deltat;
+    cout << "2/2 UPDATE :: BLOCK " << block << " :: RANK " << Comm->getRank() << endl;
   }
   
 }
