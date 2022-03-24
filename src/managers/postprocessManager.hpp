@@ -90,11 +90,25 @@ namespace MrHyDE {
       response = "";
       target = 0.0;
       function = "";
-      
+      use_sensor_grid = false;
+
       if (type == "sensors") {
         sensor_points_file = objsettings.get<string>("sensor points file","sensor_points.dat");
         sensor_data_file = objsettings.get<string>("sensor data file","");
         save_data = objsettings.get<bool>("save sensor data",false);
+        use_sensor_grid = objsettings.get<bool>("use sensor grid",false);
+        if (use_sensor_grid) {
+          sensor_grid_Nx = objsettings.get<int>("grid Nx");
+          sensor_grid_Ny = objsettings.get<int>("grid Ny");
+          sensor_grid_Nz = objsettings.get<int>("grid Nz");
+
+          sensor_grid_xmin = objsettings.get<double>("grid xmin");
+          sensor_grid_xmax = objsettings.get<double>("grid xmax");
+          sensor_grid_ymin = objsettings.get<double>("grid ymin");
+          sensor_grid_ymax = objsettings.get<double>("grid ymax");
+          sensor_grid_zmin = objsettings.get<double>("grid zmin");
+          sensor_grid_zmax = objsettings.get<double>("grid zmax");
+        }
         response = objsettings.get<string>("response","0.0");
         functionManager_->addFunction(name+" response",response,"point");
         response_file = objsettings.get<string>("response file","sensor."+name);
@@ -143,7 +157,9 @@ namespace MrHyDE {
     // Data specific to sensors
     string sensor_points_file, sensor_data_file;
     size_t numSensors;
-    bool compute_sensor_soln, compute_sensor_average_soln;
+    bool use_sensor_grid, compute_sensor_soln, compute_sensor_average_soln;
+    int sensor_grid_Nx, sensor_grid_Ny, sensor_grid_Nz;
+    double sensor_grid_xmin, sensor_grid_xmax, sensor_grid_ymin, sensor_grid_ymax, sensor_grid_zmin, sensor_grid_zmax;
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_data;   // Ns x Nt
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_points; // Ns x dim
     Kokkos::View<ScalarT*,AssemblyDevice>  sensor_times;  // Nt
@@ -153,7 +169,7 @@ namespace MrHyDE {
     vector<Kokkos::View<ScalarT****,AssemblyDevice> > sensor_basis_grad;  // [basis](Ns,dof,pt,dim)
     //vector<vector<Kokkos::View<ScalarT***,AssemblyDevice> > >  sensor_basis_div;   // [Ns][basis](elem,dof,pt)
     //vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > sensor_basis_curl;  // [Ns][basis](elem,dof,pt,dim)
-    vector<Kokkos::View<ScalarT**,HostDevice> > sensor_solution_data; // [time] (sensor,sol)
+    vector<Kokkos::View<ScalarT***,HostDevice> > sensor_solution_data; // [time] (sensor,sol,dim)
   };
   
   // ========================================================================================
@@ -377,6 +393,8 @@ namespace MrHyDE {
 
     void computeWeightedNorm(vector<vector_RCP> & current_soln);
     
+    void computeSensorSolution(vector<vector_RCP> & current_soln, const ScalarT & current_time);
+
     // ========================================================================================
     // ========================================================================================
 
@@ -517,7 +535,7 @@ namespace MrHyDE {
     int numCells;                                                // number of domain cells (normall it is 1)
     size_t numBlocks;                                            // number of element blocks
     
-    bool have_sensor_data, save_sensor_data, write_dakota_output, isTD;
+    bool have_sensor_data, save_sensor_data, write_dakota_output, isTD, store_sensor_solution;
     std::string sname;
     ScalarT stddev;
     

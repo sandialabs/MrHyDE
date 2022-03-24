@@ -1997,7 +1997,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
       
       auto cLIDs = groups[block][grp]->LIDs[set];
       
-      if (!groupData[block]->store_mass) { //groupData->matrix_free) {
+      if (!groups[block][grp]->storeMass) { //groupData[block]->store_mass) { //groupData->matrix_free) {
         auto twts = groups[block][grp]->wts;
         vector<View_Sc4> tbasis;
         if (groups[block][grp]->storeAll) { // unlikely case, but enabled

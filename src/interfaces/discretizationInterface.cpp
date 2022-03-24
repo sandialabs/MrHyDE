@@ -2618,11 +2618,13 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
   int numCells = 1;
   int numpts = evalpts.extent(0);
   int numBasis = basis_pointers[block][basisID]->getCardinality();
-  DRV basisvals("basisvals", numBasis, numpts);
-  basis_pointers[block][basisID]->getValues(basisvals, evalpts, Intrepid2::OPERATOR_VALUE);
   
   DRV finalbasis;
+  
   if (basis_types[block][basisID] == "HGRAD" || basis_types[block][basisID] == "HVOL") {
+    DRV basisvals("basisvals", numBasis, numpts);
+    basis_pointers[block][basisID]->getValues(basisvals, evalpts, Intrepid2::OPERATOR_VALUE);
+  
     DRV basisvals_Transformed("basisvals_Transformed", numCells, numBasis, numpts);
     FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
     finalbasis = DRV("basisvals_Transformed", numCells, numBasis, numpts);
@@ -2631,6 +2633,9 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
   
   }
   else if (basis_types[block][basisID] == "HDIV") {
+    DRV basisvals("basisvals", numBasis, numpts, spaceDim);
+    basis_pointers[block][basisID]->getValues(basisvals, evalpts, Intrepid2::OPERATOR_VALUE);
+  
     DRV jacobian, jacobianDet;
     jacobian = DRV("jacobian", numCells, numpts, spaceDim, spaceDim);
     jacobianDet = DRV("determinant of jacobian", numCells, numpts);
@@ -2646,6 +2651,10 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
     
   }
   else if (basis_types[block][basisID] == "HCURL") {
+
+    DRV basisvals("basisvals", numBasis, numpts, spaceDim);
+    basis_pointers[block][basisID]->getValues(basisvals, evalpts, Intrepid2::OPERATOR_VALUE);
+  
     DRV jacobian, jacobianInv;
     jacobian = DRV("jacobian", numCells, numpts, spaceDim, spaceDim);
     jacobianInv = DRV("inverse of jacobian", numCells, numpts, spaceDim, spaceDim);
@@ -2654,6 +2663,8 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
     CellTools::setJacobianInv(jacobianInv, jacobian);
   
     DRV bvals1("basis",numCells, numBasis, numpts, spaceDim);
+    finalbasis = DRV("basis tmp", numCells, numBasis, numpts, spaceDim);
+
     FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, basisvals);
     OrientTools::modifyBasisByOrientation(finalbasis, bvals1, orientation,
                                           basis_pointers[block][basisID].get());

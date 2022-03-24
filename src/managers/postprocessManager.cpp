@@ -89,6 +89,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra cell field reduction","mean");
   write_database_id = settings->sublist("Solver").get<bool>("use basis database",false);
   compute_flux_response = settings->sublist("Postprocess").get("compute flux response",false);
+  store_sensor_solution = settings->sublist("Postprocess").get("store sensor solution",false);
 
   compute_integrated_quantities = settings->sublist("Postprocess").get("compute integrated quantities",false);
  
@@ -503,6 +504,9 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
   }
   if (compute_weighted_norm && write_this_step) {
     this->computeWeightedNorm(current_soln);
+  }
+  if (store_sensor_solution && write_this_step) {
+    this->computeSensorSolution(current_soln, current_time);
   }
 }
 
@@ -1495,10 +1499,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   
   Teuchos::TimeMonitor localtimer(*objectiveTimer);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeObjective ..." << std::endl;
-    }
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Starting PostprocessManager::computeObjective ..." << std::endl;
   }
   
   // Objective function values
@@ -1823,176 +1825,99 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
       
     }
     else if (objectives[r].type == "sensors" || objectives[r].type == "sensor response" || objectives[r].type == "pointwise response") {
-      
-      Kokkos::View<ScalarT*,HostDevice> sensordat;
-      if (compute_response) {
-        sensordat = Kokkos::View<ScalarT*,HostDevice>("sensor data to save",objectives[r].numSensors);
-        objectives[r].response_times.push_back(current_time);
+      if (objectives[r].compute_sensor_soln || objectives[r].compute_sensor_average_soln) {
+        // don't do anything for this use case
       }
-      
-      for (size_t pt=0; pt<objectives[r].numSensors; ++pt) {
-        size_t tindex = 0;
-        bool foundtime = false;
-        for (size_type t=0; t<objectives[r].sensor_times.extent(0); ++t) {
-          if (std::abs(current_time - objectives[r].sensor_times(t)) < 1.0e-12) {
-            foundtime = true;
-            tindex = t;
-          }
+      else {
+        Kokkos::View<ScalarT*,HostDevice> sensordat;
+        if (compute_response) {
+          sensordat = Kokkos::View<ScalarT*,HostDevice>("sensor data to save",objectives[r].numSensors);
+          objectives[r].response_times.push_back(current_time);
         }
-        
-        if (compute_response || foundtime) {
-        
-          // First compute objective and derivative w.r.t scalar params
-          params->sacadoizeParams(true);
-          
-          size_t block = objectives[r].block;
-          size_t cell = objectives[r].sensor_owners(pt,0);
-          size_t elem = objectives[r].sensor_owners(pt,1);
-          assembler->wkset[block]->isOnPoint = true;
-          auto x = assembler->wkset[block]->getScalarField("x");
-          x(0,0) = objectives[r].sensor_points(pt,0);
-          if (spaceDim > 1) {
-            auto y = assembler->wkset[block]->getScalarField("y");
-            y(0,0) = objectives[r].sensor_points(pt,1);
-          }
-          if (spaceDim > 2) {
-            auto z = assembler->wkset[block]->getScalarField("z");
-            z(0,0) = objectives[r].sensor_points(pt,2);
-          }
-          
-          auto numDOF = assembler->groupData[block]->numDOF;
-          View_AD2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][cell]->LIDs[0].extent(1)); // hard coded
-          auto cu = subview(assembler->groups[block][cell]->u[0],elem,ALL(),ALL()); // hard coded
-          parallel_for("cell response get u",
-                       RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
-                       KOKKOS_LAMBDA (const size_type n ) {
-            for (size_type n=0; n<numDOF.extent(0); n++) {
-              for( int i=0; i<numDOF(n); i++ ) {
-                u_dof(n,i) = cu(n,i);
-              }
+      
+        for (size_t pt=0; pt<objectives[r].numSensors; ++pt) {
+          size_t tindex = 0;
+          bool foundtime = false;
+          for (size_type t=0; t<objectives[r].sensor_times.extent(0); ++t) {
+            if (std::abs(current_time - objectives[r].sensor_times(t)) < 1.0e-12) {
+              foundtime = true;
+              tindex = t;
             }
-          });
-          
-          // Map the local solution to the solution and gradient at ip
-          View_AD2 u_ip("u_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
-          View_AD2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
-          
-          for (size_type var=0; var<numDOF.extent(0); var++) {
-            auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
-            auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
-            auto u_sv = subview(u_ip, var, ALL());
-            auto u_dof_sv = subview(u_dof, var, ALL());
-            auto ugrad_sv = subview(ugrad_ip, var, ALL());
-            
-            parallel_for("cell response sensor uip",
-                         RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
-                         KOKKOS_LAMBDA (const int dof ) {
-              u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
-              for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-              }
-            });
           }
           
-          assembler->wkset[block]->setSolutionPoint(u_ip);
-          assembler->wkset[block]->setSolutionGradPoint(ugrad_ip);
+          if (compute_response || foundtime) {
           
-          // Map the local discretized params to param and grad at ip
-          if (params->globalParamUnknowns > 0) {
-            auto numParamDOF = assembler->groupData[block]->numParamDOF;
+            // First compute objective and derivative w.r.t scalar params
+            params->sacadoizeParams(true);
             
-            View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][cell]->paramLIDs.extent(1));
-            auto cp = subview(assembler->groups[block][cell]->param,elem,ALL(),ALL());
+            size_t block = objectives[r].block;
+            size_t cell = objectives[r].sensor_owners(pt,0);
+            size_t elem = objectives[r].sensor_owners(pt,1);
+            assembler->wkset[block]->isOnPoint = true;
+            auto x = assembler->wkset[block]->getScalarField("x");
+            x(0,0) = objectives[r].sensor_points(pt,0);
+            if (spaceDim > 1) {
+              auto y = assembler->wkset[block]->getScalarField("y");
+              y(0,0) = objectives[r].sensor_points(pt,1);
+            }
+            if (spaceDim > 2) {
+              auto z = assembler->wkset[block]->getScalarField("z");
+              z(0,0) = objectives[r].sensor_points(pt,2);
+            }
+            
+            auto numDOF = assembler->groupData[block]->numDOF;
+            View_AD2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][cell]->LIDs[0].extent(1)); // hard coded
+            auto cu = subview(assembler->groups[block][cell]->u[0],elem,ALL(),ALL()); // hard coded
             parallel_for("cell response get u",
-                         RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
-                         KOKKOS_LAMBDA (const size_type n ) {
-              for (size_type n=0; n<numParamDOF.extent(0); n++) {
-                for( int i=0; i<numParamDOF(n); i++ ) {
-                  p_dof(n,i) = cp(n,i);
+                        RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
+                        KOKKOS_LAMBDA (const size_type n ) {
+              for (size_type n=0; n<numDOF.extent(0); n++) {
+                for( int i=0; i<numDOF(n); i++ ) {
+                  u_dof(n,i) = cu(n,i);
                 }
               }
             });
             
-            View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
-            View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+            // Map the local solution to the solution and gradient at ip
+            View_AD2 u_ip("u_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
+            View_AD2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
             
-            for (size_type var=0; var<numParamDOF.extent(0); var++) {
-              int bnum = assembler->wkset[block]->paramusebasis[var];
-              auto cbasis = objectives[r].sensor_basis[bnum];
-              auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
-              auto p_sv = subview(p_ip, var, ALL());
-              auto p_dof_sv = subview(p_dof, var, ALL());
-              auto pgrad_sv = subview(pgrad_ip, var, ALL());
+            for (size_type var=0; var<numDOF.extent(0); var++) {
+              auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
+              auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
+              auto u_sv = subview(u_ip, var, ALL());
+              auto u_dof_sv = subview(u_dof, var, ALL());
+              auto ugrad_sv = subview(ugrad_ip, var, ALL());
               
               parallel_for("cell response sensor uip",
-                           RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
-                           KOKKOS_LAMBDA (const int dof ) {
-                p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
+                          RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                          KOKKOS_LAMBDA (const int dof ) {
+                u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
                 for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                  pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                  ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
                 }
               });
             }
             
-            assembler->wkset[block]->setParamPoint(p_ip);
+            assembler->wkset[block]->setSolutionPoint(u_ip);
+            assembler->wkset[block]->setSolutionGradPoint(ugrad_ip);
             
-            assembler->wkset[block]->setParamGradPoint(pgrad_ip);
-          }
-          
-          // Evaluate the response
-          auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
-          
-          if (compute_response) {
-#ifndef MrHyDE_NO_AD
-            sensordat(pt) = rdata(0,0).val();
-#else
-            sensordat(pt) = rdata(0,0);
-#endif
-          }
-          
-          if (compute_objective) {
-            
-            // Update the value of the objective
-            AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
-            AD sdiff = objectives[r].weight*diff*diff;
-#ifndef MrHyDE_NO_AD
-            totaldiff[r] += sdiff.val();
-#else
-            totaldiff[r] += sdiff;
-#endif
-            
-            // Update the gradient w.r.t scalar active parameters
-#ifndef MrHyDE_NO_AD
-            for (int p=0; p<params->num_active_params; p++) {
-              gradients[r][p] += sdiff.fastAccessDx(p);
-            }
-#endif
-            
-            // Discretized parameters
+            // Map the local discretized params to param and grad at ip
             if (params->globalParamUnknowns > 0) {
-              
-              // Need to compute derivative w.r.t discretized params
-              params->sacadoizeParams(false);
-              
               auto numParamDOF = assembler->groupData[block]->numParamDOF;
-              auto poff = assembler->wkset[block]->paramoffsets;
+              
               View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][cell]->paramLIDs.extent(1));
               auto cp = subview(assembler->groups[block][cell]->param,elem,ALL(),ALL());
               parallel_for("cell response get u",
-                           RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
-                           KOKKOS_LAMBDA (const size_type n ) {
+                          RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
+                          KOKKOS_LAMBDA (const size_type n ) {
                 for (size_type n=0; n<numParamDOF.extent(0); n++) {
                   for( int i=0; i<numParamDOF(n); i++ ) {
-#ifndef MrHyDE_NO_AD
-                    p_dof(n,i) = AD(maxDerivs,poff(n,i),cp(n,i));
-#else
                     p_dof(n,i) = cp(n,i);
-#endif
                   }
                 }
               });
               
-#ifndef MrHyDE_NO_AD
               View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
               View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
               
@@ -2005,8 +1930,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                 auto pgrad_sv = subview(pgrad_ip, var, ALL());
                 
                 parallel_for("cell response sensor uip",
-                             RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
-                             KOKKOS_LAMBDA (const int dof ) {
+                            RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                            KOKKOS_LAMBDA (const int dof ) {
                   p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
                   for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
                     pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
@@ -2015,39 +1940,119 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               }
               
               assembler->wkset[block]->setParamPoint(p_ip);
+              
               assembler->wkset[block]->setParamGradPoint(pgrad_ip);
-              
-              // Evaluate the response
-              auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
-              AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
-              AD sdiff = objectives[r].weight*diff*diff;
-              
-              auto poffs = params->paramoffsets;
-              vector<GO> paramGIDs;
-              params->paramDOF->getElementGIDs(assembler->groups[block][cell]->localElemID[elem],
-                                               paramGIDs, blocknames[block]);
-              
-              for (size_t pp=0; pp<poffs.size(); ++pp) {
-                for (size_t row=0; row<poffs[pp].size(); row++) {
-                  GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
-                  int poffset = poffs[pp][row];
-                  gradients[r][rowIndex] += sdiff.fastAccessDx(poffset);
-                }
-              }
-#endif
             }
             
-          }
-          assembler->wkset[block]->isOnPoint = false;
+            // Evaluate the response
+            auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
+            
+            if (compute_response) {
+  #ifndef MrHyDE_NO_AD
+              sensordat(pt) = rdata(0,0).val();
+  #else
+              sensordat(pt) = rdata(0,0);
+  #endif
+            }
+            
+            if (compute_objective) {
+              
+              // Update the value of the objective
+              AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
+              AD sdiff = objectives[r].weight*diff*diff;
+  #ifndef MrHyDE_NO_AD
+              totaldiff[r] += sdiff.val();
+  #else
+              totaldiff[r] += sdiff;
+  #endif
+              
+              // Update the gradient w.r.t scalar active parameters
+  #ifndef MrHyDE_NO_AD
+              for (int p=0; p<params->num_active_params; p++) {
+                gradients[r][p] += sdiff.fastAccessDx(p);
+              }
+  #endif
+              
+              // Discretized parameters
+              if (params->globalParamUnknowns > 0) {
+                
+                // Need to compute derivative w.r.t discretized params
+                params->sacadoizeParams(false);
+                
+                auto numParamDOF = assembler->groupData[block]->numParamDOF;
+                auto poff = assembler->wkset[block]->paramoffsets;
+                View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][cell]->paramLIDs.extent(1));
+                auto cp = subview(assembler->groups[block][cell]->param,elem,ALL(),ALL());
+                parallel_for("cell response get u",
+                            RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
+                            KOKKOS_LAMBDA (const size_type n ) {
+                  for (size_type n=0; n<numParamDOF.extent(0); n++) {
+                    for( int i=0; i<numParamDOF(n); i++ ) {
+  #ifndef MrHyDE_NO_AD
+                      p_dof(n,i) = AD(maxDerivs,poff(n,i),cp(n,i));
+  #else
+                      p_dof(n,i) = cp(n,i);
+  #endif
+                    }
+                  }
+                });
+                
+  #ifndef MrHyDE_NO_AD
+                View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+                View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+                
+                for (size_type var=0; var<numParamDOF.extent(0); var++) {
+                  int bnum = assembler->wkset[block]->paramusebasis[var];
+                  auto cbasis = objectives[r].sensor_basis[bnum];
+                  auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
+                  auto p_sv = subview(p_ip, var, ALL());
+                  auto p_dof_sv = subview(p_dof, var, ALL());
+                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                  
+                  parallel_for("cell response sensor uip",
+                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                              KOKKOS_LAMBDA (const int dof ) {
+                    p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    }
+                  });
+                }
+                
+                assembler->wkset[block]->setParamPoint(p_ip);
+                assembler->wkset[block]->setParamGradPoint(pgrad_ip);
+                
+                // Evaluate the response
+                auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
+                AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
+                AD sdiff = objectives[r].weight*diff*diff;
+                
+                auto poffs = params->paramoffsets;
+                vector<GO> paramGIDs;
+                params->paramDOF->getElementGIDs(assembler->groups[block][cell]->localElemID[elem],
+                                                paramGIDs, blocknames[block]);
+                
+                for (size_t pp=0; pp<poffs.size(); ++pp) {
+                  for (size_t row=0; row<poffs[pp].size(); row++) {
+                    GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
+                    int poffset = poffs[pp][row];
+                    gradients[r][rowIndex] += sdiff.fastAccessDx(poffset);
+                  }
+                }
+  #endif
+              }
+              
+            }
+            assembler->wkset[block]->isOnPoint = false;
 
-        } // found time
-      } // sensor points
-      
-      if (compute_response) {
-        objectives[r].response_data.push_back(sensordat);
-      }
-    } // objectives
-    
+          } // found time
+        } // sensor points
+        
+        if (compute_response) {
+          objectives[r].response_data.push_back(sensordat);
+        }
+      } // objectives
+    }
     // ========================================================================================
     // Add regularizations (reg funcs are tied to objectives and objectives can have more than one reg)
     // ========================================================================================
@@ -2260,16 +2265,79 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   
   params->sacadoizeParams(false);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::computeObjective ..." << std::endl;
-    }
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Finished PostprocessManager::computeObjective ..." << std::endl;
   }
   
   objectiveval += fullobj;
   
 }
 
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & current_soln,
+                                                     const ScalarT & current_time) {
+  
+  Teuchos::TimeMonitor localtimer(*objectiveTimer);
+  
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Starting PostprocessManager::computeSensorSolution ..." << std::endl;
+  }
+  
+  for (size_t r=0; r<objectives.size(); ++r) {
+    
+    if (objectives[r].type == "sensors" || objectives[r].type == "sensor response" || objectives[r].type == "pointwise response") {
+      if (objectives[r].compute_sensor_soln || objectives[r].compute_sensor_average_soln) {
+        
+        size_t block = objectives[r].block;
+            
+        int numSols = 0;
+        for (size_t set=0; set<varlist.size(); ++set) {
+          numSols += varlist[set][block].size();
+        }
+        Kokkos::View<ScalarT***,HostDevice> sensordat("sensor solution", objectives[r].numSensors, numSols, spaceDim);
+        objectives[r].response_times.push_back(current_time); // might store this somewhere else
+        
+        for (size_t pt=0; pt<objectives[r].numSensors; ++pt) {
+          
+          size_t solprog = 0;
+          int grp_owner = objectives[r].sensor_owners(pt,0);
+          int elem_owner = objectives[r].sensor_owners(pt,1);
+          for (size_t set=0; set<varlist.size(); ++set) {  
+            auto numDOF = assembler->groupData[block]->set_numDOF_host[set];
+            auto cu = subview(assembler->groups[block][grp_owner]->u[set],elem_owner,ALL(),ALL());
+            auto cu_host = create_mirror_view(cu);
+            deep_copy(cu_host,cu);
+            for (size_type var=0; var<numDOF.extent(0); var++) {
+              auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
+              for (size_type dof=0; dof<cbasis.extent(1); ++dof) {
+                for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
+                  sensordat(pt,solprog,dim) += cu_host(solprog,dof)*cbasis(pt,dof,0,dim);
+                }
+              }  
+              solprog++;
+              
+            }
+            
+          }
+            
+        } // sensor points
+        //KokkosTools::print(sensordat);
+
+        objectives[r].sensor_solution_data.push_back(sensordat);
+        
+      } // objectives
+    }
+    
+  }  
+  
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Finished PostprocessManager::computeSensorSolutions ..." << std::endl;
+  }
+  
+}
 
 // ========================================================================================
 // ========================================================================================
@@ -3907,6 +3975,10 @@ void PostprocessManager<Node>::addSensors() {
         //Teuchos::TimeMonitor localtimer(*importexodustimer);
         this->importSensorsFromExodus(r);
       }
+      else if (objectives[r].use_sensor_grid) {
+        //Teuchos::TimeMonitor localtimer(*importexodustimer);
+        this->importSensorsOnGrid(r);
+      }
       else {
         //Teuchos::TimeMonitor localtimer(*importfiletimer);
         this->importSensorsFromFiles(r);
@@ -4320,10 +4392,14 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
 template<class Node>
 void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::importSensorsOnGrid() ..." << endl;
-    }
+  if (debug_level > 0 && Comm->getRank() == 0) {
+    cout << "**** Starting PostprocessManager::importSensorsOnGrid() ..." << endl;
+  }
+  
+  // Check that the data matches the expected format
+  if (spaceDim != 3) {
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
+                               "Error: defining a grid of sensor points is only implemented in 3-dimensions");
   }
   
   size_t block = objectives[objID].block;
@@ -4332,16 +4408,57 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
   // Save the locations in the appropriate view
   // ========================================
   
-
-  Kokkos::View<ScalarT**,HostDevice> spts_host;// = sdata.getPoints();
-  std::vector<Kokkos::View<ScalarT**,HostDevice> >  sensor_data_host;
-  
-  // Check that the data matches the expected format
-  if (spts_host.extent(1) != static_cast<size_type>(spaceDim)) {
-    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
-                               "Error: sensor points dimension does not match simulation dimension");
+  double xmin = objectives[objID].sensor_grid_xmin;
+  double xmax = objectives[objID].sensor_grid_xmax;
+  double ymin = objectives[objID].sensor_grid_ymin;
+  double ymax = objectives[objID].sensor_grid_ymax;
+  double zmin = objectives[objID].sensor_grid_zmin;
+  double zmax = objectives[objID].sensor_grid_zmax;
+            
+  int Nx = objectives[objID].sensor_grid_Nx;
+  int Ny = objectives[objID].sensor_grid_Ny;
+  int Nz = objectives[objID].sensor_grid_Nz;
+            
+  double dx = (xmax-xmin)/Nx;
+  double dy = (ymax-ymin)/Ny;
+  double dz = (zmax-zmin)/Nz;
+            
+  std::vector<double> xgrid(Nx);
+  std::vector<double> ygrid(Ny);
+  std::vector<double> zgrid(Nz);
+            
+  double xval = xmin;
+  for (int i=0; i<Nx; ++i) {
+    xgrid[i] = xval;
+    xval += dx;
+  }
+            
+  double yval = ymin;
+  for (int i=0; i<Ny; ++i) {
+    ygrid[i] = yval;
+    yval += dy;
+  }
+            
+  double zval = zmin;
+  for (int i=0; i<Nz; ++i) {
+    zgrid[i] = zval;
+    zval += dz;
   }
   
+  Kokkos::View<ScalarT**,HostDevice> spts_host("sensor locations",Nx*Ny*Nz,spaceDim);
+  
+  size_t prog = 0;
+  for (int i=0; i<Nx; i++) {
+    for (int j=0; j<Ny; j++) {
+      for (int k=0; k<Nz; k++) {
+        spts_host(prog,0) = xgrid[i];
+        spts_host(prog,1) = ygrid[j];
+        spts_host(prog,2) = zgrid[k];
+        prog++;
+      }
+    }
+  }
+          
   // ========================================
   // Determine which element contains each sensor point
   // Note: a given processor might not find any
@@ -4362,7 +4479,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
       numFound++;
     }
   }
-  
+    
   objectives[objID].numSensors = numFound;
   objectives[objID].sensor_found = spts_found;
   
@@ -4399,16 +4516,17 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     objectives[objID].sensor_data = sdat;
     objectives[objID].sensor_owners = sowners;
     
+    cout << spts(0,0) << "  " << spts(0,1) << "  " << spts(0,2) << endl;
+    cout << sowners(0,0) << "  " << sowners(0,1)  << endl;
+    
     // ========================================
     // Evaluate the basis functions and grads for each sensor point
     // ========================================
     
     this->computeSensorBasis(objID);
   }
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SensorManager::importSensorsOnGrid() ..." << endl;
-    }
+  if (debug_level > 0 && Comm->getRank() == 0) {
+    cout << "**** Finished SensorManager::importSensorsOnGrid() ..." << endl;
   }
 
 }
