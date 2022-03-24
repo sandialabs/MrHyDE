@@ -8,9 +8,9 @@ ANONYMOUS:
   Mesh:
     dimension: 2
     element type: quad
-    xmin: 0.0 #-1.0
+    xmin: -1.0
     xmax:  1.0
-    ymin: 0.0 #-1.0
+    ymin: -1.0
     ymax:  1.0
     NX: 40
     NY: 40
