@@ -504,11 +504,10 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
 
   for (size_t block=0; block<assembler->groups.size(); ++block) {
 
-    cout << numstages[set] << " here blah " << Comm->getRank() << " " << set << endl;
-
+    // TODO removing this for now
     // If the workset on this block is not used (due to not owning any groups)
     // don't do anything
-    if ( !(assembler->wkset[block]->isInitialized) ) continue; 
+    //if ( !(assembler->wkset[block]->isInitialized) ) continue; 
 
     // Gather RK weights for this block before assigning them to the workset
     //Kokkos::View<ScalarT**,AssemblyDevice> block_butcher_A; 
@@ -778,9 +777,10 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
 
   for (size_t block=0; block<assembler->groups.size(); ++block) {
 
+    // TODO removing this for now...
     // If the workset on this block is not used (due to not owning any groups)
     // don't do anything
-    if ( !(assembler->wkset[block]->isInitialized) ) continue; 
+    //if ( !(assembler->wkset[block]->isInitialized) ) continue; 
 
     // Gather BDF weights for this block before assigning them to the workset
     //Kokkos::View<ScalarT*,AssemblyDevice> block_BDF_wts;
@@ -1373,8 +1373,11 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           // TODO move this line into the if statement above for more clarity?
           // TODO if butcher_A is NOT SET by any block on an MPI process, this 
           // is zero! and causes issues...
-          numstages[set] = ( assembler->wkset[0]->butcher_A.extent(0) > 0 ?
-                             assembler->wkset[0]->butcher_A.extent(0) : 1 );
+          // currently, all sets need to share RK/BDF data and all MPI processes
+          // need this data (even if no blocks on that process have elements in that set)
+          // TODO discuss... but hacked to work for now by ensuring that
+          // all RK/BDF data is shared regardless
+          numstages[set] =  assembler->wkset[0]->butcher_A.extent(0);
       
           // Increment the previous step solutions (shift history and moves u into first spot)
           assembler->resetPrevSoln(set); 
@@ -1390,7 +1393,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           vector_RCP u_stage = linalg->getNewOverlappedVector(set);
 
           u_prev[set]->assign(*(u[set]));
-          auto BDF_wts = assembler->wkset[0]->BDF_wts;
 
           for (int stage=0; stage<numstages[set]; stage++) {
             // Need a stage solution
@@ -1400,8 +1402,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             // TODO even with hack above updatestage hangs
             // Updates the current time and sets the stage number in wksets
             assembler->updateStage(stage, current_time, deltat); 
-           cout << " HERE RANK " << Comm->getRank() << endl;
-          MPI_Barrier(MPI_COMM_WORLD);        
+
             if (usestrongDBCs) {
               this->setDirichlet(set, u_stage);
             }
@@ -1410,19 +1411,15 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
               status += this->explicitSolver(set, u_stage, zero_vec[set], stage);
             }
             else {
-              cout << "CALL NL :: " << set << endl;
               status += this->nonlinearSolver(set, u_stage, zero_vec[set]);
             }
 
-            cout << " WHICH 3" << endl;
             // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
             
             u[set]->update(1.0, *u_stage, 1.0);
             u[set]->update(-1.0, *(u_prev[set]), 1.0);
             
             assembler->updateStageSoln(set); // moves the stage solution into u_stage
-
-            cout << " DONE ? " << endl;
             
           }
           
@@ -1580,8 +1577,6 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
   
   Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
 
-  cout << "MY RANK :: " << Comm->getRank() << endl;
-  
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting SolverManager::nonlinearSolver ..." << endl;
@@ -1623,26 +1618,19 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     
     multiscale_manager->reset();
 
-    cout << " YES " << endl;
-    
     gNLiter = NLiter;
   
     bool build_jacobian = !linalg->getJacobianReuse(set);//true;
     matrix_RCP J = linalg->getNewMatrix(set);
 
-    cout << "WHICH 1" << endl;
-    
     matrix_RCP J_over = linalg->getNewOverlappedMatrix(set);
     if (build_jacobian) {
       linalg->fillComplete(J_over);
     }
     
-    cout << "WHICH 2" << endl;
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     current_res_over->putScalar(0.0);
-
-    cout << "WHICH 3" << endl;
     
     if (build_jacobian) {
       J_over->resumeFill();
@@ -1654,8 +1642,6 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       store_adjPrev = true;
     }
 
-    cout << "COME ON " << endl;
-    
     assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
                               current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                               params->num_active_params, params->Psol[0], is_final_time, deltat);
