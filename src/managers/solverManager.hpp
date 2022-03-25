@@ -202,7 +202,7 @@ namespace MrHyDE {
     // numsteps of BDF scheme
     // numstages of RK
     vector<int> BDForder, startupBDForder, startupSteps, numsteps, numstages; // [set]
-    // TODO here adding max values?
+    // maximum number of steps and stages required by time integrator
     vector<int> maxnumsteps, maxnumstages; // [set]
     int numEvaluations, maxTimeStepCuts;
     vector<string> ButcherTab, startupButcherTab; // [set]

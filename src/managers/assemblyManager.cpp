@@ -1645,27 +1645,17 @@ void AssemblyManager<Node>::createWorkset() {
       wkset[block]->block = block;
       wkset[block]->set_var_bcs = bcs;
       wkset[block]->var_bcs = bcs[0];
-      // TODO now we will ALWAYS initialize as shown below
-      //// initialize BDF_wts vector (empty views)
-      //vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpBDF_wts(phys->setnames.size());
-      //wkset[block]->set_BDF_wts = tmpBDF_wts;
-      //// initial Butcher tableau vectors (empty views);
-      //vector<Kokkos::View<ScalarT**,AssemblyDevice> > tmpbutcher_A(phys->setnames.size());
-      //vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_b(phys->setnames.size());
-      //vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_c(phys->setnames.size());
-      //wkset[block]->set_butcher_A = tmpbutcher_A;
-      //wkset[block]->set_butcher_b = tmpbutcher_b;
-      //wkset[block]->set_butcher_c = tmpbutcher_c;
     }
     else {
       wkset.push_back(Teuchos::rcp( new workset()));
       wkset[block]->isInitialized = false;
       wkset[block]->block = block;
     }
+      // this needs to be done even for uninitialized worksets
       // initialize BDF_wts vector (empty views)
       vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpBDF_wts(phys->setnames.size());
       wkset[block]->set_BDF_wts = tmpBDF_wts;
-      // initial Butcher tableau vectors (empty views);
+      // initialize Butcher tableau vectors (empty views);
       vector<Kokkos::View<ScalarT**,AssemblyDevice> > tmpbutcher_A(phys->setnames.size());
       vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_b(phys->setnames.size());
       vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_c(phys->setnames.size());

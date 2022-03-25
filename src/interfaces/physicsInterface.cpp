@@ -1004,4 +1004,3 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
 void PhysicsInterface::purgeMemory() {
   // nothing here
 }
-    
