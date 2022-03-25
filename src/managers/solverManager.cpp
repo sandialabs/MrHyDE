@@ -78,39 +78,6 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   maxTimeStepCuts = settings->sublist("Solver").get<int>("maximum time step cuts",5);
   amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
   
-  // TODO REMOVE ME
-//  // The Butcher tableau and BDF coefficients can vary by physics set
-//  // If they are universal, we get the values here.
-//  // If set-specific values are supplied later, they are overwritten
-//  ButcherTab = settings->sublist("Solver").get<string>("transient Butcher tableau","BWE");
-//  BDForder = settings->sublist("Solver").get<int>("transient BDF order",1);
-//  if (BDForder>1) {
-//    if (ButcherTab == "custom") {
-//      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
-//      cout << "The code will run, but the results may be nonsense" << endl;
-//    }
-//    else {
-//      if (ButcherTab != "BWE" && ButcherTab != "DIRK-1,1") {
-//        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
-//      }
-//    }
-//  }
-//  
-//  // Additional parameters for higher-order BDF methods that require some startup procedure
-//  startupButcherTab = settings->sublist("Solver").get<string>("transient startup Butcher tableau",ButcherTab);
-//  startupBDForder = settings->sublist("Solver").get<int>("transient startup BDF order",BDForder);
-//  startupSteps = settings->sublist("Solver").get<int>("transient startup steps",BDForder);
-//  if (startupBDForder>1) {
-//    if (startupButcherTab == "custom") {
-//      cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
-//      cout << "The code will run, but the results may be nonsense" << endl;
-//    }
-//    else {
-//      if (startupButcherTab != "BWE" && startupButcherTab != "DIRK-1,1") {
-//        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: need to use BWE or DIRK-1,1 with higher order BDF");
-//      }
-//    }
-//  }
   
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
@@ -505,16 +472,7 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
 
   for (size_t block=0; block<assembler->groups.size(); ++block) {
 
-    // TODO removing this for now
-    // If the workset on this block is not used (due to not owning any groups)
-    // don't do anything
-    //if ( !(assembler->wkset[block]->isInitialized) ) continue; 
-
-    // Gather RK weights for this block before assigning them to the workset
-    //Kokkos::View<ScalarT**,AssemblyDevice> block_butcher_A; 
-    //Kokkos::View<ScalarT*,AssemblyDevice>  block_butcher_b, block_butcher_c;
     // TODO the RK scheme cannot be specified block by block
-    // currently handled like before with member vars
 
     auto myTableau = tableau[set];
 
@@ -733,8 +691,6 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
     Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A("butcher_A on device",butcher_A.extent(0),butcher_A.extent(1));
     Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b("butcher_b on device",butcher_b.extent(0));
     Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_c("butcher_c on device",butcher_c.extent(0));
-
-    // TODO HERE need to figure out how to modify and what is going on
   
     auto tmp_butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
     auto tmp_butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
@@ -753,7 +709,7 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
     //block_butcher_c.push_back(dev_butcher_c);
   
     int newnumstages = butcher_A.extent(0);
-    // TODO same here?? why?
+
     maxnumstages[set] = std::max(numstages[set],newnumstages);
     numstages[set] = newnumstages;
   
@@ -779,13 +735,6 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
 
   for (size_t block=0; block<assembler->groups.size(); ++block) {
 
-    // TODO removing this for now...
-    // If the workset on this block is not used (due to not owning any groups)
-    // don't do anything
-    //if ( !(assembler->wkset[block]->isInitialized) ) continue; 
-
-    // Gather BDF weights for this block before assigning them to the workset
-    //Kokkos::View<ScalarT*,AssemblyDevice> block_BDF_wts;
     // TODO currently, the BDF wts cannot be specified block by block
 
     Kokkos::View<ScalarT*,AssemblyDevice> dev_BDF_wts;
@@ -845,8 +794,7 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
       }
 
       int newnumsteps = BDF_wts.extent(0)-1;
-      // TODO why this logic? Is the so the storage get set up correctly?
-      // Not so it actually reflects the total number of steps? 
+
       maxnumsteps[set] = std::max(maxnumsteps[set],newnumsteps);
       numsteps[set] = newnumsteps;
 
@@ -1360,7 +1308,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       }
       for (int ss=0; ss<subcycles; ++ss) {
         for (size_t set=0; set<u.size(); ++set) {
-          // TODO this needs to come first now, so that updatePhysicsSet can pick out the
+          // this needs to come first now, so that updatePhysicsSet can pick out the
           // time integration info
           if (BDForder[set] > 1 && stepProg == startupSteps[set]) {
             // Only overwrite the current set
@@ -1369,23 +1317,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           }
 
           assembler->updatePhysicsSet(set);
-          // TODO this is potentially now handled in the setBack.. and setButch.. routines
-          // Make sure we have the correct number of RK stages (which can change after the transient startup)
-          // TODO move this line into the if statement above for more clarity?
-          // TODO if butcher_A is NOT SET by any block on an MPI process, this 
-          // is zero! and causes issues...
-          // currently, all sets need to share RK/BDF data and all MPI processes
-          // need this data (even if no blocks on that process have elements in that set)
-          // TODO discuss... but hacked to work for now by ensuring that
-          // all RK/BDF data is shared regardless
-
-          // OK SO THIS LINE IS DANGEROUS... 
-          // For the same reasons as above...
-          // butcher_A will not get updated if there are no groups on a particular
-          // block for that physics set...
-          // which means we can pull the incorrect number of stages
-          // TODO this should now get updated as appropriate
-          //numstages[set] = assembler->wkset[0]->butcher_A.extent(0);
       
           // Increment the previous step solutions (shift history and moves u into first spot)
           assembler->resetPrevSoln(set); 
@@ -1401,7 +1332,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           vector_RCP u_stage = linalg->getNewOverlappedVector(set);
 
           u_prev[set]->assign(*(u[set]));
-
+          
           for (int stage=0; stage<numstages[set]; stage++) {
             // Need a stage solution
             // Set the initial guess for stage solution
