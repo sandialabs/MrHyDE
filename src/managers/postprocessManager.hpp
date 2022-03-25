@@ -91,6 +91,7 @@ namespace MrHyDE {
       target = 0.0;
       function = "";
       use_sensor_grid = false;
+      output_type = "";
 
       if (type == "sensors") {
         sensor_points_file = objsettings.get<string>("sensor points file","sensor_points.dat");
@@ -114,6 +115,8 @@ namespace MrHyDE {
         response_file = objsettings.get<string>("response file","sensor."+name);
         compute_sensor_soln = objsettings.get<bool>("compute sensor solution",false);
         compute_sensor_average_soln = objsettings.get<bool>("compute sensor average solution",false);
+        output_type = objsettings.get<string>("output type",""); // "fft" for fft output
+        
         if (compute_sensor_soln && compute_sensor_average_soln) {
           // throw an error
         }      
@@ -155,7 +158,7 @@ namespace MrHyDE {
     vector<Kokkos::View<ScalarT*,HostDevice> > response_data;
     
     // Data specific to sensors
-    string sensor_points_file, sensor_data_file;
+    string sensor_points_file, sensor_data_file, output_type;
     size_t numSensors;
     bool use_sensor_grid, compute_sensor_soln, compute_sensor_average_soln;
     int sensor_grid_Nx, sensor_grid_Ny, sensor_grid_Nz;
@@ -555,6 +558,10 @@ namespace MrHyDE {
     std::vector<std::vector<std::pair<std::string,std::string> > > error_list; // [block][errors] <varname,type>
     std::vector<std::vector<std::vector<std::pair<std::string,std::string> > > > subgrid_error_lists; // [block][sgmodel][errors]
     
+#if defined(MrHyDE_ENABLE_FFTW)
+    Teuchos::RCP<fftInterface> fft;
+#endif
+
     
     // Timers
     Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeError");
