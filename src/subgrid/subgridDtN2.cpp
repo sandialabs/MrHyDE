@@ -329,8 +329,8 @@ void SubGridDtN2::setUpSubgridModels() {
           if (boundary_groups[mindex][grp]->numElem > 0) {
             boundary_groups[mindex][grp]->wkset = wkset[0];
             boundary_groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
-                                                  sub_solver->solver->numsteps,
-                                                  sub_solver->solver->numstages);
+                                                  sub_solver->solver->maxnumsteps,
+                                                  sub_solver->solver->maxnumstages);
           }
         }
       }
@@ -553,10 +553,10 @@ void SubGridDtN2::createNewGroups(SubGridTools2 & sgt, size_t & mindex) {
   
   newgroups[0]->setWorkset(sub_assembler->wkset[0]);
   newgroups[0]->setUseBasis(sub_solver->solver->useBasis[0],
-                                sub_solver->solver->numsteps,
-                                sub_solver->solver->numstages);
-  newgroups[0]->setUpAdjointPrev(sub_solver->solver->numsteps,
-                                     sub_solver->solver->numstages);
+                                sub_solver->solver->maxnumsteps,
+                                sub_solver->solver->maxnumstages);
+  newgroups[0]->setUpAdjointPrev(sub_solver->solver->maxnumsteps,
+                                     sub_solver->solver->maxnumstages);
   newgroups[0]->setUpSubGradient(sub_solver->solver->params->num_active_params);
   
   groups.push_back(newgroups);

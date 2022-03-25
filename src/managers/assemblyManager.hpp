@@ -240,7 +240,7 @@ namespace MrHyDE {
     size_t globalParamUnknowns;
     int verbosity, debug_level;
     
-    // Groupss and worksets are unique to each block, but span the physics sets
+    // Groups and worksets are unique to each block, but span the physics sets
     std::vector<Teuchos::RCP<GroupMetaData> > groupData;
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
     std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;

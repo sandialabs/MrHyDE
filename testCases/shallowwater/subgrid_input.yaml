@@ -17,19 +17,16 @@ ANONYMOUS:
       max EV stabilization: true
       g: 1. ## gravity is 1
       Initial conditions:
-        #H: '2.0+sin(pi*x)*sin(pi*y)' #'2. + exp( sin(3.*x)*sin(3.*y) )'
-        #Hux: '0.0' #'cos(-x)'
-        #Huy: '0.0' #'sin(y)'
         H: '2. + exp( sin(3.*x)*sin(3.*y) )'
         Hux: 'cos(-x)'
         Huy: 'sin(y)'
-        #Far-field conditions:
-        #  H:
-        #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-        #  Hux:
-        #    all boundaries: 'cos(4.*t - x)'
-        #  Huy:
-        #    all boundaries: 'sin(4.*t + y)'
+      Far-field conditions:
+        H:
+          all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+        Hux:
+          all boundaries: 'cos(4.*t - x)'
+        Huy:
+          all boundaries: 'sin(4.*t + y)'
     Functions:
       Hexp: 'exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
       source H: '-3.0*Hexp*cos(3.0*t) + sin(4.0*t - x) + cos(4.0*t + y)'

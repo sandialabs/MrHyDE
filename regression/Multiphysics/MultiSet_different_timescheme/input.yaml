@@ -1,0 +1,60 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 3
+    element type: hex
+    source: Exodus
+    mesh file: two_block_3D.e
+  Functions:
+    ODE source: -1.0*q
+  Physics:
+    physics set names: "ODE, CDR"
+    ODE:
+      modules: ODE
+      assemble boundary terms: false
+      Initial conditions:
+        scalar data: true
+        q: 1.0
+    CDR:
+      modules: cdr
+  Discretization:
+    ODE:
+      order:
+        q: 1
+      quadrature: 2
+    CDR:
+      order:
+        c: 1
+      quadrature: 2
+  Solver:
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: BWE
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 1
+    final time: 1.0e-2
+    number of steps: 8
+    reuse Jacobian: false
+    use direct solver: true
+    lump mass: false
+    fully explicit: false
+    ODE:
+      transient Butcher tableau: BWE
+      transient BDF order: 3
+      transient startup BDF order: 1
+      transient startup Butcher tableau: RK-4,4
+      transient startup steps: 5
+    CDR:
+      transient Butcher tableau: RK-4,4 
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    True solutions:
+      q: 1.0*exp(-1.0*t)
+      c: '0.0'
+...

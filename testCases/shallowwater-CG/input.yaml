@@ -45,10 +45,7 @@ ANONYMOUS:
       Hu: 1
       Hv: 1
     quadrature: 2
-  #Subgrid input file: subgrid_input.yaml
   Solver:
-    #solver: steady-state
-    #initial type: L2-projection-HFACE
     solver: transient
     workset size: 100
     nonlinear TOL: 1.0e-06
