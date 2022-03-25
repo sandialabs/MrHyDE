@@ -12,7 +12,7 @@ from mrhyde_test_support import *
 # Parsing input
 
 # No reason to format the description as it will be reformatted by optparse.
-desc = '''thermal verification
+desc = '''Multiset with different time schemes for each set
        '''
 
 its = mrhyde_test_support(desc)
@@ -33,7 +33,7 @@ fdtol= 5.0e-10     # finite difference gradient tolerance
 # These comments are for testing with the runtest.py utility.
 #TESTING active
 #TESTING -n 3
-#TESTING -k CDR,ODE,multiblock,multiset,coupled
+#TESTING -k CDR,ODE,multiset,coupled
 
 # ==============================================================================
 status = 0

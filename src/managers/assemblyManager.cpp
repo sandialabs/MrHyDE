@@ -505,7 +505,6 @@ void AssemblyManager<Node>::createGroups() {
             }
           }
           
-          
           size_t numAdded=0;
           while (numAdded < numTotalElem) {
             vector<size_t> newgroup;
@@ -1652,6 +1651,17 @@ void AssemblyManager<Node>::createWorkset() {
       wkset[block]->isInitialized = false;
       wkset[block]->block = block;
     }
+      // this needs to be done even for uninitialized worksets
+      // initialize BDF_wts vector (empty views)
+      vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpBDF_wts(phys->setnames.size());
+      wkset[block]->set_BDF_wts = tmpBDF_wts;
+      // initialize Butcher tableau vectors (empty views);
+      vector<Kokkos::View<ScalarT**,AssemblyDevice> > tmpbutcher_A(phys->setnames.size());
+      vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_b(phys->setnames.size());
+      vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_c(phys->setnames.size());
+      wkset[block]->set_butcher_A = tmpbutcher_A;
+      wkset[block]->set_butcher_b = tmpbutcher_b;
+      wkset[block]->set_butcher_c = tmpbutcher_c;
   }
   
   if (debug_level > 0) {

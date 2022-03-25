@@ -359,6 +359,9 @@ namespace MrHyDE {
     
     Kokkos::View<ScalarT**,AssemblyDevice> butcher_A;
     Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, butcher_c, BDF_wts;
+
+    vector<Kokkos::View<ScalarT**,AssemblyDevice> > set_butcher_A; // [set]
+    vector<Kokkos::View<ScalarT*,AssemblyDevice> > set_butcher_b, set_butcher_c, set_BDF_wts; // [set]
     
     vector<vector<int> > set_usebasis;
     vector<int> usebasis;

@@ -48,17 +48,19 @@ settings(settings_), Commptr(Comm_){
   }
   
   for (size_t set=0; set<setnames.size(); ++set) {
-    Teuchos::ParameterList psetlist, dsetlist;
+    Teuchos::ParameterList psetlist, dsetlist, ssetlist;
     if (setnames[set] == "default") {
       psetlist = settings->sublist("Physics");
       dsetlist = settings->sublist("Discretization");
+      ssetlist = settings->sublist("Solver");
     }
     else {
       psetlist = settings->sublist("Physics").sublist(setnames[set]);
       dsetlist = settings->sublist("Discretization").sublist(setnames[set]);
+      ssetlist = settings->sublist("Solver").sublist(setnames[set]);
     }
     
-    vector<Teuchos::ParameterList> currpsettings, currdsettings;
+    vector<Teuchos::ParameterList> currpsettings, currdsettings, currssettings;
     for (size_t block=0; block<blocknames.size(); ++block) {
       if (psetlist.isSublist(blocknames[block])) { // adding block overwrites the default
         currpsettings.push_back(psetlist.sublist(blocknames[block]));
@@ -73,9 +75,17 @@ settings(settings_), Commptr(Comm_){
       else { // default
         currdsettings.push_back(dsetlist);
       }
+
+      if (ssetlist.isSublist(blocknames[block])) { // adding block overwrites default
+        currssettings.push_back(ssetlist.sublist(blocknames[block]));
+      }
+      else { // default
+        currssettings.push_back(ssetlist);
+      }
     }
     setPhysSettings.push_back(currpsettings);
     setDiscSettings.push_back(currdsettings);
+    setSolverSettings.push_back(currssettings);
   }
     
   this->importPhysics();
@@ -994,4 +1004,3 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
 void PhysicsInterface::purgeMemory() {
   // nothing here
 }
-    

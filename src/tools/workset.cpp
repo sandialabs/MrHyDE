@@ -453,7 +453,6 @@ void workset::computeSolnTransientSeeded(const size_t & set,
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
-  
   // These need to be set locally to be available to AssemblyDevice
   ScalarT dt = deltat;
   int stage = current_stage;
@@ -2403,8 +2402,14 @@ void workset::setAux(View_AD4 newsol, const string & pfix) {
 }
 
 //////////////////////////////////////////////////////////////
-// Set the solution at a point
+// Update the set-specific workset attributes
 //////////////////////////////////////////////////////////////
+
+/**
+ * @brief Update the set-specific workset attributes
+ * 
+ * @param[in] current_set_ The index of the current physics set
+ */
 
 void workset::updatePhysicsSet(const size_t & current_set_) {
   if (isInitialized) {
@@ -2414,6 +2419,10 @@ void workset::updatePhysicsSet(const size_t & current_set_) {
       usebasis = set_usebasis[current_set];
       varlist = set_varlist[current_set];
       var_bcs = set_var_bcs[current_set];
+      butcher_A = set_butcher_A[current_set];
+      butcher_b = set_butcher_b[current_set];
+      butcher_c = set_butcher_c[current_set];
+      BDF_wts = set_BDF_wts[current_set];
     }
   }
 }

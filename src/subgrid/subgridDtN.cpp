@@ -686,10 +686,10 @@ void SubGridDtN::setUpSubgridModels() {
       for (size_t grp=0; grp<groups[mindex].size(); ++grp) {
         groups[mindex][grp]->setWorkset(sub_assembler->wkset[0]);
         groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
-                                      sub_solver->solver->numsteps,
-                                      sub_solver->solver->numstages);
-        groups[mindex][grp]->setUpAdjointPrev(sub_solver->solver->numsteps,
-                                           sub_solver->solver->numstages);
+                                      sub_solver->solver->maxnumsteps,
+                                      sub_solver->solver->maxnumstages);
+        groups[mindex][grp]->setUpAdjointPrev(sub_solver->solver->maxnumsteps,
+                                           sub_solver->solver->maxnumstages);
         groups[mindex][grp]->setUpSubGradient(sub_solver->solver->params->num_active_params);
       }
       if (boundary_groups.size() > mindex) { // should always be true here
@@ -697,8 +697,8 @@ void SubGridDtN::setUpSubgridModels() {
           if (boundary_groups[mindex][grp]->numElem > 0) {
             boundary_groups[mindex][grp]->setWorkset(sub_assembler->wkset[0]);
             boundary_groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
-                                                  sub_solver->solver->numsteps,
-                                                  sub_solver->solver->numstages);
+                                                  sub_solver->solver->maxnumsteps,
+                                                  sub_solver->solver->maxnumstages);
           }
         }
       }

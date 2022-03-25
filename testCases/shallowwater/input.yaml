@@ -24,21 +24,8 @@ ANONYMOUS:
       H: '2. + exp( sin(3.*x)*sin(3.*y) )'
       Hux: 'cos(-x)'
       Huy: 'sin(y)'
-    Dirichlet conditions:
-      static data: false
-      #Hux:
-      #  left: '0.0'
-      #  right: '0.0'
-      #Huy:
-      #  top: '0.0'
-      # bottom: '0.0'
-      H:
-        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-      Hux:
-        all boundaries: 'cos(4.*t - x)'
-      Huy:
-        all boundaries: 'sin(4.*t + y)'
-      #Far-field conditions:
+      #Dirichlet conditions:
+      #  static data: false
       #  H:
       #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
       #  Hux:
@@ -63,7 +50,7 @@ ANONYMOUS:
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: 1.e-1
+    final time: 1.e-2
     delta t: 1.e-3
     #number of steps: 100
     use direct solver: true
