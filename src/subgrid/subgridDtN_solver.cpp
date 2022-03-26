@@ -1207,7 +1207,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
   assembler->wkset[0]->isOnSide = true;
   for (size_t e=0; e<assembler->boundary_groups[macrogrp].size(); e++) {
 
-    if (assembler->boundary_groups[macrogrp][e]->sidename == "interior") {
+    //if (assembler->boundary_groups[macrogrp][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
         assembler->boundary_groups[macrogrp][e]->updateData();
@@ -1216,7 +1216,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
       
       auto cwts = assembler->wkset[0]->wts_side;
       ScalarT h = 0.0;
-      assembler->wkset[0]->sidename = "interior";
+      //assembler->wkset[0]->sidename = "interior";
       {
         Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
         assembler->boundary_groups[macrogrp][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
@@ -1244,7 +1244,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
           });
         }
       }
-    }
+    //}
   }
   assembler->wkset[0]->isOnSide = false;
 
