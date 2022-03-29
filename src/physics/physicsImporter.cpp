@@ -36,6 +36,7 @@
 #include "variableDensityNS.hpp"
 #include "euler.hpp"
 #include "shallowwaterHybridized.hpp"
+#include "incompressibleSaturation.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -163,6 +164,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // Euler equations
     if (modname == "Euler" || modname == "euler"){
       modules.push_back(Teuchos::rcp(new euler(settings, dimension) ) );
+    }
+
+    // Incompressible saturation equation
+    if (modname == "incompressible saturation" || modname == "inc sat" ){
+      modules.push_back(Teuchos::rcp(new incompressibleSaturation(settings, dimension) ) );
     }
     
     // Compressible Navier-Stokes
