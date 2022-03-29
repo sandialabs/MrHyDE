@@ -12,9 +12,6 @@
  ************************************************************************/
 
 #include "postprocessManager.hpp"
-#if defined(MrHyDE_ENABLE_FFTW)
-#include "fftInterface.hpp"
-#endif
 
 using namespace MrHyDE;
 
@@ -547,17 +544,17 @@ void PostprocessManager<Node>::report() {
             int numsensors = objectives[obj].numSensors;
             if (numsensors>0) {
               size_t numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
-              int numsols = objectives[obj].sensor_solution_data.extent_int(1); // does assume this does not change in time, which it shouldn't
-              int numdims = objectives[obj].sensor_solution_data.extent_int(2);
+              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
+              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
               int numfields = numsols*numdims;
-              Kokkos::View<ScalarT***,HostDevice> sensor_data(numsensors, numfields, numtimes);
+              Kokkos::View<ScalarT***,HostDevice> sensor_data("sensor data",numsensors, numfields, numtimes);
               for (size_t t=0; t<numtimes; ++t) {
                 auto sdat = objectives[obj].sensor_solution_data[t];
                 for (int sens=0; sens<numsensors; ++sens) {
                   size_t solprog = 0;
                   for (int sol=0; sol<numsols; ++sol) {
                     for (int d=0; d<numdims; ++d) {
-                      sensor_data(sens,solprog,t) = sdat(sens,sol,dim);
+                      sensor_data(sens,solprog,t) = sdat(sens,sol,d);
                       solprog++;
                     }
                   }
@@ -568,12 +565,12 @@ void PostprocessManager<Node>::report() {
               auto sensor_found = objectives[obj].sensor_found;
               for (size_type s=0; s<sensor_found.extent(0); ++s) {
                 if (sensor_found(s)) {
-                  sensorID(sprog) = s;
+                  sensorIDs(sprog) = s;
                   ++sprog;
                 }
               }
 
-              fft->compute(sensor_data, sensorIDs);
+              fft->compute(sensor_data, sensorIDs, global_num_sensors);
             }
 #endif
           }
@@ -4693,6 +4690,8 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
                                                   Kokkos::View<int*[2],HostDevice> spts_owners, 
                                                   Kokkos::View<bool*,HostDevice> spts_found) {
   
+  global_num_sensors = spts_host.extent(0);
+
   for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
     
     auto nodes = assembler->groups[block][grp]->nodes;

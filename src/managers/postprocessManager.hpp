@@ -24,6 +24,9 @@
 #include "parameterManager.hpp"
 #include "multiscaleManager.hpp"
 #include "linearAlgebraInterface.hpp"
+#if defined(MrHyDE_ENABLE_FFTW)
+#include "fftInterface.hpp"
+#endif
 
 namespace MrHyDE {
   
@@ -541,6 +544,7 @@ namespace MrHyDE {
     bool have_sensor_data, save_sensor_data, write_dakota_output, isTD, store_sensor_solution;
     std::string sname;
     ScalarT stddev;
+    size_type global_num_sensors;
     
     std::vector<std::string> blocknames, setnames, sideSets, error_types, subgrid_error_types;
     std::vector<std::vector<Kokkos::View<ScalarT*,HostDevice> > > errors; // [time][block](error_type)
