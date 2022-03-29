@@ -2,7 +2,7 @@
 ---
 ### Based off of example 1 in Samii, J. Sci. Comp. (2019) ###
 ANONYMOUS:
-  verbosity: 10
+  verbosity: 0
   debug level: 0
   profile: false
   Mesh:
@@ -24,14 +24,14 @@ ANONYMOUS:
       H: '2. + exp( sin(3.*x)*sin(3.*y) )'
       Hux: 'cos(-x)'
       Huy: 'sin(y)'
-      #Dirichlet conditions:
-      #  static data: false
-      #  H:
-      #    all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
-      #  Hux:
-      #    all boundaries: 'cos(4.*t - x)'
-      #  Huy:
-      #    all boundaries: 'sin(4.*t + y)'
+    Far-field conditions:
+      static data: false
+      H:
+        all boundaries: '2. + exp( sin(3.*x)*sin(3.*y)-sin(3.*t) )'
+      Hux:
+        all boundaries: 'cos(4.*t - x)'
+      Huy:
+        all boundaries: 'sin(4.*t + y)'
 
   Discretization:
     order:
@@ -42,18 +42,16 @@ ANONYMOUS:
     quadrature: 2
   Subgrid input file: subgrid_input.yaml
   Solver:
-    #solver: steady-state
-    #initial type: L2-projection-HFACE
     solver: transient
     workset size: 100
     nonlinear TOL: 1.0e-06
     linear TOL: 1.0e-6
     max nonlinear iters: 10
     max linear iters: 100
-    final time: 1.e-2
+    final time: 1.e-1
     delta t: 1.e-3
-    #number of steps: 100
     use direct solver: true
+    assembly partitioning: subgrid-preserving
   Analysis: 
     analysis type: forward
   Postprocess: 
