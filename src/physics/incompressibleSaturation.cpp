@@ -29,26 +29,13 @@ incompressibleSaturation::incompressibleSaturation(Teuchos::ParameterList & sett
   spaceDim = dimension_;
 
   // The state is defined by (S,u) where S is the water saturation and u is the velocity
+  // The velocity is obtained with the Poisson solve, so the only variable
+  // solved for here is S
   // phi is the constant porosity
 
   myvars.push_back("S");
-  myvars.push_back("ux");
-  if (spaceDim > 1) {
-    myvars.push_back("uy");
-  }
-  if (spaceDim > 2) {
-    myvars.push_back("uz");
-  }
 
   mybasistypes.push_back("HGRAD");
-  mybasistypes.push_back("HGRAD");
-  mybasistypes.push_back("HGRAD");
-  if (spaceDim > 1) {
-    mybasistypes.push_back("HGRAD");
-  }
-  if (spaceDim > 2) {
-    mybasistypes.push_back("HGRAD");
-  }
   
   // Params from input file
 
@@ -66,13 +53,11 @@ void incompressibleSaturation::defineFunctions(Teuchos::ParameterList & fs,
   
   // TODO not supported right now?
   functionManager->addFunction("source S",fs.get<string>("source S","0.0"),"ip");
-  functionManager->addFunction("source ux",fs.get<string>("source ux","0.0"),"ip");
-  if (spaceDim > 1) {
-    functionManager->addFunction("source uy",fs.get<string>("source uy","0.0"),"ip");
-  }
-  if (spaceDim > 2) {
-    functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),"ip");
-  }
+
+  // Need to talk to the velocity
+  functionManager->addFunction("ux",fs.get<string>("ux","0.0"),"ip");
+  if (spaceDim>1) functionManager->addFunction("uy",fs.get<string>("uy","0.0"),"ip");
+  if (spaceDim>2) functionManager->addFunction("uz",fs.get<string>("uz","0.0"),"ip");
 
   // Storage for the flux vectors
 
@@ -88,17 +73,9 @@ void incompressibleSaturation::volumeResidual() {
   
   vector<Vista> sourceterms;
 
-  // TODO is this a good way to do this??
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     sourceterms.push_back(functionManager->evaluate("source S","ip"));
-    sourceterms.push_back(functionManager->evaluate("source ux","ip"));
-    if (spaceDim > 1) {
-      sourceterms.push_back(functionManager->evaluate("source uy","ip"));
-    }
-    if (spaceDim > 2) {
-      sourceterms.push_back(functionManager->evaluate("source uz","ip"));
-    }
 
     // Update fluxes 
     this->computeFluxVector();
@@ -209,12 +186,6 @@ void incompressibleSaturation::setWorkset(Teuchos::RCP<workset> & wkset_) {
   for (size_t i=0; i<varlist.size(); ++i) {
     if (varlist[i] == "S")
       S_num = i;
-    else if (varlist[i] == "ux")
-      ux_num = i;
-    else if (varlist[i] == "uy")
-      uy_num = i;
-    else if (varlist[i] == "uz")
-      uz_num = i;
   }
 
 }
@@ -232,7 +203,7 @@ void incompressibleSaturation::computeFluxVector() {
 
   auto fluxes = fluxes_vol;
   // these are always needed
-  auto ux = wkset->getSolutionField("ux");
+  auto ux = functionManager->evaluate("ux","ip");
   
   if (spaceDim == 1) {
 
@@ -250,7 +221,7 @@ void incompressibleSaturation::computeFluxVector() {
   } 
   else if (spaceDim == 2) {
     // get the second velocity component
-    auto uy = wkset->getSolutionField("uy");
+    auto uy = functionManager->evaluate("uy","ip");;
 
     parallel_for("saturation fluxes 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -267,8 +238,8 @@ void incompressibleSaturation::computeFluxVector() {
   } 
   else if (spaceDim == 3) {
     // get the second and third velocity component
-    auto uy = wkset->getSolutionField("uy");
-    auto uz = wkset->getSolutionField("uz");
+    auto uy = functionManager->evaluate("uy","ip");;
+    auto uz = functionManager->evaluate("uz","ip");;
 
     parallel_for("saturation fluxes 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),

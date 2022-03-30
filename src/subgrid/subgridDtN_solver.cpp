@@ -261,6 +261,10 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
     }
     else {
       for (int tstep=0; tstep<time_steps; tstep++) {
+        // TODO This seems to assume the coarse scale is single-stage
+        // and the subgrid is BWE
+        // If we update the stage, BDF, RK info correctly, then
+        // the correct "z" should get constructed by the nonlinear solver
         sgtime += macro_deltat/(ScalarT)time_steps;
         // set du/dt and \lambda
         alpha = (ScalarT)time_steps/macro_deltat;
@@ -284,7 +288,6 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         
         this->nonlinearSolver(u, phi, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, alpha, macrogrp, false);
-        
         
         this->computeSolnSens(d_u, compute_sens, u,
                               phi, disc_params, currlambda,

@@ -2960,7 +2960,6 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
       Teuchos::ParameterList flux_settings = blocksettings.sublist("Flux conditions");
       bool use_weak_dbcs = dbc_settings.get<bool>("use weak Dirichlet",false);
       
-      
       Kokkos::View<int****,HostDevice> currside_info;
       if (requires_sideinfo) {
         currside_info = Kokkos::View<int****,HostDevice>("side info",stk_meshElems.size(),

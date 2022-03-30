@@ -149,7 +149,6 @@ void SubGridDtN::setUpSubgridModels() {
     
     sideinfo = sgt.getPhysicalSideinfo(macroData[0]->macrosideinfo);
     
-    // TODO what is this doing? why just macroData[0], etc. everywhere?
     for (size_t c=0; c<sideinfo.extent(0); c++) { // number of elem in cell
       for (size_t i=0; i<sideinfo.extent(1); i++) { // number of variables
         for (size_t j=0; j<sideinfo.extent(2); j++) { // number of sides per element

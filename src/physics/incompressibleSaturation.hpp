@@ -85,7 +85,7 @@ namespace MrHyDE {
 
     int spaceDim;
     
-    int S_num, ux_num, uy_num, uz_num;
+    int S_num;
 
     View_AD4 fluxes_vol; // Storage for the fluxes
 
