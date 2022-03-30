@@ -542,12 +542,14 @@ void PostprocessManager<Node>::report() {
           if (objectives[obj].output_type == "fft") {
 #if defined(MrHyDE_ENABLE_FFTW)
             int numsensors = objectives[obj].numSensors;
+            Kokkos::View<ScalarT***,HostDevice> sensor_data;
+            Kokkos::View<int*,HostDevice> sensorIDs;
             if (numsensors>0) {
               size_t numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
               int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
               int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
               int numfields = numsols*numdims;
-              Kokkos::View<ScalarT***,HostDevice> sensor_data("sensor data",numsensors, numfields, numtimes);
+              sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
               for (size_t t=0; t<numtimes; ++t) {
                 auto sdat = objectives[obj].sensor_solution_data[t];
                 for (int sens=0; sens<numsensors; ++sens) {
@@ -560,7 +562,7 @@ void PostprocessManager<Node>::report() {
                   }
                 }
               }
-              Kokkos::View<int*,HostDevice> sensorIDs("sensor IDs owned by proc", numsensors);
+              sensorIDs = Kokkos::View<int*,HostDevice>("sensor IDs owned by proc", numsensors);
               size_t sprog=0;
               auto sensor_found = objectives[obj].sensor_found;
               for (size_type s=0; s<sensor_found.extent(0); ++s) {
@@ -569,10 +571,12 @@ void PostprocessManager<Node>::report() {
                   ++sprog;
                 }
               }
-
-              fft->compute(sensor_data, sensorIDs, global_num_sensors);
             }
+            fft->compute(sensor_data, sensorIDs, global_num_sensors);
 #endif
+          }
+          else {
+            // nothing yet
           }
         }
         else {
@@ -608,7 +612,7 @@ void PostprocessManager<Node>::report() {
             }
           }
           respOUT.close();
-          }
+        }
       }
       else if (objectives[obj].type == "integrated response") {
         if (objectives[obj].save_data) {
