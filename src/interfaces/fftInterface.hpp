@@ -26,7 +26,7 @@
 #include <iostream>
 #include <cmath>
 #include "trilinos.hpp"
-#include "hdf5.h"
+//#include "hdf5.h"
 
 namespace MrHyDE {
   
@@ -42,12 +42,6 @@ namespace MrHyDE {
     
     ~fftInterface() {} ;
     
-    //fftInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_, Teuchos::RCP<MpiComm> & Comm_) :
-    //settings(settings_), Comm(Comm_){
-    //  nProcs = Comm->getSize();
-    //  myRank = Comm->getRank();
-    //}
-
     void compute(Kokkos::View<ScalarT***,HostDevice> data,  Kokkos::View<int*,HostDevice> IDs,
                  const int & total_sensors) {
       // each MPI process will own a certain number of time series data corresponding
@@ -60,11 +54,11 @@ namespace MrHyDE {
       int num_fields = data.extent_int(1); 
       int num_snaps = data.extent_int(2); // number of equispaced snapshots in the time domain
     
-      int num_sensors_total = total_sensors; // TODO also garbage
+      //int num_sensors_total = total_sensors; // TODO also garbage
     
       // PHDF5 creation
       // TODO SETUP MPI COMMUNICATOR BETWEEN PROCESSES THAT ACTUALLY HAVE SENSORS
-      
+      /*
       herr_t err; // HDF5 return value
       hid_t f_id; // HDF5 file ID
 
@@ -101,15 +95,39 @@ namespace MrHyDE {
       // create the B and E frequency domain storage
       hid_t field_id;
       field_id = H5Dcreate2(f_id,"B_freq",complex_id,ds_id,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
-      
-      fftw_complex *myData;
-      myData = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*num_snaps*num_fields);
-      
+      */
+
+      fftw_complex *myData, *myOutData;
+      //myData = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*num_snaps*num_fields);
+      //myOutData = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*num_snaps*num_fields);
+      myData = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*num_snaps);
+      myOutData = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*num_snaps);
+
       //---------------------------------------------------
       // Perform FFT
       //---------------------------------------------------
       fftw_plan plan;
+      plan = fftw_plan_dft_1d(num_snaps, myData, myOutData, FFTW_FORWARD, FFTW_MEASURE);
+      
+      for (int sens=0; sens<num_sensors; ++sens) {
 
+        
+        for (int i=0; i<num_fields; i++) {
+          for (int j=0; j<num_snaps; j++) {
+            myData[j][0] = data(sens,i,j); 
+            myData[j][1] = 0.0;
+          }
+          fftw_execute_dft(plan, myData, myOutData);
+
+          for (int j=0; j<num_snaps; j++) {
+            data(sens,i,j) = myOutData[j][0];
+          }
+        }
+        
+      }
+      fftw_destroy_plan(plan);
+
+      /*
       for (int sens=0; sens<num_sensors; ++sens) {
 
         
@@ -129,19 +147,29 @@ namespace MrHyDE {
         int istride = 1, ostride = 1; // distance between elements in a data line
         int *inembed = n, *onembed = n; // TODO don't fully understand this
 
-        plan = fftw_plan_many_dft(rank,n,howmany,myData,inembed,istride,idist,
-                                  myData,onembed,ostride,odist,
-                                  FFTW_FORWARD, FFTW_ESTIMATE); // forward transform
+        fftw_plan plan = fftw_plan_many_dft(rank,n,howmany,myData,inembed,istride,idist,
+                                            myData,onembed,ostride,odist,
+                                            FFTW_FORWARD, FFTW_ESTIMATE); // forward transform
       
-      
+        fftw_execute_dft(plan, myData, myOutData);
+
+        for (unsigned int i=0; i<num_fields; i++) {
+          for (unsigned int j=0; j<num_snaps; j++) {
+            data(sens,i,j) = myOutData[i*num_snaps+j][0];
+            //cout << myData[i*num_snaps+j][0] << "  " << myData[i*num_snaps+j][1] << endl;
+          }
+        }
+        fftw_destroy_plan(plan);
+      */
         //---------------------------------------------------
         // Write this data to the HDF5 file
         //---------------------------------------------------
-      
+        /*
         // set up the portion of the files this process will access
 
         hsize_t start[3] = {IDs(sens),0,0};
-        hsize_t count[3] = {num_sensors,num_fields,num_snaps};
+        //hsize_t count[3] = {num_sensors,num_fields,num_snaps};
+        hsize_t count[3] = {1,num_fields,num_snaps};
 
         err = H5Sselect_hyperslab(ds_id,H5S_SELECT_SET,start,NULL, // contiguous
                                   count,NULL); // contiguous 
@@ -155,15 +183,17 @@ namespace MrHyDE {
         hsize_t flattened[] = {num_snaps*num_fields};
         hid_t ms_id = H5Screate_simple(1,flattened,NULL);
         err = H5Dwrite(field_id,complex_id,ms_id,ds_id,H5P_DEFAULT,myData);
-        
-      }
+        */
+      //}
 
+      /*
       err = H5Dclose(field_id);
       
       H5Sclose(ds_id);
       H5Fclose(f_id);
+      */
 
-      fftw_destroy_plan(plan);
+      
       fftw_free(myData);
 
     }

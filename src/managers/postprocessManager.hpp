@@ -525,6 +525,7 @@ namespace MrHyDE {
     vector<fluxResponse> fluxes;
     vector< vector<integratedQuantity> > integratedQuantities; /// A vector of integrated quantities for each block
     
+    ScalarT record_start, record_stop;
     bool compute_objective, compute_flux_response, compute_integrated_quantities;
     ScalarT discrete_objective_scale_factor;
     vector<vector<string> > extrafields_list, extracellfields_list, derivedquantities_list;
@@ -572,6 +573,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::writeSolution");
     Teuchos::RCP<Teuchos::Time> writeSolutionSolIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::writeSolution - solution to ip");
     Teuchos::RCP<Teuchos::Time> objectiveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeObjective()");
+    Teuchos::RCP<Teuchos::Time> sensorSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeSensorSolution()");
+    Teuchos::RCP<Teuchos::Time> reportTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::report()");
     Teuchos::RCP<Teuchos::Time> computeWeightedNormTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeWeightedNorm()");
   };
   

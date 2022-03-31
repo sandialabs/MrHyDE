@@ -91,6 +91,9 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   compute_flux_response = settings->sublist("Postprocess").get("compute flux response",false);
   store_sensor_solution = settings->sublist("Postprocess").get("store sensor solution",false);
 
+  record_start = settings->sublist("Postprocess").get("record start time",-DBL_MAX);
+  record_stop = settings->sublist("Postprocess").get("record stop time",DBL_MAX);
+
   compute_integrated_quantities = settings->sublist("Postprocess").get("compute integrated quantities",false);
  
   compute_weighted_norm = settings->sublist("Postprocess").get<bool>("compute weighted norm",false);
@@ -488,31 +491,33 @@ PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & int
 template<class Node>
 void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                                       const bool & write_this_step, DFAD & objectiveval) {
-  if (compute_error) {
-    this->computeError(current_time);
-  }
-  if ((compute_response || compute_objective) && write_this_step) {
-    this->computeObjective(current_soln, current_time, objectiveval);
-  }
-  if (write_solution && write_this_step) {
-    this->writeSolution(current_time);
-  }
-  if (save_solution) {
-    for (size_t set=0; set<soln.size(); ++set) {
-      soln[set]->store(current_soln[set], current_time, 0);
+  if (current_time+1.0e-100 >= record_start && current_time-1.0e-100 <= record_stop) {
+    if (compute_error) {
+      this->computeError(current_time);
     }
-  }
-  if (compute_flux_response) {
-    this->computeFluxResponse(current_time);
-  }
-  if (compute_integrated_quantities) {
-    this->computeIntegratedQuantities(current_time);
-  }
-  if (compute_weighted_norm && write_this_step) {
-    this->computeWeightedNorm(current_soln);
-  }
-  if (store_sensor_solution && write_this_step) {
-    this->computeSensorSolution(current_soln, current_time);
+    if ((compute_response || compute_objective) && write_this_step) {
+      this->computeObjective(current_soln, current_time, objectiveval);
+    }
+    if (write_solution && write_this_step) {
+      this->writeSolution(current_time);
+    }
+    if (save_solution) {
+      for (size_t set=0; set<soln.size(); ++set) {
+        soln[set]->store(current_soln[set], current_time, 0);
+      }
+    }
+    if (compute_flux_response) {
+      this->computeFluxResponse(current_time);
+    }
+    if (compute_integrated_quantities) {
+      this->computeIntegratedQuantities(current_time);
+    }
+    if (compute_weighted_norm && write_this_step) {
+      this->computeWeightedNorm(current_soln);
+    }
+    if (store_sensor_solution && write_this_step) {
+      this->computeSensorSolution(current_soln, current_time);
+    }
   }
 }
 
@@ -522,6 +527,8 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
 template<class Node>
 void PostprocessManager<Node>::report() {
   
+  Teuchos::TimeMonitor localtimer(*reportTimer);
+
   ////////////////////////////////////////////////////////////////////////////
   // Report the responses
   ////////////////////////////////////////////////////////////////////////////
@@ -534,21 +541,27 @@ void PostprocessManager<Node>::report() {
         cout << "*********************************************************" << endl;
       }
     }
-    
+    //Kokkos::Timer timer;
+    //timer.reset();
+
     for (size_t obj=0; obj<objectives.size(); ++obj) {
       if (objectives[obj].type == "sensors") {
         if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
         
+          Kokkos::View<ScalarT***,HostDevice> sensor_data;
+          size_t numtimes = 0;
+          int numfields = 0;
+
+          //timer.reset();
           if (objectives[obj].output_type == "fft") {
 #if defined(MrHyDE_ENABLE_FFTW)
             int numsensors = objectives[obj].numSensors;
-            Kokkos::View<ScalarT***,HostDevice> sensor_data;
             Kokkos::View<int*,HostDevice> sensorIDs;
             if (numsensors>0) {
-              size_t numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
+              numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
               int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
               int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
-              int numfields = numsols*numdims;
+              numfields = numsols*numdims;
               sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
               for (size_t t=0; t<numtimes; ++t) {
                 auto sdat = objectives[obj].sensor_solution_data[t];
@@ -571,13 +584,96 @@ void PostprocessManager<Node>::report() {
                   ++sprog;
                 }
               }
+              fft->compute(sensor_data, sensorIDs, global_num_sensors);
             }
-            fft->compute(sensor_data, sensorIDs, global_num_sensors);
+            
 #endif
           }
           else {
-            // nothing yet
+            int numsensors = objectives[obj].numSensors;
+            Kokkos::View<int*,HostDevice> sensorIDs;
+            if (numsensors>0) {
+              numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
+              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
+              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+              numfields = numsols*numdims;
+              sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
+              for (size_t t=0; t<numtimes; ++t) {
+                auto sdat = objectives[obj].sensor_solution_data[t];
+                for (int sens=0; sens<numsensors; ++sens) {
+                  size_t solprog = 0;
+                  for (int sol=0; sol<numsols; ++sol) {
+                    for (int d=0; d<numdims; ++d) {
+                      sensor_data(sens,solprog,t) = sdat(sens,sol,d);
+                      solprog++;
+                    }
+                  }
+                }
+              }
+            }
+            //KokkosTools::print(sensor_data);
           }
+          //cout << "fft time: " << timer.seconds() <<endl;
+          //timer.reset();
+
+          size_t max_numtimes = 0;
+          Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&numtimes,&max_numtimes);
+          
+          int max_numfields = 0;
+          Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&numfields,&max_numfields);
+          
+          for (int field = 0; field<max_numfields; ++field) {
+            std::stringstream ss;
+            ss << field;
+            string respfile = "sensor_solution_field." + ss.str() + ".out";
+            std::ofstream respOUT;
+            bool is_open = false;
+            int attempts = 0;
+            int max_attempts = 10;
+            while (!is_open && attempts < max_attempts) {
+              respOUT.open(respfile);
+              is_open = respOUT.is_open();
+              attempts++;
+            }
+            
+            respOUT.precision(8);
+          
+            Teuchos::Array<ScalarT> series_data(max_numtimes+3);
+            Teuchos::Array<ScalarT> gseries_data(max_numtimes+3);
+
+            auto spts = objectives[obj].sensor_points;
+            for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
+              if (objectives[obj].sensor_found[ss]) {
+                size_t sindex = 0;
+                for (size_t j=0; j<ss; ++j) {
+                  if (objectives[obj].sensor_found(j)) {
+                    sindex++;
+                  }
+                }
+                series_data[0] = spts(sindex,0);
+                series_data[1] = spts(sindex,1);
+                series_data[2] = spts(sindex,2);
+
+                for (size_t tt=0; tt<max_numtimes; ++tt) {
+                  series_data[tt+3] = sensor_data(sindex,field,tt);
+                }
+              }
+              
+              const int numentries = max_numtimes+3;
+              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&series_data[0],&gseries_data[0]);
+
+              if (Comm->getRank() == 0) {
+                respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
+                for (size_t tt=0; tt<max_numtimes; ++tt) {
+                  respOUT << gseries_data[tt+3] << "  ";
+                }
+                respOUT << endl;
+              }
+            }
+            respOUT.close();
+          }
+          //cout << "Write time: " << timer.seconds() << endl;
+
         }
         else {
           string respfile = objectives[obj].response_file+".out";
@@ -2330,7 +2426,7 @@ template<class Node>
 void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & current_soln,
                                                      const ScalarT & current_time) {
   
-  Teuchos::TimeMonitor localtimer(*objectiveTimer);
+  Teuchos::TimeMonitor localtimer(*sensorSolutionTimer);
   
   if (debug_level > 1 && Comm->getRank() == 0) {
     std::cout << "******** Starting PostprocessManager::computeSensorSolution ..." << std::endl;
@@ -2359,17 +2455,20 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
             auto numDOF = assembler->groupData[block]->set_numDOF_host[set];
             auto cu = subview(assembler->groups[block][grp_owner]->u[set],elem_owner,ALL(),ALL());
             auto cu_host = create_mirror_view(cu);
+            //KokkosTools::print(assembler->groups[block][grp_owner]->u[set]);
             deep_copy(cu_host,cu);
             for (size_type var=0; var<numDOF.extent(0); var++) {
-              auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
+              auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->set_usebasis[set][var]];
               for (size_type dof=0; dof<cbasis.extent(1); ++dof) {
                 for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
-                  sensordat(pt,solprog,dim) += cu_host(solprog,dof)*cbasis(pt,dof,0,dim);
+                  //sensordat(pt,solprog,dim) += cu_host(solprog,dof)*cbasis(pt,dof,0,dim);
+                  sensordat(pt,solprog,dim) += cu_host(var,dof)*cbasis(pt,dof,0,dim);
                 }
               }  
               solprog++;
               
             }
+            //KokkosTools::print(sensordat);
             
           }
             
@@ -4566,9 +4665,6 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     objectives[objID].sensor_data = sdat;
     objectives[objID].sensor_owners = sowners;
     
-    cout << spts(0,0) << "  " << spts(0,1) << "  " << spts(0,2) << endl;
-    cout << sowners(0,0) << "  " << sowners(0,1)  << endl;
-    
     // ========================================
     // Evaluate the basis functions and grads for each sensor point
     // ========================================
@@ -4636,11 +4732,10 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
     DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
-      
+
     for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
       refpt(0,d) = refpt_tmp(0,0,d);
     }
-      
       
     auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
     corientation(0) = orient(sowners(pt,1));
