@@ -543,7 +543,7 @@ namespace MrHyDE {
     size_t numBlocks;                                            // number of element blocks
     
     bool have_sensor_data, save_sensor_data, write_dakota_output, isTD, store_sensor_solution;
-    std::string sname;
+    std::string sname, fileoutput;
     ScalarT stddev;
     size_type global_num_sensors;
     

@@ -12,6 +12,7 @@
  ************************************************************************/
 
 #include "postprocessManager.hpp"
+#include "hdf5.h"
 
 using namespace MrHyDE;
 
@@ -90,6 +91,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   write_database_id = settings->sublist("Solver").get<bool>("use basis database",false);
   compute_flux_response = settings->sublist("Postprocess").get("compute flux response",false);
   store_sensor_solution = settings->sublist("Postprocess").get("store sensor solution",false);
+  fileoutput = settings->sublist("Postprocess").get("file output format","text");
 
   record_start = settings->sublist("Postprocess").get("record start time",-DBL_MAX);
   record_stop = settings->sublist("Postprocess").get("record stop time",DBL_MAX);
@@ -549,131 +551,178 @@ void PostprocessManager<Node>::report() {
         if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
         
           Kokkos::View<ScalarT***,HostDevice> sensor_data;
+          Kokkos::View<int*,HostDevice> sensorIDs;
           size_t numtimes = 0;
           int numfields = 0;
 
           //timer.reset();
-          if (objectives[obj].output_type == "fft") {
+          int numsensors = objectives[obj].numSensors;
+           
+          if (numsensors>0) {
+            numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
+            int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
+            int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+            numfields = numsols*numdims;
+            sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
+            for (size_t t=0; t<numtimes; ++t) {
+              auto sdat = objectives[obj].sensor_solution_data[t];
+              for (int sens=0; sens<numsensors; ++sens) {
+                size_t solprog = 0;
+                for (int sol=0; sol<numsols; ++sol) {
+                  for (int d=0; d<numdims; ++d) {
+                    sensor_data(sens,solprog,t) = sdat(sens,sol,d);
+                    solprog++;
+                  }
+                }
+              }
+            }
+            sensorIDs = Kokkos::View<int*,HostDevice>("sensor IDs owned by proc", numsensors);
+            size_t sprog=0;
+            auto sensor_found = objectives[obj].sensor_found;
+            for (size_type s=0; s<sensor_found.extent(0); ++s) {
+              if (sensor_found(s)) {
+                sensorIDs(sprog) = s;
+                ++sprog;
+              }
+            }
+            if (objectives[obj].output_type == "fft") {
 #if defined(MrHyDE_ENABLE_FFTW)
-            int numsensors = objectives[obj].numSensors;
-            Kokkos::View<int*,HostDevice> sensorIDs;
-            if (numsensors>0) {
-              numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
-              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
-              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
-              numfields = numsols*numdims;
-              sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
-              for (size_t t=0; t<numtimes; ++t) {
-                auto sdat = objectives[obj].sensor_solution_data[t];
-                for (int sens=0; sens<numsensors; ++sens) {
-                  size_t solprog = 0;
-                  for (int sol=0; sol<numsols; ++sol) {
-                    for (int d=0; d<numdims; ++d) {
-                      sensor_data(sens,solprog,t) = sdat(sens,sol,d);
-                      solprog++;
-                    }
-                  }
-                }
-              }
-              sensorIDs = Kokkos::View<int*,HostDevice>("sensor IDs owned by proc", numsensors);
-              size_t sprog=0;
-              auto sensor_found = objectives[obj].sensor_found;
-              for (size_type s=0; s<sensor_found.extent(0); ++s) {
-                if (sensor_found(s)) {
-                  sensorIDs(sprog) = s;
-                  ++sprog;
-                }
-              }
               fft->compute(sensor_data, sensorIDs, global_num_sensors);
-            }
-            
 #endif
+            }      
           }
-          else {
-            int numsensors = objectives[obj].numSensors;
-            Kokkos::View<int*,HostDevice> sensorIDs;
-            if (numsensors>0) {
-              numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
-              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
-              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
-              numfields = numsols*numdims;
-              sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
-              for (size_t t=0; t<numtimes; ++t) {
-                auto sdat = objectives[obj].sensor_solution_data[t];
-                for (int sens=0; sens<numsensors; ++sens) {
-                  size_t solprog = 0;
-                  for (int sol=0; sol<numsols; ++sol) {
-                    for (int d=0; d<numdims; ++d) {
-                      sensor_data(sens,solprog,t) = sdat(sens,sol,d);
-                      solprog++;
-                    }
-                  }
-                }
-              }
-            }
-            //KokkosTools::print(sensor_data);
-          }
-          //cout << "fft time: " << timer.seconds() <<endl;
-          //timer.reset();
-
+      
           size_t max_numtimes = 0;
           Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&numtimes,&max_numtimes);
           
           int max_numfields = 0;
           Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&numfields,&max_numfields);
           
-          for (int field = 0; field<max_numfields; ++field) {
-            std::stringstream ss;
-            ss << field;
-            string respfile = "sensor_solution_field." + ss.str() + ".out";
-            std::ofstream respOUT;
-            bool is_open = false;
-            int attempts = 0;
-            int max_attempts = 10;
-            while (!is_open && attempts < max_attempts) {
-              respOUT.open(respfile);
-              is_open = respOUT.is_open();
-              attempts++;
-            }
-            
-            respOUT.precision(8);
-          
-            Teuchos::Array<ScalarT> series_data(max_numtimes+3);
-            Teuchos::Array<ScalarT> gseries_data(max_numtimes+3);
-
-            auto spts = objectives[obj].sensor_points;
-            for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
-              if (objectives[obj].sensor_found[ss]) {
-                size_t sindex = 0;
-                for (size_t j=0; j<ss; ++j) {
-                  if (objectives[obj].sensor_found(j)) {
-                    sindex++;
-                  }
-                }
-                series_data[0] = spts(sindex,0);
-                series_data[1] = spts(sindex,1);
-                series_data[2] = spts(sindex,2);
-
-                for (size_t tt=0; tt<max_numtimes; ++tt) {
-                  series_data[tt+3] = sensor_data(sindex,field,tt);
-                }
+          if (fileoutput == "text") {
+            for (int field = 0; field<max_numfields; ++field) {
+              std::stringstream ss;
+              ss << field;
+              string respfile = "sensor_solution_field." + ss.str() + ".out";
+              std::ofstream respOUT;
+              bool is_open = false;
+              int attempts = 0;
+              int max_attempts = 10;
+              while (!is_open && attempts < max_attempts) {
+                respOUT.open(respfile);
+                is_open = respOUT.is_open();
+                attempts++;
               }
               
-              const int numentries = max_numtimes+3;
-              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&series_data[0],&gseries_data[0]);
+              respOUT.precision(8);
+            
+              Teuchos::Array<ScalarT> series_data(max_numtimes+3);
+              Teuchos::Array<ScalarT> gseries_data(max_numtimes+3);
 
-              if (Comm->getRank() == 0) {
-                respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
-                for (size_t tt=0; tt<max_numtimes; ++tt) {
-                  respOUT << gseries_data[tt+3] << "  ";
+              auto spts = objectives[obj].sensor_points;
+              for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
+                if (objectives[obj].sensor_found[ss]) {
+                  size_t sindex = 0;
+                  for (size_t j=0; j<ss; ++j) {
+                    if (objectives[obj].sensor_found(j)) {
+                      sindex++;
+                    }
+                  }
+                  series_data[0] = spts(sindex,0);
+                  series_data[1] = spts(sindex,1);
+                  series_data[2] = spts(sindex,2);
+
+                  for (size_t tt=0; tt<max_numtimes; ++tt) {
+                    series_data[tt+3] = sensor_data(sindex,field,tt);
+                  }
                 }
-                respOUT << endl;
-              }
-            }
-            respOUT.close();
-          }
-          //cout << "Write time: " << timer.seconds() << endl;
+                
+                const int numentries = max_numtimes+3;
+                Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&series_data[0],&gseries_data[0]);
 
+                if (Comm->getRank() == 0) {
+                  respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
+                  for (size_t tt=0; tt<max_numtimes; ++tt) {
+                    respOUT << gseries_data[tt+3] << "  ";
+                  }
+                  respOUT << endl;
+                }
+              }
+              respOUT.close();
+            }
+          }
+          else if (fileoutput == "hdf5") {
+            // PHDF5 creation
+            size_t num_snaps = max_numtimes;
+            const size_t alength = num_snaps;
+            ScalarT *myData = new ScalarT[alength];
+
+            for (int field = 0; field<max_numfields; ++field) {
+            
+              herr_t err; // HDF5 return value
+              hid_t f_id; // HDF5 file ID
+
+              // file access property list
+              hid_t fapl_id;
+              fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+
+              err = H5Pset_fapl_mpio(fapl_id, *(Comm->getRawMpiComm()), MPI_INFO_NULL);
+
+              // create the file
+              std::stringstream ss;
+              ss << field;
+              string respfile = "sensor_solution_field." + ss.str() + ".h5";
+            
+              f_id = H5Fcreate(respfile.c_str(),H5F_ACC_TRUNC, // overwrites file if it exists
+                              H5P_DEFAULT,fapl_id);
+
+              // free the file access template
+              err = H5Pclose(fapl_id);
+
+              // create the dataspace
+
+              hid_t ds_id;
+              hsize_t dims[2] = {objectives[obj].sensor_found.size(),num_snaps};
+              ds_id = H5Screate_simple(2, dims, // [sensor_id,snap]
+                                      NULL);
+
+              // need to create a new hdf5 datatype which matches fftw_complex
+              // TODO not sure about this...
+              // TODO change ??
+              hsize_t comp_dims[1] = {1};
+              hid_t complex_id = H5Tarray_create2(H5T_NATIVE_DOUBLE,1,comp_dims);
+            
+              // create the storage
+              hid_t field_id;
+              field_id = H5Dcreate2(f_id,"soln",complex_id,ds_id,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+            
+            
+              // set up the portion of the files this process will access
+              for (size_type sens=0; sens<sensorIDs.extent(0); ++sens) {
+                hsize_t myID = sensorIDs(sens);
+                hsize_t start[2] = {myID,0};
+                hsize_t count[2] = {1,num_snaps};
+
+                err = H5Sselect_hyperslab(ds_id,H5S_SELECT_SET,start,NULL, // contiguous
+                                          count,NULL); // contiguous 
+          
+                for (size_t s=0; s<num_snaps; ++s) {
+                  myData[s] = sensor_data(sensorIDs(sens),field,s);
+                }
+                hsize_t flattened[] = {num_snaps};
+                hid_t ms_id = H5Screate_simple(1,flattened,NULL);
+                err = H5Dwrite(field_id,complex_id,ms_id,ds_id,H5P_DEFAULT,myData);
+              }
+        
+              err = H5Dclose(field_id);
+        
+              if (err > 0) {
+                // say something
+              }
+              H5Sclose(ds_id);
+              H5Fclose(f_id);
+            }
+            delete[] myData;
+          }
         }
         else {
           string respfile = objectives[obj].response_file+".out";
