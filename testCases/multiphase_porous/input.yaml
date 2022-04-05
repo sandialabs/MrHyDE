@@ -16,14 +16,16 @@ ANONYMOUS:
     physics set names: "porous, saturation"
     porous:
       modules: 'porous mixed'
+      use well source: true
       Initial conditions:
         'u[x]': '0.'
         'u[y]': '0.'
-        p: '1.'
+        p: '2.'
     saturation:
       modules: 'incompressible saturation'
       Initial conditions:
-        S: '0.' ## all oil
+        #S: '0.' ## all oil
+        S: '.5' ## half oil
   Discretization:
     pressure:
       order:
@@ -36,7 +38,7 @@ ANONYMOUS:
       quadrature: 2
   Solver:
     solver: transient
-    use direct solver: false
+    use direct solver: true
     Preconditioner Settings:
       'smoother: type': RELAXATION
       'smoother: params':
@@ -49,7 +51,7 @@ ANONYMOUS:
     final time: .1
     number of steps: 10
     saturation:
-      transient Butcher tableau: ?? ## TODO not sure ...
+      transient Butcher tableau: FWE ## TODO not sure ...
   Analysis: 
     analysis type: forward
   Postprocess:
@@ -65,9 +67,9 @@ ANONYMOUS:
     mob_o: 'k_ro/mu_o'
     total_mobility: 'mob_w + mob_o'
     f_w: 'mob_w/total_mobility'
-    source: 'source_S + source_So' ## this is for porous
-    source_S: '1.*exp(-100.*(x-0.)^2-100.*(y-0.)^2)' ## this is for water saturation eqn
-    source_So: '1.*exp(-100.*(x-0.5)^2-100.*(y-0.5)^2)' ## this is for oil and need for the total source
-    Kinv_xx: '1.0'
-    Kinv_yy: '1.0'
+    source: 'source_So' ## this is for porous
+    #source_S: '1.*exp(-100.*(x-0.)^2-100.*(y-0.)^2)' ## this is for water saturation eqn
+    source_So: '(p-2.)*exp(-100.*(x-0.5)^2-100.*(y-0.5)^2)' ## this is for oil and need for the total source
+    Kinv_xx: '1.0/exp(sin(x))'
+    Kinv_yy: '1.0/exp(sin(y))'
 ...

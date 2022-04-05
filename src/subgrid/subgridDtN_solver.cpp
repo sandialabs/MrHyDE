@@ -268,10 +268,11 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_u,
         sgtime += macro_deltat/(ScalarT)time_steps;
         // set du/dt and \lambda
         alpha = (ScalarT)time_steps/macro_deltat;
-        
+
         assembler->wkset[0]->BDF_wts(0) = 1.0;//alpha;
         assembler->wkset[0]->BDF_wts(1) = -1.0;//-alpha;
-        
+
+        // TODO what is alpha?
         assembler->wkset[0]->alpha = alpha;
         assembler->wkset[0]->setDeltat(1.0/alpha);
 

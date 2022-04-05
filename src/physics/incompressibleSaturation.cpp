@@ -52,7 +52,10 @@ void incompressibleSaturation::defineFunctions(Teuchos::ParameterList & fs,
   functionManager = functionManager_;
   
   // TODO not supported right now?
-  functionManager->addFunction("source S",fs.get<string>("source S","0.0"),"ip");
+  functionManager->addFunction("source_S",fs.get<string>("source_S","0.0"),"ip");
+
+  // water fractional flow
+  functionManager->addFunction("f_w",fs.get<string>("f_w","1.0"),"ip");
 
   // Need to talk to the velocity
   functionManager->addFunction("ux",fs.get<string>("ux","0.0"),"ip");
@@ -75,7 +78,7 @@ void incompressibleSaturation::volumeResidual() {
 
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    sourceterms.push_back(functionManager->evaluate("source S","ip"));
+    sourceterms.push_back(functionManager->evaluate("source_S","ip"));
 
     // Update fluxes 
     this->computeFluxVector();
@@ -204,6 +207,7 @@ void incompressibleSaturation::computeFluxVector() {
   auto fluxes = fluxes_vol;
   // these are always needed
   auto ux = functionManager->evaluate("ux","ip");
+  auto f_w = functionManager->evaluate("f_w","ip");
   
   if (spaceDim == 1) {
 
@@ -212,9 +216,9 @@ void incompressibleSaturation::computeFluxVector() {
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
-        // S equation -- F_x = ux
+        // S equation -- F_x = f_w ux
 
-        fluxes(elem,pt,S_num,0) = ux(elem,pt);
+        fluxes(elem,pt,S_num,0) = f_w(elem,pt)*ux(elem,pt);
 
       }
     });
@@ -228,10 +232,10 @@ void incompressibleSaturation::computeFluxVector() {
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
-        // S equation -- F_x = ux F_y = uy
+        // S equation -- F_x = f_w ux F_y = f_w uy
 
-        fluxes(elem,pt,S_num,0) = ux(elem,pt);
-        fluxes(elem,pt,S_num,1) = uy(elem,pt);
+        fluxes(elem,pt,S_num,0) = f_w(elem,pt)*ux(elem,pt);
+        fluxes(elem,pt,S_num,1) = f_w(elem,pt)*uy(elem,pt);
 
       }
     });
@@ -246,11 +250,11 @@ void incompressibleSaturation::computeFluxVector() {
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
-        // S equation -- F_x = ux F_y = uy F_z = uz
+        // S equation -- F_x = f_w ux F_y = f_w uy f_w F_z = uz
 
-        fluxes(elem,pt,S_num,0) = ux(elem,pt);
-        fluxes(elem,pt,S_num,1) = uy(elem,pt);
-        fluxes(elem,pt,S_num,2) = uz(elem,pt);
+        fluxes(elem,pt,S_num,0) = f_w(elem,pt)*ux(elem,pt);
+        fluxes(elem,pt,S_num,1) = f_w(elem,pt)*uy(elem,pt);
+        fluxes(elem,pt,S_num,2) = f_w(elem,pt)*uz(elem,pt);
 
       }
     });

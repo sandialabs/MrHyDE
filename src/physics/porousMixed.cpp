@@ -147,7 +147,7 @@ void porousMixed::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("Kinv_yy",fs.get<string>("Kinv_yy","1.0"),"ip");
   functionManager->addFunction("Kinv_zz",fs.get<string>("Kinv_zz","1.0"),"ip");
 
-  functionManager->addFunction("total mobility",fs.get<string>("total mobility","1.0"),"ip");
+  functionManager->addFunction("total_mobility",fs.get<string>("total_mobility","1.0"),"ip");
   
 }
 
@@ -167,7 +167,7 @@ void porousMixed::volumeResidual() {
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
-    mobility = functionManager->evaluate("total mobility","ip");
+    mobility = functionManager->evaluate("total_mobility","ip");
     
     if (usePermData) {
       View_AD2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
@@ -219,7 +219,6 @@ void porousMixed::volumeResidual() {
       Kinv_zz = Vista(new_Kzz);
       
     }
-    
     
     if (useWells) {
       auto h = wkset->h;
