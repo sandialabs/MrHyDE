@@ -1,0 +1,73 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 10
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Physics:
+    physics set names: "porous, saturation"
+    porous:
+      modules: 'porous mixed'
+      Initial conditions:
+        'u[x]': '0.'
+        'u[y]': '0.'
+        p: '1.'
+    saturation:
+      modules: 'incompressible saturation'
+      Initial conditions:
+        S: '0.' ## all oil
+  Discretization:
+    pressure:
+      order:
+        u: 1
+        p: 0
+      quadrature: 2
+    saturation:
+      order:
+        S: 1
+      quadrature: 2
+  Solver:
+    solver: transient
+    use direct solver: false
+    Preconditioner Settings:
+      'smoother: type': RELAXATION
+      'smoother: params':
+        'relaxation: type': Jacobi
+    nonlinear TOL: 1.0e-7
+    use absolute tolerance: true
+    max subcycles: 2
+    linear TOL: 1.0e-9
+    max nonlinear iters: 4
+    final time: .1
+    number of steps: 10
+    saturation:
+      transient Butcher tableau: ?? ## TODO not sure ...
+  Analysis: 
+    analysis type: forward
+  Postprocess:
+    write solution: true
+  Functions:
+    ux: 'u[x]'
+    uy: 'u[y]'
+    k_ro: '(1-S)^2'
+    k_rw: 'S^2'
+    mu_w: '1'
+    mu_o: '5'
+    mob_w: 'k_rw/mu_w'
+    mob_o: 'k_ro/mu_o'
+    total_mobility: 'mob_w + mob_o'
+    f_w: 'mob_w/total_mobility'
+    source: 'source_S + source_So' ## this is for porous
+    source_S: '1.*exp(-100.*(x-0.)^2-100.*(y-0.)^2)' ## this is for water saturation eqn
+    source_So: '1.*exp(-100.*(x-0.5)^2-100.*(y-0.5)^2)' ## this is for oil and need for the total source
+    Kinv_xx: '1.0'
+    Kinv_yy: '1.0'
+...
