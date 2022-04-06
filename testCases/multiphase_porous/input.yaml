@@ -10,22 +10,23 @@ ANONYMOUS:
     xmax: 1.0
     ymin: 0.0
     ymax: 1.0
-    NX: 40
-    NY: 40
+    NX: 80
+    NY: 80
   Physics:
     physics set names: "porous, saturation"
     porous:
       modules: 'porous mixed'
-      use well source: true
+      use well source: false ## currently trying to specify rate
       Initial conditions:
         'u[x]': '0.'
         'u[y]': '0.'
-        p: '2.'
+        p: '1.'  ## shouldn't matter
     saturation:
       modules: 'incompressible saturation'
       Initial conditions:
-        #S: '0.' ## all oil
-        S: '.5' ## half oil
+        S: '0.' ## all oil
+        #S: '.25' ## mostly oil
+      porosity: 1.
   Discretization:
     pressure:
       order:
@@ -48,28 +49,29 @@ ANONYMOUS:
     max subcycles: 2
     linear TOL: 1.0e-9
     max nonlinear iters: 4
-    final time: .1
-    number of steps: 10
+    final time: .5
+    delta t: 1.e-3
     saturation:
       transient Butcher tableau: FWE ## TODO not sure ...
   Analysis: 
     analysis type: forward
   Postprocess:
     write solution: true
+    write frequency: 10
   Functions:
     ux: 'u[x]'
     uy: 'u[y]'
     k_ro: '(1-S)^2'
     k_rw: 'S^2'
     mu_w: '1'
-    mu_o: '5'
+    mu_o: '4'
     mob_w: 'k_rw/mu_w'
     mob_o: 'k_ro/mu_o'
     total_mobility: 'mob_w + mob_o'
     f_w: 'mob_w/total_mobility'
-    source: 'source_So' ## this is for porous
-    #source_S: '1.*exp(-100.*(x-0.)^2-100.*(y-0.)^2)' ## this is for water saturation eqn
-    source_So: '(p-2.)*exp(-100.*(x-0.5)^2-100.*(y-0.5)^2)' ## this is for oil and need for the total source
-    Kinv_xx: '1.0/exp(sin(x))'
-    Kinv_yy: '1.0/exp(sin(y))'
+    source: 'source_So+source_S' ## this is for porous
+    source_S: 'exp(-100.*(x-0.5)^2-100.*(y-0.5)^2)' ## this is for water saturation eqn
+    source_So: '0.' ## this is for oil and needed for the total source
+    Kinv_xx: '.001'
+    Kinv_yy: '1.0'
 ...
