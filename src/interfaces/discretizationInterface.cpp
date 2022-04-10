@@ -17,16 +17,13 @@
 
 // HGRAD basis functions
 #include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
-#include "Intrepid2_HGRAD_QUAD_C2_FEM.hpp"
+
 #include "Intrepid2_HGRAD_QUAD_Cn_FEM.hpp"
 #include "Intrepid2_HGRAD_HEX_C1_FEM.hpp"
-#include "Intrepid2_HGRAD_HEX_C2_FEM.hpp"
 #include "Intrepid2_HGRAD_HEX_Cn_FEM.hpp"
 #include "Intrepid2_HGRAD_TRI_C1_FEM.hpp"
-#include "Intrepid2_HGRAD_TRI_C2_FEM.hpp"
 #include "Intrepid2_HGRAD_TRI_Cn_FEM.hpp"
 #include "Intrepid2_HGRAD_TET_C1_FEM.hpp"
-#include "Intrepid2_HGRAD_TET_C2_FEM.hpp"
 #include "Intrepid2_HGRAD_TET_Cn_FEM.hpp"
 #include "Intrepid2_HGRAD_LINE_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_LINE_Cn_FEM.hpp"
@@ -268,12 +265,8 @@ basis_RCP DiscretizationInterface::getBasis(const int & spaceDim, const topo_RCP
     }
     if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {
-        if (degree == 1) {
+        if (degree == 1)
           basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space,double,double>() );
-        }
-        else if (degree == 2) {
-          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C2_FEM<PHX::Device::execution_space,double,double>() );
-        }
         else {
           basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
         }
@@ -281,8 +274,6 @@ basis_RCP DiscretizationInterface::getBasis(const int & spaceDim, const topo_RCP
       if (shape == "Triangle_3") {
         if (degree == 1)
           basis = Teuchos::rcp(new Basis_HGRAD_TRI_C1_FEM<PHX::Device::execution_space,double,double>() );
-        else if (degree == 2)
-          basis = Teuchos::rcp(new Basis_HGRAD_TRI_C2_FEM<PHX::Device::execution_space,double,double>() );
         else {
           basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_WARPBLEND) );
         }
@@ -292,8 +283,6 @@ basis_RCP DiscretizationInterface::getBasis(const int & spaceDim, const topo_RCP
       if (shape == "Hexahedron_8") {
         if (degree  == 1)
           basis = Teuchos::rcp(new Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
-        else if (degree  == 2)
-          basis = Teuchos::rcp(new Basis_HGRAD_HEX_C2_FEM<PHX::Device::execution_space,double,double>() );
         else {
           basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
         }
