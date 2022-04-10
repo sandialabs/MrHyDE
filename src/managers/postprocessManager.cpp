@@ -650,6 +650,7 @@ void PostprocessManager<Node>::report() {
               respOUT.close();
             }
           }
+#ifdef MrHyDE_USE_HDF5
           else if (fileoutput == "hdf5") {
             // PHDF5 creation
             size_t num_snaps = max_numtimes;
@@ -723,6 +724,7 @@ void PostprocessManager<Node>::report() {
             }
             delete[] myData;
           }
+#endif // MrHyDE_USE_HDF5
         }
         else {
           string respfile = objectives[obj].response_file+".out";

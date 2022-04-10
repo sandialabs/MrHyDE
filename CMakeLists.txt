@@ -114,6 +114,10 @@ ELSE()
   MESSAGE("-- No device configurations specified. Defaulting to a serial configuration for MrHyDE.")
 ENDIF()
 
+IF(MrHyDE_USE_HDF5)
+  ADD_DEFINITIONS(-DMrHyDE_USE_HDF5)
+ENDIF()
+
 IF(MrHyDE_MAX_DERIVS)
   MESSAGE("-- Setting max derivs to ${MrHyDE_MAX_DERIVS} based on input flag")
   add_definitions(-DMrHyDE_SET_MAX_DERIVS=${MrHyDE_MAX_DERIVS})
