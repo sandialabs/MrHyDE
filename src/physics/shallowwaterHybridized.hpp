@@ -143,7 +143,9 @@ namespace MrHyDE {
      *
      */
 
-    KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
+    //KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
+    template<class V1, class V2, class V3>
+    KOKKOS_FUNCTION void matVec(const V1 & A, const V2 & x, V3 & y);
 
 // TODO This needs to be handled in a better way, temporary!
 #ifndef MrHyDE_UNITTEST_HIDE_PRIVATE_VARS

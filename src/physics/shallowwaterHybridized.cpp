@@ -536,7 +536,7 @@ void shallowwaterHybridized::computeStabilizationTerm() {
     for (size_type pt=0; pt<stabterm.extent(1); ++pt) {
 
       // get the appropriate portion of the stability term
-      View_AD1 stab_sub = Kokkos::subview( stabterm, elem, pt, Kokkos::ALL());
+      auto stab_sub = Kokkos::subview( stabterm, elem, pt, Kokkos::ALL());
 
       // form (S - \hat{S})
       deltaS(H_num) = H(elem,pt) - H_hat(elem,pt);
@@ -668,7 +668,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
       // get the appropriate portion of the boundary term
       // TODO Not sure about FORCING this to be view_ad1 here (and above)
-      View_AD1 bound_sub = Kokkos::subview( boundterm, elem, pt, Kokkos::ALL());
+      auto bound_sub = Kokkos::subview( boundterm, elem, pt, Kokkos::ALL());
       
       if (sidetype == "Far-field") {
         // get the local eigendecomposition
@@ -812,7 +812,8 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & 
 
 }
 
-KOKKOS_FUNCTION void shallowwaterHybridized::matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y) {
+template<class V1, class V2, class V3>
+KOKKOS_FUNCTION void shallowwaterHybridized::matVec(const V1 & A, const V2 & x, V3 & y) {
 
   // TODO error checking for size
 
