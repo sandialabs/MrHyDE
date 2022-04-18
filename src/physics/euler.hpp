@@ -242,7 +242,10 @@ namespace MrHyDE {
      *
      */
 
-    KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
+    template<class V1, class V2, class V3>
+    KOKKOS_FUNCTION void matVec(const V1 & A, const V2 & x, V3 & y);
+
+    //KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
 
 // TODO making this public for now (testing brought this issue up...)
     View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
