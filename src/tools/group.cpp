@@ -43,13 +43,42 @@ groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
   hsize = View_Sc1("physical hsize",numElem);
 
   disc->getPhysicalIntegrationData(groupData, nodes, ip, wts);
+  
+  this->computeSize();
 
-  size_t dimension = groupData->dimension;
+  if (groupData->build_face_terms) {
+    for (size_type side=0; side<groupData->numSides; side++) {
+      int numfip = groupData->ref_side_ip[side].extent(0);
+      vector<View_Sc2> face_ip;
+      vector<View_Sc2> face_normals;
+      View_Sc2 face_wts("face wts", numElem, numfip);
+      vector<View_Sc4> face_basis, face_basis_grad;
+      disc->getPhysicalFaceIntegrationData(groupData, side, nodes, 
+                                           face_ip, face_wts, face_normals);
+          
+          
+      ip_face.push_back(face_ip);
+      wts_face.push_back(face_wts);
+      normals_face.push_back(face_normals);
+      
+    }
+    this->computeFaceSize();   
+  }
+
+  this->initializeBasisIndex();
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void Group::computeSize() {
 
   // -------------------------------------------------
   // Compute the element sizes (h = vol^(1/dimension))
   // -------------------------------------------------
-  
+  size_t dimension = groupData->dimension;
+
   parallel_for("elem size",
                RangePolicy<AssemblyExec>(0,wts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -60,37 +89,36 @@ groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
     ScalarT dimscl = 1.0/(ScalarT)dimension;
     hsize(elem) = std::pow(vol,dimscl);
   });
-  
+}
 
-  if (groupData->build_face_terms) {
-    for (size_type side=0; side<groupData->numSides; side++) {
-      int numfip = groupData->ref_side_ip[side].extent(0);
-      vector<View_Sc2> face_ip;
-      vector<View_Sc2> face_normals;
-      View_Sc2 face_wts("face wts", numElem, numfip);
-      View_Sc1 face_hsize("face hsize", numElem);
-      vector<View_Sc4> face_basis, face_basis_grad;
-      disc->getPhysicalFaceIntegrationData(groupData, side, nodes, 
-                                           face_ip, face_wts, face_normals);
-          
-          
-      ip_face.push_back(face_ip);
-      wts_face.push_back(face_wts);
-      normals_face.push_back(face_normals);
-      
-      parallel_for("bcell hsize",
-                   RangePolicy<AssemblyExec>(0,face_wts.extent(0)),
-                   KOKKOS_LAMBDA (const int e ) {
-        ScalarT vol = 0.0;
-        for (size_type i=0; i<face_wts.extent(1); i++) {
-          vol += face_wts(e,i);
-        }
-        ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
-        face_hsize(e) = pow(vol,dimscl);
-      });
-      hsize_face.push_back(face_hsize);
-    }   
-  }
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void Group::computeFaceSize() {
+
+  size_t dimension = groupData->dimension;
+
+  for (size_t side=0; side<wts_face.size(); side++) {
+    auto cwts = wts_face[side];
+    View_Sc1 face_hsize("face hsize", numElem);
+    parallel_for("bcell hsize",
+                 RangePolicy<AssemblyExec>(0,cwts.extent(0)),
+                 KOKKOS_LAMBDA (const int e ) {
+      ScalarT vol = 0.0;
+      for (size_type i=0; i<cwts.extent(1); i++) {
+        vol += cwts(e,i);
+      }
+      ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
+      face_hsize(e) = pow(vol,dimscl);
+    });
+    hsize_face.push_back(face_hsize);
+  }   
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void Group::initializeBasisIndex() {
 
   basis_index = Kokkos::View<LO*,AssemblyDevice>("basis index",numElem);
   parallel_for("compute hsize",
@@ -98,10 +126,8 @@ groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
                KOKKOS_LAMBDA (const int e ) {
     basis_index(e) = e;
   });
+}  
   
-  
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 

@@ -51,21 +51,34 @@ sidename(sidename_), disc(disc_)   {
   
   disc->getPhysicalBoundaryIntegrationData(groupData, nodes, localSideID, ip,
                                            wts, normals, tangents);
+  
+  this->computeSize();
+  this->initializeBasisIndex();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryGroup::computeSize() {
 
   size_t dimension = groupData->dimension;
 
-  {
-    parallel_for("compute hsize",
-                 RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                 KOKKOS_LAMBDA (const int e ) {
-      ScalarT vol = 0.0;
-      for (size_type i=0; i<wts.extent(1); i++) {
-        vol += wts(e,i);
-      }
-      ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
-      hsize(e) = std::pow(vol,dimscl);
-    });
-  }
+  parallel_for("compute hsize",
+               RangePolicy<AssemblyExec>(0,wts.extent(0)),
+               KOKKOS_LAMBDA (const int e ) {
+    ScalarT vol = 0.0;
+    for (size_type i=0; i<wts.extent(1); i++) {
+      vol += wts(e,i);
+    }
+    ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
+    hsize(e) = std::pow(vol,dimscl);
+  });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void BoundaryGroup::initializeBasisIndex() {
   
   basis_index = Kokkos::View<LO*,AssemblyDevice>("basis index",numElem);
   parallel_for("compute hsize",
