@@ -113,7 +113,7 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
         const AD & Hux, const AD & H);
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
@@ -131,9 +131,8 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
         const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny);
-
 
     /* @brief Computes y = Ax
      *
@@ -143,9 +142,20 @@ namespace MrHyDE {
      *
      */
 
-    //KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
     template<class V1, class V2, class V3>
-    KOKKOS_FUNCTION void matVec(const V1 & A, const V2 & x, V3 & y);
+    KOKKOS_FUNCTION void matVec(const V1 A, const V2 x, V3 y) {
+
+      // TODO error checking for size
+    
+      size_type n = A.extent(0);  // should be square and x and y should be of length n
+    
+      for (size_type i=0; i<n; ++i) {
+        y(i) = 0.; // zero out just in case
+        for (size_type j=0; j<n; ++j) {
+          y(i) += A(i,j) * x(j);
+        }
+      }
+    }
 
 // TODO This needs to be handled in a better way, temporary!
 #ifndef MrHyDE_UNITTEST_HIDE_PRIVATE_VARS

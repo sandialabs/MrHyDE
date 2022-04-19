@@ -1280,7 +1280,7 @@ void euler::computeBoundaryTerm() {
 // Fill in the local eigendecomposition matrices
 // ========================================================================================
 
-KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
         const AD & rhoux, const AD & rho, const AD & a_sound, const ScalarT & gamma) {
 
   // In 1D, the eigenvalues are ux - a, ux, and ux + a
@@ -1322,7 +1322,7 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 
   
 }
 
-KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
     const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny,
     const AD & a_sound, const ScalarT & gamma) {
 
@@ -1379,7 +1379,7 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 
 
 }
 
-KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
     const AD & rhoux, const AD & rhouy, const AD & rhouz, const AD & rho, 
     const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
     const AD & a_sound, const ScalarT & gamma) {
@@ -1640,18 +1640,3 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 
 //  dFdn(4,4) = gamma*vn;
 //
 //}
-
-template<class V1, class V2, class V3>
-KOKKOS_FUNCTION void euler::matVec(const V1 & A, const V2 & x, V3 & y) {
-
-  // TODO error checking for size
-
-  size_type n = A.extent(0);  // should be square and x and y should be of length n
-
-  for (size_type i=0; i<n; ++i) {
-    y(i) = 0.; // zero out just in case
-    for (size_type j=0; j<n; ++j) {
-      y(i) += A(i,j) * x(j);
-    }
-  }
-}

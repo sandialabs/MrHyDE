@@ -753,7 +753,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 // Fill in the local eigendecomposition matrices
 // ========================================================================================
 
-KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
         const AD & Hux, const AD & H) {
 
   // In 1D, the eigenvalues are ux - a and ux + a
@@ -779,7 +779,7 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & 
   
 }
 
-KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
     const AD & Hux, const AD & Huy, const AD & H, const ScalarT & nx, const ScalarT & ny) {
 
   AD vn = Hux/H*nx + Huy/H*ny;
@@ -810,19 +810,4 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 & 
 
   Lambda(0) = vn + a; Lambda(1) = vn; Lambda(2) = vn - a;
 
-}
-
-template<class V1, class V2, class V3>
-KOKKOS_FUNCTION void shallowwaterHybridized::matVec(const V1 & A, const V2 & x, V3 & y) {
-
-  // TODO error checking for size
-
-  size_type n = A.extent(0);  // should be square and x and y should be of length n
-
-  for (size_type i=0; i<n; ++i) {
-    y(i) = 0.; // zero out just in case
-    for (size_type j=0; j<n; ++j) {
-      y(i) += A(i,j) * x(j);
-    }
-  }
 }

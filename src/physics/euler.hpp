@@ -130,7 +130,7 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
         const AD & rhoux, const AD & rho, const AD & a_sound, const ScalarT & gamma);
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
@@ -150,7 +150,7 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
         const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny,
         const AD & a_sound, const ScalarT & gamma);
 
@@ -173,7 +173,7 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 & leftEV, View_AD1 & Lambda, View_AD2 & rightEV, 
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
         const AD & rhoux, const AD & rhouy, const AD & rhouz, const AD & rho, 
         const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
         const AD & a_sound, const ScalarT & gamma);
@@ -190,7 +190,7 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
+    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 dFdn, const AD & rhoux,
         const AD & rho, const AD & a_sound, const ScalarT & gamma);
 
     /* @brief Computes the local normal flux Jacobian for the boundary term.
@@ -208,7 +208,7 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
+    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 dFdn, const AD & rhoux,
         const AD & rhouy, const AD & rho, const AD & nx, const AD & ny, 
         const AD & a_sound, const ScalarT & gamma);
 
@@ -229,7 +229,7 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
+    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 dFdn, const AD & rhoux,
         const AD & rhouy, const AD & rhouz, const AD & rho, 
         const AD & nx, const AD & ny, const AD & nz,
         const AD & a_sound, const ScalarT & gamma);
@@ -243,16 +243,26 @@ namespace MrHyDE {
      */
 
     template<class V1, class V2, class V3>
-    KOKKOS_FUNCTION void matVec(const V1 & A, const V2 & x, V3 & y);
+    KOKKOS_FUNCTION void matVec(const V1 A, const V2 x, V3 y) {
+      // TODO error checking for size
 
-    //KOKKOS_FUNCTION void matVec(const View_AD2 & A, const View_AD1 & x, View_AD1 & y);
+      size_type n = A.extent(0);  // should be square and x and y should be of length n
 
-// TODO making this public for now (testing brought this issue up...)
+      for (size_type i=0; i<n; ++i) {
+        y(i) = 0.; // zero out just in case
+        for (size_type j=0; j<n; ++j) {
+          y(i) += A(i,j) * x(j);
+        }
+      }
+    }
+
+// TODO This needs to be handled in a better way, temporary!
+#ifndef MrHyDE_UNITTEST_HIDE_PRIVATE_VARS
+  private:
+#endif
     View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
     View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
     View_AD3 props_vol, props_side; // Storage for the thermodynamic properties
-
-  private:
 
     int spaceDim;
     
