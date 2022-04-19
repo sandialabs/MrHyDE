@@ -1592,7 +1592,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     }
     
     if (debug_level>2) {
-      KokkosTools::print(current_res,"residual from solver interface");
+      //KokkosTools::print(current_res,"residual from solver interface");
     }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     
@@ -1664,7 +1664,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       }
       
       if (debug_level>2) {
-        KokkosTools::print(J,"Jacobian from solver interface");
+        //KokkosTools::print(J,"Jacobian from solver interface");
       }
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
