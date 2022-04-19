@@ -1699,7 +1699,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
   }
   
   if (debug_level>2) {
-    KokkosTools::print(u);
+    //KokkosTools::print(u);
   }
   
   if (Comm->getRank() == 0) {
