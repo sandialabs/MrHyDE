@@ -16,6 +16,7 @@
 
 #include "physicsBase.hpp"
 #include "klexpansion.hpp"
+#include "wells.hpp"
 
 namespace MrHyDE {
   
@@ -92,6 +93,7 @@ namespace MrHyDE {
     string auxvar;
     klexpansion permKLx, permKLy, permKLz;
     Kokkos::View<size_t**,AssemblyDevice> KLindices;
+    wells myWells;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousMixed::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousMixed::volumeResidual() - evaluation of residual");

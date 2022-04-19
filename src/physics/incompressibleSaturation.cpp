@@ -41,6 +41,9 @@ incompressibleSaturation::incompressibleSaturation(Teuchos::ParameterList & sett
 
   phi = settings.get<ScalarT>("porosity",.5);
 
+  useWells = settings.get<bool>("use well source",false);
+  if (useWells) myWells = wells(settings);
+
 }
 
 // ========================================================================================
@@ -52,6 +55,7 @@ void incompressibleSaturation::defineFunctions(Teuchos::ParameterList & fs,
   functionManager = functionManager_;
   
   // TODO not supported right now?
+  // Note if you are using wells, do not name any of them source_S
   functionManager->addFunction("source_S",fs.get<string>("source_S","0.0"),"ip");
 
   // water fractional flow
@@ -82,6 +86,12 @@ void incompressibleSaturation::volumeResidual() {
 
     // Update fluxes 
     this->computeFluxVector();
+
+    if (useWells) {
+      auto h = wkset->h;
+      sourceterms[0] = myWells.addWellSources(sourceterms[0],h,functionManager, 
+                                              wkset->numElem, wkset->numip); 
+    }
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);

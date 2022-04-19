@@ -16,17 +16,22 @@ ANONYMOUS:
     physics set names: "porous, saturation"
     porous:
       modules: 'porous mixed'
-      use well source: false ## currently trying to specify rate
+      use well source: true ## currently trying to specify rate
       Initial conditions:
         'u[x]': '0.'
         'u[y]': '0.'
         p: '1.'  ## shouldn't matter
+      Wells:
+        source_well_water_fr: 'flow rate'
     saturation:
       modules: 'incompressible saturation'
       Initial conditions:
         S: '0.' ## all oil
         #S: '.25' ## mostly oil
       porosity: 1.
+      use well source: true
+      Wells:
+        source_well_water_fr: 'flow rate'
   Discretization:
     pressure:
       order:
@@ -49,8 +54,9 @@ ANONYMOUS:
     max subcycles: 2
     linear TOL: 1.0e-9
     max nonlinear iters: 4
-    final time: .5
+    final time: .1
     delta t: 1.e-3
+    workset size: 40
     saturation:
       transient Butcher tableau: FWE ## TODO not sure ...
   Analysis: 
@@ -69,9 +75,7 @@ ANONYMOUS:
     mob_o: 'k_ro/mu_o'
     total_mobility: 'mob_w + mob_o'
     f_w: 'mob_w/total_mobility'
-    source: 'source_So+source_S' ## this is for porous
-    source_S: 'exp(-100.*(x-0.5)^2-100.*(y-0.5)^2)' ## this is for water saturation eqn
-    source_So: '0.' ## this is for oil and needed for the total source
+    source_well_water_fr: 'exp(-100.*(x-0.5)^2-100.*(y-0.5)^2)' ## this is for water saturation eqn
     Kinv_xx: '.001'
     Kinv_yy: '1.0'
 ...

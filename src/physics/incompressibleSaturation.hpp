@@ -23,6 +23,7 @@
 #define MRHYDE_INCOMPRESSIBLESATURATION_H
 
 #include "physicsBase.hpp"
+#include "wells.hpp"
 
 namespace MrHyDE {
   
@@ -88,6 +89,9 @@ namespace MrHyDE {
     int S_num;
 
     View_AD4 fluxes_vol; // Storage for the fluxes
+
+    wells myWells;
+    bool useWells;
 
     ScalarT phi; // porosity
 

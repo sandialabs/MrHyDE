@@ -47,6 +47,7 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
   
   usePermData = settings.get<bool>("use permeability data",false);
   useWells = settings.get<bool>("use well source",false);
+  if (useWells) myWells = wells(settings);
   dxnum = 0;
   dynum = 0;
   dznum = 0;
@@ -148,7 +149,7 @@ void porousMixed::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("Kinv_zz",fs.get<string>("Kinv_zz","1.0"),"ip");
 
   functionManager->addFunction("total_mobility",fs.get<string>("total_mobility","1.0"),"ip");
-  
+
 }
 
 // ========================================================================================
@@ -222,22 +223,8 @@ void porousMixed::volumeResidual() {
     
     if (useWells) {
       auto h = wkset->h;
-      View_AD2 source_kv("KV for source",wts.extent(0),wts.extent(1));
-      parallel_for("porous HDIV update well source",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
-        ScalarT C = std::log(0.25*std::exp(-0.5772)*h(elem)/2.0);
-        for (size_type pt=0; pt<source_kv.extent(1); pt++) {
-#ifndef MrHyDE_NO_AD
-          ScalarT Kval = 1.0/Kinv_xx(elem,pt).val();
-#else
-          ScalarT Kval = 1.0/Kinv_xx(elem,pt);
-#endif
-          //source_kv(elem,pt) *= 2.0*PI/C*Kval;
-          source_kv(elem,pt) = 2.0*PI/C*Kval*source(elem,pt);
-        }
-      });
-      source = Vista(source_kv);
+      source = myWells.addWellSources(source,h,functionManager,
+      wts.extent(0) /* numElem */, wts.extent(1) /* numIp */ ); 
     }
   }
   

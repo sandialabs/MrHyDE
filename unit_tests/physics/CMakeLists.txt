@@ -34,6 +34,8 @@ Euler.cpp
 ../../src/tools/workset.cpp
 ../../src/interfaces/discretizationInterface.cpp)
 TARGET_LINK_LIBRARIES(Euler ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+TARGET_COMPILE_DEFINITIONS(Euler PRIVATE MrHyDE_NO_SOL_FIELD_EVAL)
+TARGET_COMPILE_DEFINITIONS(Euler PRIVATE MrHyDE_UNITTEST_HIDE_PRIVATE_VARS)
 
 ADD_EXECUTABLE(shallowwaterHybridized
 shallowwaterHybridized.cpp
