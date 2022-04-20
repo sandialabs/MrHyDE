@@ -30,6 +30,10 @@ namespace MrHyDE {
    *
    * Solves the shallow water equations with a hybridized formulation.
    * See Samii (J. Sci. Comp. 2019). 
+   * 
+   * @note If the user intends for the bottom boundary \f$b(x,y)\f$ to vary spatially, this should
+   * be implement through the sources in the \f$Hu_x\f$ and \f$Hu_y\f$ equations with terms
+   * \f$-gH\frac{\partial b}{\partial x}\f$ and \f$-gH\frac{\partial b}{\partial y}\f$, respectively.
    */
 
   class shallowwaterHybridized : public physicsbase {

@@ -79,7 +79,9 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
   
   functionManager = functionManager_;
   
-  // TODO not supported right now?
+  // If the bottom surface varies, user can add -g*h*dbdx to source Hux
+  // and -g*h*dbdy to source Huy
+  // See Fig 1 in Samii 2019
   functionManager->addFunction("source H",fs.get<string>("source H","0.0"),"ip");
   functionManager->addFunction("source Hux",fs.get<string>("source Hux","0.0"),"ip");
   if (spaceDim > 1) {
@@ -742,7 +744,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
         if (spaceDim > 1) {
           bound_sub(Huy_num) = 
-            ( Huy(elem,pt) - vn*ny(elem,pt) ) - Huy_hat(elem,pt)/H_hat(elem,pt);
+            ( Huy(elem,pt)/H(elem,pt) - vn*ny(elem,pt) ) - Huy_hat(elem,pt)/H_hat(elem,pt);
         }
       }
     }
