@@ -75,28 +75,39 @@ bath1 = bath1 + plane
 ny1 = int(Ly1/dy) + 1
 ny2 = int(Ly2/dy)
 
-bath1end = bath1[ny1:ny1+ny2,-1]
+## grab the slab of region 1 that matches the vertical size of region 2
 
-bath2 = np.zeros((x2.size,y2.size))
+bath1slab = np.zeros((x1.size+x2.size,y2.size))
+bath1slab[0:x1.size,:] = bath1[:,ny1:ny1+ny2]
 
-def interpolate(bath1end,bath2,target,x):
+## and fill in the rest with constant values
+for j in range(bath1slab.shape[1]):
+    bath1slab[x1.size:,j] = bath1[-1,ny1+j]
+
+def interpolate(bath1slab,target,x,x0):
+
+    bath2slab = np.zeros_like(bath1slab)
 
 ## linearly interpolate with some tanh smoothing?
 
-    s = .5 + .5*np.tanh( (x - x[int(x.size/2)])/.25 )
+    s = .5 + .5*np.tanh( (x - x0)/.33 )
 
-    i = 0
-
-    for val in bath1end:
+    for j in range(bath1slab.shape[1]):
         
-        bath2[:,i] = (1.-s)*val + s*target
-        i += 1
+        bath2slab[:,j] = (1.-s)*bath1slab[:,j] + s*target
 
-    return bath2
+    return bath2slab
 
 ## in region 2, we smoothly (at least in x) reach a steady value
+## to do so, we grab values from region 1 too
 
-bath2 = interpolate(bath1end,bath2,plane[-1,0],x2) ## smooth to final value
+bath2slab = interpolate(bath1slab,plane[-1,0],np.append(x1,x2),x0=Lx1) ## smooth to final value
+
+## fill in regions
+
+bath1[:,ny1:ny1+ny2] = bath2slab[0:x1.size,:]
+
+bath2 = bath2slab[x1.size:,:]
 
 xx2,yy2 = np.meshgrid(x2,y2,indexing='ij')
 
@@ -119,10 +130,16 @@ triangles.set_mask(mask)
 
 fig,ax = plt.subplots(subplot_kw={"projection":"3d"})
 t = ax.plot_trisurf(triangles,bath)#,cmap=plt.cm.viridis,alpha=1.,antialiased=False)
-ax.view_init(15,50)
+ax.view_init(30,75)
 ax.set_zlabel(r"Bathymetry $[L]$")
 ax.set_xlabel(r"$x$ $[L]$")
 ax.set_ylabel(r"$y$ $[L]$")
 #fig.colorbar(t,shrink=.5)
 fig.tight_layout()
 plt.savefig("test.pdf")
+
+#inds = np.where(y==7.5) 
+#plt.clf()
+#plt.plot(x[inds],bath[inds])
+#plt.tight_layout()
+#plt.savefig('test.pdf')
