@@ -68,8 +68,15 @@ namespace MrHyDE {
     void getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
                      DRV nodes, DRV jacobian);
 
+    void getPhysicalWts(Teuchos::RCP<GroupMetaData> & groupData,
+                        DRV nodes, DRV jacobian, DRV wts);
+
+
     void getMeasure(Teuchos::RCP<GroupMetaData> & groupData,
                     DRV jacobian, DRV measure);
+ 
+    void getFrobenius(Teuchos::RCP<GroupMetaData> & groupData,
+                      DRV jacobian, DRV fro);
 
     void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes, 
                                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,

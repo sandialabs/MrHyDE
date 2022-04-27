@@ -677,7 +677,22 @@ void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupDat
   CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
                        
 }
-                    
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::getPhysicalWts(Teuchos::RCP<GroupMetaData> & groupData,
+                                             DRV nodes, DRV jacobian, DRV wts) {
+
+  int numip = groupData->ref_ip.extent(0);
+  int numElem = jacobian.extent(0);
+  
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  FuncTools::computeCellMeasure(wts, jacobianDet, groupData->ref_wts);
+            
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -696,6 +711,34 @@ void DiscretizationInterface::getMeasure(Teuchos::RCP<GroupMetaData> & groupData
                KOKKOS_LAMBDA (const size_type elem ) {
     for (size_type pt=0; pt<wts.extent(1); ++pt) {
       measure(elem) += wts(elem,pt);
+    }
+  });
+        
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::getFrobenius(Teuchos::RCP<GroupMetaData> & groupData,
+                                           DRV jacobian, DRV fro) {
+  int numip = groupData->ref_ip.extent(0);
+  int numElem = fro.extent(0);
+  
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  DRV wts("jacobian", numElem, numip);
+  FuncTools::computeCellMeasure(wts, jacobianDet, groupData->ref_wts);
+
+  parallel_for("compute measure",
+               RangePolicy<AssemblyExec>(0,numElem),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    for (size_type d1=0; d1<jacobian.extent(2); ++d1) {
+      for (size_type d2=0; d2<jacobian.extent(3); ++d2) {
+      
+        for (size_type pt=0; pt<wts.extent(1); ++pt) {
+          fro(elem) += jacobian(elem,pt,d1,d2)*jacobian(elem,pt,d1,d2)*wts(elem,pt);
+        }
+      }
     }
   });
         
