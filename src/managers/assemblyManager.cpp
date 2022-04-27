@@ -1029,7 +1029,87 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           all_orients.push_back(grp_orient);
         }
         
+        // Uncomment for clustering 
+        /*
+        vector<vector<ScalarT> > all_meas;
+        vector<vector<ScalarT> > all_fros;
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          
+          // Get the Jacobian for this group
+          DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
+          disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+          
+          // Get the measures for this group
+          DRV measure("measure", groups[block][grp]->numElem);
+          disc->getMeasure(groupData[block], jacobian, measure);
+
+          DRV fro("fro norm of J", groups[block][grp]->numElem);
+          disc->getFrobenius(groupData[block], jacobian, fro);
+          vector<ScalarT> currmeas;
+          for (size_type e=0; e<measure.extent(0); ++e) {
+            //currmeas.push_back(measure(e));
+            currmeas.push_back(jacobian(e,0,0,0));
+          }
+          all_meas.push_back(currmeas);
+          
+
+          vector<ScalarT> currfro;
+          for (size_type e=0; e<fro.extent(0); ++e) {
+            //currfro.push_back(fro(e));
+            ScalarT val = 0.0;
+            for (size_type d1=0; d1<jacobian.extent(2); ++d1) {
+              for (size_type d2=0; d2<jacobian.extent(3); ++d2) {
+                for (size_type pt=0; pt<jacobian.extent(1); ++pt) {
+                  ScalarT cval = jacobian(e,pt,d1,d2) - jacobian(e,pt,d2,d1);
+                  val += cval*cval;
+                }
+              }
+            }
+            //currfro.push_back(val);
+            currfro.push_back(jacobian(e,0,1,1));
+          }
+          all_fros.push_back(currfro);
+        }
+
+        if (Comm->getRank() == 0) {
         
+          string outfile = "jacobian_data.out";
+          std::ofstream respOUT(outfile.c_str());
+          respOUT.precision(16);
+          
+          for (size_t grp=0; grp<groups[block].size(); ++grp) {
+            // Get the Jacobian for this group
+            DRV jac("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
+            disc->getJacobian(groupData[block], groups[block][grp]->nodes, jac);
+          
+            DRV wts("jacobian", groups[block][grp]->numElem, numip);
+            disc->getPhysicalWts(groupData[block], groups[block][grp]->nodes, jac, wts);
+          
+            for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+              ScalarT j00 = 0.0, j01 = 0.0, j02 = 0.0;
+              ScalarT j10 = 0.0, j11 = 0.0, j12 = 0.0;
+              ScalarT j20 = 0.0, j21 = 0.0, j22 = 0.0;
+            
+              for (size_type pt=0; pt<jac.extent(1); ++pt) {
+                j00 += jac(e,pt,0,0)*wts(e,pt);
+                j01 += jac(e,pt,0,1)*wts(e,pt);
+                j02 += jac(e,pt,0,2)*wts(e,pt);
+                j10 += jac(e,pt,1,0)*wts(e,pt);
+                j11 += jac(e,pt,1,1)*wts(e,pt);
+                j12 += jac(e,pt,1,2)*wts(e,pt);
+                j20 += jac(e,pt,2,0)*wts(e,pt);
+                j21 += jac(e,pt,2,1)*wts(e,pt);
+                j22 += jac(e,pt,2,2)*wts(e,pt);
+              }
+            
+              respOUT << j00 << ", " << j01 << ", " << j02 << ", " << j10 << ", " << j11 << ", " << j12 << ", " << j20 << ", " << j21 << ", " << j22 << endl;
+              //respOUT << all_orients[grp][e] << ", " << all_meas[grp][e] << ", " << all_fros[grp][e] << endl;
+            }
+          }
+          respOUT.close();
+        }
+        */
+
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           groups[block][grp]->storeAll = false;
           totalelem += groups[block][grp]->numElem;
@@ -1062,7 +1142,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
                 // Check #2: element measures
                 ScalarT diff = abs(measure_host(e)-db_measures(prog));
                 ScalarT refmeas = std::pow(db_measures(prog),1.0/dimension);
-                if (abs(diff/refmeas)<database_TOL) { 
+                
+                if (abs(diff/std::abs(db_measures(prog)))<database_TOL) { // abs(measure) is probably unnecessary here 
                 
                   // Check #3: element Jacobians
                   ScalarT diff2 = 0.0; 
@@ -1073,6 +1154,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
                       }
                     }
                   }
+                
                   if (abs(diff2/refmeas)<database_TOL) { 
                     found = true;
                     index(e) = prog;                
