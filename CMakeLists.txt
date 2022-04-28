@@ -1,6 +1,10 @@
 # CMAKE File for "main" application building against an installed Trilinos
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
+
+# not every version of CMAKE uses the new version of policy CMP0057
+# this enforces it since Kokkos assumes the new version of the policy
+CMAKE_POLICY(SET CMP0057 NEW)
 
 ENABLE_TESTING()
 
