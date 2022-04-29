@@ -4337,7 +4337,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
         csensorBasis.push_back(cbasis);
       }
     }
-     
+
     for (size_type pt=0; pt<spts.extent(0); ++pt) {
       
       DRV cpt("point",1,1,spaceDim);
@@ -4359,11 +4359,9 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
         refpt(0,d) = refpt_tmp(0,0,d);
       }
-      
-      
+ 
       auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
       corientation(0) = orient(sowners(pt,1));
-    
 
       for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
         auto basis_ptr = assembler->disc->basis_pointers[block][k];
@@ -4374,12 +4372,16 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
         DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
 
         if (basis_type == "HGRAD") {
+
           auto bvals_sv = subview(bvals,0,ALL(),ALL());
           auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),0);
           deep_copy(bvals2_sv,bvals_sv);
+
           DRV bgradvals = assembler->disc->evaluateBasisGrads(basis_ptr, cnodes, refpt, cellTopo, corientation);
+          auto bgradvals_sv = subview(bgradvals,0,ALL(),ALL(),ALL());
           auto bgrad_sv = subview(csensorBasisGrad[k],pt,ALL(),ALL(),ALL());
-          deep_copy(bgrad_sv,bgradvals);
+          deep_copy(bgrad_sv,bgradvals_sv);
+
         }
         else if (basis_type == "HVOL") {
           auto bvals_sv = subview(bvals,0,ALL(),ALL());
