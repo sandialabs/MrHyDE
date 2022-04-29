@@ -1913,7 +1913,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   }
   
   if (fix_zero_rows) {
-    size_t numrows = mass->getNodeNumRows();
+    size_t numrows = mass->getLocalNumRows();
     
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,numrows),
@@ -2471,7 +2471,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   // at least globally
   
   typedef typename Node::execution_space LA_exec;
-  size_t numrows = mass->getNodeNumRows();
+  size_t numrows = mass->getLocalNumRows();
   
   parallel_for("assembly insert Jac",
                RangePolicy<LA_exec>(0,numrows),
@@ -2926,7 +2926,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   
   
   if (fix_zero_rows) {
-    size_t numrows = J->getNodeNumRows();
+    size_t numrows = J->getLocalNumRows();
     
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,numrows),

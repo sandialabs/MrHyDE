@@ -190,7 +190,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
     
     if (allocate_matrices) {
-      vector<size_t> maxEntriesPerRow(overlapped_map[set]->getNodeNumElements(), 0);
+      vector<size_t> maxEntriesPerRow(overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
         for (size_t e=0; e<EIDs.size(); e++) {

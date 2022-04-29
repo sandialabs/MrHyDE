@@ -345,7 +345,7 @@ void SolverManager<Node>::setupExplicitMass() {
       typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
       typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
       
-      vector<size_t> maxEntriesPerRow(linalg->overlapped_map[set]->getNodeNumElements(), 0);
+      vector<size_t> maxEntriesPerRow(linalg->overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
         auto numDOF = assembler->groupData[block]->numDOF_host;
@@ -405,7 +405,7 @@ void SolverManager<Node>::setupExplicitMass() {
       vector<GO> owned;
       //disc->DOF[set]->getOwnedIndices(owned);
       disc->DOF_owned[set];//->getOwnedIndices(owned);
-      vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getNodeNumElements(), 0);
+      vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getLocalNumElements(), 0);
       for (size_t i=0; i<owned.size(); ++i) {
         LO ind1 = linalg->overlapped_map[set]->getLocalElement(owned[i]);
         LO ind2 = linalg->owned_map[set]->getLocalElement(owned[i]);
