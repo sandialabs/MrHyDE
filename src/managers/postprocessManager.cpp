@@ -3508,36 +3508,53 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (int n = 0; n<numVars; n++) {
           
           if (vartypes[n] == "HGRAD") {
-            
-            Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(), numNodesPerElem);
-            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-            std::string var = varlist[set][block][n];
-            for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
-              auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->u[set], Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot HGRAD",
-                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
-                           KOKKOS_LAMBDA (const int elem ) {
-                for( size_type i=0; i<soln_dev.extent(1); i++ ) {
-                  soln_dev(eID(elem),i) = sol(elem,i);
-                }
-              });
+            if(assembler->groups[block][0]->groupData->requireBasisAtNodes) {
+              std::string var = varlist[set][block][n];
+              Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
+                                                                                                       numNodesPerElem);
+              auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+              for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
+                auto eID = assembler->groups[block][grp]->localElemID;
+                auto sol = Kokkos::subview(assembler->groups[block][grp]->getSolutionAtNodes(n), Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
+                parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                  for( size_type i=0; i<soln_dev.extent(1); i++ ) {
+                    soln_dev(eID(elem),i) = sol(elem,i);
+                  }
+                });
+              }
+              Kokkos::deep_copy(soln_computed, soln_dev);
+              mesh->stk_mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
+            } else {
+              Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(), numNodesPerElem);
+              auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+              std::string var = varlist[set][block][n];
+              for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
+                auto eID = assembler->groups[block][grp]->localElemID;
+                auto sol = Kokkos::subview(assembler->groups[block][grp]->u[set], Kokkos::ALL(), n, Kokkos::ALL());
+                parallel_for("postproc plot HGRAD",
+                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                            KOKKOS_LAMBDA (const int elem ) {
+                  for( size_type i=0; i<soln_dev.extent(1); i++ ) {
+                    soln_dev(eID(elem),i) = sol(elem,i);
+                  }
+                });
+              }
+              Kokkos::deep_copy(soln_computed, soln_dev);
+              
+              /*
+              if (var == "dx") {
+              mesh->stk_mesh->setSolutionFieldData("disp"+append+"x", blockID, myElements, soln_computed);
+              }
+              if (var == "dy") {
+              mesh->stk_mesh->setSolutionFieldData("disp"+append+"y", blockID, myElements, soln_computed);
+              }
+              if (var == "dz" || var == "H") {
+              mesh->stk_mesh->setSolutionFieldData("disp"+append+"z", blockID, myElements, soln_computed);
+              }
+              */
+              
+              mesh->stk_mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
             }
-            Kokkos::deep_copy(soln_computed, soln_dev);
-          
-            /*
-             if (var == "dx") {
-             mesh->stk_mesh->setSolutionFieldData("disp"+append+"x", blockID, myElements, soln_computed);
-             }
-             if (var == "dy") {
-             mesh->stk_mesh->setSolutionFieldData("disp"+append+"y", blockID, myElements, soln_computed);
-             }
-             if (var == "dz" || var == "H") {
-             mesh->stk_mesh->setSolutionFieldData("disp"+append+"z", blockID, myElements, soln_computed);
-             }
-             */
-            
-            mesh->stk_mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
           }
           else if (vartypes[n] == "HVOL") {
             Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());

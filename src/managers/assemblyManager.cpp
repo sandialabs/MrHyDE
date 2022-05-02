@@ -296,7 +296,12 @@ void AssemblyManager<Node>::createGroups() {
       disc->setReferenceData(blockGroupData);
       
       blockGroupData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
-      
+      bool write_solution = settings->sublist("Postprocess").get("write solution",false);
+
+      // if any of the discretizations are greater than 1st order and the user requests output, override the input to plot solution at nodes
+      for(size_t i_basis=0; i_basis<phys->unique_orders[block].size(); ++i_basis)
+        if(phys->unique_orders[block][i_basis] > 1 && write_solution)
+          blockGroupData->requireBasisAtNodes = true;
       
       vector<vector<vector<int> > > curroffsets = my_offsets[block];
       vector<Kokkos::View<LO*,AssemblyDevice> > set_numDOF;
