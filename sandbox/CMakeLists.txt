@@ -35,6 +35,10 @@ test_percept.cpp
 ../src/subgrid/subgridMeshFactory.cpp) 
 TARGET_LINK_LIBRARIES(test_percept ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
+ADD_EXECUTABLE(test_databaseviews
+test_databaseViews.cpp) 
+TARGET_LINK_LIBRARIES(test_databaseviews ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
 ADD_EXECUTABLE(test_compadre
 test_compadre.cpp
 ../src/tools/data.cpp) 
