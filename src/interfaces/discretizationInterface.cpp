@@ -799,36 +799,53 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
       View_Sc3 basis_div_vals("tmp div vals",1,1,1);
 
       if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
-        DRV bvals1, bvals2;
-        bvals1 = DRV("basis",numElem,numb,numip);
-        bvals2 = DRV("basis tmp",numElem,numb,numip);
-        
-        FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
-        if (apply_orientations) {
-          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                groupData->basis_pointers[i].get());
+        {
+          DRV bvals1, bvals2;
+          bvals1 = DRV("basis",numElem,numb,numip);
+          bvals2 = DRV("basis tmp",numElem,numb,numip);
+          
+          FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bvals2 = bvals1;
+          }
+          basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
+          auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+          Kokkos::deep_copy(basis_vals_slice,bvals2);
+          
+          DRV bgrad1, bgrad2;
+          bgrad1 = DRV("basis grad tmp",numElem,numb,numip,dimension);
+          bgrad2 = DRV("basis grad",numElem,numb,numip,dimension);
+          
+          FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, groupData->ref_basis_grad[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bgrad2 = bgrad1;
+          }
+          basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
+          Kokkos::deep_copy(basis_grad_vals,bgrad2);
         }
-        else {
-          bvals2 = bvals1;
+
+        if (groupData->requireBasisAtNodes) {
+          DRV bnode_vals("basis",numElem,numb,nodes.extent(1));
+          DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1));
+          FuncTools::HGRADtransformVALUE(bvals_tmp, groupData->ref_basis_nodes[i]);
+          if (apply_orientations) {
+            OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bnode_vals = bvals_tmp;
+          }
+          basis_node_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
+          Kokkos::deep_copy(basis_node_vals,bnode_vals);
         }
-        basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
-        auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
-        Kokkos::deep_copy(basis_vals_slice,bvals2);
-        
-        DRV bgrad1, bgrad2;
-        bgrad1 = DRV("basis grad tmp",numElem,numb,numip,dimension);
-        bgrad2 = DRV("basis grad",numElem,numb,numip,dimension);
-        
-        FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, groupData->ref_basis_grad[i]);
-        if (apply_orientations) {
-          OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                                groupData->basis_pointers[i].get());
-        }
-        else {
-          bgrad2 = bgrad1;
-        }
-        basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
-        Kokkos::deep_copy(basis_grad_vals,bgrad2);
         
       }
       else if (groupData->basis_types[i].substr(0,4) == "HVOL"){

@@ -9,6 +9,19 @@
 #  2) sems-cmake/3.21.1   4) sems-boost/1.69.0   6) sems-zlib/1.2.11      8) sems-yaml-cpp/0.6.2  10) sems-netcdf-c/4.7.3  12) sems-texlive/20200406
 
 EXTRA_ARGS=$@
+ENABLE_UNIT_TESTS=false
+ENABLE_SANDBOX=false
+
+if [[ ${EXTRA_ARGS} == *"sandbox"* ]]; then
+  echo "Turning on MrHyDE_ENABLE_SANDBOX"
+  ENABLE_SANDBOX=true
+fi
+
+if [[ ${EXTRA_ARGS} == *"test"* ]]; then
+  echo "Turning on MrHyDE_ENABLE_UNIT_TESTS"
+  ENABLE_UNIT_TESTS=true
+fi
+
 rm CMakeCache.txt
 rm -rf CMakeFiles
 
@@ -26,7 +39,8 @@ cmake \
   -D CMAKE_CXX_LINK_FLAGS="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
   -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
   -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+  -D MrHyDE_ENABLE_UNIT_TESTS=${ENABLE_UNIT_TESTS} \
+  -D MrHyDE_ENABLE_SANDBOX=${ENABLE_SANDBOX} \
   -D MrHyDE_BUILD_DOXYGEN=true \
   -D CMAKE_INSTALL_PREFIX:PATH=${MrHyDE_BUILD} \
-  ${EXTRA-ARGS} \
   ${MrHyDE_SOURCE}
