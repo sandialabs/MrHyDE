@@ -615,11 +615,11 @@ void PostprocessManager<Node>::report() {
               
               respOUT.precision(8);
             
-              Teuchos::Array<ScalarT> series_data(max_numtimes+3);
-              Teuchos::Array<ScalarT> gseries_data(max_numtimes+3);
-
+              
               auto spts = objectives[obj].sensor_points;
               for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
+                Teuchos::Array<ScalarT> series_data(max_numtimes+3,0.0);
+                Teuchos::Array<ScalarT> gseries_data(max_numtimes+3,0.0);
                 if (objectives[obj].sensor_found[ss]) {
                   size_t sindex = 0;
                   for (size_t j=0; j<ss; ++j) {
