@@ -93,6 +93,9 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   store_sensor_solution = settings->sublist("Postprocess").get("store sensor solution",false);
   fileoutput = settings->sublist("Postprocess").get("file output format","text");
 
+  exodus_record_start = settings->sublist("Postprocess").get("exodus record start time",-DBL_MAX);
+  exodus_record_stop = settings->sublist("Postprocess").get("exodus record stop time",DBL_MAX);
+
   record_start = settings->sublist("Postprocess").get("record start time",-DBL_MAX);
   record_stop = settings->sublist("Postprocess").get("record stop time",DBL_MAX);
 
@@ -493,6 +496,12 @@ PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & int
 template<class Node>
 void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                                       const bool & write_this_step, DFAD & objectiveval) {
+  
+  if (current_time+1.0e-100 >= exodus_record_start && current_time-1.0e-100 <= exodus_record_stop) {
+    if (write_solution && write_this_step) {
+      this->writeSolution(current_time);
+    }
+  }
   if (current_time+1.0e-100 >= record_start && current_time-1.0e-100 <= record_stop) {
     if (compute_error) {
       this->computeError(current_time);
@@ -502,11 +511,6 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
     }
     if (write_solution && write_this_step) {
       this->writeSolution(current_time);
-    }
-    if (save_solution) {
-      for (size_t set=0; set<soln.size(); ++set) {
-        soln[set]->store(current_soln[set], current_time, 0);
-      }
     }
     if (compute_flux_response) {
       this->computeFluxResponse(current_time);
@@ -519,6 +523,11 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
     }
     if (store_sensor_solution && write_this_step) {
       this->computeSensorSolution(current_soln, current_time);
+    }
+  }
+  if (save_solution) {
+    for (size_t set=0; set<soln.size(); ++set) {
+      soln[set]->store(current_soln[set], current_time, 0);
     }
   }
 }

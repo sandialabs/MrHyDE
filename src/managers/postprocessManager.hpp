@@ -525,7 +525,7 @@ namespace MrHyDE {
     vector<fluxResponse> fluxes;
     vector< vector<integratedQuantity> > integratedQuantities; /// A vector of integrated quantities for each block
     
-    ScalarT record_start, record_stop;
+    ScalarT record_start, record_stop, exodus_record_start, exodus_record_stop;
     bool compute_objective, compute_flux_response, compute_integrated_quantities;
     ScalarT discrete_objective_scale_factor;
     vector<vector<string> > extrafields_list, extracellfields_list, derivedquantities_list;
