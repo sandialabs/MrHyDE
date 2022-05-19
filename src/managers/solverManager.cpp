@@ -1171,7 +1171,7 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u)
       this->nonlinearSolver(set, u[set], zero_soln);
     }
   }
-  postproc->record(u,current_time,true,objective);
+  postproc->record(u,current_time,1,objective);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1290,7 +1290,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     int numCuts = 0;
     int maxCuts = maxTimeStepCuts; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
-    bool write_this_step = false;
     
     vector<vector_RCP> u_prev;
     for (size_t set=0; set<initial.size(); ++set) {
@@ -1372,9 +1371,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           assembler->performGather(set,u[set],0,0);
         }
         // TODO :: BWR make this more flexible (may want to save based on simulation time as well)
-        if (stepProg % postproc->write_frequency == 0) write_this_step = true;
-        postproc->record(u,current_time,write_this_step,obj);
-        write_this_step = false;
+        postproc->record(u,current_time,stepProg,obj);
+        
       }
       else { // something went wrong, cut time step and try again
         deltat *= 0.5;

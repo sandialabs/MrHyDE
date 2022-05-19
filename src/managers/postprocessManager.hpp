@@ -355,7 +355,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
-                const bool & write_this_step, DFAD & objectiveval);
+                const int & stepnum, DFAD & objectiveval);
     
     // ========================================================================================
     // ========================================================================================
@@ -535,7 +535,7 @@ namespace MrHyDE {
     
     bool compute_response, compute_error, compute_subgrid_error, compute_weighted_norm;
     bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution;
-    int write_frequency, write_cell_number, write_database_id;  ///< Solution write frequency (1/timesteps) 
+    int write_frequency, exodus_write_frequency, write_cell_number, write_database_id;  ///< Solution write frequency (1/timesteps) 
     std::string exodus_filename, cellfield_reduction;
     int spaceDim;                                                // spatial dimension
     int numNodesPerElem;                                         // nodes on each element

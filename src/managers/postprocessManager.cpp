@@ -80,6 +80,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
   write_solution = settings->sublist("Postprocess").get("write solution",false);
   write_frequency = settings->sublist("Postprocess").get("write frequency",1);
+  exodus_write_frequency = settings->sublist("Postprocess").get("exodus write frequency",1);
+  
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution",false);
   write_HFACE_variables = settings->sublist("Postprocess").get("write HFACE variables",false);
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
@@ -495,22 +497,29 @@ PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & int
 
 template<class Node>
 void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
-                                      const bool & write_this_step, DFAD & objectiveval) {
+                                      const int & stepnum, DFAD & objectiveval) {
   
-  if (current_time+1.0e-100 >= exodus_record_start && current_time-1.0e-100 <= exodus_record_stop) {
-    if (write_solution && write_this_step) {
+  bool write_this_step = false;
+  if (stepnum % write_frequency == 0) {
+    write_this_step = true;
+  }
+
+  bool write_exodus_this_step = false;
+  if (stepnum % exodus_write_frequency == 0) {
+    write_exodus_this_step = true;
+  }
+  
+  if (write_exodus_this_step && current_time+1.0e-100 >= exodus_record_start && current_time-1.0e-100 <= exodus_record_stop) {
+    if (write_solution) {
       this->writeSolution(current_time);
     }
   }
-  if (current_time+1.0e-100 >= record_start && current_time-1.0e-100 <= record_stop) {
+  if (write_this_step && current_time+1.0e-100 >= record_start && current_time-1.0e-100 <= record_stop) {
     if (compute_error) {
       this->computeError(current_time);
     }
-    if ((compute_response || compute_objective) && write_this_step) {
+    if (compute_response || compute_objective) {
       this->computeObjective(current_soln, current_time, objectiveval);
-    }
-    if (write_solution && write_this_step) {
-      this->writeSolution(current_time);
     }
     if (compute_flux_response) {
       this->computeFluxResponse(current_time);
@@ -518,10 +527,10 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
     if (compute_integrated_quantities) {
       this->computeIntegratedQuantities(current_time);
     }
-    if (compute_weighted_norm && write_this_step) {
+    if (compute_weighted_norm) {
       this->computeWeightedNorm(current_soln);
     }
-    if (store_sensor_solution && write_this_step) {
+    if (store_sensor_solution) {
       this->computeSensorSolution(current_soln, current_time);
     }
   }
