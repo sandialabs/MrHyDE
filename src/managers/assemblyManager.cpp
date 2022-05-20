@@ -1010,9 +1010,11 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         vector<string> unique_orients;
         vector<vector<size_t> > all_orients;
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          auto orient_host = create_mirror_view(groups[block][grp]->orientation);
+          deep_copy(orient_host, groups[block][grp]->orientation);
           vector<size_t> grp_orient(groups[block][grp]->numElem);
           for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
-            string orient = groups[block][grp]->orientation(e).to_string();
+            string orient = orient_host(e).to_string();
             bool found = false;
             size_t oprog = 0;
             while (!found && oprog<unique_orients.size()) {
@@ -1119,6 +1121,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           groups[block][grp]->storeAll = false;
           totalelem += groups[block][grp]->numElem;
           Kokkos::View<LO*,AssemblyDevice> index("basis database index",groups[block][grp]->numElem);
+          auto index_host = create_mirror_view(index);
 
           // Get the Jacobian for this group
           DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
@@ -1162,7 +1165,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
                 
                   if (abs(diff2/refmeas)<database_TOL) { 
                     found = true;
-                    index(e) = prog;                
+                    index_host(e) = prog;                
                   }
                   else {
                     ++prog;
@@ -1178,7 +1181,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               }
             }
             if (!found) {
-              index(e) = first_users.size();
+              index_host(e) = first_users.size();
               std::pair<size_t,size_t> newuj{grp,e};
               first_users.push_back(newuj);
 
@@ -1196,9 +1199,10 @@ void AssemblyManager<Node>::allocateGroupStorage() {
                 Kokkos::resize(db_measures, 2*db_measures.extent(0));
                 //cout << "New db_measures size = " << db_measures.extent(0) << endl;
               }
-              db_measures(first_users.size()-1) = measure(e);
+              db_measures(first_users.size()-1) = measure_host(e);
             }
           }
+          deep_copy(index,index_host);
           groups[block][grp]->basis_index = index;
         }
       }
@@ -1219,8 +1223,11 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         vector<vector<size_t> > all_orients;
         for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
           vector<size_t> grp_orient(boundary_groups[block][grp]->numElem);
+          auto orient_host = create_mirror_view(boundary_groups[block][grp]->orientation);
+          deep_copy(orient_host,boundary_groups[block][grp]->orientation);
+
           for (size_t e=0; e<boundary_groups[block][grp]->numElem; ++e) {
-            string orient = boundary_groups[block][grp]->orientation(e).to_string();
+            string orient = orient_host(e).to_string();
             bool found = false;
             size_t oprog = 0;
             while (!found && oprog<unique_orients.size()) {
