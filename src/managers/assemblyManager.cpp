@@ -1253,7 +1253,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           boundary_groups[block][grp]->storeAll = false;
           boundaryelem += boundary_groups[block][grp]->numElem;
           Kokkos::View<LO*,AssemblyDevice> index("basis database index",boundary_groups[block][grp]->numElem);
-
+          auto index_host = create_mirror_view(index);
+          
           // Get the Jacobian for this group
           DRV jacobian("jacobian", boundary_groups[block][grp]->numElem, numip, dimension, dimension);
           disc->getJacobian(groupData[block], boundary_groups[block][grp]->nodes, jacobian);
@@ -1304,7 +1305,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
 
                     if (abs(diff2/refmeas)<database_TOL) { 
                       found = true;
-                      index(e) = prog;                
+                      index_host(e) = prog;                
                     }
                     else {
                       ++prog;
@@ -1324,7 +1325,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               }
             }
             if (!found) {
-              index(e) = first_boundary_users.size();
+              index_host(e) = first_boundary_users.size();
               std::pair<size_t,size_t> newuj{grp,e};
               first_boundary_users.push_back(newuj);
               
@@ -1342,9 +1343,10 @@ void AssemblyManager<Node>::allocateGroupStorage() {
                 Kokkos::resize(db_measures, 2*db_measures.extent(0));
                 //cout << "New boundary db_measures size = " << db_measures.extent(0) << endl;
               }
-              db_measures(first_boundary_users.size()-1) = measure(e);
+              db_measures(first_boundary_users.size()-1) = measure_host(e);
             }
           }
+          deep_copy(index,index_host);
           boundary_groups[block][grp]->basis_index = index;
         }
       }
