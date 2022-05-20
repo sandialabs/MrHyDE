@@ -1394,13 +1394,12 @@ void AssemblyManager<Node>::allocateGroupStorage() {
             size_t refelem = first_users[e].second;
           
             // Get the nodes on the host
-            auto sub_nodes = subview(groups[block][refgrp]->nodes, refelem, ALL(), ALL());
-            auto sub_nodes_host = create_mirror_view(sub_nodes);
-            deep_copy(sub_nodes_host, sub_nodes);
+            auto nodes_host = create_mirror_view(groups[block][refgrp]->nodes);
+            deep_copy(nodes_host, groups[block][refgrp]->nodes);
 
             for (size_type node=0; node<database_nodes.extent(1); ++node) {
               for (size_type dim=0; dim<database_nodes.extent(2); ++dim) {
-                database_nodes_host(e,node,dim) = sub_nodes_host(node,dim);
+                database_nodes_host(e,node,dim) = nodes_host(refelem,node,dim);
               }
             }
           
@@ -1410,12 +1409,11 @@ void AssemblyManager<Node>::allocateGroupStorage() {
             database_orientation_host(e) = orientations_host(refelem);
 
             // Get the wts on the host
-            auto sub_wts = subview(groups[block][refgrp]->wts, refelem, ALL());
-            auto sub_wts_host = create_mirror_view(sub_wts);
-            deep_copy(sub_wts_host, sub_wts);
+            auto wts_host = create_mirror_view(groups[block][refgrp]->wts);
+            deep_copy(wts_host, groups[block][refgrp]->wts);
           
-            for (size_type pt=0; pt<sub_wts.extent(0); ++pt) {
-              database_wts_host(e,pt) = sub_wts_host(pt);
+            for (size_type pt=0; pt<database_wts_host.extent(1); ++pt) {
+              database_wts_host(e,pt) = wts_host(refelem,pt);
             }
           
           }
@@ -1546,13 +1544,12 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           
             LO localSideID = boundary_groups[block][refgrp]->localSideID;
             // Get the nodes on the host
-            auto sub_nodes = subview(boundary_groups[block][refgrp]->nodes, refelem, ALL(), ALL());
-            auto sub_nodes_host = create_mirror_view(sub_nodes);
-            deep_copy(sub_nodes_host, sub_nodes);
+            auto nodes_host = create_mirror_view(boundary_groups[block][refgrp]->nodes);
+            deep_copy(nodes_host, boundary_groups[block][refgrp]->nodes);
 
             for (size_type node=0; node<database_bnodes.extent(1); ++node) {
               for (size_type dim=0; dim<database_bnodes.extent(2); ++dim) {
-                database_bnodes_host(0,node,dim) = sub_nodes_host(node,dim);
+                database_bnodes_host(0,node,dim) = nodes_host(refelem,node,dim);
               }
             }
             deep_copy(database_bnodes, database_bnodes_host);
