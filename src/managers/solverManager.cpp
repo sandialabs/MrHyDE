@@ -348,16 +348,19 @@ void SolverManager<Node>::setupExplicitMass() {
       vector<size_t> maxEntriesPerRow(linalg->overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
-        auto numDOF = assembler->groupData[block]->numDOF_host;
+        auto offsets_host = create_mirror_view(offsets);
+        deep_copy(offsets_host,offsets);
+
+        auto numDOF_host = assembler->groupData[block]->numDOF_host;
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          auto LIDs = assembler->groups[block][grp]->LIDs_host[set];
+          auto LIDs_host = assembler->groups[block][grp]->LIDs_host[set];
           
-          for (size_type elem=0; elem<LIDs.extent(0); ++elem) {
-            for (size_type n=0; n<numDOF.extent(0); ++n) {
-              for (int j=0; j<numDOF(n); j++) {
-                int row = offsets(n,j);
-                LO rowIndex = LIDs(elem,row);
-                maxEntriesPerRow[rowIndex] += static_cast<size_t>(numDOF(n));
+          for (size_type elem=0; elem<LIDs_host.extent(0); ++elem) {
+            for (size_type n=0; n<numDOF_host.extent(0); ++n) {
+              for (int j=0; j<numDOF_host(n); j++) {
+                int row = offsets_host(n,j);
+                LO rowIndex = LIDs_host(elem,row);
+                maxEntriesPerRow[rowIndex] += static_cast<size_t>(numDOF_host(n));
               }
             }
           }
