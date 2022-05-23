@@ -479,17 +479,18 @@ void BoundaryGroup::updateStageSoln(const size_t & set) {
     
     // add u into the current stage soln (done after stage solution is computed)
     auto stage = wkset->current_stage;
-    parallel_for("wkset transient sol seedwhat 1",
-                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      //int stage = snum(0);
-      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
-        for (size_type j=0; j<sol_stage.extent(2); j++) {
-          sol_stage(elem,i,j,stage) = sol(elem,i,j);
+    if (stage < sol_stage.extent_int(3)) {
+      parallel_for("wkset transient sol seedwhat 1",
+                   TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
+          for (size_type j=0; j<sol_stage.extent(2); j++) {
+            sol_stage(elem,i,j,stage) = sol(elem,i,j);
+          }
         }
-      }
-    });
+      });
+    }
   }
   
 }
