@@ -299,10 +299,14 @@ void AssemblyManager<Node>::createGroups() {
       bool write_solution = settings->sublist("Postprocess").get("write solution",false);
 
       // if any of the discretizations are greater than 1st order and the user requests output, override the input to plot solution at nodes
-      for(size_t i_basis=0; i_basis<phys->unique_orders[block].size(); ++i_basis)
-        if(phys->unique_orders[block][i_basis] > 1 && write_solution)
-          blockGroupData->requireBasisAtNodes = true;
-      
+      // TMW: modified to only override for HGRAD basis'.  HCURL and HDIV only plot cell averages.
+      for (size_t i_basis=0; i_basis<phys->unique_orders[block].size(); ++i_basis) {
+        if (phys->unique_orders[block][i_basis] > 1 && write_solution) {
+          if (phys->unique_types[block][i_basis] == "HGRAD") {
+            blockGroupData->requireBasisAtNodes = true;
+          }
+        }
+      }
       vector<vector<vector<int> > > curroffsets = my_offsets[block];
       vector<Kokkos::View<LO*,AssemblyDevice> > set_numDOF;
       vector<Kokkos::View<LO*,HostDevice> > set_numDOF_host;
@@ -1586,14 +1590,13 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       groups[block][grp]->computeBasis(keepnodes);
     }
   }
-  
+
   for (size_t block=0; block<boundary_groups.size(); ++block) {
     for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
       boundary_groups[block][grp]->computeBasis(keepnodes);
     }
   }
-  
-  
+
   // ==============================================
   // Inform the user how many groups are on
   // each processor and much memory is utilized by
