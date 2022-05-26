@@ -4936,7 +4936,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
             
             auto inRefCell = assembler->disc->checkInclusionPhysicalData(phys_pt,cnodes,
                                                                          assembler->groupData[block]->cellTopo,
-                                                                         1.0e-15);
+                                                                         0.0);
             auto inRef_host = create_mirror_view(inRefCell);
             deep_copy(inRef_host,inRefCell);
             if (inRef_host(0,0)) {
