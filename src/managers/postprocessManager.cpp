@@ -4010,8 +4010,8 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
   
   int prog = 0;
   
-  for (size_t m=0; m<phys->modules[block].size(); ++m) {
-    for (size_t set=0; set<phys->modules.size(); ++set) {
+  for (size_t set=0; set<phys->modules.size(); ++set) {
+    for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
       
       vector<View_AD2> dqvals = phys->modules[set][block][m]->getDerivedValues();
       for (size_t k=0; k<dqvals.size(); k++) {
