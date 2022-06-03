@@ -2797,7 +2797,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           wkset[block]->reset();
           int sgindex = groups[block][grp]->subgrid_model_index[groups[block][grp]->subgrid_model_index.size()-1];
 
-          
+          /*
           auto u_curr = groups[block][grp]->u[set];
           // Map the gathered solution to seeded version in workset
           if (groupData[block]->requiresTransient) {
@@ -2830,10 +2830,10 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
 #endif
               }
             }); 
-          }
+          }*/
 
-          groups[block][grp]->subgridModels[sgindex]->subgridSolver(uvals_sc, groups[block][grp]->phi[set], 
-                                                                    //groups[block][grp]->u[set], groups[block][grp]->phi[set], 
+          groups[block][grp]->subgridModels[sgindex]->subgridSolver(//uvals_sc, groups[block][grp]->phi[set], 
+                                                                    groups[block][grp]->u[set], groups[block][grp]->phi[set], 
                                                                     wkset[block]->time, isTransient, useadjoint,
                                                                     compute_jacobian, compute_sens, num_active_params,
                                                                     compute_disc_sens, false,
