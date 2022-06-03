@@ -1039,8 +1039,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           }
           all_orients.push_back(grp_orient);
         }
-        cout << "Number of unique orient = " << unique_orients.size() << endl;
-
+        
         // Uncomment for clustering 
         /*
         vector<vector<ScalarT> > all_meas;
@@ -1200,23 +1199,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               }
               db_jacobians.push_back(new_jac);
               db_measures.push_back(measure_host(e));
-              /*
-              // Resize Jacobians and add new one
-              if (first_users.size() > db_jacobians.extent(0)) {
-                Kokkos::resize(db_jacobians, 2*db_jacobians.extent(0), numip, dimension, dimension);
-                //cout << "New db_jacobian size = " << db_jacobians.extent(0) << endl;
-              }
-              auto db_slice = subview(db_jacobians, first_users.size()-1, ALL(), ALL(), ALL());
-              auto jac_slice = subview(jacobian, e, ALL(), ALL(), ALL());
-              deep_copy(db_slice,jac_slice);
               
-              // Resize measures and add new one
-              if (first_users.size() > db_measures.extent(0)) {
-                Kokkos::resize(db_measures, 2*db_measures.extent(0));
-                //cout << "New db_measures size = " << db_measures.extent(0) << endl;
-              }
-              db_measures(first_users.size()-1) = measure_host(e);
-              */
             }
           }
           deep_copy(index,index_host);
@@ -1231,8 +1214,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       {
         Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
 
-        Kokkos::View<ScalarT****,HostDevice> db_jacobians("jacobians for data base",1,numip,dimension,dimension);
-        Kokkos::View<ScalarT*,HostDevice> db_measures("measures for data base",1);
+        vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
+        vector<ScalarT> db_measures;
       
         // There are only so many unique orientation
         // Creating a short list of the unique ones and the index for each element 
@@ -1304,10 +1287,10 @@ void AssemblyManager<Node>::allocateGroupStorage() {
                 if (orient == reforient) { // if all 3 checks have passed
                     
                   // Check #2: element measures
-                  ScalarT diff = abs(measure_host(e)-db_measures(prog));
-                  ScalarT refmeas = std::pow(db_measures(prog),1.0/dimension);
+                  ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
+                  ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
             
-                  if (abs(diff/refmeas)<database_TOL) { 
+                  if (std::abs(diff/refmeas)<database_TOL) { 
 
                     // Check #3: element Jacobians
   
@@ -1315,12 +1298,12 @@ void AssemblyManager<Node>::allocateGroupStorage() {
                     for (size_type pt=0; pt<jacobian_host.extent(1); ++pt) {
                       for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
                         for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
-                          diff2 += abs(jacobian_host(e,pt,d0,d1) - db_jacobians(prog,pt,d0,d1));
+                          diff2 += std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
                         }
                       }
                     }
 
-                    if (abs(diff2/refmeas)<database_TOL) { 
+                    if (std::abs(diff2/refmeas)<database_TOL) { 
                       found = true;
                       index_host(e) = prog;                
                     }
@@ -1346,21 +1329,17 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               std::pair<size_t,size_t> newuj{grp,e};
               first_boundary_users.push_back(newuj);
               
-              // Resize Jacobians and add new one
-              if (first_boundary_users.size() > db_jacobians.extent(0)) {
-                Kokkos::resize(db_jacobians, 2*db_jacobians.extent(0), numip, dimension, dimension);
-                //cout << "New boundary db_jacobian size = " << db_jacobians.extent(0) << endl;
+              Kokkos::View<ScalarT***,HostDevice> new_jac("new db jac",numip, dimension, dimension);
+              for (size_type pt=0; pt<new_jac.extent(0); ++pt) {
+                for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
+                  for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
+                    new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
+                  }
+                }
               }
-              auto db_slice = subview(db_jacobians, first_boundary_users.size()-1, ALL(), ALL(), ALL());
-              auto jac_slice = subview(jacobian, e, ALL(), ALL(), ALL());
-              deep_copy(db_slice,jac_slice);
-
-              // Resize measures and add new one
-              if (first_boundary_users.size() > db_measures.extent(0)) {
-                Kokkos::resize(db_measures, 2*db_measures.extent(0));
-                //cout << "New boundary db_measures size = " << db_measures.extent(0) << endl;
-              }
-              db_measures(first_boundary_users.size()-1) = measure_host(e);
+              db_jacobians.push_back(new_jac);
+              db_measures.push_back(measure_host(e));
+              
             }
           }
           deep_copy(index,index_host);
@@ -2818,6 +2797,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           wkset[block]->reset();
           int sgindex = groups[block][grp]->subgrid_model_index[groups[block][grp]->subgrid_model_index.size()-1];
 
+          
           auto u_curr = groups[block][grp]->u[set];
           // Map the gathered solution to seeded version in workset
           if (groupData[block]->requiresTransient) {
