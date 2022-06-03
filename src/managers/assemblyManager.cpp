@@ -1005,8 +1005,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       {
         Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
 
-        Kokkos::View<ScalarT****,HostDevice> db_jacobians("jacobians for data base",1,numip,dimension,dimension);
-        Kokkos::View<ScalarT*,HostDevice> db_measures("measures for data base",1);
+        vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
+        vector<ScalarT> db_measures;
         
         // There are only so many unique orientation
         // Creating a short list of the unique ones and the index for each element 
@@ -1039,7 +1039,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
           }
           all_orients.push_back(grp_orient);
         }
-        
+        cout << "Number of unique orient = " << unique_orients.size() << endl;
+
         // Uncomment for clustering 
         /*
         vector<vector<ScalarT> > all_meas;
@@ -1152,22 +1153,22 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               if (orient == reforient) {
                 
                 // Check #2: element measures
-                ScalarT diff = abs(measure_host(e)-db_measures(prog));
-                ScalarT refmeas = std::pow(db_measures(prog),1.0/dimension);
+                ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
+                ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
                 
-                if (abs(diff/std::abs(db_measures(prog)))<database_TOL) { // abs(measure) is probably unnecessary here 
+                if (abs(diff/std::abs(db_measures[prog]))<database_TOL) { // abs(measure) is probably unnecessary here 
                 
                   // Check #3: element Jacobians
                   ScalarT diff2 = 0.0; 
                   for (size_type pt=0; pt<jacobian_host.extent(1); ++pt) {
                     for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
                       for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
-                        diff2 += abs(jacobian_host(e,pt,d0,d1) - db_jacobians(prog,pt,d0,d1));
+                        diff2 += std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
                       }
                     }
                   }
                 
-                  if (abs(diff2/refmeas)<database_TOL) { 
+                  if (std::abs(diff2/refmeas)<database_TOL) { 
                     found = true;
                     index_host(e) = prog;                
                   }
@@ -1189,6 +1190,17 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               std::pair<size_t,size_t> newuj{grp,e};
               first_users.push_back(newuj);
 
+              Kokkos::View<ScalarT***,HostDevice> new_jac("new db jac",numip, dimension, dimension);
+              for (size_type pt=0; pt<new_jac.extent(0); ++pt) {
+                for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
+                  for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
+                    new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
+                  }
+                }
+              }
+              db_jacobians.push_back(new_jac);
+              db_measures.push_back(measure_host(e));
+              /*
               // Resize Jacobians and add new one
               if (first_users.size() > db_jacobians.extent(0)) {
                 Kokkos::resize(db_jacobians, 2*db_jacobians.extent(0), numip, dimension, dimension);
@@ -1197,13 +1209,14 @@ void AssemblyManager<Node>::allocateGroupStorage() {
               auto db_slice = subview(db_jacobians, first_users.size()-1, ALL(), ALL(), ALL());
               auto jac_slice = subview(jacobian, e, ALL(), ALL(), ALL());
               deep_copy(db_slice,jac_slice);
-
+              
               // Resize measures and add new one
               if (first_users.size() > db_measures.extent(0)) {
                 Kokkos::resize(db_measures, 2*db_measures.extent(0));
                 //cout << "New db_measures size = " << db_measures.extent(0) << endl;
               }
               db_measures(first_users.size()-1) = measure_host(e);
+              */
             }
           }
           deep_copy(index,index_host);
@@ -2802,8 +2815,45 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       // Volumetric contribution
       if (assemble_volume_terms[set][block]) {
         if (groupData[block]->multiscale) {
+          wkset[block]->reset();
           int sgindex = groups[block][grp]->subgrid_model_index[groups[block][grp]->subgrid_model_index.size()-1];
-          groups[block][grp]->subgridModels[sgindex]->subgridSolver(groups[block][grp]->u[set], groups[block][grp]->phi[set], 
+
+          auto u_curr = groups[block][grp]->u[set];
+          // Map the gathered solution to seeded version in workset
+          if (groupData[block]->requiresTransient) {
+            for (size_t set=0; set<groupData[block]->numSets; ++set) {
+              wkset[block]->computeSolnTransientSeeded(set, groups[block][grp]->u[set], groups[block][grp]->u_prev[set], 
+                                                      groups[block][grp]->u_stage[set], 0);
+            }
+          }
+          else { // steady-state
+            for (size_t set=0; set<groupData[block]->numSets; ++set) {
+              wkset[block]->computeSolnSteadySeeded(set, groups[block][grp]->u[set], 0);
+            }
+          }
+          
+          View_Sc3 uvals_sc("coarse vals unseeded",u_curr.extent(0),u_curr.extent(1),u_curr.extent(2));
+
+          for (size_type var=0; var<u_curr.extent(1); ++var) {
+            
+            size_t uindex = wkset[block]->uvals_index[set][var];
+            auto uvals_AD = wkset[block]->uvals[uindex];
+            auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
+            parallel_for("assembly compute coarse sol",
+                         RangePolicy<AssemblyExec>(0,uvals_AD.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
+                uvals_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
+#else
+                uvals_sc_sv(elem,dof) = uvals_AD(elem,dof);
+#endif
+              }
+            }); 
+          }
+
+          groups[block][grp]->subgridModels[sgindex]->subgridSolver(uvals_sc, groups[block][grp]->phi[set], 
+                                                                    //groups[block][grp]->u[set], groups[block][grp]->phi[set], 
                                                                     wkset[block]->time, isTransient, useadjoint,
                                                                     compute_jacobian, compute_sens, num_active_params,
                                                                     compute_disc_sens, false,
