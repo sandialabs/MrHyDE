@@ -37,6 +37,8 @@ settings(settings_), macro_cellTopo(macro_cellTopo_) {
   time_steps = settings->sublist("Solver").get<int>("number of steps",1);
   initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
+  isSynchronous = settings->sublist("Solver").get<bool>("synchronous time stepping",true);
+  
   string solver = settings->sublist("Solver").get<string>("solver","steady-state");
   if (solver == "steady-state") {
     final_time = 0.0;
@@ -360,6 +362,16 @@ void SubGridDtN2::setUpSubgridModels() {
       
       Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector(0);
       this->setInitial(init, mindex, false);
+      prev_soln.push_back(init);
+      
+      Teuchos::RCP<SG_MultiVector> curr = sub_solver->solver->linalg->getNewOverlappedVector(0);
+      curr->assign(*init);
+      curr_soln.push_back(curr);
+      
+      Teuchos::RCP<SG_MultiVector> stage = sub_solver->solver->linalg->getNewOverlappedVector(0);
+      stage->assign(*init);
+      stage_soln.push_back(stage);
+      
       soln->store(init,initial_time,mindex);
       sub_solver->performGather(mindex, init, 0, 0);
       Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector(0);
@@ -777,7 +789,7 @@ void SubGridDtN2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Starting SubGridDtN::subgridSolver ..." << endl;
+      cout << "**** Starting SubGridDtN2::subgridSolver ..." << endl;
     }
   }
   
@@ -786,16 +798,16 @@ void SubGridDtN2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
   
   // Copy the locak data (look into using subviews for this)
   // Solver does not know about localData
+
   Kokkos::View<ScalarT***,AssemblyDevice> coarse_u("local u",groups[macrogrp][0]->numElem,
                                                    coarse_fwdsoln.extent(1),
                                                    coarse_fwdsoln.extent(2));
-  Kokkos::View<ScalarT***,AssemblyDevice> coarse_phi("local phi",groups[macrogrp][0]->numElem,
-                                                     coarse_adjsoln.extent(1),
-                                                     coarse_adjsoln.extent(2));
-  
+  Kokkos::View<ScalarT***,AssemblyDevice> coarse_phi;
+
   // TMW: update for device (subgrid or assembly?)
   // Need to move localData[]->macroIDs to a Kokkos::View on the appropriate device
   auto macroIDs = macroData[macrogrp]->macroIDs;
+
   parallel_for("subgrid set coarse sol",
                RangePolicy<AssemblyExec>(0,coarse_u.extent(0)),
                KOKKOS_LAMBDA (const size_type e ) {
@@ -805,7 +817,12 @@ void SubGridDtN2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
       }
     }
   });
+    
+    
   if (isAdjoint) {
+    coarse_phi = Kokkos::View<ScalarT***,AssemblyDevice>("local phi",groups[macrogrp][0]->numElem,
+                                                         coarse_adjsoln.extent(1),
+                                                         coarse_adjsoln.extent(2));
     parallel_for("subgrid set coarse adj",
                  RangePolicy<AssemblyExec>(0,coarse_phi.extent(0)),
                  KOKKOS_LAMBDA (const size_type e ) {
@@ -819,6 +836,7 @@ void SubGridDtN2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
   
   // Extract the previous solution as the initial guess/condition for subgrid problems
   Teuchos::RCP<SG_MultiVector> prev_fwdsoln, prev_adjsoln;
+  /*
   {
     Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
     
@@ -860,27 +878,34 @@ void SubGridDtN2::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_f
         }
       }
     }
-  }
+  }*/
+
+  Teuchos::RCP<SG_MultiVector> curr_adjsoln;
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
   sub_solver->solve(coarse_u, coarse_phi,
-                    prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
+                    prev_soln[macrogrp], curr_soln[macrogrp], stage_soln[macrogrp],
+                    prev_adjsoln, curr_adjsoln,
+                    //prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
                     Psol[0],
                     time, isTransient, isAdjoint, compute_jacobian,
                     compute_sens, num_active_params, compute_disc_sens, compute_aux_sens,
                     macrowkset, macrogrp, macroelemindex, subgradient, store_adjPrev);
   
+  //if (macrowkset.current_stage == 1) {
+  //  sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
+  //}
   // Store the subgrid fwd or adj solution
-  if (isAdjoint) {
-    adjsoln->store(sub_solver->phi,time,macrogrp);
-  }
-  else if (!compute_sens) {
-    soln->store(sub_solver->u,time,macrogrp);
-  }
+  //if (isAdjoint) {
+  //  adjsoln->store(sub_solver->phi,time,macrogrp);
+  //}
+  //else if (!compute_sens) {
+  //  soln->store(sub_solver->u,time,macrogrp);
+  //}
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
-      cout << "**** Finished SubGridDtN::subgridSolver ..." << endl;
+      cout << "**** Finished SubGridDtN2::subgridSolver ..." << endl;
     }
   }
   
@@ -1720,3 +1745,40 @@ void SubGridDtN2::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, 
 void SubGridDtN2::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) {
   
 }
+
+
+// ========================================================================================
+//
+// ========================================================================================
+    
+void SubGridDtN2::advance() {
+  
+  for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+    prev_soln[macrogrp]->assign(*(curr_soln[macrogrp]));
+    sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
+    
+    for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
+      sub_assembler->groups[macrogrp][grp]->resetPrevSoln(0);
+      sub_assembler->groups[macrogrp][grp]->resetStageSoln(0);
+    }
+    for (size_t grp=0; grp<sub_assembler->boundary_groups[macrogrp].size(); ++grp) {
+      sub_assembler->boundary_groups[macrogrp][grp]->resetPrevSoln(0);
+      sub_assembler->boundary_groups[macrogrp][grp]->resetStageSoln(0);
+    }
+    
+  }
+}
+    
+// ========================================================================================
+//
+// ========================================================================================
+    
+void SubGridDtN2::advanceStage() {
+  if (isSynchronous) {
+    for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+      curr_soln[macrogrp]->update(1.0, *(stage_soln[macrogrp]), 1.0);
+      curr_soln[macrogrp]->update(-1.0, *(prev_soln[macrogrp]), 1.0);
+    }
+  }
+}
+        

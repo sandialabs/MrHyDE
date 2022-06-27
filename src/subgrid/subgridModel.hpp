@@ -88,6 +88,10 @@ namespace MrHyDE {
                                            std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) = 0;
     
     virtual vector_RCP getVector() = 0;
+
+    virtual void advance() = 0;
+    
+    virtual void advanceStage() = 0;
     
     virtual DRV getIP() = 0;
     

@@ -371,7 +371,8 @@ void Group::setAuxUseBasis(vector<int> & ausebasis_) {
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void Group::updateWorkset(const int & seedwhat, const bool & override_transient) {
+void Group::updateWorkset(const int & seedwhat, const int & seedindex,
+                          const bool & override_transient) {
     
   Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   
@@ -431,7 +432,7 @@ void Group::updateWorkset(const int & seedwhat, const bool & override_transient)
   // Map the gathered solution to seeded version in workset
   if (groupData->requiresTransient && !override_transient) {
     for (size_t set=0; set<groupData->numSets; ++set) {
-      wkset->computeSolnTransientSeeded(set, u[set], u_prev[set], u_stage[set], seedwhat);
+      wkset->computeSolnTransientSeeded(set, u[set], u_prev[set], u_stage[set], seedwhat, seedindex);
     }
   }
   else { // steady-state

@@ -72,7 +72,6 @@ void thermal::volumeResidual() {
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
   
-  
   Vista source, diff, cp, rho;
   
   {

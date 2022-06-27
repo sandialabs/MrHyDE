@@ -138,7 +138,8 @@ namespace MrHyDE {
     // Update the workset
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateWorkset(const int & seedwhat, const bool & override_transient=false);
+    void updateWorkset(const int & seedwhat, const int & seedindex=0,
+                       const bool & override_transient=false);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Update the workset

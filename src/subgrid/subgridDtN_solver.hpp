@@ -63,7 +63,10 @@ namespace MrHyDE {
     void solve(View_Sc3 coarse_u,
                View_Sc3 coarse_phi,
                Teuchos::RCP<SG_MultiVector> & prev_u,
+               Teuchos::RCP<SG_MultiVector> & curr_u,
+               Teuchos::RCP<SG_MultiVector> & stage_u,
                Teuchos::RCP<SG_MultiVector> & prev_phi,
+               Teuchos::RCP<SG_MultiVector> & curr_phi,
                Teuchos::RCP<SG_MultiVector> & disc_params,
                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                const bool & compute_jacobian, const bool & compute_sens,
@@ -72,7 +75,21 @@ namespace MrHyDE {
                workset & macrowkset,
                const int & macrogrp, const int & macroelemindex,
                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
-    
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    // Subgrid Assembly
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    void assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & sol,
+                                  Teuchos::RCP<SG_MultiVector> & adj,
+                                  Teuchos::RCP<SG_MultiVector> & params,
+                                  Kokkos::View<ScalarT***,AssemblyDevice> lambda,
+                                  Teuchos::RCP<SG_MultiVector> & residual,
+                                  Teuchos::RCP<SG_CrsMatrix> & Jacobian,
+                                  const int & seedwhat, const int & seedindex,
+                                  const int & macrogrp,
+                                  const bool & isAdjoint);
+
     ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Nonlinear Solver
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -96,14 +113,16 @@ namespace MrHyDE {
     // solution or w.r.t parameters
     //////////////////////////////////////////////////////////////
     
-    void computeSolnSens(Teuchos::RCP<SG_MultiVector> & d_sub_u, const bool & compute_sens,
-                         Teuchos::RCP<SG_MultiVector> & sub_u,
-                         Teuchos::RCP<SG_MultiVector> & sub_phi,
-                         Teuchos::RCP<SG_MultiVector> & sub_param, View_Sc3 lambda,
-                         const ScalarT & time,
-                         const bool & isTransient, const bool & isAdjoint, const int & num_active_params, const ScalarT & alpha,
-                         const ScalarT & lambda_scale, const int & macrogrp,
-                         Kokkos::View<ScalarT**,AssemblyDevice> subgradient);
+    void forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVector> & d_sol, const bool & compute_sens,
+                                       Teuchos::RCP<SG_MultiVector> & sol,
+                                       Teuchos::RCP<SG_MultiVector> & adj,
+                                       Teuchos::RCP<SG_MultiVector> & param, 
+                                       View_Sc3 lambda,
+                                       const ScalarT & time,
+                                       const bool & isTransient, const bool & isAdjoint, 
+                                       const int & num_active_params, const ScalarT & alpha,
+                                       const ScalarT & lambda_scale, const int & macrogrp,
+                                       Kokkos::View<ScalarT**,AssemblyDevice> subgradient);
     
     //////////////////////////////////////////////////////////////
     // Update the residual for the subgrid solution sensitivity wrt coarse DOFs
@@ -127,7 +146,8 @@ namespace MrHyDE {
                     const Teuchos::RCP<SG_MultiVector> & disc_params,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
-                    const int & macrogrp);
+                    const int & macrogrp,
+                    const ScalarT & fluxwt);
     
     
     template<class ViewType>
@@ -137,7 +157,8 @@ namespace MrHyDE {
                     ViewType dp_kv,
                     const bool & compute_sens, const int macroelemindex,
                     const ScalarT & time, workset & macrowkset,
-                    const int & macrogrp);
+                    const int & macrogrp,
+                    const ScalarT & fluxwt);
 
     ///////////////////////////////////////////////////////////////////////////////////////
     // Store macro-dofs and flux (for ML-based subgrid)
@@ -232,9 +253,10 @@ namespace MrHyDE {
     // Linear algebra / solver objects
     Teuchos::RCP<SG_Map> param_overlapped_map;
     Teuchos::RCP<SG_MultiVector> res, res_over, d_um, du, du_glob;
-    Teuchos::RCP<SG_MultiVector> u, phi;
-    Teuchos::RCP<SG_MultiVector> d_sub_res_overm, d_sub_resm, d_sub_u_prevm, d_sub_u_overm;
-    Teuchos::RCP<SG_CrsMatrix>  J, sub_J_over;
+    //Teuchos::RCP<SG_MultiVector> u, phi;
+    Teuchos::RCP<SG_MultiVector> d_res_over_saved, d_res_saved, d_sol_saved, d_sol_over_saved;
+    vector<Teuchos::RCP<SG_MultiVector>> d_sol_prev_saved, d_sol_stage_saved;
+    Teuchos::RCP<SG_CrsMatrix>  J, J_over, J_alt, J_alt_over;
     
     string amesos_solver_type;
     Teuchos::RCP<Amesos2::Solver<SG_CrsMatrix,SG_MultiVector> > Am2Solver;
@@ -255,7 +277,7 @@ namespace MrHyDE {
     Teuchos::RCP<AssemblyManager<SubgridSolverNode> > assembler;
     
     int num_macro_time_steps;
-    bool write_subgrid_state;
+    bool write_subgrid_state, isSynchronous;
     
     bool have_mesh_data, have_rotations, have_rotation_phi, compute_mesh_data;
     bool have_multiple_data_files;

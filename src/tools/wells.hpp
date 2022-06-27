@@ -97,7 +97,7 @@ namespace MrHyDE {
                      KOKKOS_LAMBDA (const int elem) {
           ScalarT C = std::log(0.25*std::exp(-0.5772)*h(elem)/2.0);
 
-          for (size_t pt=0; pt<numIP; pt++) {
+          for (int pt=0; pt<numIP; pt++) {
             if (wellnum == 0) source_kv(elem,pt) = source(elem,pt); // initialize properly
             // this allows for an additional volumetric source
             // do not name any of your wells the same as the default volumetric source

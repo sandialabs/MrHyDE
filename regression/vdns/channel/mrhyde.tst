@@ -46,26 +46,71 @@ if its.opts.preprocess:
 status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
 status += its.clean_log()
 
+flog = '%s.log' % (root)
+reflog = '%s.gold' % (root)
 
-status += its.call('diff -y %s.log %s.gold' % (root, root))
+for line in open(flog):
+  if "L2 norm of the error for ux" in  line: uxline = line
+w = uxline.split()
+uxerr = float(w[9])
 
+for line in open(reflog):
+  if "L2 norm of the error for ux" in  line: refuxline = line
+w = refuxline.split()
+refuxerr = float(w[9])
+
+if abs(uxerr-refuxerr) > aeps :
+  print('  Failure: L2 error for ux too large.')
+  status += 1
+
+# ---------------------------------------
+
+for line in open(flog):
+  if "L2 norm of the error for uy" in  line: uyline = line
+w = uyline.split()
+uyerr = float(w[9])
+
+for line in open(reflog):
+  if "L2 norm of the error for uy" in  line: refuyline = line
+w = refuyline.split()
+refuyerr = float(w[9])
+
+if abs(uyerr-refuyerr) > aeps :
+  print('  Failure: L2 error for uy too large.')
+  status += 1
+
+# ---------------------------------------
+
+for line in open(flog):
+  if "L2 norm of the error for pr" in  line: prline = line
+w = prline.split()
+prerr = float(w[9])
+
+for line in open(reflog):
+  if "L2 norm of the error for pr" in  line: refprline = line
+w = refprline.split()
+refprerr = float(w[9])
+
+if abs(prerr-refprerr) > aeps :
+  print('  Failure: L2 error for pr too large.')
+  status += 1
+
+# ---------------------------------------
+
+for line in open(flog):
+  if "L2 norm of the error for T" in  line: Tline = line
+w = Tline.split()
+Terr = float(w[9])
+
+for line in open(reflog):
+  if "L2 norm of the error for T" in  line: refTline = line
+w = refTline.split()
+refTerr = float(w[9])
+
+if abs(Terr-refTerr) > aeps :
+  print('  Failure: L2 error for T too large.')
+  status += 1
 # ------------------------------
-
-
-
-# ------------------------------
-if its.opts.graphics and not status:
-  if its.opts.verbose != 'none': print('---> Graphics %s' % (root))
-  status += its.call('echo "  No graphics, yet."')
-
-# ------------------------------
-if its.opts.clean and not status:
-  if its.opts.verbose != 'none': print('---> Clean %s' % (root))
-  os.chdir('obj-org')
-  status += its.call('ichos_clean')
-  status += its.call('rm -rf shot.*')
-  os.chdir('..')
-  status += its.call('ichos_clean')
 
 # ==============================================================================
 if status == 0: print('Success.')

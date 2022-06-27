@@ -85,7 +85,7 @@ namespace Intrepid2 {
         }
       };
       
-      template<typename ExecSpaceType, ordinal_type numPtsPerEval,
+      template<typename DeviceType, ordinal_type numPtsPerEval,
       typename outputValueValueType, class ...outputValueProperties,
       typename inputPointValueType,  class ...inputPointProperties,
       typename vinvValueType,        class ...vinvProperties>
@@ -155,26 +155,26 @@ namespace Intrepid2 {
    \brief  Implementation of the default H(face)-compatible FEM basis on Quadrilateral cell
    */
   
-  template<typename ExecSpaceType = void,
+  template<typename DeviceType = void,
   typename outputValueType = double,
   typename pointValueType = double>
   class Basis_HFACE_HEX_In_FEM
-  : public Basis<ExecSpaceType,outputValueType,pointValueType> {
+  : public Basis<DeviceType,outputValueType,pointValueType> {
   public:
-    using OrdinalTypeArray1DHost = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OrdinalTypeArray1DHost;
-    using OrdinalTypeArray2DHost = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OrdinalTypeArray2DHost;
-    using OrdinalTypeArray3DHost = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OrdinalTypeArray3DHost;
+    using OrdinalTypeArray1DHost = typename Basis<DeviceType,outputValueType,pointValueType>::OrdinalTypeArray1DHost;
+    using OrdinalTypeArray2DHost = typename Basis<DeviceType,outputValueType,pointValueType>::OrdinalTypeArray2DHost;
+    using OrdinalTypeArray3DHost = typename Basis<DeviceType,outputValueType,pointValueType>::OrdinalTypeArray3DHost;
     
     /** \brief  Constructor.
      */
     Basis_HFACE_HEX_In_FEM(const ordinal_type order,
                             const EPointType   pointType = POINTTYPE_EQUISPACED);
     
-    using OutputViewType = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OutputViewType;
-    using PointViewType  = typename Basis<ExecSpaceType,outputValueType,pointValueType>::PointViewType;
-    using ScalarViewType = typename Basis<ExecSpaceType,outputValueType,pointValueType>::ScalarViewType;
+    using OutputViewType = typename Basis<DeviceType,outputValueType,pointValueType>::OutputViewType;
+    using PointViewType  = typename Basis<DeviceType,outputValueType,pointValueType>::PointViewType;
+    using ScalarViewType = typename Basis<DeviceType,outputValueType,pointValueType>::ScalarViewType;
     
-    using Basis<ExecSpaceType,outputValueType,pointValueType>::getValues;
+    using Basis<DeviceType,outputValueType,pointValueType>::getValues;
     
     virtual
     void
@@ -190,10 +190,10 @@ namespace Intrepid2 {
 #endif
       constexpr ordinal_type numPtsPerEval = Parameters::MaxNumPtsPerBasisEval;
       Impl::Basis_HFACE_HEX_In_FEM::
-      getValues<ExecSpaceType,numPtsPerEval>( outputValues,
-                                             inputPoints,
-                                             this->vinvLine_,
-                                             operatorType );
+      getValues<DeviceType,numPtsPerEval>( outputValues,
+                                           inputPoints,
+                                           this->vinvLine_,
+                                           operatorType );
     }
     virtual
     void
@@ -241,10 +241,48 @@ namespace Intrepid2 {
       return false; // TMW: update when fixed
     }
     
+    //BasisPtr<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>
+    //getHostBasis() const override{
+    //  return Teuchos::rcp(new Basis_HFACE_HEX_In_FEM<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>(this->basisDegree_, pointType_));
+    //}
+    
   private:
     
     /** \brief inverse of Generalized Vandermonde matrix (isotropic order) */
-    Kokkos::DynRankView<typename ScalarViewType::value_type,ExecSpaceType> vinvLine_;
+    Kokkos::DynRankView<typename ScalarViewType::value_type,DeviceType> vinvLine_;
+
+    /** \brief type of lattice used for creating the DoF coordinates  */
+    EPointType pointType_;
+
+  public:
+
+    /** \brief returns the basis associated to a subCell.
+
+        The bases of the subCell are the restriction to the subCell
+        of the bases of the parent cell.
+        \param [in] subCellDim - dimension of subCell
+        \param [in] subCellOrd - position of the subCell among of the subCells having the same dimension
+        \return pointer to the subCell basis of dimension subCellDim and position subCellOrd
+     */
+    BasisPtr<DeviceType,outputValueType,pointValueType>
+      getSubCellRefBasis(const ordinal_type subCellDim, const ordinal_type subCellOrd) const override{
+      if(subCellDim == 1) {
+        return Teuchos::rcp(new
+            Basis_HGRAD_LINE_Cn_FEM<DeviceType,outputValueType,pointValueType>
+            (this->basisDegree_, POINTTYPE_EQUISPACED));
+      } else if(subCellDim == 2) {
+        return Teuchos::rcp(new
+            Basis_HGRAD_QUAD_Cn_FEM<DeviceType,outputValueType,pointValueType>
+            (this->basisDegree_, POINTTYPE_EQUISPACED));
+      }
+      INTREPID2_TEST_FOR_EXCEPTION(true,std::invalid_argument,"Input parameters out of bounds");
+    }
+
+    BasisPtr<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>
+    getHostBasis() const override{
+      return Teuchos::rcp(new Basis_HFACE_HEX_In_FEM<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>(this->basisDegree_, POINTTYPE_EQUISPACED));
+    }
+
   };
   
 }// namespace Intrepid2

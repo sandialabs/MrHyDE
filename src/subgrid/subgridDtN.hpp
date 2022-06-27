@@ -228,6 +228,14 @@ namespace MrHyDE {
     
     void updateLocalData(const int & macrogrp);
     
+    // ========================================================================================
+    //
+    // ========================================================================================
+    
+    void advance();
+    
+    void advanceStage();
+    
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -254,6 +262,8 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> sub_disc;
     Teuchos::RCP<PostprocessManager<SubgridSolverNode> > sub_postproc;
     vector<Teuchos::RCP<SG_MultiVector> > Psol;
+    vector<Teuchos::RCP<SG_MultiVector> > prev_soln, curr_soln, stage_soln;
+    vector<Teuchos::RCP<SG_MultiVector> > prev_adjsoln, curr_adjsoln;
     
     // Dynamic - depend on the macro-element
     vector<Teuchos::RCP<SubGridMacroData> > macroData;
@@ -266,7 +276,7 @@ namespace MrHyDE {
     bool have_multiple_data_files;
     string mesh_data_tag, mesh_data_pts_tag;
     int number_mesh_data_files, numSeeds;
-    bool is_final_time;
+    bool is_final_time, isSynchronous;
     vector<int> randomSeeds;
     
     // Storage of macro solution and flux (with derivatives)

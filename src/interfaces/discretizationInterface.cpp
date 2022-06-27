@@ -16,42 +16,28 @@
 #include "Panzer_OrientationsInterface.hpp"
 
 // HGRAD basis functions
-#include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
-
 #include "Intrepid2_HGRAD_QUAD_Cn_FEM.hpp"
-#include "Intrepid2_HGRAD_HEX_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_HEX_Cn_FEM.hpp"
-#include "Intrepid2_HGRAD_TRI_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_TRI_Cn_FEM.hpp"
-#include "Intrepid2_HGRAD_TET_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_TET_Cn_FEM.hpp"
-#include "Intrepid2_HGRAD_LINE_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_LINE_Cn_FEM.hpp"
 
 // HVOL basis functions
 #include "Intrepid2_HVOL_C0_FEM.hpp"
 
 // HDIV basis functions
-#include "Intrepid2_HDIV_QUAD_I1_FEM.hpp"
 #include "Intrepid2_HDIV_QUAD_In_FEM.hpp"
-#include "Intrepid2_HDIV_HEX_I1_FEM.hpp"
 #include "Intrepid2_HDIV_HEX_In_FEM.hpp"
-#include "Intrepid2_HDIV_TRI_I1_FEM.hpp"
 #include "Intrepid2_HDIV_TRI_In_FEM.hpp"
-#include "Intrepid2_HDIV_TET_I1_FEM.hpp"
 #include "Intrepid2_HDIV_TET_In_FEM.hpp"
 
 // HDIV Arbogast-Correa basis functions
 #include "Intrepid2_HDIV_AC_QUAD_I1_FEM.hpp"
 
 // HCURL basis functions
-#include "Intrepid2_HCURL_QUAD_I1_FEM.hpp"
 #include "Intrepid2_HCURL_QUAD_In_FEM.hpp"
-#include "Intrepid2_HCURL_HEX_I1_FEM.hpp"
 #include "Intrepid2_HCURL_HEX_In_FEM.hpp"
-#include "Intrepid2_HCURL_TRI_I1_FEM.hpp"
 #include "Intrepid2_HCURL_TRI_In_FEM.hpp"
-#include "Intrepid2_HCURL_TET_I1_FEM.hpp"
 #include "Intrepid2_HCURL_TET_In_FEM.hpp"
 
 // HFACE (experimental) basis functions
@@ -261,38 +247,22 @@ basis_RCP DiscretizationInterface::getBasis(const int & spaceDim, const topo_RCP
   
   if (type == "HGRAD") {
     if (spaceDim == 1) {
-      basis = Teuchos::rcp(new Basis_HGRAD_LINE_C1_FEM<PHX::Device::execution_space,double,double>() );
+      basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
     }
     if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
       if (shape == "Triangle_3") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HGRAD_TRI_C1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_WARPBLEND) );
-        }
+        basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_WARPBLEND) );
       }
     }
     if (spaceDim == 3) {
       if (shape == "Hexahedron_8") {
-        if (degree  == 1)
-          basis = Teuchos::rcp(new Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
       if (shape == "Tetrahedron_4") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HGRAD_TET_C1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HGRAD_TET_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HGRAD_TET_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
   }
@@ -301,38 +271,22 @@ basis_RCP DiscretizationInterface::getBasis(const int & spaceDim, const topo_RCP
   }
   else if (type == "HDIV") {
     if (spaceDim == 1) {
-      basis = Teuchos::rcp(new Basis_HGRAD_LINE_C1_FEM<PHX::Device::execution_space,double,double>() );
+      basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
     }
     else if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HDIV_QUAD_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HDIV_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HDIV_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Triangle_3") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HDIV_TRI_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HDIV_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HDIV_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     else if (spaceDim == 3) {
       if (shape == "Hexahedron_8") {
-        if (degree  == 1)
-          basis = Teuchos::rcp(new Basis_HDIV_HEX_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HDIV_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HDIV_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Tetrahedron_4") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HDIV_TET_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HDIV_TET_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HDIV_TET_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     
@@ -361,34 +315,18 @@ basis_RCP DiscretizationInterface::getBasis(const int & spaceDim, const topo_RCP
     }
     else if (spaceDim == 2) {
       if (shape == "Quadrilateral_4") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HCURL_QUAD_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HCURL_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HCURL_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Triangle_3") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HCURL_TRI_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HCURL_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HCURL_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     else if (spaceDim == 3) {
       if (shape == "Hexahedron_8") {
-        if (degree  == 1)
-          basis = Teuchos::rcp(new Basis_HCURL_HEX_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HCURL_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HCURL_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
       else if (shape == "Tetrahedron_4") {
-        if (degree == 1)
-          basis = Teuchos::rcp(new Basis_HCURL_TET_I1_FEM<PHX::Device::execution_space,double,double>() );
-        else {
-          basis = Teuchos::rcp(new Basis_HCURL_TET_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
-        }
+        basis = Teuchos::rcp(new Basis_HCURL_TET_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
     
@@ -805,7 +743,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           bvals2 = DRV("basis tmp",numElem,numb,numip);
           
           FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -821,7 +759,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           bgrad2 = DRV("basis grad",numElem,numb,numip,dimension);
           
           FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, groupData->ref_basis_grad[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -836,7 +774,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1));
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1));
           FuncTools::HGRADtransformVALUE(bvals_tmp, groupData->ref_basis_nodes[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -869,7 +807,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
           
           FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, groupData->ref_basis[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -884,7 +822,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1),dimension);
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
           FuncTools::HDIVtransformVALUE(bvals_tmp, jacobian, jacobianDet, groupData->ref_basis_nodes[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -903,7 +841,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           bdiv2 = DRV("basis tmp",numElem,numb,numip);
           
           FuncTools::HDIVtransformDIV(bdiv1, jacobianDet, groupData->ref_basis_div[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bdiv2, bdiv1, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -924,7 +862,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
           
           FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, groupData->ref_basis[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -939,7 +877,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1),dimension);
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
           FuncTools::HCURLtransformVALUE(bvals_tmp, jacobianInv, groupData->ref_basis_nodes[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bnode_vals, bvals_tmp, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -959,7 +897,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           bcurl2 = DRV("basis tmp",numElem,numb,numip,dimension);
           
           FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, groupData->ref_basis_curl[i]);
-          if (apply_orientations) {
+          if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
                                                   groupData->basis_pointers[i].get());
           }
@@ -985,956 +923,8 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
   }
 }
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
 
-void DiscretizationInterface::copyBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
-                                                    Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
-                                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                    const bool & apply_orientation,
-                                                    const bool & just_basis) {
 
-  /*
-  Teuchos::TimeMonitor databasetimer(*databaseTotalTimer);
-
-  int dimension = groupData->dimension;
-  int numip = groupData->ref_ip.extent(0);
-  int numElem = basis_database_index.extent(0);
-  
-  auto basis_index = basis_database_index;
-  
-  for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
-      
-    int numb = groupData->basis_pointers[i]->getCardinality();
-      
-    if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
-
-      auto database_basis = groupData->database_basis[i];
-      auto database_grad = groupData->database_basis_grad[i];
-      auto basis_vals = groupData->physical_basis[i];
-      auto basis_grad_vals = groupData->physical_basis_grad[i];
-
-      if (apply_orientation) {
-         DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip);
-          bvals2 = DRV("basis tmp",numElem,numb,numip);
-      
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            
-            parallel_for("group copy HGRAD basis",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-               for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  bvals1(elem,dof,pt) = database_basis(index,dof,pt,0);
-                }
-              }
-            });
-          }
-          //////////////////////////////
-
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-        } // bvals1 goes out of scope
-
-        auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
-        Kokkos::deep_copy(basis_vals_slice,bvals2);
-
-      } // bvals2 goes out of scope 
-      else { // just need to copy once 
-        
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-             for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                basis_vals(elem,dof,pt,0) = database_basis(index,dof,pt,0);
-              }
-            }
-          });
-        }
-        //////////////////////////////
-
-      } 
-
-      if (!just_basis) {
-        if (apply_orientation) {
-          DRV bgrad2;
-          {
-            DRV bgrad1("basis grad tmp",numElem,numb,numip,dimension);
-            bgrad2 = DRV("basis grad tmp",numElem,numb,numip,dimension);
-        
-            //////////////////////////////
-            {
-              Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-              parallel_for("group copy HGRAD basis grad",
-                           RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                           KOKKOS_LAMBDA (const size_type elem ) {
-                LO index = basis_index(elem);
-                for (size_type dof=0; dof<database_grad.extent(1); ++dof) {
-                  for (size_type pt=0; pt<database_grad.extent(2); ++pt) {
-                    for (size_type dim=0; dim<database_grad.extent(3); ++dim) {
-                      bgrad1(elem,dof,pt,dim) = database_grad(index,dof,pt,dim);
-                    }
-                  }
-                }
-              });
-            }
-            //////////////////////////////
-          
-            {
-              Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-              OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                                    groupData->basis_pointers[i].get());
-            }
-          
-          } // bgrad1 goes out of scope
-          Kokkos::deep_copy(basis_grad_vals,bgrad2);
-        } // bgrad2 goes out of scope
-        else {
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_grad.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_grad.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_grad.extent(3); ++dim) {
-                    basis_grad_vals(elem,dof,pt,dim) = database_grad(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-        }
-      }
-     }
-     else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
-        
-      auto database_basis = groupData->database_basis[i];
-      auto basis_vals = groupData->physical_basis[i];
-      
-      //////////////////////////////
-      {
-        Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-        parallel_for("group copy HVOL basis",
-                     RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                     KOKKOS_LAMBDA (const size_type elem ) {
-          LO index = basis_index(elem);
-          for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-            for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-              basis_vals(elem,dof,pt,0) = database_basis(index,dof,pt,0);
-            }
-          }
-        });
-      }
-      //////////////////////////////
-
-    }
-    else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
-        
-      auto database_basis = groupData->database_basis[i];
-      auto database_div = groupData->database_basis_div[i];
-      auto basis_vals = groupData->physical_basis[i];
-      auto basis_div_vals = groupData->physical_basis_div[i];
-       
-      if (apply_orientation) {
-        DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
-          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                    bvals1(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-          
-        } // bvals1 goes out of scope
-        Kokkos::deep_copy(basis_vals,bvals2);
-      } // bvals1 goes out of scope
-      else {
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis grad",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-            for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                  basis_vals(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                }
-              }
-            }
-          });
-        }
-        //////////////////////////////
-      }
-     
-      if (!just_basis) {
-      
-        if (apply_orientation) {
-          DRV bdiv2;
-          {
-            DRV bdiv1("basis",numElem,numb,numip);
-            bdiv2 = DRV("basis tmp",numElem,numb,numip);
-          
-            //////////////////////////////
-            {
-              Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-              parallel_for("group copy HVOL basis",
-                           RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                           KOKKOS_LAMBDA (const size_type elem ) {
-                LO index = basis_index(elem);
-                for (size_type dof=0; dof<database_div.extent(1); ++dof) {
-                  for (size_type pt=0; pt<database_div.extent(2); ++pt) {
-                    bdiv1(elem,dof,pt) = database_div(index,dof,pt);
-                  }
-                }
-              });
-            }
-            //////////////////////////////
-            {
-              Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-              OrientTools::modifyBasisByOrientation(bdiv2, bdiv1, orientation,
-                                                    groupData->basis_pointers[i].get());
-            }
-         
-          } // bdiv1 goes out of scope
-          Kokkos::deep_copy(basis_div_vals,bdiv2);
-        }// bdiv2 goes out of scope
-        else {
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HVOL basis",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_div.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_div.extent(2); ++pt) {
-                  basis_div_vals(elem,dof,pt) = database_div(index,dof,pt);
-                }
-              }
-            });
-          }
-          //////////////////////////////
-        }
-      }
-    }
-    else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
-        
-      auto database_basis = groupData->database_basis[i];
-      auto database_curl = groupData->database_basis_curl[i];
-      auto basis_vals = groupData->physical_basis[i];
-      auto basis_curl_vals = groupData->physical_basis_curl[i];
-      
-      if (apply_orientation) {
-        DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
-          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                    bvals1(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer); 
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-        } // bvals1 goes out of scope
-        Kokkos::deep_copy(basis_vals,bvals2);
-      } // bvals2 goes out of scope
-      else {
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis grad",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-            for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                  basis_vals(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                }
-              }
-            }
-          });
-        }
-        //////////////////////////////
-      }
-        
-      if (!just_basis) {
-        if (apply_orientation) {
-          DRV bcurl2;
-          {
-            DRV bcurl1("basis",numElem,numb,numip,dimension);
-            bcurl2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
-            //////////////////////////////
-            {
-              Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-              parallel_for("group copy HGRAD basis grad",
-                           RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                           KOKKOS_LAMBDA (const size_type elem ) {
-                LO index = basis_index(elem);
-                for (size_type dof=0; dof<database_curl.extent(1); ++dof) {
-                  for (size_type pt=0; pt<database_curl.extent(2); ++pt) {
-                    for (size_type dim=0; dim<database_curl.extent(3); ++dim) {
-                      bcurl1(elem,dof,pt,dim) = database_curl(index,dof,pt,dim);
-                    }
-                  }
-                }
-              });
-            }
-            //////////////////////////////
-            {
-              Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-              OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
-                                                    groupData->basis_pointers[i].get());
-            }
-          } // bcurl1 goes out of scope
-          if (spaceDim == 2) {
-            auto sub_bcv = subview(basis_curl_vals,ALL(),ALL(),ALL(),0);
-            deep_copy(sub_bcv,bcurl2);
-          }
-          else {
-            Kokkos::deep_copy(basis_curl_vals, bcurl2);
-          }
-        } // bcurl2 goes out of scope
-        else {
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_curl.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_curl.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_curl.extent(3); ++dim) {
-                    basis_curl_vals(elem,dof,pt,dim) = database_curl(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-        }
-      }
-    }
-    
-  }
-  */
-}
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-void DiscretizationInterface::copyFaceBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
-                                                        Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
-                                                        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                        const size_t & facenum,
-                                                        const bool & apply_orientation,
-                                                        const bool & just_basis) {
-  /*
-  Teuchos::TimeMonitor databasetimer(*databaseTotalTimer);
-
-  int dimension = groupData->dimension;
-  int numip = groupData->ref_side_ip[facenum].extent(0);
-  int numElem = basis_database_index.extent(0);
-  
-  auto basis_index = basis_database_index;
-  
-  for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
-      
-    int numb = groupData->basis_pointers[i]->getCardinality();
-      
-    if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
-
-      auto database_basis = groupData->database_face_basis[facenum][i];
-      auto database_grad = groupData->database_face_basis_grad[facenum][i];
-      auto basis_vals = groupData->physical_side_basis[i];
-      auto basis_grad_vals = groupData->physical_side_basis_grad[i];
-
-      if (apply_orientation) {
-         DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip);
-          bvals2 = DRV("basis tmp",numElem,numb,numip);
-      
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            
-            parallel_for("group copy HGRAD basis",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-               for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  bvals1(elem,dof,pt) = database_basis(index,dof,pt,0);
-                }
-              }
-            });
-          }
-          //////////////////////////////
-
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-        } // bvals1 goes out of scope
-
-        auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
-        Kokkos::deep_copy(basis_vals_slice,bvals2);
-
-      } // bvals2 goes out of scope 
-      else { // just need to copy once 
-        
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-             for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                basis_vals(elem,dof,pt,0) = database_basis(index,dof,pt,0);
-              }
-            }
-          });
-        }
-        //////////////////////////////
-
-      } 
-
-      if (!just_basis) {
-        if (apply_orientation) {
-          DRV bgrad2;
-          {
-            DRV bgrad1("basis grad tmp",numElem,numb,numip,dimension);
-            bgrad2 = DRV("basis grad tmp",numElem,numb,numip,dimension);
-        
-            //////////////////////////////
-            {
-              Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-              parallel_for("group copy HGRAD basis grad",
-                           RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                           KOKKOS_LAMBDA (const size_type elem ) {
-                LO index = basis_index(elem);
-                for (size_type dof=0; dof<database_grad.extent(1); ++dof) {
-                  for (size_type pt=0; pt<database_grad.extent(2); ++pt) {
-                    for (size_type dim=0; dim<database_grad.extent(3); ++dim) {
-                      bgrad1(elem,dof,pt,dim) = database_grad(index,dof,pt,dim);
-                    }
-                  }
-                }
-              });
-            }
-            //////////////////////////////
-          
-            {
-              Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-              OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                                    groupData->basis_pointers[i].get());
-            }
-          
-          } // bgrad1 goes out of scope
-          Kokkos::deep_copy(basis_grad_vals,bgrad2);
-        } // bgrad2 goes out of scope
-        else {
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_grad.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_grad.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_grad.extent(3); ++dim) {
-                    basis_grad_vals(elem,dof,pt,dim) = database_grad(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-        }
-      }
-     }
-     else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
-        
-      auto database_basis = groupData->database_face_basis[facenum][i];
-      auto basis_vals = groupData->physical_side_basis[i];
-      
-      //////////////////////////////
-      {
-        Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-        parallel_for("group copy HVOL basis",
-                     RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                     KOKKOS_LAMBDA (const size_type elem ) {
-          LO index = basis_index(elem);
-          for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-            for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-              basis_vals(elem,dof,pt,0) = database_basis(index,dof,pt,0);
-            }
-          }
-        });
-      }
-      //////////////////////////////
-
-    }
-    else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
-        
-      auto database_basis = groupData->database_face_basis[facenum][i];
-      auto basis_vals = groupData->physical_side_basis[i];
-       
-      if (apply_orientation) {
-        DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
-          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                    bvals1(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-          
-        } // bvals1 goes out of scope
-        Kokkos::deep_copy(basis_vals,bvals2);
-      } // bvals1 goes out of scope
-      else {
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis grad",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-            for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                  basis_vals(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                }
-              }
-            }
-          });
-        }
-        //////////////////////////////
-      }
-     
-    }
-    else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
-        
-      auto database_basis = groupData->database_face_basis[facenum][i];
-      auto basis_vals = groupData->physical_side_basis[i];
-      
-      if (apply_orientation) {
-        DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
-          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                    bvals1(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer); 
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-        } // bvals1 goes out of scope
-        Kokkos::deep_copy(basis_vals,bvals2);
-      } // bvals2 goes out of scope
-      else {
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis grad",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-            for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                  basis_vals(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                }
-              }
-            }
-          });
-        }
-        //////////////////////////////
-      }
-    }
-    
-  }
-  */
-}
-
-//////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////
-
-void DiscretizationInterface::copySideBasisFromDatabase(Teuchos::RCP<GroupMetaData> & groupData,
-                                                        Kokkos::View<LO*,AssemblyDevice> basis_database_index, 
-                                                        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
-                                                        const bool & apply_orientation,
-                                                        const bool & just_basis) {
-  /*
-  Teuchos::TimeMonitor databasetimer(*databaseTotalTimer);
-
-  int dimension = groupData->dimension;
-  int numip = groupData->ref_side_ip[0].extent(0);
-  int numElem = basis_database_index.extent(0);
-  
-  auto basis_index = basis_database_index;
-  
-  for (size_t i=0; i<groupData->basis_pointers.size(); i++) {
-      
-    int numb = groupData->basis_pointers[i]->getCardinality();
-      
-    if (groupData->basis_types[i].substr(0,5) == "HGRAD"){
-
-      auto database_basis = groupData->database_side_basis[i];
-      auto database_grad = groupData->database_side_basis_grad[i];
-      auto basis_vals = groupData->physical_side_basis[i];
-      auto basis_grad_vals = groupData->physical_side_basis_grad[i];
-
-      if (apply_orientation) {
-         DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip);
-          bvals2 = DRV("basis tmp",numElem,numb,numip);
-      
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            
-            parallel_for("group copy HGRAD basis",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-               for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  bvals1(elem,dof,pt) = database_basis(index,dof,pt,0);
-                }
-              }
-            });
-          }
-          //////////////////////////////
-
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-        } // bvals1 goes out of scope
-
-        auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
-        Kokkos::deep_copy(basis_vals_slice,bvals2);
-
-      } // bvals2 goes out of scope 
-      else { // just need to copy once 
-        
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-             for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                basis_vals(elem,dof,pt,0) = database_basis(index,dof,pt,0);
-              }
-            }
-          });
-        }
-        //////////////////////////////
-
-      } 
-
-      if (!just_basis) {
-        if (apply_orientation) {
-          DRV bgrad2;
-          {
-            DRV bgrad1("basis grad tmp",numElem,numb,numip,dimension);
-            bgrad2 = DRV("basis grad tmp",numElem,numb,numip,dimension);
-        
-            //////////////////////////////
-            {
-              Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-              parallel_for("group copy HGRAD basis grad",
-                           RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                           KOKKOS_LAMBDA (const size_type elem ) {
-                LO index = basis_index(elem);
-                for (size_type dof=0; dof<database_grad.extent(1); ++dof) {
-                  for (size_type pt=0; pt<database_grad.extent(2); ++pt) {
-                    for (size_type dim=0; dim<database_grad.extent(3); ++dim) {
-                      bgrad1(elem,dof,pt,dim) = database_grad(index,dof,pt,dim);
-                    }
-                  }
-                }
-              });
-            }
-            //////////////////////////////
-          
-            {
-              Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-              OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                                    groupData->basis_pointers[i].get());
-            }
-          
-          } // bgrad1 goes out of scope
-          Kokkos::deep_copy(basis_grad_vals,bgrad2);
-        } // bgrad2 goes out of scope
-        else {
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_grad.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_grad.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_grad.extent(3); ++dim) {
-                    basis_grad_vals(elem,dof,pt,dim) = database_grad(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-        }
-      }
-     }
-     else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
-        
-      auto database_basis = groupData->database_side_basis[i];
-      auto basis_vals = groupData->physical_side_basis[i];
-      
-      //////////////////////////////
-      {
-        Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-        parallel_for("group copy HVOL basis",
-                     RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                     KOKKOS_LAMBDA (const size_type elem ) {
-          LO index = basis_index(elem);
-          for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-            for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-              basis_vals(elem,dof,pt,0) = database_basis(index,dof,pt,0);
-            }
-          }
-        });
-      }
-      //////////////////////////////
-
-    }
-    else if (groupData->basis_types[i].substr(0,4) == "HDIV" ) {
-        
-      auto database_basis = groupData->database_side_basis[i];
-      auto basis_vals = groupData->physical_side_basis[i];
-       
-      if (apply_orientation) {
-        DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
-          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                    bvals1(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer);
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-          
-        } // bvals1 goes out of scope
-        Kokkos::deep_copy(basis_vals,bvals2);
-      } // bvals1 goes out of scope
-      else {
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis grad",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-            for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                  basis_vals(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                }
-              }
-            }
-          });
-        }
-        //////////////////////////////
-      }
-     
-    }
-    else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
-        
-      auto database_basis = groupData->database_side_basis[i];
-      auto basis_vals = groupData->physical_side_basis[i];
-      
-      if (apply_orientation) {
-        DRV bvals2;
-        {
-          DRV bvals1("basis tmp",numElem,numb,numip,dimension);
-          bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-            parallel_for("group copy HGRAD basis grad",
-                         RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-              LO index = basis_index(elem);
-              for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-                for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                  for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                    bvals1(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                  }
-                }
-              }
-            });
-          }
-          //////////////////////////////
-          {
-            Teuchos::TimeMonitor localtimer(*databaseOrientTimer); 
-            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                  groupData->basis_pointers[i].get());
-          }
-        } // bvals1 goes out of scope
-        Kokkos::deep_copy(basis_vals,bvals2);
-      } // bvals2 goes out of scope
-      else {
-        //////////////////////////////
-        {
-          Teuchos::TimeMonitor localtimer(*databaseCopyBasisTimer);
-          parallel_for("group copy HGRAD basis grad",
-                       RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO index = basis_index(elem);
-            for (size_type dof=0; dof<database_basis.extent(1); ++dof) {
-              for (size_type pt=0; pt<database_basis.extent(2); ++pt) {
-                for (size_type dim=0; dim<database_basis.extent(3); ++dim) {
-                  basis_vals(elem,dof,pt,dim) = database_basis(index,dof,pt,dim);
-                }
-              }
-            }
-          });
-        }
-        //////////////////////////////
-      }
-    }
-    
-  }*/
-}
 
 // -------------------------------------------------
 // Specialized routine to compute just the basis (not GRAD, CURL or DIV) and the wts
@@ -1987,8 +977,13 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
         DRV bvals1("basis",numElem,numb,numip);
         DRV bvals2("basis tmp",numElem,numb,numip);
         FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -2011,8 +1006,13 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           DRV bvals1("basis",numElem,numb,numip,dimension);
           DRV bvals2("basis tmp",numElem,numb,numip,dimension);
           FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, groupData->ref_basis[i]);
-          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                groupData->basis_pointers[i].get());
+          if (groupData->basis_pointers[i]->requireOrientation()) {
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bvals2 = bvals1;
+          }
           basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_vals,bvals2);
         }
@@ -2026,8 +1026,13 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           DRV bvals1("basis",numElem,numb,numip,dimension);
           DRV bvals2("basis tmp",numElem,numb,numip,dimension);
           FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, groupData->ref_basis[i]);
-          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                                groupData->basis_pointers[i].get());
+          if (groupData->basis_pointers[i]->requireOrientation()) {
+            OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                  groupData->basis_pointers[i].get());
+          }
+          else {
+            bvals2 = bvals1;
+          }
           basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_vals,bvals2);
         }
@@ -2236,8 +1241,13 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
         bvals2 = DRV("basis tmp",numElem,numb,numip);
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -2248,8 +1258,13 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
         bgrad2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
         FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, ref_basis_grad_vals);
-        OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_grad_vals = View_Sc4("face basis grad vals",numElem,numb,numip,dimension); // Needs to be rank-4
         Kokkos::deep_copy(basis_grad_vals,bgrad2);
         
@@ -2271,8 +1286,13 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
         FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, ref_basis_vals);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
         
@@ -2283,8 +1303,13 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
         FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, ref_basis_vals);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
         
@@ -2296,8 +1321,13 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
         bvals2 = DRV("basis tmp",numElem,numb,numip);
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("face basis vals",numElem,numb,numip,1); // Needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -2551,8 +1581,13 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
         bvals2 = DRV("basis tmp",numElem,numb,numip);
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -2563,9 +1598,13 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
         
         DRV ref_bgrad_vals = groupData->ref_side_basis_grad[localSideID][i];
         FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, ref_bgrad_vals);
-        
-        OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bgrad2 = bgrad1;
+        }
         basis_grad_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_grad_vals,bgrad2);
         
@@ -2587,8 +1626,13 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
         bvals2 = DRV("basis tmp",numElem,numb,numip);
         
         FuncTools::HGRADtransformVALUE(bvals1, ref_basis_vals);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,1);
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
         Kokkos::deep_copy(basis_vals_slice,bvals2);
@@ -2600,8 +1644,13 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
         FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, ref_basis_vals);
+        if (groupData->basis_pointers[i]->requireOrientation()) {
         OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                               groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
       }
@@ -2611,8 +1660,13 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
         bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
         
         FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, ref_basis_vals);
-        OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
-                                              groupData->basis_pointers[i].get());
+        if (groupData->basis_pointers[i]->requireOrientation()) {
+          OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
+                                                groupData->basis_pointers[i].get());
+        }
+        else {
+          bvals2 = bvals1;
+        }
         basis_vals = View_Sc4("basis vals",numElem,numb,numip,dimension);
         Kokkos::deep_copy(basis_vals,bvals2);
       }
@@ -2678,8 +1732,13 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
     DRV basisvals_Transformed("basisvals_Transformed", numCells, numBasis, numpts);
     FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
     finalbasis = DRV("basisvals_Transformed", numCells, numBasis, numpts);
-    OrientTools::modifyBasisByOrientation(finalbasis, basisvals_Transformed,
-                                          orientation, basis_pointers[block][basisID].get());
+    if (basis_pointers[block][basisID]->requireOrientation()) {
+      OrientTools::modifyBasisByOrientation(finalbasis, basisvals_Transformed,
+                                            orientation, basis_pointers[block][basisID].get());
+    }
+    else {
+      finalbasis = basisvals_Transformed;
+    }
   
   }
   else if (basis_types[block][basisID] == "HDIV") {
@@ -2696,8 +1755,13 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
     DRV bvals1("basis", numCells, numBasis, numpts, spaceDim);
     finalbasis = DRV("basis tmp", numCells, numBasis, numpts, spaceDim);
     FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, basisvals);
-    OrientTools::modifyBasisByOrientation(finalbasis, bvals1, orientation,
-                                          basis_pointers[block][basisID].get());
+    if (basis_pointers[block][basisID]->requireOrientation()) {
+      OrientTools::modifyBasisByOrientation(finalbasis, bvals1, orientation,
+                                            basis_pointers[block][basisID].get());
+    }
+    else {
+      finalbasis = bvals1;
+    }
     
   }
   else if (basis_types[block][basisID] == "HCURL") {
@@ -2716,8 +1780,13 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
     finalbasis = DRV("basis tmp", numCells, numBasis, numpts, spaceDim);
 
     FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, basisvals);
-    OrientTools::modifyBasisByOrientation(finalbasis, bvals1, orientation,
-                                          basis_pointers[block][basisID].get());
+    if (basis_pointers[block][basisID]->requireOrientation()) {
+      OrientTools::modifyBasisByOrientation(finalbasis, bvals1, orientation,
+                                        basis_pointers[block][basisID].get());
+    }
+    else {
+      finalbasis = bvals1;
+    }
   }
 
   return finalbasis;
@@ -2767,8 +1836,13 @@ DRV DiscretizationInterface::evaluateBasisGrads(const basis_RCP & basis_pointer,
   CellTools::setJacobianInv(jacobInv, jacobian);
   FuncTools::HGRADtransformGRAD(basisgrads_Transformed, jacobInv, basisgrads);
   DRV basisgrads_to("basisgrads_Transformed", numCells, numBasis, numpts, spaceDim);
-  OrientTools::modifyBasisByOrientation(basisgrads_to, basisgrads_Transformed,
-                                        orientation, basis_pointer.get());
+  if (basis_pointer->requireOrientation()) {
+    OrientTools::modifyBasisByOrientation(basisgrads_to, basisgrads_Transformed,
+                                      orientation, basis_pointer.get());
+  }
+  else {
+    basisgrads_to = basisgrads_Transformed;
+  }
   
   return basisgrads_to;
 }
@@ -3394,7 +2468,12 @@ DRV DiscretizationInterface::applyOrientation(DRV basis, Kokkos::DynRankView<Int
                                               basis_RCP & basis_pointer) {
   
   DRV new_basis("basis values", basis.extent(0), basis.extent(1), basis.extent(2));
-  OrientTools::modifyBasisByOrientation(new_basis, basis, orientation, basis_pointer.get());
+  if (basis_pointer->requireOrientation()) {    
+    OrientTools::modifyBasisByOrientation(new_basis, basis, orientation, basis_pointer.get());
+  }
+  else {
+    new_basis = basis;
+  }
   return new_basis;
 }
 

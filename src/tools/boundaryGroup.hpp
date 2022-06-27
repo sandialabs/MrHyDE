@@ -133,7 +133,8 @@ namespace MrHyDE {
     // Update the workset
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void updateWorkset(const int & seedwhat, const bool & override_transient=false);
+    void updateWorkset(const int & seedwhat, const int & seedindex=0,
+                       const bool & override_transient=false);
     
     void updateWorksetBasis();
       
@@ -218,7 +219,8 @@ namespace MrHyDE {
     template<class ViewType>
     void computeFlux(ViewType u_kv, ViewType du_kv, ViewType dp_kv, View_Sc3 lambda,
                      const ScalarT & time, const int & side, const ScalarT & coarse_h,
-                     const bool & compute_sens) {
+                     const bool & compute_sens, const ScalarT & fluxwt,
+                     bool & useTransientSol) {
       
       wkset->setTime(time);
       wkset->sidename = sidename;
@@ -229,11 +231,71 @@ namespace MrHyDE {
       //this->updateWorksetBasis();
       
       // Currently hard coded to one physics sets
+      int set = 0;
+
       vector<View_AD2> uvals = wkset->uvals;
       //auto param_AD = wkset->pvals;
-      auto ulocal = u[0];
-      auto currLIDs = LIDs[0];
-      {
+      auto ulocal = u[set];
+      auto currLIDs = LIDs[set];
+
+      if (useTransientSol) { //wkset->isTransient) {
+        //ScalarT dt = wkset->deltat;
+        int stage = wkset->current_stage;
+        auto b_A = wkset->butcher_A;
+        auto b_b = wkset->butcher_b;
+        auto BDF = wkset->BDF_wts;
+
+        ScalarT one = 1.0;
+        
+        for (size_type var=0; var<ulocal.extent(1); var++ ) {
+          size_t uindex = wkset->uvals_index[set][var];
+          auto u_AD = uvals[uindex];
+          auto off = subview(wkset->set_offsets[set],var,ALL());
+          auto cu = subview(ulocal,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev[set],ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage[set],ALL(),var,ALL(),ALL());
+
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            ScalarT beta_u;//, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            //ScalarT timewt = one/dt/b_b(stage);
+            //ScalarT alpha_t = BDF(0)*timewt;
+
+            for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
+            
+              // Seed the stage solution
+#ifndef MrHyDE_NO_AD
+              AD stageval = AD(maxDerivs,0,cu(elem,dof));
+              for( size_t p=0; p<du_kv.extent(1); p++ ) {
+                stageval.fastAccessDx(p) = fluxwt*du_kv(currLIDs(elem,off(dof)),p);
+              }
+#else
+              AD stageval = cu(elem,dof);
+#endif
+              // Compute the evaluating solution
+              beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<stage; s++) {
+                beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_AD(elem,dof) = alpha_u*stageval+beta_u;
+            
+              // Compute the time derivative
+              //beta_t = zero;
+              //for (size_type s=1; s<BDF.extent(0); s++) {
+              //  beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+              //}
+              //beta_t *= timewt;
+              //u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
+            }
+          
+          });
+
+        }
+      }
+      else {
         Teuchos::TimeMonitor localtimer(*fluxGatherTimer);
         
         if (compute_sens) {
@@ -241,7 +303,7 @@ namespace MrHyDE {
             auto u_AD = uvals[var];
             auto offsets = subview(wkset->offsets,var,ALL());
             parallel_for("flux gather",
-                         RangePolicy<AssemblyExec>(0,u_AD.extent(0)),
+                         RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
                 u_AD(elem,dof) = AD(u_kv(currLIDs(elem,offsets(dof)),0));
@@ -297,6 +359,7 @@ namespace MrHyDE {
             for (size_type dof=0; dof<abasis.extent(1); ++dof) {
 #ifndef MrHyDE_NO_AD
               AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+              auxval.fastAccessDx(off(dof)) *= fluxwt;
 #else
               AD auxval = varaux(localID(elem),dof);
 #endif

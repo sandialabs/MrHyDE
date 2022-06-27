@@ -68,9 +68,9 @@ namespace Intrepid2 {
       template<EOperator opType>
       struct Serial {
         template<typename outputValueViewType,
-        typename inputPointViewType,
-        typename workViewType,
-        typename vinvViewType>
+                 typename inputPointViewType,
+                 typename workViewType,
+                 typename vinvViewType>
         KOKKOS_INLINE_FUNCTION
         static void
         getValues(       outputValueViewType outputValues,
@@ -85,7 +85,7 @@ namespace Intrepid2 {
         }
       };
       
-      template<typename ExecSpaceType, ordinal_type numPtsPerEval,
+      template<typename DeviceType, ordinal_type numPtsPerEval,
       typename outputValueValueType, class ...outputValueProperties,
       typename inputPointValueType,  class ...inputPointProperties,
       typename vinvValueType,        class ...vinvProperties>
@@ -99,24 +99,26 @@ namespace Intrepid2 {
        \brief See Intrepid2::Basis_HFACE_QUAD_In_FEM
        */
       template<typename outputValueViewType,
-      typename inputPointViewType,
-      typename vinvViewType,
-      typename workViewType,
-      EOperator opType,
-      ordinal_type numPtsEval>
+               typename inputPointViewType,
+               typename vinvViewType,
+               typename workViewType,
+               EOperator opType,
+               ordinal_type numPtsEval>
       struct Functor {
         outputValueViewType _outputValues;
         const inputPointViewType  _inputPoints;
         const vinvViewType        _vinvLine;
         workViewType        _work;
+        const ordinal_type        _opDn;
         
         KOKKOS_INLINE_FUNCTION
         Functor( outputValueViewType outputValues_,
                 inputPointViewType  inputPoints_,
                 vinvViewType        vinvLine_,
-                workViewType        work_)
+                workViewType        work_,
+                const ordinal_type  opDn_ = 0)
         : _outputValues(outputValues_), _inputPoints(inputPoints_),
-        _vinvLine(vinvLine_), _work(work_) {}
+        _vinvLine(vinvLine_), _work(work_), _opDn(opDn_) {}
         
         KOKKOS_INLINE_FUNCTION
         void operator()(const size_type iter) const {
@@ -155,26 +157,26 @@ namespace Intrepid2 {
    \brief  Implementation of the default H(face)-compatible FEM basis on Quadrilateral cell
    */
   
-  template<typename ExecSpaceType = void,
+  template<typename DeviceType = void,
   typename outputValueType = double,
   typename pointValueType = double>
   class Basis_HFACE_QUAD_In_FEM
-  : public Basis<ExecSpaceType,outputValueType,pointValueType> {
+  : public Basis<DeviceType,outputValueType,pointValueType> {
   public:
-    using OrdinalTypeArray1DHost = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OrdinalTypeArray1DHost;
-    using OrdinalTypeArray2DHost = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OrdinalTypeArray2DHost;
-    using OrdinalTypeArray3DHost = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OrdinalTypeArray3DHost;
+    using OrdinalTypeArray1DHost = typename Basis<DeviceType,outputValueType,pointValueType>::OrdinalTypeArray1DHost;
+    using OrdinalTypeArray2DHost = typename Basis<DeviceType,outputValueType,pointValueType>::OrdinalTypeArray2DHost;
+    using OrdinalTypeArray3DHost = typename Basis<DeviceType,outputValueType,pointValueType>::OrdinalTypeArray3DHost;
     
     /** \brief  Constructor.
      */
     Basis_HFACE_QUAD_In_FEM(const ordinal_type order,
                            const EPointType   pointType = POINTTYPE_EQUISPACED);
     
-    using OutputViewType = typename Basis<ExecSpaceType,outputValueType,pointValueType>::OutputViewType;
-    using PointViewType  = typename Basis<ExecSpaceType,outputValueType,pointValueType>::PointViewType;
-    using ScalarViewType = typename Basis<ExecSpaceType,outputValueType,pointValueType>::ScalarViewType;
+    using OutputViewType = typename Basis<DeviceType,outputValueType,pointValueType>::OutputViewType;
+    using PointViewType  = typename Basis<DeviceType,outputValueType,pointValueType>::PointViewType;
+    using ScalarViewType = typename Basis<DeviceType,outputValueType,pointValueType>::ScalarViewType;
     
-    using Basis<ExecSpaceType,outputValueType,pointValueType>::getValues;
+    using Basis<DeviceType,outputValueType,pointValueType>::getValues;
     
     virtual
     void
@@ -190,7 +192,7 @@ namespace Intrepid2 {
 #endif
       constexpr ordinal_type numPtsPerEval = Parameters::MaxNumPtsPerBasisEval;
       Impl::Basis_HFACE_QUAD_In_FEM::
-      getValues<ExecSpaceType,numPtsPerEval>( outputValues,
+      getValues<DeviceType,numPtsPerEval>( outputValues,
                                              inputPoints,
                                              this->vinvLine_,
                                              operatorType );
@@ -244,7 +246,36 @@ namespace Intrepid2 {
   private:
     
     /** \brief inverse of Generalized Vandermonde matrix (isotropic order) */
-    Kokkos::DynRankView<typename ScalarViewType::value_type,ExecSpaceType> vinvLine_;
+    Kokkos::DynRankView<typename ScalarViewType::value_type,DeviceType> vinvLine_;
+
+    /** \brief type of lattice used for creating the DoF coordinates  */
+    //EPointType pointType_;
+
+  public:
+
+  /** \brief returns the basis associated to a subCell.
+
+        The bases of the subCell are the restriction to the subCell
+        of the bases of the parent cell.
+        \param [in] subCellDim - dimension of subCell
+        \param [in] subCellOrd - position of the subCell among of the subCells having the same dimension
+        \return pointer to the subCell basis of dimension subCellDim and position subCellOrd
+     */
+    BasisPtr<DeviceType,outputValueType,pointValueType>
+      getSubCellRefBasis(const ordinal_type subCellDim, const ordinal_type subCellOrd) const override{
+      if(subCellDim == 1) {
+        return Teuchos::rcp(new
+            Basis_HGRAD_LINE_Cn_FEM<DeviceType,outputValueType,pointValueType>(this->basisDegree_, POINTTYPE_EQUISPACED));
+            //Basis_HFACE_QUAD_In_FEM<DeviceType,outputValueType,pointValueType>(this->basisDegree_, POINTTYPE_EQUISPACED));
+      }
+      INTREPID2_TEST_FOR_EXCEPTION(true,std::invalid_argument,"Input parameters out of bounds");
+    }
+
+    BasisPtr<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>
+    getHostBasis() const override{
+      return Teuchos::rcp(new Basis_HFACE_QUAD_In_FEM<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>(this->basisDegree_, POINTTYPE_EQUISPACED));
+    }
+  
   };
   
 }// namespace Intrepid2

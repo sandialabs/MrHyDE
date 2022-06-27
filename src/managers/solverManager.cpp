@@ -1358,7 +1358,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             u[set]->update(1.0, *u_stage, 1.0);
             u[set]->update(-1.0, *(u_prev[set]), 1.0);
             assembler->updateStageSoln(set); // moves the stage solution into u_stage
-
+            multiscale_manager->completeStage();
           }
         }
       }
@@ -1373,7 +1373,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           assembler->updatePhysicsSet(set);
           assembler->performGather(set,u[set],0,0);
         }
-        // TODO :: BWR make this more flexible (may want to save based on simulation time as well)
+        multiscale_manager->completeTimeStep();
         postproc->record(u,current_time,stepProg,obj);
         
       }
@@ -1652,7 +1652,9 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       }
     }
     
-    
+    //KokkosTools::print(J_over);
+    //KokkosTools::print(current_res);
+
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
     if (solve) {

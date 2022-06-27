@@ -244,7 +244,8 @@ void BoundaryGroup::setAuxUseBasis(vector<int> & ausebasis_) {
 // Update the workset
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryGroup::updateWorkset(const int & seedwhat, const bool & override_transient) {
+void BoundaryGroup::updateWorkset(const int & seedwhat, const int & seedindex,
+                                  const bool & override_transient) {
   
   // Reset the residual and data in the workset
   wkset->reset();
@@ -259,7 +260,7 @@ void BoundaryGroup::updateWorkset(const int & seedwhat, const bool & override_tr
   // Map the gathered solution to seeded version in workset
   if (groupData->requiresTransient && !override_transient) {
     for (size_t set=0; set<groupData->numSets; ++set) {
-      wkset->computeSolnTransientSeeded(set, u[set], u_prev[set], u_stage[set], seedwhat);
+      wkset->computeSolnTransientSeeded(set, u[set], u_prev[set], u_stage[set], seedwhat, seedindex);
     }
   }
   else { // steady-state
@@ -476,7 +477,6 @@ void BoundaryGroup::updateStageSoln(const size_t & set) {
   if (groupData->requiresTransient) {
     auto sol = u[set];
     auto sol_stage = u_stage[set];
-    
     // add u into the current stage soln (done after stage solution is computed)
     auto stage = wkset->current_stage;
     if (stage < sol_stage.extent_int(3)) {

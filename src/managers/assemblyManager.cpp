@@ -2797,7 +2797,6 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           wkset[block]->reset();
           int sgindex = groups[block][grp]->subgrid_model_index[groups[block][grp]->subgrid_model_index.size()-1];
 
-          /*
           auto u_curr = groups[block][grp]->u[set];
           // Map the gathered solution to seeded version in workset
           if (groupData[block]->requiresTransient) {
@@ -2820,7 +2819,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
             auto uvals_AD = wkset[block]->uvals[uindex];
             auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
             parallel_for("assembly compute coarse sol",
-                         RangePolicy<AssemblyExec>(0,uvals_AD.extent(0)),
+                         RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
               for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
 #ifndef MrHyDE_NO_AD
@@ -2830,16 +2829,18 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
 #endif
               }
             }); 
-          }*/
+          }
 
-          groups[block][grp]->subgridModels[sgindex]->subgridSolver(//uvals_sc, groups[block][grp]->phi[set], 
-                                                                    groups[block][grp]->u[set], groups[block][grp]->phi[set], 
+          groups[block][grp]->subgridModels[sgindex]->subgridSolver(uvals_sc, groups[block][grp]->phi[set], 
+                                                                    //groups[block][grp]->u[set], groups[block][grp]->phi[set], 
                                                                     wkset[block]->time, isTransient, useadjoint,
                                                                     compute_jacobian, compute_sens, num_active_params,
                                                                     compute_disc_sens, false,
                                                                     *(wkset[block]), groups[block][grp]->subgrid_usernum, 0,
                                                                     groups[block][grp]->subgradient, store_adjPrev);
           fixJacDiag = true;
+          //KokkosTools::print(wkset[block]->res);
+          
         }
         else {
           groups[block][grp]->updateWorkset(seedwhat);

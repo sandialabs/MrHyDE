@@ -183,7 +183,7 @@ namespace Intrepid2 {
       }
     }
     
-    template<typename SpT, ordinal_type numPtsPerEval,
+    template<typename DT, ordinal_type numPtsPerEval,
     typename outputValueValueType, class ...outputValueProperties,
     typename inputPointValueType,  class ...inputPointProperties,
     typename vinvValueType,        class ...vinvProperties>
@@ -194,7 +194,7 @@ namespace Intrepid2 {
       typedef          Kokkos::DynRankView<outputValueValueType,outputValueProperties...>         outputValueViewType;
       typedef          Kokkos::DynRankView<inputPointValueType, inputPointProperties...>          inputPointViewType;
       typedef          Kokkos::DynRankView<vinvValueType,       vinvProperties...>                vinvViewType;
-      typedef typename ExecSpace<typename inputPointViewType::execution_space,SpT>::ExecSpaceType ExecSpaceType;
+      typedef typename ExecSpace<typename inputPointViewType::execution_space,typename DT::execution_space>::ExecSpaceType ExecSpaceType;
       
       // loopSize corresponds to cardinality
       const auto loopSizeTmp1 = (inputPoints.extent(0)/numPtsPerEval);
@@ -240,8 +240,8 @@ namespace Intrepid2 {
   }
   
   // -------------------------------------------------------------------------------------
-  template<typename SpT, typename OT, typename PT>
-  Basis_HFACE_TET_In_FEM<SpT,OT,PT>::
+  template<typename DT, typename OT, typename PT>
+  Basis_HFACE_TET_In_FEM<DT,OT,PT>::
   Basis_HFACE_TET_In_FEM( const ordinal_type order,
                           const EPointType   pointType ) {
     
@@ -251,20 +251,20 @@ namespace Intrepid2 {
     
     // this should be in host
     ordinal_type cardTri;
-    Kokkos::DynRankView<typename ScalarViewType::value_type,SpT> dofCoordsTri;
+    Kokkos::DynRankView<typename ScalarViewType::value_type,DT> dofCoordsTri;
     
     if (order == 0) {
       cardTri = 1;
-      this->vinvTri_   = Kokkos::DynRankView<typename ScalarViewType::value_type,SpT>("HFACE::TET::In::vinvTri", cardTri, cardTri);
+      this->vinvTri_   = Kokkos::DynRankView<typename ScalarViewType::value_type,DT>("HFACE::TET::In::vinvTri", cardTri, cardTri);
       this->vinvTri_(0,0) = 1.0;
-      dofCoordsTri = Kokkos::DynRankView<typename ScalarViewType::value_type,SpT>("dofCoordsLine", cardTri, 2);
+      dofCoordsTri = Kokkos::DynRankView<typename ScalarViewType::value_type,DT>("dofCoordsLine", cardTri, 2);
       dofCoordsTri(0,0) = 1.0/3.0;
       dofCoordsTri(0,1) = 1.0/3.0;
     }
     else {
-      Basis_HGRAD_TRI_Cn_FEM<SpT,OT,PT> triBasis( order, pointType );
+      Basis_HGRAD_TRI_Cn_FEM<DT,OT,PT> triBasis( order, pointType );
       cardTri = triBasis.getCardinality();
-      this->vinvTri_   = Kokkos::DynRankView<typename ScalarViewType::value_type,SpT>("HFACE::TET::In::vinvTri", cardTri, cardTri);
+      this->vinvTri_   = Kokkos::DynRankView<typename ScalarViewType::value_type,DT>("HFACE::TET::In::vinvTri", cardTri, cardTri);
       triBasis.getVandermondeInverse(this->vinvTri_);
       triBasis.getDofCoords(dofCoordsTri);
     }
@@ -351,7 +351,7 @@ namespace Intrepid2 {
     }
     
     // dofCoords on host and create its mirror view to device
-    Kokkos::DynRankView<typename ScalarViewType::value_type,typename SpT::array_layout,Kokkos::HostSpace>
+    Kokkos::DynRankView<typename ScalarViewType::value_type,typename DT::execution_space::array_layout,Kokkos::HostSpace>
     dofCoordsHost("dofCoordsHost", this->basisCardinality_, this->basisCellTopology_.getDimension());
     
     // dofCoeffs on host and create its mirror view to device
@@ -405,7 +405,7 @@ namespace Intrepid2 {
       
     }
     
-    this->dofCoords_ = Kokkos::create_mirror_view(typename SpT::memory_space(), dofCoordsHost);
+    this->dofCoords_ = Kokkos::create_mirror_view(typename DT::memory_space(), dofCoordsHost);
     Kokkos::deep_copy(this->dofCoords_, dofCoordsHost);
     
     //this->dofCoeffs_ = Kokkos::create_mirror_view(typename SpT::memory_space(), dofCoeffsHost);

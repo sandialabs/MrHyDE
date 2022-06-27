@@ -37,6 +37,8 @@ settings(settings_), macro_cellTopo(macro_cellTopo_) {
   time_steps = settings->sublist("Solver").get<int>("number of steps",1);
   initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
+  isSynchronous = settings->sublist("Solver").get<bool>("synchronous time stepping",true);
+  
   string solver = settings->sublist("Solver").get<string>("solver","steady-state");
   if (solver == "steady-state") {
     final_time = 0.0;
@@ -896,6 +898,16 @@ void SubGridDtN::setUpSubgridModels() {
       
       Teuchos::RCP<SG_MultiVector> init = sub_solver->solver->linalg->getNewOverlappedVector(0);
       this->setInitial(init, mindex, false);
+      prev_soln.push_back(init);
+      
+      Teuchos::RCP<SG_MultiVector> curr = sub_solver->solver->linalg->getNewOverlappedVector(0);
+      curr->assign(*init);
+      curr_soln.push_back(curr);
+      
+      Teuchos::RCP<SG_MultiVector> stage = sub_solver->solver->linalg->getNewOverlappedVector(0);
+      stage->assign(*init);
+      stage_soln.push_back(stage);
+      
       soln->store(init,initial_time,mindex);
       sub_solver->performGather(mindex, init, 0, 0);
       Teuchos::RCP<SG_MultiVector> inita = sub_solver->solver->linalg->getNewOverlappedVector(0);
@@ -1071,6 +1083,7 @@ void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
       }
     }
   }
+  Teuchos::RCP<SG_MultiVector> curr_adjsoln;
   
   // Containers for current forward/adjoint solutions
   //Teuchos::RCP<LA_MultiVector> curr_fwdsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->solver->LA_overlapped_map,1));
@@ -1078,19 +1091,23 @@ void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
   sub_solver->solve(coarse_u, coarse_phi,
-                    prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
+                    prev_soln[macrogrp], curr_soln[macrogrp], stage_soln[macrogrp],
+                    prev_adjsoln, curr_adjsoln,
+                    //prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
                     Psol[0],
                     time, isTransient, isAdjoint, compute_jacobian,
                     compute_sens, num_active_params, compute_disc_sens, compute_aux_sens,
                     macrowkset, macrogrp, macroelemindex, subgradient, store_adjPrev);
   
+  //sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
+
   // Store the subgrid fwd or adj solution
-  if (isAdjoint) {
-    adjsoln->store(sub_solver->phi,time,macrogrp);
-  }
-  else if (!compute_sens) {
-    soln->store(sub_solver->u,time,macrogrp);
-  }
+  //if (isAdjoint) {
+  //  adjsoln->store(sub_solver->phi,time,macrogrp);
+  //}
+  //else if (!compute_sens) {
+  //  soln->store(sub_solver->u,time,macrogrp);
+  //}
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
@@ -2048,4 +2065,28 @@ void SubGridDtN::updateLocalData(const int & macrogrp) {
   // to match the current (set of) macroelement(s)
   wkset[0]->var_bcs = macroData[macrogrp]->bcs;
 
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+    
+void SubGridDtN::advance() {
+  for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+    prev_soln[macrogrp]->assign(*(curr_soln[macrogrp]));
+    sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
+  }
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+    
+void SubGridDtN::advanceStage() {
+  if (isSynchronous) {
+    for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+      curr_soln[macrogrp]->update(1.0, *(stage_soln[macrogrp]), 1.0);
+      curr_soln[macrogrp]->update(-1.0, *(prev_soln[macrogrp]), 1.0);
+    }
+  }
 }
