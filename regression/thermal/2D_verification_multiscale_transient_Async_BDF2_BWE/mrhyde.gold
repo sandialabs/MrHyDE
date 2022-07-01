@@ -1,0 +1,26 @@
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for e = 0  (time = 0)
+***** L2 norm of the error for e = 0.0676938  (time = 0.1)
+***** L2 norm of the error for e = 0.0998833  (time = 0.2)
+***** L2 norm of the error for e = 0.0992392  (time = 0.3)
+***** L2 norm of the error for e = 0.0618284  (time = 0.4)
+***** L2 norm of the error for e = 0.000915844  (time = 0.5)
+***** L2 norm of the error for e = 0.0605614  (time = 0.6)
+***** L2 norm of the error for e = 0.0988005  (time = 0.7)
+***** L2 norm of the error for e = 0.0993019  (time = 0.8)
+***** L2 norm of the error for e = 0.0618741  (time = 0.9)
+***** L2 norm of the error for e = 0.000921648  (time = 1)
+***** Subgrid 0: L2 norm of the error for e = 0  (time = 0)
+***** Subgrid 0: L2 norm of the error for e = 0.0373779  (time = 0.1)
+***** Subgrid 0: L2 norm of the error for e = 0.0503995  (time = 0.2)
+***** Subgrid 0: L2 norm of the error for e = 0.0498507  (time = 0.3)
+***** Subgrid 0: L2 norm of the error for e = 0.0314326  (time = 0.4)
+***** Subgrid 0: L2 norm of the error for e = 0.00112304  (time = 0.5)
+***** Subgrid 0: L2 norm of the error for e = 0.0298343  (time = 0.6)
+***** Subgrid 0: L2 norm of the error for e = 0.0492863  (time = 0.7)
+***** Subgrid 0: L2 norm of the error for e = 0.0499149  (time = 0.8)
+***** Subgrid 0: L2 norm of the error for e = 0.0314798  (time = 0.9)
+***** Subgrid 0: L2 norm of the error for e = 0.00112943  (time = 1)

@@ -1,0 +1,42 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 4
+    NY: 4
+  Physics: 
+    modules: thermal
+    Dirichlet conditions:
+      e:
+        all boundaries: '0.0'
+  Subgrid input file: subgrid_input.yaml
+  Discretization:
+    order:
+      e: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: BWE
+    final time: 1.0
+    number of steps: 10
+    allow backtracking: false
+    max nonlinear iters: 4
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+    True solutions:
+      e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)
+  Functions:
+    thermal source: (8*(pi*pi)*sin(2*pi*t)+2*pi*cos(2*pi*t))*sin(2*pi*x)*sin(2*pi*y)
+...
