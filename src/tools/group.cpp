@@ -885,7 +885,7 @@ void Group::computeJacRes(const ScalarT & time, const bool & isTransient, const 
     if (groupData->multiscale) {
       this->updateWorkset(seedwhat);
       int sgindex = subgrid_model_index[subgrid_model_index.size()-1];
-      subgridModels[sgindex]->subgridSolver(u[0], phi[0], wkset->time, isTransient, isAdjoint,
+      subgridModels[sgindex]->subgridSolver(u[0], u_prev[0], phi[0], wkset->time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens, num_active_params,
                                             compute_disc_sens, compute_aux_sens,
                                             *wkset, subgrid_usernum, 0,
@@ -1080,7 +1080,7 @@ void Group::updateAdjointRes(const bool & compute_jacobian, const bool & isTrans
         // Sum new contributions into vectors
         int seedwhat = 2; // 2 for J wrt previous step solutions
         for (size_type step=0; step<u_prev[set].extent(3); step++) {
-          this->updateWorkset(seedwhat);
+          this->updateWorkset(seedwhat,step);
           groupData->physics_RCP->volumeResidual(set,groupData->myBlock);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));

@@ -47,8 +47,9 @@ namespace MrHyDE {
                           const bool & write_subgrid_soln,
                           vector<string> & appends) = 0;
     
-    virtual void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
-                               Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
+    virtual void subgridSolver(View_Sc3 coarse_fwdsoln,
+                               View_Sc4 coarse_prevsoln,
+                               View_Sc3 coarse_adjsoln,
                                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                                const bool & compute_jacobian, const bool & compute_sens,
                                const int & num_active_params,

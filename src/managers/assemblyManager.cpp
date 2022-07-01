@@ -2831,8 +2831,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
             }); 
           }
 
-          groups[block][grp]->subgridModels[sgindex]->subgridSolver(uvals_sc, groups[block][grp]->phi[set], 
-                                                                    //groups[block][grp]->u[set], groups[block][grp]->phi[set], 
+          groups[block][grp]->subgridModels[sgindex]->subgridSolver(uvals_sc, groups[block][grp]->u_prev[set], 
+                                                                    groups[block][grp]->phi[set], 
                                                                     wkset[block]->time, isTransient, useadjoint,
                                                                     compute_jacobian, compute_sens, num_active_params,
                                                                     compute_disc_sens, false,

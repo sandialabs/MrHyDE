@@ -61,6 +61,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     void solve(View_Sc3 coarse_u,
+               View_Sc4 coarse_prevsoln,
                View_Sc3 coarse_phi,
                Teuchos::RCP<SG_MultiVector> & prev_u,
                Teuchos::RCP<SG_MultiVector> & curr_u,
@@ -75,6 +76,17 @@ namespace MrHyDE {
                workset & macrowkset,
                const int & macrogrp, const int & macroelemindex,
                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
+
+    //////////////////////////////////////////////////////////////
+    // Interpolate the coarse solution in time
+    //////////////////////////////////////////////////////////////
+                  
+    void lagrangeInterpolate(View_Sc3 interp_values, 
+                             View_Sc3 curr_values, 
+                             View_Sc4 prev_values, 
+                             vector<ScalarT> & times,
+                             ScalarT & alpha, 
+                             ScalarT & interp_time);
 
     ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Assembly
@@ -278,7 +290,8 @@ namespace MrHyDE {
     
     int num_macro_time_steps;
     bool write_subgrid_state, isSynchronous;
-    
+    ScalarT current_time, previous_time;
+
     bool have_mesh_data, have_rotations, have_rotation_phi, compute_mesh_data;
     bool have_multiple_data_files;
     string mesh_data_tag, mesh_data_pts_tag;

@@ -984,8 +984,9 @@ void SubGridDtN::addMeshData() {
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fwdsoln,
-                               Kokkos::View<ScalarT***,AssemblyDevice> coarse_adjsoln,
+void SubGridDtN::subgridSolver(View_Sc3 coarse_fwdsoln,
+                               View_Sc4 coarse_prevsoln,
+                               View_Sc3 coarse_adjsoln,
                                const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                                const bool & compute_jacobian, const bool & compute_sens,
                                const int & num_active_params,
@@ -1090,7 +1091,7 @@ void SubGridDtN::subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> coarse_fw
   //Teuchos::RCP<LA_MultiVector> curr_adjsoln = Teuchos::rcp(new LA_MultiVector(sub_solver->solver->LA_overlapped_map,1));
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
-  sub_solver->solve(coarse_u, coarse_phi,
+  sub_solver->solve(coarse_u, coarse_prevsoln, coarse_phi,
                     prev_soln[macrogrp], curr_soln[macrogrp], stage_soln[macrogrp],
                     prev_adjsoln, curr_adjsoln,
                     //prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
@@ -2072,6 +2073,7 @@ void SubGridDtN::updateLocalData(const int & macrogrp) {
 // ========================================================================================
     
 void SubGridDtN::advance() {
+  sub_solver->previous_time = sub_solver->current_time;
   for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
     prev_soln[macrogrp]->assign(*(curr_soln[macrogrp]));
     sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
@@ -2087,6 +2089,12 @@ void SubGridDtN::advanceStage() {
     for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
       curr_soln[macrogrp]->update(1.0, *(stage_soln[macrogrp]), 1.0);
       curr_soln[macrogrp]->update(-1.0, *(prev_soln[macrogrp]), 1.0);
+    }
+  }
+  else {
+    sub_solver->previous_time = sub_solver->current_time;
+    for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+      prev_soln[macrogrp]->assign(*curr_soln[macrogrp]);
     }
   }
 }

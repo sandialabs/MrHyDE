@@ -93,8 +93,9 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    void subgridSolver(Kokkos::View<ScalarT***,AssemblyDevice> gl_u,
-                       Kokkos::View<ScalarT***,AssemblyDevice> gl_phi,
+    void subgridSolver(View_Sc3 coarse_sol,
+                       View_Sc4 coarse_prevsoln,
+                       View_Sc3 coarse_adj,
                        const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                        const bool & compute_jacobian, const bool & compute_sens,
                        const int & num_active_params,
