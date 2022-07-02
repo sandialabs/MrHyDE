@@ -17,6 +17,7 @@ ANONYMOUS:
       solver: transient
       transient BDF order: 1
       transient Butcher tableau: DIRK-3,3
+      synchronous time stepping: true
     Postprocess:
       True solutions:
         e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)

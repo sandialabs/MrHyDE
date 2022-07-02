@@ -46,7 +46,7 @@ settings(settings_), assembler(assembler_) {
   sub_NLtol = settings->sublist("Solver").get<ScalarT>("nonlinear TOL",1.0E-12);
   sub_maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
-  isSynchronous = settings->sublist("Solver").get<bool>("synchronous time stepping",true);
+  isSynchronous = settings->sublist("Solver").get<bool>("synchronous time stepping",false);
   amesos_solver_type = settings->sublist("Solver").get<string>("Amesos solver type","KLU2");
 
   use_preconditioner = settings->sublist("Solver").get<bool>("use preconditioner",true);
@@ -288,7 +288,9 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         assembler->wkset[0]->setDeltat(macro_deltat);
         ScalarT alpha = 1.0/macro_deltat;
         ScalarT sgdeltat = macro_deltat;
-        d_sol_stage_saved[0]->putScalar(0.0);
+        for (size_t stage=0; stage<d_sol_stage_saved.size(); ++stage) {
+          d_sol_stage_saved[stage]->putScalar(0.0);
+        }
 
         // Make sure the subgrid model uses the same integration rule as coarse scale
         assembler->wkset[0]->butcher_A = macrowkset.butcher_A;
@@ -1490,7 +1492,6 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
       //assembler->wkset[0]->sidename = "interior";
       {
         Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
-        //bool useTsol = true;//false;
         assembler->boundary_groups[macrogrp][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
                                                              0, h, compute_sens, fluxwt, isSynchronous);
 

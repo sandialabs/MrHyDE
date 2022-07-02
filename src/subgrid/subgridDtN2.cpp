@@ -37,7 +37,7 @@ settings(settings_), macro_cellTopo(macro_cellTopo_) {
   time_steps = settings->sublist("Solver").get<int>("number of steps",1);
   initial_time = settings->sublist("Solver").get<ScalarT>("initial time",0.0);
   final_time = settings->sublist("Solver").get<ScalarT>("final time",1.0);
-  isSynchronous = settings->sublist("Solver").get<bool>("synchronous time stepping",true);
+  isSynchronous = settings->sublist("Solver").get<bool>("synchronous time stepping",false);
   
   string solver = settings->sublist("Solver").get<string>("solver","steady-state");
   if (solver == "steady-state") {

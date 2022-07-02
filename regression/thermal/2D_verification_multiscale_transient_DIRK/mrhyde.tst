@@ -32,7 +32,7 @@ fdtol= 5.0e-10     # finite difference gradient tolerance
 
 # These comments are for testing with the runtest.py utility.
 #TESTING active
-#TESTING -n 4
+#TESTING -n 1
 #TESTING -k thermal,multiscale,transient,verification
 
 # ==============================================================================
@@ -43,7 +43,7 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
-status += its.call('mpiexec -n 4 ../../mrhyde >& mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
 status += its.clean_log()
 
 
