@@ -2795,7 +2795,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       if (assemble_volume_terms[set][block]) {
         if (groupData[block]->multiscale) {
           wkset[block]->reset();
-          int sgindex = groups[block][grp]->subgrid_model_index[groups[block][grp]->subgrid_model_index.size()-1];
+          int sgindex = groups[block][grp]->subgrid_model_index;
 
           auto u_curr = groups[block][grp]->u[set];
           // Map the gathered solution to seeded version in workset

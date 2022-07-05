@@ -164,10 +164,16 @@ namespace MrHyDE {
     // Assemble the projection matrix using ip and basis values from another subgrid model
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<SG_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
+    Teuchos::RCP<SG_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts, Teuchos::RCP<const SG_Map> & other_owned_map,
+                                                   Teuchos::RCP<const SG_Map> & other_overlapped_map,
                                                    std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo);
     
     
+    ScalarT getPreviousTime();
+
+    void setPreviousTime(ScalarT & time);
+
+
     ////////////////////////////////////////////////////////////////////////////////
     // Get an empty vector
     ////////////////////////////////////////////////////////////////////////////////
@@ -237,6 +243,8 @@ namespace MrHyDE {
     
     void advanceStage();
     
+    void updateActive(vector<bool> & new_active);
+    
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -263,8 +271,6 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> sub_disc;
     Teuchos::RCP<PostprocessManager<SubgridSolverNode> > sub_postproc;
     vector<Teuchos::RCP<SG_MultiVector> > Psol;
-    vector<Teuchos::RCP<SG_MultiVector> > prev_soln, curr_soln, stage_soln;
-    vector<Teuchos::RCP<SG_MultiVector> > prev_adjsoln, curr_adjsoln;
     
     // Dynamic - depend on the macro-element
     vector<Teuchos::RCP<SubGridMacroData> > macroData;

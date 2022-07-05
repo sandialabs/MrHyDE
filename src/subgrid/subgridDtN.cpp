@@ -396,6 +396,9 @@ void SubGridDtN::setUpSubgridModels() {
   sub_solver = Teuchos::rcp( new SubGridDtN_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
                                                    sub_assembler, sub_params, numMacroDOF) );
   
+  owned_map = sub_solver->solver->linalg->owned_map[0];
+  overlapped_map = sub_solver->solver->linalg->overlapped_map[0];
+  
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                          sub_disc, sub_physics,
                                                                          functionManagers, sub_assembler) );
@@ -1820,11 +1823,17 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN::g
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN::getProjectionMatrix(DRV & ip, DRV & wts,
-                                                           std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
+                                                                  Teuchos::RCP<const SG_Map> & other_owned_map,
+                                                                  Teuchos::RCP<const SG_Map> & other_overlapped_map,
+                                                                  std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
-  return sub_solver->getProjectionMatrix(ip, wts, other_basisinfo);
+  return sub_solver->getProjectionMatrix(ip, wts, other_owned_map, other_overlapped_map, other_basisinfo);
   
 }
+
+//SG_Map SubGridDtN::getLinearAlgebraMap() {
+//  return sub_solver->linalg->owned_map[0];
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get an empty vector
@@ -2095,6 +2104,25 @@ void SubGridDtN::advanceStage() {
     sub_solver->previous_time = sub_solver->current_time;
     for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
       prev_soln[macrogrp]->assign(*curr_soln[macrogrp]);
+    }
+  }
+}
+
+
+ScalarT SubGridDtN::getPreviousTime() {
+  return sub_solver->previous_time;
+}
+
+void SubGridDtN::setPreviousTime(ScalarT & time) {
+  sub_solver->previous_time = time;
+}
+
+
+void SubGridDtN::updateActive(vector<bool> & new_active){
+  active = new_active;
+  for (size_t macrogrp=0; macrogrp<sub_assembler->groups.size(); ++macrogrp) {
+    for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
+      sub_assembler->groups[macrogrp][grp]->active = active[macrogrp];
     }
   }
 }

@@ -449,6 +449,8 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         
         } // step
         
+        //KokkosTools::print(d_sol);
+   
         this->updateFlux(curr_sol, d_sol, lambda, disc_params, compute_sens, 
                          macroelemindex, time, macrowkset, macrogrp, macro_beta);
             
@@ -1229,22 +1231,22 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
     // We need to add in: dres/dprevstep and dres/dprevstage
     ////////////////////////////////
     
-    
     for (int step=0; step<solver->numsteps[0]; ++step) {
       // Compute Jacobian wrt previous step solution
 
       int seedwhat = 2;
       this->assembleJacobianResidual(sol, adj_sol, param, coarse_sol, res_over, 
-                                     J_alt_over, seedwhat, step, macrogrp, isAdjoint);
+                                     J_alt, seedwhat, step, macrogrp, isAdjoint);
     
       auto update = solver->linalg->getNewVector(0,d_sol_prev_saved[step]->getNumVectors());
-      J_alt_over->apply(*(d_sol_prev_saved[step]),*update);
+      J_alt->apply(*(d_sol_prev_saved[step]),*update);
 
       d_res->update(-1.0,*update,1.0);
     }
+    
 
-    //KokkosTools::print(J);
-    //KokkosTools::print(J_alt_over);
+    //KokkosTools::print(d_res);
+    //KokkosTools::print(J_alt);
 
     
     for (int stage=0; stage<assembler->wkset[0]->current_stage; ++stage) {
@@ -1678,6 +1680,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
   for (size_t e=0; e<assembler->groups[0].size(); e++) {
     int numElem = assembler->groups[0][e]->numElem;
     DRV nodes = assembler->groups[0][e]->nodes;
+    
     for (int c=0; c<numElem;c++) {
       //DRV refpts("refpts",1, numpts, dimpts);
       //Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell",1,numpts);
@@ -1760,49 +1763,55 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
 ////////////////////////////////////////////////////////////////////////////////
 
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN_Solver::getProjectionMatrix(DRV & ip, DRV & wts,
+                                                                  Teuchos::RCP<const SG_Map> & other_owned_map,
+                                                                  Teuchos::RCP<const SG_Map> & other_overlapped_map,
                                                                   std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
+  
   std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > my_basisinfo = this->evaluateBasis2(ip);
-  matrix_RCP map_over = solver->linalg->getNewOverlappedMatrix(0);
-  //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph));
-  
-  matrix_RCP map;
-  if (solver->Comm->getSize() > 1) {
-    map = solver->linalg->getNewMatrix(0);
-    //Teuchos::rcp(new Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode>(solver->LA_overlapped_graph));
-    map->setAllToScalar(0.0);
-  }
-  else {
-    map = map_over;
-  }
-  
-  Teuchos::Array<ScalarT> vals(1);
-  Teuchos::Array<GO> cols(1);
-  
+
+
+  Teuchos::RCP<SG_CrsGraph> new_graph = Teuchos::rcp( new SG_CrsGraph(solver->linalg->overlapped_map[0], other_overlapped_map, 64));
+
   for (size_t k=0; k<ip.extent(1); k++) {
     for (size_t r=0; r<my_basisinfo.second[k].extent(0);r++) {
       for (size_t p=0; p<my_basisinfo.second[k].extent(1);p++) {
-        int igid = my_basisinfo.first(k,p+2);
+        GO igid = my_basisinfo.first(k,p+2);
         for (size_t s=0; s<other_basisinfo.second[k].extent(0);s++) {
           for (size_t q=0; q<other_basisinfo.second[k].extent(1);q++) {
-            cols[0] = other_basisinfo.first(k,q+2);
+            vector<GO> gids;
+            gids.push_back(other_basisinfo.first(k,q+2));
             if (r == s) {
-              vals[0] = my_basisinfo.second[k](r,p) * other_basisinfo.second[k](s,q) * wts(0,k);
-              map_over->sumIntoGlobalValues(igid, cols, vals);
+              new_graph->insertGlobalIndices(igid,gids);
             }
           }
         }
       }
     }
   }
+  new_graph->fillComplete(other_owned_map, solver->linalg->owned_map[0]); // hard coded
   
-  map_over->fillComplete();
-  
-  if (solver->Comm->getSize() > 1) {
-    map->doExport(*map_over, *(solver->linalg->exporter[0]), Tpetra::ADD);
-    map->fillComplete();
+  matrix_RCP matrix = Teuchos::rcp(new SG_CrsMatrix(new_graph));
+
+  for (size_t k=0; k<ip.extent(1); k++) {
+    for (size_t r=0; r<my_basisinfo.second[k].extent(0);r++) {
+      for (size_t p=0; p<my_basisinfo.second[k].extent(1);p++) {
+        GO igid = my_basisinfo.first(k,p+2);
+        for (size_t s=0; s<other_basisinfo.second[k].extent(0);s++) {
+          for (size_t q=0; q<other_basisinfo.second[k].extent(1);q++) {
+            GO cols[] = {other_basisinfo.first(k,q+2)};
+            if (r == s) {
+              ScalarT vals[] = {my_basisinfo.second[k](r,p) * other_basisinfo.second[k](s,q) * wts(0,k)};
+              matrix->sumIntoGlobalValues(igid, 1, vals, cols);
+            }
+          }
+        }
+      }
+    }
   }
-  return map;
+  matrix->fillComplete();
+  
+  return matrix;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

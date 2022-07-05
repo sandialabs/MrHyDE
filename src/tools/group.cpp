@@ -28,6 +28,7 @@ groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
 {
   numElem = nodes.extent(0);
   
+  active = true;
   storeAll = storeAll_;
   haveBasis = false;
   storeMass = true;
@@ -884,8 +885,7 @@ void Group::computeJacRes(const ScalarT & time, const bool & isTransient, const 
     Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (groupData->multiscale) {
       this->updateWorkset(seedwhat);
-      int sgindex = subgrid_model_index[subgrid_model_index.size()-1];
-      subgridModels[sgindex]->subgridSolver(u[0], u_prev[0], phi[0], wkset->time, isTransient, isAdjoint,
+      subgridModels[subgrid_model_index]->subgridSolver(u[0], u_prev[0], phi[0], wkset->time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens, num_active_params,
                                             compute_disc_sens, compute_aux_sens,
                                             *wkset, subgrid_usernum, 0,

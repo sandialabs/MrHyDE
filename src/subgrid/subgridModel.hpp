@@ -85,7 +85,8 @@ namespace MrHyDE {
     
     virtual matrix_RCP getProjectionMatrix() = 0;
     
-    virtual matrix_RCP getProjectionMatrix(DRV & ip, DRV & wts,
+    virtual matrix_RCP getProjectionMatrix(DRV & ip, DRV & wts, Teuchos::RCP<const SG_Map> & other_owned_map,
+                                           Teuchos::RCP<const SG_Map> & other_overlapped_map,
                                            std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) = 0;
     
     virtual vector_RCP getVector() = 0;
@@ -110,9 +111,21 @@ namespace MrHyDE {
     
     virtual void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) = 0;
     
+    virtual ScalarT getPreviousTime() = 0;
+
+    virtual void setPreviousTime(ScalarT & time) = 0;
+
+    virtual void updateActive(vector<bool> & new_active) = 0;
+
+    //virtual SG_Map getLinearAlgebraMap() = 0;
+    
     Teuchos::RCP<MpiComm> LocalComm;
     Teuchos::RCP<SolutionStorage<SubgridSolverNode> > soln, solndot, adjsoln;
+    vector<Teuchos::RCP<SG_MultiVector> > prev_soln, curr_soln, stage_soln;
+    vector<Teuchos::RCP<SG_MultiVector> > prev_adjsoln, curr_adjsoln;
     
+    Teuchos::RCP<const SG_Map> owned_map, overlapped_map;
+
     bool useMachineLearning = false;
     
     vector<Teuchos::RCP<workset> > wkset;
@@ -135,7 +148,7 @@ namespace MrHyDE {
     Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
     
     vector<string> varlist;
-    vector<vector<bool> > active;
+    vector<bool> active;
     
   };
   

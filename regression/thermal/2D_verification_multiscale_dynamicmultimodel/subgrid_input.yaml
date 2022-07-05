@@ -2,7 +2,7 @@
 ---
 ANONYMOUS:
   Subgrid:
-    static subgrids: true
+    static subgrids: false
     number of models: 3
     Model0:
       usage: '1.0'
@@ -18,13 +18,14 @@ ANONYMOUS:
         quadrature: 2
       Solver:
         solver: transient
+        keep nodes: true
       Postprocess:
         True solutions:
           e: sin(2.0*pi*x)*sin(2.0*pi*y)
       Functions:
         thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
     Model1:
-      usage: '(x-t)>0.5'
+      usage: '1.0*(x-t)>0.5'
       Mesh: 
         element type: quad
         refinements: 1
@@ -37,13 +38,14 @@ ANONYMOUS:
         quadrature: 2
       Solver:
         solver: transient
+        keep nodes: true
       Postprocess:
         True solutions:
           e: sin(2.0*pi*x)*sin(2.0*pi*y)
       Functions:
         thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
     Model2:
-      usage: '(x-t)>0.75'
+      usage: '1.0*(x-t)>0.75'
       Mesh: 
         element type: quad
         refinements: 2
@@ -56,6 +58,7 @@ ANONYMOUS:
         quadrature: 2
       Solver:
         solver: transient
+        keep nodes: true
       Postprocess:
         True solutions:
           e: sin(2.0*pi*x)*sin(2.0*pi*y)

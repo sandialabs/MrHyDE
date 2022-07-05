@@ -186,6 +186,18 @@ namespace MrHyDE {
       return newmat;
     }
     
+    matrix_RCP getNewOverlappedRectangularMatrix(Teuchos::RCP<const LA_Map> & colmap, const size_t & set) {
+      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(overlapped_map[set], colmap, 64));
+      return newmat;
+    }
+    
+    matrix_RCP getNewRectangularMatrix(Teuchos::RCP<const LA_Map> & colmap, const size_t & set) {
+      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], colmap,  64));
+      return newmat;
+    }
+    
     // ========================================================================================
     // Get discretized parameter linear algebra objects
     // ========================================================================================

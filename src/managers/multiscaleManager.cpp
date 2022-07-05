@@ -287,7 +287,7 @@ ScalarT MultiscaleManager::initialize() {
           }
         }
         groups[block][grp]->subgridModels = subgridModels;
-        groups[block][grp]->subgrid_model_index.push_back(sgwinner);
+        groups[block][grp]->subgrid_model_index = sgwinner;
         groups[block][grp]->subgrid_usernum = sgusernum;
         groups[block][grp]->groupData->multiscale = true;
         my_cost = subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
@@ -333,7 +333,7 @@ ScalarT MultiscaleManager::initialize() {
       for (size_t block=0; block<groups.size(); ++block) {
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           //for (int c=0; c<groups[block][grp]->numElem; c++) {
-          if (groups[block][grp]->subgrid_model_index[0] == s) {
+          if (groups[block][grp]->subgrid_model_index == s) {
             size_t usernum = groups[block][grp]->subgrid_usernum;
             active[usernum] = true;
             numactive += 1;
@@ -341,18 +341,17 @@ ScalarT MultiscaleManager::initialize() {
         }
         //}
       }
-      subgridModels[s]->active.push_back(active);
+      subgridModels[s]->updateActive(active);
     }
     
     for (size_t i=0; i<subgridModels.size(); i++) {
       auto ip = subgridModels[i]->getIP();
       auto wts = subgridModels[i]->getIPWts();
-      
       std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > basisinfo_i = subgridModels[i]->evaluateBasis2(ip);
       vector<Teuchos::RCP<SGLA_CrsMatrix> > currmaps;
       for (size_t j=0; j<subgridModels.size(); j++) {
         std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > basisinfo_j = subgridModels[j]->evaluateBasis2(ip);
-        Teuchos::RCP<SGLA_CrsMatrix> map = subgridModels[i]->getProjectionMatrix(ip, wts, basisinfo_j);
+        Teuchos::RCP<SGLA_CrsMatrix> map = subgridModels[i]->getProjectionMatrix(ip, wts, subgridModels[j]->owned_map, subgridModels[j]->overlapped_map, basisinfo_j);
         currmaps.push_back(map);
       }
       subgrid_projection_maps.push_back(currmaps);
@@ -400,10 +399,8 @@ void MultiscaleManager::update() {
       for (size_t block=0; block<groups.size(); ++block) {
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           if (groups[block][grp]->groupData->multiscale) {
-            int nummod = groups[block][grp]->subgrid_model_index.size();
-            int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
-            groups[block][grp]->subgrid_model_index.push_back(oldmodel);
-            my_cost += subgridModels[oldmodel]->cost_estimate;
+            int currmodel = groups[block][grp]->subgrid_model_index;
+            my_cost += subgridModels[currmodel]->cost_estimate * groups[block][grp]->numElem;
           }
         }
       }
@@ -459,49 +456,45 @@ void MultiscaleManager::update() {
               }
             }
           
-          
-          
-            int nummod = groups[block][grp]->subgrid_model_index.size();
-            int oldmodel = groups[block][grp]->subgrid_model_index[nummod-1];
+            int oldmodel = groups[block][grp]->subgrid_model_index;
             if (sgwinner != oldmodel) {
             
               size_t usernum = groups[block][grp]->subgrid_usernum;
+          
               // get the time/solution from old subgrid model at last time step
-              int lastindex = subgridModels[oldmodel]->soln->times[usernum].size()-1;
-              Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->soln->data[usernum][lastindex];
-              ScalarT lasttime = subgridModels[oldmodel]->soln->times[usernum][lastindex];
+              Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->prev_soln[usernum];
+              
               Teuchos::RCP<SGLA_MultiVector> projvec = subgridModels[sgwinner]->getVector();
               subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
             
-              Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->getVector();
+              Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->prev_soln[usernum];
               subgrid_projection_solvers[sgwinner]->setB(projvec);
               subgrid_projection_solvers[sgwinner]->setX(newvec);
-            
               subgrid_projection_solvers[sgwinner]->solve();
-              subgridModels[sgwinner]->soln->store(newvec, lasttime, usernum);
             
+              ScalarT ptime = subgridModels[oldmodel]->getPreviousTime();
+              subgridModels[sgwinner]->setPreviousTime(ptime);
             }
             my_cost += subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
-            groups[block][grp]->subgrid_model_index.push_back(sgwinner);
+            groups[block][grp]->subgrid_model_index = sgwinner;
           
           }
         }
       }
-    
+      
       for (size_t s=0; s<subgridModels.size(); s++) {
-        vector<bool> active(subgridModels[s]->active[0].size(),false);
+        vector<bool> active(subgridModels[s]->active.size(),false);
         size_t numactive = 0;
         for (size_t block=0; block<groups.size(); ++block) {
           for (size_t grp=0; grp<groups[block].size(); ++grp) {
-            size_t nindex = groups[block][grp]->subgrid_model_index.size();
-            if (groups[block][grp]->subgrid_model_index[nindex-1] == s) {
+            if (groups[block][grp]->subgrid_model_index == s) {
               size_t usernum = groups[block][grp]->subgrid_usernum;
               active[usernum] = true;
               numactive += 1;
             }
           }
         }
-        subgridModels[s]->active.push_back(active);
+        subgridModels[s]->updateActive(active);
       }
     }
   }

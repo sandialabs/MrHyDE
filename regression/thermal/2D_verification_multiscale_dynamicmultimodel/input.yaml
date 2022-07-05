@@ -27,13 +27,16 @@ ANONYMOUS:
       e: 1
     quadrature: 2
   Solver:
-    #workset size: 1
+    workset size: 8
     solver: transient
     final time: 4.0e-01
     number of steps: 4
   Analysis: 
     analysis type: forward
-  Postprocess: 
+  Postprocess:
+    write solution: false
+    write subgrid solution: false
+    write group number: false
     compute errors: true
     True solutions:
       e: sin(2.0*pi*x)*sin(2.0*pi*y)

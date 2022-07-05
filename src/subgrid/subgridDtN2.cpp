@@ -266,6 +266,9 @@ void SubGridDtN2::setUpSubgridModels() {
   sub_solver = Teuchos::rcp( new SubGridDtN_Solver(LocalComm, settings, sub_mesh, sub_disc, sub_physics,
                                                    sub_assembler, sub_params, numMacroDOF) );
   
+  owned_map = sub_solver->solver->linalg->owned_map[0];
+  overlapped_map = sub_solver->solver->linalg->overlapped_map[0];
+  
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                          sub_disc, sub_physics,
                                                                          functionManagers, sub_assembler) );
@@ -1003,7 +1006,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridDtN2::computeError(const ScalarT & time
     
     errors = Kokkos::View<ScalarT*,HostDevice>("error", sub_postproc->error_list[0].size());
     
-    bool compute = false;
+    bool compute = true;//false;
     if (subgrid_static) {
       compute = true;
     }
@@ -1308,15 +1311,17 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
         size_t pprog = 0;
         for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
           for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u[0];
-            auto host_sol = Kokkos::create_mirror_view(sol);
-            Kokkos::deep_copy(host_sol,sol);
-            for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
-              for( size_t i=0; i<numNodesPerElem; i++ ) {
-                soln_computed(pprog,i) = host_sol(e,n,i);
+            if (groups[macrogrp][grp]->active) {
+              Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u[0];
+              auto host_sol = Kokkos::create_mirror_view(sol);
+              Kokkos::deep_copy(host_sol,sol);
+              for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
+                for( size_t i=0; i<numNodesPerElem; i++ ) {
+                  soln_computed(pprog+e,i) = host_sol(e,n,i);
+                }
               }
-              pprog += 1;
             }
+            pprog += groups[macrogrp][grp]->numElem;
           }
         }
         combined_mesh->setSolutionFieldData(varlist[n]+append, blockID, myElements, soln_computed);
@@ -1327,14 +1332,17 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
         size_t pprog = 0;
         for( size_t macrogrp=0; macrogrp<groups.size(); macrogrp++ ) {
           for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u[0];
-            auto host_sol = Kokkos::create_mirror_view(sol);
-            Kokkos::deep_copy(host_sol,sol);
-            for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
-              soln_computed(pprog) = host_sol(e,n,0);
-              pprog++;
+            if (groups[macrogrp][grp]->active) {
+              Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u[0];
+              auto host_sol = Kokkos::create_mirror_view(sol);
+              Kokkos::deep_copy(host_sol,sol);
+              for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
+                soln_computed(pprog+e) = host_sol(e,n,0);
+              }
             }
+            pprog += groups[macrogrp][grp]->numElem;
           }
+        
         }
         combined_mesh->setCellFieldData(varlist[n]+append, blockID, myElements, soln_computed);
         
@@ -1351,21 +1359,21 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
             
         for( size_t macrogrp=0; macrogrp<groups.size(); macrogrp++ ) {
           for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
-            groups[macrogrp][grp]->computeSolutionAverage(var,sol);
-            
-            //Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u_avg[0];
-            auto host_sol = Kokkos::create_mirror_view(sol);
-            Kokkos::deep_copy(host_sol,sol);
-            for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
-              soln_x(pprog) = host_sol(e,0);
-              if (dimension > 1) {
-                soln_y(pprog) = host_sol(e,1);
+            if (groups[macrogrp][grp]->active) {
+              groups[macrogrp][grp]->computeSolutionAverage(var,sol);
+              auto host_sol = Kokkos::create_mirror_view(sol);
+              Kokkos::deep_copy(host_sol,sol);
+              for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
+                soln_x(pprog+e) = host_sol(e,0);
+                if (dimension > 1) {
+                  soln_y(pprog+e) = host_sol(e,1);
+                }
+                if (dimension > 2) {
+                  soln_z(pprog+e) = host_sol(e,2);
+                }
               }
-              if (dimension > 2) {
-                soln_z(pprog) = host_sol(e,2);
-              }
-              pprog++;
             }
+            pprog += groups[macrogrp][grp]->numElem;
           }
         }
         combined_mesh->setCellFieldData(varlist[n]+append+"x", blockID, myElements, soln_x);
@@ -1380,21 +1388,23 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
           pprog = 0;
           for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
             for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
-              Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->getSolutionAtNodes(n);
-              auto host_sol = Kokkos::create_mirror_view(sol);
-              Kokkos::deep_copy(host_sol,sol);
-              for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
-                for( size_t i=0; i<numNodesPerElem; i++ ) {
-                  soln_nx(pprog,i) = host_sol(e,i,0);
-                  if (dimension > 1) {
-                    soln_ny(pprog,i) = host_sol(e,i,1);
-                  }
-                  if (dimension > 2) {
-                    soln_nz(pprog,i) = host_sol(e,i,2);
+              if (groups[macrogrp][grp]->active) {
+                Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->getSolutionAtNodes(n);
+                auto host_sol = Kokkos::create_mirror_view(sol);
+                Kokkos::deep_copy(host_sol,sol);
+                for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
+                  for( size_t i=0; i<numNodesPerElem; i++ ) {
+                    soln_nx(pprog+e,i) = host_sol(e,i,0);
+                    if (dimension > 1) {
+                      soln_ny(pprog+e,i) = host_sol(e,i,1);
+                    }
+                    if (dimension > 2) {
+                      soln_nz(pprog+e,i) = host_sol(e,i,2);
+                    }
                   }
                 }
-                pprog += 1;
               }
+              pprog += groups[macrogrp][grp]->numElem;
             }
           }
           combined_mesh->setSolutionFieldData(varlist[n]+append+"x", blockID, myElements, soln_nx);
@@ -1417,14 +1427,16 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
       // TMW: need to use a mirror view here
       for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
         for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
-          vector<size_t> data_seed = groups[macrogrp][grp]->data_seed;
-          vector<size_t> data_seedindex = groups[macrogrp][grp]->data_seedindex;
-          Kokkos::View<ScalarT**,AssemblyDevice> cell_data = groups[macrogrp][grp]->data;
-          for (size_t e=0; e<groups[macrogrp][0]->numElem; ++e) {
-            cseeds(eprog) = data_seedindex[e];
-            cdata(eprog) = cell_data(e,0);
-            eprog++;
+          if (groups[macrogrp][grp]->active) {
+            vector<size_t> data_seed = groups[macrogrp][grp]->data_seed;
+            vector<size_t> data_seedindex = groups[macrogrp][grp]->data_seedindex;
+            Kokkos::View<ScalarT**,AssemblyDevice> cell_data = groups[macrogrp][grp]->data;
+            for (size_t e=0; e<groups[macrogrp][0]->numElem; ++e) {
+              cseeds(eprog+e) = data_seedindex[e];
+              cdata(eprog+e) = cell_data(e,0);
+            }
           }
+          eprog += groups[macrogrp][grp]->numElem;
         }
       }
     }
@@ -1455,19 +1467,20 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
     eprog = 0;
     for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
       for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
+        if (groups[macrogrp][grp]->active) {
+          groups[macrogrp][grp]->updateWorkset(0,true);
+          wkset[0]->time = time;
         
-        groups[macrogrp][grp]->updateWorkset(0,true);
-        wkset[0]->time = time;
+          auto cfields = sub_postproc->getExtraCellFields(0, groups[macrogrp][grp]->wts);
         
-        auto cfields = sub_postproc->getExtraCellFields(0, groups[macrogrp][grp]->wts);
-        
-        auto host_cfields = Kokkos::create_mirror_view(cfields);
-        Kokkos::deep_copy(host_cfields, cfields);
-        for (size_type p=0; p<host_cfields.extent(0); p++) {
-          for (size_type r=0; r<host_cfields.extent(1); ++r) {
-            ecd(eprog,r) = cfields(p,r);
+          auto host_cfields = Kokkos::create_mirror_view(cfields);
+          Kokkos::deep_copy(host_cfields, cfields);
+          for (size_type p=0; p<host_cfields.extent(0); p++) {
+            for (size_type r=0; r<host_cfields.extent(1); ++r) {
+              ecd(eprog,r) = cfields(p,r);
+            }
+            eprog++;
           }
-          eprog++;
         }
       }
     }
@@ -1553,12 +1566,18 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN2::
 // This function needs to exist in a subgrid model, but the solver does the real work
 ////////////////////////////////////////////////////////////////////////////////
 
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN2::getProjectionMatrix(DRV & ip, DRV & wts,
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> > SubGridDtN2::getProjectionMatrix(DRV & ip, DRV & wts, 
+                                                                                                   Teuchos::RCP<const SG_Map> & other_owned_map,
+                                                                                                   Teuchos::RCP<const SG_Map> & other_overlapped_map,
                                                                                                    std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo) {
   
-  return sub_solver->getProjectionMatrix(ip, wts, other_basisinfo);
+  return sub_solver->getProjectionMatrix(ip, wts, other_owned_map, other_overlapped_map, other_basisinfo);
   
 }
+
+//SG_Map SubGridDtN2::getLinearAlgebraMap() {
+//  return sub_solver->linalg->owned_map[0];
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Get an empty vector
@@ -1652,6 +1671,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN2::evaluat
   for (size_t grp=0; grp<groups[0].size(); ++grp) {
     int numElem = groups[0][grp]->numElem;
     DRV nodes = groups[0][grp]->nodes;
+    
     for (int c=0; c<numElem;c++) {
       DRV refpts("refpts",1, numpts, dimpts);
       DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
@@ -1753,20 +1773,22 @@ void SubGridDtN2::updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_d
 // ========================================================================================
     
 void SubGridDtN2::advance() {
-  sub_solver->previous_time = sub_solver->current_time;
-  for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
-    prev_soln[macrogrp]->assign(*(curr_soln[macrogrp]));
-    sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
+  
+  if (curr_soln.size() > 0) {
+    sub_solver->previous_time = sub_solver->current_time;
+    for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+      prev_soln[macrogrp]->assign(*(curr_soln[macrogrp]));
+      sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
     
-    for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
-      sub_assembler->groups[macrogrp][grp]->resetPrevSoln(0);
-      sub_assembler->groups[macrogrp][grp]->resetStageSoln(0);
+      for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
+        sub_assembler->groups[macrogrp][grp]->resetPrevSoln(0);
+        sub_assembler->groups[macrogrp][grp]->resetStageSoln(0);
+      }
+      for (size_t grp=0; grp<sub_assembler->boundary_groups[macrogrp].size(); ++grp) {
+        sub_assembler->boundary_groups[macrogrp][grp]->resetPrevSoln(0);
+        sub_assembler->boundary_groups[macrogrp][grp]->resetStageSoln(0);
+      }
     }
-    for (size_t grp=0; grp<sub_assembler->boundary_groups[macrogrp].size(); ++grp) {
-      sub_assembler->boundary_groups[macrogrp][grp]->resetPrevSoln(0);
-      sub_assembler->boundary_groups[macrogrp][grp]->resetStageSoln(0);
-    }
-    
   }
   
 }
@@ -1776,17 +1798,40 @@ void SubGridDtN2::advance() {
 // ========================================================================================
     
 void SubGridDtN2::advanceStage() {
-  if (isSynchronous) {
-    for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
-      curr_soln[macrogrp]->update(1.0, *(stage_soln[macrogrp]), 1.0);
-      curr_soln[macrogrp]->update(-1.0, *(prev_soln[macrogrp]), 1.0);
+  if (curr_soln.size() > 0) {
+    if (isSynchronous) {
+      for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+        curr_soln[macrogrp]->update(1.0, *(stage_soln[macrogrp]), 1.0);
+        curr_soln[macrogrp]->update(-1.0, *(prev_soln[macrogrp]), 1.0);
+      }
+    }
+    else {
+    
+      sub_solver->previous_time = sub_solver->current_time;
+    
+      for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
+        prev_soln[macrogrp]->assign(*curr_soln[macrogrp]);
+      }
     }
   }
-  else {
-    sub_solver->previous_time = sub_solver->current_time;
-    for (size_t macrogrp=0; macrogrp<curr_soln.size(); ++macrogrp) {
-      prev_soln[macrogrp]->assign(*curr_soln[macrogrp]);
+  
+}
+
+
+ScalarT SubGridDtN2::getPreviousTime() {
+  return sub_solver->previous_time;
+}
+
+void SubGridDtN2::setPreviousTime(ScalarT & time) {
+  sub_solver->previous_time = time;
+}
+ 
+
+void SubGridDtN2::updateActive(vector<bool> & new_active){
+  active = new_active;
+  for (size_t macrogrp=0; macrogrp<sub_assembler->groups.size(); ++macrogrp) {
+    for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
+      sub_assembler->groups[macrogrp][grp]->active = active[macrogrp];
     }
   }
 }
-        

@@ -202,7 +202,8 @@ namespace MrHyDE {
     // Assemble the projection matrix using ip and basis values from another subgrid model
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<SG_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts,
+    Teuchos::RCP<SG_CrsMatrix> getProjectionMatrix(DRV & ip, DRV & wts, Teuchos::RCP<const SG_Map> & other_owned_map,
+                                                   Teuchos::RCP<const SG_Map> & other_overlapped_map,
                                                    std::pair<Kokkos::View<int**,AssemblyDevice> , vector<DRV> > & other_basisinfo);
     
     

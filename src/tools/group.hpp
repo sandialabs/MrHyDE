@@ -345,7 +345,7 @@ namespace MrHyDE {
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
     DRV nodes;
     vector<size_t> data_seed, data_seedindex;
-    vector<size_t> subgrid_model_index; // which subgrid model is used for each time step
+    size_t subgrid_model_index; // which subgrid model is used for each time step
     size_t subgrid_usernum; // what is the index for this group in the subgrid model (should be deprecated)
     
     Teuchos::RCP<DiscretizationInterface> disc;
@@ -382,7 +382,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Storage information
-    bool storeAll, storeMass, usealtsol = false, haveBasis;
+    bool active, storeAll, storeMass, usealtsol = false, haveBasis;
 
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
