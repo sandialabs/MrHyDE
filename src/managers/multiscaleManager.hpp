@@ -20,6 +20,7 @@
 #include "subgridModel.hpp"
 #include "Amesos2.hpp"
 #include "meshInterface.hpp"
+#include "workset.hpp"
 
 namespace MrHyDE {
   
@@ -83,6 +84,15 @@ namespace MrHyDE {
     
     ScalarT initialize();
     
+    void evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset, Teuchos::RCP<Group> & group,
+                                    const int & set, 
+                                    const bool & isTransient, const bool & isAdjoint,
+                                    const bool & compute_jacobian, const bool & compute_sens,
+                                    const int & num_active_params,
+                                    const bool & compute_disc_sens, const bool & compute_aux_sens,
+                                    //const int & macrogrp, const int & macroelemindex,
+                                    const bool & store_adjPrev);
+
     ////////////////////////////////////////////////////////////////////////////////
     // Re-assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////

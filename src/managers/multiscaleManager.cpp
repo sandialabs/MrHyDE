@@ -510,6 +510,61 @@ void MultiscaleManager::update() {
   
 }
 
+void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset, Teuchos::RCP<Group> & group,
+                                                   const int & set, 
+                                                   const bool & isTransient, const bool & isAdjoint,
+                                                   const bool & compute_jacobian, const bool & compute_sens,
+                                                   const int & num_active_params,
+                                                   const bool & compute_disc_sens, const bool & compute_aux_sens,
+                                                   //const int & macrogrp, const int & macroelemindex,
+                                                   const bool & store_adjPrev){
+  
+  wkset->reset();
+  int sgindex = group->subgrid_model_index;
+
+  auto u_curr = group->u[set];
+  // Map the gathered solution to seeded version in workset
+  if (group->groupData->requiresTransient) {
+    for (size_t iset=0; iset<group->groupData->numSets; ++iset) {
+      wkset->computeSolnTransientSeeded(iset, group->u[iset], group->u_prev[iset], 
+                                        group->u_stage[iset], 0);
+    }
+  }
+  else { // steady-state
+    for (size_t iset=0; iset<group->groupData->numSets; ++iset) {
+      wkset->computeSolnSteadySeeded(iset, group->u[iset], 0);
+    }
+  }
+          
+  View_Sc3 uvals_sc("coarse vals unseeded",u_curr.extent(0),u_curr.extent(1),u_curr.extent(2));
+
+  for (size_type var=0; var<u_curr.extent(1); ++var) {
+            
+    size_t uindex = wkset->uvals_index[set][var];
+    auto uvals_AD = wkset->uvals[uindex];
+    auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
+    parallel_for("assembly compute coarse sol",
+                 RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
+        uvals_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
+#else
+        uvals_sc_sv(elem,dof) = uvals_AD(elem,dof);
+#endif
+      }
+    }); 
+  }
+
+  subgridModels[sgindex]->subgridSolver(uvals_sc, group->u_prev[set], 
+                                        group->phi[set], wkset->time, isTransient, isAdjoint,
+                                        compute_jacobian, compute_sens, num_active_params,
+                                        compute_disc_sens, false,
+                                        *wkset, group->subgrid_usernum, 0,
+                                        group->subgradient, store_adjPrev);
+          
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Reset the time step
 ////////////////////////////////////////////////////////////////////////////////

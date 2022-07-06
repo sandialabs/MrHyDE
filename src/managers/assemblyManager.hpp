@@ -31,6 +31,7 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "parameterManager.hpp"
+#include "multiscaleManager.hpp"
 
 namespace MrHyDE {
   
@@ -236,6 +237,7 @@ namespace MrHyDE {
     Teuchos::RCP<MeshInterface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> phys;
+    Teuchos::RCP<MultiscaleManager> multiscale_manager;
     
     size_t globalParamUnknowns;
     int verbosity, debug_level;

@@ -2175,6 +2175,7 @@ void SolverManager<Node>::finalizeMultiscale() {
     ScalarT gmax = 0.0;
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
     
+    assembler->multiscale_manager = multiscale_manager;
     if (Comm->getRank() == 0 && verbosity>0) {
       cout << "***** Load Balancing Factor " << gmax/gmin <<  endl;
     }
