@@ -44,9 +44,25 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
   // Create subcommunicators for the subgrid models (this isn't really used much)
   Teuchos::RCP<MpiComm> unusedComm;
   SplitComm(settings, *MacroComm, unusedComm, Comm);
-  
+  ml_training = true;
+  max_training_steps = settings->sublist("Solver").get<int>("max subgrid ML training steps",10);
+  num_training_steps = 0;
+  have_ml_models = false;
+
   if (settings->isSublist("Subgrid")) {
     
+    string subgrid_selection = settings->sublist("Solver").get<string>("subgrid model selection","user defined");
+    if (subgrid_selection == "user defined") {
+      subgrid_model_selection = 0;
+    }
+    else if (subgrid_selection == "hierarchical") {
+      subgrid_model_selection = 1;
+    }
+    else if (subgrid_selection == "ML") {
+      subgrid_model_selection = 2;
+    }
+
+    reltol = settings->sublist("Solver").get<ScalarT>("subgrid error tolerance",1.0e-6);
     vector<Teuchos::RCP<Teuchos::ParameterList> > subgrid_model_pls;
     
     bool single_model = false;
@@ -270,7 +286,7 @@ ScalarT MultiscaleManager::initialize() {
         }
 
         size_t sgusernum = 0;
-        if (subgrid_static) { // only add each group to one subgrid model
+        if (subgrid_static && subgrid_model_selection == 0) { // only add each group to one subgrid model
           
           sgusernum = subgridModels[sgwinner]->addMacro(groups[block][grp]->nodes,
                                                         groups[block][grp]->sideinfo[0],
@@ -328,20 +344,24 @@ ScalarT MultiscaleManager::initialize() {
   if (!subgrid_static) {
     
     for (size_t s=0; s<subgridModels.size(); s++) {
-      vector<bool> active(numusers,false);
-      size_t numactive = 0;
-      for (size_t block=0; block<groups.size(); ++block) {
-        for (size_t grp=0; grp<groups[block].size(); ++grp) {
-          //for (int c=0; c<groups[block][grp]->numElem; c++) {
-          if (groups[block][grp]->subgrid_model_index == s) {
-            size_t usernum = groups[block][grp]->subgrid_usernum;
-            active[usernum] = true;
-            numactive += 1;
+      if (subgrid_model_selection == 0) {
+        vector<bool> active(numusers,false);
+        size_t numactive = 0;
+        for (size_t block=0; block<groups.size(); ++block) {
+          for (size_t grp=0; grp<groups[block].size(); ++grp) {
+            if (groups[block][grp]->subgrid_model_index == s) {
+              size_t usernum = groups[block][grp]->subgrid_usernum;
+              active[usernum] = true;
+              numactive += 1;
+            }
           }
         }
-        //}
+        subgridModels[s]->updateActive(active);
       }
-      subgridModels[s]->updateActive(active);
+      else {
+        vector<bool> active(numusers,true);
+        subgridModels[s]->updateActive(active);
+      }
     }
     
     for (size_t i=0; i<subgridModels.size(); i++) {
@@ -405,7 +425,7 @@ void MultiscaleManager::update() {
         }
       }
     }
-    else {
+    else if (subgrid_model_selection == 0){
       for (size_t block=0; block<groups.size(); ++block) {
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           if (groups[block][grp]->groupData->multiscale) {
@@ -497,6 +517,263 @@ void MultiscaleManager::update() {
         subgridModels[s]->updateActive(active);
       }
     }
+    else if (subgrid_model_selection == 1) {
+      // nothing to do here
+    }
+    else if (subgrid_model_selection == 2) {
+      if (num_training_steps < max_training_steps) {
+        ++num_training_steps;
+      }
+      else if (have_ml_models) {
+
+        // generate new data as input for the ML model
+        string infile = "new_data.txt";
+        std::ofstream inputOUT;
+        bool is_open = false;
+        int attempts = 0;
+        int max_attempts = 10;
+        while (!is_open && attempts < max_attempts) {
+          inputOUT.open(infile);
+          is_open = inputOUT.is_open();
+          attempts++;
+        }
+        inputOUT.precision(12);
+        
+        int set = 0; // hard coded for now
+        for (size_t block=0; block<groups.size(); ++block) {
+          for (size_t grp=0; grp<groups[block].size(); ++grp) {
+            groups[block][grp]->wkset->reset();
+  
+            auto u_curr = groups[block][grp]->u[set];
+            // Map the gathered solution to seeded version in workset
+            if (groups[block][grp]->groupData->requiresTransient) {
+              for (size_t iset=0; iset<groups[block][grp]->groupData->numSets; ++iset) {
+                groups[block][grp]->wkset->computeSolnTransientSeeded(iset, groups[block][grp]->u[iset], groups[block][grp]->u_prev[iset], 
+                                                                      groups[block][grp]->u_stage[iset], 0);
+              }
+            }
+            else { // steady-state
+              for (size_t iset=0; iset<groups[block][grp]->groupData->numSets; ++iset) {
+                groups[block][grp]->wkset->computeSolnSteadySeeded(iset, groups[block][grp]->u[iset], 0);
+              }
+            }
+          
+            View_Sc3 uvals_sc("coarse vals unseeded",u_curr.extent(0),u_curr.extent(1),u_curr.extent(2));
+
+            for (size_type var=0; var<u_curr.extent(1); ++var) {
+            
+              size_t uindex = groups[block][grp]->wkset->uvals_index[set][var];
+              auto uvals_AD = groups[block][grp]->wkset->uvals[uindex];
+              auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
+              parallel_for("assembly compute coarse sol",
+                           RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                           KOKKOS_LAMBDA (const size_type elem ) {
+                for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
+    #ifndef MrHyDE_NO_AD
+                  uvals_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
+    #else
+                  uvals_sc_sv(elem,dof) = uvals_AD(elem,dof);
+    #endif
+                }
+              }); 
+            }
+
+            for (size_type elem=0; elem<uvals_sc.extent(0); ++elem) {
+                
+              for (size_type var=0; var<uvals_sc.extent(1); ++var) {
+                for (size_type dof=0; dof<uvals_sc.extent(2); ++dof) {
+                  inputOUT << uvals_sc(elem,var,dof) << "  ";
+                }
+              }
+              inputOUT << endl;
+            }
+          }//grp
+        }//block
+        inputOUT.close();
+          
+
+        // Evaluate each of the ML models
+        vector<vector<int> > sg_model_pred;
+        for (size_t model=0; model<subgridModels.size()-1; ++model) {
+          // Build the pytorch models
+          string filename = "nn_predict.py";
+          string command = settings->get<string>("python","python3");
+          
+          command += " ";
+          command += filename;
+          command += " --model nn_" + subgridModels[model]->name + ".pt";
+          command += " --data " + infile;
+          command += " --predictions new_output.txt";
+              
+          cout << "========== Calling: " << command << endl;
+          system(command.c_str());
+          cout << "========== Done" << endl;
+
+          vector<int> nn_pred;
+          std::ifstream nn_out("new_output.txt");
+          std::string line;
+          while (std::getline(nn_out,line)){
+            std::istringstream tmp(line);
+            int val;
+            tmp >> val;
+            nn_pred.push_back(val);
+          }
+          nn_out.close();
+          sg_model_pred.push_back(nn_pred);
+        }
+        
+        size_t num_pred = sg_model_pred[0].size();
+        for (size_t j=0; j<num_pred; ++j) {
+          for (size_t k=0; k<sg_model_pred.size(); ++k) {
+            cout << sg_model_pred[k][j] << "  ";
+          }
+          cout << endl;
+        }
+        // Figure out which subgrid each group should use
+        size_t prog = 0;
+        for (size_t block=0; block<groups.size(); ++block) {
+          for (size_t grp=0; grp<groups[block].size(); ++grp) {
+            int numElem = groups[block][grp]->numElem;
+            bool found = false;
+            size_t sgtest = 0;
+            int sgwinner = -1;
+            while (!found) {
+              bool ok = true;
+              for (int elem=0; elem<numElem; ++elem) {
+                if (sg_model_pred[sgtest][prog+elem] == 0) {
+                  ok = false;
+                }
+              }
+              if (ok) {
+                found = true;
+                sgwinner = sgtest;
+              }
+              else if (sgtest == sg_model_pred.size()-1) {
+                found = true;
+                sgwinner = sg_model_pred.size();
+              }
+              else {
+                sgtest++;
+              }
+            }
+            prog += numElem;
+
+            int oldmodel = groups[block][grp]->subgrid_model_index;
+            if (sgwinner != oldmodel) {
+            
+              size_t usernum = groups[block][grp]->subgrid_usernum;
+          
+              // get the time/solution from old subgrid model at last time step
+              Teuchos::RCP<SGLA_MultiVector> lastsol = subgridModels[oldmodel]->prev_soln[usernum];
+              
+              Teuchos::RCP<SGLA_MultiVector> projvec = subgridModels[sgwinner]->getVector();
+              subgrid_projection_maps[sgwinner][oldmodel]->apply(*lastsol, *projvec);
+            
+              Teuchos::RCP<SGLA_MultiVector> newvec = subgridModels[sgwinner]->prev_soln[usernum];
+              subgrid_projection_solvers[sgwinner]->setB(projvec);
+              subgrid_projection_solvers[sgwinner]->setX(newvec);
+              subgrid_projection_solvers[sgwinner]->solve();
+            
+              ScalarT ptime = subgridModels[oldmodel]->getPreviousTime();
+              subgridModels[sgwinner]->setPreviousTime(ptime);
+            }
+            my_cost += subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
+            groups[block][grp]->subgrid_model_index = sgwinner;
+          }
+        }
+
+        for (size_t s=0; s<subgridModels.size(); s++) {
+        vector<bool> active(subgridModels[s]->active.size(),false);
+        size_t numactive = 0;
+        for (size_t block=0; block<groups.size(); ++block) {
+          for (size_t grp=0; grp<groups[block].size(); ++grp) {
+            if (groups[block][grp]->subgrid_model_index == s) {
+              size_t usernum = groups[block][grp]->subgrid_usernum;
+              active[usernum] = true;
+              numactive += 1;
+            }
+          }
+        }
+        subgridModels[s]->updateActive(active);
+      }
+      }
+      else {
+        have_ml_models = true;
+        for (size_t model=0; model<subgridModels.size()-1; ++model) {
+          string infile;
+          {
+            string name = subgridModels[model]->name;
+            std::stringstream ss;
+            ss << name;
+            ss << "_";
+            ss << Comm->getRank();
+            infile = ss.str() + "_input.txt";
+            std::ofstream inputOUT;
+            bool is_open = false;
+            int attempts = 0;
+            int max_attempts = 10;
+            while (!is_open && attempts < max_attempts) {
+              inputOUT.open(infile);
+              is_open = inputOUT.is_open();
+              attempts++;
+            }
+              
+            inputOUT.precision(12);
+            for (size_t d=0; d<ml_model_inputs[model].size(); ++d) {
+                
+              for (size_t d2=0; d2<ml_model_inputs[model][d].size(); ++d2) {
+                inputOUT << ml_model_inputs[model][d][d2] << "  ";
+              }
+              inputOUT << endl;
+            }
+            inputOUT.close();
+          }
+
+          string outfile;
+          {
+            string name = subgridModels[model]->name;
+            std::stringstream ss;
+            ss << name;
+            ss << "_";
+            ss << Comm->getRank();
+            outfile = ss.str() + "_output.txt";
+            std::ofstream outputOUT;
+            bool is_open = false;
+            int attempts = 0;
+            int max_attempts = 10;
+            while (!is_open && attempts < max_attempts) {
+              outputOUT.open(outfile);
+              is_open = outputOUT.is_open();
+              attempts++;
+            }
+              
+            outputOUT.precision(12);
+              
+            for (size_t d=0; d<ml_model_outputs[model].size(); ++d) {
+              outputOUT << ml_model_outputs[model][d] << "  ";
+              outputOUT << endl;
+            }
+            outputOUT.close();
+
+            // Build the pytorch models
+            string filename = "binary_classifier.py";
+            string command = settings->get<string>("python","python3");
+          
+            command += " ";
+            command += filename;
+            command += " --input-data " + infile;
+            command += " --output-data " + outfile;
+            command += " --nn-model nn_" + subgridModels[model]->name + ".pt";
+              
+            system(command.c_str());
+          }
+        } //model
+
+          
+
+      } // done training
+      
+    }
   }
       
   ScalarT gmin = 0.0;
@@ -510,19 +787,22 @@ void MultiscaleManager::update() {
   
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Compute the macro->micro->macro map and Jacobian
+////////////////////////////////////////////////////////////////////////////////
+
 void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset, Teuchos::RCP<Group> & group,
                                                    const int & set, 
                                                    const bool & isTransient, const bool & isAdjoint,
                                                    const bool & compute_jacobian, const bool & compute_sens,
                                                    const int & num_active_params,
                                                    const bool & compute_disc_sens, const bool & compute_aux_sens,
-                                                   //const int & macrogrp, const int & macroelemindex,
                                                    const bool & store_adjPrev){
   
   wkset->reset();
-  int sgindex = group->subgrid_model_index;
-
+  
   auto u_curr = group->u[set];
+  size_type numElem = u_curr.extent(0);
   // Map the gathered solution to seeded version in workset
   if (group->groupData->requiresTransient) {
     for (size_t iset=0; iset<group->groupData->numSets; ++iset) {
@@ -556,13 +836,186 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
     }); 
   }
 
-  subgridModels[sgindex]->subgridSolver(uvals_sc, group->u_prev[set], 
-                                        group->phi[set], wkset->time, isTransient, isAdjoint,
-                                        compute_jacobian, compute_sens, num_active_params,
-                                        compute_disc_sens, false,
-                                        *wkset, group->subgrid_usernum, 0,
-                                        group->subgradient, store_adjPrev);
-          
+  if (subgrid_model_selection == 0) { // user defined
+    int sgindex = group->subgrid_model_index;
+
+    subgridModels[sgindex]->subgridSolver(uvals_sc, group->u_prev[set], 
+                                          group->phi[set], wkset->time, isTransient, isAdjoint,
+                                          compute_jacobian, compute_sens, num_active_params,
+                                          compute_disc_sens, false,
+                                          *wkset, group->subgrid_usernum, 0,
+                                          group->subgradient, store_adjPrev);
+  }   
+  else if (subgrid_model_selection == 1) { // hierarchical - assumes order is in complexity/fidelity
+    subgridModels[0]->subgridSolver(uvals_sc, group->u_prev[set], 
+                                    group->phi[set], wkset->time, isTransient, isAdjoint,
+                                    compute_jacobian, compute_sens, num_active_params,
+                                    compute_disc_sens, false,
+                                    *wkset, group->subgrid_usernum, 0,
+                                    group->subgradient, store_adjPrev);
+    if (subgridModels.size() > 1) {
+      size_t cmodel = 1;
+      bool satisfied = false;
+      while (!satisfied) {
+        View_AD2 prev_res = View_AD2("prev res",wkset->res.extent(0),wkset->res.extent(1));
+        auto res = wkset->res;
+        parallel_for("ms man copy res",
+                     RangePolicy<AssemblyExec>(0,res.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<res.extent(1); ++dof) {
+            prev_res(elem,dof) = res(elem,dof);
+          }
+        });
+        wkset->resetResidual();
+        subgridModels[cmodel]->subgridSolver(uvals_sc, group->u_prev[set], 
+                                             group->phi[set], wkset->time, isTransient, isAdjoint,
+                                             compute_jacobian, compute_sens, num_active_params,
+                                             compute_disc_sens, false,
+                                             *wkset, group->subgrid_usernum, 0,
+                                             group->subgradient, store_adjPrev);
+        if (cmodel == subgridModels.size()-1) {
+          satisfied = true;
+          group->subgrid_model_index = cmodel;
+        }
+        else {
+          ScalarT resnorm = 0.0;
+          for (size_type elem=0; elem<res.extent(0); ++elem) {
+              for (size_type dof=0; dof<res.extent(1); ++dof) {
+              resnorm += res(elem,dof).val()*res(elem,dof).val();
+            }
+          }
+          resnorm = std::sqrt(resnorm);
+
+          ScalarT resdiff = 0.0;
+          for (size_type elem=0; elem<res.extent(0); ++elem) {
+            for (size_type dof=0; dof<res.extent(1); ++dof) {
+              ScalarT diff = res(elem,dof).val() - prev_res(elem,dof).val();
+              resdiff += diff*diff;
+            }
+          }
+
+          ScalarT error = std::sqrt(resdiff)/resnorm;
+          if (error < reltol) {
+            satisfied = true;
+            group->subgrid_model_index = cmodel;
+          }
+          else {
+            cmodel++;
+          }
+        }
+      }
+      
+      
+    }
+  }
+  else if (subgrid_model_selection == 2) { // ML - assumes order is in complexity/fidelity
+    
+    if (ml_training) {
+
+      if (ml_model_inputs.size() == 0) {
+        for (size_t model=0; model<subgridModels.size(); ++model) {
+          vector<vector<ScalarT> > in_data;
+          ml_model_inputs.push_back(in_data);
+        }
+      }
+      if (ml_model_outputs.size() == 0) {
+        for (size_t model=0; model<subgridModels.size(); ++model) {
+          vector<ScalarT> out_data;
+          ml_model_outputs.push_back(out_data);
+        }
+      }
+    
+      vector<vector<ScalarT> > in_data;
+      for (size_type elem=0; elem<uvals_sc.extent(0); ++elem) {
+        vector<ScalarT> data;
+        for (size_type var=0; var<uvals_sc.extent(1); ++var) {
+          for (size_type dof=0; dof<uvals_sc.extent(2); ++dof) {
+            data.push_back(uvals_sc(elem,var,dof));
+          }
+        }
+        in_data.push_back(data);
+      }
+      for (size_t model=0; model<subgridModels.size(); ++model) {
+        for (size_t d=0; d<in_data.size(); ++d) {
+          ml_model_inputs[model].push_back(in_data[d]);
+        }
+      }
+
+      size_t num_models = subgridModels.size();
+      subgridModels[num_models-1]->subgridSolver(uvals_sc, group->u_prev[set], 
+                                                 group->phi[set], wkset->time, isTransient, isAdjoint,
+                                                 compute_jacobian, compute_sens, num_active_params,
+                                                 compute_disc_sens, false,
+                                                 *wkset, group->subgrid_usernum, 0,
+                                                 group->subgradient, store_adjPrev);
+    
+      auto res = wkset->res;
+      View_AD2 ref_res = View_AD2("prev res",numElem,res.extent(1));
+      parallel_for("ms man copy res",
+                   RangePolicy<AssemblyExec>(0,numElem),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<res.extent(1); ++dof) {
+          ref_res(elem,dof) = res(elem,dof);
+        }
+      });
+        
+      ScalarT resnorm = 0.0;
+      for (size_type elem=0; elem<numElem; ++elem) {
+        for (size_type dof=0; dof<res.extent(1); ++dof) {
+          resnorm += ref_res(elem,dof).val()*ref_res(elem,dof).val();
+        }
+      }
+      resnorm = std::sqrt(resnorm);
+
+      for (size_t cmodel=0; cmodel<subgridModels.size()-1; ++cmodel) {
+        wkset->resetResidual();
+        subgridModels[cmodel]->subgridSolver(uvals_sc, group->u_prev[set], 
+                                             group->phi[set], wkset->time, isTransient, isAdjoint,
+                                             compute_jacobian, compute_sens, num_active_params,
+                                             compute_disc_sens, false,
+                                             *wkset, group->subgrid_usernum, 0,
+                                             group->subgradient, store_adjPrev);
+        
+        vector<ScalarT> resdiff(numElem,0.0);
+        for (size_type elem=0; elem<numElem; ++elem) {
+          for (size_type dof=0; dof<res.extent(1); ++dof) {
+            ScalarT diff = res(elem,dof).val() - ref_res(elem,dof).val();
+            resdiff[elem] += diff*diff;
+          }
+        }
+
+        vector<ScalarT> out_data(numElem,0.0);
+        for (size_type elem=0; elem<numElem; ++elem) {
+          ScalarT error = std::sqrt(resdiff[elem])/resnorm;
+          if (error < reltol) {
+            out_data[elem] = 1.0;
+          }
+        }
+        for (size_t k=0; k<out_data.size(); ++k) {
+          ml_model_outputs[cmodel].push_back(out_data[k]);
+        }
+      } // models
+      parallel_for("ms man copy res",
+                   RangePolicy<AssemblyExec>(0,res.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<res.extent(1); ++dof) {
+          res(elem,dof) = ref_res(elem,dof);
+        }
+      });
+    }
+    else {
+
+      int sgindex = group->subgrid_model_index;
+      subgridModels[sgindex]->subgridSolver(uvals_sc, group->u_prev[set], 
+                                                 group->phi[set], wkset->time, isTransient, isAdjoint,
+                                                 compute_jacobian, compute_sens, num_active_params,
+                                                 compute_disc_sens, false,
+                                                 *wkset, group->subgrid_usernum, 0,
+                                                 group->subgradient, store_adjPrev);
+    
+      
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

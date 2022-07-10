@@ -90,7 +90,6 @@ namespace MrHyDE {
                                     const bool & compute_jacobian, const bool & compute_sens,
                                     const int & num_active_params,
                                     const bool & compute_disc_sens, const bool & compute_aux_sens,
-                                    //const int & macrogrp, const int & macroelemindex,
                                     const bool & store_adjPrev);
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -129,8 +128,11 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    bool subgrid_static;
-    int debug_level, verbosity;
+    bool subgrid_static, ml_training, have_ml_models;
+    int debug_level, verbosity, subgrid_model_selection;
+
+    size_t num_training_steps, max_training_steps;
+    ScalarT reltol;
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
@@ -140,6 +142,9 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;
     std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
     
+    vector<vector<vector<ScalarT> > > ml_model_inputs; // [model][datapt][data]
+    vector<vector<ScalarT> > ml_model_outputs; // [model][datapt] 
+
     Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::reset()");
     Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::initialize()");
     Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::update()");
