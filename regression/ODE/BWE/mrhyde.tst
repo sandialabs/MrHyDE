@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #-------------------------------------------------------------------------------
 
 import sys, os
@@ -43,12 +43,10 @@ if its.opts.preprocess:
   if its.opts.verbose != 'none': print('---> Preprocessing %s' % (root))
   status += its.call('echo "  No preprocessing, yet."')
 
-status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
-status += its.clean_log()
+status += its.call('mpiexec -n 1 ../../mrhyde > mrhyde.log')
 status += its.call('diff -y %s.log %s.gold' % (root, root))
 
 # ------------------------------
-
 
 
 # ------------------------------

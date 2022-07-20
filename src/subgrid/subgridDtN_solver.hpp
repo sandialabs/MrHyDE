@@ -302,10 +302,12 @@ namespace MrHyDE {
     
     // Storage of macro solution and flux (with derivatives)
     //Teuchos::RCP<SolutionStorage<SG_MultiVector> > fluxdata;
-    bool store_aux_and_flux = false;
+    bool store_aux_and_flux = false, time_average_flux;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > auxdata;
     vector<Kokkos::View<AD***,AssemblyDevice> > fluxdata;
     
+    vector<std::pair<double,double>> substep_norms;
+
     // Timers
     Teuchos::RCP<Teuchos::Time> sgfemSolverTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN_solver::subgridSolver()");
     Teuchos::RCP<Teuchos::Time> sgfemInitialTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SubGridDtN_solver::subgridSolver - set initial conditions");

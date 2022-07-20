@@ -131,8 +131,8 @@ namespace MrHyDE {
     bool subgrid_static, ml_training, have_ml_models;
     int debug_level, verbosity, subgrid_model_selection;
 
-    size_t num_training_steps, max_training_steps;
-    ScalarT reltol;
+    size_t num_training_steps, max_training_steps, macro_nl_iter;
+    ScalarT reltol, abstol;
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
@@ -143,7 +143,7 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
     
     vector<vector<vector<ScalarT> > > ml_model_inputs; // [model][datapt][data]
-    vector<vector<ScalarT> > ml_model_outputs; // [model][datapt] 
+    vector<vector<ScalarT> > ml_model_outputs, ml_model_extradata; // [model][datapt] 
 
     Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::reset()");
     Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::initialize()");

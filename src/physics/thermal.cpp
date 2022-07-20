@@ -40,6 +40,8 @@ thermal::thermal(Teuchos::ParameterList & settings, const int & dimension_)
   have_nsvel = false;
   // Solely for testing purposes
   test_IQs = settings.get<bool>("test integrated quantities",false);
+  have_advection = settings.get<bool>("include advection",false);
+
 
 }
 
@@ -57,6 +59,9 @@ void thermal::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),"ip");
   functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),"ip");
   functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
+  functionManager->addFunction("bx",fs.get<string>("advection x","0.0"),"ip");
+  functionManager->addFunction("by",fs.get<string>("advection y","0.0"),"ip");
+  functionManager->addFunction("bz",fs.get<string>("advection z","0.0"),"ip");
   functionManager->addFunction("thermal diffusion",fs.get<string>("thermal diffusion","1.0"),"side ip");
   functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
   
@@ -71,7 +76,7 @@ void thermal::volumeResidual() {
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
   
-  Vista source, diff, cp, rho;
+  Vista source, diff, cp, rho, bx, by, bz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -79,7 +84,15 @@ void thermal::volumeResidual() {
     diff = functionManager->evaluate("thermal diffusion","ip");
     cp = functionManager->evaluate("specific heat","ip");
     rho = functionManager->evaluate("density","ip");
-  
+    if (have_advection) {
+      bx = functionManager->evaluate("bx","ip");
+      if (spaceDim > 1) {
+        by = functionManager->evaluate("by","ip");
+      }
+      if (spaceDim > 2) {
+        bz = functionManager->evaluate("bz","ip");
+      }
+    }
   }
   
   // Contributes:
@@ -136,6 +149,17 @@ void thermal::volumeResidual() {
           }
           else {
             res(elem,off(dof)) += (Ux(elem,pt)*dTdx(elem,pt) + Uy(elem,pt)*dTdy(elem,pt) + Uz(elem,pt)*dTdz(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
+          }
+        }
+        if (have_advection) {
+          if (spaceDim == 1) {
+            res(elem,off(dof)) += bx(elem,pt)*dTdx(elem,pt)*wts(elem,pt)*basis(bind,dof,pt,0);
+          }
+          else if (spaceDim == 2) {
+            res(elem,off(dof)) += (bx(elem,pt)*dTdx(elem,pt) + by(elem,pt)*dTdy(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
+          }
+          else {
+            res(elem,off(dof)) += (bx(elem,pt)*dTdx(elem,pt) + by(elem,pt)*dTdy(elem,pt) + bz(elem,pt)*dTdz(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
           }
         }
       }
@@ -221,7 +245,7 @@ void thermal::boundaryResidual() {
     else if (bcs(e_num,cside) == "interface") {
       bdata = wkset->getSolutionField("aux e");
     }
-    
+    ScalarT epen = 10.0;
     parallel_for("Thermal bndry resid wD",
                  TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -230,7 +254,7 @@ void thermal::boundaryResidual() {
       if (dim == 1) {
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-            res(elem,off(dof)) += 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
+            res(elem,off(dof)) += epen/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
             res(elem,off(dof)) += -diff_side(elem,pt)*dTdx(elem,pt)*nx(elem,pt)*wts(elem,pt)*basis(bind,dof,pt,0);
             res(elem,off(dof)) += -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt))*wts(elem,pt)*basis_grad(bind,dof,pt,0)*nx(elem,pt);
           }
@@ -239,7 +263,7 @@ void thermal::boundaryResidual() {
       else if (dim == 2) {
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-            res(elem,off(dof)) += 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
+            res(elem,off(dof)) += epen/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
             res(elem,off(dof)) += -diff_side(elem,pt)*(dTdx(elem,pt)*nx(elem,pt)+dTdy(elem,pt)*ny(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
             res(elem,off(dof)) += -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt))*wts(elem,pt)*(basis_grad(bind,dof,pt,0)*nx(elem,pt) + basis_grad(bind,dof,pt,1)*ny(elem,pt));
           }
@@ -248,7 +272,7 @@ void thermal::boundaryResidual() {
       else {
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-            res(elem,off(dof)) += 10.0/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
+            res(elem,off(dof)) += epen/h(elem)*diff_side(elem,pt)*(T(elem,pt)-bdata(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
             res(elem,off(dof)) += -diff_side(elem,pt)*(dTdx(elem,pt)*nx(elem,pt)+dTdy(elem,pt)*ny(elem,pt)+dTdz(elem,pt)*nz(elem,pt))*wts(elem,pt)*basis(bind,dof,pt,0);
             res(elem,off(dof)) += -sf*diff_side(elem,pt)*(T(elem,pt) - bdata(elem,pt))*wts(elem,pt)*(basis_grad(bind,dof,pt,0)*nx(elem,pt) + basis_grad(bind,dof,pt,1)*ny(elem,pt) + + basis_grad(bind,dof,pt,2)*nz(elem,pt));
           }
@@ -296,7 +320,7 @@ void thermal::computeFlux() {
   
   auto h = wkset->h;
   int dim = wkset->dimension;
-  
+  ScalarT epen = 10.0;
   {
     //Teuchos::TimeMonitor localtime(*fluxFill);
     
@@ -311,7 +335,8 @@ void thermal::computeFlux() {
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<nx.extent(1); pt+=team.team_size() ) {
-          fluxT(elem,pt) = 10.0/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
+          fluxT(elem,pt) = epen/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
+          //fluxT(elem,pt) += epen/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));
           fluxT(elem,pt) += sf*diff_side(elem,pt)*dTdx(elem,pt)*nx(elem,pt);
           if (dim > 1) {
             fluxT(elem,pt) += sf*diff_side(elem,pt)*dTdy(elem,pt)*ny(elem,pt);

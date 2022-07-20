@@ -15,6 +15,7 @@ ANONYMOUS:
       quadrature: 2
     Solver:
       solver: transient
+      synchronous time stepping: true
     Postprocess:
       True solutions:
         e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)

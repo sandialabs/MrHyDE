@@ -2,6 +2,7 @@
 ---
 ANONYMOUS:
   Subgrid:
+    subgrid model: DtN
     verbosity: 0
     usage: '1.0'
     Mesh: 

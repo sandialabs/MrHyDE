@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #-------------------------------------------------------------------------------
 # Simple interactive python script to run DGM tests.
 #
@@ -328,12 +328,12 @@ class xml_document:
     self.root.appendChild(elmt)
     self.skipped += test.skipped
     if self.opts.printKeywords :
-      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s    %s' \
+      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %75s    %s' \
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, test.fname[0:-11], test.include_keywords)
       print(stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2))))
     else :
-      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %55s' \
+      stmt2 = '%4i/%i %10s%8.2fs  np=%s    %75s' \
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, test.fname[0:-11])
       print(stmt2) #+ ' '*(max(0,len(test.stmt)-len(stmt2)))
@@ -360,13 +360,14 @@ def serial_testing(opts,listOfTests,doc):
     (head, tail) = os.path.split(test.fullpath)
     if head == '': head = '.'
     cmd = ["./" + tail]
+    #cmd = ["python " + tail]
     if opts.testArgs: cmd += shlex.split(opts.testArgs)
     if opts.computer != None: cmd += ['--computer=' + opts.computer]
     # default is 32 bit so only add if 64 bit
     if opts.mode_64: cmd += ['--64']
     if test.test_args: cmd += shlex.split(test.test_args)
     if opts.verbose==1: print('Executing the command %s' % (cmd)) 
-    # launch command and wait for completion
+    # launch command and wait for completion    
     p = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=head)
     test.stdout, test.stderr = p.communicate()
     test.status = p.wait()

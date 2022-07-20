@@ -47,7 +47,7 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
   ml_training = true;
   max_training_steps = settings->sublist("Solver").get<int>("max subgrid ML training steps",10);
   num_training_steps = 0;
-  have_ml_models = false;
+  have_ml_models = settings->sublist("Solver").get<bool>("have ML models",false);
 
   if (settings->isSublist("Subgrid")) {
     
@@ -63,6 +63,7 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
     }
 
     reltol = settings->sublist("Solver").get<ScalarT>("subgrid error tolerance",1.0e-6);
+    abstol = settings->sublist("Solver").get<ScalarT>("subgrid absolute error tolerance",1.0e-12);
     vector<Teuchos::RCP<Teuchos::ParameterList> > subgrid_model_pls;
     
     bool single_model = false;
@@ -277,7 +278,7 @@ ScalarT MultiscaleManager::initialize() {
         }
         
         int maxvotes = -1;
-        int sgwinner = -1;
+        int sgwinner = 0;
         for (size_t i=0; i<sgvotes.size(); i++) {
           if (sgvotes[i] >= maxvotes) {
             maxvotes = sgvotes[i];
@@ -468,7 +469,7 @@ void MultiscaleManager::update() {
               }
             }
             int maxvotes = -1;
-            int sgwinner = -1;
+            int sgwinner = 0;
             for (size_t i=0; i<sgvotes.size(); i++) {
               if (sgvotes[i] >= maxvotes) {
                 maxvotes = sgvotes[i];
@@ -527,7 +528,11 @@ void MultiscaleManager::update() {
       else if (have_ml_models) {
 
         // generate new data as input for the ML model
-        string infile = "new_data.txt";
+        std::stringstream inss;
+        inss << "new_input_";
+        inss << MacroComm->getRank();
+        string infile = inss.str() + ".txt";
+          
         std::ofstream inputOUT;
         bool is_open = false;
         int attempts = 0;
@@ -545,6 +550,32 @@ void MultiscaleManager::update() {
             groups[block][grp]->wkset->reset();
   
             auto u_curr = groups[block][grp]->u[set];
+
+            // Get the coarse time derivative
+            bool include_timederiv = true;
+            View_Sc3 udot_sc("coarse udot unseeded",u_curr.extent(0),u_curr.extent(1),u_curr.extent(2));
+            if (include_timederiv) {              
+
+              for (size_type var=0; var<u_curr.extent(1); ++var) {
+            
+                size_t uindex = groups[block][grp]->wkset->uvals_index[set][var];
+                auto uvals_AD = groups[block][grp]->wkset->u_dotvals[uindex];
+                auto udot_sc_sv = subview(udot_sc,ALL(),var,ALL());
+                parallel_for("assembly compute coarse sol",
+                             RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                             KOKKOS_LAMBDA (const size_type elem ) {
+                  for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
+    #ifndef MrHyDE_NO_AD
+                    udot_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
+    #else
+                    udot_sc_sv(elem,dof) = uvals_AD(elem,dof);
+    #endif
+                  }
+                }); 
+              }
+  
+            }
+
             // Map the gathered solution to seeded version in workset
             if (groups[block][grp]->groupData->requiresTransient) {
               for (size_t iset=0; iset<groups[block][grp]->groupData->numSets; ++iset) {
@@ -558,6 +589,7 @@ void MultiscaleManager::update() {
               }
             }
           
+            // Get the coarse state
             View_Sc3 uvals_sc("coarse vals unseeded",u_curr.extent(0),u_curr.extent(1),u_curr.extent(2));
 
             for (size_type var=0; var<u_curr.extent(1); ++var) {
@@ -578,11 +610,47 @@ void MultiscaleManager::update() {
               }); 
             }
 
+            // Get the average x,y,z locations
+            bool include_xyz = true;
+            View_Sc2 avg_xyz("average spatial locations",u_curr.extent(0),groups[block][grp]->ip.size());
+            if (include_xyz) {
+              auto wts = groups[block][grp]->wts;
+              View_Sc1 avg_wts("average wts",u_curr.extent(0));
+              parallel_for("assembly compute coarse sol",
+                           RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                           KOKKOS_LAMBDA (const size_type elem ) {
+                for (size_type pt=0; pt<wts.extent(1); ++pt) {
+                  avg_wts(elem) += wts(elem,pt);
+                }
+              });
+              auto ip_x = groups[block][grp]->ip[0];
+              auto ip_y = groups[block][grp]->ip[1];
+              parallel_for("assembly compute coarse sol",
+                           RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                           KOKKOS_LAMBDA (const size_type elem ) {
+                for (size_type pt=0; pt<ip_x.extent(1); ++pt) {
+                  avg_xyz(elem,0) = ip_x(elem,pt)*wts(elem,pt)/avg_wts(elem);
+                  avg_xyz(elem,1) = ip_y(elem,pt)*wts(elem,pt)/avg_wts(elem);
+                }
+              });
+            }
+            // Write out the inputs
             for (size_type elem=0; elem<uvals_sc.extent(0); ++elem) {
                 
               for (size_type var=0; var<uvals_sc.extent(1); ++var) {
                 for (size_type dof=0; dof<uvals_sc.extent(2); ++dof) {
                   inputOUT << uvals_sc(elem,var,dof) << "  ";
+                }
+                if (include_timederiv) {
+                  for (size_type dof=0; dof<udot_sc.extent(2); ++dof) {
+                    inputOUT << udot_sc(elem,var,dof) << "  ";
+                  }  
+                }
+                
+              }
+              if (include_xyz) {
+                for (size_type dim=0; dim<avg_xyz.extent(1); ++dim) {
+                  inputOUT << avg_xyz(elem,dim) << "  ";  
                 }
               }
               inputOUT << endl;
@@ -598,19 +666,27 @@ void MultiscaleManager::update() {
           // Build the pytorch models
           string filename = "nn_predict.py";
           string command = settings->get<string>("python","python3");
-          
+          string name = subgridModels[model]->name;
+
+          std::stringstream nnss;
+          nnss << name;
+          nnss << "_";
+          nnss << MacroComm->getRank();
+          string nnfile = name + "_nn.pt";
+          string predfile = nnss.str() + "_pred.txt";
+
           command += " ";
           command += filename;
-          command += " --model nn_" + subgridModels[model]->name + ".pt";
+          command += " --model " + nnfile;
           command += " --data " + infile;
-          command += " --predictions new_output.txt";
+          command += " --predictions " + predfile;
               
           cout << "========== Calling: " << command << endl;
           system(command.c_str());
           cout << "========== Done" << endl;
 
           vector<int> nn_pred;
-          std::ifstream nn_out("new_output.txt");
+          std::ifstream nn_out(predfile);
           std::string line;
           while (std::getline(nn_out,line)){
             std::istringstream tmp(line);
@@ -622,13 +698,14 @@ void MultiscaleManager::update() {
           sg_model_pred.push_back(nn_pred);
         }
         
-        size_t num_pred = sg_model_pred[0].size();
-        for (size_t j=0; j<num_pred; ++j) {
-          for (size_t k=0; k<sg_model_pred.size(); ++k) {
-            cout << sg_model_pred[k][j] << "  ";
-          }
-          cout << endl;
-        }
+        //size_t num_pred = sg_model_pred[0].size();
+        
+        //for (size_t j=0; j<num_pred; ++j) {
+        //  for (size_t k=0; k<sg_model_pred.size(); ++k) {
+        //    cout << sg_model_pred[k][j] << "  ";
+        //  }
+        //  cout << endl;
+        //}
         // Figure out which subgrid each group should use
         size_t prog = 0;
         for (size_t block=0; block<groups.size(); ++block) {
@@ -636,7 +713,7 @@ void MultiscaleManager::update() {
             int numElem = groups[block][grp]->numElem;
             bool found = false;
             size_t sgtest = 0;
-            int sgwinner = -1;
+            int sgwinner = 0;
             while (!found) {
               bool ok = true;
               for (int elem=0; elem<numElem; ++elem) {
@@ -696,78 +773,122 @@ void MultiscaleManager::update() {
         }
         subgridModels[s]->updateActive(active);
       }
-      }
-      else {
-        have_ml_models = true;
-        for (size_t model=0; model<subgridModels.size()-1; ++model) {
-          string infile;
-          {
-            string name = subgridModels[model]->name;
-            std::stringstream ss;
-            ss << name;
-            ss << "_";
-            ss << Comm->getRank();
-            infile = ss.str() + "_input.txt";
-            std::ofstream inputOUT;
-            bool is_open = false;
-            int attempts = 0;
-            int max_attempts = 10;
-            while (!is_open && attempts < max_attempts) {
-              inputOUT.open(infile);
-              is_open = inputOUT.is_open();
-              attempts++;
-            }
+    }
+    else {
+      have_ml_models = true;
+      ml_training = false;
+      for (size_t model=0; model<subgridModels.size()-1; ++model) {
+
+        string name = subgridModels[model]->name;
+
+        ScalarT mean = 0.0, meansqr = 0.0;
+        ScalarT numdata = (ScalarT)ml_model_extradata[model].size();
+        for (size_t d=0; d<ml_model_extradata[model].size(); ++d) {
+          mean += ml_model_extradata[model][d]/numdata;
+          meansqr += ml_model_extradata[model][d]*ml_model_extradata[model][d]/numdata;
+        }
+        ScalarT var = meansqr - mean*mean;
+        cout << name << ":" << endl;
+        cout << "      mean: " << mean << "   var: " << var << endl;
+
+        string infile;
+
+        vector<bool> keep(ml_model_inputs[model].size(),true);
+        ScalarT thresh = 0.5;
+        int seed = 123;
+        std::default_random_engine generator(seed);
+        std::uniform_real_distribution<ScalarT> distribution(0.0,1.0);
+        for (size_t k=0; k<keep.size(); k++) {
+          ScalarT number = distribution(generator);
+          if (number<thresh) {
+            keep[k] = false;
+          }
+        }
+        {
+          std::stringstream ss;
+          ss << name;
+          ss << "_";
+          ss << MacroComm->getRank();
+          infile = ss.str() + "_input.txt";
+          std::ofstream inputOUT;
+          bool is_open = false;
+          int attempts = 0;
+          int max_attempts = 10;
+          while (!is_open && attempts < max_attempts) {
+            inputOUT.open(infile);
+            is_open = inputOUT.is_open();
+            attempts++;
+          }
               
-            inputOUT.precision(12);
-            for (size_t d=0; d<ml_model_inputs[model].size(); ++d) {
-                
+          inputOUT.precision(12);
+          for (size_t d=0; d<ml_model_inputs[model].size(); ++d) {
+            if (keep[d]) {
               for (size_t d2=0; d2<ml_model_inputs[model][d].size(); ++d2) {
                 inputOUT << ml_model_inputs[model][d][d2] << "  ";
               }
               inputOUT << endl;
             }
-            inputOUT.close();
           }
+          inputOUT.close();
+        }
 
-          string outfile;
-          {
-            string name = subgridModels[model]->name;
-            std::stringstream ss;
-            ss << name;
-            ss << "_";
-            ss << Comm->getRank();
-            outfile = ss.str() + "_output.txt";
-            std::ofstream outputOUT;
-            bool is_open = false;
-            int attempts = 0;
-            int max_attempts = 10;
-            while (!is_open && attempts < max_attempts) {
-              outputOUT.open(outfile);
-              is_open = outputOUT.is_open();
-              attempts++;
-            }
+        string outfile;
+        {
+          
+          std::stringstream ss;
+          ss << name;
+          ss << "_";
+          ss << MacroComm->getRank();
+          outfile = ss.str() + "_output.txt";
+          std::ofstream outputOUT;
+          bool is_open = false;
+          int attempts = 0;
+          int max_attempts = 10;
+          while (!is_open && attempts < max_attempts) {
+            outputOUT.open(outfile);
+            is_open = outputOUT.is_open();
+            attempts++;
+          }
               
-            outputOUT.precision(12);
+          outputOUT.precision(12);
               
-            for (size_t d=0; d<ml_model_outputs[model].size(); ++d) {
+          for (size_t d=0; d<ml_model_outputs[model].size(); ++d) {
+            if (keep[d]) {
               outputOUT << ml_model_outputs[model][d] << "  ";
               outputOUT << endl;
             }
-            outputOUT.close();
-
-            // Build the pytorch models
-            string filename = "binary_classifier.py";
-            string command = settings->get<string>("python","python3");
-          
-            command += " ";
-            command += filename;
-            command += " --input-data " + infile;
-            command += " --output-data " + outfile;
-            command += " --nn-model nn_" + subgridModels[model]->name + ".pt";
-              
-            system(command.c_str());
           }
-        } //model
+          outputOUT.close();
+        }
+
+        MacroComm->barrier();
+        
+        if (MacroComm->getRank() == 0) {
+          // Build the pytorch models
+          //string filename = "binary_classifier.py";
+          string filename = "classifier2.py";
+          string command = settings->get<string>("python","python3");
+          
+          std::stringstream nnss;
+          nnss << name;
+          //nnss << "_";
+          //nnss << MacroComm->getRank();
+          string nnfile = nnss.str() + "_nn.pt";
+
+          std::stringstream procss;
+          procss << MacroComm->getSize();
+
+          command += " ";
+          command += filename;
+          //command += " --input-data " + infile;
+          //command += " --output-data " + outfile;
+          command += " --model-name " + name;
+          command += " --Nproc " + procss.str();
+          command += " --nn-model " + nnfile;
+              
+          system(command.c_str());
+        }
+      } //model
 
           
 
@@ -797,7 +918,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
                                                    const bool & compute_jacobian, const bool & compute_sens,
                                                    const int & num_active_params,
                                                    const bool & compute_disc_sens, const bool & compute_aux_sens,
-                                                   const bool & store_adjPrev){
+                                                   const bool & store_adjPrev) {
   
   wkset->reset();
   
@@ -881,7 +1002,11 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
           ScalarT resnorm = 0.0;
           for (size_type elem=0; elem<res.extent(0); ++elem) {
               for (size_type dof=0; dof<res.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
               resnorm += res(elem,dof).val()*res(elem,dof).val();
+#else
+              resnorm += res(elem,dof)*res(elem,dof);
+#endif
             }
           }
           resnorm = std::sqrt(resnorm);
@@ -889,7 +1014,11 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
           ScalarT resdiff = 0.0;
           for (size_type elem=0; elem<res.extent(0); ++elem) {
             for (size_type dof=0; dof<res.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
               ScalarT diff = res(elem,dof).val() - prev_res(elem,dof).val();
+#else
+              ScalarT diff = res(elem,dof) - prev_res(elem,dof);
+#endif
               resdiff += diff*diff;
             }
           }
@@ -910,7 +1039,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
   }
   else if (subgrid_model_selection == 2) { // ML - assumes order is in complexity/fidelity
     
-    if (ml_training) {
+    if (ml_training  && macro_nl_iter>0) {
 
       if (ml_model_inputs.size() == 0) {
         for (size_t model=0; model<subgridModels.size(); ++model) {
@@ -924,13 +1053,79 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
           ml_model_outputs.push_back(out_data);
         }
       }
-    
+      if (ml_model_extradata.size() == 0) {
+        for (size_t model=0; model<subgridModels.size(); ++model) {
+          vector<ScalarT> out_data;
+          ml_model_extradata.push_back(out_data);
+        }
+      }
+      
+      // Get the coarse time derivative
+      bool include_timederiv = true;
+      View_Sc3 udot_sc("coarse udot unseeded",u_curr.extent(0),u_curr.extent(1),u_curr.extent(2));
+      if (include_timederiv) {              
+
+        for (size_type var=0; var<u_curr.extent(1); ++var) {
+            
+          size_t uindex = group->wkset->uvals_index[set][var];
+          auto uvals_AD = group->wkset->u_dotvals[uindex];
+          auto udot_sc_sv = subview(udot_sc,ALL(),var,ALL());
+          parallel_for("assembly compute coarse sol",
+                       RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
+    #ifndef MrHyDE_NO_AD
+              udot_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
+    #else
+              udot_sc_sv(elem,dof) = uvals_AD(elem,dof);
+    #endif
+            }
+          }); 
+        }
+  
+      }
+
+      // Get the average x,y,z locations
+      bool include_xyz = true;
+      View_Sc2 avg_xyz("average spatial locations",u_curr.extent(0),group->ip.size());
+      if (include_xyz) {
+        auto wts = group->wts;
+        View_Sc1 avg_wts("average wts",u_curr.extent(0));
+        parallel_for("assembly compute coarse sol",
+                     RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type pt=0; pt<wts.extent(1); ++pt) {
+            avg_wts(elem) += wts(elem,pt);
+          }
+        });
+        auto ip_x = group->ip[0];
+        auto ip_y = group->ip[1];
+        parallel_for("assembly compute coarse sol",
+                     RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          for (size_type pt=0; pt<ip_x.extent(1); ++pt) {
+            avg_xyz(elem,0) = ip_x(elem,pt)*wts(elem,pt)/avg_wts(elem);
+            avg_xyz(elem,1) = ip_y(elem,pt)*wts(elem,pt)/avg_wts(elem);
+          }
+        });
+      }
+
       vector<vector<ScalarT> > in_data;
       for (size_type elem=0; elem<uvals_sc.extent(0); ++elem) {
         vector<ScalarT> data;
         for (size_type var=0; var<uvals_sc.extent(1); ++var) {
           for (size_type dof=0; dof<uvals_sc.extent(2); ++dof) {
             data.push_back(uvals_sc(elem,var,dof));
+          }
+          if (include_timederiv) {
+            for (size_type dof=0; dof<udot_sc.extent(2); ++dof) {
+              data.push_back(udot_sc(elem,var,dof));
+            }  
+          }
+          if (include_xyz) {
+            for (size_type dim=0; dim<avg_xyz.extent(1); ++dim) {
+              data.push_back(avg_xyz(elem,dim));
+            }
           }
         }
         in_data.push_back(data);
@@ -959,13 +1154,18 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
         }
       });
         
-      ScalarT resnorm = 0.0;
+      vector<ScalarT> resnorm(numElem,0.0);
       for (size_type elem=0; elem<numElem; ++elem) {
         for (size_type dof=0; dof<res.extent(1); ++dof) {
-          resnorm += ref_res(elem,dof).val()*ref_res(elem,dof).val();
+#ifndef MrHyDE_NO_AD
+          resnorm[elem] += ref_res(elem,dof).val()*ref_res(elem,dof).val();
+#else
+          resnorm[elem] += ref_res(elem,dof)*ref_res(elem,dof);
+#endif
         }
+        resnorm[elem] = std::sqrt(resnorm[elem]);
       }
-      resnorm = std::sqrt(resnorm);
+      
 
       for (size_t cmodel=0; cmodel<subgridModels.size()-1; ++cmodel) {
         wkset->resetResidual();
@@ -979,24 +1179,33 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset
         vector<ScalarT> resdiff(numElem,0.0);
         for (size_type elem=0; elem<numElem; ++elem) {
           for (size_type dof=0; dof<res.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
             ScalarT diff = res(elem,dof).val() - ref_res(elem,dof).val();
+#else
+            ScalarT diff = res(elem,dof) - ref_res(elem,dof);
+#endif
             resdiff[elem] += diff*diff;
           }
         }
 
         vector<ScalarT> out_data(numElem,0.0);
+        vector<ScalarT> extra_data(numElem,0.0);
+        //ScalarT abstol = 1.0e-8;
+
         for (size_type elem=0; elem<numElem; ++elem) {
-          ScalarT error = std::sqrt(resdiff[elem])/resnorm;
-          if (error < reltol) {
+          ScalarT error = std::sqrt(resdiff[elem]);
+          extra_data[elem] = error/resnorm[elem];
+          if (error < abstol || error/resnorm[elem] < reltol) {
             out_data[elem] = 1.0;
           }
         }
         for (size_t k=0; k<out_data.size(); ++k) {
           ml_model_outputs[cmodel].push_back(out_data[k]);
+          ml_model_extradata[cmodel].push_back(extra_data[k]);
         }
       } // models
       parallel_for("ms man copy res",
-                   RangePolicy<AssemblyExec>(0,res.extent(0)),
+                   RangePolicy<AssemblyExec>(0,numElem),
                    KOKKOS_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<res.extent(1); ++dof) {
           res(elem,dof) = ref_res(elem,dof);

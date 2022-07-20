@@ -47,6 +47,7 @@ settings(settings_), assembler(assembler_) {
   sub_maxNLiter = settings->sublist("Solver").get<int>("max nonlinear iters",10);
   useDirect = settings->sublist("Solver").get<bool>("use direct solver",true);
   isSynchronous = settings->sublist("Solver").get<bool>("synchronous time stepping",false);
+  time_average_flux = settings->sublist("Solver").get<bool>("time average flux",false);
   amesos_solver_type = settings->sublist("Solver").get<string>("Amesos solver type","KLU2");
 
   use_preconditioner = settings->sublist("Solver").get<bool>("use preconditioner",true);
@@ -193,6 +194,8 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
     curr_sol->assign(*prev_sol);
   }
   
+  //macrowkset.reset();
+
   //////////////////////////////////////////////////////////////
   // Use the coarse scale solution to solve local transient/nonlinear problem
   //////////////////////////////////////////////////////////////
@@ -210,7 +213,8 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
   Kokkos::deep_copy(assembler->wkset[0]->flux,0.0);
   
   ScalarT fluxwt = 1.0;
-
+  bool compute_substep_norm = false;
+  
   if (isTransient) {
     ScalarT sgtime = time - macro_deltat;
     
@@ -366,6 +370,10 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         int macro_stage = macrowkset.current_stage;
         ScalarT macro_beta = macrowkset.butcher_A(macro_stage,macro_stage)/macrowkset.butcher_b(macro_stage);
 
+
+        // Only used if the flux is time-averaged - will eventually be removed
+        View_AD2 total_res = View_AD2("temp res", macrowkset.res.extent(0), macrowkset.res.extent(1));
+        
         //////////////////////////////////////////////////////////////
         // Time stepping
         //////////////////////////////////////////////////////////////
@@ -431,9 +439,45 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
          
           }  // stage
 
+          
           prev_sol_tmp->assign(*curr_sol);
           this->performGather(macrogrp, curr_sol, 0, 0);
           
+          /////////////////////////////////////////////////////
+          // TMW: this was used for testing and should be hard-coded to false for now
+          /////////////////////////////////////////////////////
+          
+          if (compute_substep_norm) {
+            assembler->wkset[0]->setTime(sgtime+macro_deltat/(ScalarT)time_steps);
+            auto tsol = assembler->phys->functionManagers[0]->evaluate("true e","ip");
+            auto sol = assembler->wkset[0]->getSolutionField("e");
+            auto wts = assembler->wkset[0]->wts;
+            ScalarT error = 0.0;
+            parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), 
+                            KOKKOS_LAMBDA (const int elem, ScalarT& update) {
+              for( size_t pt=0; pt<wts.extent(1); pt++ ) {
+#ifndef MrHyDE_NO_AD
+                ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
+#else
+                ScalarT diff = sol(elem,pt) - tsol(elem,pt);
+#endif
+                update += diff*diff*wts(elem,pt);
+              }
+            }, error);
+            
+            if ((int)substep_norms.size() <= tstep ) {
+              std::pair<double,double> newdata(0.0,0.0);
+              substep_norms.push_back(newdata);
+            }
+            substep_norms[tstep].first = sgtime+macro_deltat/(ScalarT)time_steps;
+            if (macrogrp == 0) {
+              substep_norms[tstep].second = 0.0;  
+            }
+            substep_norms[tstep].second += error;
+          }
+          /////////////////////////////////////////////////////
+          
+
           for (size_t grp=0; grp<assembler->groups[macrogrp].size(); ++grp) {
             assembler->groups[macrogrp][grp]->resetPrevSoln(0);
             assembler->groups[macrogrp][grp]->resetStageSoln(0);
@@ -443,17 +487,41 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
             assembler->boundary_groups[macrogrp][grp]->resetStageSoln(0);
           }
 
+          if (time_average_flux) {
+            this->updateFlux(curr_sol, d_sol, lambda, disc_params, compute_sens, 
+                             macroelemindex, time, macrowkset, macrogrp, macro_beta);
+
+            auto mres = macrowkset.res;
+            parallel_for("subgrid DtN solver set res from flux",
+                         RangePolicy<AssemblyExec>(0,total_res.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              for (size_type dof=0; dof<total_res.extent(1); ++dof) {
+                total_res(elem,dof) += mres(elem,dof)/(ScalarT)time_steps;
+              }
+            });
+          }
+       
           d_sol_prev_saved[0]->assign(*d_sol);
 
           sgtime += macro_deltat/(ScalarT)time_steps;
         
         } // step
         
-        //KokkosTools::print(d_sol);
-   
-        this->updateFlux(curr_sol, d_sol, lambda, disc_params, compute_sens, 
-                         macroelemindex, time, macrowkset, macrogrp, macro_beta);
-            
+        if (time_average_flux) {
+          auto mres = macrowkset.res;
+          parallel_for("subgrid DtN solver set res from flux",
+                       RangePolicy<AssemblyExec>(0,total_res.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            for (size_type dof=0; dof<total_res.extent(1); ++dof) {
+              mres(elem,dof) = total_res(elem,dof);
+            }
+          });
+        }
+        else {
+          this->updateFlux(curr_sol, d_sol, lambda, disc_params, compute_sens, 
+                           macroelemindex, time, macrowkset, macrogrp, macro_beta);
+        }
+        
       }
     }
     
@@ -508,41 +576,58 @@ void SubGridDtN_Solver::lagrangeInterpolate(View_Sc3 interp_values,
     // Should throw an error, but this does not happen right now
   }
 
-  if (num_prev == 1) { // linear Lagrange interpolation
+  bool use_interp = true;
+
+  if (use_interp) {
+    if (num_prev == 1) { // linear Lagrange interpolation
     
-    ScalarT t_n_1 = times[0];
-    ScalarT t_n = times[1];
-    ScalarT deltat = t_n - t_n_1;
-    ScalarT alpha_n_1 = (t_n - interp_time)/deltat;
-    alpha = (interp_time-t_n_1)/deltat;
+      ScalarT t_n_1 = times[0];
+      ScalarT t_n = times[1];
+      ScalarT deltat = t_n - t_n_1;
+      ScalarT alpha_n_1 = (t_n - interp_time)/deltat;
+      alpha = (interp_time-t_n_1)/deltat;
     
-    parallel_for("subgrid interp in time",
-                 RangePolicy<AssemblyExec>(0,interp_values.extent(0)),
-                 KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type var=0; var<interp_values.extent(1); ++var) {
-        for (size_type dof=0; dof<interp_values.extent(2); ++dof) {
-          interp_values(elem,var,dof) = alpha_n_1*prev_values(elem,var,dof,0) + alpha*curr_values(elem,var,dof);
+      parallel_for("subgrid interp in time",
+                   RangePolicy<AssemblyExec>(0,interp_values.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type var=0; var<interp_values.extent(1); ++var) {
+          for (size_type dof=0; dof<interp_values.extent(2); ++dof) {
+            interp_values(elem,var,dof) = alpha_n_1*prev_values(elem,var,dof,0) + alpha*curr_values(elem,var,dof);
+          }
         }
-      }
-    }); 
-  }
-  else if (num_prev == 2) { // quadratic Lagrange interpolation 
+      }); 
+    }
+    else if (num_prev == 2) { // quadratic Lagrange interpolation 
+      
+      ScalarT t_n = times[2];
+      ScalarT t_n_1 = times[1];
+      ScalarT t_n_2 = times[0];
+      ScalarT deltat_n = t_n-t_n_1;
+      ScalarT deltat_n_1 = t_n_1-t_n_2;
+      ScalarT alpha_n_1 = ((interp_time-t_n_2)*(t_n-interp_time))/(deltat_n*deltat_n_1);
+      ScalarT alpha_n_2 = -1.0*((t_n-interp_time)*(interp_time-t_n_1))/(2*deltat_n*deltat_n_1);
+      alpha = ((interp_time - t_n_2)*(interp_time-t_n_1))/(2*deltat_n*deltat_n_1);
     
-    ScalarT t_n = times[2];
-    ScalarT t_n_1 = times[1];
-    ScalarT t_n_2 = times[0];
-    ScalarT deltat_n = t_n-t_n_1;
-    ScalarT deltat_n_1 = t_n_1-t_n_2;
-    ScalarT alpha_n_1 = ((interp_time-t_n_2)*(t_n-interp_time))/(deltat_n*deltat_n_1);
-    ScalarT alpha_n_2 = -1.0*((t_n-interp_time)*(interp_time-t_n_1))/(2*deltat_n*deltat_n_1);
-    alpha = ((interp_time - t_n_2)*(interp_time-t_n_1))/(2*deltat_n*deltat_n_1);
+      parallel_for("subgrid interp in time",
+                   RangePolicy<AssemblyExec>(0,interp_values.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type var=0; var<interp_values.extent(1); ++var) {
+          for (size_type dof=0; dof<interp_values.extent(2); ++dof) {
+            interp_values(elem,var,dof) = alpha_n_1*prev_values(elem,var,dof,0) + alpha_n_2*prev_values(elem,var,dof,1) + alpha*curr_values(elem,var,dof);
+          }
+        }
+      }); 
+    }
+  }
+  else {
+    alpha = 1.0;
     
     parallel_for("subgrid interp in time",
                  RangePolicy<AssemblyExec>(0,interp_values.extent(0)),
                  KOKKOS_LAMBDA (const size_type elem ) {
       for (size_type var=0; var<interp_values.extent(1); ++var) {
         for (size_type dof=0; dof<interp_values.extent(2); ++dof) {
-          interp_values(elem,var,dof) = alpha_n_1*prev_values(elem,var,dof,0) + alpha_n_2*prev_values(elem,var,dof,1) + alpha*curr_values(elem,var,dof);
+          interp_values(elem,var,dof) = alpha*curr_values(elem,var,dof);
         }
       }
     }); 
@@ -1513,7 +1598,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
                        KOKKOS_LAMBDA (const size_type c ) {
             for (size_type j=0; j<macrobasis_ip.extent(1); j++) {
               for (size_type i=0; i<macrobasis_ip.extent(2); i++) {
-                AD val = macrobasis_ip(c,j,i)*flux(c,i)*cwts(c,i);
+                AD val = macrobasis_ip(c,j,i)*flux(c,i)*cwts(c,i);///(ScalarT)time_steps;
                 Kokkos::atomic_add( &res(bMIDs(c),off(j)), val);
               }
             }

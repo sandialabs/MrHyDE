@@ -81,7 +81,7 @@ namespace MrHyDE {
     //View_AD2 e_face, dedx_face, dedy_face, dedz_face;
     //View_AD2 ux_vol, uy_vol, uz_vol;
     
-    bool have_nsvel,test_IQs;
+    bool have_nsvel, test_IQs, have_advection;
     ScalarT formparam;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::thermal::volumeResidual() - function evaluation");

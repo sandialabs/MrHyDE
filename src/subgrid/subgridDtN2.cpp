@@ -1789,6 +1789,19 @@ void SubGridDtN2::advance() {
         sub_assembler->boundary_groups[macrogrp][grp]->resetStageSoln(0);
       }
     }
+
+    Teuchos::RCP<MpiComm> GComm = Teuchos::rcp( new MpiComm(MPI_COMM_WORLD) );
+    for (size_t i=0; i<sub_solver->substep_norms.size(); ++i) {
+      ScalarT lerr = sub_solver->substep_norms[i].second;
+      ScalarT gerr = 0.0;
+      Teuchos::reduceAll(*GComm,Teuchos::REDUCE_SUM,1,&lerr,&gerr);
+      if (GComm->getRank() == 0) {
+        cout << "Substep info: " << sub_solver->substep_norms[i].first << "  " << std::sqrt(gerr) << endl;
+      }
+      sub_solver->substep_norms[i].first = 0.0;
+      sub_solver->substep_norms[i].second = 0.0;
+    }
+    
   }
   
 }

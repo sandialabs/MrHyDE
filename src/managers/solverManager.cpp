@@ -1553,6 +1553,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
   while (proceed) {
     
     multiscale_manager->reset();
+    multiscale_manager->macro_nl_iter = NLiter;
 
     gNLiter = NLiter;
   
