@@ -2804,7 +2804,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           
         }
         else {
-          groups[block][grp]->updateWorkset(seedwhat);
+          groups[block][grp]->updateWorkset(seedwhat,0);
           phys->volumeResidual(set,block);
         }
       }

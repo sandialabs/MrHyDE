@@ -875,7 +875,8 @@ void Group::computeJacRes(const ScalarT & time, const bool & isTransient, const 
       seedwhat = 1;
     }
   }
-  
+  int seedindex = 0;
+
   //////////////////////////////////////////////////////////////
   // Compute res and J=dF/du
   //////////////////////////////////////////////////////////////
@@ -884,7 +885,7 @@ void Group::computeJacRes(const ScalarT & time, const bool & isTransient, const 
   if (assemble_volume_terms) {
     Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (groupData->multiscale) {
-      this->updateWorkset(seedwhat);
+      this->updateWorkset(seedwhat,seedindex);
       subgridModels[subgrid_model_index]->subgridSolver(u[0], u_prev[0], phi[0], wkset->time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens, num_active_params,
                                             compute_disc_sens, compute_aux_sens,
@@ -893,7 +894,7 @@ void Group::computeJacRes(const ScalarT & time, const bool & isTransient, const 
       fixJacDiag = true;
     }
     else {
-      this->updateWorkset(seedwhat);
+      this->updateWorkset(seedwhat,seedindex);
       groupData->physics_RCP->volumeResidual(wkset->current_set,groupData->myBlock);
     }
   }
@@ -1305,7 +1306,7 @@ View_Sc2 Group::getInitial(const bool & project, const bool & isAdjoint) {
   
   size_t set = wkset->current_set;
   View_Sc2 initialvals("initial values",numElem,LIDs[set].extent(1));
-  this->updateWorkset(0);
+  this->updateWorkset(0,0);
   
   auto offsets = wkset->offsets;
   auto numDOF = groupData->numDOF;
@@ -1380,7 +1381,7 @@ View_Sc2 Group::getInitialFace(const bool & project) {
   
   size_t set = wkset->current_set;
   View_Sc2 initialvals("initial values",numElem,LIDs[set].extent(1)); // TODO is this too big?
-  this->updateWorkset(0); // TODO not sure if this is necessary
+  this->updateWorkset(0,0); // TODO not sure if this is necessary
 
   auto offsets = wkset->offsets;
   auto numDOF = groupData->numDOF;

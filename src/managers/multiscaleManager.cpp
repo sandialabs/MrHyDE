@@ -239,7 +239,7 @@ ScalarT MultiscaleManager::initialize() {
     if (uses_subgrid) {
       for (size_t grp=0; grp<groups[block].size(); ++grp) {
         
-        groups[block][grp]->updateWorkset(0);
+        groups[block][grp]->updateWorkset(0,0);
         
         vector<int> sgvotes(subgridModels.size(),0);
         
@@ -431,7 +431,7 @@ void MultiscaleManager::update() {
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           if (groups[block][grp]->groupData->multiscale) {
           
-            groups[block][grp]->updateWorkset(0);
+            groups[block][grp]->updateWorkset(0,0);
           
             vector<int> sgvotes(subgridModels.size(),0);
           

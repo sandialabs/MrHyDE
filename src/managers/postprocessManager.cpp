@@ -1452,7 +1452,7 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
     for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
       // setup workset for this bgrp
       
-      assembler->boundary_groups[block][grp]->updateWorkset(0,true);
+      assembler->boundary_groups[block][grp]->updateWorkset(0,0,true);
       
       // compute the flux
       assembler->wkset[block]->flux = View_AD3("flux",assembler->wkset[block]->maxElem,
@@ -1541,7 +1541,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           localContribution = 0.; // zero out this grp's contribution JIC here but needed below
 
           // setup the workset for this grp
-          assembler->groups[globalBlock][grp]->updateWorkset(0,true);
+          assembler->groups[globalBlock][grp]->updateWorkset(0,0,true);
           // get integration weights
           auto wts = assembler->wkset[globalBlock]->wts;
           // evaluate the integrand at integration points
@@ -1584,7 +1584,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
                (integratedQuantities[iLocal][iIQ].boundarynames == "all") ) {
 
             // setup the workset for this grp
-            assembler->boundary_groups[globalBlock][grp]->updateWorkset(0,true); 
+            assembler->boundary_groups[globalBlock][grp]->updateWorkset(0,0,true); 
             // get integration weights
             auto wts = assembler->wkset[globalBlock]->wts_side;
             // evaluate the integrand at integration points
@@ -1747,7 +1747,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
         auto wts = assembler->groups[block][grp]->wts;
         
-        assembler->groups[block][grp]->updateWorkset(0,true);
+        assembler->groups[block][grp]->updateWorkset(0,0,true);
         
         auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
         
@@ -1808,7 +1808,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           
           auto wts = assembler->groups[block][grp]->wts;
           
-          assembler->groups[block][grp]->updateWorkset(3,true);
+          assembler->groups[block][grp]->updateWorkset(3,0,true);
           
           auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
           
@@ -1902,7 +1902,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
         auto wts = assembler->groups[block][grp]->wts;
             
-        assembler->groups[block][grp]->updateWorkset(0,true);
+        assembler->groups[block][grp]->updateWorkset(0,0,true);
         
         auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
         
@@ -1975,7 +1975,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           
           auto wts = assembler->groups[block][grp]->wts;
           
-          assembler->groups[block][grp]->updateWorkset(3,true);
+          assembler->groups[block][grp]->updateWorkset(3,0,true);
           
           auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
           
@@ -2288,7 +2288,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             
             auto wts = assembler->groups[block][grp]->wts;
             
-            assembler->groups[block][grp]->updateWorkset(3,true);
+            assembler->groups[block][grp]->updateWorkset(3,0,true);
             
             auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
             View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
@@ -2353,7 +2353,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               auto wts = assembler->boundary_groups[block][grp]->wts;
               
-              assembler->boundary_groups[block][grp]->updateWorkset(3,true);
+              assembler->boundary_groups[block][grp]->updateWorkset(3,0,true);
               
               auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
               View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
@@ -2634,7 +2634,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->groups[block][grp]->updateWorkset(1,true);
+            assembler->groups[block][grp]->updateWorkset(1,0,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -2864,7 +2864,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->groups[block][grp]->updateWorkset(1,true);
+            assembler->groups[block][grp]->updateWorkset(1,0,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -3790,7 +3790,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
-          assembler->groups[block][grp]->updateWorkset(0,true);
+          assembler->groups[block][grp]->updateWorkset(0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getExtraCellFields(block, assembler->groups[block][grp]->wts);
@@ -3822,7 +3822,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
-          assembler->groups[block][grp]->updateWorkset(0,true);
+          assembler->groups[block][grp]->updateWorkset(0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getDerivedQuantities(block, assembler->groups[block][grp]->wts);
