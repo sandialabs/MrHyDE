@@ -856,7 +856,6 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
         
         {
           Teuchos::TimeMonitor localtimer(*physVolDataBasisCurlValTimer);
-          
           DRV bvals1, bvals2;
           bvals1 = DRV("basis",numElem,numb,numip,dimension);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dimension);
@@ -905,13 +904,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
             bcurl2 = bcurl1;
           }
           basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
-          if (spaceDim == 2) {
-            auto sub_bcv = subview(basis_curl_vals,ALL(),ALL(),ALL(),0);
-            deep_copy(sub_bcv,bcurl2);
-          }
-          else {
-            Kokkos::deep_copy(basis_curl_vals, bcurl2);
-          }
+          Kokkos::deep_copy(basis_curl_vals, bcurl2);
         }
       }
       basis.push_back(basis_vals);
@@ -948,12 +941,10 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
   jacobian = DRV("jacobian", numElem, numip, dimension, dimension);
   jacobianDet = DRV("determinant of jacobian", numElem, numip);
   jacobianInv = DRV("inverse of jacobian", numElem, numip, dimension, dimension);
-    
   {
     Teuchos::TimeMonitor localtimer(*physVolDataSetJacTimer);
     CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
   }
-  
   {
     Teuchos::TimeMonitor localtimer(*physVolDataOtherJacTimer);
     CellTools::setJacobianDet(jacobianDet, jacobian);
@@ -991,7 +982,6 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
         
       }
       else if (groupData->basis_types[i].substr(0,4) == "HVOL"){
-        
         DRV bvals1("basis",numElem,numb,numip);
         FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_basis[i]);
         
@@ -1019,7 +1009,6 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
         
       }
       else if (groupData->basis_types[i].substr(0,5) == "HCURL"){
-        
         {
           Teuchos::TimeMonitor localtimer(*physVolDataBasisCurlValTimer);
           
@@ -1036,7 +1025,6 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           basis_vals = View_Sc4("basis values", numElem, numb, numip, dimension);
           Kokkos::deep_copy(basis_vals,bvals2);
         }
-        
       }
       basis.push_back(basis_vals);
     }
