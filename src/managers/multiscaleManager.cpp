@@ -286,7 +286,9 @@ ScalarT MultiscaleManager::initialize() {
           }
         }
 
+        
         size_t sgusernum = 0;
+        /*
         if (subgrid_static && subgrid_model_selection == 0) { // only add each group to one subgrid model
           
           sgusernum = subgridModels[sgwinner]->addMacro(groups[block][grp]->nodes,
@@ -295,14 +297,14 @@ ScalarT MultiscaleManager::initialize() {
                                                         groups[block][grp]->orientation);
           
         }
-        else {
+        else {*/
           for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this group info to all of them (sgusernum is same for all)
             sgusernum = subgridModels[s]->addMacro(groups[block][grp]->nodes,
                                                    groups[block][grp]->sideinfo[0],
                                                    groups[block][grp]->LIDs[0],
                                                    groups[block][grp]->orientation);
           }
-        }
+        //}
         groups[block][grp]->subgridModels = subgridModels;
         groups[block][grp]->subgrid_model_index = sgwinner;
         groups[block][grp]->subgrid_usernum = sgusernum;
@@ -335,14 +337,30 @@ ScalarT MultiscaleManager::initialize() {
   for (size_t s=0; s<subgridModels.size(); s++) {
     subgridModels[s]->finalize(MacroComm->getSize(), MacroComm->getRank(), write_subgrid_soln, appends);
   }
-  
+
   ////////////////////////////////////////////////////////////////////////////////
   // If the subgrid models are not static, then we need projection maps between
   // the various subgrid models.
   // Since we only store N subgrid models, we only require (N-1)^2 maps
   ////////////////////////////////////////////////////////////////////////////////
   
-  if (!subgrid_static) {
+  if (subgrid_static) {
+    for (size_t s=0; s<subgridModels.size(); s++) {
+      vector<bool> active(numusers,false);
+      size_t numactive = 0;
+      for (size_t block=0; block<groups.size(); ++block) {
+        for (size_t grp=0; grp<groups[block].size(); ++grp) {
+          if (groups[block][grp]->subgrid_model_index == s) {
+            size_t usernum = groups[block][grp]->subgrid_usernum;
+            active[usernum] = true;
+            numactive += 1;
+          }
+        }
+      }
+      subgridModels[s]->updateActive(active);
+    }
+  }
+  else {
     
     for (size_t s=0; s<subgridModels.size(); s++) {
       if (subgrid_model_selection == 0) {
@@ -389,7 +407,6 @@ ScalarT MultiscaleManager::initialize() {
   }
   
   // add mesh data
-  
   for (size_t s=0; s< subgridModels.size(); s++) {
     subgridModels[s]->addMeshData();
   }

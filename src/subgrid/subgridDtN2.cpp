@@ -118,20 +118,20 @@ void SubGridDtN2::finalize(const int & globalSize, const int & globalPID,
   if (macroData.size() > 0) {
     this->setUpSubgridModels();
     sub_assembler->updatePhysicsSet(0);
-  }
   
-  if (write_subgrid_soln) {
-    std::stringstream ss;
-    if (globalSize > 1) {
-      ss << "_" << name << ".exo." << globalSize << "." << globalPID;
-      combined_mesh_filename = "subgrid_output" + ss.str();
-    }
-    else {
-      ss << "_" << name << ".exo";
-      combined_mesh_filename = "subgrid_output" + ss.str();
-    }
+    if (write_subgrid_soln) {
+      std::stringstream ss;
+      if (globalSize > 1) {
+        ss << "_" << name << ".exo." << globalSize << "." << globalPID;
+        combined_mesh_filename = "subgrid_output" + ss.str();
+      }
+      else {
+        ss << "_" << name << ".exo";
+        combined_mesh_filename = "subgrid_output" + ss.str();
+      }
 
-    this->setupCombinedExodus(appends);
+      this->setupCombinedExodus(appends);
+    }
   }
   
 }
@@ -165,6 +165,7 @@ void SubGridDtN2::setUpSubgridModels() {
   
   SubGridTools2 sgt(LocalComm, macroshape, shape, refnodes,
                     mesh_type, mesh_file);
+  
   
   {
     Teuchos::TimeMonitor localmeshtimer(*sgfemSubMeshTimer);
@@ -822,7 +823,23 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
     }
   });
     
-    
+  View_Sc4 coarse_uprev("local uprev",groups[macrogrp][0]->numElem,
+                        coarse_prevsoln.extent(1),
+                        coarse_prevsoln.extent(2),
+                        coarse_prevsoln.extent(3));
+                        
+  parallel_for("subgrid set coarse sol",
+               RangePolicy<AssemblyExec>(0,coarse_uprev.extent(0)),
+               KOKKOS_LAMBDA (const size_type e ) {
+    for (size_type i=0; i<coarse_uprev.extent(1); i++) {
+      for (size_type j=0; j<coarse_uprev.extent(2); j++) {
+        for (size_type k=0; k<coarse_uprev.extent(3); k++) {
+          coarse_uprev(e,i,j,k) = coarse_prevsoln(macroIDs(e),i,j,k);
+        }
+      }
+    }
+  });
+  
   if (isAdjoint) {
     coarse_phi = Kokkos::View<ScalarT***,AssemblyDevice>("local phi",groups[macrogrp][0]->numElem,
                                                          coarse_adjsoln.extent(1),
@@ -840,72 +857,18 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
   
   // Extract the previous solution as the initial guess/condition for subgrid problems
   Teuchos::RCP<SG_MultiVector> prev_fwdsoln, prev_adjsoln;
-  /*
-  {
-    Teuchos::TimeMonitor localtimer(*sgfemInitialTimer);
-    
-    ScalarT prev_time = 0.0; // TMW: needed?
-    if (isAdjoint) {
-      if (isTransient) {
-        bool foundfwd = soln->extractPrevious(prev_fwdsoln, macrogrp, time, prev_time);
-        bool foundadj = adjsoln->extract(prev_adjsoln, macrogrp, time);
-        if (!foundfwd || !foundadj) {
-          // throw error
-        }
-      }
-      else {
-        bool foundfwd = soln->extract(prev_fwdsoln, macrogrp, time);
-        bool foundadj = adjsoln->extract(prev_adjsoln, macrogrp, time);
-        if (!foundfwd || !foundadj) {
-          // throw error
-        }
-      }
-    }
-    else { // forward or compute sens
-      if (isTransient) {
-        bool foundfwd = soln->extractPrevious(prev_fwdsoln, macrogrp, time, prev_time);
-        if (!foundfwd) { // this subgrid has not been solved at this time yet
-          foundfwd = soln->extractLast(prev_fwdsoln, macrogrp, prev_time);
-        }
-      }
-      else {
-        bool foundfwd = soln->extractLast(prev_fwdsoln,macrogrp,prev_time);
-        if (!foundfwd) {
-          // throw error
-        }
-      }
-      if (compute_sens) {
-        ScalarT nexttime = 0.0;
-        bool foundadj = adjsoln->extractNext(prev_adjsoln,macrogrp,time,nexttime);
-        if (!foundadj) {
-          // throw error
-        }
-      }
-    }
-  }*/
-
+  
   Teuchos::RCP<SG_MultiVector> curr_adjsoln;
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
-  sub_solver->solve(coarse_u, coarse_prevsoln, coarse_phi,
+  sub_solver->solve(coarse_u, coarse_uprev, coarse_phi,
                     prev_soln[macrogrp], curr_soln[macrogrp], stage_soln[macrogrp],
                     prev_adjsoln, curr_adjsoln,
-                    //prev_fwdsoln, prev_adjsoln, //curr_fwdsoln, curr_adjsoln,
                     Psol[0],
                     time, isTransient, isAdjoint, compute_jacobian,
                     compute_sens, num_active_params, compute_disc_sens, compute_aux_sens,
                     macrowkset, macrogrp, macroelemindex, subgradient, store_adjPrev);
   
-  //if (macrowkset.current_stage == 1) {
-  //  sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
-  //}
-  // Store the subgrid fwd or adj solution
-  //if (isAdjoint) {
-  //  adjsoln->store(sub_solver->phi,time,macrogrp);
-  //}
-  //else if (!compute_sens) {
-  //  soln->store(sub_solver->u,time,macrogrp);
-  //}
   
   if (debug_level > 0) {
     if (LocalComm->getRank() == 0) {
@@ -1790,6 +1753,7 @@ void SubGridDtN2::advance() {
       }
     }
 
+    /*
     Teuchos::RCP<MpiComm> GComm = Teuchos::rcp( new MpiComm(MPI_COMM_WORLD) );
     for (size_t i=0; i<sub_solver->substep_norms.size(); ++i) {
       ScalarT lerr = sub_solver->substep_norms[i].second;
@@ -1800,7 +1764,7 @@ void SubGridDtN2::advance() {
       }
       sub_solver->substep_norms[i].first = 0.0;
       sub_solver->substep_norms[i].second = 0.0;
-    }
+    }*/
     
   }
   
