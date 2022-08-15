@@ -74,9 +74,10 @@ namespace MrHyDE {
     
   private:
     
-    int pnum;
+    int pnum, auxpnum;
     bool addBiot;
     ScalarT biot_alpha, formparam;
+    string auxvar;
     
     //Kokkos::View<int****,AssemblyDevice> sideinfo;
     

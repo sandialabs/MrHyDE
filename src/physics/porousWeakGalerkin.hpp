@@ -103,7 +103,6 @@ namespace MrHyDE {
     int auxpintnum=-1, auxpbndrynum=-1, auxunum=-1, auxtnum=-1;
     int dxnum=-1,dynum=-1,dznum=-1;
     
-    
     bool usePermData;
     bool useAC; // use HDIV if this is false, otherwise use HDIV_AC
     

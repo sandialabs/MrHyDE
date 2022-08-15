@@ -43,6 +43,14 @@ void porous::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),"ip");
   functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),"ip");
   functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),"ip");
+
+  functionManager->addFunction("source",fs.get<string>("porous source","0.0"),"side ip");
+  functionManager->addFunction("permeability",fs.get<string>("permeability","1.0"),"side ip");
+  functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),"side ip");
+  functionManager->addFunction("reference density",fs.get<string>("reference density","1.0"),"side ip");
+  functionManager->addFunction("reference pressure",fs.get<string>("reference pressure","1.0"),"side ip");
+  functionManager->addFunction("compressibility",fs.get<string>("compressibility","0.0"),"side ip");
+  functionManager->addFunction("gravity",fs.get<string>("gravity","1.0"),"side ip");
 }
 
 // ========================================================================================
@@ -150,7 +158,7 @@ void porous::boundaryResidual() {
   auto basis = wkset->basis_side[basis_num];
   auto basis_grad = wkset->basis_grad_side[basis_num];
   
-  Vista perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  Vista perm, viscosity, densref, pref, comp, gravity, source; // porosity is currently unused
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -197,7 +205,7 @@ void porous::boundaryResidual() {
   
   auto psol = wkset->getSolutionField("p");
   auto off = subview(wkset->offsets, pnum, ALL());
-  
+
   if (bcs(pnum,cside) == "Neumann") { //Neumann
     parallel_for("porous HGRAD bndry resid Neumann",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -244,7 +252,7 @@ void porous::boundaryResidual() {
     });
   }
   else if (bcs(pnum,cside) == "interface") { // multiscale weak Dirichlet
-    auto lambda = wkset->getSolutionField("aux p");
+    auto lambda = wkset->getSolutionField("aux "+auxvar);
     parallel_for("porous HGRAD bndry resid MS weak Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -308,7 +316,6 @@ void porous::computeFlux() {
     pref = functionManager->evaluate("reference pressure","side ip");
     comp = functionManager->evaluate("compressibility","side ip");
     gravity = functionManager->evaluate("gravity","side ip");
-    
   }
   
   auto h = wkset->h;
@@ -331,7 +338,7 @@ void porous::computeFlux() {
     
     auto pflux = subview(wkset->flux, ALL(), pnum, ALL());
     auto psol = wkset->getSolutionField("p");
-    auto lambda = wkset->getSolutionField("aux p");
+    auto lambda = wkset->getSolutionField("aux "+auxvar);
     parallel_for("porous HGRAD flux",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
@@ -365,6 +372,22 @@ void porous::setWorkset(Teuchos::RCP<workset> & wkset_) {
   for (size_t i=0; i<varlist.size(); i++) {
     if (varlist[i] == "p") {
       pnum = i;
+    }
+  }
+
+  vector<string> auxvarlist = wkset->aux_varlist;
+  for (size_t i=0; i<auxvarlist.size(); i++) {
+    if (auxvarlist[i] == "p") {
+      auxpnum = i;
+      auxvar = "p";
+    }
+    if (auxvarlist[i] == "lambda") {
+      auxpnum = i;
+      auxvar = "lambda";
+    }
+    if (auxvarlist[i] == "pbndry") {
+      auxpnum = i;
+      auxvar = "pbndry";
     }
   }
 }

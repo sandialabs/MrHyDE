@@ -532,7 +532,6 @@ void porousWeakGalerkin::computeFlux() {
     Teuchos::TimeMonitor localtime(*fluxFill);
     
     auto mflux = subview(wkset->flux, ALL(), auxpbndrynum, ALL());
-    // TMW: previous code used u instead of t
     
     parallel_for("porous WG flux",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -547,7 +546,7 @@ void porousWeakGalerkin::computeFlux() {
           tdotn += tz(elem,pt)*nz(elem,pt);
         }
         
-        mflux(elem,pt) = -tdotn;
+        mflux(elem,pt) = tdotn;
       }
     });
   }
@@ -582,7 +581,7 @@ void porousWeakGalerkin::setWorkset(Teuchos::RCP<workset> & wkset_) {
   vector<string> auxvarlist = wkset->aux_varlist;
   
   for (size_t i=0; i<auxvarlist.size(); i++) {
-    if (auxvarlist[i] == "pbndry")
+    if (auxvarlist[i] == "pbndry" || auxvarlist[i] == "lambda")
       auxpbndrynum = i;
     if (auxvarlist[i] == "pint")
       auxpbndrynum = i; // hard-coded for now
