@@ -1308,6 +1308,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         cout << "**** Current time is " << current_time << endl << endl;
         cout << "*******************************************************" << endl << endl << endl;
       }
+      params->updateDynamicParams(stepProg);
       for (int ss=0; ss<subcycles; ++ss) {
         for (size_t set=0; set<u.size(); ++set) {
           // this needs to come first now, so that updatePhysicsSet can pick out the

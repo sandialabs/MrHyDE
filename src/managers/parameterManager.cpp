@@ -61,7 +61,23 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
+  have_dynamic = settings->sublist("Solver").get<bool>("dynamic parameters",false);
+  if (settings->sublist("Solver").isParameter("number of steps")) {
+    numTimeSteps = settings->sublist("Solver").get<int>("number of steps",1);
+  }
+  else {
+    double deltat = settings->sublist("Solver").get<double>("delta t",1.0);
+    double final_time = settings->sublist("Solver").get<double>("final time",1.0);
+    numTimeSteps = (int)final_time/deltat;
+  }
+  
   this->setupParameters();
+  
+  only_discretized = false;
+  if (num_discretized_params>0 && num_active_params == 0) {
+    only_discretized = true;
+  }
+  
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -170,6 +186,8 @@ void ParameterManager<Node>::setupParameters() {
         discretized_param_basis_types.push_back(newparam.get<string>("type","HGRAD"));
         discretized_param_basis_orders.push_back(newparam.get<int>("order",1));
         discretized_param_names.push_back(pl_itr->first);
+        discretized_param_dynamic.push_back(newparam.get<bool>("dynamic",false));
+
         initialParamValues.push_back(newparam.get<ScalarT>("initial_value",1.0));
         lowerParamBounds.push_back(newparam.get<ScalarT>("lower_bound",-1.0));
         upperParamBounds.push_back(newparam.get<ScalarT>("upper_bound",1.0));
@@ -518,11 +536,19 @@ vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
 }
 
 // ========================================================================================
+// return the discretized parameters as vector of vector_RCPs for use with ROL
+// ========================================================================================
+
+template<class Node>
+vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > ParameterManager<Node>::getDiscretizedParams() {
+  return dynamic_Psol;
+}
+
+// ========================================================================================
 // ========================================================================================
 
 template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::setInitialParams() {
-//vector_RCP ParameterManager<Node>::setInitialParams() {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -530,9 +556,14 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::s
     }
   }
   
+  // TMW: why is this an overlapped map???
   vector_RCP initial = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
-  initial->putScalar(2.0);
-  
+  initial->putScalar(2.0); // TMW: why is this hard-coded??? 
+  if (have_dynamic) {
+    vector_RCP dyninit = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+    dyninit->putScalar(2.0); // TMW: why is this hard-coded??? 
+    dynamic_Psol.push_back(dyninit);
+  }
   /*
   if (scalarInitialData) {
     // This will be done on the host for now
@@ -579,7 +610,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::s
       glmass->fillComplete();
       
       this->linearSolver(glmass, glrhs, glinitial);
-      have_preconditioner = false; // resetting this because mass matrix may not have connectivity as Jacobians
+      have_preconditioner = false; // resetting this because mass matrix may not have same connectivity as Jacobians
       initial->doImport(*glinitial, *importer, Tpetra::ADD);
       
     }
@@ -713,6 +744,22 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
 // ========================================================================================
 
 template<class Node>
+void ParameterManager<Node>::updateParams(std::vector<vector_RCP> & newparams) {
+
+  if (only_discretized) {
+    for (size_t i=0; i< newparams.size(); ++i) {
+      dynamic_Psol[i]->assign(*(newparams[i]));
+    }
+  }
+  else {
+    //throw an error
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, const int & type) {
   size_t pprog = 0;
   // perhaps add a check that the size of newparams equals the number of parameters of the
@@ -748,6 +795,13 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
   
 }
 
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void ParameterManager<Node>::updateDynamicParams(const int & timestep) {
+  //Psol[0]->assign(*dynamic_Psol[timestep]);
+}
 // ========================================================================================
 // ========================================================================================
 

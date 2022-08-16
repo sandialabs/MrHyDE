@@ -78,6 +78,8 @@ namespace MrHyDE {
     
     std::vector<ScalarT> getDiscretizedParamsVector();
     
+    std::vector<vector_RCP> getDiscretizedParams();
+    
     // ========================================================================================
     // ========================================================================================
     
@@ -86,7 +88,11 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    void updateParams(std::vector<vector_RCP> & newparams);
+
     void updateParams(const std::vector<ScalarT> & newparams, const int & type);
+    
+    void updateDynamicParams(const int & timestep);
     
     // ========================================================================================
     // ========================================================================================
@@ -158,7 +164,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////////
     
     std::vector<std::string> blocknames;
-    int spaceDim, debug_level;
+    int spaceDim, debug_level, numTimeSteps;
     
     Teuchos::RCP<const LA_Map> param_owned_map;
     Teuchos::RCP<const LA_Map> param_overlapped_map;
@@ -172,10 +178,10 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<std::vector<AD> > > paramvals_AD;
     Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
     
-    std::vector<vector_RCP> Psol;
+    std::vector<vector_RCP> Psol, dynamic_Psol;
     std::vector<vector_RCP> auxsol;
     std::vector<vector_RCP> dRdP;
-    bool have_dRdP;
+    bool have_dRdP, only_discretized, have_dynamic;
     
     Teuchos::RCP<const panzer::DOFManager> discparamDOF;
     std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> DOF_LIDs;
@@ -189,6 +195,7 @@ namespace MrHyDE {
     std::vector<int> discretized_param_basis_orders, discretized_param_usebasis;
     std::vector<std::string> discretized_param_names;
     std::vector<basis_RCP> discretized_param_basis;
+    std::vector<bool> discretized_param_dynamic;
     Teuchos::RCP<panzer::DOFManager> paramDOF;
     std::vector<std::vector<int> > paramoffsets;
     std::vector<int> paramNumBasis;
