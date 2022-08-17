@@ -3438,35 +3438,10 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   int numDiscParams = params->getNumParams(4);
   
   if (numDiscParams > 0) {
-    //params->sacadoizeParams(false);
-    vector_RCP a_owned = linalg->getNewVector(set);
-    auto ao_kv = a_owned->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-    for (size_t i=0; i<ao_kv.extent(0); i++) {
-      ao_kv(i,0) = adjoint_kv(i,0);
-    }
-    vector_RCP res_over = linalg->getNewOverlappedVector(set);
-    matrix_RCP J = linalg->getNewParamMatrix();
-    matrix_RCP J_over = linalg->getNewParamOverlappedMatrix();
-    res_over->putScalar(0.0);
-    J->setAllToScalar(0.0);
     
-    J_over->setAllToScalar(0.0);
-    
-    assembler->assembleJacRes(set, u[set], u[set], true, false, true,
-                              res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                              params->num_active_params, params->Psol[0], false, deltat); //is_final_time, deltat);
-    
-    linalg->fillCompleteParam(set, J_over);
-    
-    vector_RCP sens_over = linalg->getNewParamOverlappedVector(); //Teuchos::rcp(new LA_MultiVector(params->param_overlapped_map,1));
-    vector_RCP sens = linalg->getNewParamVector();
+    auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, deltat);
     auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-    
-    linalg->exportParamMatrixFromOverlapped(J, J_over);
-    linalg->fillCompleteParam(set,J);
-    
-    J->apply(*a_owned,*sens);
-    
+
     vector<ScalarT> discLocalGradient(numDiscParams);
     vector<ScalarT> discGradient(numDiscParams);
     for (size_t i = 0; i < params->paramOwned.size(); i++) {
@@ -3497,6 +3472,45 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     }
   }
   
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > 
+PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
+                                                       vector<vector_RCP> & adjoint,
+                                                       const ScalarT & current_time,
+                                                       const ScalarT & deltat) {
+
+  int set = 0; // hard-coded for now
+  
+  typedef typename Node::device_type LA_device;
+  typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+  typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
+  
+  vector_RCP res_over = linalg->getNewOverlappedVector(set);
+  matrix_RCP J = linalg->getNewParamMatrix();
+  matrix_RCP J_over = linalg->getNewParamOverlappedMatrix();
+  res_over->putScalar(0.0);
+  J->setAllToScalar(0.0);
+  J_over->setAllToScalar(0.0);
+    
+  assembler->assembleJacRes(set, u[set], u[set], true, false, true,
+                            res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
+                            params->num_active_params, params->Psol[0], false, deltat); //is_final_time, deltat);
+    
+  linalg->fillCompleteParam(set, J_over);
+    
+  vector_RCP gradient = linalg->getNewParamVector();
+    
+  linalg->exportParamMatrixFromOverlapped(J, J_over);
+  linalg->fillCompleteParam(set,J);
+    
+  J->apply(*adjoint[set],*gradient);
+
+  return gradient;
 }
 
 // ========================================================================================

@@ -410,6 +410,15 @@ namespace MrHyDE {
 
     // ========================================================================================
     // ========================================================================================
+
+    Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > 
+    computeDiscreteSensitivities(vector<vector_RCP> & u,
+                                 vector<vector_RCP> & adjoint,
+                                 const ScalarT & current_time,
+                                 const ScalarT & deltat);
+
+    // ========================================================================================
+    // ========================================================================================
     
     void writeSolution(const ScalarT & current_time);
     

@@ -588,10 +588,18 @@ void AnalysisManager::run() {
     vector<vector_RCP> disc_params = params->getDiscretizedParams();
 
     // TMW: not finished yet
-    /*
     // Iteration vector.
+    vector_RCP x_rcp;
+    bool transientControls = false;
+    if (transientControls) {
+    
+    }
+    else {
+      
+    }
 
-    Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
+    /*
+    //Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
     // Set initial guess.
     
     int pprog  = 0;
