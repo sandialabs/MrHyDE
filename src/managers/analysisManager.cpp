@@ -16,7 +16,8 @@
 #include "discretizationInterface.hpp"
 #include "uqManager.hpp"
 #include "obj_milorol.hpp"
-#include "ROL_StdVector.hpp"
+//#include "ROL_StdVector.hpp"
+#include "MrHyDE_OptVector.hpp"
 //#include "obj_milorol_simopt.hpp"
 #include "ROL_LineSearchStep.hpp"
 #include "ROL_Algorithm.hpp"
@@ -61,10 +62,6 @@ void AnalysisManager::run() {
   std::string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   DFAD objfun = 0.0;
   
-  if (analysis_type == "ROL" && params->only_discretized) {
-    //analysis_type = "ROL-disc";
-  }
-  
   if (analysis_type == "forward") {
     
     solve->forwardModel(objfun);
@@ -75,7 +72,7 @@ void AnalysisManager::run() {
     solve->forwardModel(objfun);
     postproc->report();
     
-    solve->adjointModel(gradient);
+    solve->adjointModel(*gradient);
     
   }
   else if (analysis_type == "dry run") {
@@ -105,7 +102,7 @@ void AnalysisManager::run() {
     
     // Evaluate MILO or a surrogate at these samples
     vector<ScalarT> response_values;
-    vector<vector<ScalarT> > gradient_values;
+    vector<Teuchos::RCP<MrHyDE_OptVector>> gradient_values;
     
     std::stringstream ss;
     std::string sname2 = "sampledata.dat";
@@ -132,17 +129,18 @@ void AnalysisManager::run() {
       if(Comm->getRank() == 0) {
         sdataOUT << response_values[j] << "  ";
       }
-      vector<ScalarT> currgradient;
-      solve->adjointModel(currgradient);
+      Teuchos::RCP<MrHyDE_OptVector> currgradient;
+      solve->adjointModel(*currgradient);
       //vector<ScalarT> currgradient = postproc->computeSensitivities(F_soln, A_soln);
       gradient_values.push_back(currgradient);
+      /*
       if(Comm->getRank() == 0) {
         for (int paramiter=0; paramiter < ptsdim; paramiter++) {
           sdataOUT << gradient_values[j][paramiter] << "  ";
         }
         sdataOUT << endl;
       }
-      
+      */
       if(Comm->getRank() == 0)
         cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
     }
@@ -278,8 +276,6 @@ void AnalysisManager::run() {
   }
   else if (analysis_type == "ROL") {
     typedef ScalarT RealT;
-    typedef ROL::Vector<RealT> V;
-    typedef ROL::StdVector<RealT> SV;
     
     Teuchos::RCP< ROL::Objective_MILO<RealT> > obj;
     Teuchos::ParameterList ROLsettings;
@@ -289,7 +285,7 @@ void AnalysisManager::run() {
     if (settings->sublist("Analysis").isSublist("ROL"))
       ROLsettings = settings->sublist("Analysis").sublist("ROL");
     else
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO could not find the ROL sublist in the imput file!  Abort!");
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL sublist in the imput file!  Abort!");
     
     // New ROL input syntax
     bool use_linesearch = settings->sublist("Analysis").get("Use Line Search",false);
@@ -320,89 +316,54 @@ void AnalysisManager::run() {
       step = Teuchos::rcp( new ROL::TrustRegionStep<RealT> (ROLsettings) );
     }
     
-    //ROL::StatusTest<RealT> status(gtol, stol, maxit);
     Teuchos::RCP<ROL::StatusTest<RealT> > status = Teuchos::rcp( new ROL::StatusTest<RealT> (gtol, stol, maxit) );
     
     ROL::Algorithm<RealT> algo(step,status,false);
-    //ROL::Algorithm<RealT> algo(*step,status,false);
     
-    //int numParams = solve->getNumParams(1);
-    //vector<ScalarT> params = solve->getParams(1);
     
+    bool have_dynamic = params->have_dynamic;
+
     int numClassicParams = params->getNumParams(1);
     int numDiscParams = params->getNumParams(4);
     int numParams = numClassicParams + numDiscParams;
-    vector<ScalarT> classic_params;
-    vector<ScalarT> disc_params;
-    if (numClassicParams > 0)
-      classic_params = params->getParams(1);
-    if (numDiscParams > 0)
-      disc_params = params->getDiscretizedParamsVector();
-    
+
     // Iteration vector.
-    Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-    // Set initial guess.
-    
-    int pprog  = 0;
-    for (int i=0; i<numClassicParams; i++) {
-      (*x_rcp)[pprog] = classic_params[i];
-      pprog++;
+    Teuchos::RCP<vector<ScalarT> > classic_params;
+    vector<vector_RCP> disc_params;
+    if (numClassicParams > 0) {
+      classic_params = params->getParams(1);
     }
-    for (int i=0; i<numDiscParams; i++) {
-      (*x_rcp)[pprog] = disc_params[i];
-      pprog++;
+    else {
+      classic_params = Teuchos::null;
+    }
+    if (numDiscParams > 0) {
+      if (have_dynamic) {
+        disc_params = params->getDynamicDiscretizedParams();
+      }
+      else {
+        disc_params.push_back(params->Psol);
+      }
     }
     
-    ROL::StdVector<RealT> x(x_rcp);
-    
-    
+    MrHyDE_OptVector xtmp(disc_params, classic_params, Comm->getRank());
+    Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
+    x->set(xtmp);
+
     //bound contraint
     Teuchos::RCP<ROL::Bounds<RealT> > con;
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
+
     if(bound_vars){
-      /*
-       bool use_scale = ROLsettings.get("Use Scaling For Epsilon-Active Sets",false);
-       RealT scale;
-       if(use_scale){
-       RealT tol = 1.e-12; //should probably be read in, though we're not using inexact gradients yet anyways...
-       Teuchos::RCP<vector<RealT> > g0_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-       ROL::StdVector<RealT> g0p(g0_rcp);
-       (*obj).gradient(g0p,x,tol);
-       scale = 1.0e-2/g0p.norm();
-       }
-       else {
-       scale = 1.0;
-       }
-       */
-      // TMW: where is scale used?
       
       //initialize max and min vectors for bounds
       Teuchos::RCP<vector<RealT> > minvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       Teuchos::RCP<vector<RealT> > maxvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
       
       //read in bounds for parameters...
-      vector<vector<ScalarT> > classicBnds = params->getParamBounds("active");
-      vector<vector<ScalarT> > discBnds = params->getParamBounds("discretized");
-      pprog = 0;
-      
-      if (classicBnds[0].size() > 0) {
-        for (size_t i = 0; i <classicBnds[0].size(); i++) {
-          (*minvec)[pprog] = classicBnds[0][i];
-          (*maxvec)[pprog] = classicBnds[1][i];
-          pprog++;
-        }
-      }
-      
-      if (discBnds[0].size() > 0) {
-        for (size_t i = 0; i < discBnds[0].size(); i++) {
-          (*minvec)[pprog] = discBnds[0][i];
-          (*maxvec)[pprog] = discBnds[1][i];
-          pprog++;
-        }
-      }
-      
-      Teuchos::RCP<V> lo = Teuchos::rcp( new SV(minvec) );
-      Teuchos::RCP<V> up = Teuchos::rcp( new SV(maxvec) );
+      vector<Teuchos::RCP<vector<ScalarT> > > activeBnds = params->getActiveParamBounds();
+      vector<vector_RCP> discBnds = params->getDiscretizedParamBounds();
+      Teuchos::RCP<ROL::Vector<ScalarT> > lo = Teuchos::rcp( new MrHyDE_OptVector(discBnds[0], activeBnds[0], Comm->getRank()) );
+      Teuchos::RCP<ROL::Vector<ScalarT> > up = Teuchos::rcp( new MrHyDE_OptVector(discBnds[1], activeBnds[1], Comm->getRank()) );
       
       con = Teuchos::rcp(new ROL::Bounds<RealT>(lo,up));
       
@@ -447,80 +408,77 @@ void AnalysisManager::run() {
       //std::cout << "Finished generating data for inversion " << std::endl;
     }
     
+    
     // Comparing a gradient/Hessian with finite difference approximation
     if(ROLsettings.sublist("General").get("Do grad+hessvec check",true)){
       // Gradient and Hessian check
       // direction for gradient check
-      if (ROLsettings.sublist("General").isParameter("FD Check Seed")) {
-        int seed = ROLsettings.get("FD Check Seed",1);
-        srand(seed);
-      }
-      else
-        srand(time(NULL)); //initialize random seed
       
-      Teuchos::RCP<vector<RealT> > d_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-      bool no_random_vec = ROLsettings.sublist("General").get("FD Check Use Ones Vector",false);
-      if (no_random_vec) {
-        for ( int i = 0; i < numParams; i++ ) {
-          (*d_rcp)[i] = 1.0;
-        }
+      Teuchos::RCP<ROL::Vector<ScalarT>> d = x->clone();
+      
+      if (ROLsettings.sublist("General").get("FD Check Use Ones Vector",false)) {
+        d->setScalar(1.0);
       }
       else {
-        for ( int i = 0; i < numParams; i++ ) {
-          (*d_rcp)[i] = 10.0*(ScalarT)rand()/(ScalarT)RAND_MAX - 5.0;
+        if (ROLsettings.sublist("General").isParameter("FD Check Seed")) {
+          int seed = ROLsettings.get("FD Check Seed",1);
+          srand(seed);
         }
-      }
-      double fd_scale = ROLsettings.sublist("General").get("FD Check Scale",1.0);
-      for ( int i = 0; i < numParams; i++ ) {
-        (*d_rcp)[i] *= fd_scale;
-      }
-      ROL::StdVector<RealT> d(d_rcp);
+        else {
+          srand(time(NULL)); //initialize random seed
+        }
+        d->randomize();
+      }\
+      
       // check gradient and Hessian-vector computation using finite differences
-      (*obj).checkGradient(x, d, (Comm->getRank() == 0));
-      //(*obj).checkHessVec(x, d, true); //Hessian-vector is already done with FD.
+      obj->checkGradient(*x, *d, (Comm->getRank() == 0));
       
     }
-    
     
     Teuchos::Time timer("Optimization Time",true);
     
     // Run algorithm.
     vector<std::string> output;
     if (bound_vars) {
-      output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
+      output = algo.run(*x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
     }
     else {
-      output = algo.run(x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
+      output = algo.run(*x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
     }
+
     
     ScalarT optTime = timer.stop();
-    if (Comm->getRank() == 0 ) {
+
+    if (ROLsettings.sublist("General").get("Write Final Parameters",false) ) {
       string outname = ROLsettings.get("Output File Name","ROL_out.txt");
       std::ofstream respOUT(outname);
       respOUT.precision(16);
-      for ( unsigned i = 0; i < output.size(); i++ ) {
-        std::cout << output[i];
-        respOUT << output[i];
+      if (Comm->getRank() == 0 ) {
+        
+        for ( unsigned i = 0; i < output.size(); i++ ) {
+          std::cout << output[i];
+          respOUT << output[i];
+        }
+        x->print(std::cout);
       }
-      for (int i=0; i<numParams; i++) {
-        cout << "param " << i << " = " << (*x_rcp)[i] << endl;
-        respOUT << "param " << i << " = " << (*x_rcp)[i] << endl;
-      }
-      //bvbw
-      if (verbosity > 5) {
-        cout << "Optimization time: " << optTime << " seconds" << endl;
-        respOUT << "\nOptimization time: " << optTime << " seconds" << endl;
+      Kokkos::fence();
+      x->print(respOUT);
+
+      if (Comm->getRank() == 0 ) {
+        if (verbosity > 5) {
+          cout << "Optimization time: " << optTime << " seconds" << endl;
+          respOUT << "\nOptimization time: " << optTime << " seconds" << endl;
+        }
       }
       respOUT.close();
       string outname2 = "final_params.dat";
       std::ofstream respOUT2(outname2);
       respOUT2.precision(16);
-      for (int i=0; i<numParams; i++) {
-        respOUT2 << (*x_rcp)[i] << endl;
-      }
+      x->print(respOUT2);
       respOUT2.close();
     }
     
+    /*
     if (settings->sublist("Postprocess").get("write Hessian",false)){
       obj->printHess(settings->sublist("Postprocess").get("Hessian output file","hess.dat"),x,Comm->getRank());
     }
@@ -529,259 +487,14 @@ void AnalysisManager::run() {
       solve->forwardModel(val);
       //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     }
-    
+    */
+
     if (postproc_plot) {
       postproc->write_solution = true;
       DFAD objfun = 0.0;
       solve->forwardModel(objfun);
     }
   } //ROL
-  else if (analysis_type == "ROL-disc") {
-    typedef ScalarT RealT;
-    typedef ROL::Vector<RealT> V;
-    typedef ROL::StdVector<RealT> SV;
-    
-    Teuchos::RCP< ROL::Objective_MILO<RealT> > obj;
-    Teuchos::ParameterList ROLsettings;
-    
-    sensIC = settings->sublist("Analysis").get("sensitivities IC", false);
-    
-    if (settings->sublist("Analysis").isSublist("ROL"))
-      ROLsettings = settings->sublist("Analysis").sublist("ROL");
-    else
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MILO could not find the ROL sublist in the imput file!  Abort!");
-    
-    // New ROL input syntax
-    bool use_linesearch = settings->sublist("Analysis").get("Use Line Search",false);
-    
-    ROLsettings.sublist("General").sublist("Secant").set("Type","Limited-Memory BFGS");
-    ROLsettings.sublist("Step").sublist("Descent Method").set("Type","Newton Krylov");
-    ROLsettings.sublist("Step").sublist("Trust Region").set("Subproblem Solver","Truncated CG");
-    
-    RealT gtol     = ROLsettings.sublist("Status Test").get("Gradient Tolerance",1e-6);
-    RealT stol     = ROLsettings.sublist("Status Test").get("Step Tolerance",1.e-12);
-    int maxit      = ROLsettings.sublist("Status Test").get("Iteration Limit",100);
-    
-    // Turn off visualization while optimizing
-    bool postproc_plot = postproc->write_solution;
-    postproc->write_solution = false;
-    
-    Teuchos::RCP<std::ostream> outStream;
-    outStream = Teuchos::rcp(&std::cout, false);
-    // Generate data and get objective
-    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params));
-    
-    Teuchos::RCP< ROL::Step<RealT> > step;
-    
-    if (use_linesearch) {
-      step = Teuchos::rcp( new ROL::LineSearchStep<RealT> (ROLsettings) );
-    }
-    else {
-      step = Teuchos::rcp( new ROL::TrustRegionStep<RealT> (ROLsettings) );
-    }
-    
-    //ROL::StatusTest<RealT> status(gtol, stol, maxit);
-    Teuchos::RCP<ROL::StatusTest<RealT> > status = Teuchos::rcp( new ROL::StatusTest<RealT> (gtol, stol, maxit) );
-    
-    ROL::Algorithm<RealT> algo(step,status,false);
-    
-    vector<vector_RCP> disc_params = params->getDiscretizedParams();
-
-    // TMW: not finished yet
-    // Iteration vector.
-    vector_RCP x_rcp;
-    bool transientControls = false;
-    if (transientControls) {
-    
-    }
-    else {
-      
-    }
-
-    /*
-    //Teuchos::RCP<vector<RealT> > x_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-    // Set initial guess.
-    
-    int pprog  = 0;
-    for (int i=0; i<numClassicParams; i++) {
-      (*x_rcp)[pprog] = classic_params[i];
-      pprog++;
-    }
-    for (int i=0; i<numDiscParams; i++) {
-      (*x_rcp)[pprog] = disc_params[i];
-      pprog++;
-    }
-    
-    ROL::StdVector<RealT> x(x_rcp);
-    
-    
-    //bound contraint
-    Teuchos::RCP<ROL::Bounds<RealT> > con;
-    bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
-    if(bound_vars){
-      
-      //initialize max and min vectors for bounds
-      Teuchos::RCP<vector<RealT> > minvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-      Teuchos::RCP<vector<RealT> > maxvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-      
-      //read in bounds for parameters...
-      vector<vector<ScalarT> > classicBnds = params->getParamBounds("active");
-      vector<vector<ScalarT> > discBnds = params->getParamBounds("discretized");
-      pprog = 0;
-      
-      if (classicBnds[0].size() > 0) {
-        for (size_t i = 0; i <classicBnds[0].size(); i++) {
-          (*minvec)[pprog] = classicBnds[0][i];
-          (*maxvec)[pprog] = classicBnds[1][i];
-          pprog++;
-        }
-      }
-      
-      if (discBnds[0].size() > 0) {
-        for (size_t i = 0; i < discBnds[0].size(); i++) {
-          (*minvec)[pprog] = discBnds[0][i];
-          (*maxvec)[pprog] = discBnds[1][i];
-          pprog++;
-        }
-      }
-      
-      Teuchos::RCP<V> lo = Teuchos::rcp( new SV(minvec) );
-      Teuchos::RCP<V> up = Teuchos::rcp( new SV(maxvec) );
-      
-      con = Teuchos::rcp(new ROL::Bounds<RealT>(lo,up));
-      
-      //create bound constraint
-    }
-    
-    //////////////////////////////////////////////////////
-    // Verification tests
-    //////////////////////////////////////////////////////
-    
-    // Recovering a data-generating solution
-    if (ROLsettings.sublist("General").get("Generate data",false)) {
-      //std::cout << "Generating data ... " << std::endl;
-      DFAD objfun = 0.0;
-      if (params->isParameter("datagen")) {
-        vector<ScalarT> pval = {1.0};
-        params->setParam(pval,"datagen");
-      }
-      postproc->response_type = "none";
-      postproc->compute_objective = false;
-      solve->forwardModel(objfun);
-      //std::cout << "Storing data ... " << std::endl;
-      
-      for (size_t set=0; set<postproc->soln.size(); ++set) {
-        vector<vector<ScalarT> > times = postproc->soln[set]->times;
-        vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc->soln[set]->data;
-        
-        for (size_t i=0; i<times.size(); i++) {
-          for (size_t j=0; j<times[i].size(); j++) {
-            postproc->datagen_soln[set]->store(data[i][j], times[i][j], i);
-          }
-        }
-      }
-      
-      //std::cout << "Finished storing data" << std::endl;
-      if (params->isParameter("datagen")) {
-        vector<ScalarT> pval = {0.0};
-        params->setParam(pval,"datagen");
-      }
-      postproc->response_type = "discrete";
-      postproc->compute_objective = true;
-      //std::cout << "Finished generating data for inversion " << std::endl;
-    }
-    
-    // Comparing a gradient/Hessian with finite difference approximation
-    if(ROLsettings.sublist("General").get("Do grad+hessvec check",true)){
-      // Gradient and Hessian check
-      // direction for gradient check
-      if (ROLsettings.sublist("General").isParameter("FD Check Seed")) {
-        int seed = ROLsettings.get("FD Check Seed",1);
-        srand(seed);
-      }
-      else
-        srand(time(NULL)); //initialize random seed
-      
-      Teuchos::RCP<vector<RealT> > d_rcp = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-      bool no_random_vec = ROLsettings.sublist("General").get("FD Check Use Ones Vector",false);
-      if (no_random_vec) {
-        for ( int i = 0; i < numParams; i++ ) {
-          (*d_rcp)[i] = 1.0;
-        }
-      }
-      else {
-        for ( int i = 0; i < numParams; i++ ) {
-          (*d_rcp)[i] = 10.0*(ScalarT)rand()/(ScalarT)RAND_MAX - 5.0;
-        }
-      }
-      double fd_scale = ROLsettings.sublist("General").get("FD Check Scale",1.0);
-      for ( int i = 0; i < numParams; i++ ) {
-        (*d_rcp)[i] *= fd_scale;
-      }
-      ROL::StdVector<RealT> d(d_rcp);
-      // check gradient and Hessian-vector computation using finite differences
-      (*obj).checkGradient(x, d, (Comm->getRank() == 0));
-      //(*obj).checkHessVec(x, d, true); //Hessian-vector is already done with FD.
-      
-    }
-    
-    
-    Teuchos::Time timer("Optimization Time",true);
-    
-    // Run algorithm.
-    vector<std::string> output;
-    if (bound_vars) {
-      output = algo.run(x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
-    }
-    else {
-      output = algo.run(x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
-    }
-    
-    ScalarT optTime = timer.stop();
-    if (Comm->getRank() == 0 ) {
-      string outname = ROLsettings.get("Output File Name","ROL_out.txt");
-      std::ofstream respOUT(outname);
-      respOUT.precision(16);
-      for ( unsigned i = 0; i < output.size(); i++ ) {
-        std::cout << output[i];
-        respOUT << output[i];
-      }
-      for (int i=0; i<numParams; i++) {
-        cout << "param " << i << " = " << (*x_rcp)[i] << endl;
-        respOUT << "param " << i << " = " << (*x_rcp)[i] << endl;
-      }
-      //bvbw
-      if (verbosity > 5) {
-        cout << "Optimization time: " << optTime << " seconds" << endl;
-        respOUT << "\nOptimization time: " << optTime << " seconds" << endl;
-      }
-      respOUT.close();
-      string outname2 = "final_params.dat";
-      std::ofstream respOUT2(outname2);
-      respOUT2.precision(16);
-      for (int i=0; i<numParams; i++) {
-        respOUT2 << (*x_rcp)[i] << endl;
-      }
-      respOUT2.close();
-    }
-    
-    if (settings->sublist("Postprocess").get("write Hessian",false)){
-      obj->printHess(settings->sublist("Postprocess").get("Hessian output file","hess.dat"),x,Comm->getRank());
-    }
-    if (settings->sublist("Analysis").get("write output",false)) {
-      DFAD val = 0.0;
-      solve->forwardModel(val);
-      //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
-    }
-    
-    if (postproc_plot) {
-      postproc->write_solution = true;
-      DFAD objfun = 0.0;
-      solve->forwardModel(objfun);
-    }
-    */
-
-  } //ROL-disc
   else if (analysis_type == "ROL_SIMOPT") {
     /*
     typedef ScalarT RealT;

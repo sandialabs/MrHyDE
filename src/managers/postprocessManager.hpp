@@ -24,6 +24,8 @@
 #include "parameterManager.hpp"
 #include "multiscaleManager.hpp"
 #include "linearAlgebraInterface.hpp"
+#include "MrHyDE_OptVector.hpp"
+
 #if defined(MrHyDE_ENABLE_FFTW)
 #include "fftInterface.hpp"
 #endif
@@ -405,8 +407,8 @@ namespace MrHyDE {
     // ========================================================================================
 
     void computeSensitivities(vector<vector_RCP> & u, vector<vector_RCP> & adjoint,
-                              const ScalarT & current_time, const ScalarT & deltat,
-                              vector<ScalarT> & gradient);
+                              const ScalarT & current_time, const int & tindex, const ScalarT & deltat,
+                              MrHyDE_OptVector & gradient);
 
     // ========================================================================================
     // ========================================================================================

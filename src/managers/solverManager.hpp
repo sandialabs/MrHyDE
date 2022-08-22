@@ -117,7 +117,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void adjointModel(vector<ScalarT> & gradient);
+    void adjointModel(MrHyDE_OptVector & gradient);
     
     // ========================================================================================
     /* solve the problem */
@@ -128,7 +128,8 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void transientSolver(vector<vector_RCP> & initial, DFAD & obj, vector<ScalarT> & gradient,
+    void transientSolver(vector<vector_RCP> & initial, DFAD & obj, 
+                         MrHyDE_OptVector & gradient,
                          ScalarT & start_time, ScalarT & end_time);
     
     // ========================================================================================

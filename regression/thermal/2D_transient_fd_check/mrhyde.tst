@@ -45,7 +45,6 @@ if its.opts.preprocess:
 
 status += its.call('mpiexec -n 4 ../../mrhyde >& mrhyde.log')
 status += its.clean_log()
-status += its.call('rm final_params.dat param_stash.dat ROL_out.txt')
 
 
 flog = '%s.log' % (root)

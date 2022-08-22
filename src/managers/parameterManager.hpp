@@ -22,6 +22,7 @@
 #include "boundaryGroup.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "discretizationInterface.hpp"
+#include "MrHyDE_OptVector.hpp"
 
 namespace MrHyDE {
   
@@ -78,7 +79,9 @@ namespace MrHyDE {
     
     std::vector<ScalarT> getDiscretizedParamsVector();
     
-    std::vector<vector_RCP> getDiscretizedParams();
+    vector_RCP getDiscretizedParams();
+    
+    std::vector<vector_RCP> getDynamicDiscretizedParams();
     
     // ========================================================================================
     // ========================================================================================
@@ -88,7 +91,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void updateParams(std::vector<vector_RCP> & newparams);
+    void updateParams(MrHyDE_OptVector & newparams);
 
     void updateParams(const std::vector<ScalarT> & newparams, const int & type);
     
@@ -107,7 +110,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    std::vector<ScalarT> getParams(const int & type);
+    Teuchos::RCP<std::vector<ScalarT> > getParams(const int & type);
     
     // ========================================================================================
     // ========================================================================================
@@ -132,7 +135,9 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    std::vector<std::vector<ScalarT> > getParamBounds(const std::string & stype);
+    std::vector<Teuchos::RCP<std::vector<ScalarT> > > getActiveParamBounds();
+
+    std::vector<vector_RCP> getDiscretizedParamBounds();
     
     // ========================================================================================
     // ========================================================================================
@@ -142,7 +147,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    vector_RCP setInitialParams();
+    void setInitialParams();
     
     // ========================================================================================
     // ========================================================================================
@@ -178,10 +183,10 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<std::vector<AD> > > paramvals_AD;
     Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
     
-    std::vector<vector_RCP> Psol, dynamic_Psol;
-    std::vector<vector_RCP> auxsol;
-    std::vector<vector_RCP> dRdP;
-    bool have_dRdP, only_discretized, have_dynamic;
+    vector_RCP Psol, Psol_over;
+    std::vector<vector_RCP> dynamic_Psol, dynamic_Psol_over;
+    //std::vector<vector_RCP> auxsol;
+    bool have_dynamic;
     
     Teuchos::RCP<const panzer::DOFManager> discparamDOF;
     std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> DOF_LIDs;
@@ -208,7 +213,7 @@ namespace MrHyDE {
     std::vector<int> paramtypes;
     std::vector<std::vector<GO>> paramNodes;  // for distinguishing between parameter fields when setting initial
     std::vector<std::vector<GO>> paramNodesOS;// values and bounds
-    int num_inactive_params, num_active_params, num_stochastic_params, num_discrete_params, num_discretized_params;
+    size_t num_inactive_params, num_active_params, num_stochastic_params, num_discrete_params, num_discretized_params;
     std::vector<ScalarT> initialParamValues, lowerParamBounds, upperParamBounds, discparamVariance;
     
     //std::vector<ScalarT> domainRegConstants, boundaryRegConstants;

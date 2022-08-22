@@ -40,18 +40,18 @@ namespace ROL {
   private:
     
     Real noise_;                                            //standard deviation of normal additive noise to add to data (0 for now)
-    Teuchos::RCP<SolverManager<SolverNode> > solver_MILO;                                     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
-    Teuchos::RCP<PostprocessManager<SolverNode> > postproc_MILO;                              // Postprocessing object for MILO (write solution, computes response, etc.)
+    Teuchos::RCP<SolverManager<SolverNode> > solver;                                     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
+    Teuchos::RCP<PostprocessManager<SolverNode> > postproc;                              // Postprocessing object for MILO (write solution, computes response, etc.)
     Teuchos::RCP<ParameterManager<SolverNode> > params;
   public:
     
     /*!
      \brief A constructor generating data
      */
-    Objective_MILO(Teuchos::RCP<SolverManager<SolverNode> > solver_MILO_,
-                   Teuchos::RCP<PostprocessManager<SolverNode> > postproc_MILO_,
+    Objective_MILO(Teuchos::RCP<SolverManager<SolverNode> > solver_,
+                   Teuchos::RCP<PostprocessManager<SolverNode> > postproc_,
                    Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
-    solver_MILO(solver_MILO_), postproc_MILO(postproc_MILO_), params(params_) {
+    solver(solver_), postproc(postproc_), params(params_) {
       
     } //end constructor
     
@@ -59,15 +59,14 @@ namespace ROL {
     ////////////////////////////////////////////////////////////////////////////////
     
     Real value(const Vector<Real> &Params, Real &tol){
-            
-      Teuchos::RCP<const std::vector<Real> > Paramsp =
-      (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
       
-      params->updateParams(*Paramsp, 1);
-      params->updateParams(*Paramsp, 4);
+      MrHyDE_OptVector Paramsp = 
+      Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
+      
+      params->updateParams(Paramsp);
       
       DFAD val = 0.0;
-      solver_MILO->forwardModel(val);
+      solver->forwardModel(val);
       
       params->stashParams(); //dumping to file, for long runs...
       
@@ -76,22 +75,17 @@ namespace ROL {
     
     //! Compute gradient of objective function with respect to parameters
     void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){
+      MrHyDE_OptVector Paramsp = 
+      Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
       
-      Teuchos::RCP<std::vector<Real> > gp =
-      Teuchos::rcp_const_cast<std::vector<Real> >((Teuchos::dyn_cast<StdVector<Real> >(g)).getVector());
-      Teuchos::RCP<const std::vector<Real> > Paramsp =
-      (Teuchos::dyn_cast<StdVector<Real> >(const_cast<Vector<Real> &>(Params))).getVector();
+      params->updateParams(Paramsp);
+
+      MrHyDE_OptVector sens = 
+      Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(g));
+      sens.zero();
       
-      params->updateParams(*Paramsp, 1);
-      params->updateParams(*Paramsp, 4);
-      
-      std::vector<ScalarT> sens;
-      solver_MILO->adjointModel(sens);
-      
-      for (size_t i=0; i<sens.size(); i++) {
-        (*gp)[i] = sens[i];
-      }
-      
+      solver->adjointModel(sens);
+
     }
     
     //! Compute the Hessian-vector product of the objective function

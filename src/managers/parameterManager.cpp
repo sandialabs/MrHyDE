@@ -56,7 +56,6 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   num_discrete_params = 0;
   num_discretized_params = 0;
   globalParamUnknowns = 0;
-  have_dRdP = false;
   discretized_stochastic = false;
   
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
@@ -72,12 +71,6 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   }
   
   this->setupParameters();
-  
-  only_discretized = false;
-  if (num_discretized_params>0 && num_active_params == 0) {
-    only_discretized = true;
-  }
-  
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -403,13 +396,13 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     param_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, paramOwnedAndShared, 0, Comm));
     
     param_exporter = Teuchos::rcp(new LA_Export(param_overlapped_map, param_owned_map));
-    param_importer = Teuchos::rcp(new LA_Import(param_overlapped_map, param_owned_map));
+    param_importer = Teuchos::rcp(new LA_Import(param_owned_map, param_overlapped_map));
     
     //vector< vector<int> > param_nodesOS(numParamUnknownsOS); // should be overlapped
     //vector< vector<int> > param_nodes(numParamUnknowns); // not overlapped -- for bounds
     vector< vector< vector<ScalarT> > > param_initial_vals; // custom initial guess set by assembler->groups
     
-    vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
+    this->setInitialParams(); 
     
     vector<vector<GO> > param_dofs;//(num_discretized_params);
     vector<vector<GO> > param_dofs_OS;//(num_discretized_params);
@@ -438,24 +431,24 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     for (int n = 0; n < num_discretized_params; n++) {
       if (!use_custom_initial_param_guess) {
         for (size_t i = 0; i < param_dofs_OS[n].size(); i++) {
-          paramVec->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
+          Psol_over->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
         }
       }
       paramNodesOS.push_back(param_dofs_OS[n]); // store for later use
       paramNodes.push_back(param_dofs[n]); // store for later use
     }
-    
-    Psol.push_back(paramVec);
+    Psol->doExport(*Psol_over, *param_exporter, Tpetra::REPLACE);
   }
   else {
     // set up a dummy parameter vector
     paramOwnedAndShared.push_back(0);
+    paramOwned.push_back(0);
     const Tpetra::global_size_t INVALID = Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid ();
     
     param_overlapped_map = Teuchos::rcp(new LA_Map(INVALID, paramOwnedAndShared, 0, Comm));
-    
-    vector_RCP paramVec = this->setInitialParams(); // TMW: this will be deprecated soon
-    Psol.push_back(paramVec);
+    param_owned_map = Teuchos::rcp(new LA_Map(INVALID, paramOwned, 0, Comm));
+
+    this->setInitialParams(); 
   }
   
   if (debug_level > 0) {
@@ -514,8 +507,7 @@ vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
   int numParams = this->getNumParams(4);
   vector<ScalarT> discLocalParams(numParams);
   vector<ScalarT> discParams(numParams);
-  //auto Psol_2d = Psol[0]->getLocalView<Kokkos::Device<Node::execution_space,Node::memory_space>>();
-  auto Psol_2d = Psol[0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto Psol_2d = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto Psol_host = Kokkos::create_mirror_view(Psol_2d);
   for (size_t i = 0; i < paramOwned.size(); i++) {
     int gid = paramOwned[i];
@@ -540,7 +532,16 @@ vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
 // ========================================================================================
 
 template<class Node>
-vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > ParameterManager<Node>::getDiscretizedParams() {
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::getDiscretizedParams() {
+  return Psol;
+}
+
+// ========================================================================================
+// return the discretized parameters as vector of vector_RCPs for use with ROL
+// ========================================================================================
+
+template<class Node>
+vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > ParameterManager<Node>::getDynamicDiscretizedParams() {
   return dynamic_Psol;
 }
 
@@ -548,7 +549,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > ParameterManager
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::setInitialParams() {
+void ParameterManager<Node>::setInitialParams() {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -556,13 +557,20 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::s
     }
   }
   
-  // TMW: why is this an overlapped map???
-  vector_RCP initial = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
-  initial->putScalar(2.0); // TMW: why is this hard-coded??? 
+  
+  Psol = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+  Psol_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+  Psol->putScalar(0.0); 
+  Psol_over->putScalar(0.0); // TMW: why is this hard-coded??? 
   if (have_dynamic) {
-    vector_RCP dyninit = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
-    dyninit->putScalar(2.0); // TMW: why is this hard-coded??? 
-    dynamic_Psol.push_back(dyninit);
+    for (int i=0; i<numTimeSteps; ++i) {
+      vector_RCP dyninit = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+      vector_RCP dyninit_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+      dyninit->putScalar(0.0); // TMW: why is this hard-coded??? 
+      dyninit_over->putScalar(0.0); // TMW: why is this hard-coded??? 
+      dynamic_Psol.push_back(dyninit);
+      dynamic_Psol_over.push_back(dyninit_over);
+    }
   }
   /*
   if (scalarInitialData) {
@@ -627,7 +635,6 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::s
     }
   }
   
-  return initial;
 }
 
 // ========================================================================================
@@ -744,17 +751,49 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
 // ========================================================================================
 
 template<class Node>
-void ParameterManager<Node>::updateParams(std::vector<vector_RCP> & newparams) {
+void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
+  
+  if (newparams.haveScalar()) {
+    auto scalar_params = newparams.getParameter();
 
-  if (only_discretized) {
-    for (size_t i=0; i< newparams.size(); ++i) {
-      dynamic_Psol[i]->assign(*(newparams[i]));
+    size_t pprog = 0;
+    // perhaps add a check that the size of newparams equals the number of parameters of the
+    // requested type
+  
+    for (size_t i=0; i<paramvals.size(); i++) {
+      if (paramtypes[i] == 1) {
+        for (size_t j=0; j<paramvals[i].size(); j++) {
+          if (Comm->getRank() == 0 && verbosity > 0) {
+            cout << "Updated Params: " << paramvals[i][j] << " (old value)   " << (*scalar_params)[pprog] << " (new value)" << endl;
+          }
+          paramvals[i][j] = (*scalar_params)[pprog];
+          pprog++;
+        }
+      }
     }
   }
-  else {
-    //throw an error
+
+  if (newparams.haveField()) {
+    auto disc_params = newparams.getField();
+    if (have_dynamic) {
+      for (size_t i=0; i<disc_params.size(); ++i) {
+        auto owned_vec = disc_params[i]->getVector();
+        dynamic_Psol[i]->assign(*owned_vec);
+        dynamic_Psol_over[i]->putScalar(0.0);
+        dynamic_Psol_over[i]->doImport(*owned_vec, *param_importer, Tpetra::ADD);
+      }
+    }
+    else {
+      auto owned_vec = disc_params[0]->getVector();
+      Psol->assign(*owned_vec);
+      Psol_over->putScalar(0.0);
+      Psol_over->doImport(*owned_vec, *param_importer, Tpetra::ADD);
+      //Psol->assign(*(disc_params[0]->getVector()));
+    }
   }
+
 }
+
 
 // ========================================================================================
 // ========================================================================================
@@ -781,15 +820,14 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
     int numClassicParams = this->getNumParams(1); // offset for ROL param vector
     for (size_t i = 0; i < paramOwnedAndShared.size(); i++) {
       int gid = paramOwnedAndShared[i];
-      Psol[0]->replaceGlobalValue(gid,0,newparams[gid+numClassicParams]);
-      //Psol[0]->replaceGlobalValue(gid,0,newparams[i+numClassicParams]);
+      Psol->replaceGlobalValue(gid,0,newparams[gid+numClassicParams]);
     }
   }
   if ((type == 2) && (globalParamUnknowns > 0)) {
     int numClassicParams = this->getNumParams(2); // offset for ROL param vector
     for (size_t i=0; i<paramOwnedAndShared.size(); i++) {
       int gid = paramOwnedAndShared[i];
-      Psol[0]->replaceGlobalValue(gid,0,newparams[i+numClassicParams]);
+      Psol->replaceGlobalValue(gid,0,newparams[i+numClassicParams]);
     }
   }
   
@@ -800,8 +838,11 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
 
 template<class Node>
 void ParameterManager<Node>::updateDynamicParams(const int & timestep) {
-  //Psol[0]->assign(*dynamic_Psol[timestep]);
+  if ((int)dynamic_Psol.size() > timestep) {
+    Psol->assign(*dynamic_Psol[timestep]);
+  }
 }
+
 // ========================================================================================
 // ========================================================================================
 
@@ -855,12 +896,12 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
 // ========================================================================================
 
 template<class Node>
-vector<ScalarT> ParameterManager<Node>::getParams(const int & type) {
-  vector<ScalarT> reqparams;
+Teuchos::RCP<vector<ScalarT> > ParameterManager<Node>::getParams(const int & type) {
+  Teuchos::RCP<vector<ScalarT> > reqparams = Teuchos::rcp(new std::vector<ScalarT>());
   for (size_t i=0; i<paramvals.size(); i++) {
     if (paramtypes[i] == type) {
       for (size_t j=0; j<paramvals[i].size(); j++) {
-        reqparams.push_back(paramvals[i][j]);
+        reqparams->push_back(paramvals[i][j]);
       }
     }
   }
@@ -938,47 +979,72 @@ vector<ScalarT> ParameterManager<Node>::getParams(const std::string & stype) {
 // ========================================================================================
 
 template<class Node>
-vector<vector<ScalarT> > ParameterManager<Node>::getParamBounds(const std::string & stype) {
-  vector<vector<ScalarT> > reqbnds;
-  vector<ScalarT> reqlo;
-  vector<ScalarT> requp;
-  int type = -1;
-  if (stype == "inactive") {type = 0;}
-  else if (stype == "active") {type = 1;}
-  else if (stype == "stochastic") {type = 2;}
-  else if (stype == "discrete") {type = 3;}
-  else if (stype == "discretized") {type = 4;}
-  
-  if (type == 0) {
-    std::cout << "Bounds for inactive parameters are currently at default of (0,0)" << std::endl;
-  }
-  
+vector<Teuchos::RCP<vector<ScalarT> > > ParameterManager<Node>::getActiveParamBounds() {
+  vector<Teuchos::RCP<vector<ScalarT> > > reqbnds;
+  Teuchos::RCP<vector<ScalarT> > reqlo = Teuchos::rcp( new vector<ScalarT> (num_active_params, 0.0) );
+  Teuchos::RCP<vector<ScalarT> > requp = Teuchos::rcp( new vector<ScalarT> (num_active_params, 0.0) );
+
+  size_t prog = 0;
   for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramtypes[i] == type) {
+    if (paramtypes[i] == 1) {
       for (size_t j=0; j<paramvals[i].size(); j++) {
-        reqlo.push_back(paramLowerBounds[i][j]);
-        requp.push_back(paramUpperBounds[i][j]);
+        (*reqlo)[prog] = paramLowerBounds[i][j];
+        (*requp)[prog] = paramUpperBounds[i][j];
+        prog++;
       }
     }
   }
+  reqbnds.push_back(reqlo);
+  reqbnds.push_back(requp);
+
+  return reqbnds;
+
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > ParameterManager<Node>::getDiscretizedParamBounds() {
+
+  vector<vector_RCP> reqbnds;
+
+  vector_RCP lower, upper, lower_over, upper_over;
+
+  if (globalParamUnknowns > 0) {
+
+    lower = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+    lower_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+    lower->putScalar(0.0); 
+    lower_over->putScalar(0.0);
+    
+    upper = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+    upper_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+    upper->putScalar(0.0); 
+    upper_over->putScalar(0.0); // TMW: why is this hard-coded??? 
   
-  if (type == 4 && globalParamUnknowns > 0) {
     int numDiscParams = this->getNumParams(4);
     vector<ScalarT> rLocalLo(numDiscParams);
     vector<ScalarT> rLocalUp(numDiscParams);
     vector<ScalarT> rlo(numDiscParams);
     vector<ScalarT> rup(numDiscParams);
-    for (int n = 0; n < num_discretized_params; n++) {
+    for (size_t n = 0; n < num_discretized_params; n++) {
       for (size_t i = 0; i < paramNodesOS[n].size(); i++) {
-        int pnode = paramNodesOS[n][i];
-        if (pnode >= 0) {
-          int pindex = paramOwned[pnode];
-          rLocalLo[pindex] = lowerParamBounds[n];
-          rLocalUp[pindex] = upperParamBounds[n];
-        }
+        //int pnode = paramNodesOS[n][i];
+        lower_over->replaceGlobalValue(paramNodesOS[n][i],0,lowerParamBounds[n]);
+        upper_over->replaceGlobalValue(paramNodesOS[n][i],0,upperParamBounds[n]);
+        //if (pnode >= 0) {
+        //  int pindex = paramOwned[pnode];
+        //  rLocalLo[pindex] = lowerParamBounds[n];
+        //  rLocalUp[pindex] = upperParamBounds[n];
+        //}
       }
     }
     
+    lower->doExport(*lower_over, *param_exporter, Tpetra::REPLACE);
+    upper->doExport(*upper_over, *param_exporter, Tpetra::REPLACE);
+
+    /*
     for (int i = 0; i < numDiscParams; i++) {
       
       ScalarT globalval = 0.0;
@@ -996,11 +1062,11 @@ vector<vector<ScalarT> > ParameterManager<Node>::getParamBounds(const std::strin
     
     reqlo = rlo;
     requp = rup;
-    
+    */
   }
   
-  reqbnds.push_back(reqlo);
-  reqbnds.push_back(requp);
+  reqbnds.push_back(lower);
+  reqbnds.push_back(upper);
   return reqbnds;
 }
 

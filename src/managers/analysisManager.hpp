@@ -75,7 +75,7 @@ namespace MrHyDE {
     Teuchos::RCP<ParameterManager<SolverNode> > params;
     
     ScalarT response;
-    vector<ScalarT> gradient;
+    Teuchos::RCP<MrHyDE_OptVector> gradient;
     int verbosity, debug_level;
     
     bool sensIC;

@@ -1793,7 +1793,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         totaldiff[r] += objectives[r].weight*objsum_host(0);
         
         // Update the gradients w.r.t scalar active parameters
-        for (int p=0; p<params->num_active_params; p++) {
+        for (size_t p=0; p<params->num_active_params; p++) {
           gradients[r][p] += objectives[r].weight*objsum_host(p+1);
         }
       }
@@ -1946,7 +1946,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         totaldiff[r] += objsum_host(0);
         
         // Update the gradients w.r.t scalar active parameters
-        for (int p=0; p<params->num_active_params; p++) {
+        for (size_t p=0; p<params->num_active_params; p++) {
           gradients[r][p] += objsum_host(p+1);
         }
       }
@@ -2189,7 +2189,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               // Update the gradient w.r.t scalar active parameters
   #ifndef MrHyDE_NO_AD
-              for (int p=0; p<params->num_active_params; p++) {
+              for (size_t p=0; p<params->num_active_params; p++) {
                 gradients[r][p] += sdiff.fastAccessDx(p);
               }
   #endif
@@ -3345,8 +3345,9 @@ template<class Node>
 void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
                                                     vector<vector_RCP> & adjoint,
                                                     const ScalarT & current_time,
+                                                    const int & tindex,
                                                     const ScalarT & deltat,
-                                                    vector<ScalarT> & gradient) {
+                                                    MrHyDE_OptVector & gradient) {
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -3372,8 +3373,10 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   
     params->sacadoizeParams(true);
     
-    vector<ScalarT> localsens(params->num_active_params);
-    
+    //vector<ScalarT> localsens(params->num_active_params);
+    auto scalar_grad = gradient.getParameter()->getVector();
+
+    vector<ScalarT> local_grad(scalar_grad->size(),0.0);
     vector_RCP res = linalg->getNewVector(set,params->num_active_params);
     matrix_RCP J = linalg->getNewMatrix(set);
     vector_RCP res_over = linalg->getNewOverlappedVector(set,params->num_active_params);
@@ -3385,18 +3388,18 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
     assembler->assembleJacRes(set, u[set], u[set], false, true, false,
                               res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                              params->num_active_params, params->Psol[0], false, deltat); //is_final_time, deltat);
+                              params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
     
     linalg->exportVectorFromOverlapped(set, res, res_over);
     
-    for (int paramiter=0; paramiter<params->num_active_params; paramiter++) {
+    for (size_t paramiter=0; paramiter<params->num_active_params; paramiter++) {
       // fine-scale
       if (assembler->groups[0][0]->groupData->multiscale) {
         ScalarT subsens = 0.0;
         for (size_t block=0; block<assembler->groups.size(); ++block) {
           for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
             subsens = -assembler->groups[block][grp]->subgradient(0,paramiter);
-            localsens[paramiter] += subsens;
+            local_grad[paramiter] += subsens;
           }
         }
       }
@@ -3406,7 +3409,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
         for( size_t i=0; i<res_kv.extent(0); i++ ) {
           currsens += adjoint_kv(i,0) * res_kv(i,paramiter);
         }
-        localsens[paramiter] = -currsens;
+        local_grad[paramiter] = -currsens;
       }
       
     }
@@ -3415,22 +3418,23 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     ScalarT localval = 0.0;
     ScalarT globalval = 0.0;
     int numderivs = (int)obj_sens.size();
-    for (int paramiter=0; paramiter < params->num_active_params; paramiter++) {
-      localval = localsens[paramiter];
+    for (size_t paramiter=0; paramiter < params->num_active_params; paramiter++) {
+      localval = local_grad[paramiter];
       Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
       //Comm->SumAll(&localval, &globalval, 1);
       ScalarT cobj = 0.0;
       
-      if (paramiter<numderivs) {
+      if ((int)paramiter<numderivs) {
         cobj = obj_sens.fastAccessDx(paramiter);
       }
       globalval += cobj;
-      if ((int)gradient.size()<=paramiter) {
-        gradient.push_back(globalval);
-      }
-      else {
-        gradient[paramiter] += globalval;
-      }
+      (*scalar_grad)[paramiter] += globalval;
+      //if ((int)gradient.size()<=paramiter) {
+      //  gradient.push_back(globalval);
+      //}
+      //else {
+      //  gradient[paramiter] += globalval;
+      //}
     }
     params->sacadoizeParams(false);
   }
@@ -3439,31 +3443,46 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   
   if (numDiscParams > 0) {
     
+    auto disc_grad = gradient.getField();
+    vector_RCP curr_grad;
+    if (gradient.isDynamic()) {
+      curr_grad = disc_grad[tindex]->getVector();
+    }
+    else {
+      curr_grad = disc_grad[0]->getVector();
+    }
+    
     auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, deltat);
+    
     auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
 
-    vector<ScalarT> discLocalGradient(numDiscParams);
-    vector<ScalarT> discGradient(numDiscParams);
+    //vector<ScalarT> discLocalGradient(numDiscParams);
+    //vector<ScalarT> discGradient(numDiscParams);
     for (size_t i = 0; i < params->paramOwned.size(); i++) {
-      GO gid = params->paramOwned[i];
-      discLocalGradient[gid] = sens_kv(i,0);
-    }
-    for (int i = 0; i < numDiscParams; i++) {
-      ScalarT globalval = 0.0;
-      ScalarT localval = discLocalGradient[i];
-      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+      //GO gid = params->paramOwned[i];
+      //discLocalGradient[gid] = sens_kv(i,0);
+    //}
+    //for (int i = 0; i < numDiscParams; i++) {
+      //ScalarT globalval = 0.0;
+      //ScalarT localval = discLocalGradient[i];
+      //Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
       ScalarT cobj = 0.0;
-      if ((i+params->num_active_params)<(int)obj_sens.size()) {
+      if ((int)(i+params->num_active_params)<obj_sens.size()) {
         cobj = obj_sens.fastAccessDx(i+params->num_active_params);
       }
-      globalval += cobj;
-      if ((int)gradient.size()<=params->num_active_params+i) {
-        gradient.push_back(globalval);
-      }
-      else {
-        gradient[params->num_active_params+i] += globalval;
-      }
+      //globalval += cobj;
+      sens_kv(i,0) += cobj;
+      //if ((int)gradient.size()<=params->num_active_params+i) {
+      //  gradient.push_back(globalval);
+      //}
+      //else {
+      //  gradient[params->num_active_params+i] += globalval;
+      //}
     }
+
+    curr_grad->update(1.0, *sens, 1.0);
+    
+
   }
   
   if (debug_level > 1) {
@@ -3486,10 +3505,9 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
 
   int set = 0; // hard-coded for now
   
-  typedef typename Node::device_type LA_device;
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
-  
+
   vector_RCP res_over = linalg->getNewOverlappedVector(set);
   matrix_RCP J = linalg->getNewParamMatrix();
   matrix_RCP J_over = linalg->getNewParamOverlappedMatrix();
@@ -3499,7 +3517,7 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
     
   assembler->assembleJacRes(set, u[set], u[set], true, false, true,
                             res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                            params->num_active_params, params->Psol[0], false, deltat); //is_final_time, deltat);
+                            params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
     
   linalg->fillCompleteParam(set, J_over);
     

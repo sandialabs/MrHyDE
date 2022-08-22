@@ -1132,7 +1132,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
     this->steadySolver(objective, u);
   }
   else if (solver_type == "transient") {
-    vector<ScalarT> gradient; // not really used here
+    MrHyDE_OptVector gradient; // not really used here
     this->transientSolver(u, objective, gradient, initial_time, final_time);
   }
   else {
@@ -1187,7 +1187,7 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u)
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::adjointModel(vector<ScalarT> & gradient) {
+void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1218,7 +1218,7 @@ void SolverManager<Node>::adjointModel(vector<ScalarT> & gradient) {
       
       this->nonlinearSolver(0, u[0], phi[0]);
       
-      postproc->computeSensitivities(u, phi, current_time, deltat, gradient);
+      postproc->computeSensitivities(u, phi, 0, current_time, deltat, gradient);
       
     }
     else if (solver_type == "transient") {
@@ -1246,7 +1246,8 @@ void SolverManager<Node>::adjointModel(vector<ScalarT> & gradient) {
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & obj, vector<ScalarT> & gradient,
+void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & obj, 
+                                          MrHyDE_OptVector & gradient,
                                           ScalarT & start_time, ScalarT & end_time) {
   
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
@@ -1438,6 +1439,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       if (!fndup) {
         // throw error
       }
+      params->updateDynamicParams(cindex);
+
       assembler->performGather(set,u_prev[set],0,0);
       assembler->resetPrevSoln(set);
       
@@ -1449,7 +1452,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         if (status>0) {
           // throw error
         }
-        postproc->computeSensitivities(u, phi, current_time, deltat, gradient);
+        postproc->computeSensitivities(u, phi, current_time, cindex, deltat, gradient);
       }
       else {
         /*
@@ -1582,7 +1585,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
 
     assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
                               current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                              params->num_active_params, params->Psol[0], is_final_time, deltat);
+                              params->num_active_params, params->Psol_over, is_final_time, deltat);
     
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
     
@@ -1771,7 +1774,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   
   assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
                             current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                            params->num_active_params, params->Psol[0], is_final_time, deltat);
+                            params->num_active_params, params->Psol_over, is_final_time, deltat);
   
   
   linalg->exportVectorFromOverlapped(set, current_res, current_res_over);

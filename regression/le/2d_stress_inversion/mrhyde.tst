@@ -45,10 +45,7 @@ if its.opts.preprocess:
 
 status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
 status += its.clean_log()
-
-
 status += its.call('diff -y %s.log %s.gold' % (root, root))
-status += its.call('rm -f ROL_out.txt final_params.dat')
 
 # ------------------------------
 
