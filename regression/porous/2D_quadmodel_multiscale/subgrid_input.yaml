@@ -1,0 +1,118 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Subgrid:
+    subgrid model: DtN2
+    static subgrids: true
+    number of models: 3
+    Model0:
+      usage: 'y<0.25'
+      Mesh:
+        element shape: quad
+        refinements: 0
+        dimension: 2
+        blocknames: eblock
+      Physics: 
+        modules: porous weak Galerkin
+        Active variables:
+          pint: HVOL
+          u: HDIV
+          t: HDIV
+      Discretization:
+        order:
+          pint: 0
+          pbndry: 0
+          u: 1
+          t: 1
+        quadrature: 2
+      Solver:
+        solver: steady-state
+      Postprocess:
+        True solutions:
+          pint: sin(2*pi*x)*sin(2*pi*y)
+          pbndry: sin(2*pi*x)*sin(2*pi*y)
+          'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+          'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
+      Functions:
+        source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Model1:
+      usage: '(y>=0.25)*(y<0.5)'
+      Mesh:
+        element shape: quad
+        refinements: 0
+        dimension: 2
+        blocknames: eblock
+      Physics: 
+        modules: porous mixed
+        Active variables:
+          p: HVOL
+          u: HDIV
+      Discretization:
+        order:
+          p: 0
+          u: 1
+        quadrature: 2
+      Solver:
+        solver: steady-state
+      Postprocess:
+        True solutions:
+          p: sin(2*pi*x)*sin(2*pi*y)
+          'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+          'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
+      Functions:
+        source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Model2:
+      usage: 'y>=0.5'
+      Mesh:
+        element shape: quad
+        refinements: 0
+        dimension: 2
+        blocknames: eblock
+      Physics: 
+        modules: porous
+        Active variables:
+          p: HGRAD
+      Discretization:
+        order:
+          p: 1
+        quadrature: 2
+      Solver:
+        solver: steady-state
+      Postprocess:
+        True solutions:
+          p: sin(2*pi*x)*sin(2*pi*y)
+          'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+          'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
+      Functions:
+        gravity: '0.0'
+        'porous source': 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+    Model3:
+      usage: '0.0'
+      Mesh:
+        element shape: quad
+        refinements: 0
+        dimension: 2
+        blocknames: eblock
+      Physics: 
+        modules: porous mixed hybridized
+        Active variables:
+          p: HVOL
+          u: HDIV-DG
+          lambda: HFACE
+      Discretization:
+        order:
+          p: 0
+          u: 1
+          lambda: 0
+        quadrature: 2
+      Solver:
+        solver: steady-state
+      Postprocess:
+        True solutions:
+          lambda face: sin(2*pi*x)*sin(2*pi*y)
+          p: sin(2*pi*x)*sin(2*pi*y)
+          'u[x]': -2*pi*cos(2*pi*x)*sin(2*pi*y)
+          'u[y]': -2*pi*sin(2*pi*x)*cos(2*pi*y)
+      Functions:
+        source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
+...
