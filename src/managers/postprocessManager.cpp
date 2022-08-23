@@ -3429,12 +3429,6 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       }
       globalval += cobj;
       (*scalar_grad)[paramiter] += globalval;
-      //if ((int)gradient.size()<=paramiter) {
-      //  gradient.push_back(globalval);
-      //}
-      //else {
-      //  gradient[paramiter] += globalval;
-      //}
     }
     params->sacadoizeParams(false);
   }
@@ -3446,7 +3440,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     auto disc_grad = gradient.getField();
     vector_RCP curr_grad;
     if (gradient.isDynamic()) {
-      curr_grad = disc_grad[tindex]->getVector();
+      curr_grad = disc_grad[tindex-1]->getVector();
     }
     else {
       curr_grad = disc_grad[0]->getVector();
@@ -3456,28 +3450,12 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
     auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
 
-    //vector<ScalarT> discLocalGradient(numDiscParams);
-    //vector<ScalarT> discGradient(numDiscParams);
     for (size_t i = 0; i < params->paramOwned.size(); i++) {
-      //GO gid = params->paramOwned[i];
-      //discLocalGradient[gid] = sens_kv(i,0);
-    //}
-    //for (int i = 0; i < numDiscParams; i++) {
-      //ScalarT globalval = 0.0;
-      //ScalarT localval = discLocalGradient[i];
-      //Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
       ScalarT cobj = 0.0;
       if ((int)(i+params->num_active_params)<obj_sens.size()) {
         cobj = obj_sens.fastAccessDx(i+params->num_active_params);
       }
-      //globalval += cobj;
       sens_kv(i,0) += cobj;
-      //if ((int)gradient.size()<=params->num_active_params+i) {
-      //  gradient.push_back(globalval);
-      //}
-      //else {
-      //  gradient[params->num_active_params+i] += globalval;
-      //}
     }
 
     curr_grad->update(1.0, *sens, 1.0);

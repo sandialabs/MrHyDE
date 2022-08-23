@@ -60,7 +60,6 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
-  have_dynamic = settings->sublist("Solver").get<bool>("dynamic parameters",false);
   if (settings->sublist("Solver").isParameter("number of steps")) {
     numTimeSteps = settings->sublist("Solver").get<int>("number of steps",1);
   }
@@ -72,6 +71,13 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   
   this->setupParameters();
   
+  have_dynamic = false;
+  for (size_t dp=0; dp<discretized_param_dynamic.size(); ++dp) {
+    if (discretized_param_dynamic[dp]) {
+      have_dynamic = true;
+    }
+  }
+
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished ParameterManager constructor" << endl;
@@ -314,7 +320,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
       if (groups[block].size() > 0) {
         int numLocalDOF = 0;
         Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of param DOF per variable",num_discretized_params);
-        for (int k=0; k<num_discretized_params; k++) {
+        for (size_t k=0; k<num_discretized_params; k++) {
           numDOF_KV(k) = paramNumBasis[k];
           numLocalDOF += paramNumBasis[k];
         }
@@ -350,7 +356,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     for (size_t block=0; block<boundary_groups.size(); ++block) {
       if (boundary_groups[block].size() > 0) {
         int numLocalDOF = 0;
-        for (int k=0; k<num_discretized_params; k++) {
+        for (size_t k=0; k<num_discretized_params; k++) {
           numLocalDOF += paramNumBasis[k];
         }
         
@@ -406,7 +412,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     
     vector<vector<GO> > param_dofs;//(num_discretized_params);
     vector<vector<GO> > param_dofs_OS;//(num_discretized_params);
-    for (int num=0; num<num_discretized_params; num++) {
+    for (size_t num=0; num<num_discretized_params; num++) {
       vector<GO> dofs, dofs_OS;
       param_dofs.push_back(dofs);
       param_dofs_OS.push_back(dofs_OS);
@@ -419,7 +425,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
         size_t elemID = EIDs[e];
         paramDOF->getElementGIDs(elemID, gids, blocknames[block]);
         
-        for (int num=0; num<num_discretized_params; num++) {
+        for (size_t num=0; num<num_discretized_params; num++) {
           vector<int> var_offsets = paramDOF->getGIDFieldOffsets(blocknames[block],num);
           for (size_t dof=0; dof<var_offsets.size(); dof++) {
             param_dofs_OS[num].push_back(gids[var_offsets[dof]]);
@@ -428,9 +434,14 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
       }
     }
     
-    for (int n = 0; n < num_discretized_params; n++) {
+    for (size_t n = 0; n < num_discretized_params; n++) {
       if (!use_custom_initial_param_guess) {
         for (size_t i = 0; i < param_dofs_OS[n].size(); i++) {
+          if (have_dynamic) {
+            for (size_t j=0; j<dynamic_Psol_over.size(); ++j) {
+              dynamic_Psol_over[j]->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
+            }
+          }
           Psol_over->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
         }
       }
@@ -438,6 +449,11 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
       paramNodes.push_back(param_dofs[n]); // store for later use
     }
     Psol->doExport(*Psol_over, *param_exporter, Tpetra::REPLACE);
+    if (have_dynamic) {
+      for (size_t i=0; i<dynamic_Psol_over.size(); ++i) {
+        dynamic_Psol[i]->doExport(*(dynamic_Psol_over[i]), *param_exporter, Tpetra::REPLACE);
+      }
+    }
   }
   else {
     // set up a dummy parameter vector
@@ -775,6 +791,7 @@ void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
 
   if (newparams.haveField()) {
     auto disc_params = newparams.getField();
+    
     if (have_dynamic) {
       for (size_t i=0; i<disc_params.size(); ++i) {
         auto owned_vec = disc_params[i]->getVector();
@@ -838,8 +855,9 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
 
 template<class Node>
 void ParameterManager<Node>::updateDynamicParams(const int & timestep) {
+  
   if ((int)dynamic_Psol.size() > timestep) {
-    Psol->assign(*dynamic_Psol[timestep]);
+    Psol_over->assign(*dynamic_Psol_over[timestep]);
   }
 }
 

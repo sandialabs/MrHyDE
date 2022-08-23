@@ -428,7 +428,7 @@ void AnalysisManager::run() {
           srand(time(NULL)); //initialize random seed
         }
         d->randomize();
-      }\
+      }
       
       // check gradient and Hessian-vector computation using finite differences
       obj->checkGradient(*x, *d, (Comm->getRank() == 0));

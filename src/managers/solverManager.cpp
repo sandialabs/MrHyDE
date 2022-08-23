@@ -1439,7 +1439,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       if (!fndup) {
         // throw error
       }
-      params->updateDynamicParams(cindex);
+      params->updateDynamicParams(cindex-1);
 
       assembler->performGather(set,u_prev[set],0,0);
       assembler->resetPrevSoln(set);

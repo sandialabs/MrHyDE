@@ -1,0 +1,130 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Analysis: 
+    analysis type: ROL
+    have sensor points: false
+    have sensor data: false
+    save sensor data: false
+    move sensors to IP: false
+    use line search: false
+    write output: false
+    ROL: 
+      General: 
+        Variable Objective Function: false
+        Scale for Epsilon Active Sets: 1.0
+        Use Scaling For Epsilon-Active Sets: false
+        Do grad+hessvec check: false
+        Generate data: true
+        Bound Optimization Variables: false
+        Inexact Objective Function: false
+        Inexact Gradient: false
+        Inexact Hessian-Times-A-Vector: false
+        Projected Gradient Criticality Measure: false
+        Secant: 
+          Type: Limited-Memory BFGS
+          Use as Preconditioner: false
+          Use as Hessian: true
+          Maximum Storage: 10
+          Barzilai-Borwein Type: 1
+        Krylov: 
+          Type: Conjugate Gradients
+          Absolute Tolerance: 1.0e-6
+          Relative Tolerance: 1.0e-4
+          Iteration Limit: 20
+      Step: 
+        Line Search: 
+          Function Evaluation Limit: 20
+          Sufficient Decrease Tolerance: 1.0e-04
+          Initial Step Size: 1.0
+          User Defined Initial Step Size: false
+          Accept Linesearch Minimizer: false
+          Accept Last Alpha: false
+          Descent Method: 
+            Type: Newton-Krylov
+            Nonlinear CG Type: Hestenes-Stiefel
+          Curvature Condition: 
+            Type: Strong Wolfe Conditions
+            General Parameter: 9.0e-01
+            Generalized Wolfe Parameter: 6.0e-01
+          Line-Search Method: 
+            Type: Cubic Interpolation
+            Backtracking Rate: 5.0e-01
+            Bracketing Tolerance: 1.0e-8
+            Path-Based Target Level: 
+              Target Relaxation Parameter: 1.0
+              Upper Bound on Path Length: 1.0
+        Trust Region: 
+          Subproblem Solver: Truncated CG
+          Initial Radius: 1.0e+02
+          Maximum Radius: 5.0e+18
+          Step Acceptance Threshold: 5.0e-02
+          Radius Shrinking Threshold: 5.0e-02
+          Radius Growing Threshold: 9.0e-01
+          Radius Shrinking Rate (Negative rho): 6.25e-02
+          Radius Shrinking Rate (Positive rho): 2.5e-01
+          Radius Growing Rate: 2.5
+          Safeguard Size: 1.0e+01
+          Inexact: 
+            Value: 
+              Tolerance Scaling: 1.0e-01
+              Exponent: 9.0e-01
+              Forcing Sequence Initial Value: 1.0
+              Forcing Sequence Update Frequency: 10
+              Forcing Sequence Reduction Factor: 1.0e-01
+            Gradient: 
+              Tolerance Scaling: 1.0e-01
+              Relative Tolerance: 2.0
+        Primal Dual Active Set: 
+          Dual Scaling: 1.0
+          Iteration Limit: 10
+          Relative Step Tolerance: 1.0e-08
+          Relative Gradient Tolerance: 1.0e-6
+        Composite Step: 
+          Output Level: 0
+          Optimality System Solver: 
+            Nominal Relative Tolerance: 1.0e-08
+            Fix Tolerance: true
+          Tangential Subproblem Solver: 
+            Iteration Limit: 20
+            Relative Tolerance: 1.0e-02
+        Augmented Lagrangian: 
+          Initial Penalty Parameter: 1.0e+01
+          Penalty Parameter Growth Factor: 1.0e+01
+          Minimum Penalty Parameter Reciprocal: 1.0e-01
+          Initial Optimality Tolerance: 1.0
+          Optimality Tolerance Update Exponent: 1.0
+          Optimality Tolerance Decrease Exponent: 1.0
+          Initial Feasibility Tolerance: 1.0
+          Feasibility Tolerance Update Exponent: 1.0e-01
+          Feasibility Tolerance Decrease Exponent: 9.0e-01
+          Print Intermediate Optimization History: false
+          Subproblem Step Type: Trust Region
+          Subproblem Iteration Limit: 1000
+        Moreau-Yosida Penalty: 
+          Initial Penalty Parameter: 1.0e+02
+          Penalty Parameter Growth Factor: 1.0
+          Subproblem: 
+            Optimality Tolerance: 1.0e-12
+            Feasibility Tolerance: 1.0e-12
+            Print History: false
+            Iteration Limit: 200
+        Bundle: 
+          Initial Trust-Region Parameter: 1.0e+01
+          Maximum Trust-Region Parameter: 1.0e+08
+          Tolerance for Trust-Region Parameter: 1.0e-04
+          Epsilon Solution Tolerance: 1.0e-08
+          Upper Threshold for Serious Step: 1.0e-01
+          Lower Threshold for Serious Step: 2.0e-01
+          Upper Threshold for Null Step: 9.0e-01
+          Distance Measure Coefficient: 1.0e-6
+          Maximum Bundle Size: 50
+          Removal Size for Bundle Update: 2
+          Cutting Plane Tolerance: 1.0e-08
+          Cutting Plane Iteration Limit: 1000
+      Status Test: 
+        Gradient Tolerance: 1.0e-12
+        Constraint Tolerance: 1.0e-8
+        Step Tolerance: 1.0e-12
+        Iteration Limit: 4
+...
