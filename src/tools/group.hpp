@@ -319,6 +319,8 @@ namespace MrHyDE {
     
     void computeSolutionAverage(const string & var, View_Sc2 sol);
     
+    void computeParameterAverage(const string & var, View_Sc2 sol);
+    
     Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & var);
     
     size_t getVolumetricStorage();

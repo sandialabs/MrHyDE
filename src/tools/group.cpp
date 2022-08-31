@@ -596,6 +596,9 @@ void Group::computeSolAvg() {
    */
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
 void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   
   Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
@@ -638,6 +641,68 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   
   size_t set = wkset->current_set;
   auto csol = subview(u[set],ALL(),index,ALL());
+  parallel_for("wkset soln ip HGRAD",
+               RangePolicy<AssemblyExec>(0,cwts.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    LO bind = bindex(elem);
+    for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
+      ScalarT avgval = 0.0;
+      for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
+        for (size_type pt=0; pt<cbasis.extent(2); ++pt) {
+          avgval += csol(elem,dof)*cbasis(bind,dof,pt,dim)*cwts(elem,pt);
+        }
+      }
+      sol(elem,dim) = avgval/avgwts(elem);
+    }
+  });
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+void Group::computeParameterAverage(const string & var, View_Sc2 sol) {
+  
+  Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
+  
+  // Figure out which basis we need
+  int index;
+  wkset->isParameter(var,index);
+  
+  View_Sc4 cbasis;
+  auto cwts = wts;
+
+  auto bindex = basis_index;
+  if (storeAll) {
+    cbasis = basis[wkset->paramusebasis[index]];
+  }
+  else if (groupData->use_basis_database) {
+    cbasis = groupData->database_basis[wkset->paramusebasis[index]];
+  }
+  else {
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+    vector<View_Sc3> tbasis_div;
+    disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
+                                     tbasis, tbasis_grad, tbasis_curl,
+                                     tbasis_div, tbasis_nodes);
+    cbasis = tbasis[wkset->paramusebasis[index]];
+  }
+  
+  // Compute the average weight, i.e., the size of each elem
+  // May consider storing this
+  View_Sc1 avgwts("elem size",cwts.extent(0));
+  parallel_for("Group sol avg",
+               RangePolicy<AssemblyExec>(0,cwts.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    ScalarT avgwt = 0.0;
+    for (size_type pt=0; pt<cwts.extent(1); pt++) {
+      avgwt += cwts(elem,pt);
+    }
+    avgwts(elem) = avgwt;
+  });
+  
+  size_t set = wkset->current_set;
+  auto csol = subview(param,ALL(),index,ALL());
   parallel_for("wkset soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
