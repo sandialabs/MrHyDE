@@ -428,6 +428,10 @@ void AnalysisManager::run() {
           srand(time(NULL)); //initialize random seed
         }
         d->randomize();
+        if (ROLsettings.sublist("General").isParameter("FD Scale")) {
+          ScalarT scale = ROLsettings.sublist("General").get<double>("FD Scale",1.0);
+          d->scale(scale);
+        }
       }
       
       // check gradient and Hessian-vector computation using finite differences
