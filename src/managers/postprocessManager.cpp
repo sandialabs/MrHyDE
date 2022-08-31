@@ -3100,6 +3100,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           D_no->doExport(*D_soln, *(linalg->exporter[set]), Tpetra::REPLACE);
           diff->update(1.0, *u_no, 0.0);
           diff->update(-1.0, *D_no, 1.0);
+          //grad->update(-2.0*objectives[r].weight,*diff,1.0);
           grad->update(-2.0*objectives[r].weight,*diff,1.0);
         }
         else {
@@ -3732,6 +3733,41 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             mesh->stk_mesh->setCellFieldData(dpnames[n]+append, blockID, myElements, soln_computed);
           }
           else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_y_dev("solution",myElements.size());
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_z_dev("solution",myElements.size());
+            auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
+            auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
+            auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
+            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,spaceDim);
+            
+            for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
+              auto eID = assembler->groups[block][grp]->localElemID;
+              
+              assembler->groups[block][grp]->computeParameterAverage(dpnames[n],sol);
+              //auto sol = Kokkos::subview(assembler->groups[block][grp]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot HDIV/HCURL",
+                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                           KOKKOS_LAMBDA (const int elem ) {
+                soln_x_dev(eID(elem)) = sol(elem,0);
+                if (sol.extent(1) > 1) {
+                  soln_y_dev(eID(elem)) = sol(elem,1);
+                }
+                if (sol.extent(1) > 2) {
+                  soln_z_dev(eID(elem)) = sol(elem,2);
+                }
+              });
+            }
+            Kokkos::deep_copy(soln_x, soln_x_dev);
+            Kokkos::deep_copy(soln_y, soln_y_dev);
+            Kokkos::deep_copy(soln_z, soln_z_dev);
+            mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"x", blockID, myElements, soln_x);
+            if (spaceDim > 1) {
+              mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"y", blockID, myElements, soln_y);
+            }
+            if (spaceDim > 2) {
+              mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"z", blockID, myElements, soln_z);
+            }
             // TMW: this is not actually implemented yet ... not hard to do though
             /*
              Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
