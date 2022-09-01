@@ -351,10 +351,10 @@ void AnalysisManager::run() {
     x->set(xtmp);
 
     //testing objective
-    ScalarT roltol = 1e-8;
-    *outStream << "\nTesting objective!!\n";
-    obj->value(*x, roltol);
-    *outStream << "\nObjective evaluation works!!\n";
+    //ScalarT roltol = 1e-8;
+    //*outStream << "\nTesting objective!!\n";
+    //obj->value(*x, roltol);
+    //*outStream << "\nObjective evaluation works!!\n";
 
     //bound contraint
     Teuchos::RCP<ROL::Bounds<RealT> > con;
