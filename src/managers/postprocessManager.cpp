@@ -3447,6 +3447,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       curr_grad = disc_grad[0]->getVector();
     }
     
+    
     auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, deltat);
     
     auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
@@ -3458,10 +3459,9 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       }
       sens_kv(i,0) += cobj;
     }
-
+    
     curr_grad->update(1.0, *sens, 1.0);
     
-
   }
   
   if (debug_level > 1) {
@@ -3493,19 +3493,23 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
   res_over->putScalar(0.0);
   J->setAllToScalar(0.0);
   J_over->setAllToScalar(0.0);
-    
+  
   assembler->assembleJacRes(set, u[set], u[set], true, false, true,
                             res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
                             params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
     
   linalg->fillCompleteParam(set, J_over);
-    
+  
   vector_RCP gradient = linalg->getNewParamVector();
     
   linalg->exportParamMatrixFromOverlapped(J, J_over);
+
   linalg->fillCompleteParam(set,J);
-    
-  J->apply(*adjoint[set],*gradient);
+  
+  vector_RCP adj = linalg->getNewVector(set);
+  adj->doExport(*(adjoint[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
+  J->apply(*adj,*gradient);
+  
 
   return gradient;
 }

@@ -278,6 +278,7 @@ namespace MrHyDE {
     void fillCompleteParam(const size_t & set, matrix_RCP & mat) {
       Teuchos::TimeMonitor mattimer(*fillcompletetimer);
       mat->fillComplete(owned_map[set], param_owned_map);
+      //mat->fillComplete(param_owned_map, owned_map[set]);
     }
   
     void fillComplete(matrix_RCP & mat) {
