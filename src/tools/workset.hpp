@@ -374,7 +374,7 @@ namespace MrHyDE {
         
     int sidetype;
     //Kokkos::View<int****,AssemblyDevice> sideinfo;
-    string sidename;//, var;
+    string sidename, blockname;//, var;
     int currentside;
     
     bool have_rotation, have_rotation_phi;

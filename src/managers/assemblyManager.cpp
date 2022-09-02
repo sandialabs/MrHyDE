@@ -1731,6 +1731,7 @@ void AssemblyManager<Node>::createWorkset() {
                                                 groupData[block]->cellTopo)));
                                                 //mesh->cellTopo[block]) ) );
       wkset[block]->block = block;
+      wkset[block]->blockname = blocknames[block];
       wkset[block]->set_var_bcs = bcs;
       wkset[block]->var_bcs = bcs[0];
     }
