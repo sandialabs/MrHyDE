@@ -486,8 +486,8 @@ void AnalysisManager::run() {
 
     sensIC = settings->sublist("Analysis").get("sensitivities IC", false);
 
-    if (settings->sublist("Analysis").isSublist("ROL"))
-      ROLsettings = settings->sublist("Analysis").sublist("ROL");
+    if (settings->sublist("Analysis").isSublist("ROL2"))
+      ROLsettings = settings->sublist("Analysis").sublist("ROL2");
     else
       TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL sublist in the imput file!  Abort!");
 
