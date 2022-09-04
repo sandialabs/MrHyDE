@@ -2455,7 +2455,13 @@ Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhys
 DRV DiscretizationInterface::applyOrientation(DRV basis, Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                               basis_RCP & basis_pointer) {
   
-  DRV new_basis("basis values", basis.extent(0), basis.extent(1), basis.extent(2));
+  DRV new_basis;
+  if (basis.rank() == 3) {
+    new_basis = DRV("basis values", basis.extent(0), basis.extent(1), basis.extent(2));
+  }
+  else {
+    new_basis = DRV("basis values", basis.extent(0), basis.extent(1), basis.extent(2), basis.extent(3));
+  }
   if (basis_pointer->requireOrientation()) {    
     OrientTools::modifyBasisByOrientation(new_basis, basis, orientation, basis_pointer.get());
   }

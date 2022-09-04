@@ -514,10 +514,10 @@ void AnalysisManager::run() {
 
     sensIC = settings->sublist("Analysis").get("sensitivities IC", false);
 
-    if (settings->sublist("Analysis").isSublist("ROL2"))
-      ROLsettings = settings->sublist("Analysis").sublist("ROL2");
+    if (settings->sublist("Analysis").isSublist("ROL"))
+      ROLsettings = settings->sublist("Analysis").sublist("ROL");
     else
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL2 sublist in the imput file!  Abort!");
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL sublist in the imput file!  Abort!");
 
     // Turn off visualization while optimizing
     bool postproc_plot = postproc->write_solution;
@@ -563,11 +563,6 @@ void AnalysisManager::run() {
     MrHyDE_OptVector xtmp(disc_params, classic_params, Comm->getRank());
     Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
     x->set(xtmp);
-
-    ScalarT roltol = 1e-8;
-    *outStream << "\nTesting objective!!\n";
-    obj->value(*x, roltol);
-    *outStream << "\nObjective evaluation works!!\n";
 
     //bound constraint
     Teuchos::RCP<ROL::BoundConstraint<RealT> > con;
@@ -626,6 +621,11 @@ void AnalysisManager::run() {
       postproc->compute_objective = true;
       //std::cout << "Finished generating data for inversion " << std::endl;
     }
+
+    ScalarT roltol = 1e-8;
+    *outStream << "\nTesting objective!!\n";
+    obj->value(*x, roltol);
+    *outStream << "\nObjective evaluation works!!\n";
 
     // Comparing a gradient/Hessian with finite difference approximation
     if(ROLsettings.sublist("General").get("Do grad+hessvec check",true)){

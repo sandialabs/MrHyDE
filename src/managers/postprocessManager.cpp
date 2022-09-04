@@ -431,8 +431,18 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
   Teuchos::ParameterList::ConstIterator obj_itr = obj_funs.begin();
   while (obj_itr != obj_funs.end()) {
     Teuchos::ParameterList objsettings = obj_funs.sublist(obj_itr->first);
-    objective newobj(objsettings,obj_itr->first,block,functionManagers[block]);
-    objectives.push_back(newobj);
+    bool addobj = true;
+    if (objsettings.isParameter("blocks")) {
+      string blocklist = objsettings.get<string>("blocks");
+      std::size_t found = blocklist.find(blocknames[block]);
+      if (found == std::string::npos) {
+        addobj = false;
+      }
+    }
+    if (addobj) {
+      objective newobj(objsettings,obj_itr->first,block,functionManagers[block]);
+      objectives.push_back(newobj);
+    }
     obj_itr++;
   }
   
@@ -2630,7 +2640,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         
         auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
         
-        for (int w=0; w<spaceDim+1; ++w) {
+        //for (int w=0; w<spaceDim+1; ++w) {
+        for (int w=0; w<1; ++w) {
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
@@ -2658,10 +2669,23 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               std::string btype = assembler->wkset[block]->basis_types[bnum];
               if (btype == "HCURL" || btype == "HDIV") {
                 // TMW: this does not work yet
+                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto u_sv = subview(u_ip, ALL(), var, ALL(), ALL());
+                auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
+                parallel_for("grp response uip",
+                             RangePolicy<AssemblyExec>(0,u_ip.extent(0)),
+                             KOKKOS_LAMBDA (const size_type e ) {
+                  for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                    for (size_type j=0; j<cbasis.extent(2); j++ ) {
+                      for (size_type d=0; d<cbasis.extent(3); d++ ) {
+                        u_sv(e,j,d) += u_dof_sv(e,i)*cbasis(e,i,j,d);
+                      }
+                    }
+                  }
+                });
               }
               else {
                 auto cbasis = assembler->wkset[block]->basis[bnum];
-                
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), 0);
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 parallel_for("grp response uip",
@@ -2759,6 +2783,20 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               auto cbasis = assembler->wkset[block]->basis[bnum];
               
               if (btype == "HDIV" || btype == "HCURL") {
+
+                auto tmpbasis = DRV("tmp basis",cbasis.extent(0),cbasis.extent(1),cbasis.extent(2),cbasis.extent(3));
+                auto refbasis = assembler->groupData[block]->ref_basis[bnum];
+                for (size_type e=0; e<tmpbasis.extent(0); ++e) {
+                  for (size_type i=0; i<tmpbasis.extent(1); ++i) {
+                    for (size_type j=0; j<tmpbasis.extent(2); ++j) {
+                      for (size_type k=0; k<tmpbasis.extent(3); ++k) {
+                        tmpbasis(e,i,j,k) = refbasis(i,j,k);
+                      }
+                    }
+                  }
+                }
+                //auto tmpbasis2 = disc->applyOrientation(tmpbasis, assembler->groups[block][grp]->orientation,
+                //                                        assembler->groupData[block]->basis_pointers[bnum] );
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
                              KOKKOS_LAMBDA (const size_type e ) {
@@ -2767,7 +2805,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
                         for (size_type d=0; d<cbasis.extent(3); d++) {
-                          local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis(e,j,s,d);
+                          local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*tmpbasis(e,j,s,d);
                         }
                       }
                     }
