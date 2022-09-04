@@ -75,11 +75,18 @@ namespace ROL {
     
     //! Compute gradient of objective function with respect to parameters
     void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){
-      MrHyDE_OptVector Paramsp = 
-      Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
-      
-      params->updateParams(Paramsp);
 
+      bool newparams = this->checkNewParams(Params);
+
+      if (newparams) {
+        MrHyDE_OptVector Paramsp = 
+        Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
+      
+        params->updateParams(Paramsp);
+        DFAD val = 0.0;
+        solver->forwardModel(val);
+
+      }
       MrHyDE_OptVector sens = 
       Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(g));
       sens.zero();
@@ -88,6 +95,23 @@ namespace ROL {
 
     }
     
+    bool checkNewParams(const Vector<Real> &Params) {
+      MrHyDE_OptVector curr_params = params->getCurrentVector();
+      auto diff = curr_params.clone();
+      diff->zero();
+      diff->set(curr_params);
+      diff->axpy(-1.0,Params);
+      ScalarT dnorm = diff->norm();
+      ScalarT refnorm = curr_params.norm();
+      dnorm = dnorm/refnorm;
+      ScalarT reltol = 1.0e-12;
+      bool newparams = false;
+      if (dnorm > reltol) {
+        newparams = true;
+      }
+      return newparams;
+    }
+
     //! Compute the Hessian-vector product of the objective function
     void hessVec(Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &Params, Real &tol ){
       this->ROL::Objective<Real>::hessVec(hv,v,Params,tol);
@@ -197,7 +221,7 @@ namespace ROL {
       output.close();
     }
     
-  }; //end description of Objective_CDR2D class
+  }; //end description of Objective class
   
   /*!
    \brief Inequality constraints on optimization parameters

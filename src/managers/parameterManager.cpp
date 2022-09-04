@@ -552,6 +552,30 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::g
   return Psol;
 }
 
+template<class Node>
+MrHyDE_OptVector ParameterManager<Node>::getCurrentVector() {
+  
+  Teuchos::RCP<vector<ScalarT> > new_active_params;
+  vector<vector_RCP> new_disc_params;
+  if (num_active_params > 0) {
+    new_active_params = this->getParams(1);
+  }
+  else {
+    new_active_params = Teuchos::null;
+  }
+  if (globalParamUnknowns > 0) {
+    if (have_dynamic) {
+      new_disc_params = dynamic_Psol;
+    }
+    else {
+      new_disc_params.push_back(Psol);
+    }
+  }
+    
+  MrHyDE_OptVector newvec(new_disc_params, new_active_params, Comm->getRank());
+  return newvec;
+}
+
 // ========================================================================================
 // return the discretized parameters as vector of vector_RCPs for use with ROL
 // ========================================================================================
