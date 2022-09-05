@@ -286,7 +286,7 @@ void AnalysisManager::run() {
     if (settings->sublist("Analysis").isSublist("ROL"))
       ROLsettings = settings->sublist("Analysis").sublist("ROL");
     else
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL sublist in the imput file!  Abort!");
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL sublist in the input file!  Abort!");
     
     // New ROL input syntax
     bool use_linesearch = settings->sublist("Analysis").get("Use Line Search",false);
@@ -489,7 +489,7 @@ void AnalysisManager::run() {
     if (settings->sublist("Analysis").isSublist("ROL2"))
       ROLsettings = settings->sublist("Analysis").sublist("ROL2");
     else
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL sublist in the imput file!  Abort!");
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the ROL2 sublist in the input file!  Abort!");
 
     // Turn off visualization while optimizing
     bool postproc_plot = postproc->write_solution;
@@ -594,11 +594,6 @@ void AnalysisManager::run() {
       //std::cout << "Finished generating data for inversion " << std::endl;
     }
 
-    ScalarT roltol = 1e-8;
-    *outStream << "\nTesting objective!!\n";
-    obj->value(*x, roltol);
-    *outStream << "\nObjective evaluation works!!\n";
-
     // Comparing a gradient/Hessian with finite difference approximation
     if(ROLsettings.sublist("General").get("Do grad+hessvec check",true)){
       // Gradient and Hessian check
@@ -633,8 +628,7 @@ void AnalysisManager::run() {
 
     // Construct ROL problem.
     ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
-    rolProblem->checkVectors(true, *outStream);
-    rolProblem->check(true, *outStream);
+    //rolProblem->check(true, *outStream);
     if (bound_vars) {
       rolProblem->addBoundConstraint(con);
     }
