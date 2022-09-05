@@ -5071,6 +5071,16 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
 // ========================================================================================
 // ========================================================================================
 
+template<class Node>
+void PostprocessManager<Node>::setNewExodusFile(string & newfile) { 
+  if (isTD && write_solution) {
+    mesh->stk_mesh->setupExodusFile(newfile);
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
 // Explicit template instantiations
 template class MrHyDE::PostprocessManager<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI

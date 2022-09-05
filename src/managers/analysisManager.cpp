@@ -473,13 +473,19 @@ void AnalysisManager::run() {
     */
 
     if (postproc_plot) {
+      postproc->write_solution = true;
+      string outfile = "output_after_optimization.exo";
+      postproc->setNewExodusFile(outfile);
+      DFAD objfun = 0.0;
+      solve->forwardModel(objfun);
       if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
         vector<bool> newflags(1,false);
         solve->phys->updateFlags(newflags);
+        string outfile = "output_only_control.exo";
+        postproc->setNewExodusFile(outfile);
+        solve->forwardModel(objfun);
       }
-      postproc->write_solution = true;
-      DFAD objfun = 0.0;
-      solve->forwardModel(objfun);
+      
     }
   } // ROL
   else if (analysis_type == "ROL2") {
@@ -512,31 +518,8 @@ void AnalysisManager::run() {
     // Generate data and get objective
     obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params));
 
-    bool have_dynamic = params->have_dynamic;
+    MrHyDE_OptVector xtmp = params->getCurrentVector();
 
-    int numClassicParams = params->getNumParams(1);
-    int numDiscParams = params->getNumParams(4);
-    int numParams = numClassicParams + numDiscParams;
-
-    // Iteration vector.
-    Teuchos::RCP<vector<ScalarT> > classic_params;
-    vector<vector_RCP> disc_params;
-    if (numClassicParams > 0) {
-      classic_params = params->getParams(1);
-    }
-    else {
-      classic_params = Teuchos::null;
-    }
-    if (numDiscParams > 0) {
-      if (have_dynamic) {
-        disc_params = params->getDynamicDiscretizedParams();
-      }
-      else {
-        disc_params.push_back(params->Psol);
-      }
-    }
-
-    MrHyDE_OptVector xtmp(disc_params, classic_params, Comm->getRank());
     Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
     x->set(xtmp);
 
@@ -545,10 +528,6 @@ void AnalysisManager::run() {
     bool bound_vars = ROLsettings.sublist("General").get("Bound Optimization Variables",false);
 
     if(bound_vars){
-
-      //initialize max and min vectors for bounds
-      Teuchos::RCP<vector<RealT> > minvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
-      Teuchos::RCP<vector<RealT> > maxvec = Teuchos::rcp( new vector<RealT> (numParams, 0.0) );
 
       //read in bounds for parameters...
       vector<Teuchos::RCP<vector<ScalarT> > > activeBnds = params->getActiveParamBounds();
@@ -658,8 +637,18 @@ void AnalysisManager::run() {
 
     if (postproc_plot) {
       postproc->write_solution = true;
+      string outfile = "output_after_optimization.exo";
+      postproc->setNewExodusFile(outfile);
       DFAD objfun = 0.0;
       solve->forwardModel(objfun);
+      if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
+        vector<bool> newflags(1,false);
+        solve->phys->updateFlags(newflags);
+        string outfile = "output_only_control.exo";
+        postproc->setNewExodusFile(outfile);
+        solve->forwardModel(objfun);
+      }
+      
     }
   } // ROL2
   else if (analysis_type == "ROL_SIMOPT") {
