@@ -473,6 +473,10 @@ void AnalysisManager::run() {
     */
 
     if (postproc_plot) {
+      if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
+        vector<bool> newflags(1,false);
+        solve->phys->updateFlags(newflags);
+      }
       postproc->write_solution = true;
       DFAD objfun = 0.0;
       solve->forwardModel(objfun);
