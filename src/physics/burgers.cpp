@@ -61,15 +61,13 @@ void Burgers::volumeResidual() {
   auto off = wkset->getOffsets("u");
   auto u = wkset->getSolutionField("u");
   auto dudt = wkset->getSolutionField("u_t");
-  //auto bindex = wkset->basis_index;
-
+  
   // Solves dudt + div (1/2*v u^2 - eps grad u) = source(x,t)
   if (wkset->dimension == 1) {
     auto dudx = wkset->getSolutionField("grad(u)[x]");
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
-      //LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
         AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
@@ -87,7 +85,6 @@ void Burgers::volumeResidual() {
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
-      //LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
         AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
@@ -109,7 +106,6 @@ void Burgers::volumeResidual() {
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
-      //LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
         AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);

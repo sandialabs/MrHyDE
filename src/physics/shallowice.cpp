@@ -79,13 +79,11 @@ void shallowice::volumeResidual() {
   }
   auto off = Kokkos::subview(wkset->offsets, snum, Kokkos::ALL());
   auto res = wkset->res;
-  //auto bindex = wkset->basis_index;
-
+  
   if (spaceDim == 1) {
     parallel_for("shallowice volume resid 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
-      //LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
@@ -99,7 +97,6 @@ void shallowice::volumeResidual() {
     parallel_for("shallowice volume resid 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
-      //LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);

@@ -303,8 +303,7 @@ void BoundaryGroup::updateWorksetBasis() {
   
   wkset->wts_side = wts;
   wkset->h = hsize;
-  //wkset->basis_index = basis_index;
-
+  
   wkset->setScalarField(ip[0],"x");
   wkset->setScalarField(normals[0],"n[x]");
   wkset->setScalarField(tangents[0],"t[x]");
@@ -323,11 +322,6 @@ void BoundaryGroup::updateWorksetBasis() {
     wkset->basis_side = basis;
     wkset->basis_grad_side = basis_grad;
   }
-  //else if (groupData->use_basis_database) {
-  //  //disc->copySideBasisFromDatabase(groupData, basis_database_index, orientation, false, false);
-  //  wkset->basis_side = groupData->database_side_basis;//physical_side_basis;
-  //  wkset->basis_grad_side = groupData->database_side_basis_grad;//physical_side_basis_grad;
-  //}
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;

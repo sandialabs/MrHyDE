@@ -814,8 +814,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     }
 
     int basis_id;
-    //auto bindex = basis_index;
-
+    
     if (soln_fields[fieldnum].variable_type == "param") { // discr. params
       solvals = pvals[soln_fields[fieldnum].variable_index];
       basis_id = paramusebasis[vindex];
@@ -838,7 +837,6 @@ void workset::evaluateSolutionField(const int & fieldnum) {
                    TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
         }
@@ -877,14 +875,12 @@ void workset::evaluateSolutionField(const int & fieldnum) {
         }
       }
       
-      //auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
       size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
         }
@@ -949,8 +945,7 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
     }
 
     int basis_id;
-    //auto bindex = basis_index;
-
+    
     if (side_soln_fields[fieldnum].variable_type == "param") { // discr. params
       solvals = pvals[side_soln_fields[fieldnum].variable_index];
       basis_id = paramusebasis[vindex];
@@ -973,7 +968,6 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
                    TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
         }
@@ -994,14 +988,12 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
         cbasis = basis_side[basis_id];
       }
       
-      //auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
       size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
         }
@@ -1047,13 +1039,11 @@ void workset::computeSolnSideIP(const int & side) {
       auto csol_z = this->getSolutionField("grad("+var+")[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
       auto cbasis_grad = basis_grad_side[usebasis[varind]];
-      //auto bindex = basis_index;
-
+      
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         size_type dim = cbasis_grad.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csol(elem,pt) = 0.0;
@@ -1090,13 +1080,11 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto csol = this->getSolutionField(var,false);
       auto cbasis = basis_side[usebasis[varind]];
-      //auto bindex = basis_index;
-
+      
       parallel_for("wkset soln ip HVOL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csol(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
@@ -1120,13 +1108,11 @@ void workset::computeSolnSideIP(const int & side) {
       auto csoly = this->getSolutionField(var+"[y]",false);
       auto csolz = this->getSolutionField(var+"[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
-      //auto bindex = basis_index;
-
+      
       parallel_for("wkset soln ip HDIV",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csolx(elem,pt) = 0.0;
@@ -1163,13 +1149,11 @@ void workset::computeSolnSideIP(const int & side) {
       auto csoly = this->getSolutionField(var+"[y]",false);
       auto csolz = this->getSolutionField(var+"[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
-      //auto bindex = basis_index;
-
+      
       parallel_for("wkset soln ip HCURL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        //LO bind = bindex(elem);
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csolx(elem,pt) = 0.0;

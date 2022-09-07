@@ -418,28 +418,6 @@ void Group::updateWorkset(const int & seedwhat, const int & seedindex,
   }
 
   // Update the integration info and basis in workset
-  /*
-  if (storeAll) {
-    for (size_t i=0; i<basis.size(); ++i) {
-      wkset->basis[i] = basis[i];
-    }
-    for (size_t i=0; i<basis_grad.size(); ++i) {
-      wkset->basis_grad[i] = basis_grad[i];
-    }
-    for (size_t i=0; i<basis.size(); ++i) {
-      wkset->basis_div[i] = basis_div[i];
-    }
-    for (size_t i=0; i<basis.size(); ++i) {
-      wkset->basis_curl[i] = basis_curl[i];
-    }
-  }
-  else if (groupData->use_basis_database) {
-    //disc->copyBasisFromDatabase(groupData, basis_database_index, orientation, false);
-    wkset->basis = groupData->database_basis;//physical_basis;
-    wkset->basis_grad = groupData->database_basis_grad;//physical_basis_grad;
-    wkset->basis_div = groupData->database_basis_div;//physical_basis_div;
-    wkset->basis_curl = groupData->database_basis_curl;//physical_basis_curl;
-  }*/
   if (storeAll || groupData->use_basis_database) {
     wkset->basis = basis;
     wkset->basis_grad = basis_grad;
@@ -647,13 +625,9 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   CompressedView<View_Sc4> cbasis;
   auto cwts = wts;
 
-  auto bindex = basis_index;
   if (storeAll || groupData->use_basis_database) {
     cbasis = basis[wkset->usebasis[index]];
   }
-  //else if (groupData->use_basis_database) {
-  //  cbasis = groupData->database_basis[wkset->usebasis[index]];//physical_basis[wkset->usebasis[index]];
-  //}
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
@@ -681,12 +655,11 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   parallel_for("wkset soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
-    LO bind = bindex(elem);
     for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
       ScalarT avgval = 0.0;
       for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
         for (size_type pt=0; pt<cbasis.extent(2); ++pt) {
-          avgval += csol(elem,dof)*cbasis(bind,dof,pt,dim)*cwts(elem,pt);
+          avgval += csol(elem,dof)*cbasis(elem,dof,pt,dim)*cwts(elem,pt);
         }
       }
       sol(elem,dim) = avgval/avgwts(elem);
@@ -709,13 +682,9 @@ void Group::computeParameterAverage(const string & var, View_Sc2 sol) {
   CompressedView<View_Sc4> cbasis;
   auto cwts = wts;
 
-  auto bindex = basis_index;
   if (storeAll || groupData->use_basis_database) {
     cbasis = basis[wkset->paramusebasis[index]];
   }
-  //else if (groupData->use_basis_database) {
-  //  cbasis = groupData->database_basis[wkset->paramusebasis[index]];
-  //}
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
@@ -738,12 +707,10 @@ void Group::computeParameterAverage(const string & var, View_Sc2 sol) {
     avgwts(elem) = avgwt;
   });
   
-  //size_t set = wkset->current_set;
   auto csol = subview(param,ALL(),index,ALL());
   parallel_for("wkset soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
-    //LO bind = bindex(elem);
     for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
       ScalarT avgval = 0.0;
       for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
@@ -789,11 +756,6 @@ void Group::updateWorksetFace(const size_t & facenum) {
     wkset->basis_side = basis_face[facenum];
     wkset->basis_grad_side = basis_grad_face[facenum];
   }
-  //else if (groupData->use_basis_database) {
-  //  //disc->copyFaceBasisFromDatabase(groupData, basis_database_index, orientation, facenum, false, false);
-  //  wkset->basis_side = groupData->database_side_basis;//physical_side_basis;
-  //  wkset->basis_grad_side = groupData->database_side_basis_grad;//physical_side_basis_grad;
-  //}
   else {
     vector<View_Sc4> tbasis, tbasis_grad;
   
@@ -1602,37 +1564,16 @@ CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
 
   if (groupData->use_mass_database) {
     mass = CompressedView<View_Sc3>(groupData->database_mass[set], basis_index);
-    /*
-    auto bindex = basis_index;
-    auto dmass = groupData->database_mass[set];
-
-    for (size_type n=0; n<numDOF.extent(0); n++) {
-      parallel_for("Group get mass",
-                   RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                   KOKKOS_LAMBDA (const size_type e ) {
-        LO eindex = bindex(e);
-        for (size_type i=0; i<mass.extent(1); i++ ) {
-          for (size_type j=0; j<mass.extent(2); j++ ) {
-            mass(e,i,j) = dmass(eindex,i,j);
-          }
-        }
-      });
-    }*/
   }
   else {
     auto cwts = wts;
     auto offsets = wkset->offsets;
     vector<CompressedView<View_Sc4>> tbasis;
-    //auto bindex = basis_index;
     mass = CompressedView<View_Sc3>(mass_view);
-    
+
     if (storeAll || groupData->use_basis_database) {
       tbasis = basis;
     }
-    //else if (groupData->use_basis_database) {
-    //  //disc->copyBasisFromDatabase(groupData, basis_database_index, orientation, false, true);
-    //  tbasis = groupData->database_basis;//physical_basis;
-    //}
     else {
       vector<View_Sc4> tmpbasis;
       disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
@@ -1653,7 +1594,6 @@ CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
         parallel_for("Group get mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
                      KOKKOS_LAMBDA (const size_type e ) {
-          //LO bind = bindex(e);             
           for (size_type i=0; i<cbasis.extent(1); i++ ) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -1667,7 +1607,6 @@ CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
         parallel_for("Group get mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
                      KOKKOS_LAMBDA (const size_type e ) {
-          //LO bind = bindex(e);             
           for (size_type i=0; i<cbasis.extent(1); i++ ) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
