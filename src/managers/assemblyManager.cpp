@@ -2005,7 +2005,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
       
       auto LIDs = groups[block][grp]->LIDs[set];
       
-      Kokkos::View<ScalarT***,AssemblyDevice> localmass = groups[block][grp]->getWeightedMass(phys->masswts[set][block]);
+      auto localmass = groups[block][grp]->getWeightedMass(phys->masswts[set][block]);
       
       if (data_avail) {
 
@@ -2077,8 +2077,8 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
       
       }
       else {
-        auto localmass_ladev = create_mirror(LA_exec(),localmass);
-        deep_copy(localmass_ladev,localmass);
+        auto localmass_ladev = create_mirror(LA_exec(),localmass.getView());
+        deep_copy(localmass_ladev,localmass.getView());
 
         auto LIDs_ladev = create_mirror(LA_exec(),LIDs);
         deep_copy(LIDs_ladev,LIDs);
@@ -2196,18 +2196,22 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
       
       if (!groups[block][grp]->storeMass) { //groupData[block]->store_mass) { //groupData->matrix_free) {
         auto twts = groups[block][grp]->wts;
-        vector<View_Sc4> tbasis;
+        vector<CompressedView<View_Sc4>> tbasis;
         if (groups[block][grp]->storeAll) { // unlikely case, but enabled
           tbasis = groups[block][grp]->basis;
         }
         else {
+          vector<View_Sc4> tmpbasis;
           disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes,
-                                           groups[block][grp]->orientation, tbasis);
+                                           groups[block][grp]->orientation, tmpbasis);
+          for (size_t i=0; i<tmpbasis.size(); ++i) {
+            tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
+          }
         }
         
         for (size_type var=0; var<numDOF.extent(0); var++) {
           int bindex = wkset[block]->usebasis[var];
-          View_Sc4 cbasis = tbasis[bindex];
+          CompressedView<View_Sc4> cbasis = tbasis[bindex];
           
           string btype = wkset[block]->basis_types[bindex];
           auto off = subview(offsets,var,ALL());
@@ -2532,9 +2536,9 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
       // Create the mass matrix
       auto localmass = groups[block][grp]->getMassFace();
       auto host_rhs = Kokkos::create_mirror_view(localrhs);
-      auto host_mass = Kokkos::create_mirror_view(localmass);
+      auto host_mass = localmass;//Kokkos::create_mirror_view(localmass);
       Kokkos::deep_copy(host_rhs,localrhs);
-      Kokkos::deep_copy(host_mass,localmass);
+      //Kokkos::deep_copy(host_mass,localmass);
       
       size_t numVals = LIDs.extent(1);
       // assemble into global matrix

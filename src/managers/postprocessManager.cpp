@@ -2835,7 +2835,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               
               if (btype == "HGRAD") {
                 auto cbasis = assembler->wkset[block]->basis_grad[bnum];
-                auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
+                //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
                              KOKKOS_LAMBDA (const size_type e ) {
@@ -2843,7 +2843,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
-                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis_sv(e,j,s);
+                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis(e,j,s,w-1);
                       }
                     }
                   }
@@ -3080,7 +3080,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               
               if (btype == "HGRAD") {
                 auto cbasis = assembler->wkset[block]->basis_grad[bnum];
-                auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
+                //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
                              KOKKOS_LAMBDA (const size_type e ) {
@@ -3088,7 +3088,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
-                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis_sv(e,j,s);
+                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis(e,j,s,w-1);
                       }
                     }
                   }

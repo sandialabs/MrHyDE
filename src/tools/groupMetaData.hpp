@@ -90,6 +90,7 @@ namespace MrHyDE {
     bool multiscale, have_phi, have_rotation, have_extra_data;
     
     // database of database basis information (optional)
+    // Note that these are not CompressedViews.  CompressedViews use these.
     vector<View_Sc4> database_basis, database_basis_grad, database_basis_curl; // [basis type]
     vector<View_Sc3> database_basis_div;  // [basis type]
     vector<View_Sc4> database_side_basis, database_side_basis_grad;

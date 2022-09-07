@@ -88,14 +88,14 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     maxb = std::max(maxb,numb);
   }
   
-  basis = vector<View_Sc4>(basis_pointers.size());
-  basis_grad = vector<View_Sc4>(basis_pointers.size());
-  basis_curl = vector<View_Sc4>(basis_pointers.size());
-  basis_div = vector<View_Sc3>(basis_pointers.size());
+  basis = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_grad = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_curl = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_div = vector<CompressedView<View_Sc3>>(basis_pointers.size());
   
-  basis_side = vector<View_Sc4>(basis_pointers.size());
-  basis_grad_side = vector<View_Sc4>(basis_pointers.size());
-  basis_curl_side = vector<View_Sc4>(basis_pointers.size());
+  basis_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_grad_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_curl_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
   
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   maxTeamSize = 256 / VectorSize;
@@ -814,7 +814,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     }
 
     int basis_id;
-    auto bindex = basis_index;
+    //auto bindex = basis_index;
 
     if (soln_fields[fieldnum].variable_type == "param") { // discr. params
       solvals = pvals[soln_fields[fieldnum].variable_index];
@@ -835,23 +835,23 @@ void workset::evaluateSolutionField(const int & fieldnum) {
       size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), teamSize, VectorSize),
+                   TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
+        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*sbasis(bind,0,pt);
+          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
         }
         for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
           for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*sbasis(bind,dof,pt);
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
           }
         }
       });
       
     }
     else {
-      View_Sc4 cbasis;
+      CompressedView<View_Sc4> cbasis;
       if (soln_fields[fieldnum].derivative_type == "grad") {
         if (isOnSide) {
           cbasis = basis_grad_side[basis_id];
@@ -877,20 +877,20 @@ void workset::evaluateSolutionField(const int & fieldnum) {
         }
       }
       
-      auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
-      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+      //auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
+      size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), teamSize, VectorSize),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
-        for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*sbasis(bind,0,pt);
+        //LO bind = bindex(elem);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
         }
-        for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
-          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*sbasis(bind,dof,pt);
+        for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) += solvals(elem,dof)*cbasis(elem,dof,pt,component);
           }
         }
       });
@@ -949,7 +949,7 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
     }
 
     int basis_id;
-    auto bindex = basis_index;
+    //auto bindex = basis_index;
 
     if (side_soln_fields[fieldnum].variable_type == "param") { // discr. params
       solvals = pvals[side_soln_fields[fieldnum].variable_index];
@@ -970,23 +970,23 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
       size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), teamSize, VectorSize),
+                   TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
+        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*sbasis(bind,0,pt);
+          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
         }
         for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
           for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*sbasis(bind,dof,pt);
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
           }
         }
       });
       
     }
     else {
-      View_Sc4 cbasis;
+      CompressedView<View_Sc4> cbasis;
       if (side_soln_fields[fieldnum].derivative_type == "grad") {
         cbasis = basis_grad_side[basis_id];
       }
@@ -994,20 +994,20 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
         cbasis = basis_side[basis_id];
       }
       
-      auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
-      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+      //auto sbasis = subview(cbasis, ALL(), ALL(), ALL(), component);
+      size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), teamSize, VectorSize),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
-        for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*sbasis(bind,0,pt);
+        //LO bind = bindex(elem);
+        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+          fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
         }
-        for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
-          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*sbasis(bind,dof,pt);
+        for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
+          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) += solvals(elem,dof)*cbasis(elem,dof,pt,component);
           }
         }
       });
@@ -1047,31 +1047,31 @@ void workset::computeSolnSideIP(const int & side) {
       auto csol_z = this->getSolutionField("grad("+var+")[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
       auto cbasis_grad = basis_grad_side[usebasis[varind]];
-      auto bindex = basis_index;
+      //auto bindex = basis_index;
 
       parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
+        //LO bind = bindex(elem);
         size_type dim = cbasis_grad.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csol(elem,pt) = 0.0;
           csol_x(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csol(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,0);
-            csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(bind,dof,pt,0);
+            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+            csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
           }
           if (dim>1) {
             csol_y(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(bind,dof,pt,1);
+              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
             }
           }
           if (dim>2) {
             csol_z(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(bind,dof,pt,2);
+              csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
             }
           }
         }
@@ -1090,17 +1090,17 @@ void workset::computeSolnSideIP(const int & side) {
       
       auto csol = this->getSolutionField(var,false);
       auto cbasis = basis_side[usebasis[varind]];
-      auto bindex = basis_index;
+      //auto bindex = basis_index;
 
       parallel_for("wkset soln ip HVOL",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
+        //LO bind = bindex(elem);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csol(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csol(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,0);
+            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
         }
       });
@@ -1120,29 +1120,29 @@ void workset::computeSolnSideIP(const int & side) {
       auto csoly = this->getSolutionField(var+"[y]",false);
       auto csolz = this->getSolutionField(var+"[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
-      auto bindex = basis_index;
+      //auto bindex = basis_index;
 
       parallel_for("wkset soln ip HDIV",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
+        //LO bind = bindex(elem);
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csolx(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csolx(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,0);
+            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
           if (dim>1) {
             csoly(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,1);
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
           if (dim>2) {
             csolz(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csolz(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,2);
+              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }
@@ -1163,29 +1163,29 @@ void workset::computeSolnSideIP(const int & side) {
       auto csoly = this->getSolutionField(var+"[y]",false);
       auto csolz = this->getSolutionField(var+"[z]",false);
       auto cbasis = basis_side[usebasis[varind]];
-      auto bindex = basis_index;
+      //auto bindex = basis_index;
 
       parallel_for("wkset soln ip HCURL",
-                   TeamPolicy<AssemblyExec>(bindex.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        LO bind = bindex(elem);
+        //LO bind = bindex(elem);
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csolx(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csolx(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,0);
+            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
           }
           if (dim>1) {
             csoly(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,1);
+              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
           if (dim>2) {
             csolz(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csolz(elem,pt) += cuvals(elem,dof)*cbasis(bind,dof,pt,2);
+              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }
@@ -1640,11 +1640,11 @@ View_Sc2 workset::getSideWeights() {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasis(const string & var) {
+CompressedView<View_Sc4> workset::getBasis(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  View_Sc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1658,7 +1658,7 @@ View_Sc4 workset::getBasis(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasis(const int & index) {
+CompressedView<View_Sc4> workset::getBasis(const int & index) {
   return basis[index];
 }
 
@@ -1666,11 +1666,11 @@ View_Sc4 workset::getBasis(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisGrad(const string & var) {
+CompressedView<View_Sc4> workset::getBasisGrad(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  View_Sc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1684,7 +1684,7 @@ View_Sc4 workset::getBasisGrad(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisGrad(const int & index) {
+CompressedView<View_Sc4> workset::getBasisGrad(const int & index) {
   return basis_grad[index];
 }
 
@@ -1692,11 +1692,11 @@ View_Sc4 workset::getBasisGrad(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-View_Sc3 workset::getBasisDiv(const string & var) {
+CompressedView<View_Sc3> workset::getBasisDiv(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  View_Sc3 dataout;
+  CompressedView<View_Sc3> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1710,7 +1710,7 @@ View_Sc3 workset::getBasisDiv(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-View_Sc3 workset::getBasisDiv(const int & index) {
+CompressedView<View_Sc3> workset::getBasisDiv(const int & index) {
   return basis_div[index];
 }
 
@@ -1718,11 +1718,11 @@ View_Sc3 workset::getBasisDiv(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisCurl(const string & var) {
+CompressedView<View_Sc4> workset::getBasisCurl(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  View_Sc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1736,7 +1736,7 @@ View_Sc4 workset::getBasisCurl(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisCurl(const int & index) {
+CompressedView<View_Sc4> workset::getBasisCurl(const int & index) {
   return basis_curl[index];
 }
 
@@ -1744,11 +1744,11 @@ View_Sc4 workset::getBasisCurl(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisSide(const string & var) {
+CompressedView<View_Sc4> workset::getBasisSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  View_Sc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1762,7 +1762,7 @@ View_Sc4 workset::getBasisSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisSide(const int & index) {
+CompressedView<View_Sc4> workset::getBasisSide(const int & index) {
   return basis_side[index];
 }
 
@@ -1770,11 +1770,11 @@ View_Sc4 workset::getBasisSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisGradSide(const string & var) {
+CompressedView<View_Sc4> workset::getBasisGradSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  View_Sc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1788,7 +1788,7 @@ View_Sc4 workset::getBasisGradSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisGradSide(const int & index) {
+CompressedView<View_Sc4> workset::getBasisGradSide(const int & index) {
   return basis_grad_side[index];
 }
 
@@ -1796,11 +1796,11 @@ View_Sc4 workset::getBasisGradSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisCurlSide(const string & var) {
+CompressedView<View_Sc4> workset::getBasisCurlSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  View_Sc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1814,7 +1814,7 @@ View_Sc4 workset::getBasisCurlSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-View_Sc4 workset::getBasisCurlSide(const int & index) {
+CompressedView<View_Sc4> workset::getBasisCurlSide(const int & index) {
   return basis_curl_side[index];
 }
 

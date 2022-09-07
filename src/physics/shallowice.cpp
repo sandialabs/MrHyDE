@@ -79,18 +79,18 @@ void shallowice::volumeResidual() {
   }
   auto off = Kokkos::subview(wkset->offsets, snum, Kokkos::ALL());
   auto res = wkset->res;
-  auto bindex = wkset->basis_index;
+  //auto bindex = wkset->basis_index;
 
   if (spaceDim == 1) {
     parallel_for("shallowice volume resid 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
-      LO bind = bindex(elem);
+      //LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(bind,dof,pt,0) + Fx*basis_grad(bind,dof,pt,0);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
         }
       }
     });
@@ -99,13 +99,13 @@ void shallowice::volumeResidual() {
     parallel_for("shallowice volume resid 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
-      LO bind = bindex(elem);
+      //LO bind = bindex(elem);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         AD f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
         AD Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
         AD Fy = diff(elem,pt)*dS_dy(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += f*basis(bind,dof,pt,0) + Fx*basis_grad(bind,dof,pt,0) + Fy*basis_grad(bind,dof,pt,1);
+          res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
         }
       }
     });

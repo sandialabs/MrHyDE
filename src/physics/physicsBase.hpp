@@ -18,6 +18,7 @@
 #include "preferences.hpp"
 #include "workset.hpp"
 #include "functionManager.hpp"
+#include "compressedView.hpp"
 
 namespace MrHyDE {
   
