@@ -223,7 +223,8 @@ void AssemblyManager<Node>::createGroups() {
   }
   
   double storageProportion = settings->sublist("Solver").get<double>("storage proportion",1.0);
-  
+  double mesh_scale = settings->sublist("Mesh").get<double>("scale factor",1.0);
+
   vector<stk::mesh::Entity> all_meshElems;
   mesh->stk_mesh->getMyElements(all_meshElems);
   
@@ -406,7 +407,7 @@ void AssemblyManager<Node>::createGroups() {
                   sideIndex = local_side_Ids[group[e+prog]];
                   for (size_type n=0; n<host_currnodes.extent(1); n++) {
                     for (size_type m=0; m<host_currnodes.extent(2); m++) {
-                      host_currnodes(e,n,m) = sidenodes(group[e+prog],n,m);
+                      host_currnodes(e,n,m) = mesh_scale*sidenodes(group[e+prog],n,m);
                     }
                   }
                 }
@@ -630,7 +631,16 @@ void AssemblyManager<Node>::createGroups() {
         }
         
         mesh->stk_mesh->getElementVertices(local_grp, blocknames[block], currnodes);
-        
+        parallel_for("assembly scale nodes",
+                     RangePolicy<AssemblyExec>(0,currnodes.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_t pt=0; pt<currnodes.extent(1); ++pt) {
+            for (size_t dim=0; dim<currnodes.extent(2); ++dim) {
+              currnodes(elem,pt,dim) *= mesh_scale;
+            }
+          }
+        });
+          
         // Set the side information (soon to be removed)-
         vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
         for (size_t set=0; set<LIDs.size(); ++set) {
@@ -2814,9 +2824,8 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
           
           // Check #2: element measures
           ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
-          ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
           
-          if (abs(diff/std::abs(db_measures[prog]))<database_TOL) { // abs(measure) is probably unnecessary here
+          if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
             
             // Check #3: element Jacobians
             ScalarT diff2 = 0.0;
@@ -2827,6 +2836,8 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
                 }
               }
             }
+            
+            ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
             
             if (std::abs(diff2/refmeas)<database_TOL) {
               found = true;
