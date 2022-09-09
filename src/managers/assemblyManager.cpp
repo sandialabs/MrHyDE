@@ -2813,6 +2813,9 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
     for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
       bool found = false;
       size_t prog = 0;
+
+      ScalarT refmeas = std::pow(measure_host(e),1.0/dimension);
+            
       while (!found && prog<first_users.size()) {
         size_t refgrp = first_users[prog].first;
         size_t refelem = first_users[prog].second;
@@ -2829,17 +2832,23 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
             
             // Check #3: element Jacobians
             ScalarT diff2 = 0.0;
-            for (size_type pt=0; pt<jacobian_host.extent(1); ++pt) {
-              for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
-                for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
-                  diff2 += std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
+            size_type pt=0;
+            while (pt<numip && diff2<database_TOL) {
+              size_type d0=0;
+              while (d0<dimension && diff2<database_TOL) {
+                size_type d1=0;
+                while (d1<dimension && diff2<database_TOL) { 
+                  diff2 += std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1))/refmeas;
+                  d1++;
                 }
+                d0++;
               }
+              pt++;
             }
             
-            ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
+            //ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
             
-            if (std::abs(diff2/refmeas)<database_TOL) {
+            if (diff2<database_TOL) {
               found = true;
               index_host(e) = prog;
             }
