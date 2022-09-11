@@ -2749,6 +2749,12 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
   
   int dimension = groupData[block]->dimension;
   size_type numip = groupData[block]->ref_ip.extent(0);
+  bool ignore_orientations = true;
+  for (size_t i=0; i<groupData[block]->basis_pointers.size(); ++i) {
+    if (groupData[block]->basis_pointers[i]->requireOrientation()) {
+      ignore_orientations = false;
+    }
+  }
   
   vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
   vector<ScalarT> db_measures;
@@ -2784,7 +2790,6 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
     }
     all_orients.push_back(grp_orient);
   }
-  
   
   // Write data to file (for clustering)
   
@@ -2823,7 +2828,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
         // Check #1: element orientations
         size_t orient = all_orients[grp][e];
         size_t reforient = all_orients[refgrp][refelem];
-        if (orient == reforient) {
+        if (ignore_orientations || orient == reforient) {
           
           // Check #2: element measures
           ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
