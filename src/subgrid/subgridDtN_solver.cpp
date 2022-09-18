@@ -1714,7 +1714,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
   int macrogrp = 0;
   for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
     LIDView LIDs = assembler->groups[macrogrp][e]->LIDs[0];
-    Kokkos::View<ScalarT***,AssemblyDevice> localmass = assembler->groups[macrogrp][e]->getMass();
+    auto localmass = assembler->groups[macrogrp][e]->getMass();
     
     size_type numVals = LIDs.extent(1);
     LO cols[maxDerivs];

@@ -967,6 +967,19 @@ void PhysicsInterface::faceResidual(const size_t & set, const size_t block) {
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
+    
+void PhysicsInterface::updateFlags(vector<bool> & newflags) {
+  for (size_t set=0; set<modules.size(); set++) {
+    for (size_t block=0; block<modules[set].size(); block++) {
+      for (size_t i=0; i<modules[set][block].size(); i++) {
+        modules[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+}
+    
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
   for (size_t var=0; var<varlist[set][block].size(); ++var) {

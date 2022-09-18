@@ -117,9 +117,13 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   save_solution = false;
   
-  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL_SIMOPT") {
+  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROL_SIMOPT") {
     save_solution = true; // default is false
-    if (settings->sublist("Analysis").sublist("ROL").sublist("General").get<bool>("Generate data",false)) {
+    string rolVersion = "ROL";
+    if (analysis_type == "ROL2") {
+      rolVersion = analysis_type;
+    }
+    if (settings->sublist("Analysis").sublist(rolVersion).sublist("General").get<bool>("Generate data",false)) {
       for (size_t set=0; set<setnames.size(); ++set) {
         datagen_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
       }
@@ -431,8 +435,18 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
   Teuchos::ParameterList::ConstIterator obj_itr = obj_funs.begin();
   while (obj_itr != obj_funs.end()) {
     Teuchos::ParameterList objsettings = obj_funs.sublist(obj_itr->first);
-    objective newobj(objsettings,obj_itr->first,block,functionManagers[block]);
-    objectives.push_back(newobj);
+    bool addobj = true;
+    if (objsettings.isParameter("blocks")) {
+      string blocklist = objsettings.get<string>("blocks");
+      std::size_t found = blocklist.find(blocknames[block]);
+      if (found == std::string::npos) {
+        addobj = false;
+      }
+    }
+    if (addobj) {
+      objective newobj(objsettings,obj_itr->first,block,functionManagers[block]);
+      objectives.push_back(newobj);
+    }
     obj_itr++;
   }
   
@@ -2630,7 +2644,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         
         auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
         
-        for (int w=0; w<spaceDim+1; ++w) {
+        //for (int w=0; w<spaceDim+1; ++w) {
+        for (int w=0; w<1; ++w) {
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
@@ -2658,10 +2673,23 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               std::string btype = assembler->wkset[block]->basis_types[bnum];
               if (btype == "HCURL" || btype == "HDIV") {
                 // TMW: this does not work yet
+                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto u_sv = subview(u_ip, ALL(), var, ALL(), ALL());
+                auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
+                parallel_for("grp response uip",
+                             RangePolicy<AssemblyExec>(0,u_ip.extent(0)),
+                             KOKKOS_LAMBDA (const size_type e ) {
+                  for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                    for (size_type j=0; j<cbasis.extent(2); j++ ) {
+                      for (size_type d=0; d<cbasis.extent(3); d++ ) {
+                        u_sv(e,j,d) += u_dof_sv(e,i)*cbasis(e,i,j,d);
+                      }
+                    }
+                  }
+                });
               }
               else {
                 auto cbasis = assembler->wkset[block]->basis[bnum];
-                
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), 0);
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 parallel_for("grp response uip",
@@ -2759,6 +2787,20 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               auto cbasis = assembler->wkset[block]->basis[bnum];
               
               if (btype == "HDIV" || btype == "HCURL") {
+
+                auto tmpbasis = DRV("tmp basis",cbasis.extent(0),cbasis.extent(1),cbasis.extent(2),cbasis.extent(3));
+                auto refbasis = assembler->groupData[block]->ref_basis[bnum];
+                for (size_type e=0; e<tmpbasis.extent(0); ++e) {
+                  for (size_type i=0; i<tmpbasis.extent(1); ++i) {
+                    for (size_type j=0; j<tmpbasis.extent(2); ++j) {
+                      for (size_type k=0; k<tmpbasis.extent(3); ++k) {
+                        tmpbasis(e,i,j,k) = refbasis(i,j,k);
+                      }
+                    }
+                  }
+                }
+                //auto tmpbasis2 = disc->applyOrientation(tmpbasis, assembler->groups[block][grp]->orientation,
+                //                                        assembler->groupData[block]->basis_pointers[bnum] );
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
                              KOKKOS_LAMBDA (const size_type e ) {
@@ -2767,7 +2809,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
                         for (size_type d=0; d<cbasis.extent(3); d++) {
-                          local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis(e,j,s,d);
+                          local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*tmpbasis(e,j,s,d);
                         }
                       }
                     }
@@ -2793,7 +2835,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               
               if (btype == "HGRAD") {
                 auto cbasis = assembler->wkset[block]->basis_grad[bnum];
-                auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
+                //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
                              KOKKOS_LAMBDA (const size_type e ) {
@@ -2801,7 +2843,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
-                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis_sv(e,j,s);
+                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis(e,j,s,w-1);
                       }
                     }
                   }
@@ -3038,7 +3080,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               
               if (btype == "HGRAD") {
                 auto cbasis = assembler->wkset[block]->basis_grad[bnum];
-                auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
+                //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
                              KOKKOS_LAMBDA (const size_type e ) {
@@ -3046,7 +3088,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
                       for (size_type s=0; s<cbasis.extent(2); s++) {
-                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis_sv(e,j,s);
+                        local_grad(e,offsets(nn,j),0) += -obj_dev(e,s).fastAccessDx(offsets(nn,i))*cbasis(e,j,s,w-1);
                       }
                     }
                   }
@@ -3100,6 +3142,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           D_no->doExport(*D_soln, *(linalg->exporter[set]), Tpetra::REPLACE);
           diff->update(1.0, *u_no, 0.0);
           diff->update(-1.0, *D_no, 1.0);
+          //grad->update(-2.0*objectives[r].weight,*diff,1.0);
           grad->update(-2.0*objectives[r].weight,*diff,1.0);
         }
         else {
@@ -3446,6 +3489,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       curr_grad = disc_grad[0]->getVector();
     }
     
+    
     auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, deltat);
     
     auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
@@ -3457,10 +3501,9 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       }
       sens_kv(i,0) += cobj;
     }
-
+    
     curr_grad->update(1.0, *sens, 1.0);
     
-
   }
   
   if (debug_level > 1) {
@@ -3492,19 +3535,23 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
   res_over->putScalar(0.0);
   J->setAllToScalar(0.0);
   J_over->setAllToScalar(0.0);
-    
+  
   assembler->assembleJacRes(set, u[set], u[set], true, false, true,
                             res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
                             params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
     
   linalg->fillCompleteParam(set, J_over);
-    
+  
   vector_RCP gradient = linalg->getNewParamVector();
     
   linalg->exportParamMatrixFromOverlapped(J, J_over);
+
   linalg->fillCompleteParam(set,J);
-    
-  J->apply(*adjoint[set],*gradient);
+  
+  vector_RCP adj = linalg->getNewVector(set);
+  adj->doExport(*(adjoint[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
+  J->apply(*adj,*gradient);
+  
 
   return gradient;
 }
@@ -3732,6 +3779,41 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             mesh->stk_mesh->setCellFieldData(dpnames[n]+append, blockID, myElements, soln_computed);
           }
           else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_y_dev("solution",myElements.size());
+            Kokkos::View<ScalarT*,AssemblyDevice> soln_z_dev("solution",myElements.size());
+            auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
+            auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
+            auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
+            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,spaceDim);
+            
+            for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
+              auto eID = assembler->groups[block][grp]->localElemID;
+              
+              assembler->groups[block][grp]->computeParameterAverage(dpnames[n],sol);
+              //auto sol = Kokkos::subview(assembler->groups[block][grp]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot HDIV/HCURL",
+                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                           KOKKOS_LAMBDA (const int elem ) {
+                soln_x_dev(eID(elem)) = sol(elem,0);
+                if (sol.extent(1) > 1) {
+                  soln_y_dev(eID(elem)) = sol(elem,1);
+                }
+                if (sol.extent(1) > 2) {
+                  soln_z_dev(eID(elem)) = sol(elem,2);
+                }
+              });
+            }
+            Kokkos::deep_copy(soln_x, soln_x_dev);
+            Kokkos::deep_copy(soln_y, soln_y_dev);
+            Kokkos::deep_copy(soln_z, soln_z_dev);
+            mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"x", blockID, myElements, soln_x);
+            if (spaceDim > 1) {
+              mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"y", blockID, myElements, soln_y);
+            }
+            if (spaceDim > 2) {
+              mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"z", blockID, myElements, soln_z);
+            }
             // TMW: this is not actually implemented yet ... not hard to do though
             /*
              Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
@@ -4984,6 +5066,16 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
       }// found
     } // pt
   } // elem
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::setNewExodusFile(string & newfile) { 
+  if (isTD && write_solution) {
+    mesh->stk_mesh->setupExodusFile(newfile);
+  }
 }
 
 // ========================================================================================

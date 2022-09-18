@@ -37,6 +37,7 @@
 #include "euler.hpp"
 #include "shallowwaterHybridized.hpp"
 #include "incompressibleSaturation.hpp"
+#include "shallowice.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -94,6 +95,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // Shallow Water
     if (modname == "shallow water") {
       modules.push_back(Teuchos::rcp(new shallowwater(settings, dimension) ) );
+    }
+
+    // Shallow Ice
+    if (modname == "shallow ice") {
+      modules.push_back(Teuchos::rcp(new shallowice(settings, dimension) ) );
     }
 
     // Shallow water hybridized

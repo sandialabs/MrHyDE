@@ -516,6 +516,8 @@ namespace MrHyDE {
                             Kokkos::View<int*[2],HostDevice> spts_owners, 
                             Kokkos::View<bool*,HostDevice> spts_found);
 
+    void setNewExodusFile(string & newfile);
+    
     // ========================================================================================
     // ========================================================================================
         

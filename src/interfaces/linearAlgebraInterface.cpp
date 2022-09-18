@@ -261,9 +261,29 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       param_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_ownedAndShared, 0, Comm));
       
       param_exporter = Teuchos::rcp(new LA_Export(param_overlapped_map, param_owned_map));
-      param_importer = Teuchos::rcp(new LA_Import(param_overlapped_map, param_owned_map));
+      param_importer = Teuchos::rcp(new LA_Import(param_owned_map, param_overlapped_map));
       
-      param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(param_overlapped_map,maxEntries));
+      vector<size_t> maxEntriesPerRow(param_overlapped_map->getLocalNumElements(), 0);
+      for (size_t b=0; b<blocknames.size(); b++) {
+        vector<size_t> EIDs = disc->myElements[b];
+        for (size_t e=0; e<EIDs.size(); e++) {
+          size_t elemID = EIDs[e];
+          vector<GO> gids;
+          params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
+          vector<GO> stategids = disc->getGIDs(0,b,elemID);
+          //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
+          for (size_t i=0; i<gids.size(); i++) {
+            LO ind1 = param_overlapped_map->getLocalElement(gids[i]);
+            maxEntriesPerRow[ind1] += stategids.size();
+          }
+        }
+      }
+      
+      for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
+        maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
+      }
+
+      param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(param_overlapped_map, overlapped_map[0], maxEntries));
       for (size_t b=0; b<blocknames.size(); b++) {
         vector<size_t> EIDs = disc->myElements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
@@ -281,6 +301,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       }
       
       param_overlapped_graph->fillComplete(owned_map[0], param_owned_map); // hard coded
+      //param_overlapped_graph->fillComplete(overlapped_map[0], param_overlapped_map); // hard coded
       
     }
   }

@@ -95,15 +95,31 @@ void BoundaryGroup::initializeBasisIndex() {
 void BoundaryGroup::computeBasis(const bool & keepnodes) {
   
   if (storeAll && !haveBasis) {
+    vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
+    vector<View_Sc3> tbasis_div;
+    
     disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
-                                   basis, basis_grad, basis_curl, basis_div);
+                                   tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+    for (size_t i=0; i<tbasis.size(); ++i) {
+      basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
+      basis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
+      basis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
+      basis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
+    }
     haveBasis = true;
     if (!keepnodes) {
       nodes = DRV("dummy nodes",1);
     }
   }
-  else if (groupData->use_basis_database && !keepnodes) {
-    nodes = DRV("empty nodes",1);
+  else if (groupData->use_basis_database) {
+    for (size_t i=0; i<groupData->database_side_basis.size(); ++i) {
+      basis.push_back(CompressedView<View_Sc4>(groupData->database_side_basis[i],basis_index));
+      basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_side_basis_grad[i],basis_index));
+    }
+    
+    if (!keepnodes) {
+      nodes = DRV("empty nodes",1);
+    }
   }
   
 }
@@ -287,8 +303,7 @@ void BoundaryGroup::updateWorksetBasis() {
   
   wkset->wts_side = wts;
   wkset->h = hsize;
-  wkset->basis_index = basis_index;
-
+  
   wkset->setScalarField(ip[0],"x");
   wkset->setScalarField(normals[0],"n[x]");
   wkset->setScalarField(tangents[0],"t[x]");
@@ -303,23 +318,22 @@ void BoundaryGroup::updateWorksetBasis() {
     wkset->setScalarField(tangents[2],"t[z]");
   }
 
-  if (storeAll) {
+  if (storeAll || groupData->use_basis_database) {
     wkset->basis_side = basis;
     wkset->basis_grad_side = basis_grad;
-  }
-  else if (groupData->use_basis_database) {
-    //disc->copySideBasisFromDatabase(groupData, basis_database_index, orientation, false, false);
-    wkset->basis_side = groupData->database_side_basis;//physical_side_basis;
-    wkset->basis_grad_side = groupData->database_side_basis_grad;//physical_side_basis_grad;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
     disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
                                    tbasis, tbasis_grad, tbasis_curl, tbasis_div);
-    
-    wkset->basis_side = tbasis;
-    wkset->basis_grad_side = tbasis_grad;
+    vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad;
+    for (size_t i=0; i<tbasis.size(); ++i) {
+      tcbasis.push_back(CompressedView<View_Sc4>(tbasis[i]));
+      tcbasis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
+    }
+    wkset->basis_side = tcbasis;
+    wkset->basis_grad_side = tcbasis_grad;
   }
 }
 

@@ -217,6 +217,22 @@ namespace MrHyDE {
     // Computes y = M*x
     void applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y);
     
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+
+    void buildDatabase(const size_t & block);
+
+    void writeVolumetricData(const size_t & block, vector<vector<size_t>> & all_orients);
+
+    void identifyVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
+
+    void identifyBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
+    
+    void buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
+
+    void buildBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
+    
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     

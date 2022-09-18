@@ -1594,8 +1594,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       if (solver_type == "transient") {
         cdt = deltat;
       }
+      
       postproc->computeObjectiveGradState(set, u, current_time+cdt, deltat, current_res);
     }
+    
     
     if (debug_level>2) {
       //KokkosTools::print(current_res,"residual from solver interface");
@@ -1624,7 +1626,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       cout << "*********************************************************" << endl;
     }
     
-    if (allowBacktracking && resnorm_scaled[0] > 1.1) {
+    if (!is_adjoint && allowBacktracking && resnorm_scaled[0] > 1.1) {
       solve = false;
       alpha *= 0.5;
       if (is_adjoint) {

@@ -18,6 +18,7 @@
 #include "preferences.hpp"
 #include "workset.hpp"
 #include "functionManager.hpp"
+#include "compressedView.hpp"
 
 namespace MrHyDE {
   
@@ -132,6 +133,13 @@ namespace MrHyDE {
     virtual std::vector<View_AD2> getDerivedValues() {
       std::vector<View_AD2> derived;
       return derived;
+    };
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    virtual void updateFlags(std::vector<bool> & newflags) {
+      // default is to do nothing
     };
     
     // ========================================================================================
