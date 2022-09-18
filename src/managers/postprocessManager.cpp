@@ -4691,9 +4691,9 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
   int Ny = objectives[objID].sensor_grid_Ny;
   int Nz = objectives[objID].sensor_grid_Nz;
             
-  double dx = (xmax-xmin)/Nx;
-  double dy = (ymax-ymin)/Ny;
-  double dz = (zmax-zmin)/Nz;
+  double dx = (Nx > 1) ? (xmax-xmin)/(Nx-1) : 0.0;
+  double dy = (Ny > 1) ? (ymax-ymin)/(Ny-1) : 0.0;
+  double dz = (Nz > 1) ? (zmax-zmin)/(Nz-1) : 0.0;
             
   std::vector<double> xgrid(Nx);
   std::vector<double> ygrid(Ny);
