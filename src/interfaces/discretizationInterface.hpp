@@ -41,6 +41,19 @@ namespace MrHyDE {
     
     ~DiscretizationInterface() {} ;
     
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * @brief Primary constructor for the MrHyDE Discretization Interface.  
+     *
+     * @param[in]  settings_  Main Teuchos Parameter List for MrHyDE
+     * @param[in]  Comm_ Global MPI communicator
+     * @param[in]  mesh_ STK mesh - not the MrHyDE Mesh Interface
+     * @param[in]  phys_ MrHyDE Physics Interface
+     *
+     */
+
     DiscretizationInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                             Teuchos::RCP<MpiComm> & Comm_,
                             Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
@@ -50,11 +63,30 @@ namespace MrHyDE {
     // Create a pointer to an Intrepid or Panzer basis
     //////////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * @brief Defines an Intrepid2 basis.
+     *
+     * @param[in]  spaceDim  Spatial dimension (1, 2 or 3)
+     * @param[in]  cellTopo  Cell/element topology (quad, tet, etc.)
+     * @param[in]  type      String defining the basis type (HGRAD, HVOL, etc)
+     * @param[in]  degree    Basis order
+     */
+
     basis_RCP getBasis(const int & spaceDim, const topo_RCP & cellTopo, const string & type, const int & degree);
     
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * @brief Defines the quadrature points and weights
+     *
+     * @param[in]  cellTopo  Cell/element topology (quad, tet, etc.)
+     * @param[in]  order     Quadrature order
+     * 
+     * @param[out]  ip       Kokkos::DRV containing quadrature points on reference element.  Dims = (numip)x(spatial dimension)
+     * @param[out]  wts      Kokkos::DRV containing quadrature weights on reference element.  Dims = (numip)
+     */
+
     void getQuadrature(const topo_RCP & cellTopo, const int & order, DRV & ip, DRV & wts);
     
     //////////////////////////////////////////////////////////////////////////////////////
