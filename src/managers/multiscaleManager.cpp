@@ -912,16 +912,18 @@ void MultiscaleManager::update() {
       } // done training
       
     }
+  
+    ScalarT gmin = 0.0;
+    Teuchos::reduceAll(*MacroComm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
+    ScalarT gmax = 0.0;
+    Teuchos::reduceAll(*MacroComm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
+
+    if (MacroComm->getRank() == 0 && verbosity > 10) {
+      cout << "***** Multiscale Load Balancing Factor " << gmax/gmin <<  endl;
+    }
   }
       
-  ScalarT gmin = 0.0;
-  Teuchos::reduceAll(*MacroComm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
-  ScalarT gmax = 0.0;
-  Teuchos::reduceAll(*MacroComm,Teuchos::REDUCE_MAX,1,&my_cost,&gmin);
-
-  if (MacroComm->getRank() == 0 && verbosity > 10) {
-    cout << "***** Multiscale Load Balancing Factor " << gmax/gmin <<  endl;
-  }
+  
   
 }
 
