@@ -2793,7 +2793,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
   
   // Write data to file (for clustering)
   
-  bool write_volumetric_data = settings->sublist("Solver").get<double>("write volumetric data",false);
+  bool write_volumetric_data = settings->sublist("Solver").get<bool>("write volumetric data",false);
   if (write_volumetric_data) {
     this->writeVolumetricData(block, all_orients);
   }
@@ -3276,8 +3276,8 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
     disc->getFrobenius(groupData[block], jacobian, fro);
     vector<ScalarT> currmeas;
     for (size_type e=0; e<measure.extent(0); ++e) {
-      //currmeas.push_back(measure(e));
-      currmeas.push_back(jacobian(e,0,0,0));
+      currmeas.push_back(measure(e));
+      //currmeas.push_back(jacobian(e,0,0,0));
     }
     all_meas.push_back(currmeas);
     
@@ -3331,8 +3331,8 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
           j22 += jac(e,pt,2,2)*wts(e,pt);
         }
         
-        respOUT << j00 << ", " << j01 << ", " << j02 << ", " << j10 << ", " << j11 << ", " << j12 << ", " << j20 << ", " << j21 << ", " << j22 << endl;
-        //respOUT << all_orients[grp][e] << ", " << all_meas[grp][e] << ", " << all_fros[grp][e] << endl;
+        //respOUT << j00 << ", " << j01 << ", " << j02 << ", " << j10 << ", " << j11 << ", " << j12 << ", " << j20 << ", " << j21 << ", " << j22 << endl;
+        respOUT << all_orients[grp][e] << ", " << all_meas[grp][e] << ", " << all_fros[grp][e] << endl;
       }
     }
     respOUT.close();
