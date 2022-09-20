@@ -15,10 +15,9 @@
 #include "physicsInterface.hpp"
 #include "discretizationInterface.hpp"
 #include "uqManager.hpp"
+#include "data.hpp"
 #include "obj_milorol.hpp"
-//#include "ROL_StdVector.hpp"
 #include "MrHyDE_OptVector.hpp"
-//#include "obj_milorol_simopt.hpp"
 #include "ROL_LineSearchStep.hpp"
 #include "ROL_Algorithm.hpp"
 #include "ROL_Bounds.hpp"
@@ -61,95 +60,22 @@ void AnalysisManager::run() {
   }
   
   std::string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
-  DFAD objfun = 0.0;
   
   if (analysis_type == "forward") {
     
-    solve->forwardModel(objfun);
-    postproc->report();
+    DFAD objfun = this->forwardSolve();
     
   }
   else if (analysis_type == "forward+adjoint") {
-    solve->forwardModel(objfun);
-    postproc->report();
+
+    DFAD objfun = this->forwardSolve();
     
-    solve->adjointModel(*gradient);
+    MrHyDE_OptVector sens = this->adjointSolve();
     
   }
   else if (analysis_type == "dry run") {
     cout << " **** MrHyDE has completed the dry run with verbosity: " << verbosity << endl;
   }
-  else if (analysis_type == "dakota") {
-    // placeholder for embedded dakota analysis
-  }
-  else if (analysis_type == "NLCG") {
-    // placeholder for an "in-house" nonlinear CG optimization algorithm
-  }
-  else if (analysis_type == "Sampling") {
-    
-    // UQ is forward propagation of uncertainty computed using sampling
-    // We may sample either MILO (Monte Carlo), or
-    // We may sample a surrogate model ... we first need to build this surrogate model (perhaps adaptively)
-    // Note: PCE models provide analytical estimates of the mean and variance, but we will make no use of this
-    
-    // Build the uq manager
-    Teuchos::ParameterList sampsettings = settings->sublist("Analysis").sublist("Sampling");
-    
-    // Read in the samples
-    int ptsdim = sampsettings.get<int>("dimension",2);
-    Data sdata("Sample Points", ptsdim, sampsettings.get("source","samples.dat"));
-    Kokkos::View<ScalarT**,HostDevice> samples = sdata.getPoints();
-    int numsamples = samples.extent(0);
-    
-    // Evaluate MILO or a surrogate at these samples
-    vector<ScalarT> response_values;
-    vector<Teuchos::RCP<MrHyDE_OptVector>> gradient_values;
-    
-    std::stringstream ss;
-    std::string sname2 = "sampledata.dat";
-    std::ofstream sdataOUT(sname2.c_str());
-    sdataOUT.precision(16);
-    
-    if(Comm->getRank() == 0)
-      cout << "Evaluating samples ..." << endl;
-    
-    for (int j=0; j<numsamples; j++) {
-      vector<ScalarT> currparams;
-      DFAD objfun = 0.0;
-      for (int i=0; i<ptsdim; i++)  {
-        currparams.push_back(samples(j,i));
-      }
-      if(Comm->getRank() == 0) {
-        for (int i=0; i<ptsdim; i++)  {
-          sdataOUT << samples(j,i) << "  ";
-        }
-      }
-      params->updateParams(currparams,1);
-      solve->forwardModel(objfun);
-      response_values.push_back(objfun.val());
-      if(Comm->getRank() == 0) {
-        sdataOUT << response_values[j] << "  ";
-      }
-      Teuchos::RCP<MrHyDE_OptVector> currgradient;
-      solve->adjointModel(*currgradient);
-      //vector<ScalarT> currgradient = postproc->computeSensitivities(F_soln, A_soln);
-      gradient_values.push_back(currgradient);
-      /*
-      if(Comm->getRank() == 0) {
-        for (int paramiter=0; paramiter < ptsdim; paramiter++) {
-          sdataOUT << gradient_values[j][paramiter] << "  ";
-        }
-        sdataOUT << endl;
-      }
-      */
-      if(Comm->getRank() == 0)
-        cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
-    }
-    
-    sdataOUT.close();
-    
-  }
-  
   else if (analysis_type == "UQ") {
     
     // UQ is forward propagation of uncertainty computed using sampling
@@ -174,51 +100,109 @@ void AnalysisManager::run() {
     Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
     bool regenerate_rotations = uqsettings.get<bool>("regenerate grain rotations",false);
     bool regenerate_grains = uqsettings.get<bool>("regenerate grains",false);
+    bool write_sol_text = uqsettings.get<bool>("write solutions to text file",false);
+    bool compute_adjoint = uqsettings.get<bool>("compute adjoint",false);
+    bool write_adjoint_text = uqsettings.get<bool>("write adjoint to text file",false);
+
+    if (write_sol_text) {
+      postproc->save_solution = true;
+    }
     // Evaluate model or a surrogate at these samples
     vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
     vector_RCP avgsoln = solve->linalg->getNewOverlappedVector(0,2);
     int output_freq = uqsettings.get<int>("output frequency",1);
-    if (uqsettings.get<bool>("use surrogate",false)) {
-      
+    
+    if (Comm->getRank() == 0) {
+      cout << "Running Monte Carlo sampling ..." << endl;
     }
-    else {
-      if (Comm->getRank() == 0) {
-        cout << "Running Monte Carlo sampling ..." << endl;
-      }
-      for (int j=0; j<numsamples; j++) {
-        if (numstochparams > 0) {
-          vector<ScalarT> currparams;
-          for (int i=0; i<numstochparams; i++) {
-            currparams.push_back(samplepts(j,i));
-          }
-          DFAD objfun = 0.0;
-          params->updateParams(currparams,2);
+    for (int j=0; j<numsamples; j++) {
+      if (numstochparams > 0) {
+        vector<ScalarT> currparams;
+        for (int i=0; i<numstochparams; i++) {
+          currparams.push_back(samplepts(j,i));
+        }
+        params->updateParams(currparams,2);
           
-        }
-        if (regenerate_grains) {
-          auto seeds = solve->mesh->generateNewMicrostructure(sampleints(j));
-          solve->mesh->importNewMicrostructure(sampleints(j), seeds,
-                                               solve->assembler->groups,
-                                               solve->assembler->boundary_groups);
-        }
-        else if (regenerate_rotations) {
-          this->updateRotationData(sampleints(j));
-        }
+      }
+      if (regenerate_grains) {
+        auto seeds = solve->mesh->generateNewMicrostructure(sampleints(j));
+        solve->mesh->importNewMicrostructure(sampleints(j), seeds,
+                                             solve->assembler->groups,
+                                             solve->assembler->boundary_groups);
+      }
+      else if (regenerate_rotations) {
+        this->updateRotationData(sampleints(j));
+      }
         
-        std::stringstream ss;
-        ss << "_" << j;
-        postproc->append = ss.str();
+      std::stringstream ss;
+      ss << "_" << j;
+      postproc->append = ss.str();
         
-        solve->forwardModel(objfun);
-        postproc->report();
+      DFAD objfun = this->forwardSolve();
         
-        if (Comm->getRank() == 0 && j%output_freq == 0) {
-          cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
+      if (write_sol_text) {
+        typedef typename SolverNode::device_type              LA_device;
+        std::stringstream sfile;
+        sfile << "solution." << j << "." << Comm->getRank() << ".dat";
+        vector<vector<vector_RCP> > soln = postproc->soln[0]->extractAllData();
+        int index = 0; // forget what this is for
+        size_type numVecs = soln[index].size();
+        auto v0_view = soln[index][0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+        size_type numEnt = v0_view.extent(0);
+        View_Sc2 all_data("data for writing",numEnt,numVecs);
+        for (size_type v=0; v<numVecs; ++v) {
+          auto vec_view = soln[index][v]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+          for (size_type i=0; i<numEnt; ++i) {
+            all_data(i,v) = vec_view(i,0);
+          }
+        }
+        std::ofstream solnOUT(sfile.str().c_str());
+        for (size_type i=0; i<numEnt; ++i) {
+          for (size_type v=0; v<numVecs; ++v) {
+            solnOUT << all_data(i,v) << "  ";
+          }
+          solnOUT << endl;
+        }
+        solnOUT.close();
+      }
+      if (compute_adjoint) {
+
+        postproc->save_adjoint_solution = true;
+        MrHyDE_OptVector sens = this->adjointSolve();
+
+        if (write_adjoint_text) {
+          typedef typename SolverNode::device_type              LA_device;
+          std::stringstream sfile;
+          sfile << "adjoint." << j << "." << Comm->getRank() << ".dat";
+          vector<vector<vector_RCP> > soln = postproc->adj_soln[0]->extractAllData();
+          int index = 0; // forget what this is for
+          size_type numVecs = soln[index].size();
+          auto v0_view = soln[index][0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+          size_type numEnt = v0_view.extent(0);
+          View_Sc2 all_data("data for writing",numEnt,numVecs);
+          for (size_type v=0; v<numVecs; ++v) {
+            auto vec_view = soln[index][v]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+            for (size_type i=0; i<numEnt; ++i) {
+              all_data(i,v) = vec_view(i,0);
+            }
+          }
+          std::ofstream solnOUT(sfile.str().c_str());
+          for (size_type i=0; i<numEnt; ++i) {
+            for (size_type v=0; v<numVecs; ++v) {
+              solnOUT << all_data(i,v) << "  ";
+            }
+            solnOUT << endl;
+          }
+          solnOUT.close();
         }
       }
-      
+        
+      if (Comm->getRank() == 0 && j%output_freq == 0) {
+        cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
+      }
     }
+      
     
     if (Comm->getRank() == 0) {
       string sptname = "sample_points.dat";
@@ -622,7 +606,7 @@ void AnalysisManager::run() {
     // Run algorithm.
     rolSolver.solve(*outStream);
 
-    ScalarT optTime = timer.stop();
+    //ScalarT optTime = timer.stop();
 
     /*
     if (settings->sublist("Postprocess").get("write Hessian",false)){
@@ -858,6 +842,59 @@ void AnalysisManager::run() {
       //postproc->writeSolution(settings->sublist("Postprocess").get<string>("Output File","output"));
     }*/
   } //ROL_SIMOPT
+  else if (analysis_type == "DCI") {
+
+  }
+  else if (analysis_type == "restart") {
+    Teuchos::ParameterList rstsettings = settings->sublist("Analysis").sublist("Restart");
+    string state_file = rstsettings.get<string>("state file name","none");
+    string adjoint_file = rstsettings.get<string>("adjoint file name","none");
+    string param_file = rstsettings.get<string>("parameter file name","none");
+    string mode = rstsettings.get<string>("mode","forward");
+    string data_type = rstsettings.get<string>("file type","text");
+    double start_time = rstsettings.get<double>("start time",0.0);
+ 
+    solve->initial_time = start_time;
+    solve->current_time = start_time;
+
+    ///////////////////////////////////////////////////////////
+    // Recover the state
+    ///////////////////////////////////////////////////////////
+
+    if (state_file != "none" ) {
+      vector<vector_RCP> restart_solution = solve->getRestartSolution();
+      this->recoverSolution(restart_solution[0], data_type, state_file);
+    }
+
+    if (adjoint_file != "none" ) {
+      //vector<vector_RCP> restart_solution = solver->getRestartSolution();
+      //this->recoverSolution(restart_solution[0], data_type, adjoint_file);
+    }
+    
+    if (param_file != "none" ) {
+      vector_RCP disc_param = params->getDiscretizedParams();
+      this->recoverSolution(disc_param, data_type, param_file);
+    }
+    
+    solve->use_restart = true;
+
+    ///////////////////////////////////////////////////////////
+    // Run the requested mode
+    ///////////////////////////////////////////////////////////
+
+    if (mode == "forward") {
+
+    }
+    else if (mode == "error estimate") {
+    }
+    else if (mode == "ROL") {
+    }
+    else if (mode == "ROL2") {
+    }
+    else { // don't solve anything, but produce visualization
+      std::cout << "Unknown restart mode: " << mode << std::endl;
+    }
+  }
   else { // don't solve anything, but produce visualization
     std::cout << "Unknown analysis option: " << analysis_type << std::endl;
     std::cout << "Valid and tested options: dry run, forward, forward+adjoint, UQ, ROL" << std::endl;
@@ -871,6 +908,80 @@ void AnalysisManager::run() {
   
 }
 
+// ========================================================================================
+// ========================================================================================
+
+DFAD AnalysisManager::forwardSolve() {
+
+   DFAD objfun = 0.0;
+   solve->forwardModel(objfun);
+   postproc->report();
+   return objfun;
+}
+
+
+// ========================================================================================
+// ========================================================================================
+
+MrHyDE_OptVector AnalysisManager::adjointSolve() {
+
+    MrHyDE_OptVector xtmp = params->getCurrentVector();
+    auto grad = xtmp.clone();
+    MrHyDE_OptVector sens = 
+      Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<ROL::Vector<ScalarT> &>(*grad));
+    sens.zero();
+    solve->adjointModel(sens);
+    return sens;
+
+}
+    
+// ========================================================================================
+// ========================================================================================
+
+void AnalysisManager::recoverSolution(vector_RCP & solution, string & data_type, string & filename) {
+
+  string extension = filename.substr(filename.size()-4,filename.size()-1);
+  filename.erase(filename.size()-4,4);
+
+  cout << extension << "  " << filename << endl;
+  if (data_type == "text") {
+    std::stringstream sfile;
+    sfile << filename << "." << Comm->getRank() << extension;
+    std::ifstream fnmast(sfile.str());
+    if (!fnmast.good()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the data file: " + sfile.str());
+    }
+  
+    std::vector<std::vector<ScalarT> > values;
+    std::ifstream fin(sfile.str());
+  
+    for (std::string line; std::getline(fin, line); ) {
+      std::replace(line.begin(), line.end(), ',', ' ');
+      std::istringstream in(line);
+      values.push_back(std::vector<ScalarT>(std::istream_iterator<ScalarT>(in),
+                       std::istream_iterator<ScalarT>()));
+    }
+
+    typedef typename SolverNode::device_type              LA_device;
+    auto sol_view = solution->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    for (size_type i=0; i<values.size(); ++i) {
+      sol_view(i,0) = values[i][0];
+    }
+  }
+  else if (data_type == "exodus") {
+
+  }
+  else if (data_type == "hdf5") {
+
+  }
+  else if (data_type == "binary") {
+
+  }
+  else {
+    std::cout << "Unknown file type: " << data_type << std::endl;
+  }
+
+}
 
 // ========================================================================================
 // ========================================================================================

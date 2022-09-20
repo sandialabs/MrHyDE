@@ -169,6 +169,8 @@ namespace MrHyDE {
     
     vector_RCP blankState();
     
+    vector<vector_RCP> getRestartSolution();
+
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -213,7 +215,7 @@ namespace MrHyDE {
     string solver_type, initial_type;
     
     bool line_search, useL2proj, discretized_stochastic, fully_explicit, use_custom_PCG;
-    bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs;
+    bool isInitial, isTransient, is_adjoint, is_final_time, usestrongDBCs, use_restart=false;
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs;
     vector<bool> scalarDirichletData, staticDirichletData, scalarInitialData;
     vector<bool> have_initial_conditions, have_static_Dirichlet_data;
@@ -228,7 +230,7 @@ namespace MrHyDE {
     vector<vector<vector<LO> > > numBasis, useBasis;
     vector<vector<size_t> > maxBasis, numVars;
     
-    vector<vector_RCP> res, res_over, du, du_over;
+    vector<vector_RCP> res, res_over, du, du_over, restart_solution;
     vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg, p_pcg_over, q_pcg_over;
     
     Kokkos::View<ScalarT**,HostDevice> butcher_A; 

@@ -1978,6 +1978,13 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
   }
   vector<vector_RCP> initial_solns;
   
+  if (use_restart) {
+    for (size_t set=0; set<restart_solution.size(); ++set) {
+      initial_solns.push_back(restart_solution[set]);
+    }
+  }
+  else {
+
   for (size_t set=0; set<setnames.size(); ++set) {
     assembler->updatePhysicsSet(set);
     
@@ -1992,7 +1999,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
         usehost = true;
       }
       else {
-        // output an error along the lines of "what the hell happened"
+        // output an error
       }
     }
     
@@ -2111,6 +2118,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
     
     initial_solns.push_back(initial);
   }
+  }
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
       cout << "**** Finished SolverManager::setInitial ..." << endl;
@@ -2142,6 +2150,16 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::blan
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+template<class Node>
+vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<Node>::getRestartSolution() {
+  
+  for (size_t set=0; set<setnames.size(); ++set) {
+    vector_RCP F_soln = linalg->getNewOverlappedVector(set);
+    restart_solution.push_back(F_soln);
+  }
+  return restart_solution;
+}
+    
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 

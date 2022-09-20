@@ -61,6 +61,20 @@ namespace MrHyDE {
     
     void run();
     
+    DFAD forwardSolve();
+
+    MrHyDE_OptVector adjointSolve();
+
+    void ROLSolve();
+
+    void ROL2Solve();
+
+    //void KDE(View_Sc2 seedpts, View_Sc2 evalpts);
+
+    //void rejectionSampling();
+    
+    void recoverSolution(vector_RCP & solution, string & data_type, string & file_name);
+
     // ========================================================================================
     // ========================================================================================
     
