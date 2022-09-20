@@ -113,10 +113,12 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   
   for (size_t set=0; set<setnames.size(); ++set) {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
+    adj_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
   }
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
   save_solution = false;
-  
+  save_adjoint_solution = false; // very rarely is this true
+
   if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROL_SIMOPT") {
     save_solution = true; // default is false
     string rolVersion = "ROL";
@@ -3402,6 +3404,11 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
     
+  if (save_adjoint_solution) {
+    for (size_t set=0; set<soln.size(); ++set) {
+      adj_soln[set]->store(adjoint[set], current_time, 0);
+    }
+  }
   DFAD obj_sens = 0.0;
   if (response_type != "discrete") {
     this->computeObjective(u, current_time, obj_sens);
@@ -3513,6 +3520,61 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   }
   
 }
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP> & u,
+                                                              vector<vector_RCP> & adjoint,
+                                                              const ScalarT & current_time,
+                                                              const int & tindex,
+                                                              const ScalarT & deltat) {
+  
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      std::cout << "******** Starting PostprocessManager::computeDualWeightedResidual ..." << std::endl;
+    }
+  }
+  
+  typedef typename Node::device_type LA_device;
+  typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+  typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
+  
+  size_t set = 0; // hard coded for now
+  
+  // adjoint solution is overlapped
+  vector_RCP adj = linalg->getNewVector(set);
+  linalg->exportVectorFromOverlapped(set, adj, adjoint[set]);
+
+  //auto adjoint_kv = adj->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> dotprod(1);
+  
+    vector_RCP res = linalg->getNewVector(set,params->num_active_params);
+  //  matrix_RCP J = linalg->getNewMatrix(set);
+    vector_RCP res_over = linalg->getNewOverlappedVector(set,params->num_active_params);
+    matrix_RCP J_over;// = linalg->getNewOverlappedMatrix(set);
+    
+    res_over->putScalar(0.0);
+    
+    assembler->assembleJacRes(set, u[set], u[set], false, false, false,
+                              res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
+                              params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
+    
+    linalg->exportVectorFromOverlapped(set, res, res_over);
+    
+  res->dot(*adj, dotprod);
+
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      std::cout << "******** Finished PostprocessManager::computeDualWeightedResidual ..." << std::endl;
+    }
+  }
+  return dotprod[0];
+
+}
+
+
 
 // ========================================================================================
 // ========================================================================================

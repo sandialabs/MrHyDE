@@ -413,6 +413,12 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
+    ScalarT computeDualWeightedResidual(vector<vector_RCP> & u, vector<vector_RCP> & adjoint,
+                                        const ScalarT & current_time, const int & tindex, const ScalarT & deltat);
+
+    // ========================================================================================
+    // ========================================================================================
+
     Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > 
     computeDiscreteSensitivities(vector<vector_RCP> & u,
                                  vector<vector_RCP> & adjoint,
@@ -534,7 +540,7 @@ namespace MrHyDE {
     vector<objective> objectives;
     vector<regularization> regularizations;
     vector<Teuchos::RCP<SolutionStorage<Node> > > soln, adj_soln, datagen_soln;
-    bool save_solution=false;
+    bool save_solution=false, save_adjoint_solution=false;
     vector<fluxResponse> fluxes;
     vector< vector<integratedQuantity> > integratedQuantities; /// A vector of integrated quantities for each block
     
