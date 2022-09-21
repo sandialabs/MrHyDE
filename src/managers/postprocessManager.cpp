@@ -881,7 +881,7 @@ void PostprocessManager<Node>::report() {
         cout << "*********************************************************" << endl;
         for (size_t k=0; k<integratedQuantities[iLocal].size(); ++k) { 
           std::cout << integratedQuantities[iLocal][k].name  << " : " 
-                    << integratedQuantities[iLocal][k].val() << std::endl; 
+                    << integratedQuantities[iLocal][k].val(0) << std::endl; 
         }
       }
     
