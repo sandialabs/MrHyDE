@@ -2757,7 +2757,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
   }
   
   vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
-  vector<ScalarT> db_measures;
+  vector<ScalarT> db_measures, db_jacobian_norms;
   
   // There are only so many unique orientation
   // Creating a short list of the unique ones and the index for each element
@@ -2819,7 +2819,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
       bool found = false;
       size_t prog = 0;
 
-      ScalarT refmeas = std::pow(measure_host(e),1.0/dimension);
+      //ScalarT refmeas = std::pow(measure_host(e),1.0/dimension);
             
       while (!found && prog<first_users.size()) {
         size_t refgrp = first_users[prog].first;
@@ -2835,6 +2835,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
           
           if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
             
+            ScalarT refnorm = db_jacobian_norms[prog];
             // Check #3: element Jacobians
             ScalarT diff2 = 0.0;
             size_type pt=0;
@@ -2843,7 +2844,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
               while (d0<dimension && diff2<database_TOL) {
                 size_type d1=0;
                 while (d1<dimension && diff2<database_TOL) { 
-                  diff2 += std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1))/refmeas;
+                  diff2 += std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
                   d1++;
                 }
                 d0++;
@@ -2853,7 +2854,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
             
             //ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
             
-            if (diff2<database_TOL) {
+            if (diff2/refnorm<database_TOL) {
               found = true;
               index_host(e) = prog;
             }
@@ -2876,15 +2877,18 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
         first_users.push_back(newuj);
         
         Kokkos::View<ScalarT***,HostDevice> new_jac("new db jac",numip, dimension, dimension);
+        ScalarT jnorm = 0.0;
         for (size_type pt=0; pt<new_jac.extent(0); ++pt) {
           for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
             for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
               new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
+              jnorm += std::abs(jacobian(e,pt,d0,d1));
             }
           }
         }
         db_jacobians.push_back(new_jac);
         db_measures.push_back(measure_host(e));
+        db_jacobian_norms.push_back(jnorm);
         
       }
     }
@@ -2907,7 +2911,7 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
   size_type numip = groupData[block]->ref_ip.extent(0);
   
   vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
-  vector<ScalarT> db_measures;
+  vector<ScalarT> db_measures, db_jacobian_norms;
   
   // There are only so many unique orientation
   // Creating a short list of the unique ones and the index for each element
@@ -2979,9 +2983,10 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
             
             // Check #2: element measures
             ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
-            ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
-            
-            if (std::abs(diff/refmeas)<database_TOL) {
+            //ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
+            ScalarT refnorm = db_jacobian_norms[prog];
+
+            if (std::abs(diff/db_measures[prog])<database_TOL) {
               
               // Check #3: element Jacobians
               
@@ -2994,7 +2999,7 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
                 }
               }
               
-              if (std::abs(diff2/refmeas)<database_TOL) {
+              if (std::abs(diff2/refnorm)<database_TOL) {
                 found = true;
                 index_host(e) = prog;
               }
@@ -3020,16 +3025,19 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
         std::pair<size_t,size_t> newuj{grp,e};
         first_boundary_users.push_back(newuj);
         
+        ScalarT jnorm = 0.0;
         Kokkos::View<ScalarT***,HostDevice> new_jac("new db jac",numip, dimension, dimension);
         for (size_type pt=0; pt<new_jac.extent(0); ++pt) {
           for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
             for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
               new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
+              jnorm += std::abs(jacobian(e,pt,d0,d1));
             }
           }
         }
         db_jacobians.push_back(new_jac);
         db_measures.push_back(measure_host(e));
+        db_jacobian_norms.push_back(jnorm);
         
       }
     }
