@@ -1679,6 +1679,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
       linalg->linearSolver(set, J, current_res, current_du);
+      linalg->writeToFile(J, current_res, current_du);
       linalg->importVectorToOverlapped(set, current_du_over, current_du);
       
       alpha = 1.0;

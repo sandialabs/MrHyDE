@@ -285,6 +285,29 @@ namespace MrHyDE {
       Teuchos::TimeMonitor mattimer(*fillcompletetimer);
       mat->fillComplete();
     }
+    
+    // ========================================================================================
+    // Write the Jacobian and/or residual to a matrix-market text file
+    // ========================================================================================
+
+    void writeToFile(matrix_RCP &J, vector_RCP &r, vector_RCP &soln, 
+                     const std::string &jac_filename="jacobian.mm",
+                     const std::string &res_filename="residual.mm",
+                     const std::string &sol_filename="solution.mm") {
+
+      Teuchos::TimeMonitor localtimer(*writefiletimer);
+
+      // Tpetra gathers the entire matrix or the entire residual on proc 0 
+      // when Tpetra::MatrixMarket::Writer is called. Very large matrices
+      // will cause this to run out of memory!
+
+      if(do_dump_jacobian)
+        Tpetra::MatrixMarket::Writer<LA_CrsMatrix>::writeSparseFile(jac_filename,*J);
+      if(do_dump_residual)
+        Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(res_filename,*r);
+      if(do_dump_solution)
+        Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(sol_filename,*soln);
+    }
   
     // ========================================================================================
     // There are 3 types of matrices used in MrHyDE: Jacobian, L2 projection and boundary L2
@@ -353,6 +376,7 @@ namespace MrHyDE {
     
     int verbosity, debug_level;
     vector<string> setnames;
+    bool do_dump_jacobian, do_dump_residual, do_dump_solution;
     
     // Maps, graphs, importers and exporters
     size_t maxEntries;
@@ -379,6 +403,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
     Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Vector()");
     Teuchos::RCP<Teuchos::Time> newmatrixtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Matrix()");
+    Teuchos::RCP<Teuchos::Time> writefiletimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::write()");
     Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::linearSolver*()");
     Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::fillComplete*()");
     Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::export*()");

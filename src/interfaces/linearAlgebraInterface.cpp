@@ -58,6 +58,11 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   maxKrylovVectors = settings->sublist("Solver").get<int>("krylov vectors",100);
   belos_residual_scaling = settings->sublist("Solver").get<string>("Belos implicit residual scaling","None");
   // Also: "Norm of Preconditioned Initial Residual" or "Norm of Initial Residual"
+
+  // Dump to file settings (false by default)
+  do_dump_jacobian = settings->sublist("Solver").get<bool>("dump jacobian",false);
+  do_dump_residual = settings->sublist("Solver").get<bool>("dump residual",false);
+  do_dump_solution = settings->sublist("Solver").get<bool>("dump solution",false);
   
   
   // Create the solver options for the state Jacobians
