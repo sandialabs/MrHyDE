@@ -4727,16 +4727,6 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     }
   }
   
-  if (verbosity >= 10) {
-    cout << " - Processor " << Comm->getRank() << " has " << numFound << " sensors" << endl;
-
-    size_t globalFound = 0;
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&numFound,&globalFound);
-    if (Comm->getRank() == 0) {
-      cout << " - Total Number of Sensors: " << spts_found.extent(0) << endl;
-      cout << " - Total Number of Sensors Located: " << globalFound << endl;
-    }
-  }
   objectives[objID].numSensors = numFound;
   objectives[objID].sensor_found = spts_found;
   
@@ -5138,6 +5128,23 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
       }// found
     } // pt
   } // elem
+
+  if (verbosity >= 10) {
+    size_t numFound = 0;
+    for (size_type pt=0; pt<spts_found.extent(0); ++pt) {
+      if (spts_found(pt)) {
+        numFound++;
+      }
+    }
+    cout << " - Processor " << Comm->getRank() << " has " << numFound << " sensors" << endl;
+
+    size_t globalFound = 0;
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&numFound,&globalFound);
+    if (Comm->getRank() == 0) {
+      cout << " - Total Number of Sensors: " << spts_found.extent(0) << endl;
+      cout << " - Total Number of Sensors Located: " << globalFound << endl;
+    }
+  }
 }
 
 // ========================================================================================
