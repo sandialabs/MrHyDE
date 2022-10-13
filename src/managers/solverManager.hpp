@@ -171,6 +171,8 @@ namespace MrHyDE {
     
     vector<vector_RCP> getRestartSolution();
 
+    vector<vector_RCP> getRestartAdjointSolution();
+
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -230,7 +232,7 @@ namespace MrHyDE {
     vector<vector<vector<LO> > > numBasis, useBasis;
     vector<vector<size_t> > maxBasis, numVars;
     
-    vector<vector_RCP> res, res_over, du, du_over, restart_solution;
+    vector<vector_RCP> res, res_over, du, du_over, restart_solution, restart_adjoint_solution;
     vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg, p_pcg_over, q_pcg_over;
     
     Kokkos::View<ScalarT**,HostDevice> butcher_A; 

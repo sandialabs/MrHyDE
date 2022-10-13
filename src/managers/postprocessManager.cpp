@@ -4727,6 +4727,16 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     }
   }
   
+  if (verbosity >= 10) {
+    cout << " - Processor " << Comm->getRank() << " has " << numFound << " sensors" << endl;
+
+    size_t globalFound = 0;
+    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&numFound,&globalFound);
+    if (Comm->getRank() == 0) {
+      cout << " - Total Number of Sensors: " << spts_found.extent(0) << endl;
+      cout << " - Total Number of Sensors Located: " << globalFound << endl;
+    }
+  }
   objectives[objID].numSensors = numFound;
   objectives[objID].sensor_found = spts_found;
   

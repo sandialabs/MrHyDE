@@ -849,7 +849,8 @@ void AnalysisManager::run() {
     Teuchos::ParameterList rstsettings = settings->sublist("Analysis").sublist("Restart");
     string state_file = rstsettings.get<string>("state file name","none");
     string adjoint_file = rstsettings.get<string>("adjoint file name","none");
-    string param_file = rstsettings.get<string>("parameter file name","none");
+    string disc_param_file = rstsettings.get<string>("discretized parameter file name","none");
+    string scalar_param_file = rstsettings.get<string>("scalar parameter file name","none");
     string mode = rstsettings.get<string>("mode","forward");
     string data_type = rstsettings.get<string>("file type","text");
     double start_time = rstsettings.get<double>("start time",0.0);
@@ -861,21 +862,27 @@ void AnalysisManager::run() {
     // Recover the state
     ///////////////////////////////////////////////////////////
 
+    vector<vector_RCP> forward_solution, adjoint_solution;
+    vector_RCP disc_params;
+    vector<ScalarT> scalar_params;
     if (state_file != "none" ) {
-      vector<vector_RCP> restart_solution = solve->getRestartSolution();
-      this->recoverSolution(restart_solution[0], data_type, state_file);
+      forward_solution = solve->getRestartSolution();
+      this->recoverSolution(forward_solution[0], data_type, state_file);
     }
 
     if (adjoint_file != "none" ) {
-      //vector<vector_RCP> restart_solution = solver->getRestartSolution();
-      //this->recoverSolution(restart_solution[0], data_type, adjoint_file);
+      adjoint_solution = solve->getRestartAdjointSolution();
+      this->recoverSolution(adjoint_solution[0], data_type, adjoint_file);
     }
     
-    if (param_file != "none" ) {
-      vector_RCP disc_param = params->getDiscretizedParams();
-      this->recoverSolution(disc_param, data_type, param_file);
+    if (disc_param_file != "none" ) {
+      disc_params = params->getDiscretizedParams();
+      this->recoverSolution(disc_params, data_type, disc_param_file);
     }
-    
+    if (scalar_param_file != "none" ) {
+      
+    }
+
     solve->use_restart = true;
 
     ///////////////////////////////////////////////////////////
@@ -886,6 +893,9 @@ void AnalysisManager::run() {
 
     }
     else if (mode == "error estimate") {
+      //ScalarT errorest = postproc->computeDualWeightedResidual(forward_solution[0], adjoint_solution[0],
+      //                                                         start_time, 0, solve->deltat);
+
     }
     else if (mode == "ROL") {
     }

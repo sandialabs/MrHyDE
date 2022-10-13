@@ -2153,13 +2153,30 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::blan
 template<class Node>
 vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<Node>::getRestartSolution() {
   
-  for (size_t set=0; set<setnames.size(); ++set) {
-    vector_RCP F_soln = linalg->getNewOverlappedVector(set);
-    restart_solution.push_back(F_soln);
+  if (restart_solution.size() == 0) {
+    for (size_t set=0; set<setnames.size(); ++set) {
+      vector_RCP F_soln = linalg->getNewOverlappedVector(set);
+      restart_solution.push_back(F_soln);
+    }
   }
   return restart_solution;
 }
-    
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<Node>::getRestartAdjointSolution() {
+  
+  if (restart_adjoint_solution.size() == 0) {
+    for (size_t set=0; set<setnames.size(); ++set) {
+      vector_RCP F_soln = linalg->getNewOverlappedVector(set);
+      restart_adjoint_solution.push_back(F_soln);
+    }
+  }
+  return restart_adjoint_solution;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 

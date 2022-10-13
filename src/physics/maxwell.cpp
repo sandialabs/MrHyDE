@@ -261,13 +261,14 @@ void maxwell::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + (sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + (sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-            AD f2 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEz_dt(elem,pt) + (sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+            AD eps = epsilon(elem,pt);
+            AD f0 = (rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            AD f1 = (rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            AD f2 = (rindex(elem,pt)*rindex(elem,pt)*dEz_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
             
-            AD c0 = -1.0/mu(elem,pt)*Bx(elem,pt)*wts(elem,pt);
-            AD c1 = -1.0/mu(elem,pt)*By(elem,pt)*wts(elem,pt);
-            AD c2 = -1.0/mu(elem,pt)*Bz(elem,pt)*wts(elem,pt);
+            AD c0 = -1.0/mu(elem,pt)*1.0/eps*Bx(elem,pt)*wts(elem,pt);
+            AD c1 = -1.0/mu(elem,pt)*1.0/eps*By(elem,pt)*wts(elem,pt);
+            AD c2 = -1.0/mu(elem,pt)*1.0/eps*Bz(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
               res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
