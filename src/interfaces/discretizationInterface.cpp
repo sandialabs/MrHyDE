@@ -2441,12 +2441,54 @@ Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhys
                                                                                          topo_RCP & cellTopo,
                                                                                          const ScalarT & tol) {
   DRV ref_pts = this->mapPointsToReference(phys_pts,nodes,cellTopo);
+  //DRV phys_pts2 = this->mapPointsToPhysical(ref_pts,nodes,cellTopo);
+  DRV phys_pts2("physical cell point remapped",phys_pts.extent(0), phys_pts.extent(1), phys_pts.extent(2));
+  CellTools::mapToPhysicalFrame(phys_pts2, ref_pts, nodes, *cellTopo);
   
+  ScalarT reldiff = this->computeRelativeDifference(phys_pts, phys_pts2);
+  //cout << "reldiff = " << reldiff << endl;
+
+  if (reldiff > 1.0e-12) {
+   // cout << "Processor " << Commptr->getRank() << " has a degenerate mapping" << endl;
+  //  KokkosTools::print(phys_pts);
+  //  KokkosTools::print(ref_pts);
+  //  KokkosTools::print(phys_pts2);
+  }
+
   Kokkos::DynRankView<int,PHX::Device> inRefCell("inRefCell", 1, phys_pts.extent(1));
   
   CellTools::checkPointwiseInclusion(inRefCell, ref_pts, *cellTopo, tol);
   
+  if (!inRefCell(0,0)) {
+    //KokkosTools::print(ref_pts);
+  }
   return inRefCell;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+ScalarT DiscretizationInterface::computeRelativeDifference(DRV data1, DRV data2) {
+
+  auto data1_host = create_mirror_view(data1);
+  deep_copy(data1_host,data1);
+
+  auto data2_host = create_mirror_view(data2);
+  deep_copy(data2_host,data2);
+
+  ScalarT diff = 0.0;
+  ScalarT base = 0.0;
+  // Assumes data1 and data2 are rank-3 ... not necessary, but this is the only use case right now
+  for (size_type i=0; i<data1_host.extent(0); ++i) {
+    for (size_type j=0; j<data1_host.extent(1); ++j) {
+      for (size_type k=0; k<data1_host.extent(2); ++k) {
+        diff += std::abs(data1_host(i,j,k) - data2_host(i,j,k));
+        base += std::abs(data1_host(i,j,k));
+      }
+    }
+  }
+  return diff/base;
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

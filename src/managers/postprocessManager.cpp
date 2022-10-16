@@ -5057,7 +5057,8 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
                                                   Kokkos::View<bool*,HostDevice> spts_found) {
   
   global_num_sensors = spts_host.extent(0);
-
+  size_t checksPerformed = 0;
+    
   for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
     
     auto nodes = assembler->groups[block][grp]->nodes;
@@ -5084,22 +5085,26 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
     for (size_type pt=0; pt<spts_host.extent(0); ++pt) {
       if (!spts_found(pt)) {
         for (size_type p=0; p<nodebox.extent(0); ++p) {
+          double xbuff = 0.1*(nodebox(p,0,1)-nodebox(p,0,0));
+          double ybuff = 0.1*(nodebox(p,1,1)-nodebox(p,1,0));
+          double zbuff = 0.1*(nodebox(p,2,1)-nodebox(p,2,0));
           bool proceed = true;
-          if (spts_host(pt,0)<nodebox(p,0,0) || spts_host(pt,0)>nodebox(p,0,1)) {
+          if (spts_host(pt,0)<nodebox(p,0,0)-xbuff || spts_host(pt,0)>nodebox(p,0,1)+xbuff) {
             proceed = false;
           }
           if (proceed && spaceDim > 1) {
-            if (spts_host(pt,1)<nodebox(p,1,0) || spts_host(pt,1)>nodebox(p,1,1)) {
+            if (spts_host(pt,1)<nodebox(p,1,0)-ybuff || spts_host(pt,1)>nodebox(p,1,1)+ybuff) {
               proceed = false;
             }
           }
           if (proceed && spaceDim > 2) {
-            if (spts_host(pt,2)<nodebox(p,2,0) || spts_host(pt,2)>nodebox(p,2,1)) {
+            if (spts_host(pt,2)<nodebox(p,2,0)-zbuff || spts_host(pt,2)>nodebox(p,2,1)+zbuff) {
               proceed = false;
             }
           }
           
           if (proceed) {
+            checksPerformed++;
             // Need to use DRV, which are on AssemblyDevice
             // We have less control here
             DRV phys_pt("phys_pt",1,1,spaceDim);
@@ -5115,7 +5120,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
             
             auto inRefgrp = assembler->disc->checkInclusionPhysicalData(phys_pt,cnodes,
                                                                          assembler->groupData[block]->cellTopo,
-                                                                         0.0);
+                                                                         1.0e-14);
             auto inRef_host = create_mirror_view(inRefgrp);
             deep_copy(inRef_host,inRefgrp);
             if (inRef_host(0,0)) {
@@ -5123,12 +5128,36 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
               spts_owners(pt,0) = grp;
               spts_owners(pt,1) = p;
             }
+            else {
+              //cout << "Sensor was in bounding box, but not in element: " << endl;
+              //KokkosTools::print(phys_pt);
+              //KokkosTools::print(cnodes);
+            }
           }
         }
       }// found
     } // pt
   } // elem
 
+  bool check_found = false;
+  if (check_found) {
+    for (size_type pt=0; pt<spts_found.extent(0); ++pt) {
+      size_t fnd_flag = 0;
+      if (spts_found(pt)) {
+        fnd_flag = 1;
+      }
+      size_t globalFound = 0;
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&fnd_flag,&globalFound);
+      if (Comm->getRank() == 0) {
+        if (globalFound == 0) {
+           cout << " - Sensor " << pt << " was not found" << endl;
+        }
+        else if (globalFound > 1) {
+           cout << " - Sensor " << pt << " was found " << globalFound << " times" << endl;
+        }
+      }
+    }
+  }
   if (verbosity >= 10) {
     size_t numFound = 0;
     for (size_type pt=0; pt<spts_found.extent(0); ++pt) {
@@ -5136,6 +5165,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
         numFound++;
       }
     }
+    cout << "Total number of Intrepid inclusion checks performed on processor " << Comm->getRank() << ": " << checksPerformed << endl;
     cout << " - Processor " << Comm->getRank() << " has " << numFound << " sensors" << endl;
 
     size_t globalFound = 0;

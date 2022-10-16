@@ -218,6 +218,7 @@ namespace MrHyDE {
     Kokkos::DynRankView<int,PHX::Device> checkInclusionPhysicalData(DRV phys_pts, DRV nodes,
                                                                     topo_RCP & cellTopo,
                                                                     const ScalarT & tol);
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -225,6 +226,8 @@ namespace MrHyDE {
                          basis_RCP & basis_pointer);
 
     Kokkos::View<string**,HostDevice> getVarBCs(const size_t & set, const size_t & block);
+    
+    ScalarT computeRelativeDifference(DRV data1, DRV data2);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
