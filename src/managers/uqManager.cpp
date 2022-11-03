@@ -248,3 +248,41 @@ void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
   
   
 }
+
+// ========================================================================================
+// ========================================================================================
+
+void UQManager::KDE(View_Sc2 seedpts, View_Sc2 evalpts, View_Sc1 density) {
+/*
+N = size(data,1);	% number of data points
+dim = size(data,2);
+
+Z = zeros(size(X,1),1);
+
+if nargin > 3
+    wts = varargin{1};
+else
+    wts = ones(size(data,1),1);
+end
+
+if isempty(sigma)
+    sigma = 1/1*1.06*sqrt(var(data))*size(data,1)^(-1/5);
+end
+% kernel density estimation
+if (min(sigma) == 0)
+    Z = ones(size(X,1),1);
+else
+    c = 1./sqrt(2*pi*sigma.^2);
+    for i=1:N
+        tmp = wts(i).*c(1).*exp(-(data(i,1)-X(:,1)).^2/(2*sigma(1)^2));
+        for j = 2:dim
+            tmp = tmp.*c(j).*exp(-(data(i,j)-X(:,j)).^2/(2*sigma(j)^2));
+        end
+        Z = Z+1./N.*tmp;
+    end
+end
+*/
+}
+
+// ========================================================================================
+// ========================================================================================

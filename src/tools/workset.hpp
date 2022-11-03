@@ -381,7 +381,8 @@ namespace MrHyDE {
     bool have_rotation, have_rotation_phi;
     View_Sc3 rotation;
     View_Sc2 rotation_phi, extra_data;
-    
+    View_Sc3 multidata;
+
     //Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     // Profile timers

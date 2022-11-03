@@ -462,13 +462,8 @@ bool Interpreter::isOperator(vector<Branch> & branches, size_t & index, vector<s
           iseq = false;
         }
         if (s[L] == '(') {
-          int paren = 1;
           for (size_t j=L+1; j<s.length()-1; j++) {
-            if (s[j] == '(') {
-              paren += 1;
-            }
             if (s[j] == ')') {
-              paren += -1;
               if (j<s.length()-1) {
                 iseq = false;
               }

@@ -281,7 +281,6 @@ public:
   ///////////////////////////////////////////////////
   
   void zero() {
-    //cout << "called zero" << endl;
     
     if (field_vec.size() > 0) {
       for (size_t i=0; i<field_vec.size(); ++i) {
@@ -298,8 +297,7 @@ public:
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
-  void setScalar(const ScalarT & alpha) {
-    //cout << "called zero" << endl;
+  void putScalar(const ScalarT & alpha) {
     
     if (field_vec.size() > 0) {
       for (size_t i=0; i<field_vec.size(); ++i) {

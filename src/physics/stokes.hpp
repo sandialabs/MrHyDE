@@ -65,8 +65,6 @@ namespace MrHyDE {
     bool useLSIC, usePSPG;
     
     vector<ScalarT> pik;
-    bool pin_pr;//, have_energy;
-    ScalarT pin_tol, pin_scale;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::stokes::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::stokes::volumeResidual() - evaluation of residual");

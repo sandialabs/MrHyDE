@@ -101,8 +101,21 @@ void AnalysisManager::run() {
     bool regenerate_rotations = uqsettings.get<bool>("regenerate grain rotations",false);
     bool regenerate_grains = uqsettings.get<bool>("regenerate grains",false);
     bool write_sol_text = uqsettings.get<bool>("write solutions to text file",false);
+    bool write_samples = uqsettings.get<bool>("write samples",false);
     bool compute_adjoint = uqsettings.get<bool>("compute adjoint",false);
     bool write_adjoint_text = uqsettings.get<bool>("write adjoint to text file",false);
+
+    if (write_samples) {
+      string sample_file = uqsettings.get<string>("samples output file","samples.dat");
+      std::ofstream sampOUT(sample_file.c_str());
+      for (size_type i=0; i<samplepts.extent(0); ++i) {
+        for (size_type v=0; v<samplepts.extent(1); ++v) {
+          sampOUT << samplepts(i,v) << "  ";
+        }
+        sampOUT << endl;
+      }
+      sampOUT.close();
+    }
 
     if (write_sol_text) {
       postproc->save_solution = true;
@@ -112,7 +125,8 @@ void AnalysisManager::run() {
     vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
     vector_RCP avgsoln = solve->linalg->getNewOverlappedVector(0,2);
     int output_freq = uqsettings.get<int>("output frequency",1);
-    
+    postproc->compute_response = false;
+
     if (Comm->getRank() == 0) {
       cout << "Running Monte Carlo sampling ..." << endl;
     }
@@ -203,7 +217,8 @@ void AnalysisManager::run() {
       }
     }
       
-    
+    postproc->compute_response = true;
+    postproc->report();
     if (Comm->getRank() == 0) {
       string sptname = "sample_points.dat";
       std::ofstream sampOUT(sptname.c_str());

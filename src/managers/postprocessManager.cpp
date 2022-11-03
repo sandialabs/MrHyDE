@@ -574,6 +574,7 @@ void PostprocessManager<Node>::report() {
   ////////////////////////////////////////////////////////////////////////////
   
   if (compute_response) {
+    
     if(Comm->getRank() == 0 ) {
       if (verbosity > 0) {
         cout << endl << "*********************************************************" << endl;
@@ -597,23 +598,6 @@ void PostprocessManager<Node>::report() {
           int numsensors = objectives[obj].numSensors;
            
           if (numsensors>0) {
-            numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
-            int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
-            int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
-            numfields = numsols*numdims;
-            sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
-            for (size_t t=0; t<numtimes; ++t) {
-              auto sdat = objectives[obj].sensor_solution_data[t];
-              for (int sens=0; sens<numsensors; ++sens) {
-                size_t solprog = 0;
-                for (int sol=0; sol<numsols; ++sol) {
-                  for (int d=0; d<numdims; ++d) {
-                    sensor_data(sens,solprog,t) = sdat(sens,sol,d);
-                    solprog++;
-                  }
-                }
-              }
-            }
             sensorIDs = Kokkos::View<int*,HostDevice>("sensor IDs owned by proc", numsensors);
             size_t sprog=0;
             auto sensor_found = objectives[obj].sensor_found;
@@ -623,11 +607,49 @@ void PostprocessManager<Node>::report() {
                 ++sprog;
               }
             }
-            if (objectives[obj].output_type == "fft") {
+            if (objectives[obj].output_type == "dft") {
+              auto dft_data = objectives[obj].sensor_solution_dft;
+              size_type numfreq = dft_data.extent(3);
+              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
+              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+              numfields = numsols*numdims;
+              sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numfreq);
+              for (size_t t=0; t<numfreq; ++t) {
+                for (int sens=0; sens<numsensors; ++sens) {
+                  size_t solprog = 0;
+                  for (int sol=0; sol<numsols; ++sol) {
+                    for (int d=0; d<numdims; ++d) {
+                      sensor_data(sens,solprog,t) = dft_data(sens,sol,d,t).real();
+                      solprog++;
+                    }
+                  }
+                }
+              }
+            }
+            else {
+              numtimes = objectives[obj].sensor_solution_data.size(); //vector of Kokkos::Views
+              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
+              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+              numfields = numsols*numdims;
+              sensor_data = Kokkos::View<ScalarT***,HostDevice>("sensor data",numsensors, numfields, numtimes);
+              for (size_t t=0; t<numtimes; ++t) {
+                auto sdat = objectives[obj].sensor_solution_data[t];
+                for (int sens=0; sens<numsensors; ++sens) {
+                  size_t solprog = 0;
+                  for (int sol=0; sol<numsols; ++sol) {
+                    for (int d=0; d<numdims; ++d) {
+                      sensor_data(sens,solprog,t) = sdat(sens,sol,d);
+                      solprog++;
+                    }
+                  }
+                }
+              }
+              if (objectives[obj].output_type == "fft") {
 #if defined(MrHyDE_ENABLE_FFTW)
-              fft->compute(sensor_data, sensorIDs, global_num_sensors);
+                fft->compute(sensor_data, sensorIDs, global_num_sensors);
 #endif
-            }      
+              } 
+            }     
           }
       
           size_t max_numtimes = 0;
@@ -656,8 +678,8 @@ void PostprocessManager<Node>::report() {
               
               auto spts = objectives[obj].sensor_points;
               for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
-                Teuchos::Array<ScalarT> series_data(max_numtimes+3,0.0);
-                Teuchos::Array<ScalarT> gseries_data(max_numtimes+3,0.0);
+                Teuchos::Array<ScalarT> series_data(max_numtimes+spaceDim,0.0);
+                Teuchos::Array<ScalarT> gseries_data(max_numtimes+spaceDim,0.0);
                 if (objectives[obj].sensor_found[ss]) {
                   size_t sindex = 0;
                   for (size_t j=0; j<ss; ++j) {
@@ -665,22 +687,22 @@ void PostprocessManager<Node>::report() {
                       sindex++;
                     }
                   }
-                  series_data[0] = spts(sindex,0);
-                  series_data[1] = spts(sindex,1);
-                  series_data[2] = spts(sindex,2);
-
+                  for (size_t dim=0; dim<spaceDim; ++dim) {
+                    series_data[dim] = spts(sindex,dim);  
+                  }
+                  
                   for (size_t tt=0; tt<max_numtimes; ++tt) {
-                    series_data[tt+3] = sensor_data(sindex,field,tt);
+                    series_data[tt+spaceDim] = sensor_data(sindex,field,tt);
                   }
                 }
                 
-                const int numentries = max_numtimes+3;
+                const int numentries = max_numtimes+spaceDim;
                 Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&series_data[0],&gseries_data[0]);
 
                 if (Comm->getRank() == 0) {
-                  respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
-                  for (size_t tt=0; tt<max_numtimes; ++tt) {
-                    respOUT << gseries_data[tt+3] << "  ";
+                  //respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
+                  for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
+                    respOUT << gseries_data[tt] << "  ";
                   }
                   respOUT << endl;
                 }
@@ -2566,7 +2588,36 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
         } // sensor points
         //KokkosTools::print(sensordat);
 
-        objectives[r].sensor_solution_data.push_back(sensordat);
+        if (objectives[r].output_type == "dft") {
+          std::complex<double> imagi(0.0,1.0);
+          int N = objectives[r].dft_num_freqs;
+          Kokkos::View<std::complex<double>****,HostDevice> newdft;
+          if (objectives[r].sensor_solution_dft.extent(0) == 0) {
+            newdft = Kokkos::View<std::complex<double>****,HostDevice>("KV of complex DFT",sensordat.extent(0),
+                                                                       sensordat.extent(1), sensordat.extent(2),N);
+            objectives[r].sensor_solution_dft = newdft;
+          }
+          else {
+            newdft = objectives[r].sensor_solution_dft;
+          }
+          for (int j=0; j<N; ++j) {
+            for (int k=0; k<N; ++k) {
+              double freq = static_cast<double>(k*j/N);
+              freq *= -2.0*PI;
+              for (size_type n=0; n<newdft.extent(0); ++n) {
+                for (size_type m=0; m<newdft.extent(1); ++m) {
+                  for (size_type p=0; p<newdft.extent(2); ++p) {                    
+                    newdft(n,m,p,k) += sensordat(n,m,p)*std::exp(imagi*freq);
+                  }
+                }
+              }
+            }
+          }
+
+        }
+        else {
+          objectives[r].sensor_solution_data.push_back(sensordat);
+        }
         
       } // objectives
     }
@@ -3537,7 +3588,6 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
     }
   }
   
-  typedef typename Node::device_type LA_device;
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
   

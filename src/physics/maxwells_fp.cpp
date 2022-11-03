@@ -108,12 +108,6 @@ void maxwells_fp::volumeResidual() {
   
   //    for( size_t e=0; e<numCC; e++ ) {
   //      for( int i=0; i<numBasis; i++ ) {
-  ScalarT avgErx = 0.0;
-  ScalarT avgEry = 0.0;
-  ScalarT avgErz = 0.0;
-  ScalarT avgEix = 0.0;
-  ScalarT avgEiy = 0.0;
-  ScalarT avgEiz = 0.0;
   
   ScalarT current_time = wkset->time;
   
@@ -189,7 +183,6 @@ void maxwells_fp::volumeResidual() {
   if (spaceDim > 2) {
     ip_z = wkset->getScalarField("z");
   }
-  int numCubPoints = ip_x.extent(1);
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
@@ -438,37 +431,9 @@ void maxwells_fp::volumeResidual() {
                    + epsr*(dphirdz*vr + phir*dvrdz))
           - (vr*Jzi + vi*Jzr); //imaginary
         }
-        if(calcE){
-#ifndef MrHyDE_NO_AD
-          avgErx += (-omega.val()*Axi.val()-dphirdx.val())/numCubPoints;
-          avgEry += (-omega.val()*Ayi.val()-dphirdy.val())/numCubPoints;
-          avgErz += (-omega.val()*Azi.val()-dphirdz.val())/numCubPoints;
-          avgEix += (omega.val()*Axr.val()-dphiidx.val())/numCubPoints;
-          avgEiy += (omega.val()*Ayr.val()-dphiidy.val())/numCubPoints;
-          avgEiz += (omega.val()*Azr.val()-dphiidz.val())/numCubPoints;
-#else
-          avgErx += (-omega*Axi-dphirdx)/numCubPoints;
-          avgEry += (-omega*Ayi-dphirdy)/numCubPoints;
-          avgErz += (-omega*Azi-dphirdz)/numCubPoints;
-          avgEix += (omega*Axr-dphiidx)/numCubPoints;
-          avgEiy += (omega*Ayr-dphiidy)/numCubPoints;
-          avgEiz += (omega*Azr-dphiidz)/numCubPoints;
-#endif
-        }
       }
     }
   }
-  
-  //KokkosTools::print(res);
-  //bvbw not sure how to modify this
-  //        if(calcE){
-  //       Erx(currCells[e],0) = avgErx;
-  //       Ery(currCells[e],0) = avgEry;
-  //       Erz(currCells[e],0) = avgErz;
-  //       Eix(currCells[e],0) = avgEix;
-  //       Eiy(currCells[e],0) = avgEiy;
-  //       Eiz(currCells[e],0) = avgEiz;
-  //     }
   
 }
 

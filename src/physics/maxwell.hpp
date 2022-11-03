@@ -53,7 +53,7 @@ namespace MrHyDE {
 
   private:
     
-    int Enum, Bnum, E2num, B2num, spaceDim;
+    int Enum, Bnum, spaceDim;
     bool useLeapFrog;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::maxwell::volumeResidual() - function evaluation");

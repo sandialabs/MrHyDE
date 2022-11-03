@@ -81,8 +81,7 @@ namespace MrHyDE {
     int pnum=-1, unum=-1, lambdanum=-1;
     int auxpnum=-1, auxunum=-1, auxlambdanum=-1;
     int dxnum=-1, dynum=-1, dznum=-1;
-    bool isTD, addBiot, usePermData;
-    ScalarT biot_alpha;
+    bool usePermData;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousHDIV_HYBRID::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousHDIV_HYBRID::volumeResidual() - evaluation of residual");

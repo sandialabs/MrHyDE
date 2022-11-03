@@ -124,8 +124,6 @@ namespace MrHyDE {
     
   private:
     
-    size_t numip, numip_side, numElem;
-    
     vector<AD> mu_params; //permeability
     vector<AD> eps_params; //permittivity
     vector<AD> freq_params; //frequency

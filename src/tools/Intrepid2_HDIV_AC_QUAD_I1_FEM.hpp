@@ -197,7 +197,7 @@ namespace Intrepid2 {
     void
     getValues(       OutputViewType outputValues,
                const PointViewType  inputPoints,
-               const EOperator operatorType = OPERATOR_VALUE ) const {
+               const EOperator operatorType = OPERATOR_VALUE ) const override {
 #ifdef HAVE_INTREPID2_DEBUG
       // TMW: Question to GBH - do we need separate functionality here?
       // Verify arguments
@@ -215,7 +215,7 @@ namespace Intrepid2 {
 
     virtual
     void
-    getDofCoords( ScalarViewType dofCoords ) const {
+    getDofCoords( ScalarViewType dofCoords ) const override {
 #ifdef HAVE_INTREPID2_DEBUG
       // Verify rank of output array.
       INTREPID2_TEST_FOR_EXCEPTION( dofCoords.rank() != 2, std::invalid_argument,
@@ -232,7 +232,7 @@ namespace Intrepid2 {
     
   virtual
   void
-  getDofCoeffs( ScalarViewType dofCoeffs ) const {
+  getDofCoeffs( ScalarViewType dofCoeffs ) const override {
 #ifdef HAVE_INTREPID2_DEBUG
     // Verify rank of output array.
     INTREPID2_TEST_FOR_EXCEPTION( dofCoeffs.rank() != 2, std::invalid_argument,
@@ -249,13 +249,13 @@ namespace Intrepid2 {
 
     virtual
     const char*
-    getName() const {
+    getName() const override {
       return "Intrepid2_HDIV_AC_QUAD_I1_FEM";
     }
 
     virtual
     bool
-    requireOrientation() const {
+    requireOrientation() const override {
       return true;
     }
 

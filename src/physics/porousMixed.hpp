@@ -88,8 +88,7 @@ namespace MrHyDE {
     
     int pnum=-1, unum=-1, auxpnum=-1, auxunum=-1;
     int dxnum,dynum,dznum;
-    bool isTD, addBiot, usePermData, useWells, useKL;
-    ScalarT biot_alpha;
+    bool usePermData, useWells, useKL;
     string auxvar;
     klexpansion permKLx, permKLy, permKLz;
     Kokkos::View<size_t**,AssemblyDevice> KLindices;

@@ -3292,7 +3292,6 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
     
     vector<ScalarT> currfro;
     for (size_type e=0; e<fro.extent(0); ++e) {
-      //currfro.push_back(fro(e));
       ScalarT val = 0.0;
       for (size_type d1=0; d1<jacobian.extent(2); ++d1) {
         for (size_type d2=0; d2<jacobian.extent(3); ++d2) {
@@ -3302,8 +3301,8 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
           }
         }
       }
-      //currfro.push_back(val);
-      currfro.push_back(jacobian(e,0,1,1));
+      currfro.push_back(val);
+      //currfro.push_back(jacobian(e,0,1,1));
     }
     all_fros.push_back(currfro);
   }
@@ -3323,6 +3322,7 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
       disc->getPhysicalWts(groupData[block], groups[block][grp]->nodes, jac, wts);
       
       for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+        /*
         ScalarT j00 = 0.0, j01 = 0.0, j02 = 0.0;
         ScalarT j10 = 0.0, j11 = 0.0, j12 = 0.0;
         ScalarT j20 = 0.0, j21 = 0.0, j22 = 0.0;
@@ -3338,7 +3338,8 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
           j21 += jac(e,pt,2,1)*wts(e,pt);
           j22 += jac(e,pt,2,2)*wts(e,pt);
         }
-        
+        */
+
         //respOUT << j00 << ", " << j01 << ", " << j02 << ", " << j10 << ", " << j11 << ", " << j12 << ", " << j20 << ", " << j21 << ", " << j22 << endl;
         respOUT << all_orients[grp][e] << ", " << all_meas[grp][e] << ", " << all_fros[grp][e] << endl;
       }

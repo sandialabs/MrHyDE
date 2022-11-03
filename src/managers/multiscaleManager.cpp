@@ -347,13 +347,11 @@ ScalarT MultiscaleManager::initialize() {
   if (subgrid_static) {
     for (size_t s=0; s<subgridModels.size(); s++) {
       vector<bool> active(numusers,false);
-      size_t numactive = 0;
       for (size_t block=0; block<groups.size(); ++block) {
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
           if (groups[block][grp]->subgrid_model_index == s) {
             size_t usernum = groups[block][grp]->subgrid_usernum;
             active[usernum] = true;
-            numactive += 1;
           }
         }
       }
@@ -365,13 +363,11 @@ ScalarT MultiscaleManager::initialize() {
     for (size_t s=0; s<subgridModels.size(); s++) {
       if (subgrid_model_selection == 0) {
         vector<bool> active(numusers,false);
-        size_t numactive = 0;
         for (size_t block=0; block<groups.size(); ++block) {
           for (size_t grp=0; grp<groups[block].size(); ++grp) {
             if (groups[block][grp]->subgrid_model_index == s) {
               size_t usernum = groups[block][grp]->subgrid_usernum;
               active[usernum] = true;
-              numactive += 1;
             }
           }
         }
@@ -522,13 +518,11 @@ void MultiscaleManager::update() {
       
       for (size_t s=0; s<subgridModels.size(); s++) {
         vector<bool> active(subgridModels[s]->active.size(),false);
-        size_t numactive = 0;
         for (size_t block=0; block<groups.size(); ++block) {
           for (size_t grp=0; grp<groups[block].size(); ++grp) {
             if (groups[block][grp]->subgrid_model_index == s) {
               size_t usernum = groups[block][grp]->subgrid_usernum;
               active[usernum] = true;
-              numactive += 1;
             }
           }
         }
@@ -778,13 +772,11 @@ void MultiscaleManager::update() {
 
         for (size_t s=0; s<subgridModels.size(); s++) {
         vector<bool> active(subgridModels[s]->active.size(),false);
-        size_t numactive = 0;
         for (size_t block=0; block<groups.size(); ++block) {
           for (size_t grp=0; grp<groups[block].size(); ++grp) {
             if (groups[block][grp]->subgrid_model_index == s) {
               size_t usernum = groups[block][grp]->subgrid_usernum;
               active[usernum] = true;
-              numactive += 1;
             }
           }
         }

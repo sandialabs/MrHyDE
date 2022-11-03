@@ -121,7 +121,11 @@ namespace MrHyDE {
         compute_sensor_soln = objsettings.get<bool>("compute sensor solution",false);
         compute_sensor_average_soln = objsettings.get<bool>("compute sensor average solution",false);
         output_type = objsettings.get<string>("output type",""); // "fft" for fft output
-        
+        dft_current = 0;
+        if (output_type == "dft") {
+          // logic and setup for a subset of frequencies ...
+          dft_num_freqs = objsettings.get<int>("number of dft frequencies");
+        }
         if (compute_sensor_soln && compute_sensor_average_soln) {
           // throw an error
         }      
@@ -166,18 +170,21 @@ namespace MrHyDE {
     string sensor_points_file, sensor_data_file, output_type;
     size_t numSensors;
     bool use_sensor_grid, compute_sensor_soln, compute_sensor_average_soln;
-    int sensor_grid_Nx, sensor_grid_Ny, sensor_grid_Nz;
+    int sensor_grid_Nx, sensor_grid_Ny, sensor_grid_Nz, dft_num_freqs;
     double sensor_grid_xmin, sensor_grid_xmax, sensor_grid_ymin, sensor_grid_ymax, sensor_grid_zmin, sensor_grid_zmax;
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_data;   // Ns x Nt
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_points; // Ns x dim
     Kokkos::View<ScalarT*,AssemblyDevice>  sensor_times;  // Nt
     Kokkos::View<int*[2],HostDevice>       sensor_owners; // Ns x (cell elem)
     Kokkos::View<bool*,HostDevice>         sensor_found;
+    
     vector<Kokkos::View<ScalarT****,AssemblyDevice> > sensor_basis;       //[basis](Ns,dof,pt,dim)
     vector<Kokkos::View<ScalarT****,AssemblyDevice> > sensor_basis_grad;  // [basis](Ns,dof,pt,dim)
     //vector<vector<Kokkos::View<ScalarT***,AssemblyDevice> > >  sensor_basis_div;   // [Ns][basis](elem,dof,pt)
     //vector<vector<Kokkos::View<ScalarT****,AssemblyDevice> > > sensor_basis_curl;  // [Ns][basis](elem,dof,pt,dim)
     vector<Kokkos::View<ScalarT***,HostDevice> > sensor_solution_data; // [time] (sensor,sol,dim)
+    Kokkos::View<std::complex<double>****,HostDevice> sensor_solution_dft; // (sensor,sol,dim,freq)
+    int dft_current;
   };
   
   // ========================================================================================

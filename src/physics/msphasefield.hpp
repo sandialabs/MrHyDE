@@ -108,13 +108,12 @@ namespace MrHyDE {
     
     Teuchos::RCP<MpiComm> Comm;      
     std::vector<AD> diff_FAD, L, A;   
-    int spaceDim, numParams, numResponses, numphases, numdisks;
+    int spaceDim, numphases, numdisks;
     vector<string> varlist;
     std::vector<int> phi_num;
-    ScalarT diff, alpha;
     ScalarT disksize;
     ScalarT xmax, xmin, ymax, ymin;
-    bool uniform, systematic, variableMobility;
+    bool uniform, variableMobility;
     std::vector<ScalarT> disk;
     std::string initialType;
     

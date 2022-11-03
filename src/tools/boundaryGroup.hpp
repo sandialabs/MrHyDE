@@ -452,9 +452,9 @@ namespace MrHyDE {
     Kokkos::View<size_t*,AssemblyDevice> auxMIDs_dev;
     
     vector<size_t> data_seed, data_seedindex;
-    Kokkos::View<ScalarT**,AssemblyDevice> data;
+    View_Sc2 data;
     vector<ScalarT> data_distance;
-    
+    View_Sc3 multidata;
     // Boundary groups do not have sensors
     
     // Profile timers

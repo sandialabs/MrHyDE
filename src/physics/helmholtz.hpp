@@ -65,10 +65,10 @@ namespace MrHyDE {
     
     int ur_num, ui_num;
     
-    AD ur, durdx, durdy, durdz, durdn, c2durdn;
-    AD ui, duidx, duidy, duidz, duidn, c2duidn;
-    ScalarT vr, dvrdx, dvrdy, dvrdz;
-    ScalarT vi, dvidx, dvidy, dvidz;
+    //AD ur, durdx, durdy, durdz, durdn, c2durdn;
+    //AD ui, duidx, duidy, duidz, duidn, c2duidn;
+    //ScalarT vr, dvrdx, dvrdy, dvrdz;
+    //ScalarT vi, dvidx, dvidy, dvidz;
     
     bool fractional;
     

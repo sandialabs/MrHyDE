@@ -103,7 +103,7 @@ namespace MrHyDE {
     
     View_AD4 stress_vol, stress_side;
     
-    bool useLame, addBiot, useCE, incplanestress, disp_response_type;
+    bool useLame, addBiot, useCE, incplanestress;
     //ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;
     Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
     

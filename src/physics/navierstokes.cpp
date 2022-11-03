@@ -158,7 +158,6 @@ void navierstokes::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
             AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
             AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
@@ -175,7 +174,6 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
               AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
               AD Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
@@ -223,7 +221,6 @@ void navierstokes::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
             // BWR -- OK, I'm assuming that the viscosity defined here mean kinematic viscosity... which is not how I was interpretting it
             AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
             AD stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
@@ -241,7 +238,6 @@ void navierstokes::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD nvel = sqrt(1.0e-12 + ux(elem,pt)*ux(elem,pt));
               AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
               AD stabres = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
               AD Sx = tau*stabres*wts(elem,pt);

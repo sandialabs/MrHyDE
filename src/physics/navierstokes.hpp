@@ -88,8 +88,8 @@ namespace MrHyDE {
     bool useSUPG, usePSPG;
 
     vector<ScalarT> pik;
-    bool pin_pr, have_energy;
-    ScalarT pin_tol, pin_scale, T_ambient, beta;
+    bool have_energy;
+    ScalarT T_ambient, beta;
     Kokkos::View<ScalarT*,AssemblyDevice> model_params;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::navierstokes::volumeResidual() - function evaluation");

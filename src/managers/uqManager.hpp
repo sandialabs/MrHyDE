@@ -33,6 +33,14 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
+    /**
+     * @brief Constructor that actually sets everything up.
+     *
+     * @param[in]  Comm_        Teuchos MPI Communicator
+     * @param[in]  uqsettings_  Teuchos ParameterList containing a few settings specific to performing UQ
+     * @param[in]  param*       Vectors of data from parameter manager
+     */
+
     UQManager(const Teuchos::RCP<MpiComm> Comm_, const Teuchos::ParameterList & uqsettings_,
               const std::vector<string> & param_types_,
               const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
@@ -41,11 +49,27 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Generates samples from the user-specified distributions.
+     *
+     * @param[in]  numsamples   Number of samples to generate
+     * @param[in]  seed         Sets the seed for the random number generator
+     * @param[out] output       2-dimensional Kokkos View of ScalarT.  Dimensions are numsamples x parameter dimension
+     */
+
     Kokkos::View<ScalarT**,HostDevice> generateSamples(const int & numsamples, int & seed);
     
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Generates integer samples from the user-specified distributions.
+     *
+     * @param[in]  numsamples   Number of samples to generate
+     * @param[in]  seed         Sets the seed for the random number generator
+     * @param[out] output       1-dimensional Kokkos View of int.  Dimension is numsamples.  May generalize in the future to multi-dimensional.
+     */
+
     Kokkos::View<int*,HostDevice> generateIntegerSamples(const int & numsamples, int & seed);
     
     // ========================================================================================
@@ -65,6 +89,16 @@ namespace MrHyDE {
     
     void computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevice> > & values);
     
+    // ========================================================================================
+    // ========================================================================================
+    
+    void KDE(View_Sc2 seedpts, View_Sc2 evalpts, View_Sc1 density);
+
+    // ========================================================================================
+    // ========================================================================================
+    
+    void rejectionSampling();
+
     // ========================================================================================
     // ========================================================================================
     

@@ -54,6 +54,7 @@ sidename(sidename_), disc(disc_)   {
   
   this->computeSize();
   this->initializeBasisIndex();
+  multidata = View_Sc3("multidata array",0,0,0);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -899,7 +900,8 @@ void BoundaryGroup::updateData() {
   else if (groupData->have_extra_data) {
     wkset->extra_data = data;
   }
-  
+  wkset->multidata = multidata;
+
 }
 
 
