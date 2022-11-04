@@ -54,7 +54,12 @@ sidename(sidename_), disc(disc_)   {
   
   this->computeSize();
   this->initializeBasisIndex();
-  multidata = View_Sc3("multidata array",0,0,0);
+  if (groupData->have_multidata) {
+    multidata = View_Sc3("multidata array",numElem,wts.extent(1),54);
+  }
+  else {
+    multidata = View_Sc3("multidata array",0,0,0);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -596,6 +601,8 @@ void BoundaryGroup::updateRes(const bool & compute_sens, View_Sc3 local_res) {
           for (unsigned int r=0; r<local_res.extent(2); r++) {
 #ifndef MrHyDE_NO_AD
             local_res(elem,offsets(n,j),r) -= res_AD(elem,offsets(n,j)).fastAccessDx(r);
+#else
+            local_res(elem,offsets(n,j),r) -= 0.0; // pointless, but avoids compilar warning when AD disabled
 #endif
           }
         }

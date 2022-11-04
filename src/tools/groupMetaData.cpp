@@ -77,7 +77,10 @@ cellTopo(cellTopo_) {
   have_phi = false;
   have_rotation = false;
   have_extra_data = false;
-  
+  have_multidata = false;
+  if (settings->sublist("Solver").get("have multidata", false)) {
+    have_multidata = true;
+  }
   numSets = physics_RCP->setnames.size();
 }
 

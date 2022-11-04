@@ -87,7 +87,7 @@ namespace MrHyDE {
     bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles, use_basis_database = false, use_mass_database = false;
     bool mortar_objective;
     bool exodus_sensors = false, compute_sol_avg = false, store_mass = true;
-    bool multiscale, have_phi, have_rotation, have_extra_data;
+    bool multiscale, have_phi, have_rotation, have_extra_data, have_multidata;
     
     // database of database basis information (optional)
     // Note that these are not CompressedViews.  CompressedViews use these.
