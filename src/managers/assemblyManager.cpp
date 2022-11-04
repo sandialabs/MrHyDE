@@ -2305,6 +2305,13 @@ void AssemblyManager<Node>::updateStageSoln(const size_t & set)  {
   }
 }
 
+template<class Node>
+void AssemblyManager<Node>::updateTimeStep(const int & timestep) {
+  for (size_t block=0; block<wkset.size(); ++block) {
+    wkset[block]->time_step = timestep;
+  }
+}
+    
 // ========================================================================================
 // Gather local solutions on groups.
 // This intermediate function allows us to copy the data from LA_device to AssemblyDevice only once (if necessary)
