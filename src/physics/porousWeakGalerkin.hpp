@@ -18,26 +18,28 @@
 
 namespace MrHyDE {
   
-  /*
-   * This class computes the solution to the physics formed by applying the weak Galerkin finite
+  /**
+   * \brief Weak Galerkin porous media physics class.
+   * 
+   * This class computes the residuals for the physics described by applying the weak Galerkin finite
    * element method to the PDE for Darcy flow. It yields the following finite element system:
    * @f{eqnarray*}
    *   (\mathbf{u},\mathbf{v})_T + (p_0, \nabla\cdot\mathbf{v})_T
    *       - \langle p_\partial, \mathbf{v} \cdot \mathbf{n} \rangle_{\mathcal{E}_T} &=& 0, \\
    *   (\mathbf{K}\mathbf{u}, \mathbf{s})_T + (\mathbf{t},\mathbf{s})_T &=& 0, \\
    *   (\nabla\cdot\mathbf{t}, q_0)_T &=& (f, q_0)_T, \\
-   *   -\sum\limits{T\in\mathcal{T}_h}
+   *   -\sum\limits_{T\in\mathcal{T}_h}
    *       \langle \mathbf{t}\cdot\mathbf{n}, q_\partial\rangle_{\mathcal{E}_T} &=& 0.
    * @f}
-   * Where the unknowns $p_0$, $p_\partial$, $\mathbf{u}$, and $\mathbf{t}$ are the following:
-   *   - $p_0$ is the interior pressure
-   *   - $p_\partial$ is the boundary pressure
-   *   - $\mathbf{u}$ is the weak Gradient
-   *   - $\mathbf{t}$ is the Darcy velocity
+   * Where the unknowns \f$p_0\f$, \f$p_\partial\f$, \f$\mathbf{u}\f$, and \f$\mathbf{t}\f$ are the following:
+   *   - \f$p_0\f$ is the interior pressure
+   *   - \f$p_\partial\f$ is the boundary pressure
+   *   - \f$\mathbf{u}\f$ is the weak Gradient
+   *   - \f$\mathbf{t}\f$ is the Darcy velocity
    * The following functions may be specified in the input.yaml file
-   *   - "source" is the source term, $f$
-   *   - "kxx" is the xx entry of the permeability tensor, $\mathbf{K}$
-   *   - "kxy", "kyx", "kyy" are defined similarly, and similar terms involving z may used in 3d
+   *   - "source" is the source term, \f$f\f$
+   *   - "kxx" is the xx entry of the permeability tensor, \f$\mathbf{K}\f$
+   *   - "kxy", "kyx", "kyy" are defined similarly, and similar terms involving z are used in 3d
    */
   class porousWeakGalerkin : public physicsbase {
   public:

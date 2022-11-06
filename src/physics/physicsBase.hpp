@@ -22,35 +22,44 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief The base physics class that all physics modules must derive from.
+   * 
+   * This class contains virtual interfaces for computing residuals.
+   * When computing residuals for physics, it is expected that the appropriate 
+   * virtual methods are overridden. If the appropriate virtual method is not
+   * overridden, a message will be printed out.
+   */
   class physicsbase {
     
   public:
     
-    physicsbase() {} ;
+    physicsbase() {};
     
     virtual ~physicsbase() {};
     
-    
     /**
-     * @brief Constructor for physics base
+     * \brief Constructor for physics base
      * 
-     * @param[in] settings  The parameter list of settings
-     * @param[in] dimension_  Spatial dimensionality
+     * \param[in] settings  The parameter list of settings
+     * \param[in] dimension_  Spatial dimensionality
      */
-
     physicsbase(Teuchos::ParameterList & settings, const int & dimension_) {
       verbosity = settings.get<int>("verbosity",0);
     };
     
-    
+    // (not necessary, but probably need to be defined in all modules)
     /**
-     * Define the functions for this module (not necessary, but probably need to be defined in all modules)
+     * \brief Define the functions for the module based on the input parameterList.
+     * 
+     * \param[in] fs The parameter list of options (usually obtained from the input deck)
+     * \param[in] functionManager_ The function manager used to create \ref functionManager.
      */
     virtual
     void defineFunctions(Teuchos::ParameterList & fs,
                          Teuchos::RCP<FunctionManager> & functionManager_) {
       functionManager = functionManager_;
-        // GH: these print statements may be annoying when running on multiple MPI ranks
+      // GH: these print statements may be annoying when running on multiple MPI ranks
       if (verbosity > 10) {
         std::cout << "Warning: physicsBase::defineFunctions called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
@@ -58,7 +67,7 @@ namespace MrHyDE {
     };
     
     /**
-     * The volumetric contributions to the residual
+     * \brief Compute the volumetric contributions to the residual.
      */
     virtual
     void volumeResidual() {
@@ -69,7 +78,7 @@ namespace MrHyDE {
     };
     
     /**
-     * The boundary contributions to the residual
+     * \brief Compute the boundary contributions to the residual.
      */
     virtual
     void boundaryResidual() {
@@ -80,7 +89,7 @@ namespace MrHyDE {
     };
     
     /**
-     * The edge (2D) and face (3D) contributions to the residual
+     * \brief Compute the edge (2D) and face (3D) contributions to the residual
      */
     virtual
     void faceResidual() {
@@ -91,7 +100,7 @@ namespace MrHyDE {
     };
     
     /**
-     * The boundary/edge flux
+     * \brief Compute the boundary/edge flux
      */
     virtual
     void computeFlux() {
@@ -104,6 +113,13 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * \brief Update physics parameters using 
+     * 
+     * \param[in] params The input parameters
+     * \param[in] paramnames The names of the input parameters
+     * \note This will likely be deprecated, as this is used in few cases.
+     */
     virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
                                   const std::vector<string> & paramnames) {
       if (verbosity > 10) {
@@ -115,6 +131,11 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * \brief Setter for \ref wkset member variable
+     * 
+     * \param[in] wkset_ An RCP for the workset to assign
+     */
     virtual void setWorkset(Teuchos::RCP<workset> & wkset_) {
       wkset = wkset_;
     };
@@ -122,6 +143,9 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * \brief Get the name of derived quantities for the class.
+     */
     virtual std::vector<string> getDerivedNames() {
       std::vector<string> derived;
       return derived;
@@ -130,6 +154,9 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * \brief Get the values of derived quantities for the class.
+     */
     virtual std::vector<View_AD2> getDerivedValues() {
       std::vector<View_AD2> derived;
       return derived;
@@ -138,6 +165,12 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * \brief Update flags for the class.
+     * 
+     * \param[in] newflags The flags to use for the update.
+     * \note This currently does nothing.
+     */
     virtual void updateFlags(std::vector<bool> & newflags) {
       // default is to do nothing
     };
@@ -146,15 +179,15 @@ namespace MrHyDE {
     // ========================================================================================
 
     /**
-     * @brief Returns the integrand and its type (boundary/volume) for integrated quantities required
+     * \brief Returns the integrand and its type (boundary/volume) for integrated quantities required
      * by the physics module. 
      *
      * In general, the user may also request integrated quantities in the input
      * file. The number of spatial dimensions is required explicitly here because the workset is 
      * not finalized before the postprocessing manager is set up.
      *
-     * @param[in] spaceDim  The number of spatial dimensions.
-     * @return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
+     * \param[in] spaceDim  The number of spatial dimensions.
+     * \return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
      */
     virtual std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim) {
       std::vector< std::vector<string> > integrandsNamesAndTypes;
@@ -162,7 +195,7 @@ namespace MrHyDE {
     };
 
     /**
-     * @brief Updates any values needed by the residual which depend on integrated quantities
+     * \brief Updates any values needed by the residual which depend on integrated quantities
      * required by the physics module.
      *
      * This must be called after the postprocessing routine.
@@ -177,13 +210,32 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
+    /**
+     * The name of the physics module.
+     */
     string label;
     
+    /** 
+     * The \ref workset for the class. This contains a variety of metadata 
+     * and numerical data necessary for computing residuals.
+     */ 
     Teuchos::RCP<workset> wkset;
+
+    /**
+     * The FunctionManager for the class. Depending on the physics module,
+     * this contains a wide variety of functions to evaluate at integration points. 
+     */
     Teuchos::RCP<FunctionManager> functionManager;
+
     vector<string> myvars, mybasistypes;
     bool include_face = false, isaux = false;
     string prefix = "";
+
+    /**
+     * The verbosity for the class. A verbosity strictly greater
+     * than 10 will cause warnings to print to standard out when 
+     * this class' default implementations are called.
+     */
     int verbosity;
     
     // Probably not used much
