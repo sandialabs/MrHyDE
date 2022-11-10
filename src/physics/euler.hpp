@@ -28,12 +28,25 @@
 
 namespace MrHyDE {
   
-  /** Euler physics module 
+  /** 
+   * \brief Euler physics module 
    *
    * Solves the Euler equations for conservation of mass, momentum, and energy.
    * Transport and thermodynamic properties are assumed to be functions
    * of temperature.
    * We employ an ideal gas law.
+   * 
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "source rhoux" is the source rhoux.
+   *   - "source rhouy" is the source rhouy.
+   *   - "source rho" is the source rho.
+   *   - "source rhouz" is the source rhouz.
+   *   - "source rhoE" is the source rhoE.
    */
   
   class euler : public physicsbase {

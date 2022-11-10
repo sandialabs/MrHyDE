@@ -27,10 +27,23 @@
 
 namespace MrHyDE {
   
-  /** Two-phase, incompressible saturation equation module. 
+  /** 
+   * \brief Two-phase, incompressible saturation equation module. 
    *
    * Solves the two-phase, incompressible saturation equation 
    * for the water phase.
+   * 
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "uy" is the uy.
+   *   - "f_w" is the f_w.
+   *   - "uz" is the uz.
+   *   - "ux" is the ux.
+   *   - "source_S" is the source_S.
    */
 
   class incompressibleSaturation : public physicsbase {

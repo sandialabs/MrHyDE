@@ -18,6 +18,21 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief stokes physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "source ux" is the source ux.
+   *   - "viscosity" is the viscosity.
+   *   - "source uz" is the source uz.
+   *   - "source pr" is the source pr.
+   *   - "source uy" is the source uy.
+   */
   class stokes : public physicsbase {
   public:
     

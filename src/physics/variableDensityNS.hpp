@@ -37,7 +37,8 @@ namespace MrHyDE {
   }
   */
   
-  /** Variable-density Navier-Stokes physics module 
+  /** 
+   * \brief Variable-density Navier-Stokes physics module 
    *
    * Solves the variable-density Navier-Stokes equations for conservation
    * of mass, momentum, and a scalar transport equation (\f$T\f$).
@@ -46,6 +47,25 @@ namespace MrHyDE {
    * We employ the low-Mach formulation where the thermodynamic pressure
    * and the density are decoupled.
    *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "RGas" is the RGas.
+   *   - "source ux" is the source ux.
+   *   - "PrNum" is the PrNum.
+   *   - "source uz" is the source uz.
+   *   - "source T" is the source T.
+   *   - "rho" is the rho.
+   *   - "cp" is the cp.
+   *   - "p0" is the p0.
+   *   - "gamma" is the gamma.
+   *   - "source pr" is the source pr.
+   *   - "mu" is the mu.
+   *   - "lambda" is the lambda.
+   *   - "source uy" is the source uy.
    */
 
   class VDNS : public physicsbase {

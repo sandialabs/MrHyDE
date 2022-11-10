@@ -18,6 +18,21 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief burgers physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "diffusion" is the diffusion.
+   *   - "zvel" is the zvel.
+   *   - "Burgers source" is the Burgers source.
+   *   - "yvel" is the yvel.
+   *   - "xvel" is the xvel.
+   */
   class Burgers : public physicsbase {
   public:
     

@@ -29,13 +29,32 @@
 
 namespace MrHyDE {
   
-  /** Compressible Navier-Stokes physics module 
+  /** 
+   * \brief Compressible Navier-Stokes physics module 
    *
    * Solves the compressible Navier-Stokes equations for conservation
    * of mass, momentum, and energy.
    * Transport and thermodynamic properties are assumed to be functions
    * of temperature.
    * We employ an ideal gas law.
+   * 
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "RGas" is the RGas.
+   *   - "source ux" is the source ux.
+   *   - "PrNum" is the PrNum.
+   *   - "source E" is the source E.
+   *   - "source uz" is the source uz.
+   *   - "kappa" is the kappa.
+   *   - "T" is the T.
+   *   - "cp" is the cp.
+   *   - "p0" is the p0.
+   *   - "mu" is the mu.
+   *   - "source uy" is the source uy.
    */
 
   class cns : public physicsbase {

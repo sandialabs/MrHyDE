@@ -18,6 +18,37 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief helmholtz physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "c2i_x" is the c2i_x.
+   *   - "c2r_x" is the c2r_x.
+   *   - "c2r_z" is the c2r_z.
+   *   - "omegai" is the omegai.
+   *   - "alphaHr" is the alphaHr.
+   *   - "c2i_z" is the c2i_z.
+   *   - "source_i" is the source_i.
+   *   - "alphaTr" is the alphaTr.
+   *   - "omega2r" is the omega2r.
+   *   - "c2i_y" is the c2i_y.
+   *   - "robin_alpha_i" is the robin_alpha_i.
+   *   - "alphaTi" is the alphaTi.
+   *   - "source_r" is the source_r.
+   *   - "omegar" is the omegar.
+   *   - "source_i_side" is the source_i_side.
+   *   - "c2r_y" is the c2r_y.
+   *   - "robin_alpha_r" is the robin_alpha_r.
+   *   - "source_r_side" is the source_r_side.
+   *   - "alphaHi" is the alphaHi.
+   *   - "freqExp" is the freqExp.
+   *   - "omega2i" is the omega2i.
+   */
   class helmholtz : public physicsbase {
   public:
     

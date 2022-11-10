@@ -18,6 +18,20 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief porousMixedHybridized physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "source" is the source.
+   *   - "Kinv_xx" is the Kinv_xx.
+   *   - "Kinv_zz" is the Kinv_zz.
+   *   - "Kinv_yy" is the Kinv_yy.
+   */
   class porousMixedHybrid : public physicsbase {
   public:
     

@@ -18,6 +18,26 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief cdr physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "diffusion" is the diffusion.
+   *   - "SUPG tau" is the SUPG tau.
+   *   - "source" is the source.
+   *   - "density" is the density.
+   *   - "zvel" is the zvel.
+   *   - "robin alpha" is the robin alpha.
+   *   - "xvel" is the xvel.
+   *   - "yvel" is the yvel.
+   *   - "reaction" is the reaction.
+   *   - "specific heat" is the specific heat.
+   */
   class cdr : public physicsbase {
   public:
     

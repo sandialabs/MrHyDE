@@ -18,6 +18,31 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief shallowwater physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "source Hu" is the source Hu.
+   *   - "flux left" is the flux left.
+   *   - "flux right" is the flux right.
+   *   - "flux bottom" is the flux bottom.
+   *   - "source Hv" is the source Hv.
+   *   - "viscosity" is the viscosity.
+   *   - "Neumann source Hv" is the Neumann source Hv.
+   *   - "source H" is the source H.
+   *   - "flux top" is the flux top.
+   *   - "bathymetry" is the bathymetry.
+   *   - "bottom friction" is the bottom friction.
+   *   - "Neumann source Hu" is the Neumann source Hu.
+   *   - "bathymetry_y" is the bathymetry_y.
+   *   - "Coriolis" is the Coriolis.
+   *   - "bathymetry_x" is the bathymetry_x.
+   */
   class shallowwater : public physicsbase {
   public:
     

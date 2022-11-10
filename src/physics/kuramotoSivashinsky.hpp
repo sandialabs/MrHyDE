@@ -18,6 +18,16 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief kuramotoSivashinsky physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   */
   // This class solves the Kuramoto-Sivashinsky equation in multiple dimensions:
   //   u_t + \Delta u + \Delta^{2} u + {\frac {1}{2}}|\nabla u|^{2} = 0.
   // It reformulates the problem as:

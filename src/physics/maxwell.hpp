@@ -18,6 +18,23 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief maxwell physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "current z" is the current z.
+   *   - "current y" is the current y.
+   *   - "permeability" is the permeability.
+   *   - "refractive index" is the refractive index.
+   *   - "current x" is the current x.
+   *   - "conductivity" is the conductivity.
+   *   - "permittivity" is the permittivity.
+   */
   class maxwell : public physicsbase {
   public:
     

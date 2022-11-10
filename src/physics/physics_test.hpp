@@ -20,7 +20,9 @@
 namespace MrHyDE {
   
   /**
-   * \brief This class procedurally constructs an L^2 projection or Laplacian problem
+   * \brief physicsTest class. (for testing only)
+   * 
+   * This class procedurally constructs an L^2 projection or Laplacian problem
    * based on inputs in the parameter list, and then dumps basis values and matrix entries
    * to standard output. 
    * 

@@ -21,6 +21,16 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief msphasefield physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   */
   class msphasefield : public physicsbase {
   public:
     

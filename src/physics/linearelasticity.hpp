@@ -20,6 +20,21 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief linearelasticity physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "source dz" is the source dz.
+   *   - "source dy" is the source dy.
+   *   - "source dx" is the source dx.
+   *   - "mu" is the mu.
+   *   - "lambda" is the lambda.
+   */
   class linearelasticity : public physicsbase {
   public:
     

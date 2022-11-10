@@ -26,10 +26,21 @@
 
 namespace MrHyDE {
   
-  /** Shallow water physics module, hybridized version
+  /** 
+   * \brief Shallow water physics module, hybridized version
    *
    * Solves the shallow water equations with a hybridized formulation.
    * See Samii (J. Sci. Comp. 2019). 
+   * 
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "source H" is the source H.
+   *   - "source Hux" is the source Hux.
+   *   - "source Huy" is the source Huy.
    * 
    * @note If the user intends for the bottom boundary \f$b(x,y)\f$ to vary spatially, this should
    * be implement through the sources in the \f$Hu_x\f$ and \f$Hu_y\f$ equations with terms

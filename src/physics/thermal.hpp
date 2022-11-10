@@ -19,6 +19,24 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief thermal physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "thermal source" is the thermal source.
+   *   - "advection z" is the advection z.
+   *   - "advection y" is the advection y.
+   *   - "density" is the density.
+   *   - "advection x" is the advection x.
+   *   - "robin alpha" is the robin alpha.
+   *   - "thermal diffusion" is the thermal diffusion.
+   *   - "specific heat" is the specific heat.
+   */
   class thermal : public physicsbase {
   public:
     

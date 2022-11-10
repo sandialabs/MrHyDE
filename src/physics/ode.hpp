@@ -18,6 +18,17 @@
 
 namespace MrHyDE {
   
+  /**
+   * \brief ode physics class.
+   *
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
+   *   \dots
+   * \f}
+   * Where the unknown ___ is the ___.
+   * The following functions may be specified in the input.yaml file:
+   *   - "ODE source" is the ODE source.
+   */
   class ODE : public physicsbase {
   public:
     

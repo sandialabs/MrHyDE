@@ -21,11 +21,11 @@ namespace MrHyDE {
   /**
    * \brief Porous media physics class.
    * 
-   * This class computes the residuals for the physics described by the following weak form:
-   * @f{eqnarray*}
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
    *   (\partial_t (p-p_r), q) + \left(\frac{k \rho (1+c)}{\mu} \nabla (p-p_r), \nabla q \right)
    *       &=& (f,q).
-   * @f}
+   * \f}
    * Where the unknown \f$p\f$ is the fluid pressure.
    * The following functions may be specified in the input.yaml file:
    *   - "source" is the source tern, \f$f\f$.

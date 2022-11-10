@@ -22,15 +22,17 @@ namespace MrHyDE {
    * \brief Weak Galerkin porous media physics class.
    * 
    * This class computes the residuals for the physics described by applying the weak Galerkin finite
-   * element method to the PDE for Darcy flow. It yields the following finite element system:
-   * @f{eqnarray*}
+   * element method to the PDE for Darcy flow.
+   * 
+   * This class computes volumetric residuals for the physics described by the following weak form:
+   * \f{eqnarray*}
    *   (\mathbf{u},\mathbf{v})_T + (p_0, \nabla\cdot\mathbf{v})_T
    *       - \langle p_\partial, \mathbf{v} \cdot \mathbf{n} \rangle_{\mathcal{E}_T} &=& 0, \\
    *   (\mathbf{K}\mathbf{u}, \mathbf{s})_T + (\mathbf{t},\mathbf{s})_T &=& 0, \\
    *   (\nabla\cdot\mathbf{t}, q_0)_T &=& (f, q_0)_T, \\
    *   -\sum\limits_{T\in\mathcal{T}_h}
    *       \langle \mathbf{t}\cdot\mathbf{n}, q_\partial\rangle_{\mathcal{E}_T} &=& 0.
-   * @f}
+   * \f}
    * Where the unknowns \f$p_0\f$, \f$p_\partial\f$, \f$\mathbf{u}\f$, and \f$\mathbf{t}\f$ are the following:
    *   - \f$p_0\f$ is the interior pressure
    *   - \f$p_\partial\f$ is the boundary pressure
@@ -38,6 +40,7 @@ namespace MrHyDE {
    *   - \f$\mathbf{t}\f$ is the Darcy velocity
    * The following functions may be specified in the input.yaml file
    *   - "source" is the source term, \f$f\f$
+   *   - "perm" is the permeability, \f$\mathbf{K}\f$
    *   - "kxx" is the xx entry of the permeability tensor, \f$\mathbf{K}\f$
    *   - "kxy", "kyx", "kyy" are defined similarly, and similar terms involving z are used in 3d
    */
