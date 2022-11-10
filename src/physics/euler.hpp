@@ -35,7 +35,7 @@ namespace MrHyDE {
    * of temperature.
    * We employ an ideal gas law.
    */
-
+  
   class euler : public physicsbase {
   public:
 
@@ -110,7 +110,7 @@ namespace MrHyDE {
 
     /* @brief Update the boundary flux at the domain boundary.
      *
-     * @details When we are at a domain boundary, the flux \f$\hat{B}(\mathbf{S}) = B(\hat{\mathbf{S}})
+     * @details When we are at a domain boundary, the flux \f$\hat{B}(\mathbf{S}) = B(\hat{\mathbf{S}})\f$
      * is used to weakly enforce the boundary condition in the computeFlux() routine.
      */
 
