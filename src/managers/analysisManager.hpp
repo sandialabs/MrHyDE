@@ -65,17 +65,21 @@ namespace MrHyDE {
 
     MrHyDE_OptVector adjointSolve();
 
+    vector<Teuchos::Array<ScalarT> > UQSolve();
+
     void ROLSolve();
 
     void ROL2Solve();
     
     void recoverSolution(vector_RCP & solution, string & data_type, string & file_name);
-
+ 
     // ========================================================================================
     // ========================================================================================
     
     void updateRotationData(const int & newrandseed);
     
+    void writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln);
+
   protected:
     
     Teuchos::RCP<MpiComm> Comm;

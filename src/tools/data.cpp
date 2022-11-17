@@ -378,7 +378,7 @@ void Data::findClosestPoint(const Kokkos::View<ScalarT**, AssemblyDevice> &tstpt
   Teuchos::TimeMonitor timer(*dataClosestTimer);
   Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",points.extent(0));
  
-  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(points, tstpts, distance);
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreInterface_constructNeighborLists(points, tstpts, distance);
   auto closestpts_tmp = neighborlists.getNeighborLists();
   
   // Safeguard against multiple neighbors ... just take the first (closest)
@@ -399,7 +399,7 @@ void Data::findClosestPoint(const Kokkos::View<ScalarT**, AssemblyDevice> &tstpt
 
   Teuchos::TimeMonitor timer(*dataClosestTimer);
   
-  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(points, tstpts, distance);
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreInterface_constructNeighborLists(points, tstpts, distance);
   auto closestpts_tmp = neighborlists.getNeighborLists();
   
   // Safeguard against multiple neighbors ... just take the first (closest)

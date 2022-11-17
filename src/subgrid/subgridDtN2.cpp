@@ -696,7 +696,6 @@ void SubGridDtN2::computeMacroBasisSubgridIP(size_t & mindex) {
             DRV sref_side_ip_tmp = sub_disc->mapPointsToReference(side_ip_e,cnodes,macro_cellTopo);
             auto sip_tmp0 = Kokkos::subview(sref_side_ip_tmp,0,Kokkos::ALL(),Kokkos::ALL());
             Kokkos::deep_copy(sref_side_ip,sip_tmp0);
-            
             macro_basis_pointers[i]->getValues(basisvals, sref_side_ip, Intrepid2::OPERATOR_VALUE);
             
             auto crefbasis = Kokkos::subview(refbasis[i],c,Kokkos::ALL(),Kokkos::ALL());

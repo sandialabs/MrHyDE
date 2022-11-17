@@ -652,8 +652,11 @@ View_Sc2 MeshInterface::getElementCenters(DRV nodes, topo_RCP & reftopo) {
   
   typedef Intrepid2::CellTools<PHX::Device::execution_space> CellTools;
 
+  DRV tmp_refCenter("cell center", spaceDim);
+  CellTools::getReferenceCellCenter(tmp_refCenter, *reftopo);
   DRV refCenter("cell center", 1, spaceDim);
-  CellTools::getReferenceCellCenter(refCenter, *reftopo);
+  auto cent_sv = subview(refCenter,0, ALL());
+  deep_copy(cent_sv, tmp_refCenter);
   DRV tmp_centers("tmp physical cell centers", nodes.extent(0), 1, spaceDim);
   CellTools::mapToPhysicalFrame(tmp_centers, refCenter, nodes, *reftopo);
   View_Sc2 centers("physics cell centers", nodes.extent(0), spaceDim);
@@ -1164,7 +1167,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",totalElem);
   Kokkos::View<int*, CompadreDevice> cnode("cnode",totalElem);
   
-  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreInterface_constructNeighborLists(seeds, centers, distance);
   cnode = neighborlists.getNeighborLists();
   
   ////////////////////////////////////////////////////////////////////////////////
@@ -1258,7 +1261,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
     
     distance = Kokkos::View<ScalarT*, AssemblyDevice>("distance",totalElem);
     cnode = Kokkos::View<int*, CompadreDevice>("cnode",totalElem);
-    neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+    neighborlists = CompadreInterface_constructNeighborLists(seeds, centers, distance);
     cnode = neighborlists.getNeighborLists();
     
     ////////////////////////////////////////////////////////////////////////////////

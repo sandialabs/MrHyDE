@@ -17,7 +17,7 @@
 #include "trilinos.hpp"
 #include <iostream>     
 #include <iterator>     
-#include "CompadreTools.hpp"
+#include "CompadreInterface.hpp"
 
 namespace MrHyDE {
   

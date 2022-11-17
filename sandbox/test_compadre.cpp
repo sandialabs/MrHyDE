@@ -15,7 +15,7 @@
 #include "Panzer_DOFManager.hpp"
 
 #include "meshInterface.hpp"
-#include "CompadreTools.hpp"
+#include "CompadreInterface.hpp"
 
 #include <iostream>
 
@@ -138,7 +138,7 @@ int main(int argc, char * argv[]) {
   {
     Kokkos::View<ScalarT**, AssemblyDevice> sensor_coords = mesh_data->getPoints();
     Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-    auto neighborlists = CompadreTools_constructNeighborLists(sensor_coords, centers, distance);
+    auto neighborlists = CompadreInterface_constructNeighborLists(sensor_coords, centers, distance);
     cnode_compadre = neighborlists.getNeighborLists();
   }
   ScalarT compadreTime = compadreTimer.stop();

@@ -15,15 +15,14 @@ ANONYMOUS:
   Physics:  
     Active variables:
       pbndry: HFACE
-    eblock-0_0: 
-      modules: porous weak Galerkin
-      assemble face terms: true
-      Dirichlet conditions:
-        pbndry:
-          left: '0.0'
-          right: '0.0'
-          top: '0.0'
-          bottom: '0.0'
+    modules: porous weak Galerkin
+    assemble face terms: true
+    Dirichlet conditions:
+      pbndry:
+        left: '0.0'
+        right: '0.0'
+        top: '0.0'
+        bottom: '0.0'
   Functions:
     source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
   Solver:

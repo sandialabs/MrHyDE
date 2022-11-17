@@ -163,8 +163,8 @@ namespace MrHyDE {
     bool save_data;
     vector<regularization> regularizations;
     vector<ScalarT> response_times;
-    vector<ScalarT> scalar_response_data;
-    vector<Kokkos::View<ScalarT*,HostDevice> > response_data;
+    vector<ScalarT> scalar_response_data; // [time] or [realization]
+    vector<Kokkos::View<ScalarT*,HostDevice> > response_data; // [time](sensor) or [realization](sensor)
     
     // Data specific to sensors
     string sensor_points_file, sensor_data_file, output_type;
@@ -175,7 +175,7 @@ namespace MrHyDE {
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_data;   // Ns x Nt
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_points; // Ns x dim
     Kokkos::View<ScalarT*,AssemblyDevice>  sensor_times;  // Nt
-    Kokkos::View<int*[2],HostDevice>       sensor_owners; // Ns x (cell elem)
+    Kokkos::View<int*[2],HostDevice>       sensor_owners; // Ns x (group elem)
     Kokkos::View<bool*,HostDevice>         sensor_found;
     
     vector<Kokkos::View<ScalarT****,AssemblyDevice> > sensor_basis;       //[basis](Ns,dof,pt,dim)
@@ -531,6 +531,8 @@ namespace MrHyDE {
 
     void setNewExodusFile(string & newfile);
     
+    Teuchos::Array<ScalarT> collectResponses();
+
     // ========================================================================================
     // ========================================================================================
         

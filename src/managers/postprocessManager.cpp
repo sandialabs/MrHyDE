@@ -823,7 +823,7 @@ void PostprocessManager<Node>::report() {
       }
       else if (objectives[obj].type == "integrated response") {
         if (objectives[obj].save_data) {
-          string respfile = objectives[obj].response_file+"."+blocknames[objectives[obj].block]+".out";
+          string respfile = objectives[obj].response_file+"."+blocknames[objectives[obj].block]+append+".out";
           std::ofstream respOUT(respfile.c_str());
           for (size_t tt=0; tt<objectives[obj].response_times.size(); ++tt) {
           
@@ -5235,6 +5235,125 @@ void PostprocessManager<Node>::setNewExodusFile(string & newfile) {
   if (isTD && write_solution) {
     mesh->stk_mesh->setupExodusFile(newfile);
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+Teuchos::Array<ScalarT> PostprocessManager<Node>::collectResponses() {
+  
+  //
+  // May be multiple objectives, which store the responses
+  // Each objective can store different types of responses:
+  //   1.  Integrated response: scalar over time (each proc stores own contribution)
+  //   2.  Sensor response: scalar over time at each sensor (each proc stores only own sensor)
+  //   3.  Sensor solution: state variable over time at each sensor (each proc stores only own sensor)
+  //
+
+  ////////////////////////////////
+  // First, determne how many responses have been computed
+  ////////////////////////////////
+  
+  int totalresp = 0;
+  vector<int> response_sizes;
+  for (size_t obj=0; obj<objectives.size(); ++obj) {
+    if (objectives[obj].type == "sensors") {
+      int totalsens = objectives[obj].sensor_found.extent_int(0); // this is actually the global number of sensors
+      if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
+        size_t numtimes = objectives[obj].sensor_solution_data.size(); 
+        int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); 
+        int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+        totalsens *= numtimes*numsols*numdims;
+      }
+      else {
+        size_t numtimes = objectives[obj].response_times.size();
+        totalsens *= numtimes;
+      }
+      response_sizes.push_back(totalsens);
+      //totalresp += totalsens;
+    }
+    else if (objectives[obj].type == "integrated response") {
+      response_sizes.push_back(objectives[obj].response_times.size());
+      //totalresp += objectives[obj].response_times.size();
+    }
+  }
+
+  for (size_t i=0; i<response_sizes.size(); ++i) {
+    totalresp += response_sizes[i];
+  }
+  
+  int glbresp = 0;
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&totalresp,&glbresp);
+  Kokkos::View<ScalarT*,HostDevice> newresp("response",glbresp);
+  Teuchos::Array<ScalarT> localarraydata(glbresp,0.0);
+      
+  ////////////////////////////////
+  // Next, we fill in the responses
+  ////////////////////////////////
+  
+  size_t overallprog = 0;
+  for (size_t obj=0; obj<objectives.size(); ++obj) {
+    if (objectives[obj].type == "sensors") {
+      int numsensors = objectives[obj].numSensors;
+      if (numsensors>0) {
+        Kokkos::View<int*,HostDevice> sensorIDs("sensor IDs owned by proc", numsensors);
+        size_t sprog=0;
+        auto sensor_found = objectives[obj].sensor_found;
+        for (size_type s=0; s<sensor_found.extent(0); ++s) {
+          if (sensor_found(s)) {
+            sensorIDs(sprog) = s;
+            ++sprog;
+          }
+        }
+
+        if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
+          for (size_type sens=0; sens<numsensors; ++sens) {
+            size_t numtimes = objectives[obj].sensor_solution_data.size(); 
+            int numsols = objectives[obj].sensor_solution_data[0].extent_int(1);
+            int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+            int sensnum = sensorIDs(sens);
+            size_t startind = overallprog + sensnum*(numsols*numdims*numtimes);
+            size_t cprog = 0;
+            for (int tt=0; tt<numtimes; ++tt) {
+              for (int ss=0; ss<numsols; ++ss) {
+                for (int dd=0; dd<numdims; ++dd) {
+                  localarraydata[startind+cprog] = objectives[obj].sensor_solution_data[tt](sens,ss,dd);
+                  cprog++;
+                }
+              }
+            }
+          }
+        }
+        else {
+          for (size_type sens=0; sens<numsensors; ++sens) {
+            size_t numtimes = objectives[obj].response_data.size(); 
+            int sensnum = sensorIDs(sens);
+            size_t startind = overallprog + sensnum*(numtimes);
+            size_t cprog = 0;
+            for (int tt=0; tt<numtimes; ++tt) {
+              localarraydata[startind+cprog] = objectives[obj].response_data[tt](sens);
+              cprog++;
+            }
+          }
+              
+        }
+      }
+    }
+    else if (objectives[obj].type == "integrated response") {
+      for (size_t tt=0; tt<objectives[obj].response_times.size(); ++tt) {
+        localarraydata[overallprog+tt] = objectives[obj].scalar_response_data[tt];
+      }
+    }
+    overallprog += response_sizes[obj];
+  }
+
+  Teuchos::Array<ScalarT> globalarraydata(glbresp,0.0);
+
+  const int numentries = totalresp;
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&localarraydata[0],&globalarraydata[0]);
+      
+  return globalarraydata;    
 }
 
 // ========================================================================================

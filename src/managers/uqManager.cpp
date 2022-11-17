@@ -252,37 +252,100 @@ void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
 // ========================================================================================
 // ========================================================================================
 
-void UQManager::KDE(View_Sc2 seedpts, View_Sc2 evalpts, View_Sc1 density) {
-/*
-N = size(data,1);	% number of data points
-dim = size(data,2);
+View_Sc1 UQManager::KDE(View_Sc2 seedpts, View_Sc2 evalpts) {
 
-Z = zeros(size(X,1),1);
+  // TMW: note that this won't really work on a GPU - easy to fix though
 
-if nargin > 3
-    wts = varargin{1};
-else
-    wts = ones(size(data,1),1);
-end
+  // This is mostly translated from a matlab implementation
+  size_type Ne = evalpts.extent(0);	// number of evaluation points (not seed points)
+  size_type Ns = seedpts.extent(0);	// number of seed points
+  size_type dim = evalpts.extent(1); // dimension of the space
 
-if isempty(sigma)
-    sigma = 1/1*1.06*sqrt(var(data))*size(data,1)^(-1/5);
-end
-% kernel density estimation
-if (min(sigma) == 0)
-    Z = ones(size(X,1),1);
-else
-    c = 1./sqrt(2*pi*sigma.^2);
-    for i=1:N
-        tmp = wts(i).*c(1).*exp(-(data(i,1)-X(:,1)).^2/(2*sigma(1)^2));
-        for j = 2:dim
-            tmp = tmp.*c(j).*exp(-(data(i,j)-X(:,j)).^2/(2*sigma(j)^2));
-        end
-        Z = Z+1./N.*tmp;
-    end
-end
-*/
+  View_Sc1 density("KDE",Ne);
+
+  View_Sc1 variance = this->computeVariance(seedpts);
+
+  ScalarT Nsc = static_cast<ScalarT>(Ns);
+
+  vector<ScalarT> sigma(dim,0.0), coeff(dim,0.0);
+  for (size_type d=0; d<dim; ++d) {
+    sigma[d] = 1.06*std::sqrt(variance(d))*std::pow(Ns,-1.0/5.0);
+    coeff[d] = 1.0/(std::sqrt(2.0*PI*sigma[d]*sigma[d]));
+  }
+
+  // kernel density estimation
+  for (size_type i=0; i<Ne; ++i) {
+    ScalarT val = 0.0;
+    for (size_type k=0; k<Ns; ++k) {
+      ScalarT cval = 1.0;
+      for (size_type d=0; d<dim; ++d) {
+        ScalarT diff = evalpts(i,d) - seedpts(k,d);
+        cval *= coeff[d]*std::exp(-1.0*diff*diff/(2.0*sigma[d]*sigma[d]));
+      }
+      val += cval;
+    }
+    density(i) = val/Nsc;
+  }
+
+  return density;
+    
 }
 
 // ========================================================================================
 // ========================================================================================
+
+View_Sc1 UQManager::computeVariance(View_Sc2 pts) {
+  size_type N = pts.extent(0);
+  size_type dim = pts.extent(1);
+  View_Sc1 vars("variance",dim);
+
+  ScalarT Nsc = static_cast<ScalarT>(N);
+  auto pts_host = create_mirror_view(pts);
+  deep_copy(pts_host,pts);
+
+  for (size_type i=0; i<dim; ++i) {
+    ScalarT mean = 0.0;
+    for (size_type k=0; k<N; ++k) {
+      mean += pts_host(k,i)/Nsc;
+    }
+    ScalarT var = 0.0;
+    for (size_type k=0; k<N; ++k) {
+      var += (pts_host(k,i)-mean)*(pts_host(k,i)-mean)/Nsc;
+    }
+    vars(i) = var;
+  }
+  return vars;
+
+}
+
+// ========================================================================================
+// ========================================================================================
+
+Kokkos::View<bool*,HostDevice> UQManager::rejectionSampling(View_Sc1 ratios, const int & seed) {
+
+  ScalarT C = 0.0;
+  for (size_type k=0; k<ratios.extent(0); ++k) {
+    if (std::abs(ratios(k)) > C) {
+      C = std::abs(ratios(k));
+    }
+  }
+  Kokkos::View<bool*,HostDevice> accept("acceptance",ratios.extent(0));
+  deep_copy(accept,false);
+
+  int cseed = seed;
+  if (cseed == -1) {
+    srand(time(NULL));
+    cseed = rand();
+  }
+  
+  std::default_random_engine generator(cseed);
+  std::uniform_real_distribution<ScalarT> distribution(0.0,1.0);
+        
+  for (size_type k=0; k<ratios.extent(0); ++k) {
+    ScalarT check = distribution(generator);
+    if (std::abs(ratios(k))/C >= check) {
+      accept(k) = true;
+    }
+  }
+  return accept;
+}

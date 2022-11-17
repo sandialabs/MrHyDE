@@ -80,190 +80,21 @@ void AnalysisManager::run() {
     
     // UQ is forward propagation of uncertainty computed using sampling
     
-    // Build the uq manager
-    Teuchos::ParameterList uqsettings = settings->sublist("Analysis").sublist("UQ");
-    vector<string> param_types = params->stochastic_distribution;
-    vector<ScalarT> param_means = params->getStochasticParams("mean");
-    vector<ScalarT> param_vars = params->getStochasticParams("variance");
-    vector<ScalarT> param_mins = params->getStochasticParams("min");
-    vector<ScalarT> param_maxs = params->getStochasticParams("max");
-    UQManager uq(Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
-    
-    // Generate the samples for the UQ
-    int numstochparams = param_types.size();
-    int numsamples = uqsettings.get<int>("samples",100);
-    int maxsamples = uqsettings.get<int>("max samples",numsamples); // needed for generating subsets of samples
-    int seed = uqsettings.get<int>("seed",1234);
-    Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
-    // Adjust the number of samples (if necessary)
-    numsamples = std::min(numsamples, static_cast<int>(samplepts.extent(0)));
-    Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
-    bool regenerate_rotations = uqsettings.get<bool>("regenerate grain rotations",false);
-    bool regenerate_grains = uqsettings.get<bool>("regenerate grains",false);
-    bool write_sol_text = uqsettings.get<bool>("write solutions to text file",false);
-    bool write_samples = uqsettings.get<bool>("write samples",false);
-    bool compute_adjoint = uqsettings.get<bool>("compute adjoint",false);
-    bool write_adjoint_text = uqsettings.get<bool>("write adjoint to text file",false);
-
-    if (write_samples) {
-      string sample_file = uqsettings.get<string>("samples output file","samples.dat");
-      std::ofstream sampOUT(sample_file.c_str());
-      for (size_type i=0; i<samplepts.extent(0); ++i) {
-        for (size_type v=0; v<samplepts.extent(1); ++v) {
-          sampOUT << samplepts(i,v) << "  ";
-        }
-        sampOUT << endl;
-      }
-      sampOUT.close();
-    }
-
-    if (write_sol_text) {
-      postproc->save_solution = true;
-    }
     // Evaluate model or a surrogate at these samples
-    vector<Kokkos::View<ScalarT***,HostDevice> > response_values;
-    vector<Kokkos::View<ScalarT****,HostDevice> > response_grads;
-    vector_RCP avgsoln = solve->linalg->getNewOverlappedVector(0,2);
-    int output_freq = uqsettings.get<int>("output frequency",1);
-    postproc->compute_response = false;
-
+    vector<Teuchos::Array<ScalarT> > response_values = this->UQSolve();
+    
     if (Comm->getRank() == 0) {
-      cout << "Running Monte Carlo sampling ..." << endl;
-    }
-    for (int j=0; j<numsamples; j++) {
-      if (numstochparams > 0) {
-        vector<ScalarT> currparams;
-        for (int i=0; i<numstochparams; i++) {
-          currparams.push_back(samplepts(j,i));
-        }
-        params->updateParams(currparams,2);
-          
-      }
-      if (regenerate_grains) {
-        auto seeds = solve->mesh->generateNewMicrostructure(sampleints(j));
-        solve->mesh->importNewMicrostructure(sampleints(j), seeds,
-                                             solve->assembler->groups,
-                                             solve->assembler->boundary_groups);
-      }
-      else if (regenerate_rotations) {
-        this->updateRotationData(sampleints(j));
-      }
-        
-      std::stringstream ss;
-      ss << "_" << j;
-      postproc->append = ss.str();
-        
-      DFAD objfun = this->forwardSolve();
-        
-      if (write_sol_text) {
-        typedef typename SolverNode::device_type              LA_device;
-        std::stringstream sfile;
-        sfile << "solution." << j << "." << Comm->getRank() << ".dat";
-        vector<vector<vector_RCP> > soln = postproc->soln[0]->extractAllData();
-        int index = 0; // forget what this is for
-        size_type numVecs = soln[index].size();
-        auto v0_view = soln[index][0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-        size_type numEnt = v0_view.extent(0);
-        View_Sc2 all_data("data for writing",numEnt,numVecs);
-        for (size_type v=0; v<numVecs; ++v) {
-          auto vec_view = soln[index][v]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-          for (size_type i=0; i<numEnt; ++i) {
-            all_data(i,v) = vec_view(i,0);
-          }
-        }
-        std::ofstream solnOUT(sfile.str().c_str());
-        for (size_type i=0; i<numEnt; ++i) {
-          for (size_type v=0; v<numVecs; ++v) {
-            solnOUT << all_data(i,v) << "  ";
-          }
-          solnOUT << endl;
-        }
-        solnOUT.close();
-      }
-      if (compute_adjoint) {
-
-        postproc->save_adjoint_solution = true;
-        MrHyDE_OptVector sens = this->adjointSolve();
-
-        if (write_adjoint_text) {
-          typedef typename SolverNode::device_type              LA_device;
-          std::stringstream sfile;
-          sfile << "adjoint." << j << "." << Comm->getRank() << ".dat";
-          vector<vector<vector_RCP> > soln = postproc->adj_soln[0]->extractAllData();
-          int index = 0; // forget what this is for
-          size_type numVecs = soln[index].size();
-          auto v0_view = soln[index][0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-          size_type numEnt = v0_view.extent(0);
-          View_Sc2 all_data("data for writing",numEnt,numVecs);
-          for (size_type v=0; v<numVecs; ++v) {
-            auto vec_view = soln[index][v]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-            for (size_type i=0; i<numEnt; ++i) {
-              all_data(i,v) = vec_view(i,0);
-            }
-          }
-          std::ofstream solnOUT(sfile.str().c_str());
-          for (size_type i=0; i<numEnt; ++i) {
-            for (size_type v=0; v<numVecs; ++v) {
-              solnOUT << all_data(i,v) << "  ";
-            }
-            solnOUT << endl;
-          }
-          solnOUT.close();
-        }
-      }
-        
-      if (Comm->getRank() == 0 && j%output_freq == 0) {
-        cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
-      }
-    }
       
-    postproc->compute_response = true;
-    postproc->report();
-    if (Comm->getRank() == 0) {
-      string sptname = "sample_points.dat";
-      std::ofstream sampOUT(sptname.c_str());
-      sampOUT.precision(6);
-      for (size_type r=0; r<samplepts.extent(0); r++) {
-        for (size_type d=0; d<samplepts.extent(1); d++) {
-          sampOUT << samplepts(r,d) << "  ";
-        }
-        sampOUT << endl;
-      }
-      sampOUT.close();
-      
-      string sname = "sample_data.dat";
+      string sname = "sample_output.dat";
       std::ofstream respOUT(sname.c_str());
-      respOUT.precision(6);
+      respOUT.precision(12);
       for (size_t r=0; r<response_values.size(); r++) {
-        for (size_type s=0; s<response_values[r].extent(0); s++) { // sensor index
-          for (size_type t=0; t<response_values[r].extent(2); t++) { // time index
-            for (size_type d=0; d<response_values[r].extent(1); d++) { // data index
-              respOUT << response_values[r](s,d,t) << "  ";
-            }
-          }
+        for (size_type s=0; s<response_values[r].size(); s++) {
+          respOUT << response_values[r][s] << "  ";
         }
         respOUT << endl;
       }
       respOUT.close();
-      
-      if (settings->sublist("Postprocess").get<bool>("compute response forward gradient",false)) {
-        string sname = "sample_grads.dat";
-        std::ofstream gradOUT(sname.c_str());
-        gradOUT.precision(6);
-        for (size_t r=0; r<response_grads.size(); r++) {
-          for (size_type s=0; s<response_grads[r].extent(0); s++) { // sensor index
-            for (size_type t=0; t<response_grads[r].extent(2); t++) { // time index
-              for (size_type d=0; d<response_grads[r].extent(1); d++) { // data index
-                for (size_type p=0; d<response_grads[r].extent(1); d++) { // data index
-                  gradOUT << response_grads[r](s,d,t,p) << "  ";
-                }
-              }
-            }
-          }
-          gradOUT << endl;
-        }
-        gradOUT.close();
-      }
       
     }
     
@@ -859,6 +690,10 @@ void AnalysisManager::run() {
   } //ROL_SIMOPT
   else if (analysis_type == "DCI") {
 
+    // Evaluate model or a surrogate at these samples
+    vector<Teuchos::Array<ScalarT> > response_values = this->UQSolve();
+    
+
   }
   else if (analysis_type == "restart") {
     Teuchos::ParameterList rstsettings = settings->sublist("Analysis").sublist("Restart");
@@ -1095,4 +930,160 @@ void AnalysisManager::updateRotationData(const int & newrandseed) {
     }
   }
   solve->multiscale_manager->updateMeshData(rotation_data);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
+
+  vector<Teuchos::Array<ScalarT> > response_values;
+
+  // Build the uq manager
+    Teuchos::ParameterList uqsettings = settings->sublist("Analysis").sublist("UQ");
+    vector<string> param_types = params->stochastic_distribution;
+    vector<ScalarT> param_means = params->getStochasticParams("mean");
+    vector<ScalarT> param_vars = params->getStochasticParams("variance");
+    vector<ScalarT> param_mins = params->getStochasticParams("min");
+    vector<ScalarT> param_maxs = params->getStochasticParams("max");
+    UQManager uq(Comm, uqsettings, param_types, param_means, param_vars, param_mins, param_maxs);
+    
+    // Collect some settings
+    int numstochparams = param_types.size();
+    int numsamples = uqsettings.get<int>("samples",100);
+    int maxsamples = uqsettings.get<int>("max samples",numsamples); // needed for generating subsets of samples
+    int seed = uqsettings.get<int>("seed",1234);
+    bool regenerate_rotations = uqsettings.get<bool>("regenerate grain rotations",false);
+    bool regenerate_grains = uqsettings.get<bool>("regenerate grains",false);
+    bool write_sol_text = uqsettings.get<bool>("write solutions to text file",false);
+    bool write_samples = uqsettings.get<bool>("write samples",false);
+    bool compute_adjoint = uqsettings.get<bool>("compute adjoint",false);
+    bool write_adjoint_text = uqsettings.get<bool>("write adjoint to text file",false);
+    int output_freq = uqsettings.get<int>("output frequency",1);
+    
+    // Generate the samples (wastes memory if requires large number of samples in high-dim space)
+    Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
+    // Adjust the number of samples (if necessary)
+    numsamples = std::min(numsamples, static_cast<int>(samplepts.extent(0)));
+    Kokkos::View<int*,HostDevice> sampleints = uq.generateIntegerSamples(maxsamples, seed);
+    
+    // Write the samples to file (if requested)
+    if (write_samples) {
+      string sample_file = uqsettings.get<string>("samples output file","sample_inputs.dat");
+      std::ofstream sampOUT(sample_file.c_str());
+      for (size_type i=0; i<samplepts.extent(0); ++i) {
+        for (size_type v=0; v<samplepts.extent(1); ++v) {
+          sampOUT << samplepts(i,v) << "  ";
+        }
+        sampOUT << endl;
+      }
+      sampOUT.close();
+    }
+
+    if (write_sol_text) {
+      postproc->save_solution = true;
+    }
+
+    
+    if (Comm->getRank() == 0) {
+      cout << "Running Monte Carlo sampling ..." << endl;
+    }
+    for (int j=0; j<numsamples; j++) {
+
+      ////////////////////////////////////////////////////////
+      // Generate a new realization
+      // Update stochastic parameters
+      if (numstochparams > 0) {
+        vector<ScalarT> currparams;
+        for (int i=0; i<numstochparams; i++) {
+          currparams.push_back(samplepts(j,i));
+        }
+        params->updateParams(currparams,2);
+          
+      }
+      // Update random microstructure
+      if (regenerate_grains) {
+        auto seeds = solve->mesh->generateNewMicrostructure(sampleints(j));
+        solve->mesh->importNewMicrostructure(sampleints(j), seeds,
+                                             solve->assembler->groups,
+                                             solve->assembler->boundary_groups);
+      }
+      else if (regenerate_rotations) {
+        this->updateRotationData(sampleints(j));
+      }
+
+      // Update the append string in postprocessor for labelling
+      std::stringstream ss;
+      ss << "_" << j;
+      postproc->append = ss.str();
+      
+      ////////////////////////////////////////////////////////
+      // Evaluate the new realization
+      
+      DFAD objfun = this->forwardSolve();  
+      //postproc->report();
+      Teuchos::Array<ScalarT> newresp = postproc->collectResponses();
+
+      response_values.push_back(newresp);
+
+      ////////////////////////////////////////////////////////
+      
+      // The following output is for a specific use case.  
+      // Should not be used in general (unless you want TB of data)
+      if (write_sol_text) {
+        std::stringstream sfile;
+        sfile << "solution." << j << "." << Comm->getRank() << ".dat";
+        string filename = sfile.str();
+        vector<vector<vector_RCP> > soln = postproc->soln[0]->extractAllData();
+        this->writeSolutionToText(filename, soln);
+      }
+      if (compute_adjoint) {
+
+        postproc->save_adjoint_solution = true;
+        MrHyDE_OptVector sens = this->adjointSolve();
+
+        if (write_adjoint_text) {
+          std::stringstream sfile;
+          sfile << "adjoint." << j << "." << Comm->getRank() << ".dat";
+          string filename = sfile.str();
+          vector<vector<vector_RCP> > soln = postproc->adj_soln[0]->extractAllData();
+          this->writeSolutionToText(filename, soln);
+        }
+      }
+        
+      // Update the user on the progress
+      if (Comm->getRank() == 0 && j%output_freq == 0) {
+        cout << "Finished evaluating sample number: " << j+1 << " out of " << numsamples << endl;
+      }
+    } // end sample loop
+
+    return response_values;
+}
+
+
+
+
+
+void AnalysisManager::writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln) {
+  typedef typename SolverNode::device_type  LA_device;
+  //vector<vector<vector_RCP> > soln = postproc->soln[0]->extractAllData();
+  int index = 0; // forget what this is for
+  size_type numVecs = soln[index].size();
+  auto v0_view = soln[index][0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  size_type numEnt = v0_view.extent(0);
+  View_Sc2 all_data("data for writing",numEnt,numVecs);
+  for (size_type v=0; v<numVecs; ++v) {
+    auto vec_view = soln[index][v]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    for (size_type i=0; i<numEnt; ++i) {
+      all_data(i,v) = vec_view(i,0);
+    }
+  }
+  std::ofstream solnOUT(filename.c_str());
+  for (size_type i=0; i<numEnt; ++i) {
+    for (size_type v=0; v<numVecs; ++v) {
+      solnOUT << all_data(i,v) << "  ";
+    }
+    solnOUT << endl;
+  }
+  solnOUT.close();
 }

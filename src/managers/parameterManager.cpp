@@ -116,12 +116,17 @@ void ParameterManager<Node>::setupParameters() {
         newparamvals.push_back(newparam.get<ScalarT>("value"));
       }
       else if (newparam.get<string>("type") == "vector") {
-        std::string filename = newparam.get<string>("source");
-        std::ifstream fin(filename.c_str());
-        std::istream_iterator<ScalarT> start(fin), end;
-        vector<ScalarT> importedparamvals(start, end);
-        for (size_t i=0; i<importedparamvals.size(); i++) {
-          newparamvals.push_back(importedparamvals[i]);
+        if (newparam.isParameter("number of components")) {
+
+        }
+        else {
+          std::string filename = newparam.get<string>("source");
+          std::ifstream fin(filename.c_str());
+          std::istream_iterator<ScalarT> start(fin), end;
+          vector<ScalarT> importedparamvals(start, end);
+          for (size_t i=0; i<importedparamvals.size(); i++) {
+            newparamvals.push_back(importedparamvals[i]);
+          }
         }
       }
       

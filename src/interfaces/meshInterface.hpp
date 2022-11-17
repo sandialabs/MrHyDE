@@ -78,7 +78,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     /**
-     * Thiis function uses the vriables defined in the physics interface to add fields to the mesh and complete the mesh construction.
+     * This function uses the vriables defined in the physics interface to add fields to the mesh and complete the mesh construction.
      */
     
     void finalize(Teuchos::RCP<PhysicsInterface> & phys);
