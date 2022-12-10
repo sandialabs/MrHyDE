@@ -63,6 +63,10 @@ ADD_EXECUTABLE(test_PanzerStk
 test_PanzerStk.cpp)
 TARGET_LINK_LIBRARIES(test_PanzerStk ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
+ADD_EXECUTABLE(test_Compression
+test_Compression.cpp)
+TARGET_LINK_LIBRARIES(test_Compression ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
 #ADD_EXECUTABLE(test_ioss
 #tIOSSConnManager.cpp)
 #TARGET_LINK_LIBRARIES(test_ioss ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
