@@ -108,7 +108,7 @@ void Burgers::volumeResidual() {
           AD entres = u(elem,pt)*(dudt(elem,pt) + u(elem,pt)*dudx(elem,pt) + u(elem,pt)*dudy(elem,pt));
           evisc = C1(elem,pt)*h(elem)*h(elem)*abs(1.0e-12 + entres)/C2(elem,pt);
         }
-        if (evisc.val() > 0.1) {
+        if (evisc > 0.1) {
           evisc = 0.1;
         }
         AD usq = 0.5*u(elem,pt)*u(elem,pt);
@@ -119,7 +119,7 @@ void Burgers::volumeResidual() {
           AD nvel, tau;
           nvel = vx(elem,pt)*vx(elem,pt) + vy(elem,pt)*vy(elem,pt);
     
-          if (nvel.val() > 1E-12) {
+          if (nvel > 1E-12) {
             nvel = sqrt(nvel);
           }
           tau = supg_C(elem,pt)/(supg_C1(elem,pt)/(dt) + supg_C2(elem,pt)*(nvel)/h(elem));
