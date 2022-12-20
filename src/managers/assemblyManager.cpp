@@ -1183,8 +1183,8 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
             LO rowIndex = 0;
             
             int col = 0;
-            LO cols[64];
-            ScalarT vals[64];
+            LO cols[1028];
+            ScalarT vals[1028];
             for (size_type n=0; n<numDOF.extent(0); ++n) {
               const size_type numVals = numDOF(n);
               for (int j=0; j<numDOF(n); j++) {
@@ -1257,8 +1257,8 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
             LO rowIndex = 0;
             
             int col = 0;
-            LO cols[64];
-            ScalarT vals[64];
+            LO cols[1028];
+            ScalarT vals[1028];
             for (size_type n=0; n<numDOF_ladev.extent(0); ++n) {
               const size_type numVals = numDOF_ladev(n);
               for (int j=0; j<numDOF_ladev(n); j++) {
