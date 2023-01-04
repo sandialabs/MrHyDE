@@ -1097,6 +1097,8 @@ void euler::computeBoundaryTerm() {
   // A^{\pm} = ( A \pm | A | ) / 2
   // S_\infty is the freestream condition
   
+  using namespace std;
+
   Teuchos::TimeMonitor localtime(*boundCompFill);
 
   auto bcs = wkset->var_bcs;
@@ -1385,6 +1387,8 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 La
     const AD & a_sound, const ScalarT & gamma) {
 
   // This follows Rohde 2001 (AIAA)
+
+  using namespace std;
 
   AD vn = rhoux/rho*nx + rhouy/rho*ny + rhouz/rho*nz;
   AD ek_m = .5 * (rhoux*rhoux + rhouy*rhouy + rhouz*rhouz)/(rho*rho);

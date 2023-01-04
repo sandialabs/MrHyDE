@@ -601,6 +601,8 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   // A^{\pm} = ( A \pm | A | ) / 2
   // S_\infty is the freestream condition
   
+  using namespace std;
+  
   Teuchos::TimeMonitor localtime(*boundCompFill);
 
   auto bcs = wkset->var_bcs;
