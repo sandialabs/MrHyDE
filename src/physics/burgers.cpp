@@ -53,6 +53,8 @@ void Burgers::defineFunctions(Teuchos::ParameterList & fs,
 
 void Burgers::volumeResidual() {
   
+  using namespace std;
+  
   // Evaluate the functions we always need
   auto source = functionManager->evaluate("Burgers source","ip");
   auto eps = functionManager->evaluate("diffusion","ip");
