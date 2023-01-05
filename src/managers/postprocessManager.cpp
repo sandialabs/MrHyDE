@@ -675,6 +675,21 @@ void PostprocessManager<Node>::report() {
               
               respOUT.precision(8);
             
+              Teuchos::Array<ScalarT> time_data(max_numtimes+spaceDim,0.0);
+              for (size_t dim=0; dim<spaceDim; ++dim) {
+                time_data[dim] = 0.0;
+              }
+
+              for (size_t tt=0; tt<max_numtimes; ++tt) {
+                time_data[tt+spaceDim] = objectives[obj].response_times[tt];
+              }
+              
+              if (Comm->getRank() == 0) {
+                for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
+                  respOUT << time_data[tt] << "  ";
+                }
+                respOUT << endl;
+              }
               
               auto spts = objectives[obj].sensor_points;
               for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
@@ -698,7 +713,7 @@ void PostprocessManager<Node>::report() {
                 
                 const int numentries = max_numtimes+spaceDim;
                 Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&series_data[0],&gseries_data[0]);
-
+                
                 if (Comm->getRank() == 0) {
                   //respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
                   for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
