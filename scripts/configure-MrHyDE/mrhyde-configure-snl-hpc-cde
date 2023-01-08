@@ -1,0 +1,22 @@
+EXTRA_ARGS=$@
+
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_HOME=/ascldap/users/tmwilde/Software/Trilinos
+
+TRILINOS_INSTALL=/ascldap/users/tmwilde/Software/Trilinos/install-clang
+
+MRHYDE_HOME=/ascldap/users/tmwilde/Software/MrHyDE
+
+MRHYDE_INSTALL=$MRHYDE_HOME/install/clang
+
+cmake \
+-GNinja \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_INSTALL_PREFIX:PATH=${MRHYDE_INSTALL} \
+-D MrHyDE_ENABLE_SANDBOX=ON \
+-D MrHyDE_MAX_DERIVS=64 \
+${EXTRA-ARGS} \
+${MRHYDE_HOME}

@@ -1,0 +1,31 @@
+EXTRA_ARGS=$@
+
+# Machine name: s1060545
+# Machine type: mac laptop OS Monterey
+# Build type: serial
+# Compiler: clang-14
+# Modules installed using Homebrew: open-mpi, boost, hdf5-mpi, netcdf, cmake, ninja
+$ May also need to use Homebrew to install: zlib, pnetcdf, libx11
+ 
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_HOME='/Users/tmwilde/Software/Trilinos'
+
+TRILINOS_INSTALL='/Users/tmwilde/Software/Trilinos/trilinos-clang'
+
+MRHYDE_HOME='/Users/tmwilde/Software/MrHyDE'
+
+MRHYDE_INSTALL='/Users/tmwilde/Software/MrHyDE/install'
+
+cmake \
+-GNinja \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_INSTALL_PREFIX:PATH=${MRHYDE_INSTALL} \
+-D CMAKE_CXX_FLAGS:STRING="-Wall" \
+-D MrHyDE_ENABLE_SANDBOX=ON \
+-D MrHyDE_MAX_DERIVS=64 \
+-D MrHyDE_BUILD_DOXYGEN=false \
+${EXTRA-ARGS} \
+${MRHYDE_HOME}
