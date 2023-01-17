@@ -659,32 +659,31 @@ void PostprocessManager<Node>::report() {
           Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MAX,1,&numfields,&max_numfields);
           
           if (fileoutput == "text") {
+            
             for (int field = 0; field<max_numfields; ++field) {
               std::stringstream ss;
               ss << field;
               string respfile = "sensor_solution_field." + ss.str() + ".out";
               std::ofstream respOUT;
-              bool is_open = false;
-              int attempts = 0;
-              int max_attempts = 10;
-              while (!is_open && attempts < max_attempts) {
-                respOUT.open(respfile);
-                is_open = respOUT.is_open();
-                attempts++;
-              }
-              
-              respOUT.precision(8);
-            
-              Teuchos::Array<ScalarT> time_data(max_numtimes+spaceDim,0.0);
-              for (size_t dim=0; dim<spaceDim; ++dim) {
-                time_data[dim] = 0.0;
-              }
-
-              for (size_t tt=0; tt<max_numtimes; ++tt) {
-                time_data[tt+spaceDim] = objectives[obj].response_times[tt];
-              }
-              
               if (Comm->getRank() == 0) {
+                bool is_open = false;
+                int attempts = 0;
+                int max_attempts = 100;
+                while (!is_open && attempts < max_attempts) {
+                  respOUT.open(respfile);
+                  is_open = respOUT.is_open();
+                  attempts++;
+                }
+                respOUT.precision(8);
+                Teuchos::Array<ScalarT> time_data(max_numtimes+spaceDim,0.0);
+                for (size_t dim=0; dim<spaceDim; ++dim) {
+                  time_data[dim] = 0.0;
+                }
+
+                for (size_t tt=0; tt<max_numtimes; ++tt) {
+                  time_data[tt+spaceDim] = objectives[obj].response_times[tt];
+                }
+              
                 for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
                   respOUT << time_data[tt] << "  ";
                 }
@@ -722,7 +721,9 @@ void PostprocessManager<Node>::report() {
                   respOUT << endl;
                 }
               }
-              respOUT.close();
+              if (Comm->getRank() == 0) {
+                respOUT.close();
+              }
             }
           }
 #ifdef MrHyDE_USE_HDF5
