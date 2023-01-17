@@ -805,8 +805,19 @@ void PostprocessManager<Node>::report() {
         }
         else {
           string respfile = objectives[obj].response_file+".out";
-          std::ofstream respOUT(respfile.c_str());
-          respOUT.precision(16);
+          std::ofstream respOUT;
+          if (Comm->getRank() == 0) {
+            bool is_open = false;
+            int attempts = 0;
+            int max_attempts = 100;
+            while (!is_open && attempts < max_attempts) {
+              respOUT.open(respfile);
+              is_open = respOUT.is_open();
+              attempts++;
+            }
+            respOUT.precision(16);
+          }
+
           if (Comm->getRank() == 0) {
             for (size_t tt=0; tt<objectives[obj].response_times.size(); ++tt) {
               respOUT << objectives[obj].response_times[tt] << "  ";
@@ -835,13 +846,26 @@ void PostprocessManager<Node>::report() {
               respOUT << endl;
             }
           }
-          respOUT.close();
+          if (Comm->getRank() == 0) {
+            respOUT.close();
+          }
         }
       }
       else if (objectives[obj].type == "integrated response") {
         if (objectives[obj].save_data) {
           string respfile = objectives[obj].response_file+"."+blocknames[objectives[obj].block]+append+".out";
-          std::ofstream respOUT(respfile.c_str());
+          std::ofstream respOUT;
+          if (Comm->getRank() == 0) {
+            bool is_open = false;
+            int attempts = 0;
+            int max_attempts = 100;
+            while (!is_open && attempts < max_attempts) {
+              respOUT.open(respfile);
+              is_open = respOUT.is_open();
+              attempts++;
+            }
+            respOUT.precision(16);
+          }
           for (size_t tt=0; tt<objectives[obj].response_times.size(); ++tt) {
           
             if (Comm->getRank() == 0) {
@@ -855,7 +879,9 @@ void PostprocessManager<Node>::report() {
               respOUT << endl;
             }
           }
-          respOUT.close();
+          if (Comm->getRank() == 0) {
+            respOUT.close();
+          }
         }
       }
       
@@ -885,8 +911,18 @@ void PostprocessManager<Node>::report() {
     if (Comm->getRank() == 0) {
       string respfile = "flux_response.out";
       std::ofstream respOUT;
-      respOUT.open(respfile, std::ios_base::app);
-      respOUT.precision(16);
+      if (Comm->getRank() == 0) {
+        bool is_open = false;
+        int attempts = 0;
+        int max_attempts = 100;
+        while (!is_open && attempts < max_attempts) {
+          respOUT.open(respfile, std::ios_base::app);
+          is_open = respOUT.is_open();
+          attempts++;
+        }
+        respOUT.precision(16);
+      }
+      
       for (size_t g=0; g<gvals.size(); ++g) {
         cout << gvals[g] << endl;
         
