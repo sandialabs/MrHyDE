@@ -662,8 +662,9 @@ void PostprocessManager<Node>::report() {
             
             for (int field = 0; field<max_numfields; ++field) {
               std::stringstream ss;
+              size_t blocknum = objectives[obj].block;
               ss << field;
-              string respfile = "sensor_solution_field." + ss.str() + ".out";
+              string respfile = "sensor_solution_field." + ss.str() + "." + blocknames[blocknum] + ".out";
               std::ofstream respOUT;
               if (Comm->getRank() == 0) {
                 bool is_open = false;
