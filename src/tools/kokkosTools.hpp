@@ -249,6 +249,37 @@ namespace MrHyDE {
       std::cout << "------------------------------------------" << std::endl;
       
     }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    template<class T>
+    static void printToFile(Kokkos::View<T***,AssemblyDevice> V, const string & filename) {
+
+      std::ofstream printOUT;
+      bool is_open = false;
+      int attempts = 0;
+      int max_attempts = 100;
+      while (!is_open && attempts < max_attempts) {
+        printOUT.open(filename);
+        is_open = printOUT.is_open();
+        attempts++;
+      }
+      printOUT.precision(16);
+      
+      auto V_host = Kokkos::create_mirror_view(V);
+      Kokkos::deep_copy(V_host,V);
+      
+      for (size_type i=0; i<V_host.extent(0); i++) {
+        for (size_type j=0; j<V_host.extent(1); j++) {
+          for (size_type k=0; k<V_host.extent(2); k++) {
+            printOUT << "  " << i << "  " << "  " << j << "  " <<
+            "  " << k << "  " << "  " << V_host(i,j,k) << "  " << std::endl;
+          }
+        }
+      }
+      
+    }
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
