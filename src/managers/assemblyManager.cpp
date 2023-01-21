@@ -1321,7 +1321,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
       
       auto cLIDs = groups[block][grp]->LIDs[set];
       
-      if (!groups[block][grp]->storeMass) { //groupData[block]->store_mass) { //groupData->matrix_free) {
+      if (!groups[block][grp]->storeMass) { 
         auto twts = groups[block][grp]->wts;
         vector<CompressedView<View_Sc4>> tbasis;
         if (groups[block][grp]->storeAll) { // unlikely case, but enabled
@@ -1395,27 +1395,105 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
       else {
         
         if (groupData[block]->use_mass_database) {
-          auto curr_mass = groupData[block]->database_mass[set];
-          auto index = groups[block][grp]->basis_index;
-          parallel_for("get mass",
-                       RangePolicy<AssemblyExec>(0,index.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            LO eindex = index(elem);
-            for (size_type var=0; var<numDOF.extent(0); var++) {
-              for (int i=0; i<numDOF(var); i++ ) {
-                for (int j=0; j<numDOF(var); j++ ) {
-                  LO indi = cLIDs(elem,offsets(var,i));
-                  LO indj = cLIDs(elem,offsets(var,j));
-                  if (use_atomics_) {
-                    Kokkos::atomic_add(&(y_slice(indi)), curr_mass(eindex,offsets(var,i),offsets(var,j))*x_slice(indj));
+          
+          bool use_sparse = settings->sublist("Solver").get<bool>("sparse mass format",false);
+          if (use_sparse) {
+            auto curr_mass = groupData[block]->sparse_database_mass[set];
+            auto values = curr_mass->getValues();
+            auto nnz = curr_mass->getNNZPerRow();
+            auto index = groups[block][grp]->basis_index;
+
+            // BEGIN LOCAL COLUMN CALCULATION
+          
+            // There's a technical detail associated with using these sparse/condensed data structures
+            // The compressed format uses the natural row/column indices, however, the loops that use this
+            // data involve looping over variables and offsets.  
+            // This information takes time to obtain, so we only do it once
+
+            if (!curr_mass->have_local_columns) {
+              auto columns = curr_mass->getColumns();
+              auto local_columns = curr_mass->getLocalColumns();
+              parallel_for("get mass",
+                         RangePolicy<AssemblyExec>(0,columns.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+                for (size_type var=0; var<numDOF.extent(0); var++) {
+                  for (int i=0; i<numDOF(var); i++ ) {
+                    LO localrow = offsets(var,i);
+                    for (int k=0; k<nnz(elem,localrow); ++k ) {
+                      for (int j=0; j<numDOF(var); j++ ) {                    
+                        LO localcol = offsets(var,j);
+                        if (columns(elem,localrow,k) == localcol) {
+                          local_columns(elem,localrow,k) = j;
+                        }
+                      }
+                    }
                   }
-                  else {
-                    y_slice(indi) += curr_mass(eindex,offsets(var,i),offsets(var,j))*x_slice(indj);
+                }
+              });   
+              curr_mass->have_local_columns = true;                    
+              //curr_mass->setLocalColumns(local_columns);
+            }
+            
+            // END LOCAL COLUMN CALCULATION
+
+            auto local_columns = curr_mass->getLocalColumns();
+            //auto columns = curr_mass->getColumns();
+            
+            parallel_for("get mass",
+                         RangePolicy<AssemblyExec>(0,index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO eindex = index(elem);
+           
+              // New code that uses sparse data structures
+              for (size_type var=0; var<numDOF.extent(0); var++) {
+                for (int i=0; i<numDOF(var); i++ ) {
+                  LO localrow = offsets(var,i);
+                  LO globalrow = cLIDs(elem,localrow);
+                  for (int k=0; k<nnz(eindex,localrow); k++ ) {
+                    LO localcol = offsets(var,local_columns(eindex,localrow,k));
+                    LO globalcol = cLIDs(elem,localcol);
+                    ScalarT matrixval = values(eindex,localrow,k);
+                    if (use_atomics_) {
+                      Kokkos::atomic_add(&(y_slice(globalrow)), matrixval*x_slice(globalcol));
+                    }
+                    else {
+                      y_slice(globalrow) += matrixval*x_slice(globalcol);
+                    }
+                  }
+                  
+                }
+              }
+            });
+          }
+          else {
+
+            auto index = groups[block][grp]->basis_index;
+
+            auto curr_mass = groupData[block]->database_mass[set];
+
+            parallel_for("get mass",
+                         RangePolicy<AssemblyExec>(0,index.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              LO eindex = index(elem);
+              // Old code that assumed dense data structures
+              for (size_type var=0; var<numDOF.extent(0); var++) {
+                for (int i=0; i<numDOF(var); i++ ) {
+                  LO localrow = offsets(var,i);
+                  LO globalrow = cLIDs(elem,localrow);
+                  for (int j=0; j<numDOF(var); j++ ) {                    
+                    LO localcol = offsets(var,j);
+                    LO globalcol = cLIDs(elem,localcol);
+                    if (use_atomics_) {
+                      Kokkos::atomic_add(&(y_slice(globalrow)), curr_mass(eindex,localrow,localcol)*x_slice(globalcol));
+                    }
+                    else {
+                      y_slice(globalrow) += curr_mass(eindex,localrow,localcol)*x_slice(globalcol);
+                    }
                   }
                 }
               }
-            }
-          });
+            });
+          }
           
         }
         else {
@@ -3182,6 +3260,24 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
         }
       }
       groupData[block]->database_mass.push_back(mass);
+
+      bool use_sparse = settings->sublist("Solver").get<bool>("sparse mass format",false);
+      if (use_sparse) {
+        ScalarT tol = settings->sublist("Solver").get<double>("sparse mass TOL",1.0e-10);
+        Teuchos::RCP<Sparse3DView> sparse_mass = Teuchos::rcp( new Sparse3DView(mass,tol) );
+        groupData[block]->sparse_database_mass.push_back(sparse_mass);
+
+        cout << " - Processor " << Comm->getRank() << ": Sparse mass format savings on " << blocknames[block] << ": "
+             << (100.0 - 100.0*((double)sparse_mass->size()/(double)mass.size())) << "%" << endl;
+      }
+
+      bool write_matrices_to_file = false;
+      if (write_matrices_to_file) {
+        std::stringstream ss;
+        ss << set;
+        string filename = "mass_matrices." + ss.str() + ".out";
+        KokkosTools::printToFile(mass,filename);
+      }
     }
   }
 }

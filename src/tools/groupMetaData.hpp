@@ -18,6 +18,7 @@
 #include "preferences.hpp"
 #include "physicsBase.hpp"
 #include "physicsInterface.hpp"
+#include "sparse3DView.hpp"
 
 #include <iostream>     
 #include <iterator>     
@@ -98,7 +99,8 @@ namespace MrHyDE {
 
     // database of mass matrices
     vector<View_Sc3> database_mass;  // [set](dof,dof) 
-    
+    vector<Teuchos::RCP<Sparse3DView > > sparse_database_mass;  // [set](dof,dof) 
+
     // these are common to all elements/groups and are often used on both devices
     vector<Kokkos::View<int*,AssemblyDevice> > set_numDOF;
     vector<Kokkos::View<int*,HostDevice> > set_numDOF_host;
