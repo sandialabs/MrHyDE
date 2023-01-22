@@ -48,7 +48,7 @@ namespace MrHyDE {
       for (size_type elem=0; elem<denseview_host.extent(0); elem++ ) {
         for (size_type i=0; i<denseview_host.extent(1); i++ ) {
           for (size_type j=0; j<denseview_host.extent(2); j++ ) {
-            if (abs(denseview_host(elem,i,j))>maxval) {
+            if (std::abs(denseview_host(elem,i,j))>maxval) {
               maxval = abs(denseview_host(elem,i,j));
             }
           }
@@ -63,7 +63,7 @@ namespace MrHyDE {
         for (size_type i=0; i<denseview_host.extent(1); i++ ) {
           size_type nnz = 0;
           for (size_type j=0; j<denseview_host.extent(2); j++ ) {
-            if (abs(denseview_host(elem,i,j))/maxval>tol) {
+            if (std::abs(denseview_host(elem,i,j))/maxval>tol) {
               nnz++;
             }
           }
@@ -87,7 +87,7 @@ namespace MrHyDE {
         for (size_type i=0; i<denseview_host.extent(1); i++ ) {
           size_type prog = 0;
           for (size_type j=0; j<denseview_host.extent(2); j++ ) {
-            if (abs(denseview_host(elem,i,j))/maxval>tol) {
+            if (std::abs(denseview_host(elem,i,j))/maxval>tol) {
               columns_host(elem,i,prog) = j;
               values_host(elem,i,prog) = denseview_host(elem,i,j);
               ++prog;
