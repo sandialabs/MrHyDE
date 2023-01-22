@@ -49,7 +49,7 @@ namespace MrHyDE {
         for (size_type i=0; i<denseview_host.extent(1); i++ ) {
           for (size_type j=0; j<denseview_host.extent(2); j++ ) {
             if (std::abs(denseview_host(elem,i,j))>maxval) {
-              maxval = abs(denseview_host(elem,i,j));
+              maxval = std::abs(denseview_host(elem,i,j));
             }
           }
         }
