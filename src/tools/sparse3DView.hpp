@@ -75,8 +75,6 @@ namespace MrHyDE {
 
       // Allocate and fill in values and columns
       values = View_Sc3("values",numelem,numrows,maxent);
-      //values = denseview;
-      //isnz = Kokkos::View<bool***,AssemblyDevice>("is nonzero",values.extent(0),values.extent(1),values.extent(2));
       columns = Kokkos::View<size_type***,AssemblyDevice>("columns",numelem,numrows,maxent);
       local_columns = Kokkos::View<size_type***,AssemblyDevice>("columns",numelem,numrows,maxent);
 
@@ -91,15 +89,12 @@ namespace MrHyDE {
               columns_host(elem,i,prog) = j;
               values_host(elem,i,prog) = denseview_host(elem,i,j);
               ++prog;
-              //isnz(elem,i,j) = true;
             }
           }
         }
       }
       deep_copy(values,values_host);
       deep_copy(columns,columns_host);
-
-      //have_local_columns = false;
     }
       
     KOKKOS_INLINE_FUNCTION    
@@ -137,12 +132,6 @@ namespace MrHyDE {
     Kokkos::View<size_type**,AssemblyDevice> getNNZPerRow() const {
       return nnz_row;
     }
-    
-    //KOKKOS_INLINE_FUNCTION
-    //void setLocalColumns(Kokkos::View<size_type***,AssemblyDevice> local_columns_) {
-    //  local_columns = local_columns_;
-    //  have_local_columns = true;
-    //}
     
   };
   
