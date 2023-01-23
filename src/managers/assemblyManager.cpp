@@ -3259,8 +3259,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
           });
         }
       }
-      groupData[block]->database_mass.push_back(mass);
-
+      
       bool use_sparse = settings->sublist("Solver").get<bool>("sparse mass format",false);
       if (use_sparse) {
         ScalarT tol = settings->sublist("Solver").get<double>("sparse mass TOL",1.0e-10);
@@ -3269,6 +3268,9 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
 
         cout << " - Processor " << Comm->getRank() << ": Sparse mass format savings on " << blocknames[block] << ": "
              << (100.0 - 100.0*((double)sparse_mass->size()/(double)mass.size())) << "%" << endl;
+      }
+      else {
+        groupData[block]->database_mass.push_back(mass);
       }
 
       bool write_matrices_to_file = false;
