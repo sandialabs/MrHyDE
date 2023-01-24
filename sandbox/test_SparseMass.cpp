@@ -8,6 +8,11 @@
 #include "Intrepid2_Basis.hpp"
 #include "Intrepid2_HCURL_HEX_In_FEM.hpp"
 #include "Intrepid2_DefaultCubatureFactory.hpp"
+#include "Intrepid2_Utils.hpp"
+#include "Intrepid2_FunctionSpaceTools.hpp"
+#include "Intrepid2_CellTools.hpp"
+#include "Intrepid2_Orientation.hpp"
+#include "Intrepid2_OrientationTools.hpp"
 
 #include "Panzer_STK_MeshFactory.hpp"
 #include "Panzer_STK_Interface.hpp"
@@ -94,8 +99,8 @@ int main(int argc, char * argv[]) {
     const int num_cubature_points = basis_cubature->getNumPoints();
     
     Kokkos::DynRankView<double,PHX::Device> ref_ip("reference integration points", num_cubature_points, cubature_dim);
-    Kokkos::DynRankView<double,PHX::Device> ref_weights("reference weights", num_cubature_points);
-    basis_cubature->getCubature(ref_ip, ref_weights);
+    Kokkos::DynRankView<double,PHX::Device> ref_wts("reference weights", num_cubature_points);
+    basis_cubature->getCubature(ref_ip, ref_wts);
 
     Kokkos::DynRankView<double,PHX::Device> ref_basis_vals("reference basis values", basis_size, ref_ip.extent(0));
     basis->getValues(ref_basis_vals, ref_ip, Intrepid2::OPERATOR_VALUE);
@@ -109,7 +114,6 @@ int main(int argc, char * argv[]) {
 
     const int num_nodes_per_elem = cell_topology->getNodeCount();
     const size_t num_elems = elems.size();
-    const unsigned int num_basis = ref_basis_vals.extent(0);
     const unsigned int num_ip = ref_ip.extent(0);
 
     // TODO: I'm very much butchering my devices here and this will probably break cuda builds with tests enabled
@@ -118,26 +122,34 @@ int main(int argc, char * argv[]) {
     Kokkos::DynRankView<double,PHX::Device> jacobian("jacobian", num_elems, num_ip, dim, dim);
     Kokkos::DynRankView<double,PHX::Device> jacobian_inv("inverse of jacobian", num_elems, num_ip, dim, dim);
     Kokkos::DynRankView<double,PHX::Device> jacobian_det("determinant of jacobian", num_elems, num_ip);
-    Kokkos::DynRankView<double,PHX::Device> phys_ip("phys ip", num_elems, num_ip, dim);
-    Kokkos::DynRankView<double,PHX::Device> phys_weights("phys weights", num_elems, num_ip);
-    Kokkos::DynRankView<double,PHX::Device> phys_basis_vals("phys basis vals", num_elems, num_basis, num_ip, dim);
+    Kokkos::DynRankView<double,PHX::Device> phys_ip("physical ip", num_elems, num_ip, dim);
+    Kokkos::DynRankView<double,PHX::Device> wts("physical weights", num_elems, num_ip);
+    Kokkos::DynRankView<double,PHX::Device> basis_vals("physical basis vals", num_elems, basis_size, num_ip, dim);
 
     mesh->getElementVertices(elems, blocknames[0], nodes);
 
     Intrepid2::CellTools<PHX::Device::execution_space>::mapToPhysicalFrame(phys_ip, ref_ip, nodes, *cell_topology);
-    //Intrepid2::CellTools<PHX::Device::execution_space>::setJacobian(database_jacobian_dynview, ref_ip, nodes, *cell_topology);
+    Intrepid2::CellTools<PHX::Device::execution_space>::setJacobian(jacobian, ref_ip, nodes, *cell_topology);
+    Intrepid2::CellTools<PHX::Device::execution_space>::setJacobianDet(jacobian_det, jacobian);
+    Intrepid2::CellTools<PHX::Device::execution_space>::setJacobianInv(jacobian_inv, jacobian);
 
+    Intrepid2::FunctionSpaceTools<PHX::Device::execution_space>::computeCellMeasure(wts, jacobian_det, ref_wts);
+  
+          
+    Intrepid2::FunctionSpaceTools<PHX::Device::execution_space>::HCURLtransformVALUE(basis_vals, jacobian_inv, ref_basis_vals);
+    // Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+    // Kokkos::DynRankView<double,PHX::Device> basis_vals2("basis transformed and oriented", num_elems, basis_size, num_ip, dim);
+    // OrientTools::modifyBasisByOrientation(basis_vals2, basis_vals, orientation, basis);
+    
     // ==========================================================
     // Build the mass matrix
     // ==========================================================
     
-    /*
-    Kokkos::View<Scalar***,PHX::Device> mass("local mass",num_elems, num_basis, num_basis);
+    Kokkos::View<double***,PHX::Device> mass("local mass",num_elems, basis_size, basis_size);
     
     vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
       
-    ScalarT mwt = 1.0;//
-    //View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
+    double mwt = 1.0;//
     Kokkos::View<int*,PHX::Device> off("offsets in view",offsets.size());
     auto off_host = Kokkos::create_mirror_view(off);
     for (size_t i=0; i<offsets.size(); ++i) {
@@ -145,20 +157,20 @@ int main(int argc, char * argv[]) {
     }
     Kokkos::deep_copy(off_host,off);
 
-    parallel_for("testSparseMass construct mass",
-                 RangePolicy<PHX::Device::execution_space>(0,mass.extent(0)),
-                 KOKKOS_LAMBDA (const size_type elem ) {
-      for (size_type i=0; i<cbasis.extent(1); i++ ) {
-        for (size_type j=0; j<cbasis.extent(1); j++ ) {
-          for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
-            for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
-              mass(e,off(i),off(j)) += cbasis(e,i,pt,dim)*cbasis(e,j,pt,dim)*wts(e,pt)*mwt;
+    Kokkos::parallel_for("testSparseMass construct mass",
+                         Kokkos::RangePolicy<PHX::Device::execution_space>(0,mass.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+      for (auto i=0; i<basis_vals.extent(1); i++ ) {
+        for (auto j=0; j<basis_vals.extent(1); j++ ) {
+          for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
+            for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
+              mass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
             }
           }
         }
       }
     });
-    */
+    
 
     // ==========================================================
     // Assess the sparsity
