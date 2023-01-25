@@ -21,6 +21,8 @@
 #include "Panzer_IntrepidFieldPattern.hpp"
 #include "Panzer_DOFManager.hpp"
 
+#include "kokkosTools.hpp"
+
 using namespace std;
 using Teuchos::RCP;
 using Teuchos::rcp;
@@ -446,6 +448,7 @@ int main(int argc, char * argv[]) {
 
     } // END SCOPE 4: Tensor product of Gauss-Lobatto, Gauss-Lobatto and Gauss-Legendre rules.
 
+    MrHyDE::KokkosTools::print(mass[0]);
 
     // ==========================================================
     // Assess the sparsity
