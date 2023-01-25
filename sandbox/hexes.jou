@@ -1,0 +1,82 @@
+##### Run with
+#####   cubit -batch -nojournal -nographics -information on -warning on -input hexes.jou
+##### in general and on Sandia HPC, e.g., with
+#####   /projects/cubit/Cubit-16.08/bin/cubitx -batch -nojournal -nographics -information on -warning on -input hexes.jou
+
+##### Reference hex.
+reset
+reset aprepro
+
+brick x 2 y 2 z 2
+volume all size 2
+mesh volume all
+
+block 1 volume all
+block 1 element type HEX8
+
+export mesh "hex-reference.exo" dimension 3 block all overwrite
+
+
+##### Extruded hex.
+reset
+reset aprepro
+
+create vertex 10 10 10
+create vertex 13 10 10
+create vertex 14 14 10
+create vertex 11 13 10
+
+create vertex 10 10 15
+create vertex 13 10 15
+create vertex 14 14 15
+create vertex 11 13 15
+
+create surface vertex 1 2 3 4
+create surface vertex 5 6 7 8
+create surface vertex 1 2 6 5
+create surface vertex 2 3 7 6
+create surface vertex 3 4 8 7
+create surface vertex 4 1 5 8
+
+create volume surface 1 2 3 4 5 6 heal
+
+volume all size 5
+mesh volume all
+
+block 1 volume all
+block 1 element type HEX8
+
+export mesh "hex-physical-extruded.exo" dimension 3 block all overwrite
+
+
+##### General hex.
+reset
+reset aprepro
+
+create vertex 10 10 9
+create vertex 13 10 10
+create vertex 14 14 10
+create vertex 11 13 10
+
+create vertex 11 10 15
+create vertex 13 10 15
+create vertex 14 13 15
+create vertex 11 13 16
+
+create surface vertex 1 2 3 4
+create surface vertex 5 6 7 8
+create surface vertex 1 2 6 5
+create surface vertex 2 3 7 6
+create surface vertex 3 4 8 7
+create surface vertex 4 1 5 8
+
+create volume surface 1 2 3 4 5 6 heal
+
+volume all size 5
+mesh volume all
+
+block 1 volume all
+block 1 element type HEX8
+
+export mesh "hex-physical-general.exo" dimension 3 block all overwrite
+
