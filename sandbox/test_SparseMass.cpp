@@ -97,9 +97,21 @@ int main(int argc, char * argv[]) {
 
     Kokkos::DynRankView<double,PHX::Device> dofCoords("dofCoords", basis_size, dim);
     basis->getDofCoords(dofCoords);
-    MrHyDE::KokkosTools::print(dofCoords);
-
+    
     Intrepid2::DefaultCubatureFactory cubature_factory;
+
+    vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
+
+    double mwt = 1.0;//
+    Kokkos::View<int*,PHX::Device> off("offsets in view",offsets.size());
+    auto off_host = Kokkos::create_mirror_view(off);
+    for (size_t i=0; i<offsets.size(); ++i) {
+      off_host(i) = offsets[i];
+    }
+    Kokkos::deep_copy(off,off_host);
+
+    std::vector<stk::mesh::Entity> elems;
+    mesh->getMyElements(blocknames[0], elems);
 
     // Vector of five mass matrices, built from the following combinations
     // of integration rules:
@@ -131,9 +143,6 @@ int main(int argc, char * argv[]) {
       // Map to physical frame
       // ==========================================================
 
-      std::vector<stk::mesh::Entity> elems;
-      mesh->getMyElements(blocknames[0], elems);
-
       const int num_nodes_per_elem = cell_topology->getNodeCount();
       const size_t num_elems = elems.size();
       const unsigned int num_ip = ref_ip.extent(0);
@@ -166,32 +175,22 @@ int main(int argc, char * argv[]) {
       // Build the mass matrix
       // ==========================================================
 
-      mass.push_back(Kokkos::View<double***,PHX::Device>("local mass",num_elems, basis_size, basis_size));
-
-      vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
-
-      double mwt = 1.0;//
-      Kokkos::View<int*,PHX::Device> off("offsets in view",offsets.size());
-      auto off_host = Kokkos::create_mirror_view(off);
-      for (size_t i=0; i<offsets.size(); ++i) {
-        off_host(i) = offsets[i];
-      }
-      Kokkos::deep_copy(off_host,off);
+      Kokkos::View<double***,PHX::Device> newmass("local mass",num_elems, basis_size, basis_size);
 
       Kokkos::parallel_for("testSparseMass construct mass",
-                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,mass[0].extent(0)),
+                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
         for (auto i=0; i<basis_vals.extent(1); i++ ) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                mass[0](elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
         }
       });
-
+      mass.push_back(newmass);
     } // END SCOPE 1: Tensor product of Gauss-Legendre rules (Intrepid default for QUAD and HEX).
 
     { // START SCOPE 2: Tensor product of Gauss-Legendre, Gauss-Lobatto and Gauss-Lobatto rules.
@@ -211,14 +210,12 @@ int main(int argc, char * argv[]) {
       Kokkos::DynRankView<double,PHX::Device> ref_basis_vals("reference basis values", basis_size, ref_ip.extent(0), dim);
       basis->getValues(ref_basis_vals, ref_ip, Intrepid2::OPERATOR_VALUE);
 
-      MrHyDE::KokkosTools::print(ref_ip);
+      //MrHyDE::KokkosTools::print(ref_ip);
+      //MrHyDE::KokkosTools::print(ref_basis_vals);
 
       // ==========================================================
       // Map to physical frame
       // ==========================================================
-
-      std::vector<stk::mesh::Entity> elems;
-      mesh->getMyElements(blocknames[0], elems);
 
       const int num_nodes_per_elem = cell_topology->getNodeCount();
       const size_t num_elems = elems.size();
@@ -252,40 +249,30 @@ int main(int argc, char * argv[]) {
       // Build the mass matrix
       // ==========================================================
 
-      mass.push_back(Kokkos::View<double***,PHX::Device>("local mass",num_elems, basis_size, basis_size));
-
-      vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
-
-      double mwt = 1.0;//
-      Kokkos::View<int*,PHX::Device> off("offsets in view",offsets.size());
-      auto off_host = Kokkos::create_mirror_view(off);
-      for (size_t i=0; i<offsets.size(); ++i) {
-        off_host(i) = offsets[i];
-      }
-      Kokkos::deep_copy(off_host,off);
-
+      Kokkos::View<double***,PHX::Device> newmass("local mass",num_elems, basis_size, basis_size);
+      
       Kokkos::parallel_for("testSparseMass construct mass",
-                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,mass[1].extent(0)),
+                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
         for (auto i=0; i<basis_vals.extent(1); i++ ) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                mass[1](elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
         }
       });
-
+      mass.push_back(newmass);
     } // END SCOPE 2: Tensor product of Gauss-Legendre, Gauss-Lobatto and Gauss-Lobatto rules.
 
 
     { // START SCOPE 3: Tensor product of Gauss-Lobatto, Gauss-Legendre and Gauss-Lobatto rules.
 
-      const auto line_cubature_x = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
-      const auto line_cubature_y = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS);
-      const auto line_cubature_z = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+      const auto line_cubature_x = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+      const auto line_cubature_y = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS);
+      const auto line_cubature_z = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
       Teuchos::RCP<Intrepid2::Cubature<PHX::Device::execution_space, double, double>> basis_cubature =
         Teuchos::rcp(new Intrepid2::CubatureTensor<PHX::Device::execution_space, double, double>(line_cubature_x, line_cubature_y, line_cubature_z));
       const int cubature_dim  = basis_cubature->getDimension();
@@ -298,13 +285,11 @@ int main(int argc, char * argv[]) {
       Kokkos::DynRankView<double,PHX::Device> ref_basis_vals("reference basis values", basis_size, ref_ip.extent(0), dim);
       basis->getValues(ref_basis_vals, ref_ip, Intrepid2::OPERATOR_VALUE);
 
+      //MrHyDE::KokkosTools::print(ref_ip);
 
       // ==========================================================
       // Map to physical frame
       // ==========================================================
-
-      std::vector<stk::mesh::Entity> elems;
-      mesh->getMyElements(blocknames[0], elems);
 
       const int num_nodes_per_elem = cell_topology->getNodeCount();
       const size_t num_elems = elems.size();
@@ -338,40 +323,30 @@ int main(int argc, char * argv[]) {
       // Build the mass matrix
       // ==========================================================
 
-      mass.push_back(Kokkos::View<double***,PHX::Device>("local mass",num_elems, basis_size, basis_size));
-
-      vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
-
-      double mwt = 1.0;//
-      Kokkos::View<int*,PHX::Device> off("offsets in view",offsets.size());
-      auto off_host = Kokkos::create_mirror_view(off);
-      for (size_t i=0; i<offsets.size(); ++i) {
-        off_host(i) = offsets[i];
-      }
-      Kokkos::deep_copy(off_host,off);
+      Kokkos::View<double***,PHX::Device> newmass("local mass",num_elems, basis_size, basis_size);
 
       Kokkos::parallel_for("testSparseMass construct mass",
-                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,mass[2].extent(0)),
+                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
         for (auto i=0; i<basis_vals.extent(1); i++ ) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                mass[2](elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
         }
       });
-
+      mass.push_back(newmass);
     } // END SCOPE 3: Tensor product of Gauss-Lobatto, Gauss-Legendre and Gauss-Lobatto rules.
 
 
     { // START SCOPE 4: Tensor product of Gauss-Lobatto, Gauss-Lobatto and Gauss-Legendre rules.
 
-      const auto line_cubature_x = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
-      const auto line_cubature_y = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
-      const auto line_cubature_z = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS);
+      const auto line_cubature_x = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+      const auto line_cubature_y = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+      const auto line_cubature_z = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS);
       Teuchos::RCP<Intrepid2::Cubature<PHX::Device::execution_space, double, double>> basis_cubature =
         Teuchos::rcp(new Intrepid2::CubatureTensor<PHX::Device::execution_space, double, double>(line_cubature_x, line_cubature_y, line_cubature_z));
       const int cubature_dim  = basis_cubature->getDimension();
@@ -384,13 +359,11 @@ int main(int argc, char * argv[]) {
       Kokkos::DynRankView<double,PHX::Device> ref_basis_vals("reference basis values", basis_size, ref_ip.extent(0), dim);
       basis->getValues(ref_basis_vals, ref_ip, Intrepid2::OPERATOR_VALUE);
 
+      //MrHyDE::KokkosTools::print(ref_ip);
 
       // ==========================================================
       // Map to physical frame
       // ==========================================================
-
-      std::vector<stk::mesh::Entity> elems;
-      mesh->getMyElements(blocknames[0], elems);
 
       const int num_nodes_per_elem = cell_topology->getNodeCount();
       const size_t num_elems = elems.size();
@@ -424,40 +397,30 @@ int main(int argc, char * argv[]) {
       // Build the mass matrix
       // ==========================================================
 
-      mass.push_back(Kokkos::View<double***,PHX::Device>("local mass",num_elems, basis_size, basis_size));
-
-      vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
-
-      double mwt = 1.0;//
-      Kokkos::View<int*,PHX::Device> off("offsets in view",offsets.size());
-      auto off_host = Kokkos::create_mirror_view(off);
-      for (size_t i=0; i<offsets.size(); ++i) {
-        off_host(i) = offsets[i];
-      }
-      Kokkos::deep_copy(off_host,off);
+      Kokkos::View<double***,PHX::Device> newmass("local mass",num_elems, basis_size, basis_size);
 
       Kokkos::parallel_for("testSparseMass construct mass",
-                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,mass[3].extent(0)),
+                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
         for (auto i=0; i<basis_vals.extent(1); i++ ) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                mass[3](elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
         }
       });
-
+      mass.push_back(newmass);
     } // END SCOPE 4: Tensor product of Gauss-Lobatto, Gauss-Lobatto and Gauss-Legendre rules.
 
 
     { // START SCOPE 5: Tensor product of Gauss-Lobatto, Gauss-Lobatto and Gauss-Lobatto rules.
 
-      const auto line_cubature_x = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
-      const auto line_cubature_y = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
-      const auto line_cubature_z = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+      const auto line_cubature_x = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+      const auto line_cubature_y = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+      const auto line_cubature_z = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quad_order-1, Intrepid2::POLYTYPE_GAUSS_LOBATTO);
       Teuchos::RCP<Intrepid2::Cubature<PHX::Device::execution_space, double, double>> basis_cubature =
         Teuchos::rcp(new Intrepid2::CubatureTensor<PHX::Device::execution_space, double, double>(line_cubature_x, line_cubature_y, line_cubature_z));
       const int cubature_dim  = basis_cubature->getDimension();
@@ -470,13 +433,12 @@ int main(int argc, char * argv[]) {
       Kokkos::DynRankView<double,PHX::Device> ref_basis_vals("reference basis values", basis_size, ref_ip.extent(0), dim);
       basis->getValues(ref_basis_vals, ref_ip, Intrepid2::OPERATOR_VALUE);
 
+      //MrHyDE::KokkosTools::print(ref_ip);
+      //MrHyDE::KokkosTools::print(ref_basis_vals);
 
       // ==========================================================
       // Map to physical frame
       // ==========================================================
-
-      std::vector<stk::mesh::Entity> elems;
-      mesh->getMyElements(blocknames[0], elems);
 
       const int num_nodes_per_elem = cell_topology->getNodeCount();
       const size_t num_elems = elems.size();
@@ -510,39 +472,30 @@ int main(int argc, char * argv[]) {
       // Build the mass matrix
       // ==========================================================
 
-      mass.push_back(Kokkos::View<double***,PHX::Device>("local mass",num_elems, basis_size, basis_size));
-
-      vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
-
-      double mwt = 1.0;//
-      Kokkos::View<int*,PHX::Device> off("offsets in view",offsets.size());
-      auto off_host = Kokkos::create_mirror_view(off);
-      for (size_t i=0; i<offsets.size(); ++i) {
-        off_host(i) = offsets[i];
-      }
-      Kokkos::deep_copy(off_host,off);
+      Kokkos::View<double***,PHX::Device> newmass("local mass",num_elems, basis_size, basis_size);
 
       Kokkos::parallel_for("testSparseMass construct mass",
-                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,mass[4].extent(0)),
+                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
         for (auto i=0; i<basis_vals.extent(1); i++ ) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                mass[4](elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
         }
       });
+      mass.push_back(newmass);
 
     } // END SCOPE 5: Tensor product of Gauss-Lobatto, Gauss-Lobatto and Gauss-Lobatto rules.
-
-    MrHyDE::KokkosTools::print(mass[0]);
-    MrHyDE::KokkosTools::print(mass[1]);
-    MrHyDE::KokkosTools::print(mass[2]);
-    MrHyDE::KokkosTools::print(mass[3]);
-    MrHyDE::KokkosTools::print(mass[4]);
+    
+    MrHyDE::KokkosTools::printToFile(mass[0],"mass.GGG.txt");
+    MrHyDE::KokkosTools::printToFile(mass[1],"mass.GBB.txt");
+    MrHyDE::KokkosTools::printToFile(mass[2],"mass.BGB.txt");
+    MrHyDE::KokkosTools::printToFile(mass[3],"mass.BBG.txt");
+    MrHyDE::KokkosTools::printToFile(mass[4],"mass.BBB.txt");
     // ==========================================================
     // Assess the sparsity
     // ==========================================================
