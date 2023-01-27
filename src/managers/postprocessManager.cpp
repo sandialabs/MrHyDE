@@ -249,7 +249,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     
     // Add extra grp fields
     vector<string> block_ecf;
-    Teuchos::ParameterList ecfields = blockPpSettings.sublist("Extra grp fields");
+    Teuchos::ParameterList ecfields = blockPpSettings.sublist("Extra cell fields");
     Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
     while (ecf_itr != ecfields.end()) {
       string entry = ecfields.get<string>(ecf_itr->first);
