@@ -97,7 +97,22 @@ int main(int argc, char * argv[]) {
 
     Kokkos::DynRankView<double,PHX::Device> dofCoords("dofCoords", basis_size, dim);
     basis->getDofCoords(dofCoords);
-    
+    //MrHyDE::KokkosTools::print(dofCoords);
+
+    /*
+    auto dofordinal = basis->getAllDofTags();
+    //MrHyDE::KokkosTools::print(dofordinal);
+    for (size_type i=0; i<dofordinal.extent(0); ++i) {
+      std::cout << i+1 << " ";
+      for (size_type j=0; j<dofordinal.extent(1); ++j) {
+        //for (size_type k=0; k<dofordinal.extent(2); ++k) {
+          std::cout << dofordinal(i,j) << " ";
+        //}
+      }
+      std::cout << std::endl;
+    }
+    */
+
     Intrepid2::DefaultCubatureFactory cubature_factory;
 
     vector<int> offsets = DOF->getGIDFieldOffsets(blocknames[0],0);
@@ -184,7 +199,8 @@ int main(int argc, char * argv[]) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
@@ -258,7 +274,8 @@ int main(int argc, char * argv[]) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
@@ -332,7 +349,8 @@ int main(int argc, char * argv[]) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
@@ -406,7 +424,8 @@ int main(int argc, char * argv[]) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
@@ -481,7 +500,8 @@ int main(int argc, char * argv[]) {
           for (auto j=0; j<basis_vals.extent(1); j++ ) {
             for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
               for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
-                newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
+                newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
             }
           }
@@ -496,6 +516,69 @@ int main(int argc, char * argv[]) {
     MrHyDE::KokkosTools::printToFile(mass[2],"mass.BGB.txt");
     MrHyDE::KokkosTools::printToFile(mass[3],"mass.BBG.txt");
     MrHyDE::KokkosTools::printToFile(mass[4],"mass.BBB.txt");
+
+    {
+      const size_t num_elems = mass[0].extent(0);
+      //const size_t basis_size = mass[0].extent(1);
+      
+      Kokkos::View<double***,PHX::Device> newmass("local mass",num_elems, basis_size, basis_size);
+      auto BBB_mass = mass[4];
+      Kokkos::parallel_for("testSparseMass construct mass",
+                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
+                           KOKKOS_LAMBDA (const int elem ) {
+        for (auto i=0; i<newmass.extent(1); i++ ) {
+          for (auto j=0; j<newmass.extent(1); j++ ) {
+            newmass(elem,off(i),off(j))  = BBB_mass(elem,i,j);
+          }
+        }
+      });
+
+      // xx component from GBB mass
+      // yy component from BGB mass
+      // zz component from BBG mass
+
+      auto GBB_mass = mass[1];
+      auto BGB_mass = mass[2];
+      auto BBG_mass = mass[3];
+      Kokkos::parallel_for("testSparseMass construct mass",
+                           Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
+                           KOKKOS_LAMBDA (const int elem ) {
+        // xx piece
+        size_type start = 0;
+        size_type stop = newmass.extent(1)/dim;
+        for (auto i=start; i<stop; i++ ) {
+          for (auto j=start; j<stop; j++ ) {
+            newmass(elem,off(i),off(j))  = GBB_mass(elem,i,j);
+          }
+        }
+ 
+        if (dim > 1) {
+          // yy piece
+          size_type start = newmass.extent(1)/dim;
+          size_type stop = 2*newmass.extent(1)/dim;
+          for (auto i=start; i<stop; i++ ) {
+            for (auto j=start; j<stop; j++ ) {
+              newmass(elem,off(i),off(j))  = BGB_mass(elem,i,j);
+            }
+          }
+        }
+
+        if (dim > 2) {
+          // zz piece
+          size_type start = 2*newmass.extent(1)/dim;
+          size_type stop = 3*newmass.extent(1)/dim;
+          for (auto i=start; i<stop; i++ ) {
+            for (auto j=start; j<stop; j++ ) {
+              newmass(elem,off(i),off(j))  = BBG_mass(elem,i,j);
+            }
+          }
+        }
+      });
+
+      mass.push_back(newmass);
+    }
+    MrHyDE::KokkosTools::printToFile(mass[5],"mass.SPARSE.txt");
+
     // ==========================================================
     // Assess the sparsity
     // ==========================================================
