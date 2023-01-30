@@ -74,6 +74,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   useRelativeTOL = settings->sublist("Solver").get<bool>("use relative TOL",true);
   useAbsoluteTOL = settings->sublist("Solver").get<bool>("use absolute TOL",false);
   allowBacktracking = settings->sublist("Solver").get<bool>("allow backtracking",true);
+  compute_fwd_sens = settings->sublist("Solver").get<bool>("compute forward sensitivities",false);
   
   maxTimeStepCuts = settings->sublist("Solver").get<int>("maximum time step cuts",5);
   amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
@@ -1175,6 +1176,9 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u)
     }
   }
   postproc->record(u,current_time,1,objective);
+  if (compute_fwd_sens) {
+    //this->forwardSensSolver();
+  }
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1305,7 +1309,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       int status = 0;
       if (Comm->getRank() == 0 && verbosity > 0) {
         cout << endl << endl << "*******************************************************" << endl;
-        cout << endl << "**** Beginning Time Step " << endl;
+        cout << endl << "**** Beginning Time Step " << stepProg+1 << endl;
         cout << "**** Current time is " << current_time << endl << endl;
         cout << "*******************************************************" << endl << endl << endl;
       }
