@@ -105,7 +105,15 @@ namespace MrHyDE {
     
     KOKKOS_INLINE_FUNCTION
     size_type size() const {
-      return values.extent(0)*values.extent(1)*values.extent(2);
+      auto nnz_host = create_mirror_view(nnz_row);
+      deep_copy(nnz_host,nnz_row);
+      size_type total = 0;
+      for (size_type e=0; e<nnz_host.extent(0); ++e) {
+        for (size_type j=0; j<nnz_host.extent(1); ++j) {
+          total += nnz_host(e,j);
+        }
+      }
+      return total;//values.extent(0)*values.extent(1)*values.extent(2);
     }
 
     KOKKOS_INLINE_FUNCTION
@@ -128,6 +136,27 @@ namespace MrHyDE {
       return local_columns;
     }
     
+    void setLocalColumns(Kokkos::View<int**,AssemblyDevice> offsets, Kokkos::View<int*,AssemblyDevice> numDOF) {
+      parallel_for("get mass",
+                    RangePolicy<AssemblyExec>(0,columns.extent(0)),
+                    KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type var=0; var<numDOF.extent(0); var++) {
+          for (int i=0; i<numDOF(var); i++ ) {
+            LO localrow = offsets(var,i);
+            for (int k=0; k<nnz_row(elem,localrow); ++k ) {
+              for (int j=0; j<numDOF(var); j++ ) {                    
+                LO localcol = offsets(var,j);
+                if (columns(elem,localrow,k) == localcol) {
+                  local_columns(elem,localrow,k) = j;
+                }
+              }
+            }
+          }
+        }
+      });   
+      have_local_columns = true;  
+    }
+
     KOKKOS_INLINE_FUNCTION
     Kokkos::View<size_type**,AssemblyDevice> getNNZPerRow() const {
       return nnz_row;

@@ -1119,7 +1119,8 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     
     auto offsets = wkset[block]->offsets;
     auto numDOF = groupData[block]->numDOF;
-    
+    bool sparse_mass = groupData[block]->use_sparse_mass;
+
     // Create mirrors on LA_Device
     // This might be unnecessary, but it only happens once per block
     auto offsets_ladev = create_mirror(LA_exec(),offsets);
@@ -1131,78 +1132,128 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       
       auto LIDs = groups[block][grp]->LIDs[set];
-      
-      auto localmass = groups[block][grp]->getWeightedMass(phys->masswts[set][block]);
-      
-      if (data_avail) {
-        
-        // Build the diagonal of the mass matrix
-        // Mostly for Jacobi preconditioning
-        
+
+      if (sparse_mass) {
+        auto curr_mass = groupData[block]->sparse_database_mass[set];
+        if (!curr_mass->have_local_columns) {
+          curr_mass->setLocalColumns(offsets,numDOF);
+        }
+        auto values = curr_mass->getValues();
+        auto local_columns = curr_mass->getLocalColumns();
+        auto nnz = curr_mass->getNNZPerRow();
+        auto index = groups[block][grp]->basis_index;
+
         parallel_for("assembly insert Jac",
-                     RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
+                       RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
           
-          int row = 0;
-          LO rowIndex = 0;
-          
-          for (size_type n=0; n<numDOF.extent(0); ++n) {
-            for (int j=0; j<numDOF(n); j++) {
-              row = offsets(n,j);
-              rowIndex = LIDs(elem,row);
-              
-              ScalarT val = 0.0;
-              if (use_jacobi) {
-                val = localmass(elem,row,row);
-              }
-              else {
-                for (int k=0; k<numDOF(n); k++) {
-                  int col = offsets(n,k);
-                  val += localmass(elem,row,col);
+            LO eindex = index(elem);
+            for (size_type n=0; n<numDOF.extent(0); ++n) {
+              for (int j=0; j<numDOF(n); j++) {
+                LO localrow = offsets(n,j);
+                LO globalrow = LIDs(elem,localrow);
+
+                ScalarT val = 0.0;
+                if (use_jacobi) {
+                  for (int k=0; k<nnz(eindex,localrow); k++ ) {
+                    LO localcol = offsets(n,local_columns(eindex,localrow,k));
+                    LO globalcol = LIDs(elem,localcol);
+                    if (globalrow == globalcol) {
+                      val = values(eindex,localrow,k);
+                    }
+                  }
                 }
+                else {
+                  for (int k=0; k<nnz(eindex,localrow); k++ ) {
+                    LO localcol = offsets(n,local_columns(eindex,localrow,k));
+                    val += values(eindex,localrow,k);
+                  }
+                }
+                
+                if (use_atomics_) {
+                  Kokkos::atomic_add(&(diag_view(globalrow,0)), val);
+                }
+                else {
+                  diag_view(globalrow,0) += val;
+                }
+                
               }
-              
-              if (use_atomics_) {
-                Kokkos::atomic_add(&(diag_view(rowIndex,0)), val);
-              }
-              else {
-                diag_view(rowIndex,0) += val;
-              }
-              
             }
-          }
         });
+      }
+      else {
+        auto localmass = groups[block][grp]->getWeightedMass(phys->masswts[set][block]);
+      
+        if (data_avail) {
         
-        // Build the mass matrix if requested
-        if (compute_matrix) {
+          // Build the diagonal of the mass matrix
+          // Mostly for Jacobi preconditioning
+        
           parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs.extent(0)),
                        KOKKOS_LAMBDA (const int elem ) {
-            
+          
             int row = 0;
             LO rowIndex = 0;
-            
-            int col = 0;
-            LO cols[1028];
-            ScalarT vals[1028];
+          
             for (size_type n=0; n<numDOF.extent(0); ++n) {
-              const size_type numVals = numDOF(n);
               for (int j=0; j<numDOF(n); j++) {
                 row = offsets(n,j);
                 rowIndex = LIDs(elem,row);
-                for (int k=0; k<numDOF(n); k++) {
-                  col = offsets(n,k);
-                  vals[k] = localmass(elem,row,col);
-                  cols[k] = LIDs(elem,col);
+              
+                ScalarT val = 0.0;
+                if (use_jacobi) {
+                  val = localmass(elem,row,row);
+                }
+                else {
+                  for (int k=0; k<numDOF(n); k++) {
+                    int col = offsets(n,k);
+                    val += std::abs(localmass(elem,row,col));
+                  }
+                }
+              
+                if (use_atomics_) {
+                  Kokkos::atomic_add(&(diag_view(rowIndex,0)), val);
+                }
+                else {
+                  diag_view(rowIndex,0) += val;
                 }
                 
-                localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
               }
             }
           });
-        }
         
-      }
+          // Build the mass matrix if requested
+          if (compute_matrix) {
+            parallel_for("assembly insert Jac",
+                         RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+              
+              int row = 0;
+              LO rowIndex = 0;
+            
+              int col = 0;
+              LO cols[1028];
+              ScalarT vals[1028];
+              for (size_type n=0; n<numDOF.extent(0); ++n) {
+                const size_type numVals = numDOF(n);
+                for (int j=0; j<numDOF(n); j++) {
+                  row = offsets(n,j);
+                  rowIndex = LIDs(elem,row);
+                  for (int k=0; k<numDOF(n); k++) {
+                    col = offsets(n,k);
+                    vals[k] = localmass(elem,row,col);
+                    cols[k] = LIDs(elem,col);
+                  }
+                
+                  localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_);
+                }
+              }
+            });
+          }
+        
+        }
+      
       else {
         auto localmass_ladev = create_mirror(LA_exec(),localmass.getView());
         deep_copy(localmass_ladev,localmass.getView());
@@ -1278,7 +1329,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         
       }
       
-      
+      }
       
     }
   }
@@ -1403,41 +1454,11 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
             auto nnz = curr_mass->getNNZPerRow();
             auto index = groups[block][grp]->basis_index;
 
-            // BEGIN LOCAL COLUMN CALCULATION
-          
-            // There's a technical detail associated with using these sparse/condensed data structures
-            // The compressed format uses the natural row/column indices, however, the loops that use this
-            // data involve looping over variables and offsets.  
-            // This information takes time to obtain, so we only do it once
-
             if (!curr_mass->have_local_columns) {
-              auto columns = curr_mass->getColumns();
-              auto local_columns = curr_mass->getLocalColumns();
-              parallel_for("get mass",
-                         RangePolicy<AssemblyExec>(0,columns.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
-                for (size_type var=0; var<numDOF.extent(0); var++) {
-                  for (int i=0; i<numDOF(var); i++ ) {
-                    LO localrow = offsets(var,i);
-                    for (int k=0; k<nnz(elem,localrow); ++k ) {
-                      for (int j=0; j<numDOF(var); j++ ) {                    
-                        LO localcol = offsets(var,j);
-                        if (columns(elem,localrow,k) == localcol) {
-                          local_columns(elem,localrow,k) = j;
-                        }
-                      }
-                    }
-                  }
-                }
-              });   
-              curr_mass->have_local_columns = true;                    
-              //curr_mass->setLocalColumns(local_columns);
+              curr_mass->setLocalColumns(offsets, numDOF);
             }
             
-            // END LOCAL COLUMN CALCULATION
-
             auto local_columns = curr_mass->getLocalColumns();
-            //auto columns = curr_mass->getColumns();
             
             parallel_for("get mass",
                          RangePolicy<AssemblyExec>(0,index.extent(0)),
@@ -3140,6 +3161,8 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   
   Teuchos::TimeMonitor localtimer(*groupdatabaseBasistimer);
   
+  using namespace std;
+
   int dimension = groupData[block]->dimension;
   
   size_t database_numElem = first_users.size();
@@ -3215,6 +3238,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   
   // Create a database of mass matrices
   if (groupData[block]->use_mass_database) {
+
     size_t database_numElem = first_users.size();
     for (size_t set=0; set<phys->setnames.size(); ++set) {
       View_Sc3 mass("local mass",database_numElem, groups[block][0]->LIDs[set].extent(1),
@@ -3223,40 +3247,142 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
       auto offsets = wkset[block]->set_offsets[set];
       auto numDOF = groupData[block]->set_numDOF[set];
       
-      auto cwts = database_wts;
-      
-      for (size_type n=0; n<numDOF.extent(0); n++) {
-        ScalarT mwt = phys->masswts[set][block][n];
-        View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
-        string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
-        auto off = subview(offsets,n,ALL());
-        if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+      bool use_sparse_quad = settings->sublist("Solver").get<bool>("use sparsifying mass quadrature",false);
+      if (use_sparse_quad) {
+        for (size_type n=0; n<numDOF.extent(0); n++) {
+          ScalarT mwt = phys->masswts[set][block][n];
+          string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
+          View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
+          
+          View_Sc3 mass_sparse("local mass", mass.extent(0), cbasis.extent(1), cbasis.extent(1)); 
+          
+          vector<vector<string> > qrules;
+
+          if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+            // throw an error
+          }
+          else if (btype.substr(0,4) == "HDIV") {
+            
+            vector<string> qrule1 = {"GAUSS","GAUSS","GAUSS"};
+            qrules.push_back(qrule1);
+            vector<string> qrule2 = {"GAUSS-LOBATTO","GAUSS","GAUSS"};
+            qrules.push_back(qrule2);
+            vector<string> qrule3 = {"GAUSS","GAUSS-LOBATTO","GAUSS"};
+            qrules.push_back(qrule3);
+            vector<string> qrule4 = {"GAUSS","GAUSS","GAUSS-LOBATTO"};
+            qrules.push_back(qrule4);
+          }
+          else if (btype.substr(0,5) == "HCURL") {
+            
+            vector<string> qrule1 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS-LOBATTO"};
+            qrules.push_back(qrule1);
+            vector<string> qrule2 = {"GAUSS","GAUSS-LOBATTO","GAUSS-LOBATTO"};
+            qrules.push_back(qrule2);
+            vector<string> qrule3 = {"GAUSS-LOBATTO","GAUSS","GAUSS-LOBATTO"};
+            qrules.push_back(qrule3);
+            vector<string> qrule4 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS"};
+            qrules.push_back(qrule4);
+
+          }
+          else {
+           // throw an error
+          }
+
+          for (size_t q=0; q<qrules.size(); ++q) {
+            vector<string> qrule = qrules[q];
+            DRV cwts;
+            DRV cbasis = disc->evaluateBasisNewQuadrature(block, wkset[block]->set_usebasis[set][n], qrule,
+                                                          database_nodes, database_orientation, cwts);
+
+            View_Sc3 newmass("local mass", mass.extent(0), cbasis.extent(1), cbasis.extent(1)); 
+              
+            parallel_for("Group get mass",
+                         RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                         KOKKOS_LAMBDA (const size_type e ) {
+              for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                  for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                    for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                      newmass(e,i,j) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                    }
+                  }
+                }
+              }
+            });
+            if (q==0) { // first qrule is the base rule
+              deep_copy(mass_sparse,newmass);
+            }
+            else { // see if any alternative rules are better for each entry
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           KOKKOS_LAMBDA (const size_type e ) {
+              
+                for (size_type i=0; i<newmass.extent(1); i++ ) {
+                  for (size_type j=0; j<newmass.extent(2); j++ ) {
+                    if (i==j) {
+                      if (newmass(e,i,j) > mass_sparse(e,i,j)) { // not using abs since always positive
+                        mass_sparse(e,i,j) = newmass(e,i,j);
+                      }
+                    }
+                    else {
+                      if (abs(newmass(e,i,j)) < abs(mass_sparse(e,i,j))) {
+                        mass_sparse(e,i,j) = newmass(e,i,j);
+                      }
+                    }
+                  }
+                }
+              });   
+            }     
+          }
+          
+          // Permute the entries in mass matrix using the offsets
+          auto off = subview(offsets,n,ALL());
           parallel_for("Group get mass",
                        RangePolicy<AssemblyExec>(0,mass.extent(0)),
                        KOKKOS_LAMBDA (const size_type e ) {
-            for (size_type i=0; i<cbasis.extent(1); i++ ) {
-              for (size_type j=0; j<cbasis.extent(1); j++ ) {
-                for (size_type k=0; k<cbasis.extent(2); k++ ) {
-                  mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
-                }
+            for (size_type i=0; i<mass_sparse.extent(1); i++ ) {
+              for (size_type j=0; j<mass_sparse.extent(2); j++ ) {
+                mass(e,off(i),off(j)) = mass_sparse(e,i,j);
               }
             }
           });
         }
-        else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
-          parallel_for("Group get mass",
-                       RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                       KOKKOS_LAMBDA (const size_type e ) {
-            for (size_type i=0; i<cbasis.extent(1); i++ ) {
-              for (size_type j=0; j<cbasis.extent(1); j++ ) {
-                for (size_type k=0; k<cbasis.extent(2); k++ ) {
-                  for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
-                    mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+      }
+      else {
+        auto cwts = database_wts;
+        for (size_type n=0; n<numDOF.extent(0); n++) {
+          ScalarT mwt = phys->masswts[set][block][n];
+          View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
+          string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
+          auto off = subview(offsets,n,ALL());
+          if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+            parallel_for("Group get mass",
+                         RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                         KOKKOS_LAMBDA (const size_type e ) {
+              for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                  for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                    mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
                   }
                 }
               }
-            }
-          });
+            });
+          }
+          else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+            parallel_for("Group get mass",
+                         RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                         KOKKOS_LAMBDA (const size_type e ) {
+              for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                  for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                    for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                      mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                    }
+                  }
+                }
+              }
+            });
+          }
         }
       }
       
@@ -3265,13 +3391,13 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
         ScalarT tol = settings->sublist("Solver").get<double>("sparse mass TOL",1.0e-10);
         Teuchos::RCP<Sparse3DView> sparse_mass = Teuchos::rcp( new Sparse3DView(mass,tol) );
         groupData[block]->sparse_database_mass.push_back(sparse_mass);
-
+        groupData[block]->use_sparse_mass = true;
         cout << " - Processor " << Comm->getRank() << ": Sparse mass format savings on " << blocknames[block] << ": "
              << (100.0 - 100.0*((double)sparse_mass->size()/(double)mass.size())) << "%" << endl;
       }
-      else {
+      //else {
         groupData[block]->database_mass.push_back(mass);
-      }
+      //}
 
       bool write_matrices_to_file = false;
       if (write_matrices_to_file) {

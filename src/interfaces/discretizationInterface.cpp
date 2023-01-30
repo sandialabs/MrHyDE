@@ -163,7 +163,7 @@ settings(settings_), Commptr(Comm_), mesh(mesh_), phys(phys_) {
     }
     
     DRV qpts, qwts;
-    int quadorder = phys->setDiscSettings[0][block].get<int>("quadrature",2*mxorder); // hard coded
+    quadorder = phys->setDiscSettings[0][block].get<int>("quadrature",2*mxorder); // hard coded
     this->getQuadrature(cellTopo, quadorder, qpts, qwts);
     
     ///////////////////////////////////////////////////////////////////////////
@@ -1703,6 +1703,9 @@ DRV DiscretizationInterface::evaluateBasis(const basis_RCP & basis_pointer, cons
   return basisvals_to;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
 DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisID, const DRV & nodes, 
                                            const DRV & evalpts, topo_RCP & cellTopo,
                                            Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation) {
@@ -1774,6 +1777,146 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
     }
     else {
       finalbasis = bvals1;
+    }
+  }
+
+  return finalbasis;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const int & basisID, vector<string> & quad_rules,
+                                                        DRV nodes, Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                                        DRV & wts) {
+  
+
+  Teuchos::TimeMonitor localtimer(*physBasisNewQuadTimer);
+
+  if (debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Starting DiscretizationInterface::evaluateBasisNewQuadrature() ..." << endl;
+    }
+  }
+
+  DRV finalbasis;
+  
+  const Intrepid2::ordinal_type num_basis = basis_pointers[block][basisID]->getCardinality();  
+  size_type numElem = nodes.extent(0);
+
+  auto cellTopo = basis_pointers[block][basisID]->getBaseCellTopology();
+  // Use the strings to define a tensor product quadrature rule
+
+  // Add check that the number of quadrature rules matches the spatial dimension
+
+  Teuchos::RCP<Intrepid2::Cubature<PHX::Device::execution_space, double, double>> basis_cubature;
+  if (spaceDim == 1) {
+
+  }
+  else if (spaceDim == 2) {
+
+  }
+  else {
+    Intrepid2::EPolyType qtype_x, qtype_y, qtype_z;
+
+    if (quad_rules[0] == "GAUSS-LOBATTO") { 
+      qtype_x = Intrepid2::POLYTYPE_GAUSS_LOBATTO;
+    }
+    else {
+      qtype_x = Intrepid2::POLYTYPE_GAUSS;
+    }
+    
+    if (quad_rules[1] == "GAUSS-LOBATTO") { 
+      qtype_y = Intrepid2::POLYTYPE_GAUSS_LOBATTO;
+    }
+    else {
+      qtype_y = Intrepid2::POLYTYPE_GAUSS;
+    }
+    
+    if (quad_rules[2] == "GAUSS-LOBATTO") { 
+      qtype_z = Intrepid2::POLYTYPE_GAUSS_LOBATTO;
+    }
+    else {
+      qtype_z = Intrepid2::POLYTYPE_GAUSS;
+    }
+
+    const auto line_cubature_x = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quadorder-1, qtype_x);//Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+    const auto line_cubature_y = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quadorder-1, qtype_y);//Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+    const auto line_cubature_z = Intrepid2::CubaturePolylib<PHX::Device::execution_space, double, double>(quadorder-1, qtype_z);//Intrepid2::POLYTYPE_GAUSS_LOBATTO);
+    basis_cubature = Teuchos::rcp(new Intrepid2::CubatureTensor<PHX::Device::execution_space, double, double>(line_cubature_x, line_cubature_y, line_cubature_z));
+  }
+  const int num_pts = basis_cubature->getNumPoints();
+
+  DRV ref_ip("reference integration points", num_pts, spaceDim);
+  DRV ref_wts("reference weights", num_pts);
+  basis_cubature->getCubature(ref_ip, ref_wts);
+
+  DRV jacobian("jacobian", numElem, num_pts, spaceDim, spaceDim);
+  DRV jacobianDet("determinant of jacobian", numElem, num_pts);
+    
+  CellTools::setJacobian(jacobian, ref_ip, nodes, cellTopo);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  wts = DRV("physical wts", numElem, num_pts);
+  FuncTools::computeCellMeasure(wts, jacobianDet, ref_wts);
+
+  // Evaluate the basis, map to physical and apply orientations
+  
+  if (basis_types[block][basisID] == "HGRAD" || basis_types[block][basisID] == "HVOL") {
+    DRV basisvals("reference basis values", num_basis, num_pts, spaceDim);
+    basis_pointers[block][basisID]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
+
+    DRV basisvals_Transformed("basisvals_Transformed", numElem, num_basis, num_pts);
+    FuncTools::HGRADtransformVALUE(basisvals_Transformed, basisvals);
+    finalbasis = DRV("basisvals_Transformed", numElem, num_basis, num_pts);
+    if (basis_pointers[block][basisID]->requireOrientation()) {
+      OrientTools::modifyBasisByOrientation(finalbasis, basisvals_Transformed,
+                                            orientation, basis_pointers[block][basisID].get());
+    }
+    else {
+      finalbasis = basisvals_Transformed;
+    }
+  
+  }
+  else if (basis_types[block][basisID] == "HDIV") {
+    DRV basisvals("basisvals", num_basis, num_pts, spaceDim);
+    basis_pointers[block][basisID]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
+  
+    DRV bvals1("basis", numElem, num_basis, num_pts, spaceDim);
+    finalbasis = DRV("basis tmp", numElem, num_basis, num_pts, spaceDim);
+    FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, basisvals);
+    if (basis_pointers[block][basisID]->requireOrientation()) {
+      OrientTools::modifyBasisByOrientation(finalbasis, bvals1, orientation,
+                                            basis_pointers[block][basisID].get());
+    }
+    else {
+      finalbasis = bvals1;
+    }
+    
+  }
+  else if (basis_types[block][basisID] == "HCURL") {
+
+    DRV basisvals("basisvals", num_basis, num_pts, spaceDim);
+    basis_pointers[block][basisID]->getValues(basisvals, ref_ip, Intrepid2::OPERATOR_VALUE);
+  
+    DRV jacobianInv("inverse of jacobian", numElem, num_pts, spaceDim, spaceDim);
+    CellTools::setJacobianInv(jacobianInv, jacobian);
+  
+    DRV bvals1("basis", numElem, num_basis, num_pts, spaceDim);
+    finalbasis = DRV("basis tmp", numElem, num_basis, num_pts, spaceDim);
+
+    FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, basisvals);
+    if (basis_pointers[block][basisID]->requireOrientation()) {
+      OrientTools::modifyBasisByOrientation(finalbasis, bvals1, orientation,
+                                        basis_pointers[block][basisID].get());
+    }
+    else {
+      finalbasis = bvals1;
+    }
+  }
+
+  if (debug_level > 0) {
+    if (Commptr->getRank() == 0) {
+      cout << "**** Finished DiscretizationInterface::evaluateBasisNewQuadrature()" << endl;
     }
   }
 

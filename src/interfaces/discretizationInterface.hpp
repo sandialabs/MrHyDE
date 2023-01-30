@@ -159,6 +159,10 @@ namespace MrHyDE {
                       const DRV & evalpts, topo_RCP & cellTopo,
                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation);
 
+    DRV evaluateBasisNewQuadrature(const int & block, const int & basisID, vector<string> & quad_rules,
+                                   DRV nodes, Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                   DRV & wts);
+
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
@@ -240,7 +244,7 @@ namespace MrHyDE {
     // Public data
     ////////////////////////////////////////////////////////////////////////////////
     
-    int debug_level, verbosity, spaceDim;
+    int debug_level, verbosity, spaceDim, quadorder;
     double storage_proportion;
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
@@ -286,6 +290,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> physOrientTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalOrientations");
     Teuchos::RCP<Teuchos::Time> physVolDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - wts");
     Teuchos::RCP<Teuchos::Time> physVolDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - basis");
+    
+    Teuchos::RCP<Teuchos::Time> physBasisNewQuadTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::evaluateBasisNewQuadrature()");
     
     Teuchos::RCP<Teuchos::Time> physVolDataBasisDivValTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-VALUE");
     Teuchos::RCP<Teuchos::Time> physVolDataBasisDivDivTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-DIV");
