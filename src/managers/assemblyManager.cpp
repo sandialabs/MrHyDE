@@ -3248,7 +3248,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
       auto numDOF = groupData[block]->set_numDOF[set];
       
       bool use_sparse_quad = settings->sublist("Solver").get<bool>("use sparsifying mass quadrature",false);
-      bool include_high_order = true;
+      bool include_high_order = false;
 
       for (size_type n=0; n<numDOF.extent(0); n++) {
         string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
