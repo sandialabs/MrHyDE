@@ -3248,6 +3248,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
       auto numDOF = groupData[block]->set_numDOF[set];
       
       bool use_sparse_quad = settings->sublist("Solver").get<bool>("use sparsifying mass quadrature",false);
+      bool include_high_order = true;
 
       for (size_type n=0; n<numDOF.extent(0); n++) {
         string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
@@ -3258,14 +3259,14 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
           // throw an error
         }
         else if (btype.substr(0,4) == "HDIV") {            
-          //vector<string> qrule1 = {"GAUSS","GAUSS","GAUSS"};
-          //qrules.push_back(qrule1);
-          //vector<string> qrule2 = {"GAUSS-LOBATTO","GAUSS","GAUSS"};
-          //qrules.push_back(qrule2);
-          //vector<string> qrule3 = {"GAUSS","GAUSS-LOBATTO","GAUSS"};
-          //qrules.push_back(qrule3);
-          //vector<string> qrule4 = {"GAUSS","GAUSS","GAUSS-LOBATTO"};
-          //qrules.push_back(qrule4);
+          vector<string> qrule1 = {"GAUSS","GAUSS","GAUSS"};
+          qrules.push_back(qrule1);
+          vector<string> qrule2 = {"GAUSS-LOBATTO","GAUSS","GAUSS"};
+          qrules.push_back(qrule2);
+          vector<string> qrule3 = {"GAUSS","GAUSS-LOBATTO","GAUSS"};
+          qrules.push_back(qrule3);
+          vector<string> qrule4 = {"GAUSS","GAUSS","GAUSS-LOBATTO"};
+          qrules.push_back(qrule4);
         }
         else if (btype.substr(0,5) == "HCURL") {    
           vector<string> qrule1 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS-LOBATTO"};
@@ -3287,6 +3288,43 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
           
           View_Sc3 mass_sparse("local mass", mass.extent(0), cbasis.extent(1), cbasis.extent(1)); 
           
+          if (include_high_order) {
+            auto cwts = database_wts;
+          //for (size_type n=0; n<numDOF.extent(0); n++) {
+            ScalarT mwt = phys->masswts[set][block][n];
+            View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
+            string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
+            auto off = subview(offsets,n,ALL());
+            if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           KOKKOS_LAMBDA (const size_type e ) {
+                for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                  for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                    for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                      mass_sparse(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
+                    }
+                  }
+                }
+              });
+            }
+            else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
+              parallel_for("Group get mass",
+                           RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                           KOKKOS_LAMBDA (const size_type e ) {
+                for (size_type i=0; i<cbasis.extent(1); i++ ) {
+                  for (size_type j=0; j<cbasis.extent(1); j++ ) {
+                    for (size_type k=0; k<cbasis.extent(2); k++ ) {
+                      for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                        mass_sparse(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                      }
+                    }
+                  }
+                }
+              });
+            }
+          //}
+          }
           for (size_t q=0; q<qrules.size(); ++q) {
             vector<string> qrule = qrules[q];
             DRV cwts;
@@ -3308,7 +3346,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
                 }
               }
             });
-            if (q==0) { // first qrule is the base rule
+            if (q==0 && !include_high_order) { // first qrule is the base rule
               deep_copy(mass_sparse,newmass);
             }
             else { // see if any alternative rules are better for each entry
@@ -3349,7 +3387,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
       
         else {
           auto cwts = database_wts;
-          for (size_type n=0; n<numDOF.extent(0); n++) {
+          //for (size_type n=0; n<numDOF.extent(0); n++) {
             ScalarT mwt = phys->masswts[set][block][n];
             View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
             string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
@@ -3382,7 +3420,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
                 }
               });
             }
-          }
+          //}
         }
       }
       
