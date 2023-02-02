@@ -3259,24 +3259,24 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
           // throw an error
         }
         else if (btype.substr(0,4) == "HDIV") {            
-          vector<string> qrule1 = {"GAUSS","GAUSS","GAUSS"};
-          qrules.push_back(qrule1);
-          vector<string> qrule2 = {"GAUSS-LOBATTO","GAUSS","GAUSS"};
-          qrules.push_back(qrule2);
-          vector<string> qrule3 = {"GAUSS","GAUSS-LOBATTO","GAUSS"};
-          qrules.push_back(qrule3);
-          vector<string> qrule4 = {"GAUSS","GAUSS","GAUSS-LOBATTO"};
-          qrules.push_back(qrule4);
+          //vector<string> qrule1 = {"GAUSS","GAUSS","GAUSS"};
+          //qrules.push_back(qrule1);
+          //vector<string> qrule2 = {"GAUSS-LOBATTO","GAUSS","GAUSS"};
+          //qrules.push_back(qrule2);
+          //vector<string> qrule3 = {"GAUSS","GAUSS-LOBATTO","GAUSS"};
+          //qrules.push_back(qrule3);
+          //vector<string> qrule4 = {"GAUSS","GAUSS","GAUSS-LOBATTO"};
+          //qrules.push_back(qrule4);
         }
         else if (btype.substr(0,5) == "HCURL") {    
           vector<string> qrule1 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS-LOBATTO"};
           qrules.push_back(qrule1);
-          vector<string> qrule2 = {"GAUSS","GAUSS-LOBATTO","GAUSS-LOBATTO"};
-          qrules.push_back(qrule2);
-          vector<string> qrule3 = {"GAUSS-LOBATTO","GAUSS","GAUSS-LOBATTO"};
-          qrules.push_back(qrule3);
-          vector<string> qrule4 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS"};
-          qrules.push_back(qrule4);
+          //vector<string> qrule2 = {"GAUSS","GAUSS-LOBATTO","GAUSS-LOBATTO"};
+          //qrules.push_back(qrule2);
+          //vector<string> qrule3 = {"GAUSS-LOBATTO","GAUSS","GAUSS-LOBATTO"};
+          //qrules.push_back(qrule3);
+          //vector<string> qrule4 = {"GAUSS-LOBATTO","GAUSS-LOBATTO","GAUSS"};
+          //qrules.push_back(qrule4);
         }
         else {
          // throw an error
