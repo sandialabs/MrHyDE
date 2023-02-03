@@ -702,8 +702,6 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       this->buildDatabase(block);
     }
   }
- 
-  cout << "Finished database on proc: " << Comm->getRank() << endl; 
   
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
