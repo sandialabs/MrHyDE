@@ -702,7 +702,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       this->buildDatabase(block);
     }
   }
-  
+ 
+  cout << "Finished database on proc: " << Comm->getRank() << endl; 
   
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
@@ -2942,25 +2943,48 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
           if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
             
             ScalarT refnorm = db_jacobian_norms[prog];
+            
             // Check #3: element Jacobians
             ScalarT diff2 = 0.0;
             size_type pt=0;
-            while (pt<numip && diff2<database_TOL) {
+            bool ruled_out = false;
+            while (pt<numip && !ruled_out) { 
               size_type d0=0;
-              while (d0<dimension && diff2<database_TOL) {
+              ScalarT fronorm = 0.0;
+              ScalarT frodiff = 0.0;
+              ScalarT diff = 0.0;
+              for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
+                for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
+                  diff = jacobian_host(e,pt,d0,d1)-db_jacobians[prog](pt,d0,d1);
+                  frodiff += diff*diff;
+                  fronorm += jacobian_host(e,pt,d0,d1)*jacobian_host(e,pt,d0,d1);
+                }
+              }
+              if (std::sqrt(frodiff)/std::sqrt(fronorm) > database_TOL) {
+                ruled_out = true;
+              }
+              /*   
+              while (d0<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
                 size_type d1=0;
-                while (d1<dimension && diff2<database_TOL) { 
-                  diff2 += std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
+                while (d1<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
+                  //ScalarT ds = (jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
+                  ScalarT ds = std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1))/std::abs(jacobian_host(e,pt,d0,d1));
+                  //diff2 += ds*ds;
+                  cout << ds << endl;
+                  if (ds > database_TOL) {
+                    ruled_out = true;
+                  }
                   d1++;
                 }
                 d0++;
-              }
+              }*/
               pt++;
             }
-            
+            //diff2 = std::sqrt(diff2);
+
             //ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
             
-            if (diff2/refnorm<database_TOL) {
+            if (!ruled_out){ //diff2/refnorm<database_TOL) {
               found = true;
               index_host(e) = prog;
             }
@@ -2988,13 +3012,13 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
           for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
             for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
               new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
-              jnorm += std::abs(jacobian(e,pt,d0,d1));
+              jnorm += jacobian(e,pt,d0,d1)*jacobian(e,pt,d0,d1);
             }
           }
         }
         db_jacobians.push_back(new_jac);
         db_measures.push_back(measure_host(e));
-        db_jacobian_norms.push_back(jnorm);
+        db_jacobian_norms.push_back(std::sqrt(jnorm));
         
       }
     }
