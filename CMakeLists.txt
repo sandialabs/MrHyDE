@@ -38,7 +38,14 @@ MESSAGE("   Trilinos_TPL_LIBRARIES = ${Trilinos_TPL_LIBRARIES}")
 MESSAGE("   Trilinos_TPL_LIBRARY_DIRS = ${Trilinos_TPL_LIBRARY_DIRS}")
 MESSAGE("   Trilinos_BUILD_SHARED_LIBS = ${Trilinos_BUILD_SHARED_LIBS}")
 MESSAGE("   Trilinos_CXX_FLAGS = ${Trilinos_CXX_COMPILER_FLAGS}")
+IF(Trilinos_VERSION LESS 14.0) # GH: if a version is not detected, CMake defaults to 0, so I'm making <14 the default behavior
+  MESSAGE("   Trilinos_VERSION < 14 detected, using old names for Kokkos::Compat objects")
+ELSE()
+  MESSAGE("   Trilinos_VERSION >= 14 detected, using new names for Tpetra::KokkosCompat objects")
+  ADD_DEFINITIONS(-DMrHyDE_HAVE_TRILINOS14)
+ENDIF()
 MESSAGE("End of Trilinos details\n")
+
 
 # Check the available Kokkos devices at the time of configuration
 MESSAGE("\n")

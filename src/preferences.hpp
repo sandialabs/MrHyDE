@@ -110,29 +110,38 @@ typedef Kokkos::HostSpace HostMem;
   typedef Kokkos::HostSpace AssemblyMem;
 #endif
 
+
+// Trilinos 14 and later redefines the Kokkos::Compat wrappers in Tpetra to Tpetra::KokkosCompat
+// Define intermediate namespaces here to clean up the logic for the HostNode,AssemblyNode,SolverNode
+#ifdef MrHyDE_HAVE_TRILINOS14
+  namespace MrHyDECompat = Tpetra::KokkosCompat;
+#else
+  namespace MrHyDECompat = Kokkos::Compat;
+#endif
+
 // Host Node
 #if defined(MrHyDE_SOLVERSPACE_OPENMP)
-  typedef Kokkos::Compat::KokkosOpenMPWrapperNode HostNode;
+  typedef MrHyDECompat::KokkosOpenMPWrapperNode HostNode;
 #else
-  typedef Kokkos::Compat::KokkosSerialWrapperNode HostNode;
+  typedef MrHyDECompat::KokkosSerialWrapperNode HostNode;
 #endif
 
 // Assembly Node
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-  typedef Kokkos::Compat::KokkosCudaWrapperNode AssemblyNode;
+  typedef MrHyDECompat::KokkosCudaWrapperNode AssemblyNode;
 #elif defined(MrHyDE_ASSEMBLYSPACE_OPENMP)
-  typedef Kokkos::Compat::KokkosOpenMPWrapperNode AssemblyNode;
+  typedef MrHyDECompat::KokkosOpenMPWrapperNode AssemblyNode;
 #else
-  typedef Kokkos::Compat::KokkosSerialWrapperNode AssemblyNode;
+  typedef MrHyDECompat::KokkosSerialWrapperNode AssemblyNode;
 #endif
 
 // Solver Node
 #if defined(MrHyDE_SOLVERSPACE_CUDA)
-  typedef Kokkos::Compat::KokkosCudaWrapperNode SolverNode;
+  typedef MrHyDECompat::KokkosCudaWrapperNode SolverNode;
 #elif defined(MrHyDE_SOLVERSPACE_OPENMP)
-  typedef Kokkos::Compat::KokkosOpenMPWrapperNode SolverNode;
+  typedef MrHyDECompat::KokkosOpenMPWrapperNode SolverNode;
 #else
-  typedef Kokkos::Compat::KokkosSerialWrapperNode SolverNode;
+  typedef MrHyDECompat::KokkosSerialWrapperNode SolverNode;
 #endif
 
 // Subgrid Solver Node (defaults to assembly node)
