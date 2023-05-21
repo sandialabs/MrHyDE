@@ -36,7 +36,6 @@ MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
 
 cmake \
   -G "Ninja" \
-  -D CMAKE_CXX_LINK_FLAGS="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
   -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
   -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
   -D MrHyDE_ENABLE_UNIT_TESTS=${ENABLE_UNIT_TESTS} \

@@ -58,7 +58,9 @@ class Compressor {
     Compressor(const Teuchos::RCP<MpiComm> & Comm_,
                Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                Teuchos::RCP<panzer::DOFManager> DOF_ ) :
-      Comm(Comm_), mesh(mesh_), DOF(DOF_) {
+      Comm(Comm_), mesh(mesh_), DOF(DOF_),
+      ignore_orientations(false), compute_scaling(false), compute_rotation(false),
+      database_TOL(1.0e-12) {
 
       mesh->getElementBlockNames(blocknames);
       dimension = mesh->getDimension();
@@ -158,9 +160,6 @@ class Compressor {
   
     void identifyVolumetricDatabase(const size_t & block, vector<size_t> & first_users) {
   
-      double database_TOL = 1.0e-12;
-      bool ignore_orientations = false;
-  
       vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
       vector<ScalarT> db_measures, db_jacobian_norms;      
       topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
@@ -219,15 +218,30 @@ class Compressor {
           for (size_type pt=0; pt<wts.extent(1); ++pt) {
             measure += wts(0,pt);
           }
-          
         }
 
         bool found = false;
         size_t prog = 0;
-  
+
+        // GH: Okay, I'm going to duplicate some loops in if statements for performance, but here's the big picture.
+        // We're skipping orientations for now because we may be able to cut down duplication by hitting orientations with rotations.
+        // Check #1. Is ||J_A| - |J_B|| < database_TOL?
+        //   If yes, go to check #2, leaving scaling constants as the identity.
+        //   If no, rescale J_A by diagonal D so that diag(D*J_A) == diag(J_B), and check again.
+        //     If ||D*J_A| - |J_B|| < database_TOL after the scaling, continue to check #2 but replace J_A in subsequent steps by D*J_A
+        // Check #2. Is |J_A-J_B|_{l1} < database_TOL?
+        //   If yes, set found=true, leaving theta=0.
+        //   If no, go to check #3.
+        // Check #3. Is there a rotation matrix R such that |R*J_A - J_B|_{l1} < database_TOL?
+        // This can be done by checking is there a rotation matrix R such that |R - J_B inv(J_A)|_{l1} < database_TOL (this may bite us if |J_A|!=1?)
+        // As a surrogate, we find theta so |R - M|_F is minimized (M takes the place of J_B*inv(J_A)).
+        // If M has entries [a,b;c,d], theta=atan((c-b)/(a+d)) minimizes that objective.
+        //   If yes, set found=true, theta=atan((c-b)/(a+d))
+        //   If no, we have not found a match. Move on to the next database entry.
+
         while (!found && prog<first_users.size()) {
           size_t refelem = first_users[prog];
-        
+
           // Check #1: element orientations
           size_t orient = all_orients[e];
           size_t reforient = all_orients[refelem];
@@ -300,9 +314,31 @@ class Compressor {
     }
   
     ///////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    
+    void setIgnoreOrientations(const bool ignoreOrientations) { ignore_orientations = ignoreOrientations; }
+    void setComputeScaling(const bool computeScaling) { compute_scaling = computeScaling; }
+    void setComputeRotation(const bool computeRotation) { compute_rotation = computeRotation; }
+    void setTolerance(const double tolerance) { database_TOL = tolerance; }
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
     
+    //! The database tolerance
+    double database_TOL;
+    //! Boolean flag whether to ignore Intrepid2's orientations or not
+    bool ignore_orientations;
+
+    //! Boolean flag whether to compute diagonal scaling factors or not
+    bool compute_scaling;
+    //! Scaling factors when scaling compression is considered (size: num_elems-by-dim)
+    vector<DRV> scaling;
+    //! Boolean flag whether to compute rotation angles or not
+    bool compute_rotation;
+    //! Rotation angles when rotational compression is considered (size: num_elems)
+    vector<DRV> rotation;
+
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<panzer_stk::STK_Interface> mesh;
     Teuchos::RCP<panzer::DOFManager> DOF;
@@ -322,16 +358,51 @@ class Compressor {
         
 int main(int argc, char * argv[]) {
   
-  TEUCHOS_TEST_FOR_EXCEPTION(argc==1,std::runtime_error,"Error: this test requires a mesh file");
-  
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
-  Teuchos::RCP<Teuchos::MpiComm<int>> Comm = Teuchos::rcp( new Teuchos::MpiComm<int>(MPI_COMM_WORLD) );
+  Teuchos::RCP<Teuchos::MpiComm<int>> comm = Teuchos::rcp( new Teuchos::MpiComm<int>(MPI_COMM_WORLD) );
 
   Kokkos::initialize();
   
-  
   { // TMW: I think this does need to be scoped for Kokkos reasons
     
+    // GH: using Teuchos CommandLineProcessor for more robust input customization
+    // begin command line parsing
+    Teuchos::CommandLineProcessor clp(false);
+    std::string input_file_name = "hex-reference.exo";
+    bool compute_scaling = false;
+    bool compute_rotation = false; // TODO: only works in 2D at the moment
+    double tol = 1e-12;
+    bool verbose = false;
+
+    // add options and reference 
+    clp.setOption("mesh", &input_file_name,                                      "Name of the mesh (default: hex-reference.exo)");
+    clp.setOption("compute-scaling", "no-compute-scaling", &compute_scaling,     "Whether to compute compression based on a diagonal scaling (default: false)");
+    clp.setOption("compute-rotation", "no-compute-rotation", &compute_rotation,  "Whether to compute compression based on a rotation (default: false)");
+    clp.setOption("tol", &tol,                                                   "Compression tolerance (default: 1e-12)");
+    clp.setOption("verbose", "no-verbose", &verbose,                             "Verbose output (default: false)");
+    
+    clp.recogniseAllOptions(true);
+    switch (clp.parse(argc, argv)) {
+      case Teuchos::CommandLineProcessor::PARSE_HELP_PRINTED: 
+        return EXIT_SUCCESS;
+      case Teuchos::CommandLineProcessor::PARSE_ERROR:
+      case Teuchos::CommandLineProcessor::PARSE_UNRECOGNIZED_OPTION: 
+        return EXIT_FAILURE;
+      case Teuchos::CommandLineProcessor::PARSE_SUCCESSFUL:
+        break;
+    }
+    // end of command line parsing
+
+    if(comm->getRank() == 0) {
+      std::cout << "Running compression sandbox...\n"
+                << "Input settings:" << "\n"
+                << "    mesh = " << input_file_name << "\n"
+                << "    compute-scaling = "<< compute_scaling << "\n"
+                << "    compute-rotation = " << compute_rotation << "\n"
+                << "    tol = " << tol << "\n"
+                << "    verbose = " << verbose << std::endl; 
+    }
+
     // ==========================================================
     // Create a mesh from the file defined by the user
     // ==========================================================
@@ -341,25 +412,26 @@ int main(int argc, char * argv[]) {
 
     Teuchos::RCP<panzer_stk::STK_Interface> mesh;
     {
-      std::string input_file_name = argv[1];
       RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
     
       Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
       pl->set("File Name",input_file_name);
     
       mesh_factory->setParameterList(pl);
-      mesh = mesh_factory->buildUncommitedMesh(*(Comm->getRawMpiComm()));
+      mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
     
-      mesh_factory->completeMeshConstruction(*mesh,*(Comm->getRawMpiComm()));
-      if (Comm->getRank() == 0) {
+      mesh_factory->completeMeshConstruction(*mesh,*(comm->getRawMpiComm()));
+      if (comm->getRank() == 0) {
         mesh->printMetaData(std::cout);
+        std::cout << "   dimension = " << mesh->getDimension() << std::endl;
       }
-  
     }
     
     std::vector<string> blocknames;
     mesh->getElementBlockNames(blocknames);
     int dimension = mesh->getDimension();
+
+    TEUCHOS_TEST_FOR_EXCEPTION(compute_rotation && (dimension != 2), std::runtime_error, "Error: compute_rotation=true but mesh dimension=3. This is not yet implemented!");
 
     // ==========================================================
     // Create a DOF manager
@@ -367,7 +439,7 @@ int main(int argc, char * argv[]) {
     
     Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
     Teuchos::RCP<panzer::DOFManager> DOF = Teuchos::rcp(new panzer::DOFManager());
-    DOF->setConnManager(conn,*(Comm->getRawMpiComm()));
+    DOF->setConnManager(conn,*(comm->getRawMpiComm()));
     DOF->setOrientationsRequired(true);
       
     for (size_t b=0; b<blocknames.size(); b++) {
@@ -396,7 +468,7 @@ int main(int argc, char * argv[]) {
       }
     }
     DOF->buildGlobalUnknowns();
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       DOF->printFieldInformation(std::cout);
       std::cout << "================================================" << std::endl << std::endl;
     }
@@ -405,7 +477,11 @@ int main(int argc, char * argv[]) {
     // Create a compressor object
     // ==========================================================
     
-    Teuchos::RCP<Compressor> compressor = Teuchos::rcp(new Compressor(Comm, mesh, DOF));
+    Teuchos::RCP<Compressor> compressor = Teuchos::rcp(new Compressor(comm, mesh, DOF));
+    compressor->setComputeRotation(compute_rotation);
+    compressor->setComputeScaling(compute_scaling);
+    compressor->setIgnoreOrientations(false);
+    compressor->setTolerance(tol);
     
     // ==========================================================
     // Compress and report results
