@@ -2385,6 +2385,45 @@ void workset::setAux(View_AD4 newsol, const string & pfix) {
   
 }
 
+string workset::getParamBasisType(string & name) {
+  string type = "none";
+
+  bool found = false; 
+  for (size_t i=0; i<paramvarlist_HGRAD.size(); ++i) {
+    if (!found && paramvarlist_HGRAD[i] == name) {
+      type = "HGRAD";
+      found = true;
+    }
+  }
+  for (size_t i=0; i<paramvarlist_HVOL.size(); ++i) {
+    if (!found && paramvarlist_HVOL[i] == name) {
+      type = "HVOL";
+      found = true;
+    }
+  }
+  for (size_t i=0; i<paramvarlist_HDIV.size(); ++i) {
+    if (!found && paramvarlist_HDIV[i] == name) {
+      type = "HDIV";
+      found = true;
+    }
+  }
+  for (size_t i=0; i<paramvarlist_HCURL.size(); ++i) {
+    if (!found && paramvarlist_HCURL[i] == name) {
+      type = "HCURL";
+      found = true;
+    }
+  }
+  for (size_t i=0; i<paramvarlist_HFACE.size(); ++i) {
+    if (!found && paramvarlist_HFACE[i] == name) {
+      type = "HFACE";
+      found = true;
+    }
+  }
+  
+  return type;
+
+}
+
 //////////////////////////////////////////////////////////////
 // Update the set-specific workset attributes
 //////////////////////////////////////////////////////////////

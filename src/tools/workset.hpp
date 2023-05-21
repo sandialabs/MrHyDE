@@ -273,6 +273,8 @@ namespace MrHyDE {
     
     void setParamGradPoint(View_AD2 newsol);
 
+    string getParamBasisType(string & name);
+
     /**
      * @brief Set the value of the aux variables at the integration points
      * 
