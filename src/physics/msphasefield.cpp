@@ -194,7 +194,7 @@ void msphasefield::volumeResidual() {
   
   //int numCubPoints = wkset->ip.extent(1);
   int phi_basis = wkset->usebasis[phi_num[0]];
-  //int numBasis = wkset->basis[phi_basis].extent(1);
+  //int numBasis = wkset->getDecompressedBasis(phi_basis).extent(1);
   
   // FCAD local_resid(numphases, numBasis);
   
@@ -228,8 +228,8 @@ void msphasefield::volumeResidual() {
     }
   }
   
-  auto basis = wkset->basis[phi_basis];
-  auto basis_grad = wkset->basis_grad[phi_basis];
+  auto basis = wkset->getDecompressedBasis(phi_basis);
+  auto basis_grad = wkset->getDecompressedBasisGrad(phi_basis);
   auto offsets = wkset->offsets;
   //auto ip = wkset->ip;
   auto res = wkset->res;

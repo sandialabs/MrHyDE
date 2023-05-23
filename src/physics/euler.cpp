@@ -188,8 +188,8 @@ void euler::volumeResidual() {
     // rho
     {
       int rho_basis = wkset->usebasis[rho_num];
-      auto basis = wkset->basis[rho_basis];
-      auto basis_grad = wkset->basis_grad[rho_basis];
+      auto basis = wkset->getDecompressedBasis(rho_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rho_basis);
       auto drho_dt = wkset->getSolutionField("rho_t");
       auto off = subview(wkset->offsets,rho_num,ALL());
       
@@ -209,8 +209,8 @@ void euler::volumeResidual() {
     // rhoux
     {
       int rhoux_basis = wkset->usebasis[rhoux_num];
-      auto basis = wkset->basis[rhoux_basis];
-      auto basis_grad = wkset->basis_grad[rhoux_basis];
+      auto basis = wkset->getDecompressedBasis(rhoux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhoux_basis);
       auto drhoux_dt = wkset->getSolutionField("rhoux_t");
       auto off = subview(wkset->offsets,rhoux_num,ALL());
       
@@ -230,8 +230,8 @@ void euler::volumeResidual() {
     // rhoE
     {
       int rhoE_basis = wkset->usebasis[rhoE_num];
-      auto basis = wkset->basis[rhoE_basis];
-      auto basis_grad = wkset->basis_grad[rhoE_basis];
+      auto basis = wkset->getDecompressedBasis(rhoE_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhoE_basis);
       auto drhoE_dt = wkset->getSolutionField("rhoE_t");
       auto off = subview(wkset->offsets,rhoE_num,ALL());
       
@@ -257,8 +257,8 @@ void euler::volumeResidual() {
     // rho
     {
       int rho_basis = wkset->usebasis[rho_num];
-      auto basis = wkset->basis[rho_basis];
-      auto basis_grad = wkset->basis_grad[rho_basis];
+      auto basis = wkset->getDecompressedBasis(rho_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rho_basis);
       auto drho_dt = wkset->getSolutionField("rho_t");
       auto off = subview(wkset->offsets,rho_num,ALL());
       
@@ -279,8 +279,8 @@ void euler::volumeResidual() {
     // rhoux
     {
       int rhoux_basis = wkset->usebasis[rhoux_num];
-      auto basis = wkset->basis[rhoux_basis];
-      auto basis_grad = wkset->basis_grad[rhoux_basis];
+      auto basis = wkset->getDecompressedBasis(rhoux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhoux_basis);
       auto drhoux_dt = wkset->getSolutionField("rhoux_t");
       auto off = subview(wkset->offsets,rhoux_num,ALL());
       
@@ -301,8 +301,8 @@ void euler::volumeResidual() {
     // rhouy
     {
       int rhouy_basis = wkset->usebasis[rhouy_num];
-      auto basis = wkset->basis[rhouy_basis];
-      auto basis_grad = wkset->basis_grad[rhouy_basis];
+      auto basis = wkset->getDecompressedBasis(rhouy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhouy_basis);
       auto drhouy_dt = wkset->getSolutionField("rhouy_t");
       auto off = subview(wkset->offsets,rhouy_num,ALL());
       
@@ -323,8 +323,8 @@ void euler::volumeResidual() {
     // rhoE
     {
       int rhoE_basis = wkset->usebasis[rhoE_num];
-      auto basis = wkset->basis[rhoE_basis];
-      auto basis_grad = wkset->basis_grad[rhoE_basis];
+      auto basis = wkset->getDecompressedBasis(rhoE_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhoE_basis);
       auto drhoE_dt = wkset->getSolutionField("rhoE_t");
       auto off = subview(wkset->offsets,rhoE_num,ALL());
       
@@ -352,8 +352,8 @@ void euler::volumeResidual() {
     // rho
     {
       int rho_basis = wkset->usebasis[rho_num];
-      auto basis = wkset->basis[rho_basis];
-      auto basis_grad = wkset->basis_grad[rho_basis];
+      auto basis = wkset->getDecompressedBasis(rho_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rho_basis);
       auto drho_dt = wkset->getSolutionField("rho_t");
       auto off = subview(wkset->offsets,rho_num,ALL());
       
@@ -375,8 +375,8 @@ void euler::volumeResidual() {
     // rhoux
     {
       int rhoux_basis = wkset->usebasis[rhoux_num];
-      auto basis = wkset->basis[rhoux_basis];
-      auto basis_grad = wkset->basis_grad[rhoux_basis];
+      auto basis = wkset->getDecompressedBasis(rhoux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhoux_basis);
       auto drhoux_dt = wkset->getSolutionField("rhoux_t");
       auto off = subview(wkset->offsets,rhoux_num,ALL());
       
@@ -398,8 +398,8 @@ void euler::volumeResidual() {
     // rhouy
     {
       int rhouy_basis = wkset->usebasis[rhouy_num];
-      auto basis = wkset->basis[rhouy_basis];
-      auto basis_grad = wkset->basis_grad[rhouy_basis];
+      auto basis = wkset->getDecompressedBasis(rhouy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhouy_basis);
       auto drhouy_dt = wkset->getSolutionField("rhouy_t");
       auto off = subview(wkset->offsets,rhouy_num,ALL());
       
@@ -421,8 +421,8 @@ void euler::volumeResidual() {
     // rhouz
     {
       int rhouz_basis = wkset->usebasis[rhouz_num];
-      auto basis = wkset->basis[rhouz_basis];
-      auto basis_grad = wkset->basis_grad[rhouz_basis];
+      auto basis = wkset->getDecompressedBasis(rhouz_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhouz_basis);
       auto drhouz_dt = wkset->getSolutionField("rhouz_t");
       auto off = subview(wkset->offsets,rhouz_num,ALL());
       
@@ -444,8 +444,8 @@ void euler::volumeResidual() {
     // rhoE
     {
       int rhoE_basis = wkset->usebasis[rhoE_num];
-      auto basis = wkset->basis[rhoE_basis];
-      auto basis_grad = wkset->basis_grad[rhoE_basis];
+      auto basis = wkset->getDecompressedBasis(rhoE_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(rhoE_basis);
       auto drhoE_dt = wkset->getSolutionField("rhoE_t");
       auto off = subview(wkset->offsets,rhoE_num,ALL());
       

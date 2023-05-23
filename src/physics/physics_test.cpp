@@ -55,7 +55,7 @@ void physicsTest::volumeResidual() {
     auto psol = wkset->getSolutionField("p");
   
     if(myoperators[0] == "projection") {
-      auto basis = wkset->basis[p_basis_num];
+      auto basis = wkset->getDecompressedBasis(p_basis_num);
       for(int elem = 0; elem < wkset->numElem; elem++) {
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           for (size_type pt=0; pt<psol.extent(1); pt++) {
@@ -67,7 +67,7 @@ void physicsTest::volumeResidual() {
       }
     }
     else if(myoperators[0] == "Laplace") {
-      auto basis_grad = wkset->basis_grad[p_basis_num];
+      auto basis_grad = wkset->getDecompressedBasisGrad(p_basis_num);
       if (spaceDim == 1) {
         auto dpdx = wkset->getSolutionField("grad(p)[x]");
         for(int elem = 0; elem < wkset->numElem; elem++) {
@@ -120,7 +120,7 @@ void physicsTest::volumeResidual() {
 
       if (spaceDim == 1) {
         auto px = wkset->getSolutionField("p[x]");
-        auto basis = wkset->basis[p_basis_num];
+        auto basis = wkset->getDecompressedBasis(p_basis_num);
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
             for (size_type pt=0; pt<px.extent(1); pt++) {
@@ -134,7 +134,7 @@ void physicsTest::volumeResidual() {
       else if (spaceDim == 2) {
         auto px = wkset->getSolutionField("p[x]");
         auto py = wkset->getSolutionField("p[y]");
-        auto basis = wkset->basis[p_basis_num];
+        auto basis = wkset->getDecompressedBasis(p_basis_num);
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
             for (size_type pt=0; pt<px.extent(1); pt++) {
@@ -150,7 +150,7 @@ void physicsTest::volumeResidual() {
         auto px = wkset->getSolutionField("p[x]");
         auto py = wkset->getSolutionField("p[y]");
         auto pz = wkset->getSolutionField("p[z]");
-        auto basis = wkset->basis[p_basis_num];
+        auto basis = wkset->getDecompressedBasis(p_basis_num);
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
             for (size_type pt=0; pt<px.extent(1); pt++) {

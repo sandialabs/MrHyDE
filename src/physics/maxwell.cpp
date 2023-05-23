@@ -86,7 +86,7 @@ void maxwell::volumeResidual() {
     if (spaceDim == 2) {
       // (dB/dt + curl E,V) = 0
       
-      auto basis = wkset->basis[B_basis];
+      auto basis = wkset->getDecompressedBasis(B_basis);
       auto dB_dt = wkset->getSolutionField("B_t");
       
       auto off = subview(wkset->offsets, Bnum, ALL());
@@ -141,7 +141,7 @@ void maxwell::volumeResidual() {
       auto off = subview(wkset->offsets, Bnum, ALL());
       auto wts = wkset->wts;
       auto res = wkset->res;
-      auto basis = wkset->basis[B_basis];
+      auto basis = wkset->getDecompressedBasis(B_basis);
       auto dBx_dt = wkset->getSolutionField("B_t[x]");
       auto dBy_dt = wkset->getSolutionField("B_t[y]");
       auto dBz_dt = wkset->getSolutionField("B_t[z]");
@@ -213,8 +213,8 @@ void maxwell::volumeResidual() {
     
     if (spaceDim == 2) {
       if (!useLeapFrog || stage == 1) {
-        auto basis = wkset->basis[E_basis];
-        auto basis_curl = wkset->basis_curl[E_basis];
+        auto basis = wkset->getDecompressedBasis(E_basis);
+        auto basis_curl = wkset->getDecompressedBasisCurl(E_basis);
         
         auto dEx_dt = wkset->getSolutionField("E_t[x]");
         auto dEy_dt = wkset->getSolutionField("E_t[y]");
@@ -242,8 +242,8 @@ void maxwell::volumeResidual() {
     else if (spaceDim == 3) {
       
       if (!useLeapFrog || stage == 1) {
-        auto basis = wkset->basis[E_basis];
-        auto basis_curl = wkset->basis_curl[E_basis];
+        auto basis = wkset->getDecompressedBasis(E_basis);
+        auto basis_curl = wkset->getDecompressedBasisCurl(E_basis);
         auto dEx_dt = wkset->getSolutionField("E_t[x]");
         auto dEy_dt = wkset->getSolutionField("E_t[y]");
         auto dEz_dt = wkset->getSolutionField("E_t[z]");

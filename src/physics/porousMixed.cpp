@@ -233,13 +233,13 @@ void porousMixed::volumeResidual() {
   {
     // ((mobility \times K)^-1 u,v) - (p,div v) - src*v (src not added yet)
     
-    auto basis = wkset->basis[u_basis];
+    auto basis = wkset->getDecompressedBasis(u_basis);
     auto psol = wkset->getSolutionField("p");
     auto off = subview(wkset->offsets, unum, ALL());
     
     if (spaceDim == 1) { // easier to place conditional here than on device
       auto ux = wkset->getSolutionField("u");
-      auto basis_div = wkset->basis_grad[u_basis];
+      auto basis_div = wkset->getDecompressedBasisGrad(u_basis);
         
       parallel_for("porous HDIV volume resid u 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -259,7 +259,7 @@ void porousMixed::volumeResidual() {
     else if (spaceDim == 2) {
       auto ux = wkset->getSolutionField("u[x]");
       auto uy = wkset->getSolutionField("u[y]");
-      auto basis_div = wkset->basis_div[u_basis];
+      auto basis_div = wkset->getDecompressedBasisDiv(u_basis);
       
       parallel_for("porous HDIV volume resid u 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -283,7 +283,7 @@ void porousMixed::volumeResidual() {
       auto ux = wkset->getSolutionField("u[x]");
       auto uy = wkset->getSolutionField("u[y]");
       auto uz = wkset->getSolutionField("u[z]");
-      auto basis_div = wkset->basis_div[u_basis];
+      auto basis_div = wkset->getDecompressedBasisDiv(u_basis);
       
       parallel_for("porous HDIV volume resid u 3D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -311,7 +311,7 @@ void porousMixed::volumeResidual() {
   {
     // -(div u,q) + (src,q) (src not added yet)
     
-    auto basis = wkset->basis[p_basis];
+    auto basis = wkset->getDecompressedBasis(p_basis);
     auto off = subview(wkset->offsets,pnum, ALL());
     View_AD2 udiv;
     if (spaceDim == 1) {

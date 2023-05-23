@@ -831,6 +831,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
     
     if (soln_fields[fieldnum].derivative_type == "div") {
       auto sbasis = basis_div[basis_id];
+      auto sbasis_decompressed = sbasis.decompress();
       size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
@@ -838,11 +839,11 @@ void workset::evaluateSolutionField(const int & fieldnum) {
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
+          fielddata(elem,pt) = solvals(elem,0)*sbasis_decompressed(elem,0,pt);
         }
         for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
           for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis_decompressed(elem,dof,pt);
           }
         }
       });
@@ -962,6 +963,7 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
     
     if (side_soln_fields[fieldnum].derivative_type == "div") {
       auto sbasis = basis_div[basis_id];
+      auto sbasis_decompressed = sbasis.decompress();
       size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
       
       parallel_for("wkset soln ip HGRAD",
@@ -969,11 +971,11 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
+          fielddata(elem,pt) = solvals(elem,0)*sbasis_decompressed(elem,0,pt);
         }
         for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
           for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+            fielddata(elem,pt) += solvals(elem,dof)*sbasis_decompressed(elem,dof,pt);
           }
         }
       });
@@ -1800,6 +1802,62 @@ CompressedView<View_Sc4> workset::getBasisCurlSide(const string & var) {
 
 CompressedView<View_Sc4> workset::getBasisCurlSide(const int & index) {
   return basis_curl_side[index];
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getDecompressedBasis(const int & index) {
+  return basis[index].decompress();
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getDecompressedBasisGrad(const int & index) {
+  return basis_grad[index].decompress();
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc3 workset::getDecompressedBasisDiv(const int & index) {
+  return basis_div[index].decompress();
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getDecompressedBasisCurl(const int & index) {
+  return basis_curl[index].decompress();
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getDecompressedBasisSide(const int & index) {
+  return basis_side[index].decompress();
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getDecompressedBasisGradSide(const int & index) {
+  return basis_grad_side[index].decompress();
+}
+
+//////////////////////////////////////////////////////////////
+// Extract a basis identified by an index (faster)
+//////////////////////////////////////////////////////////////
+
+View_Sc4 workset::getDecompressedBasisCurlSide(const int & index) {
+  return basis_curl_side[index].decompress();
 }
 
 //////////////////////////////////////////////////////////////

@@ -106,10 +106,10 @@ void helmholtz::volumeResidual() {
   source_r = functionManager->evaluate("source_r","ip");
   source_i = functionManager->evaluate("source_i","ip");
   
-  auto urbasis = wkset->basis[ur_basis_num];
-  auto urbasis_grad = wkset->basis_grad[ur_basis_num];
-  auto uibasis = wkset->basis[ui_basis_num];
-  auto uibasis_grad = wkset->basis_grad[ui_basis_num];
+  auto urbasis = wkset->getDecompressedBasis(ur_basis_num);
+  auto urbasis_grad = wkset->getDecompressedBasisGrad(ur_basis_num);
+  auto uibasis = wkset->getDecompressedBasis(ui_basis_num);
+  auto uibasis_grad = wkset->getDecompressedBasisGrad(ui_basis_num);
   
   auto offsets = wkset->offsets;
   

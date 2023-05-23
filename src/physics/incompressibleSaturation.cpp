@@ -104,8 +104,8 @@ void incompressibleSaturation::volumeResidual() {
   // outer loop over equations
   for (size_t iEqn=0; iEqn<varlist.size(); ++iEqn) {
     int basis_num = wkset->usebasis[iEqn];
-    auto basis = wkset->basis[basis_num];
-    auto basis_grad = wkset->basis_grad[basis_num];
+    auto basis = wkset->getDecompressedBasis(basis_num);
+    auto basis_grad = wkset->getDecompressedBasisGrad(basis_num);
     auto dSi_dt = wkset->getSolutionField(varlist[iEqn]+"_t");
     auto source_i = sourceterms[iEqn];
     auto off = subview(wkset->offsets,iEqn,ALL());

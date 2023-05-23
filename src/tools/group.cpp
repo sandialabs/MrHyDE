@@ -1525,7 +1525,7 @@ CompressedView<View_Sc3> Group::getMass() {
         for(size_type i=0; i<cbasis.extent(1); i++ ) {
           for(size_type j=0; j<cbasis.extent(1); j++ ) {
             for(size_type k=0; k<cbasis.extent(2); k++ ) {
-              mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k);
+              mass.view_(e,off(i),off(j)) += cbasis.view_(e,i,k,0)*cbasis.view_(e,j,k,0)*cwts(e,k);
             }
           }
         }
@@ -1539,7 +1539,7 @@ CompressedView<View_Sc3> Group::getMass() {
           for (size_type j=0; j<cbasis.extent(1); j++ ) {
             for (size_type k=0; k<cbasis.extent(2); k++ ) {
               for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
-                mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k);
+                mass.view_(e,off(i),off(j)) += cbasis.view_(e,i,k,dim)*cbasis.view_(e,j,k,dim)*cwts(e,k);
               }
             }
           }
@@ -1597,7 +1597,7 @@ CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
           for (size_type i=0; i<cbasis.extent(1); i++ ) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
-                mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k)*mwt;
+                mass.view_(e,off(i),off(j)) += cbasis.view_(e,i,k,0)*cbasis.view_(e,j,k,0)*cwts(e,k)*mwt;
               }
             }
           }
@@ -1611,7 +1611,7 @@ CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
                 for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
-                  mass(e,off(i),off(j)) += cbasis(e,i,k,dim)*cbasis(e,j,k,dim)*cwts(e,k)*mwt;
+                  mass.view_(e,off(i),off(j)) += cbasis.view_(e,i,k,dim)*cbasis.view_(e,j,k,dim)*cwts(e,k)*mwt;
                 }
               }
             }
@@ -1663,7 +1663,7 @@ CompressedView<View_Sc3> Group::getMassFace() {
           for(size_type i=0; i<cbasis.extent(1); i++ ) {
             for(size_type j=0; j<cbasis.extent(1); j++ ) {
               for(size_type k=0; k<cbasis.extent(2); k++ ) {
-                mass(e,off(i),off(j)) += cbasis(e,i,k,0)*cbasis(e,j,k,0)*cwts(e,k);
+                mass.view_(e,off(i),off(j)) += cbasis.view_(e,i,k,0)*cbasis.view_(e,j,k,0)*cwts(e,k);
               }
             }
           }

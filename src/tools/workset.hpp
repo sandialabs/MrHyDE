@@ -194,6 +194,24 @@ namespace MrHyDE {
     CompressedView<View_Sc4> getBasisCurlSide(const string & var);
     
     CompressedView<View_Sc4> getBasisCurlSide(const int & varindex);
+        
+    //////////////////////////////////////////////////////////////
+    // Get decompressed bases
+    //////////////////////////////////////////////////////////////
+    
+    View_Sc4 getDecompressedBasis(const int & varindex);
+    
+    View_Sc4 getDecompressedBasisGrad(const int & varindex);
+    
+    View_Sc4 getDecompressedBasisCurl(const int & varindex);
+    
+    View_Sc3 getDecompressedBasisDiv(const int & varindex);
+    
+    View_Sc4 getDecompressedBasisSide(const int & varindex);
+    
+    View_Sc4 getDecompressedBasisGradSide(const int & varindex);
+    
+    View_Sc4 getDecompressedBasisCurlSide(const int & varindex);
     
     //////////////////////////////////////////////////////////////
     // Get the offsets or a subview of the offsets

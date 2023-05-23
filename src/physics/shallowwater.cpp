@@ -88,16 +88,16 @@ void shallowwater::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   int H_basis_num = wkset->usebasis[H_num];
-  auto Hbasis = wkset->basis[H_basis_num];
-  auto Hbasis_grad = wkset->basis_grad[H_basis_num];
+  auto Hbasis = wkset->getDecompressedBasis(H_basis_num);
+  auto Hbasis_grad = wkset->getDecompressedBasisGrad(H_basis_num);
   
   int Hu_basis_num = wkset->usebasis[Hu_num];
-  auto Hubasis = wkset->basis[Hu_basis_num];
-  auto Hubasis_grad = wkset->basis_grad[Hu_basis_num];
+  auto Hubasis = wkset->getDecompressedBasis(Hu_basis_num);
+  auto Hubasis_grad = wkset->getDecompressedBasisGrad(Hu_basis_num);
   
   int Hv_basis_num = wkset->usebasis[Hv_num];
-  auto Hvbasis = wkset->basis[Hv_basis_num];
-  auto Hvbasis_grad = wkset->basis_grad[Hv_basis_num];
+  auto Hvbasis = wkset->getDecompressedBasis(Hv_basis_num);
+  auto Hvbasis_grad = wkset->getDecompressedBasisGrad(Hv_basis_num);
   
   auto wts = wkset->wts;
   auto res = wkset->res;

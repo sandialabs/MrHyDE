@@ -117,8 +117,8 @@ void linearelasticity::volumeResidual() {
   
   if (spaceDim == 1) {
     int dx_basis = wkset->usebasis[dx_num];
-    auto basis = wkset->basis[dx_basis];
-    auto basis_grad = wkset->basis_grad[dx_basis];
+    auto basis = wkset->getDecompressedBasis(dx_basis);
+    auto basis_grad = wkset->getDecompressedBasisGrad(dx_basis);
     auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
     
     parallel_for("LE volume resid 1D",
@@ -136,8 +136,8 @@ void linearelasticity::volumeResidual() {
     {
       // first equation
       int dx_basis = wkset->usebasis[dx_num];
-      auto basis = wkset->basis[dx_basis];
-      auto basis_grad = wkset->basis_grad[dx_basis];
+      auto basis = wkset->getDecompressedBasis(dx_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(dx_basis);
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
       
       parallel_for("LE ux volume resid 2D",
@@ -154,8 +154,8 @@ void linearelasticity::volumeResidual() {
     {
       // second equation
       int dy_basis = wkset->usebasis[dy_num];
-      auto basis = wkset->basis[dy_basis];
-      auto basis_grad = wkset->basis_grad[dy_basis];
+      auto basis = wkset->getDecompressedBasis(dy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(dy_basis);
       auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
       
       parallel_for("LE uy volume resid 2D",
@@ -174,8 +174,8 @@ void linearelasticity::volumeResidual() {
     // first equation
     {
       int dx_basis = wkset->usebasis[dx_num];
-      auto basis = wkset->basis[dx_basis];
-      auto basis_grad = wkset->basis_grad[dx_basis];
+      auto basis = wkset->getDecompressedBasis(dx_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(dx_basis);
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
       
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
@@ -195,8 +195,8 @@ void linearelasticity::volumeResidual() {
     // second equation
     {
       int dy_basis = wkset->usebasis[dy_num];
-      auto basis = wkset->basis[dy_basis];
-      auto basis_grad = wkset->basis_grad[dy_basis];
+      auto basis = wkset->getDecompressedBasis(dy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(dy_basis);
       auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
       
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
@@ -216,8 +216,8 @@ void linearelasticity::volumeResidual() {
     // third equation
     {
       int dz_basis = wkset->usebasis[dz_num];
-      auto basis = wkset->basis[dz_basis];
-      auto basis_grad = wkset->basis_grad[dz_basis];
+      auto basis = wkset->getDecompressedBasis(dz_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(dz_basis);
       auto off = Kokkos::subview( wkset->offsets, dz_num, Kokkos::ALL());
       
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));

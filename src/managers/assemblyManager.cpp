@@ -997,6 +997,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
     
     auto localrhs = groups[groupblock][grp]->getInitial(true, useadjoint);
     auto localmass = groups[groupblock][grp]->getMass();
+    auto localmassdecompressed = localmass.decompress();
     
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
@@ -1030,7 +1031,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
           for (size_type m=0; m<numDOF.extent(0); m++) {
             for (int k=0; k<numDOF(m); k++) {
               col = offsets(m,k);
-              vals[col] = localmass(elem,row,col);
+              vals[col] = localmassdecompressed(elem,row,col);
               if (lump_mass_) {
                 cols[col] = rowIndex;
               }
@@ -1182,6 +1183,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
       }
       else {
         auto localmass = groups[block][grp]->getWeightedMass(phys->masswts[set][block]);
+        auto localmassdecompressed = localmass.decompress();
       
         if (data_avail) {
         
@@ -1202,12 +1204,12 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
               
                 ScalarT val = 0.0;
                 if (use_jacobi) {
-                  val = localmass(elem,row,row);
+                  val = localmassdecompressed(elem,row,row);
                 }
                 else {
                   for (int k=0; k<numDOF(n); k++) {
                     int col = offsets(n,k);
-                    val += std::abs(localmass(elem,row,col));
+                    val += std::abs(localmassdecompressed(elem,row,col));
                   }
                 }
               
@@ -1241,7 +1243,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
                   rowIndex = LIDs(elem,row);
                   for (int k=0; k<numDOF(n); k++) {
                     col = offsets(n,k);
-                    vals[k] = localmass(elem,row,col);
+                    vals[k] = localmassdecompressed(elem,row,col);
                     cols[k] = LIDs(elem,col);
                   }
                 
@@ -1518,6 +1520,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
         }
         else {
           auto curr_mass = groups[block][grp]->local_mass[set];
+          auto curr_mass_decompressed = curr_mass.decompress();
           parallel_for("get mass",
                        RangePolicy<AssemblyExec>(0,curr_mass.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
@@ -1527,10 +1530,10 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
                   LO indi = cLIDs(elem,offsets(var,i));
                   LO indj = cLIDs(elem,offsets(var,j));
                   if (use_atomics_) {
-                    Kokkos::atomic_add(&(y_slice(indi)), curr_mass(elem,offsets(var,i),offsets(var,j))*x_slice(indj));
+                    Kokkos::atomic_add(&(y_slice(indi)), curr_mass_decompressed(elem,offsets(var,i),offsets(var,j))*x_slice(indj));
                   }
                   else {
-                    y_slice(indi) += curr_mass(elem,offsets(var,i),offsets(var,j))*x_slice(indj);
+                    y_slice(indi) += curr_mass_decompressed(elem,offsets(var,i),offsets(var,j))*x_slice(indj);
                   }
                 }
               }
@@ -1762,8 +1765,9 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
       auto localmass = groups[block][grp]->getMassFace();
       auto host_rhs = Kokkos::create_mirror_view(localrhs);
       auto host_mass = localmass;//Kokkos::create_mirror_view(localmass);
+      auto host_mass_decompressed = host_mass.decompress();
       Kokkos::deep_copy(host_rhs,localrhs);
-      //Kokkos::deep_copy(host_mass,localmass);
+      //Kokkos::deep_copy(host_mass_decompressed,localmass);
       
       size_t numVals = LIDs.extent(1);
       // assemble into global matrix
@@ -1779,7 +1783,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
             ScalarT totalval = 0.0;
             for( size_t col=0; col<LIDs.extent(1); col++ ) {
               cols[0] = LIDs(c,col);
-              totalval += host_mass(c,row,col);
+              totalval += host_mass_decompressed(c,row,col);
             }
             vals[0] = totalval;
             localMatrix.sumIntoValues(rowIndex, cols, 1, vals, true, false);
@@ -1789,7 +1793,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
             ScalarT vals[maxDerivs];
             for( size_t col=0; col<LIDs.extent(1); col++ ) {
               cols[col] = LIDs(c,col);
-              vals[col] = host_mass(c,row,col);
+              vals[col] = host_mass_decompressed(c,row,col);
             }
             localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false);
             

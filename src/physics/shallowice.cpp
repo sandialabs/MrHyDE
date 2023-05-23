@@ -53,8 +53,8 @@ void shallowice::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int s_basis_num = wkset->usebasis[snum];
-  auto basis = wkset->basis[s_basis_num];
-  auto basis_grad = wkset->basis_grad[s_basis_num];
+  auto basis = wkset->getDecompressedBasis(s_basis_num);
+  auto basis_grad = wkset->getDecompressedBasisGrad(s_basis_num);
   auto wts = wkset->wts;
   
   Vista source, diff;

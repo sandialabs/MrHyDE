@@ -111,10 +111,10 @@ void maxwells_fp::volumeResidual() {
   
   ScalarT current_time = wkset->time;
   
-  auto phir_basis = wkset->basis[phir_basis_num];
-  auto phir_basis_grad = wkset->basis_grad[phir_basis_num];
-  auto phii_basis = wkset->basis[phii_basis_num];
-  auto phii_basis_grad = wkset->basis_grad[phii_basis_num];
+  auto phir_basis = wkset->getDecompressedBasis(phir_basis_num);
+  auto phir_basis_grad = wkset->getDecompressedBasisGrad(phir_basis_num);
+  auto phii_basis = wkset->getDecompressedBasis(phii_basis_num);
+  auto phii_basis_grad = wkset->getDecompressedBasisGrad(phii_basis_num);
   
   auto res = wkset->res;
   auto offsets = wkset->offsets;
@@ -250,7 +250,7 @@ void maxwells_fp::volumeResidual() {
       }
       
       for (size_type i=0; i<phir_basis.extent(1); i++ ) { // TMW: this will fail if using different basis for phir and phii
-        //	v = wkset->basis[e_basis](0,i,k);
+        //	v = wkset->getDecompressedBasis(e_basis)(0,i,k);
         vr = phir_basis(e,i,k,0);
         vi = phii_basis(e,i,k,0);
         
@@ -455,7 +455,7 @@ void maxwells_fp::boundaryResidual() {
   int phir_basis_num = wkset->usebasis[phir_num];
   int phii_basis_num = wkset->usebasis[phii_num];
   
-  //int numBasis = wkset->basis[Axr_basis].extent(2);
+  //int numBasis = wkset->getDecompressedBasis(Axr_basis).extent(2);
   //int numSideCubPoints = wkset->ip_side.extent(1);
   
   //    FCAD local_resid(numCC, 2*(spaceDim+1), numBasis);

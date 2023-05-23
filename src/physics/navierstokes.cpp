@@ -109,8 +109,8 @@ void navierstokes::volumeResidual() {
   if (spaceDim == 1) {
     {
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
-      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto basis = wkset->getDecompressedBasis(ux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
       auto ux = wkset->getSolutionField("ux");
       auto dux_dt = wkset->getSolutionField("ux_t");
       auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
@@ -192,8 +192,8 @@ void navierstokes::volumeResidual() {
       /////////////////////////////
       
       int pr_basis = wkset->usebasis[pr_num];
-      auto basis = wkset->basis[pr_basis];
-      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto basis = wkset->getDecompressedBasis(pr_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
       auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
       auto off = subview(wkset->offsets,pr_num,ALL());
       
@@ -254,8 +254,8 @@ void navierstokes::volumeResidual() {
   else if (spaceDim == 2) {
     {
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
-      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto basis = wkset->getDecompressedBasis(ux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
       auto ux = wkset->getSolutionField("ux");
       auto uy = wkset->getSolutionField("uy");
       auto dux_dt = wkset->getSolutionField("ux_t");
@@ -340,8 +340,8 @@ void navierstokes::volumeResidual() {
     {
       // Uy equation
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis[uy_basis];
-      auto basis_grad = wkset->basis_grad[uy_basis];
+      auto basis = wkset->getDecompressedBasis(uy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(uy_basis);
       auto ux = wkset->getSolutionField("ux");
       auto uy = wkset->getSolutionField("uy");
       auto duy_dt = wkset->getSolutionField("uy_t");
@@ -427,8 +427,8 @@ void navierstokes::volumeResidual() {
       /////////////////////////////
       
       int pr_basis = wkset->usebasis[pr_num];
-      auto basis = wkset->basis[pr_basis];
-      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto basis = wkset->getDecompressedBasis(pr_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
       auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
       auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
       auto off = subview(wkset->offsets,pr_num,ALL());
@@ -496,8 +496,8 @@ void navierstokes::volumeResidual() {
   else if (spaceDim == 3) {
     {
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
-      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto basis = wkset->getDecompressedBasis(ux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
       auto ux = wkset->getSolutionField("ux");
       auto uy = wkset->getSolutionField("uy");
       auto uz = wkset->getSolutionField("uz");
@@ -587,8 +587,8 @@ void navierstokes::volumeResidual() {
     {
       // Uy equation
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis[uy_basis];
-      auto basis_grad = wkset->basis_grad[uy_basis];
+      auto basis = wkset->getDecompressedBasis(uy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(uy_basis);
       auto ux = wkset->getSolutionField("ux");
       auto uy = wkset->getSolutionField("uy");
       auto uz = wkset->getSolutionField("uz");
@@ -677,8 +677,8 @@ void navierstokes::volumeResidual() {
     {
       // Uz equation
       int uz_basis = wkset->usebasis[uz_num];
-      auto basis = wkset->basis[uz_basis];
-      auto basis_grad = wkset->basis_grad[uz_basis];
+      auto basis = wkset->getDecompressedBasis(uz_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(uz_basis);
       auto ux = wkset->getSolutionField("ux");
       auto uy = wkset->getSolutionField("uy");
       auto uz = wkset->getSolutionField("uz");
@@ -770,8 +770,8 @@ void navierstokes::volumeResidual() {
       /////////////////////////////
       
       int pr_basis = wkset->usebasis[pr_num];
-      auto basis = wkset->basis[pr_basis];
-      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto basis = wkset->getDecompressedBasis(pr_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
       auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
       auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
       auto duz_dz = wkset->getSolutionField("grad(uz)[z]");

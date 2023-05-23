@@ -60,8 +60,8 @@ void porous::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int p_basis_num = wkset->usebasis[pnum];
-  auto basis = wkset->basis[p_basis_num];
-  auto basis_grad = wkset->basis_grad[p_basis_num];
+  auto basis = wkset->getDecompressedBasis(p_basis_num);
+  auto basis_grad = wkset->getDecompressedBasisGrad(p_basis_num);
   auto wts = wkset->wts;
   auto res = wkset->res;
   

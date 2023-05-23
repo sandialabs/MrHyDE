@@ -73,8 +73,8 @@ void thermal::defineFunctions(Teuchos::ParameterList & fs,
 void thermal::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  auto basis = wkset->basis[e_basis_num];
-  auto basis_grad = wkset->basis_grad[e_basis_num];
+  auto basis = wkset->getDecompressedBasis(e_basis_num);
+  auto basis_grad = wkset->getDecompressedBasisGrad(e_basis_num);
   
   Vista source, diff, cp, rho, bx, by, bz;
   

@@ -66,8 +66,8 @@ void cdr::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int c_basis_num = wkset->usebasis[cnum];
-  auto basis = wkset->basis[c_basis_num];
-  auto basis_grad = wkset->basis_grad[c_basis_num];
+  auto basis = wkset->getDecompressedBasis(c_basis_num);
+  auto basis_grad = wkset->getDecompressedBasisGrad(c_basis_num);
   auto wts = wkset->wts;
   
   Vista source, diff, cp, rho, reax, xvel, yvel, zvel, tau;

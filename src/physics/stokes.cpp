@@ -100,8 +100,8 @@ void stokes::volumeResidual() {
     auto Pr = wkset->getSolutionField("pr");
     {
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
-      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto basis = wkset->getDecompressedBasis(ux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
       auto off = subview(wkset->offsets,ux_num,ALL());
       parallel_for("Stokes ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -119,8 +119,8 @@ void stokes::volumeResidual() {
     
     {
       int pr_basis = wkset->usebasis[pr_num];
-      auto basis = wkset->basis[pr_basis];
-      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto basis = wkset->getDecompressedBasis(pr_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
       auto off = subview(wkset->offsets,pr_num,ALL());
       
       parallel_for("Stokes pr volume resid",
@@ -185,8 +185,8 @@ void stokes::volumeResidual() {
     auto Pr = wkset->getSolutionField("pr");
     {
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
-      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto basis = wkset->getDecompressedBasis(ux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
       auto off = Kokkos::subview(wkset->offsets,ux_num,Kokkos::ALL());
       parallel_for("Stokes ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -206,8 +206,8 @@ void stokes::volumeResidual() {
     
     {
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis[uy_basis];
-      auto basis_grad = wkset->basis_grad[uy_basis];
+      auto basis = wkset->getDecompressedBasis(uy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(uy_basis);
       auto off = subview(wkset->offsets,uy_num,ALL());
       parallel_for("Stokes uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -227,8 +227,8 @@ void stokes::volumeResidual() {
     
     {
       int pr_basis = wkset->usebasis[pr_num];
-      auto basis = wkset->basis[pr_basis];
-      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto basis = wkset->getDecompressedBasis(pr_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
       auto off = Kokkos::subview(wkset->offsets,pr_num,Kokkos::ALL());
       
       parallel_for("Stokes pr volume resid",
@@ -304,8 +304,8 @@ void stokes::volumeResidual() {
     
     {
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis[ux_basis];
-      auto basis_grad = wkset->basis_grad[ux_basis];
+      auto basis = wkset->getDecompressedBasis(ux_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
       auto off = subview(wkset->offsets,ux_num,ALL());
       parallel_for("Stokes ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -327,8 +327,8 @@ void stokes::volumeResidual() {
     
     {
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis[uy_basis];
-      auto basis_grad = wkset->basis_grad[uy_basis];
+      auto basis = wkset->getDecompressedBasis(uy_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(uy_basis);
       auto off = subview(wkset->offsets,uy_num,ALL());
       parallel_for("Stokes uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -350,8 +350,8 @@ void stokes::volumeResidual() {
     
     {
       int uz_basis = wkset->usebasis[uz_num];
-      auto basis = wkset->basis[uz_basis];
-      auto basis_grad = wkset->basis_grad[uz_basis];
+      auto basis = wkset->getDecompressedBasis(uz_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(uz_basis);
       auto off = subview(wkset->offsets,uz_num,ALL());
       parallel_for("Stokes uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -373,8 +373,8 @@ void stokes::volumeResidual() {
 
     {
       int pr_basis = wkset->usebasis[pr_num];
-      auto basis = wkset->basis[pr_basis];
-      auto basis_grad = wkset->basis_grad[pr_basis];
+      auto basis = wkset->getDecompressedBasis(pr_basis);
+      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
       auto off = subview(wkset->offsets,pr_num,ALL());
       
       parallel_for("Stokes pr volume resid",

@@ -104,8 +104,8 @@ void porousMixedHybrid::volumeResidual() {
   {
     // (K^-1 u,v) - (p,div v) - src*v (src not added yet)
     
-    auto basis = wkset->basis[u_basis];
-    auto basis_div = wkset->basis_div[u_basis];
+    auto basis = wkset->getDecompressedBasis(u_basis);
+    auto basis_div = wkset->getDecompressedBasisDiv(u_basis);
     auto psol = wkset->getSolutionField("p");
     auto off = subview(wkset->offsets, unum, ALL());
     
@@ -171,7 +171,7 @@ void porousMixedHybrid::volumeResidual() {
   {
     // -(div u,q) + (src,q) (src not added yet)
     
-    auto basis = wkset->basis[p_basis];
+    auto basis = wkset->getDecompressedBasis(p_basis);
     auto udiv = wkset->getSolutionField("div(u)");
     auto off = subview(wkset->offsets, pnum, ALL());
     

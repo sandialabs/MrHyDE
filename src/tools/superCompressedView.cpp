@@ -11,8 +11,8 @@
  Bart van Bloemen Waanders (bartv@sandia.gov)
  ************************************************************************/
 
-#ifndef MRHYDE_COMPRESSEDVIEW_H
-#define MRHYDE_COMPRESSEDVIEW_H
+#ifndef MRHYDE_SUPERCOMPRESSEDVIEW_H
+#define MRHYDE_SUPERCOMPRESSEDVIEW_H
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -23,74 +23,63 @@ namespace MrHyDE {
   // New data structure to store compressed views (using a database)
   // =================================================================
   
-  /**
-   * \brief A class which compresses data by storing a view and then allowing random access into it based on a key
-  */
   template <class ViewType>
-  class CompressedView {
+  class SuperCompressedView {
 
   public:
-    //! The underlying data
+    //! The underlying data (typically very small)
     ViewType view_;
+
     //! The random access key for grabbing the underlying data
     Kokkos::View<LO*,AssemblyDevice> key_;
-    //! A boolean whether the key has been allocated. If not, the view behaves like a normal view.
-    bool have_key_;
+    //! The orientations of the basis functions
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientations_;
+    //! The diagonal scalings for the view
+    View_Sc2 diagonal_scaling_;
+    
+    //! A boolean whether the data has been compressed. If not, the view behaves like a normal view.
+    bool is_compressed_;
 
     //! Constructor for the case where the view is compressed.
-    CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key)
+    SuperCompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key, Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientations, View_Sc2 diagonal_scaling)
     : view_(view),
-      key_(key)
+      key_(key),
+      orientations_(orientations),
+      diagonal_scaling_(diagonal_scaling)
     {
-      have_key_ = true;
+      is_compressed_ = true;
     }
 
     //! Constructor for the case where the view is not compressed.
-    CompressedView(ViewType view)
+    SuperCompressedView(ViewType view)
     : view_(view)
     {
-      have_key_ = false;
+      is_compressed_ = false;
     }
     
     //! Default constructor
     KOKKOS_INLINE_FUNCTION    
-    CompressedView() {};
+    SuperCompressedView() {};
     
     //! Default destructor
     KOKKOS_INLINE_FUNCTION
-    ~CompressedView() {};
-
-    //! Decompress the view by returning a view with all the copied data
-    ViewType decompress() const {
-      // if (have_key_) {
-      //   ViewType decompressed_view();
-      //   return decompressed_view;
-
-      // }
-      // else {
-      //   return view_;
-      // }
-      return view_;
-    }
+    ~SuperCompressedView() {};
     
     //! Access for a one-dimensional view
-    /*
     KOKKOS_INLINE_FUNCTION
     typename ViewType::reference_type operator()(const size_type & i0) const {
-      if (have_key_) {
+      if (is_compressed_) {
         return view_(key_(i0));
       }
       else {
         return view_(i0);
       }
     }
-    */
 
     //! Access for a two-dimensional view
-    /*
     KOKKOS_INLINE_FUNCTION
     typename ViewType::reference_type operator()(const size_type & i0, const size_type & i1) const {
-      if (have_key_) {
+      if (is_compressed_) {
         return view_(key_(i0), i1);
       }
       else {
@@ -98,25 +87,22 @@ namespace MrHyDE {
       }
 
     }
-    */
 
     //! Access for a three-dimensional view
-    /*
     KOKKOS_INLINE_FUNCTION
     typename ViewType::reference_type operator()(const size_type & i0, const size_type & i1, const size_type & i2) const {
-      if (have_key_) {
+      if (is_compressed_) {
         return view_(key_(i0), i1, i2);
       }
       else {
         return view_(i0, i1, i2);
       }
     }
-    */
 
     //! Access for a four-dimensional view
     KOKKOS_INLINE_FUNCTION
     typename ViewType::reference_type operator()(const size_type & i0, const size_type & i1, const size_type & i2, const size_type & i3) const {
-      if (have_key_) {
+      if (is_compressed_) {
         return view_(key_(i0), i1, i2, i3);
       }
       else {
@@ -128,7 +114,7 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     size_type extent(const size_type & dim) const {
       if (dim==0) {
-        if (have_key_) {
+        if (is_compressed_) {
           return key_.extent(dim);
         }
         else {
@@ -143,7 +129,7 @@ namespace MrHyDE {
     //! The size of the compressed view
     KOKKOS_INLINE_FUNCTION
     size_type size() const {
-      if (have_key_) {
+      if (is_compressed_) {
         return key_.size();
       }
       else {
@@ -159,24 +145,25 @@ namespace MrHyDE {
     
     //! Print the underlying view and key
     void print() {
-      std::cout << "Printing CompressedView" << std::endl;
+      std::cout << "Printing SuperCompressedView" << std::endl;
       KokkosTools::print(view_);
       KokkosTools::print(key_);
     }
 
     //! Print the memory savings for the compressed view
     void printMemory() {
-      std::cout << "Printing memory savings for CompressedView" << std::endl;
+      std::cout << "Printing memory savings for SuperCompressedView" << std::endl;
       std::cout << "Key length = " << key_.extent(0) << std::endl;
+      std::cout << "Diagonal scaling = " << diagonal_scaling_.extent(0)*diagonal_scaling_.extent(1) << std::endl;
+      std::cout << "Orientations = " << orientations_.extent(0) << std::endl;
       std::cout << "Underlying view extent(0) = " << view_.extent(0) << std::endl;
       std::cout << "Underlying view total size = " << view_.extent(0)*view_.extent(1)*view_.extent(2)*view_.extent(3) << " entries " << std::endl;
       std::cout << "View total size without database = " << key_.extent(0)*view_.extent(1)*view_.extent(2)*view_.extent(3) << " entries " << std::endl;
       std::cout << "Total savings = " << (key_.extent(0) - view_.extent(0))*view_.extent(1)*view_.extent(2)*view_.extent(3) - key_.extent(0) << " entries " << std::endl;
-      std::cout << "              = " << ((key_.extent(0) - view_.extent(0))*view_.extent(1)*view_.extent(2)*view_.extent(3) - key_.extent(0))*sizeof(typename ViewType::value_type) << " bytes " << std::endl;
+      std::cout << " FIXME FIXME  = " << ((key_.extent(0) - view_.extent(0))*view_.extent(1)*view_.extent(2)*view_.extent(3) - key_.extent(0))*sizeof(typename ViewType::value_type) << " bytes " << std::endl;
     }
   };
   
 }
 
 #endif
-

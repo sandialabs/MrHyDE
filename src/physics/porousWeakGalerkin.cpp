@@ -130,8 +130,8 @@ void porousWeakGalerkin::volumeResidual() {
   auto res = wkset->res;
   
   {
-    auto basis = wkset->basis[u_basis];
-    auto basis_div = wkset->basis_div[u_basis];
+    auto basis = wkset->getDecompressedBasis(u_basis);
+    auto basis_div = wkset->getDecompressedBasisDiv(u_basis);
     
     auto pintsol = wkset->getSolutionField("pint");
     auto off = subview(wkset->offsets, unum, ALL());
@@ -200,8 +200,8 @@ void porousWeakGalerkin::volumeResidual() {
   {
     //  (Ku,s) + (t,s)
     
-    auto basis = wkset->basis[t_basis];
-    auto basis_div = wkset->basis_div[t_basis];
+    auto basis = wkset->getDecompressedBasis(t_basis);
+    auto basis_div = wkset->getDecompressedBasisDiv(t_basis);
     
     auto off = subview(wkset->offsets, tnum, ALL());
     
@@ -302,7 +302,7 @@ void porousWeakGalerkin::volumeResidual() {
   
   {
     //  (div(t),q_0) - (f,q_0)
-    auto basis = wkset->basis[pint_basis];
+    auto basis = wkset->getDecompressedBasis(pint_basis);
     auto tdiv = wkset->getSolutionField("div(t)");
     auto off = subview(wkset->offsets, pintnum, ALL());
     

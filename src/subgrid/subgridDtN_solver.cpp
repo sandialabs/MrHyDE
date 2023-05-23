@@ -1715,6 +1715,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
   for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
     LIDView LIDs = assembler->groups[macrogrp][e]->LIDs[0];
     auto localmass = assembler->groups[macrogrp][e]->getMass();
+    auto localmassdecompressed = localmass.decompress();
     
     size_type numVals = LIDs.extent(1);
     LO cols[maxDerivs];
@@ -1724,7 +1725,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
         LO rowIndex = LIDs(i,row);
         // add check here for fixedDOF
         for( size_type col=0; col<LIDs.extent(1); col++ ) {
-          vals[col] = localmass(i,row,col);
+          vals[col] = localmassdecompressed(i,row,col);
           cols[col] = LIDs(i,col);
         }
         localMatrix.sumIntoValues(rowIndex, cols, numVals, vals, true, false); // isSorted, useAtomics

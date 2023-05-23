@@ -134,8 +134,8 @@ using namespace MrHyDE;
 //  if (spaceDim == 1) {
 //    {
 //      int rhoux_basis = wkset->usebasis[rhoux_num];
-//      auto basis = wkset->basis[rhoux_basis];
-//      auto basis_grad = wkset->basis_grad[rhoux_basis];
+//      auto basis = wkset->getDecompressedBasis(rhoux_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(rhoux_basis);
 //      auto rhoux = wkset->getSolutionField("rhoux");
 //      auto drhoux_dt = wkset->getSolutionField("rhoux_t");
 //      auto drhoux_dx = wkset->getSolutionField("grad(rhoux)[x]");
@@ -215,8 +215,8 @@ using namespace MrHyDE;
 //      // Energy equation // TODO this is different need offset, etc.
 //      // (w,rho dT/dt) + (w,rho u_1 dT/dx_1) + (dw/dx_1,lambda/cp dT/dx_1) - (w, 1/cp[dp0/dt + Q])
 //      int T_basis = wkset->usebasis[T_num];
-//      auto basis = wkset->basis[T_basis];
-//      auto basis_grad = wkset->basis_grad[T_basis];
+//      auto basis = wkset->getDecompressedBasis(T_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(T_basis);
 //      auto T = wkset->getSolutionField("T");
 //      auto dT_dt = wkset->getSolutionField("T_t");
 //      auto dT_dx = wkset->getSolutionField("grad(T)[x]"); 
@@ -269,8 +269,8 @@ using namespace MrHyDE;
 //      // (q,du_1/dx_1) - (q,1/T(dT/dt + u_1 dT/dx_1) - 1/p0 dp0/dt)
 //      
 //      int pr_basis = wkset->usebasis[pr_num];
-//      auto basis = wkset->basis[pr_basis];
-//      auto basis_grad = wkset->basis_grad[pr_basis];
+//      auto basis = wkset->getDecompressedBasis(pr_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
 //      auto T = wkset->getSolutionField("T");
@@ -321,8 +321,8 @@ using namespace MrHyDE;
 //  else if (spaceDim == 2) {
 //    {
 //      int ux_basis = wkset->usebasis[ux_num];
-//      auto basis = wkset->basis[ux_basis];
-//      auto basis_grad = wkset->basis_grad[ux_basis];
+//      auto basis = wkset->getDecompressedBasis(ux_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto uy = wkset->getSolutionField("uy");
 //      auto dux_dt = wkset->getSolutionField("ux_t");
@@ -412,8 +412,8 @@ using namespace MrHyDE;
 //      // + (dv_2/dx_1, \mu [du_1/dx_2 + du_2/dx_1]) 
 //      // + (dv_2/dx_2, \mu [2 * du_2/dx_2 - 2/3 (du_1/dx_1 + du_2/dx_2)]) - (v_2,source)
 //      int uy_basis = wkset->usebasis[uy_num];
-//      auto basis = wkset->basis[uy_basis];
-//      auto basis_grad = wkset->basis_grad[uy_basis];
+//      auto basis = wkset->getDecompressedBasis(uy_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(uy_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto uy = wkset->getSolutionField("uy");
 //      auto duy_dt = wkset->getSolutionField("uy_t");
@@ -501,8 +501,8 @@ using namespace MrHyDE;
 //      // (w,rho dT/dt) + (w,rho [u_1 dT/dx_1 + u_2 dT/dx_2]) + (dw/dx_1,lambda/cp dT/dx_1)
 //      // + (dw/dx_2,lambda/cp dT/dx_2) - (w,1/cp[dp0/dt + Q])
 //      int T_basis = wkset->usebasis[T_num];
-//      auto basis = wkset->basis[T_basis];
-//      auto basis_grad = wkset->basis_grad[T_basis];
+//      auto basis = wkset->getDecompressedBasis(T_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(T_basis);
 //      auto T = wkset->getSolutionField("T");
 //      auto dT_dt = wkset->getSolutionField("T_t");
 //      auto dT_dx = wkset->getSolutionField("grad(T)[x]"); 
@@ -560,8 +560,8 @@ using namespace MrHyDE;
 //      /////////////////////////////
 //      // (q,du_1/dx_1 + du_2/dx_2) - (q,1/T(dT/dt + u_1 dT/dx_1 + u_2 dT/dx_2) - 1/p0 dp0/dt)
 //      int pr_basis = wkset->usebasis[pr_num];
-//      auto basis = wkset->basis[pr_basis];
-//      auto basis_grad = wkset->basis_grad[pr_basis];
+//      auto basis = wkset->getDecompressedBasis(pr_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto uy = wkset->getSolutionField("uy");
 //      auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
@@ -629,8 +629,8 @@ using namespace MrHyDE;
 //      // + (dv_1/dx_2, \mu [du_1/dx_2 + du_2/dx_1]) + (dv_1/dx_3, \mu [du_1/dx_3 + du_3/dx_1])
 //      // - (v_1,source)
 //      int ux_basis = wkset->usebasis[ux_num];
-//      auto basis = wkset->basis[ux_basis];
-//      auto basis_grad = wkset->basis_grad[ux_basis];
+//      auto basis = wkset->getDecompressedBasis(ux_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(ux_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto uy = wkset->getSolutionField("uy");
 //      auto uz = wkset->getSolutionField("uz");
@@ -696,8 +696,8 @@ using namespace MrHyDE;
 //      // + (dv_2/dx_2, \mu [2 * du_2/dx_2 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3)]) 
 //      // + (dv_2/dx_3, \mu [du_2/dx_3 + du_3/dx_2]) - (v_2,source)
 //      int uy_basis = wkset->usebasis[uy_num];
-//      auto basis = wkset->basis[uy_basis];
-//      auto basis_grad = wkset->basis_grad[uy_basis];
+//      auto basis = wkset->getDecompressedBasis(uy_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(uy_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto uy = wkset->getSolutionField("uy");
 //      auto uz = wkset->getSolutionField("uz");
@@ -764,8 +764,8 @@ using namespace MrHyDE;
 //      // + (dv_3/dx_3, \mu [2 * du_3/dx_3 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3])) 
 //      // - (v_3,source)
 //      int uz_basis = wkset->usebasis[uz_num];
-//      auto basis = wkset->basis[uz_basis];
-//      auto basis_grad = wkset->basis_grad[uz_basis];
+//      auto basis = wkset->getDecompressedBasis(uz_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(uz_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto uy = wkset->getSolutionField("uy");
 //      auto uz = wkset->getSolutionField("uz");
@@ -833,8 +833,8 @@ using namespace MrHyDE;
 //      // (w,rho dT/dt) + (w,rho [u_1 dT/dx_1 + u_2 dT/dx_2 + u_3 dT/dx_3]) + (dw/dx_1,lambda/cp dT/dx_1)
 //      // + (dw/dx_2,lambda/cp dT/dx_2) + (dw/dx_3,lambda/cp dT/dx_3) - (w,1/cp[dp0/dt + Q])
 //      int T_basis = wkset->usebasis[T_num];
-//      auto basis = wkset->basis[T_basis];
-//      auto basis_grad = wkset->basis_grad[T_basis];
+//      auto basis = wkset->getDecompressedBasis(T_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(T_basis);
 //      auto T = wkset->getSolutionField("T");
 //      auto dT_dt = wkset->getSolutionField("T_t");
 //      auto dT_dx = wkset->getSolutionField("grad(T)[x]"); 
@@ -895,8 +895,8 @@ using namespace MrHyDE;
 //      /////////////////////////////
 //      // (q,du_1/dx_1 + du_2/dx_2 + du_3/dx_3) - (q,1/T(dT/dt + u_1 dT/dx_1 + u_2 dT/dx_2 + u_3 dT/dx_3) - 1/p0 dp0/dt)
 //      int pr_basis = wkset->usebasis[pr_num];
-//      auto basis = wkset->basis[pr_basis];
-//      auto basis_grad = wkset->basis_grad[pr_basis];
+//      auto basis = wkset->getDecompressedBasis(pr_basis);
+//      auto basis_grad = wkset->getDecompressedBasisGrad(pr_basis);
 //      auto ux = wkset->getSolutionField("ux");
 //      auto uy = wkset->getSolutionField("uy");
 //      auto uz = wkset->getSolutionField("uz");
