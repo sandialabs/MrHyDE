@@ -1985,78 +1985,79 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
     }
     else if (objectives[r].type == "integrated response") {
       
-      // First, compute objective value and deriv. w.r.t scalar params
-      params->sacadoizeParams(true);
       size_t block = objectives[r].block;
       
-      for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+      // First, compute objective value and deriv. w.r.t scalar params
+      //if (params->num_active_params > 0) {
+        params->sacadoizeParams(true); // seed active
         
-        auto wts = assembler->groups[block][grp]->wts;
+        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+        
+          auto wts = assembler->groups[block][grp]->wts;
             
-        assembler->groups[block][grp]->updateWorkset(0,0,true);
+          assembler->groups[block][grp]->updateWorkset(0,0,true);
         
-        auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
+          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
         
-        Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
-        parallel_for("grp objective",
-                     RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                     KOKKOS_LAMBDA (const size_type elem ) {
-          AD tmpval = 0.0;
-          for (size_type pt=0; pt<wts.extent(1); pt++) {
-            tmpval += obj_dev(elem,pt)*wts(elem,pt);
-          }
-          Kokkos::atomic_add(&(objsum(0)),tmpval);
-        });
+          Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            AD tmpval = 0.0;
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
+              tmpval += obj_dev(elem,pt)*wts(elem,pt);
+            }
+            Kokkos::atomic_add(&(objsum(0)),tmpval);
+          });
         
-        View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
+          View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
         
-        parallel_for("grp objective",
-                     RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
-                     KOKKOS_LAMBDA (const size_type p ) {
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
+                       KOKKOS_LAMBDA (const size_type p ) {
 #ifndef MrHyDE_NO_AD
-          size_t numder = static_cast<size_t>(objsum(0).size());
-          if (p==0) {
-            objsum_dev(p) = objsum(0).val();
-          }
-          else if (p <= numder) {
-            objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-          }
+            size_t numder = static_cast<size_t>(objsum(0).size());
+            if (p==0) {
+              objsum_dev(p) = objsum(0).val();
+            }
+            else if (p <= numder) {
+              objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+            }
 #else
-          if (p==0) {
-            objsum_dev(p) = objsum(0);
-          }
+            if (p==0) {
+              objsum_dev(p) = objsum(0);
+            }
 #endif
-        });
+          });
         
-        auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
-        Kokkos::deep_copy(objsum_host,objsum_dev);
+          auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
+          Kokkos::deep_copy(objsum_host,objsum_dev);
         
+          // Update the objective function value
+          totaldiff[r] += objsum_host(0);
         
-        
-        // Update the objective function value
-        totaldiff[r] += objsum_host(0);
-        
-        // Update the gradients w.r.t scalar active parameters
-        for (size_t p=0; p<params->num_active_params; p++) {
-          gradients[r][p] += objsum_host(p+1);
+          // Update the gradients w.r.t scalar active parameters
+          for (size_t p=0; p<params->num_active_params; p++) {
+            gradients[r][p] += objsum_host(p+1);
+          }
         }
-      }
       
-      if (compute_response) {
-        if (objectives[r].save_data) {
-          objectives[r].response_times.push_back(current_time);
-          objectives[r].scalar_response_data.push_back(totaldiff[r]);
-          if (verbosity >= 10) {
-            double localval = totaldiff[r];
-            double globalval = 0.0;
-            Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
-            if (Comm->getRank() == 0) {
-              cout << objectives[r].name << " on block " << blocknames[objectives[r].block] << ": " << globalval << endl;
+        if (compute_response) {
+          if (objectives[r].save_data) {
+            objectives[r].response_times.push_back(current_time);
+            objectives[r].scalar_response_data.push_back(totaldiff[r]);
+            if (verbosity >= 10) {
+              double localval = totaldiff[r];
+              double globalval = 0.0;
+              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+              if (Comm->getRank() == 0) {
+                cout << objectives[r].name << " on block " << blocknames[objectives[r].block] << ": " << globalval << endl;
+              }
             }
           }
         }
-      }
-      
+      //}
+
       // Next, deriv w.r.t discretized params
       if (params->globalParamUnknowns > 0) {
         
@@ -2067,8 +2068,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           auto wts = assembler->groups[block][grp]->wts;
           
           assembler->groups[block][grp]->updateWorkset(3,0,true);
-          
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
+        
+          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
           
           Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
           parallel_for("grp objective",
@@ -2582,7 +2583,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   }
   
   objectiveval += fullobj;
-  
+
 }
 
 // ========================================================================================
@@ -3009,6 +3010,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
                 
         for (int w=0; w<spaceDim+1; ++w) {
+        //for (int w=0; w<1; ++w) {
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
@@ -3130,20 +3132,22 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             }
           });
           
-          Kokkos::View<ScalarT[1],AssemblyDevice> ir("integral of response");
-          parallel_for("grp objective",
-                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type pt=0; pt<wts.extent(1); pt++) {
-              //obj_dev(elem,pt) *= objectives[r].weight*wts(elem,pt);
-              ir(0) += obj_dev(elem,pt).val();
-            }
-          });
+          if (w==0) {
+            Kokkos::View<ScalarT[1],AssemblyDevice> ir("integral of response");
+            parallel_for("grp objective",
+                         RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              for (size_type pt=0; pt<wts.extent(1); pt++) {
+                //obj_dev(elem,pt) *= objectives[r].weight*wts(elem,pt);
+                ir(0) += obj_dev(elem,pt).val();
+              }
+            });
           
-          auto ir_host = create_mirror_view(ir);
-          deep_copy(ir_host,ir);
-          intresp += ir_host(0);
-          
+            auto ir_host = create_mirror_view(ir);
+            deep_copy(ir_host,ir);
+            intresp += ir_host(0);
+          }
+
           for (size_type n=0; n<numDOF.extent(0); n++) {
             int bnum = assembler->wkset[block]->usebasis[n];
             std::string btype = assembler->wkset[block]->basis_types[bnum];
