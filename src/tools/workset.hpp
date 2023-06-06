@@ -167,33 +167,33 @@ namespace MrHyDE {
     // Interact with the basis functions
     //////////////////////////////////////////////////////////////
     
-    CompressedView<View_Sc4> getBasis(const string & var);
+    CompressedViewSc4 getBasis(const string & var);
     
-    CompressedView<View_Sc4> getBasis(const int & varindex);
+    CompressedViewSc4 getBasis(const int & varindex);
     
-    CompressedView<View_Sc4> getBasisGrad(const string & var);
+    CompressedViewSc4 getBasisGrad(const string & var);
     
-    CompressedView<View_Sc4> getBasisGrad(const int & varindex);
+    CompressedViewSc4 getBasisGrad(const int & varindex);
     
-    CompressedView<View_Sc4> getBasisCurl(const string & var);
+    CompressedViewSc4 getBasisCurl(const string & var);
     
-    CompressedView<View_Sc4> getBasisCurl(const int & varindex);
+    CompressedViewSc4 getBasisCurl(const int & varindex);
     
-    CompressedView<View_Sc3> getBasisDiv(const string & var);
+    CompressedViewSc3 getBasisDiv(const string & var);
     
-    CompressedView<View_Sc3> getBasisDiv(const int & varindex);
+    CompressedViewSc3 getBasisDiv(const int & varindex);
     
-    CompressedView<View_Sc4> getBasisSide(const string & var);
+    CompressedViewSc4 getBasisSide(const string & var);
     
-    CompressedView<View_Sc4> getBasisSide(const int & varindex);
+    CompressedViewSc4 getBasisSide(const int & varindex);
     
-    CompressedView<View_Sc4> getBasisGradSide(const string & var);
+    CompressedViewSc4 getBasisGradSide(const string & var);
     
-    CompressedView<View_Sc4> getBasisGradSide(const int & varindex);
+    CompressedViewSc4 getBasisGradSide(const int & varindex);
     
-    CompressedView<View_Sc4> getBasisCurlSide(const string & var);
+    CompressedViewSc4 getBasisCurlSide(const string & var);
     
-    CompressedView<View_Sc4> getBasisCurlSide(const int & varindex);
+    CompressedViewSc4 getBasisCurlSide(const int & varindex);
         
     //////////////////////////////////////////////////////////////
     // Get decompressed bases
@@ -351,8 +351,8 @@ namespace MrHyDE {
     
     View_Sc1 h;
     View_Sc2 wts, wts_side;
-    vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
-    vector<CompressedView<View_Sc3>> basis_div;
+    vector<CompressedViewSc4> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
+    vector<CompressedViewSc3> basis_div;
     
     View_AD2 res, adjrhs;
     View_AD3 flux;

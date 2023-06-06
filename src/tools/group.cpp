@@ -145,11 +145,11 @@ void Group::computeBasis(const bool & keepnodes) {
                                        tbasis_div, tbasis_nodes, true);
 
       for (size_t i=0; i<tbasis.size(); ++i) {
-        basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
-        basis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
-        basis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
-        basis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
-        basis_nodes.push_back(CompressedView<View_Sc4>(tbasis_nodes[i]));
+        basis.push_back(CompressedViewSc4(tbasis[i]));
+        basis_grad.push_back(CompressedViewSc4(tbasis_grad[i]));
+        basis_div.push_back(CompressedViewSc3(tbasis_div[i]));
+        basis_curl.push_back(CompressedViewSc4(tbasis_curl[i]));
+        basis_nodes.push_back(CompressedViewSc4(tbasis_nodes[i]));
       }
       if (groupData->build_face_terms) {
         for (size_type side=0; side<groupData->numSides; side++) {
@@ -157,10 +157,10 @@ void Group::computeBasis(const bool & keepnodes) {
           
           disc->getPhysicalFaceBasis(groupData, side, nodes, orientation,
                                     face_basis, face_basis_grad);
-          vector<CompressedView<View_Sc4>> newf_basis, newf_basis_grad;
+          vector<CompressedViewSc4> newf_basis, newf_basis_grad;
           for (size_t i=0; i<face_basis.size(); ++i) {
-            newf_basis.push_back(CompressedView<View_Sc4>(face_basis[i]));
-            newf_basis_grad.push_back(CompressedView<View_Sc4>(face_basis_grad[i]));
+            newf_basis.push_back(CompressedViewSc4(face_basis[i]));
+            newf_basis_grad.push_back(CompressedViewSc4(face_basis_grad[i]));
           }
           basis_face.push_back(newf_basis);
           basis_grad_face.push_back(newf_basis_grad);
@@ -175,10 +175,10 @@ void Group::computeBasis(const bool & keepnodes) {
   }
   else if (groupData->use_basis_database) {
     for (size_t i=0; i<groupData->database_basis.size(); ++i) {
-      basis.push_back(CompressedView<View_Sc4>(groupData->database_basis[i],basis_index));
-      basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_basis_grad[i],basis_index));
-      basis_div.push_back(CompressedView<View_Sc3>(groupData->database_basis_div[i],basis_index));
-      basis_curl.push_back(CompressedView<View_Sc4>(groupData->database_basis_curl[i],basis_index));
+      basis.push_back(CompressedViewSc4(groupData->database_basis[i],basis_index));
+      basis_grad.push_back(CompressedViewSc4(groupData->database_basis_grad[i],basis_index));
+      basis_div.push_back(CompressedViewSc3(groupData->database_basis_div[i],basis_index));
+      basis_curl.push_back(CompressedViewSc4(groupData->database_basis_curl[i],basis_index));
     }
     if (!keepnodes) {
       nodes = DRV("empty nodes",1);
@@ -431,13 +431,13 @@ void Group::updateWorkset(const int & seedwhat, const int & seedindex,
                                     tbasis, tbasis_grad, tbasis_curl,
                                     tbasis_div, tbasis_nodes);
 
-    vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad, tcbasis_curl;
-    vector<CompressedView<View_Sc3>> tcbasis_div;
+    vector<CompressedViewSc4> tcbasis, tcbasis_grad, tcbasis_curl;
+    vector<CompressedViewSc3> tcbasis_div;
     for (size_t i=0; i<tbasis.size(); ++i) {
-      tcbasis.push_back(CompressedView<View_Sc4>(tbasis[i]));
-      tcbasis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
-      tcbasis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
-      tcbasis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
+      tcbasis.push_back(CompressedViewSc4(tbasis[i]));
+      tcbasis_grad.push_back(CompressedViewSc4(tbasis_grad[i]));
+      tcbasis_div.push_back(CompressedViewSc3(tbasis_div[i]));
+      tcbasis_curl.push_back(CompressedViewSc4(tbasis_curl[i]));
     }
     wkset->basis = tcbasis;
     wkset->basis_grad = tcbasis_grad;
@@ -622,7 +622,7 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
   int index;
   wkset->isVar(var,index);
   
-  CompressedView<View_Sc4> cbasis;
+  CompressedViewSc4 cbasis;
   auto cwts = wts;
 
   if (storeAll || groupData->use_basis_database) {
@@ -634,7 +634,7 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
     disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
                                      tbasis, tbasis_grad, tbasis_curl,
                                      tbasis_div, tbasis_nodes);
-    cbasis = CompressedView<View_Sc4>(tbasis[wkset->usebasis[index]]);
+    cbasis = CompressedViewSc4(tbasis[wkset->usebasis[index]]);
   }
   
   // Compute the average weight, i.e., the size of each elem
@@ -679,7 +679,7 @@ void Group::computeParameterAverage(const string & var, View_Sc2 sol) {
   int index;
   wkset->isParameter(var,index);
   
-  CompressedView<View_Sc4> cbasis;
+  CompressedViewSc4 cbasis;
   auto cwts = wts;
 
   if (storeAll || groupData->use_basis_database) {
@@ -691,7 +691,7 @@ void Group::computeParameterAverage(const string & var, View_Sc2 sol) {
     disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
                                      tbasis, tbasis_grad, tbasis_curl,
                                      tbasis_div, tbasis_nodes);
-    cbasis = CompressedView<View_Sc4>(tbasis[wkset->paramusebasis[index]]);
+    cbasis = CompressedViewSc4(tbasis[wkset->paramusebasis[index]]);
   }
   
   // Compute the average weight, i.e., the size of each elem
@@ -761,10 +761,10 @@ void Group::updateWorksetFace(const size_t & facenum) {
   
     disc->getPhysicalFaceBasis(groupData, facenum, nodes, orientation,
                                tbasis, tbasis_grad);
-    vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad;
+    vector<CompressedViewSc4> tcbasis, tcbasis_grad;
     for (size_t i=0; i<tbasis.size(); ++i) {
-      tcbasis.push_back(CompressedView<View_Sc4>(tbasis[i]));
-      tcbasis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
+      tcbasis.push_back(CompressedViewSc4(tbasis[i]));
+      tcbasis_grad.push_back(CompressedViewSc4(tbasis_grad[i]));
     }
     wkset->basis_side = tcbasis;
     wkset->basis_grad_side = tcbasis_grad;
@@ -1490,16 +1490,16 @@ View_Sc2 Group::getInitialFace(const bool & project) {
 // Get the mass matrix
 ///////////////////////////////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc3> Group::getMass() {
+CompressedViewSc3 Group::getMass() {
   
   size_t set = wkset->current_set;
   View_Sc3 mass_view("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
-  CompressedView<View_Sc3> mass(mass_view);
+  CompressedViewSc3 mass(mass_view);
   auto offsets = wkset->offsets;
   auto numDOF = groupData->numDOF;
   auto cwts = wts;
   
-  vector<CompressedView<View_Sc4>> tbasis;
+  vector<CompressedViewSc4> tbasis;
   if (storeAll) {
     tbasis = basis;
   }
@@ -1510,7 +1510,7 @@ CompressedView<View_Sc3> Group::getMass() {
                                     tmpbasis, tmpbasis_grad, tmpbasis_curl,
                                     tmpbasis_div, tmpbasis_nodes);
     for (size_t i=0; i<tmpbasis.size(); ++i) {
-      tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
+      tbasis.push_back(CompressedViewSc4(tmpbasis[i]));
     }
   }
   
@@ -1554,22 +1554,22 @@ CompressedView<View_Sc3> Group::getMass() {
 // Get a weighted mass matrix
 ///////////////////////////////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
+CompressedViewSc3 Group::getWeightedMass(vector<ScalarT> & masswts) {
   
   size_t set = wkset->current_set;
   auto numDOF = groupData->numDOF;
   
   View_Sc3 mass_view("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
-  CompressedView<View_Sc3> mass;
+  CompressedViewSc3 mass;
 
   if (groupData->use_mass_database) {
-    mass = CompressedView<View_Sc3>(groupData->database_mass[set], basis_index);
+    mass = CompressedViewSc3(groupData->database_mass[set], basis_index);
   }
   else {
     auto cwts = wts;
     auto offsets = wkset->offsets;
-    vector<CompressedView<View_Sc4>> tbasis;
-    mass = CompressedView<View_Sc3>(mass_view);
+    vector<CompressedViewSc4> tbasis;
+    mass = CompressedViewSc3(mass_view);
 
     if (storeAll || groupData->use_basis_database) {
       tbasis = basis;
@@ -1579,7 +1579,7 @@ CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
       disc->getPhysicalVolumetricBasis(groupData, nodes, orientation,
                                        tmpbasis);
       for (size_t i=0; i<tmpbasis.size(); ++i) {
-        tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
+        tbasis.push_back(CompressedViewSc4(tmpbasis[i]));
       }
     }
 
@@ -1634,12 +1634,12 @@ CompressedView<View_Sc3> Group::getWeightedMass(vector<ScalarT> & masswts) {
 // Get the mass matrix
 ///////////////////////////////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc3> Group::getMassFace() {
+CompressedViewSc3 Group::getMassFace() {
   
   size_t set = wkset->current_set;
   
   View_Sc3 mass_view("local mass",numElem, LIDs[set].extent(1), LIDs[set].extent(1));
-  CompressedView<View_Sc3> mass(mass_view);
+  CompressedViewSc3 mass(mass_view);
 
   auto offsets = wkset->offsets;
   auto numDOF = groupData->numDOF;

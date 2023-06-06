@@ -107,10 +107,10 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
     disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
                                    tbasis, tbasis_grad, tbasis_curl, tbasis_div);
     for (size_t i=0; i<tbasis.size(); ++i) {
-      basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
-      basis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
-      basis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
-      basis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
+      basis.push_back(CompressedViewSc4(tbasis[i]));
+      basis_grad.push_back(CompressedViewSc4(tbasis_grad[i]));
+      basis_div.push_back(CompressedViewSc3(tbasis_div[i]));
+      basis_curl.push_back(CompressedViewSc4(tbasis_curl[i]));
     }
     haveBasis = true;
     if (!keepnodes) {
@@ -119,8 +119,8 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
   }
   else if (groupData->use_basis_database) {
     for (size_t i=0; i<groupData->database_side_basis.size(); ++i) {
-      basis.push_back(CompressedView<View_Sc4>(groupData->database_side_basis[i],basis_index));
-      basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_side_basis_grad[i],basis_index));
+      basis.push_back(CompressedViewSc4(groupData->database_side_basis[i],basis_index));
+      basis_grad.push_back(CompressedViewSc4(groupData->database_side_basis_grad[i],basis_index));
     }
     
     if (!keepnodes) {
@@ -333,10 +333,10 @@ void BoundaryGroup::updateWorksetBasis() {
     vector<View_Sc3> tbasis_div;
     disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
                                    tbasis, tbasis_grad, tbasis_curl, tbasis_div);
-    vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad;
+    vector<CompressedViewSc4> tcbasis, tcbasis_grad;
     for (size_t i=0; i<tbasis.size(); ++i) {
-      tcbasis.push_back(CompressedView<View_Sc4>(tbasis[i]));
-      tcbasis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
+      tcbasis.push_back(CompressedViewSc4(tbasis[i]));
+      tcbasis_grad.push_back(CompressedViewSc4(tbasis_grad[i]));
     }
     wkset->basis_side = tcbasis;
     wkset->basis_grad_side = tcbasis_grad;

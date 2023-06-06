@@ -1375,7 +1375,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
       
       if (!groups[block][grp]->storeMass) { 
         auto twts = groups[block][grp]->wts;
-        vector<CompressedView<View_Sc4>> tbasis;
+        vector<CompressedViewSc4> tbasis;
         if (groups[block][grp]->storeAll) { // unlikely case, but enabled
           tbasis = groups[block][grp]->basis;
         }
@@ -1384,13 +1384,13 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
           disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes,
                                            groups[block][grp]->orientation, tmpbasis);
           for (size_t i=0; i<tmpbasis.size(); ++i) {
-            tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
+            tbasis.push_back(CompressedViewSc4(tmpbasis[i]));
           }
         }
         
         for (size_type var=0; var<numDOF.extent(0); var++) {
           int bindex = wkset[block]->usebasis[var];
-          CompressedView<View_Sc4> cbasis = tbasis[bindex];
+          CompressedViewSc4 cbasis = tbasis[bindex];
           
           string btype = wkset[block]->basis_types[bindex];
           auto off = subview(offsets,var,ALL());
