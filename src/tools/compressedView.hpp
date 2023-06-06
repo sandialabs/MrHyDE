@@ -59,10 +59,20 @@ namespace MrHyDE {
     //! Default destructor
     KOKKOS_INLINE_FUNCTION
     ~CompressedView() {};
-    
-    //! Decompress the view by returning a view with all the copied data
-    ViewType decompress();
 
+    //! Decompress the view by returning a view with all the copied data
+    ViewType decompress() const {
+      // if (have_key_) {
+      //   ViewType decompressed_view();
+      //   return decompressed_view;
+
+      // }
+      // else {
+      //   return view_;
+      // }
+      return view_;
+    }
+    
     //! Access for a one-dimensional view
     /*
     KOKKOS_INLINE_FUNCTION
@@ -165,41 +175,7 @@ namespace MrHyDE {
       std::cout << "              = " << ((key_.extent(0) - view_.extent(0))*view_.extent(1)*view_.extent(2)*view_.extent(3) - key_.extent(0))*sizeof(typename ViewType::value_type) << " bytes " << std::endl;
     }
   };
-}
-
-template<>
-View_Sc3 CompressedView::decompress() const {
-  if (have_key_) {
-    View_Sc3 decompressed_view("decompressed view",view_.extent(0),view_.extent(1),view_.extent(2));
-    parallel_for("decompress view",
-                  RangePolicy<AssemblyExec>(0,view_.extent(0)),
-                  KOKKOS_LAMBDA (const int i ) {
-      for(size_type j=0; j<view_.extent(1); ++j)
-        for(size_type k=0; k<view_.extent(2); ++k)
-          decompressed_view(i,j,k) = view_(key_(i),j,k);
-    });
-    return decompressed_view;
-  } else {
-    return view_;
-  }
-}
-
-template<>
-View_Sc4 CompressedView::decompress() const {
-  if (have_key_) {
-    ViewType decompressed_view("decompressed view",view_.extent(0),view_.extent(1),view_.extent(2),view_.extent(3));
-    parallel_for("decompress view",
-                  RangePolicy<AssemblyExec>(0,view_.extent(0)),
-                  KOKKOS_LAMBDA (const int i ) {
-      for(size_type j=0; j<view_.extent(1); ++j)
-        for(size_type k=0; k<view_.extent(2); ++k)
-          for(size_type l=0; l<view_.extent(3); ++l)
-            decompressed_view(i,j,k,l) = view_(key_(i),j,k,l);
-    });
-    return decompressed_view;
-  } else {
-    return view_;
-  }
+  
 }
 
 #endif
