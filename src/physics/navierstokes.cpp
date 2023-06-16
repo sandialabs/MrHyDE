@@ -603,7 +603,7 @@ void navierstokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*duy_dy(elem,pt);
+          AD Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
           AD Fy = visc(elem,pt)*duy_dy(elem,pt) - pr(elem,pt);
           Fy *= wts(elem,pt);
