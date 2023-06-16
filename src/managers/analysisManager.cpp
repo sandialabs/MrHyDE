@@ -23,6 +23,7 @@
 #include "ROL_Bounds.hpp"
 #include "ROL_TrustRegionStep.hpp"
 #include "ROL_Solver.hpp"
+#include "../../hdsalib/refactor/src/source_file.hpp"
 
 using namespace MrHyDE;
 
@@ -754,6 +755,43 @@ void AnalysisManager::run() {
     else { // don't solve anything, but produce visualization
       std::cout << "Unknown restart mode: " << mode << std::endl;
     }
+  }
+  else if (analysis_type == "HDSA") {
+    typedef ScalarT RealT;
+
+    Teuchos::RCP< ROL::Objective_MILO<RealT> > obj;
+    
+    // Turn off visualization while optimizing
+    bool postproc_plot = postproc->write_solution;
+    postproc->write_solution = false;
+    
+    // Generate data and get objective
+    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params));
+
+    std::cout << "analysis option: " << analysis_type << std::endl;     
+    //bvbw compile error    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj,postproc);
+    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj);
+    HDSA::Ptr<HDSA::Model_Discrepancy_Update<RealT> > md_update = HDSA::makePtr<HDSA::Model_Discrepancy_Update<RealT> >(md_interface);
+  
+  RealT alpha = 1.e-3;
+  md_update->Compute_Posterior_Data(alpha);
+  HDSA::Ptr<HDSA::Vector<RealT> > z_update = md_update->Posterior_Update_Mean();
+
+  // const Std_Vector<RealT> z_update_std = dynamic_cast<const Std_Vector<RealT>&>(*z_update);
+  // std::string name = "z_update.txt";
+  // std::ofstream fout;
+  // fout.open(name);
+  // for(int k = 0; k < z_update->dimension(); k++)
+  //   {
+  //     fout << std::setprecision(16) << z_update_std(k) << std::endl;
+  //   }
+  // fout.close();
+
+  // const Model_Discrepancy_Interface_Mrhyde<RealT> md_mrhdye = dynamic_cast<const Model_Discrepancy_Interface_Mrhyde<RealT>&>(*md_interface);
+  // HDSA::Ptr<HDSA::Vector<RealT> > matlab_z_update  = md_interface_example.Load_Matlab_z_Update();
+  // matlab_z_update->axpy(-1.0,*z_update);
+  // RealT error = matlab_z_update->norm();
+  // std::cout << "Difference between computed solution and stored solution from Matlab = " << error << std::endl;
   }
   else { // don't solve anything, but produce visualization
     std::cout << "Unknown analysis option: " << analysis_type << std::endl;
