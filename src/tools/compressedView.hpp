@@ -141,6 +141,8 @@ namespace MrHyDE {
     View_Sc4 view_;
     //! The random access key for grabbing the underlying data
     Kokkos::View<LO*,AssemblyDevice> key_;
+    //! The scaling factors for the object
+    Kokkos::View<ScalarT*,AssemblyDevice> scale_;
     //! A boolean whether the key has been allocated. If not, the view behaves like a normal view.
     bool have_key_;
 

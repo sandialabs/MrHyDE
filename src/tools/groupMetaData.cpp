@@ -41,6 +41,7 @@ cellTopo(cellTopo_) {
   //storeAll = false;//settings->sublist("Solver").get<bool>("store all cell data",true);
   matrix_free = settings->sublist("Solver").get<bool>("matrix free",false);
   use_basis_database = settings->sublist("Solver").get<bool>("use basis database",false);
+  use_database_scaling = settings->sublist("Solver").get<bool>("use database scaling",false) && use_basis_database; // this is false if databases are turned off
   use_mass_database = settings->sublist("Solver").get<bool>("use mass database",false);
   store_mass = settings->sublist("Solver").get<bool>("store mass",true);
   use_sparse_mass = false;

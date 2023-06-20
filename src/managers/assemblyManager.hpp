@@ -227,12 +227,30 @@ namespace MrHyDE {
 
     void writeVolumetricData(const size_t & block, vector<vector<size_t>> & all_orients);
 
+    /**
+     * \brief For a given block id block, computes the ids of unique jacobians and returns them in first_users.
+     */
     void identifyVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
 
+    /**
+     * \brief For a given block id block, computes the ids of unique jacobians and returns them in first_users
+     * and returns scaling factors in scales.
+     */
+    void identifyVolumetricScalingDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users, vector<ScalarT> & db_scales);
+
+    /**
+     * \brief For a given block id block, computes the ids of unique boundary jacobians and returns them in first_users.
+     */
     void identifyBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
-    
+
+    /**
+     * \brief For a given block id block and list of IDs given by first_users, assigns the finite element information related to the databases
+     */
     void buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
 
+    /**
+     * \brief For a given block id block and list of IDs given by first_users, assigns the finite element information on boundaries related to the databases
+     */
     void buildBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
     
     ////////////////////////////////////////////////////////////////////////////////

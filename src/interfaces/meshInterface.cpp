@@ -434,6 +434,9 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
           }
           if (settings->sublist("Solver").get<bool>("use basis database",false)) {
             stk_mesh->addCellField("unique Jacobian ID", block_names[i]);
+            if (settings->sublist("Solver").get<bool>("use database scaling",false)) {
+              stk_mesh->addCellField("database scale factor", block_names[i]);
+            }
           }
           if (settings->isSublist("Parameters")) {
             Teuchos::ParameterList parameters = settings->sublist("Parameters");

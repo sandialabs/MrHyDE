@@ -95,6 +95,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra grp field reduction","mean");
   write_database_id = settings->sublist("Solver").get<bool>("use basis database",false);
+  write_database_scaling = settings->sublist("Solver").get<bool>("use database scaling",false) && write_database_id;
   compute_flux_response = settings->sublist("Postprocess").get("compute flux response",false);
   store_sensor_solution = settings->sublist("Postprocess").get("store sensor solution",false);
   fileoutput = settings->sublist("Postprocess").get("file output format","text");
@@ -4165,6 +4166,23 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         }
         Kokkos::deep_copy(jacnum, jacnum_dev);
         mesh->stk_mesh->setCellFieldData("unique Jacobian ID", blockID, myElements, jacnum);
+      }
+      
+      if (write_database_scaling) {
+        Kokkos::View<ScalarT*,AssemblyDevice> jacnum_dev("unique jac ID",myElements.size());
+        auto jacnum = Kokkos::create_mirror_view(jacnum_dev);
+        
+        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+          auto index = assembler->groups[block][grp]->basis_index;
+          auto eID = assembler->groups[block][grp]->localElemID;
+          parallel_for("postproc plot param HVOL",
+                       RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
+            jacnum_dev(eID(elem)) = index(elem); // TMW: is this what we want?
+          });
+        }
+        Kokkos::deep_copy(jacnum, jacnum_dev);
+        mesh->stk_mesh->setCellFieldData("database scale factor", blockID, myElements, jacnum);
       }
 
       if (write_subgrid_model) {
