@@ -1,0 +1,113 @@
+# Solves a Navier Stokes system with the magnetic field acting in one direction
+# The magnetic field acts as a source controller
+# Currently not working as intended
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 1
+  debug level: 0
+  Mesh:
+    dimension: 3
+    element type: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 512
+    NY: 2
+    NZ: 2
+    Periodic BCs:
+      Count: 3
+      Periodic Condition 1: 'xz-all 1e-10,3D: top;bottom'
+      Periodic Condition 2: 'yz-all 1e-10,3D: left;right'
+      Periodic Condition 3: 'xy-all 1e-10,3D: front;back'
+  Physics:
+    modules: navier stokes
+    Initial conditions: # TODO
+      ux: 'init_vec_x*sin(2*pi*x)'
+      uy: 'init_vec_y*sin(2*pi*x)'
+      uz: 'init_vec_z*sin(2*pi*x)'
+      pr: 'init_val_pr+pr_amp*sin(2*pi*x)'
+    usePSPG: true
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      uz: 1
+      pr: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    transient Butcher tableau: BWE
+    nonlinear TOL: 1.0e-10
+    max nonlinear iters: 15
+    final time: 0.5
+    delta t: 0.05
+  Analysis: 
+    analysis type: forward
+  Functions:
+    source ux: '-cos_xp2t*(B2_comp+B3_comp)/mu_0' # Comes from div(||B||^2I)/2
+    source uy: 'B2_amp*cos_xp2t/mu_0' # Comes from div(B*B^T)
+    source uz: 'B3_amp*cos_xp2t/mu_0' # Comes from div(B*B^T)
+    B2_comp: 'B2_amp*(B2_0+B2_amp*sin_xp2t)'
+    B3_comp: 'B3_amp*(B3_0+B3_amp*sin_xp2t)'
+    sin_xp2t: 'sin(2*pi*(x+2*t))'
+    cos_xp2t: '2*pi*cos(2*pi*(x+2*t))'
+
+  Postprocess:
+    write solution: true
+    output file: output
+    compute errors: true
+    True solutions: # TODO: Fix?
+      ux: 'init_vec_x*sin(2*pi*(x+2*t))'
+      uy: 'init_vec_y*sin(2*pi*(x+2*t))'
+      uz: 'init_vec_z*sin(2*pi*(x+2*t))'
+      pr: 'init_val_pr+pr_amp*sin(2*pi*(x+2*t))'
+  Parameters:
+    B1: # First, background magnetic field. No induction in x dir, so magnet is static
+      type: scalar
+      value: 1.0
+      usage: inactive
+    B2_0: # External magnetism in y dir
+      type: scalar
+      value: 1.41421356237
+      usage: inactive
+    B3_0: # External magnetism in z dir
+      type: scalar
+      value: 0.5
+      usage: inactive
+    mu_0: # Free space permeability
+      type: scalar
+      value: 1.25663706212e-6
+      usage: inactive
+    init_vec_x:
+      type: scalar # Initial condition rotation of velocity, x
+      value: -8.94450354e-05
+      usage: inactive
+    init_vec_y:
+      type: scalar # i.c. for u, y
+      value: 4.21647940e-05
+      usage: inactive
+    init_vec_z:
+      type: scalar # i.c. for u, z
+      value: 1.49075059e-05
+      usage: inactive
+    B2_amp: # Amplitude of Alfven wave
+      type: scalar
+      value: 8.432740907398035e-05
+      usage: inactive
+    B3_amp:  # Amplitude of Alfven wave    
+      type: scalar
+      value: 2.98142395850023e-05
+      usage: inactive
+    pr_amp: # Amplitude of the Pressure wave
+      type: scalar
+      value: 4.472113853102992e-05
+      usage: inactive
+    init_val_pr: # Offset of the pressure
+      type: scalar
+      value: 0.6
+      usage: inactive
+...
