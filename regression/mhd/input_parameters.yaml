@@ -1,0 +1,53 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters:
+    B1: # First, background magnetic field. No induction in x dir, so magnet is static
+      type: scalar
+      value: 1.0
+      usage: inactive
+    B2_0: # External magnetism in y dir
+      type: scalar
+      value: 1.41421356237
+      usage: inactive
+    B3_0: # External magnetism in z dir
+      type: scalar
+      value: 0.5
+      usage: inactive
+    pr_0: # Offset of the pressure
+      type: scalar
+      value: 0.6
+      usage: inactive
+    mu_0: # Free space permeability
+      type: scalar
+      value: 1.25663706212e-6
+      usage: inactive
+    sigma: # Conductivity
+      type: scalar
+      value: 1.0e8
+      usage: inactive
+    init_vec_x:
+      type: scalar # Initial condition rotation of velocity, x
+      value: -1e-7
+      usage: inactive
+    init_vec_y:
+      type: scalar # i.c. for u, y
+      value: -1e-7
+      usage: inactive
+    init_vec_z:
+      type: scalar # i.c. for u, z
+      value: -1e-7
+      usage: inactive
+    B2_amp: # Amplitude of Alfven wave
+      type: scalar
+      value: 8.432740907398035e-05
+      usage: inactive
+    B3_amp:  # Amplitude of Alfven wave    
+      type: scalar
+      value: 2.98142395850023e-05
+      usage: inactive
+    pr_amp: # Amplitude of the Pressure wave
+      type: scalar
+      value: 4.472113853102992e-05
+      usage: inactive
+...
