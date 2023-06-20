@@ -26,6 +26,13 @@ ANONYMOUS:
       Periodic Condition 3: 'xy-all 1e-10: front;back'
   Physics:
     modules: 'navier stokes, maxwell'
+    Active variables:
+      Ex: HGRAD-DG
+      Ey: HGRAD-DG
+      Ez: HGRAD-DG
+      Bx: HDIV-DG
+      By: HDIV-DG
+      Bz: HDIV-DG
     Initial conditions:
       ux: 'init_vec_x*sin(2*pi*x)'
       uy: 'init_vec_y*sin(2*pi*x)'
@@ -51,14 +58,27 @@ ANONYMOUS:
       Ez: 1
       pr: 1
     quadrature: 2
-  Solver:
-    solver: 'transient'
+   Solver:
+    solver: transient
     transient BDF order: 1
     itransient Butcher tableau: DIRK-1,2
     transient Butcher tableau: BWE
-    final time: 5.0
+    workset size: 200
+    nonlinear TOL: 1.0e-12
+    linear TOL: 1.0e-12
+    max nonlinear iters: 2
+    max linear iters: 200
+    use direct solver: false
+    use domain decomposition: false
+    use preconditioner: true
+    preconditioner reuse type: full
+    Preconditioner Settings:
+      verbosity: none
+      number of equations: 10
+      'problem: type': MHD
+    final time: 1.0
     delta t: 0.025
-  Analysis: 
+  Analysis:
     analysis type: forward
   Functions input file: input_functions.yaml
   Parameters input file: input_parameters.yaml
