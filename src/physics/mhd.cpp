@@ -12,7 +12,7 @@
 //  ************************************************************************/
 
 // MHD Physics module. Not working yet.
-// #define MrHyDE_ENABLE_MHD 1
+#define MrHyDE_ENABLE_MHD
 #if defined(MrHyDE_ENABLE_MHD)
 #include "mhd.hpp"
 using namespace MrHyDE;
@@ -40,9 +40,9 @@ mhd::mhd(Teuchos::ParameterList &settings, const int &dimension_)
   mybasistypes.push_back("HGRAD");
   mybasistypes.push_back("HGRAD");
   mybasistypes.push_back("HGRAD");
-  mybasistypes.push_back("HDIV");
-  mybasistypes.push_back("HDIV");
-  mybasistypes.push_back("HDIV");
+  mybasistypes.push_back("HGRAD");
+  mybasistypes.push_back("HGRAD");
+  mybasistypes.push_back("HGRAD");
 
   /* useSUPG = settings.get<bool>("useSUPG", false);
   usePSPG = settings.get<bool>("usePSPG", false);
@@ -68,9 +68,9 @@ void mhd::defineFunctions(Teuchos::ParameterList &fs,
   functionManager->addFunction("source ux", fs.get<string>("source ux", "0.0"), "ip");
   functionManager->addFunction("source uy", fs.get<string>("source uy", "0.0"), "ip");
   functionManager->addFunction("source uz", fs.get<string>("source uz", "0.0"), "ip");
-  functionManager->addFunction("source Bx", fs.get<string>("source ux", "0.0"), "ip");
-  functionManager->addFunction("source By", fs.get<string>("source uy", "0.0"), "ip");
-  functionManager->addFunction("source Bz", fs.get<string>("source uz", "0.0"), "ip");
+  functionManager->addFunction("source Bx", fs.get<string>("source Bx", "0.0"), "ip");
+  functionManager->addFunction("source By", fs.get<string>("source By", "0.0"), "ip");
+  functionManager->addFunction("source Bz", fs.get<string>("source Bz", "0.0"), "ip");
   functionManager->addFunction("density", fs.get<string>("density", "1.0"), "ip");
   functionManager->addFunction("viscosity", fs.get<string>("viscosity", "1.0"), "ip");
   functionManager->addFunction("mu", fs.get<string>("permeability", "1.2e-7"), "ip");
@@ -96,8 +96,8 @@ void mhd::volumeResidual()
     source_uz = functionManager->evaluate("source uz", "ip");
     dens = functionManager->evaluate("density", "ip");
     visc = functionManager->evaluate("viscosity", "ip");
-    mu = wkset->getSolutionField("mu");
-    eta = wkset->getSolutionField("eta");
+    mu  = functionManager->evaluate("mu", "ip");
+    eta = functionManager->evaluate("eta", "ip");
   }
 
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -339,7 +339,7 @@ void mhd::volumeResidual()
     auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
     auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
     auto off = subview(wkset->offsets, pr_num, ALL());
-    bool nonlinear_solenoidal = false;
+    bool nonlinear_solenoidal = true;
     if(nonlinear_solenoidal) {
       auto dBx_dx = wkset->getSolutionField("grad(Bx)[x]");
       auto dBy_dy = wkset->getSolutionField("grad(By)[y]");
@@ -572,9 +572,10 @@ void mhd::boundaryResidual()
 // The boundary/edge flux
 // ========================================================================================
 
-void mhd::computeFlux()
-{
-}
+// TODO: Not sure why, but this causes error
+// void mhd::computeFlux()
+// {
+// }
 
 // ========================================================================================
 // ========================================================================================

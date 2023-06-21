@@ -1,0 +1,79 @@
+# Uses a general formulation of MHD by
+# coupling Maxwell's and NS. The coupling terms
+# are analytically derived
+# Not quite working yet.
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 11
+  debug level: 11
+  Mesh:
+    dimension: 3
+    element type: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 32
+    NY: 32
+    NZ: 32
+    Periodic BCs:
+      Count: 3
+      Periodic Condition 1: 'xz-all 1e-10: top;bottom'
+      Periodic Condition 2: 'yz-all 1e-10: left;right'
+      Periodic Condition 3: 'xy-all 1e-10: front;back'
+  Physics:
+    modules: 'mhd'
+    Active variables:
+      Bx: HDIV-DG
+      By: HDIV-DG
+      Bz: HDIV-DG
+    Initial conditions:
+      ux: 'init_vec_x*sin(2*pi*x)'
+      uy: 'init_vec_y*sin(2*pi*x)'
+      uz: 'init_vec_z*sin(2*pi*x)'
+      Bx: 'B1_0'
+      By: 'B2_0+B2_amp*sin(2*pi*x)'
+      Bz: 'B3_0+B3_amp*sin(2*pi*x)'
+      pr: 'pr_0 + pr_amp*sin(2*pi*x)'
+    usePSPG: true
+  Discretization:
+    order:
+      ux: 1
+      uy: 1
+      uz: 1
+      Bx: 1
+      By: 1
+      Bz: 1
+      pr: 1
+    quadrature: 2
+   Solver:
+    solver: transient
+    transient BDF order: 1
+    itransient Butcher tableau: DIRK-1,2
+    transient Butcher tableau: BWE
+    workset size: 200
+    nonlinear TOL: 1.0e-12
+    linear TOL: 1.0e-12
+    max nonlinear iters: 5
+    max linear iters: 200
+    use direct solver: false
+    use domain decomposition: false
+    use preconditioner: true
+    preconditioner reuse type: full
+    Preconditioner Settings:
+      verbosity: none
+      number of equations: 7
+      'problem: type': MHD
+    final time: 1.0
+    delta t: 0.025
+  Analysis:
+    analysis type: forward
+  Functions input file: input_functions.yaml
+  Parameters input file: input_parameters.yaml
+  Postprocess:
+    write solution: true
+    output file: output
+...
