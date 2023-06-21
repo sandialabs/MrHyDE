@@ -131,9 +131,9 @@ void mhd::volumeResidual()
         KOKKOS_LAMBDA(const int elem) {
           for (size_type pt = 0; pt < basis.extent(2); pt++)
           {
-            AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt);
+            AD norm_B = (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt)) / (2*mu(elem, pt));
             AD Fx = visc(elem, pt) * dux_dx(elem, pt) +
-                    Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt) - (norm_B / (2*mu(elem, pt)) + pr(elem, pt));
+                    Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt) - (norm_B + pr(elem, pt));
             Fx *= wts(elem, pt);
             AD Fy = visc(elem, pt)*dux_dy(elem, pt) + Bx(elem, pt)*By(elem, pt)/mu(elem, pt);
             Fy *= wts(elem, pt);
@@ -209,11 +209,10 @@ void mhd::volumeResidual()
         KOKKOS_LAMBDA(const int elem) {
           for (size_type pt = 0; pt < basis.extent(2); pt++)
           {
-            AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt);
+            AD norm_B = (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt)) / (2*mu(elem,pt));
             AD Fx = visc(elem, pt)*duy_dy(elem, pt) + By(elem, pt)*Bx(elem, pt)/mu(elem, pt);
             Fx *= wts(elem, pt);
-            AD Fy = visc(elem, pt)*duy_dy(elem, pt) +
-              By(elem, pt)*By(elem, pt)/mu(elem, pt) - (norm_B/(2*mu(elem, pt)) + pr(elem, pt));
+            AD Fy = visc(elem, pt)*duy_dy(elem, pt) + By(elem, pt)*By(elem, pt)/mu(elem, pt) - (norm_B + pr(elem, pt));
             Fy *= wts(elem, pt);
             AD Fz = visc(elem, pt)*duy_dz(elem, pt) + By(elem, pt)*Bz(elem, pt)/mu(elem, pt);
             Fz *= wts(elem, pt);
@@ -281,12 +280,12 @@ void mhd::volumeResidual()
         KOKKOS_LAMBDA(const int elem) {
           for (size_type pt = 0; pt < basis.extent(2); pt++)
           {
-            AD norm_B = Bx(elem, pt) * Bx(elem, pt) + By(elem, pt) * By(elem, pt) + Bz(elem, pt) * Bz(elem, pt);
+            AD norm_B = (Bx(elem, pt) * Bx(elem, pt) + By(elem, pt) * By(elem, pt) + Bz(elem, pt) * Bz(elem, pt)) / (2*mu(elem,pt));
             AD Fx = visc(elem, pt) * duz_dx(elem, pt) + Bz(elem, pt) * Bx(elem, pt) / mu(elem, pt);
             Fx *= wts(elem, pt);
             AD Fy = visc(elem, pt) * duz_dy(elem, pt) + Bz(elem, pt) * By(elem, pt) / mu(elem, pt);
             Fy *= wts(elem, pt);
-            AD Fz = visc(elem, pt) * duz_dz(elem, pt) + Bz(elem, pt) * Bz(elem, pt) / mu(elem, pt) - (norm_B / (2 * mu(elem, pt)) + pr(elem, pt));
+            AD Fz = visc(elem, pt) * duz_dz(elem, pt) + Bz(elem, pt) * Bz(elem, pt) / mu(elem, pt) - (norm_B + pr(elem, pt));
             Fz *= wts(elem, pt);
             AD F = duz_dt(elem, pt) +
                    ux(elem, pt) * duz_dx(elem, pt) +
@@ -427,8 +426,6 @@ void mhd::volumeResidual()
     auto dBx_dt = wkset->getSolutionField("Bx_t");
     auto dBx_dy = wkset->getSolutionField("grad(Bx)[y]");
     auto dBx_dz = wkset->getSolutionField("grad(Bx)[z]");
-    auto dBy_dx = wkset->getSolutionField("grad(By)[x]");
-    auto dBz_dx = wkset->getSolutionField("grad(Bz)[x]");
     auto ux = wkset->getSolutionField("ux");
     auto uy = wkset->getSolutionField("uy");
     auto uz = wkset->getSolutionField("uz");
@@ -444,12 +441,13 @@ void mhd::volumeResidual()
             Fx *= wts(elem, pt);
             
             AD Fy = By(elem,pt)*ux(elem,pt) - uy(elem,pt)*Bx(elem,pt) -
-              eta(elem,pt)*(dBx_dy(elem,pt) - dBy_dx(elem,pt));
+              eta(elem,pt)*dBx_dy(elem,pt)/mu(elem,pt);
             Fy *= wts(elem, pt);
 
             AD Fz = Bz(elem,pt)*ux(elem,pt) - uz(elem,pt)*Bx(elem,pt) -
-              eta(elem,pt)*(dBx_dz(elem,pt) - dBz_dx(elem,pt));
+              eta(elem,pt)*dBx_dz(elem,pt)/mu(elem,pt);
             Fz *= wts(elem, pt);
+
             AD F = dBx_dt(elem, pt);
             F *= wts(elem, pt);
             for (size_type dof = 0; dof < basis.extent(1); dof++)
@@ -472,10 +470,8 @@ void mhd::volumeResidual()
     auto By = wkset->getSolutionField("By");
     auto Bz = wkset->getSolutionField("Bz");
     auto dBy_dt = wkset->getSolutionField("By_t");
-    auto dBx_dy = wkset->getSolutionField("grad(Bx)[y]");
     auto dBy_dx = wkset->getSolutionField("grad(By)[x]");
     auto dBy_dz = wkset->getSolutionField("grad(By)[z]");
-    auto dBz_dy = wkset->getSolutionField("grad(Bz)[y]");
     auto ux = wkset->getSolutionField("ux");
     auto uy = wkset->getSolutionField("uy");
     auto uz = wkset->getSolutionField("uz");
@@ -487,12 +483,15 @@ void mhd::volumeResidual()
         KOKKOS_LAMBDA(const int elem) {
           for (size_type pt = 0; pt < basis.extent(2); pt++)
           {
-            AD Fx = Bx(elem,pt)*uy(elem,pt) - ux(elem,pt)*By(elem,pt) - eta(elem,pt)*(dBy_dx(elem,pt) - dBx_dy(elem,pt));
+            AD Fx = Bx(elem,pt)*uy(elem,pt) - ux(elem,pt)*By(elem,pt) - eta(elem,pt)*dBy_dx(elem,pt)/mu(elem,pt);
             Fx *= wts(elem, pt);
+
             AD Fy = 0.;
             Fy *= wts(elem, pt);
-            AD Fz = Bz(elem,pt)*uy(elem,pt) - uz(elem,pt)*By(elem,pt) - eta(elem,pt)*(dBy_dz(elem,pt) - dBz_dy(elem,pt));
+
+            AD Fz = Bz(elem,pt)*uy(elem,pt) - uz(elem,pt)*By(elem,pt) - eta(elem,pt)*dBy_dz(elem,pt)/mu(elem,pt);
             Fz *= wts(elem, pt);
+
             AD F = dBy_dt(elem, pt);
             F *= wts(elem, pt);
             for (size_type dof = 0; dof < basis.extent(1); dof++)
@@ -515,8 +514,6 @@ void mhd::volumeResidual()
     auto By = wkset->getSolutionField("By");
     auto Bz = wkset->getSolutionField("Bz");
     auto dBz_dt = wkset->getSolutionField("Bz_t");
-    auto dBx_dz = wkset->getSolutionField("grad(Bx)[z]");
-    auto dBy_dz = wkset->getSolutionField("grad(By)[z]");
     auto dBz_dx = wkset->getSolutionField("grad(Bz)[x]");
     auto dBz_dy = wkset->getSolutionField("grad(Bz)[y]");
     auto ux = wkset->getSolutionField("ux");
@@ -530,12 +527,15 @@ void mhd::volumeResidual()
         KOKKOS_LAMBDA(const int elem) {
           for (size_type pt = 0; pt < basis.extent(2); pt++)
           {
-            AD Fx = Bx(elem,pt)*uz(elem,pt) - ux(elem,pt)*Bz(elem,pt) - eta(elem,pt)*(dBz_dx(elem,pt) - dBx_dz(elem,pt));
+            AD Fx = Bx(elem,pt)*uz(elem,pt) - ux(elem,pt)*Bz(elem,pt) - eta(elem,pt)*dBz_dx(elem,pt)/mu(elem,pt);
             Fx *= wts(elem, pt);
-            AD Fy = By(elem,pt)*uz(elem,pt) - uy(elem,pt)*Bz(elem,pt) - eta(elem,pt)*(dBz_dy(elem,pt) - dBy_dz(elem,pt));
+
+            AD Fy = By(elem,pt)*uz(elem,pt) - uy(elem,pt)*Bz(elem,pt) - eta(elem,pt)*dBz_dy(elem,pt)/mu(elem,pt);
             Fy *= wts(elem, pt);
+
             AD Fz = 0.;
             Fz *= wts(elem, pt);
+            
             AD F = dBz_dt(elem, pt);
             F *= wts(elem, pt);
             for (size_type dof = 0; dof < basis.extent(1); dof++)

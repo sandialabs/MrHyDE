@@ -26,10 +26,6 @@ ANONYMOUS:
       Periodic Condition 3: 'xy-all 1e-10: front;back'
   Physics:
     modules: 'mhd'
-    Active variables:
-      Bx: HDIV-DG
-      By: HDIV-DG
-      Bz: HDIV-DG
     Initial conditions:
       ux: 'init_vec_x*sin(2*pi*x)'
       uy: 'init_vec_y*sin(2*pi*x)'
