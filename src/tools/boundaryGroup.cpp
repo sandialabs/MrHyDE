@@ -754,7 +754,7 @@ View_Sc2 BoundaryGroup::getDirichlet(const size_t & set) {
 
       int bind = wkset->usebasis[n];
       std::string btype = groupData->basis_types[bind];
-      auto cbasis = basis[bind]; // may fault in memory-saving mode
+      auto cbasis = basis[bind].decompress(); // may fault in memory-saving mode
       
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
@@ -819,7 +819,7 @@ View_Sc3 BoundaryGroup::getMass(const size_t & set) {
   for (size_type n=0; n<numDOF.extent(0); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
       int bind = wkset->usebasis[n];
-      auto cbasis = basis[bind];
+      auto cbasis = basis[bind].decompress();
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       std::string btype = groupData->basis_types[bind];
       

@@ -155,8 +155,8 @@ void porous::boundaryResidual() {
   string bctype = bcs(pnum,cside);
   
   int basis_num = wkset->usebasis[pnum];
-  auto basis = wkset->basis_side[basis_num];
-  auto basis_grad = wkset->basis_grad_side[basis_num];
+  auto basis = wkset->basis_side[basis_num].decompress();
+  auto basis_grad = wkset->basis_grad_side[basis_num].decompress();
   
   Vista perm, viscosity, densref, pref, comp, gravity, source; // porosity is currently unused
   
@@ -319,7 +319,7 @@ void porous::computeFlux() {
   }
   
   auto h = wkset->h;
-  auto basis_grad = wkset->basis_side[wkset->usebasis[pnum]];
+  auto basis_grad = wkset->basis_side[wkset->usebasis[pnum]].decompress();
  
   {
     Teuchos::TimeMonitor localtime(*fluxFill);

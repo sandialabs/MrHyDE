@@ -227,7 +227,7 @@ void shallowwaterHybridized::boundaryResidual() {
   for (size_t iEqn=0; iEqn<varlist.size(); ++iEqn) {
   
     int basis_num = wkset->usebasis[iEqn];
-    auto basis = wkset->basis_side[basis_num];
+    auto basis = wkset->basis_side[basis_num].decompress();
     auto off = subview(wkset->offsets,iEqn,ALL());
     
     if (spaceDim == 1) {

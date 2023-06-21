@@ -1027,7 +1027,7 @@ void VDNS::boundaryResidual() {
       // Ux equation
       // -(v_1,-p n_1 + \mu [4/3*du_1/dx_1 n_1])
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis_side[ux_basis];
+      auto basis = wkset->basis_side[ux_basis].decompress();
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       if (ux_sidetype == "Neumann") {
@@ -1048,7 +1048,7 @@ void VDNS::boundaryResidual() {
       // Energy equation
       // -(w,lambda/cp dT/dx_1 n_1)
       int T_basis = wkset->usebasis[T_num];
-      auto basis = wkset->basis_side[T_basis];
+      auto basis = wkset->basis_side[T_basis].decompress();
       auto off = subview(wkset->offsets,T_num,ALL());
       
       if (T_sidetype == "Neumann") {
@@ -1071,7 +1071,7 @@ void VDNS::boundaryResidual() {
       // -(v_1,-p n_1 + \mu [2 * du_1/dx_1 n_1 + du_1/dx_2 n_2 + du_2/dx_1 n_2 
       //                                     - 2/3 (du_1/dx_1 + du_2/dx_2) n_1])
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis_side[ux_basis];
+      auto basis = wkset->basis_side[ux_basis].decompress();
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       if (ux_sidetype == "Neumann") {
@@ -1093,7 +1093,7 @@ void VDNS::boundaryResidual() {
       // -(v_2,-p n_2 + \mu [2 * du_2/dx_2 n_2 + du_1/dx_2 n_1 + du_2/dx_1 n_1 
       //                                     - 2/3 (du_1/dx_1 + du_2/dx_2) n_2])
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis_side[uy_basis];
+      auto basis = wkset->basis_side[uy_basis].decompress();
       auto off = subview(wkset->offsets,uy_num,ALL());
       
       if (uy_sidetype == "Neumann") {
@@ -1114,7 +1114,7 @@ void VDNS::boundaryResidual() {
       // Energy equation
       // -(w,lambda/cp [dT/dx_1 n_1 + dT/dx_2 n_2])
       int T_basis = wkset->usebasis[T_num];
-      auto basis = wkset->basis_side[T_basis];
+      auto basis = wkset->basis_side[T_basis].decompress();
       auto off = subview(wkset->offsets,T_num,ALL());
       
       if (T_sidetype == "Neumann") {
@@ -1137,7 +1137,7 @@ void VDNS::boundaryResidual() {
       // -(v_1,-p n_1 + \mu [2 * du_1/dx_1 n_1 + du_1/dx_2 n_2 + du_2/dx_1 n_2 
       //    + du_1/dx_3 n_3 + du_3/dx_1 n_3 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3) n_1])
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis_side[ux_basis];
+      auto basis = wkset->basis_side[ux_basis].decompress();
       auto off = subview(wkset->offsets,ux_num,ALL());
       
       if (ux_sidetype == "Neumann") {
@@ -1160,7 +1160,7 @@ void VDNS::boundaryResidual() {
       //    + du_2/dx_3 n_3 + du_3/dx_2 n_3 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3) n_2])
 
       int uy_basis = wkset->usebasis[uy_num];
-      auto basis = wkset->basis_side[uy_basis];
+      auto basis = wkset->basis_side[uy_basis].decompress();
       auto off = subview(wkset->offsets,uy_num,ALL());
       
       if (uy_sidetype == "Neumann") {
@@ -1183,7 +1183,7 @@ void VDNS::boundaryResidual() {
       //    + du_2/dx_3 n_2 + du_3/dx_2 n_2 - 2/3 (du_1/dx_1 + du_2/dx_2 + du_3/dx_3) n_3])
 
       int uz_basis = wkset->usebasis[uz_num];
-      auto basis = wkset->basis_side[uz_basis];
+      auto basis = wkset->basis_side[uz_basis].decompress();
       auto off = subview(wkset->offsets,uz_num,ALL());
       
       if (uz_sidetype == "Neumann") {
@@ -1204,7 +1204,7 @@ void VDNS::boundaryResidual() {
       // Energy equation
       // -(w,lambda/cp [dT/dx_1 n_1 + dT/dx_2 n_2 + dT/dx_3 n_3])
       int T_basis = wkset->usebasis[T_num];
-      auto basis = wkset->basis_side[T_basis];
+      auto basis = wkset->basis_side[T_basis].decompress();
       auto off = subview(wkset->offsets,T_num,ALL());
       
       if (T_sidetype == "Neumann") {

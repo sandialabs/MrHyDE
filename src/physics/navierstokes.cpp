@@ -896,7 +896,7 @@ void navierstokes::boundaryResidual() {
     
     if (spaceDim == 1) {
       int ux_basis = wkset->usebasis[ux_num];
-      auto basis = wkset->basis_side[ux_basis];
+      auto basis = wkset->basis_side[ux_basis].decompress();
       auto off = Kokkos::subview( wkset->offsets, ux_num, Kokkos::ALL());
       if (ux_sidetype == "Neumann") { // Neumann
         parallel_for("NS ux bndry resid 1D N",
@@ -915,7 +915,7 @@ void navierstokes::boundaryResidual() {
       // ux equation boundary residual
       {
         int ux_basis = wkset->usebasis[ux_num];
-        auto basis = wkset->basis_side[ux_basis];
+        auto basis = wkset->basis_side[ux_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, ux_num, Kokkos::ALL());
         
         if (ux_sidetype == "Neumann") { // traction (Neumann)
@@ -934,7 +934,7 @@ void navierstokes::boundaryResidual() {
       // uy equation boundary residual
       {
         int uy_basis = wkset->usebasis[uy_num];
-        auto basis = wkset->basis_side[uy_basis];
+        auto basis = wkset->basis_side[uy_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, uy_num, Kokkos::ALL());
         if (uy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS uy bndry resid 2D N",
@@ -955,7 +955,7 @@ void navierstokes::boundaryResidual() {
       // ux equation boundary residual
       {
         int ux_basis = wkset->usebasis[ux_num];
-        auto basis = wkset->basis_side[ux_basis];
+        auto basis = wkset->basis_side[ux_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, ux_num, Kokkos::ALL());
         if (ux_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS ux bndry resid 3D N",
@@ -973,7 +973,7 @@ void navierstokes::boundaryResidual() {
       // uy equation boundary residual
       {
         int uy_basis = wkset->usebasis[uy_num];
-        auto basis = wkset->basis_side[uy_basis];
+        auto basis = wkset->basis_side[uy_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, uy_num, Kokkos::ALL());
         if (uy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS uy bndry resid 3D N",
@@ -991,7 +991,7 @@ void navierstokes::boundaryResidual() {
       // uz equation boundary residual
       {
         int uz_basis = wkset->usebasis[uz_num];
-        auto basis = wkset->basis_side[uz_basis];
+        auto basis = wkset->basis_side[uz_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, uz_num, Kokkos::ALL());
         if (uz_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS uz bndry resid 3D N",

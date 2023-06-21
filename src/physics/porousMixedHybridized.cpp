@@ -204,7 +204,7 @@ void porousMixedHybrid::boundaryResidual() {
   
   int u_basis = wkset->usebasis[unum];
   
-  auto basis = wkset->basis_side[u_basis];
+  auto basis = wkset->basis_side[u_basis].decompress();
   View_Sc2 nx, ny, nz;
   View_AD2 ux, uy, uz;
   nx = wkset->getScalarField("n[x]");
@@ -310,7 +310,7 @@ void porousMixedHybrid::faceResidual() {
   
   {
     // include <lambda, v \cdot n> in velocity equation
-    auto basis = wkset->basis_side[u_basis];
+    auto basis = wkset->basis_side[u_basis].decompress();
     auto off = subview(wkset->offsets, unum, ALL());
     auto lambda = wkset->getSolutionField("lambda");
     
@@ -336,8 +336,8 @@ void porousMixedHybrid::faceResidual() {
   
   {
     // include -<u \cdot n, mu> in interface equation
-    auto basis = wkset->basis_side[lambda_basis];
-    auto ubasis = wkset->basis_side[u_basis];
+    auto basis = wkset->basis_side[lambda_basis].decompress();
+    auto ubasis = wkset->basis_side[u_basis].decompress();
     auto off = subview(wkset->offsets, lambdanum, ALL());
     
     parallel_for("porous HDIV-HY face resid u dot n",
@@ -369,7 +369,7 @@ void porousMixedHybrid::computeFlux() {
   
   int spaceDim = wkset->dimension;
   // Just need the basis for the number of active elements (any side basis will do)
-  auto basis = wkset->basis_side[wkset->usebasis[unum]];
+  auto basis = wkset->basis_side[wkset->usebasis[unum]].decompress();
  
   {
     Teuchos::TimeMonitor localtime(*fluxFill);

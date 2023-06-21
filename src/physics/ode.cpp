@@ -54,7 +54,7 @@ void ODE::volumeResidual() {
     
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
     
-  auto basis = wkset->getBasis("q");
+  auto basis = wkset->getBasis("q").decompress();
   auto res = wkset->getResidual();
   auto off = wkset->getOffsets("q");
   auto dqdt = wkset->getSolutionField("q_t");

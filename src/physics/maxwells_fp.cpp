@@ -501,10 +501,10 @@ void maxwells_fp::boundaryResidual() {
   auto res = wkset->res;
   auto offsets = wkset->offsets;
   
-  auto phir_basis = wkset->basis_side[phir_basis_num];
-  auto phir_basis_grad = wkset->basis_grad_side[phir_basis_num];
-  auto phii_basis = wkset->basis_side[phii_basis_num];
-  auto phii_basis_grad = wkset->basis_grad_side[phii_basis_num];
+  auto phir_basis = wkset->basis_side[phir_basis_num].decompress();
+  auto phir_basis_grad = wkset->basis_grad_side[phir_basis_num].decompress();
+  auto phii_basis = wkset->basis_side[phii_basis_num].decompress();
+  auto phii_basis_grad = wkset->basis_grad_side[phii_basis_num].decompress();
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   

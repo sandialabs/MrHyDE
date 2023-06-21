@@ -299,8 +299,8 @@ void linearelasticity::boundaryResidual() {
     
     if (spaceDim == 1) {
       int dx_basis = wkset->usebasis[dx_num];
-      auto basis = wkset->basis_side[dx_basis];
-      auto basis_grad = wkset->basis_grad_side[dx_basis];
+      auto basis = wkset->basis_side[dx_basis].decompress();
+      auto basis_grad = wkset->basis_grad_side[dx_basis].decompress();
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
       auto nx = wkset->getScalarField("n[x]");
       if (dx_sidetype == "Neumann") { // Neumann
@@ -353,8 +353,8 @@ void linearelasticity::boundaryResidual() {
       // dx equation boundary residual
       {
         int dx_basis = wkset->usebasis[dx_num];
-        auto basis = wkset->basis_side[dx_basis];
-        auto basis_grad = wkset->basis_grad_side[dx_basis];
+        auto basis = wkset->basis_side[dx_basis].decompress();
+        auto basis_grad = wkset->basis_grad_side[dx_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
         
         if (dx_sidetype == "Neumann") { // traction (Neumann)
@@ -412,8 +412,8 @@ void linearelasticity::boundaryResidual() {
       // dy equation boundary residual
       {
         int dy_basis = wkset->usebasis[dy_num];
-        auto basis = wkset->basis_side[dy_basis];
-        auto basis_grad = wkset->basis_grad_side[dy_basis];
+        auto basis = wkset->basis_side[dy_basis].decompress();
+        auto basis_grad = wkset->basis_grad_side[dy_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
         if (dy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uy bndry resid 2D N",
@@ -475,8 +475,8 @@ void linearelasticity::boundaryResidual() {
       // dx equation boundary residual
       {
         int dx_basis = wkset->usebasis[dx_num];
-        auto basis = wkset->basis_side[dx_basis];
-        auto basis_grad = wkset->basis_grad_side[dx_basis];
+        auto basis = wkset->basis_side[dx_basis].decompress();
+        auto basis_grad = wkset->basis_grad_side[dx_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
         if (dx_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE ux bndry resid 3D N",
@@ -539,8 +539,8 @@ void linearelasticity::boundaryResidual() {
       // dy equation boundary residual
       {
         int dy_basis = wkset->usebasis[dy_num];
-        auto basis = wkset->basis_side[dy_basis];
-        auto basis_grad = wkset->basis_grad_side[dy_basis];
+        auto basis = wkset->basis_side[dy_basis].decompress();
+        auto basis_grad = wkset->basis_grad_side[dy_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
         if (dy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uy bndry resid 3D N",
@@ -602,8 +602,8 @@ void linearelasticity::boundaryResidual() {
       // dz equation boundary residual
       {
         int dz_basis = wkset->usebasis[dz_num];
-        auto basis = wkset->basis_side[dz_basis];
-        auto basis_grad = wkset->basis_grad_side[dz_basis];
+        auto basis = wkset->basis_side[dz_basis].decompress();
+        auto basis_grad = wkset->basis_grad_side[dz_basis].decompress();
         auto off = Kokkos::subview( wkset->offsets, dz_num, Kokkos::ALL());
         if (dz_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uz bndry resid 3D N",
@@ -697,7 +697,7 @@ void linearelasticity::computeFlux() {
   auto h = wkset->h;
   
   // Just need the basis for the number of active elements (any side basis will do)
-  auto basis = wkset->basis_side[wkset->usebasis[dx_num]];
+  auto basis = wkset->basis_side[wkset->usebasis[dx_num]].decompress();
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);

@@ -339,7 +339,7 @@ void porousWeakGalerkin::boundaryResidual() {
   // TMW: changed this from t_basis to u_basis (check on this)
   int u_basis = wkset->usebasis[unum];
   
-  auto basis = wkset->basis_side[u_basis];
+  auto basis = wkset->basis_side[u_basis].decompress();
   
   Vista bsource;
   {
@@ -448,7 +448,7 @@ void porousWeakGalerkin::faceResidual() {
   
   {
     // include <pbndry, v \cdot n> in velocity equation
-    auto basis = wkset->basis_side[u_basis];
+    auto basis = wkset->basis_side[u_basis].decompress();
     auto off = subview(wkset->offsets, unum, ALL());
     auto pbndry = wkset->getSolutionField("pbndry");
     
@@ -476,8 +476,8 @@ void porousWeakGalerkin::faceResidual() {
   
   {
     // include -<t \cdot n, qbndry> in interface equation
-    auto ubasis = wkset->basis_side[u_basis];
-    auto basis = wkset->basis_side[pbndry_basis];
+    auto ubasis = wkset->basis_side[u_basis].decompress();
+    auto basis = wkset->basis_side[pbndry_basis].decompress();
     auto off = subview(wkset->offsets, pbndrynum, ALL());
     // TMW: previous code used u instead of t
     
@@ -526,7 +526,7 @@ void porousWeakGalerkin::computeFlux() {
   }
   
   // Just need the basis for the number of active elements (any side basis will do)
-  auto basis = wkset->basis_side[wkset->usebasis[unum]];
+  auto basis = wkset->basis_side[wkset->usebasis[unum]].decompress();
   
   {
     Teuchos::TimeMonitor localtime(*fluxFill);

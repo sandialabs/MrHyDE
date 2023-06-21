@@ -2780,7 +2780,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               std::string btype = assembler->wkset[block]->basis_types[bnum];
               if (btype == "HCURL" || btype == "HDIV") {
                 // TMW: this does not work yet
-                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto cbasis = assembler->wkset[block]->basis[bnum].decompress();
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), ALL());
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 parallel_for("grp response uip",
@@ -2796,7 +2796,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                 });
               }
               else {
-                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto cbasis = assembler->wkset[block]->basis[bnum].decompress();
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), 0);
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 parallel_for("grp response uip",
@@ -2811,7 +2811,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
               
               if (btype == "HGRAD") {
-                auto cbasis_grad = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis_grad = assembler->wkset[block]->basis_grad[bnum].decompress();
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 auto ugrad_sv = subview(ugrad_ip, ALL(), var, ALL(), ALL());
                 parallel_for("grp response HGRAD",
@@ -2891,7 +2891,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             std::string btype = assembler->wkset[block]->basis_types[bnum];
             
             if (w == 0) {
-              auto cbasis = assembler->wkset[block]->basis[bnum];
+              auto cbasis = assembler->wkset[block]->basis[bnum].decompress();
               
               if (btype == "HDIV" || btype == "HCURL") {
 
@@ -2941,7 +2941,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             else {
               
               if (btype == "HGRAD") {
-                auto cbasis = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis = assembler->wkset[block]->basis_grad[bnum].decompress();
                 //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
@@ -3039,7 +3039,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                 // TMW: this does not work yet
               }
               else {
-                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto cbasis = assembler->wkset[block]->basis[bnum].decompress();
                 
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), 0);
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
@@ -3055,7 +3055,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
               
               if (btype == "HGRAD") {
-                auto cbasis_grad = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis_grad = assembler->wkset[block]->basis_grad[bnum].decompress();
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 auto ugrad_sv = subview(ugrad_ip, ALL(), var, ALL(), ALL());
                 parallel_for("grp response HGRAD",
@@ -3150,7 +3150,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             std::string btype = assembler->wkset[block]->basis_types[bnum];
             
             if (w == 0) {
-              auto cbasis = assembler->wkset[block]->basis[bnum];
+              auto cbasis = assembler->wkset[block]->basis[bnum].decompress();
               
               if (btype == "HDIV" || btype == "HCURL") {
                 parallel_for("grp adjust adjoint res",
@@ -3186,7 +3186,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             else {
               
               if (btype == "HGRAD") {
-                auto cbasis = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis = assembler->wkset[block]->basis_grad[bnum].decompress();
                 //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),

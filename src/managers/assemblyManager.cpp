@@ -1390,7 +1390,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
         
         for (size_type var=0; var<numDOF.extent(0); var++) {
           int bindex = wkset[block]->usebasis[var];
-          CompressedView<View_Sc4> cbasis = tbasis[bindex];
+          auto cbasis = tbasis[bindex].decompress();
           
           string btype = wkset[block]->basis_types[bindex];
           auto off = subview(offsets,var,ALL());

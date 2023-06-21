@@ -649,6 +649,8 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
     }
     avgwts(elem) = avgwt;
   });
+
+  auto cbasis_decompressed = cbasis.decompress();
   
   size_t set = wkset->current_set;
   auto csol = subview(u[set],ALL(),index,ALL());
@@ -659,7 +661,7 @@ void Group::computeSolutionAverage(const string & var, View_Sc2 sol) {
       ScalarT avgval = 0.0;
       for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
         for (size_type pt=0; pt<cbasis.extent(2); ++pt) {
-          avgval += csol(elem,dof)*cbasis(elem,dof,pt,dim)*cwts(elem,pt);
+          avgval += csol(elem,dof)*cbasis_decompressed(elem,dof,pt,dim)*cwts(elem,pt);
         }
       }
       sol(elem,dim) = avgval/avgwts(elem);
@@ -708,6 +710,7 @@ void Group::computeParameterAverage(const string & var, View_Sc2 sol) {
   });
   
   auto csol = subview(param,ALL(),index,ALL());
+  auto cbasis_decompressed = cbasis.decompress();
   parallel_for("wkset soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -715,7 +718,7 @@ void Group::computeParameterAverage(const string & var, View_Sc2 sol) {
       ScalarT avgval = 0.0;
       for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
         for (size_type pt=0; pt<cbasis.extent(2); ++pt) {
-          avgval += csol(elem,dof)*cbasis(elem,dof,pt,dim)*cwts(elem,pt);
+          avgval += csol(elem,dof)*cbasis_decompressed(elem,dof,pt,dim)*cwts(elem,pt);
         }
       }
       sol(elem,dim) = avgval/avgwts(elem);
@@ -1386,7 +1389,7 @@ View_Sc2 Group::getInitial(const bool & project, const bool & isAdjoint) {
                                                        project,
                                                        wkset);
     for (size_type n=0; n<numDOF.extent(0); n++) {
-      auto cbasis = basis[wkset->usebasis[n]];
+      auto cbasis = basis[wkset->usebasis[n]].decompress();
       auto off = subview(offsets, n, ALL());
       auto initvar = subview(initialip, ALL(), n, ALL());
       parallel_for("Group init project",
@@ -1466,7 +1469,7 @@ View_Sc2 Group::getInitialFace(const bool & project) {
                                                            project,
                                                            wkset);
     for (size_type n=0; n<numDOF.extent(0); n++) {
-      auto cbasis = wkset->basis_side[wkset->usebasis[n]]; // face basis gets put here after update
+      auto cbasis = wkset->basis_side[wkset->usebasis[n]].decompress(); // face basis gets put here after update
       auto off = subview(offsets, n, ALL());
       auto initvar = subview(initialip, ALL(), n, ALL());
       // loop over mesh elements
@@ -1780,7 +1783,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> Group::getSolutionAtNodes(const int & va
   size_t set = wkset->current_set;
   
   int bnum = wkset->usebasis[var];
-  auto cbasis = basis_nodes[bnum];
+  auto cbasis = basis_nodes[bnum].decompress();
   Kokkos::View<ScalarT***,AssemblyDevice> nodesol("solution at nodes",
                                                   cbasis.extent(0), cbasis.extent(2), groupData->dimension);
   auto uvals = subview(u[set], ALL(), var, ALL());

@@ -991,7 +991,7 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
       string label = "Flux " + varname + " " + sidename;
       auto fluxvals = functionManagers[block]->evaluate(label,"side ip");
       
-      auto basis = functionManagers[block]->wkset->getBasisSide(varname);
+      auto basis = functionManagers[block]->wkset->getBasisSide(varname).decompress();
       auto wts = functionManagers[block]->wkset->wts_side;
       auto res = functionManagers[block]->wkset->res;
       auto off = functionManagers[block]->wkset->getOffsets(varname);

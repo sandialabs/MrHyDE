@@ -520,7 +520,7 @@ void euler::boundaryResidual() {
     for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
       int basis_num = wkset->usebasis[iEqn];
-      auto basis = wkset->basis_side[basis_num];
+      auto basis = wkset->basis_side[basis_num].decompress();
       auto off = subview(wkset->offsets,iEqn,ALL());
       
       parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
@@ -543,7 +543,7 @@ void euler::boundaryResidual() {
     for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
       int basis_num = wkset->usebasis[iEqn];
-      auto basis = wkset->basis_side[basis_num];
+      auto basis = wkset->basis_side[basis_num].decompress();
       auto off = subview(wkset->offsets,iEqn,ALL());
       
       parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
@@ -567,7 +567,7 @@ void euler::boundaryResidual() {
     for (int iEqn=0; iEqn<spaceDim+2; ++iEqn) {
   
       int basis_num = wkset->usebasis[iEqn];
-      auto basis = wkset->basis_side[basis_num];
+      auto basis = wkset->basis_side[basis_num].decompress();
       auto off = subview(wkset->offsets,iEqn,ALL());
       
       parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),

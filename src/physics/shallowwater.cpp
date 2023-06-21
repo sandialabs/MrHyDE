@@ -190,16 +190,16 @@ void shallowwater::boundaryResidual() {
   auto sideinfo = wkset->sideinfo;
   
   int H_basis_num = wkset->usebasis[H_num];
-  auto Hbasis = wkset->basis_side[H_basis_num];
-  auto Hbasis_grad = wkset->basis_grad_side[H_basis_num];
+  auto Hbasis = wkset->basis_side[H_basis_num].decompress();
+  auto Hbasis_grad = wkset->basis_grad_side[H_basis_num].decompress();
   
   int Hu_basis_num = wkset->usebasis[Hu_num];
-  auto Hubasis = wkset->basis_side[Hu_basis_num];
-  auto Hubasis_grad = wkset->basis_grad_side[Hu_basis_num];
+  auto Hubasis = wkset->basis_side[Hu_basis_num].decompress();
+  auto Hubasis_grad = wkset->basis_grad_side[Hu_basis_num].decompress();
   
   int Hv_basis_num = wkset->usebasis[Hv_num];
-  auto Hvbasis = wkset->basis_side[Hv_basis_num];
-  auto Hvbasis_grad = wkset->basis_grad_side[Hv_basis_num];
+  auto Hvbasis = wkset->basis_side[Hv_basis_num].decompress();
+  auto Hvbasis_grad = wkset->basis_grad_side[Hv_basis_num].decompress();
   
   auto wts = wkset->wts_side;
   auto res = wkset->res;

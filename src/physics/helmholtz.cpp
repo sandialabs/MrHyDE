@@ -293,10 +293,10 @@ void helmholtz::boundaryResidual() {
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
-  auto urbasis = wkset->basis_side[ur_basis_num];
-  auto urbasis_grad = wkset->basis_grad_side[ur_basis_num];
-  auto uibasis = wkset->basis_side[ui_basis_num];
-  auto uibasis_grad = wkset->basis_grad_side[ui_basis_num];
+  auto urbasis = wkset->basis_side[ur_basis_num].decompress();
+  auto urbasis_grad = wkset->basis_grad_side[ur_basis_num].decompress();
+  auto uibasis = wkset->basis_side[ui_basis_num].decompress();
+  auto uibasis_grad = wkset->basis_grad_side[ui_basis_num].decompress();
   
   View_Sc2 nx,ny,nz;
   nx = wkset->getScalarField("n[x]");

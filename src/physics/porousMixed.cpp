@@ -349,7 +349,7 @@ void porousMixed::boundaryResidual() {
   int cside = wkset->currentside;
   string bctype = bcs(pnum,cside);
   
-  auto basis = wkset->basis_side[unum];
+  auto basis = wkset->basis_side[unum].decompress();
   auto wts = wkset->wts_side;
   auto res = wkset->res;
   

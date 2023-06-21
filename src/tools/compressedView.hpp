@@ -62,7 +62,7 @@ namespace MrHyDE {
 
     //! Decompress the view by returning a view with all the copied data
     ViewType decompress() const {
-      // GH: use C++17 features to avoid needing to do partial specialization or 
+      // GH: use C++17 features to avoid needing to do partial specialization or fight with semantics of different view types
       if constexpr (std::is_same_v<ViewType,View_Sc3>) {
         if (have_key_) {
           ViewType decompressed_view("decompressed view",key_.extent(0),view_.extent(1),view_.extent(2));
@@ -103,57 +103,6 @@ namespace MrHyDE {
       }
       else {
         TEUCHOS_TEST_FOR_EXCEPTION(false,std::runtime_error,"CompressedView::decompress(): The underlying ViewType is neither View_Sc3 or View_Sc4, so this is undefined behavior!");
-      }
-    }
-    
-    //! Access for a one-dimensional view
-    /*
-    KOKKOS_INLINE_FUNCTION
-    typename ViewType::reference_type operator()(const size_type & i0) const {
-      if (have_key_) {
-        return view_(key_(i0));
-      }
-      else {
-        return view_(i0);
-      }
-    }
-    */
-
-    //! Access for a two-dimensional view
-    /*
-    KOKKOS_INLINE_FUNCTION
-    typename ViewType::reference_type operator()(const size_type & i0, const size_type & i1) const {
-      if (have_key_) {
-        return view_(key_(i0), i1);
-      }
-      else {
-        return view_(i0, i1);
-      }
-
-    }
-    */
-
-    //! Access for a three-dimensional view
-    /*
-    KOKKOS_INLINE_FUNCTION
-    typename ViewType::reference_type operator()(const size_type & i0, const size_type & i1, const size_type & i2) const {
-      if (have_key_) {
-        return view_(key_(i0), i1, i2);
-      }
-      else {
-        return view_(i0, i1, i2);
-      }
-    }
-    */
-
-    //! Access for a four-dimensional view
-    KOKKOS_INLINE_FUNCTION
-    typename ViewType::reference_type operator()(const size_type & i0, const size_type & i1, const size_type & i2, const size_type & i3) const {
-      if (have_key_) {
-        return view_(key_(i0), i1, i2, i3);
-      }
-      else {
-        return view_(i0, i1, i2, i3);
       }
     }
 

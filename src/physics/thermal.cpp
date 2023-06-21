@@ -177,8 +177,8 @@ void thermal::boundaryResidual() {
   int cside = wkset->currentside;
   string bctype = bcs(e_num,cside);
 
-  auto basis = wkset->basis_side[e_basis_num];
-  auto basis_grad = wkset->basis_grad_side[e_basis_num];
+  auto basis = wkset->basis_side[e_basis_num].decompress();
+  auto basis_grad = wkset->basis_grad_side[e_basis_num].decompress();
   
   Vista nsource, diff_side, robin_alpha;
   {

@@ -321,7 +321,7 @@ void maxwell::boundaryResidual() {
     auto Ey = wkset->getSolutionField("E[y]");
     auto Ez = wkset->getSolutionField("E[z]");
     auto off = subview(wkset->offsets, Enum, ALL());
-    auto basis = wkset->basis_side[wkset->usebasis[Enum]];
+    auto basis = wkset->basis_side[wkset->usebasis[Enum]].decompress();
     
     double gamma = -0.9944;
     if (bcs(Bnum,cside) == "Neumann") { // Really ABC

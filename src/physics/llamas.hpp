@@ -71,8 +71,8 @@ namespace MrHyDE {
       // These basis array are 4-dimensional Views with dimensions numElem x numDOF x numip x dimension
       // In this examples, they will be 100x4x4x2
       
-      auto basis = wkset->getBasis("llama");
-      auto gradbasis = wkset->getBasisGrad("llama");
+      auto basis = wkset->getBasis("llama").decompress();
+      auto gradbasis = wkset->getBasisGrad("llama").decompress();
       
       auto res = wkset->getResidual();
       auto offsets = wkset->getOffsets("llama");

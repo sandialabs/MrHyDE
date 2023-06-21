@@ -877,17 +877,19 @@ void workset::evaluateSolutionField(const int & fieldnum) {
       }
       
       size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
+
+      auto cbasis_decompressed = cbasis.decompress();
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
+          fielddata(elem,pt) = solvals(elem,0)*cbasis_decompressed(elem,0,pt,component);
         }
         for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*cbasis(elem,dof,pt,component);
+            fielddata(elem,pt) += solvals(elem,dof)*cbasis_decompressed(elem,dof,pt,component);
           }
         }
       });
@@ -991,17 +993,18 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
       }
       
       size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
+      auto cbasis_decompressed = cbasis.decompress();
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
+          fielddata(elem,pt) = solvals(elem,0)*cbasis_decompressed(elem,0,pt,component);
         }
         for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
           for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*cbasis(elem,dof,pt,component);
+            fielddata(elem,pt) += solvals(elem,dof)*cbasis_decompressed(elem,dof,pt,component);
           }
         }
       });
@@ -1039,8 +1042,8 @@ void workset::computeSolnSideIP(const int & side) {
       auto csol_x = this->getSolutionField("grad("+var+")[x]",false);
       auto csol_y = this->getSolutionField("grad("+var+")[y]",false);
       auto csol_z = this->getSolutionField("grad("+var+")[z]",false);
-      auto cbasis = basis_side[usebasis[varind]];
-      auto cbasis_grad = basis_grad_side[usebasis[varind]];
+      auto cbasis = basis_side[usebasis[varind]].decompress();
+      auto cbasis_grad = basis_grad_side[usebasis[varind]].decompress();
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
@@ -1081,7 +1084,7 @@ void workset::computeSolnSideIP(const int & side) {
       auto cuvals = uvals[uvals_index[current_set][varind]];
       
       auto csol = this->getSolutionField(var,false);
-      auto cbasis = basis_side[usebasis[varind]];
+      auto cbasis = basis_side[usebasis[varind]].decompress();
       
       parallel_for("wkset soln ip HVOL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
@@ -1109,7 +1112,7 @@ void workset::computeSolnSideIP(const int & side) {
       auto csolx = this->getSolutionField(var+"[x]",false);
       auto csoly = this->getSolutionField(var+"[y]",false);
       auto csolz = this->getSolutionField(var+"[z]",false);
-      auto cbasis = basis_side[usebasis[varind]];
+      auto cbasis = basis_side[usebasis[varind]].decompress();
       
       parallel_for("wkset soln ip HDIV",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),
@@ -1150,7 +1153,7 @@ void workset::computeSolnSideIP(const int & side) {
       auto csolx = this->getSolutionField(var+"[x]",false);
       auto csoly = this->getSolutionField(var+"[y]",false);
       auto csolz = this->getSolutionField(var+"[z]",false);
-      auto cbasis = basis_side[usebasis[varind]];
+      auto cbasis = basis_side[usebasis[varind]].decompress();
       
       parallel_for("wkset soln ip HCURL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VectorSize),

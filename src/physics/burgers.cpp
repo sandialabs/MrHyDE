@@ -61,8 +61,8 @@ void Burgers::volumeResidual() {
   auto vx = functionManager->evaluate("xvel","ip");
   
   // Get some information from the workset
-  auto basis = wkset->getBasis("u");
-  auto basis_grad = wkset->getBasisGrad("u");
+  auto basis = wkset->getBasis("u").decompress();
+  auto basis_grad = wkset->getBasisGrad("u").decompress();
   auto res = wkset->res;
   auto wts = wkset->wts;
   auto off = wkset->getOffsets("u");
@@ -179,7 +179,7 @@ void Burgers::boundaryResidual() {
   // <g(u),v> + <p(u),grad(v)\cdot n>
   
   if (dim == 2 && bcs(0,cside) == "Neumann") { // Neumann BCs
-    auto basis = wkset->getBasisSide("u");
+    auto basis = wkset->getBasisSide("u").decompress();
     auto res = wkset->res;
     auto wts = wkset->wts_side;
     auto off = wkset->getOffsets("u");

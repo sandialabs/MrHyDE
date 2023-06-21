@@ -47,8 +47,8 @@ void KuramotoSivashinsky::volumeResidual() {
   int spacedim = wkset->dimension;
   
   // Get some information from the workset
-  auto basis = wkset->getBasis("u");
-  auto basis_grad = wkset->getBasisGrad("u");
+  auto basis = wkset->getBasis("u").decompress();
+  auto basis_grad = wkset->getBasisGrad("u").decompress();
   auto res = wkset->res;
   auto wts = wkset->wts;
   
