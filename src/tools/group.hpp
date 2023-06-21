@@ -240,16 +240,16 @@ namespace MrHyDE {
     // Get the mass matrix
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    CompressedViewSc3 getMass();
+    CompressedView<View_Sc3> getMass();
     
-    CompressedViewSc3 getWeightedMass(vector<ScalarT> & masswts);
+    CompressedView<View_Sc3> getWeightedMass(vector<ScalarT> & masswts);
 
     /* @brief Assemble the local mass matrix on faces
      *
      * @warning BWR -- under development. Will (and should) only work for HFACE vars
      */
 
-    CompressedViewSc3 getMassFace();
+    CompressedView<View_Sc3> getMassFace();
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Plotting
@@ -382,10 +382,10 @@ namespace MrHyDE {
     vector<View_Sc4> u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
     // basis information
-    vector<CompressedViewSc4> basis, basis_grad, basis_curl, basis_nodes;
-    vector<CompressedViewSc3> basis_div, local_mass, local_jacobian;
+    vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_nodes;
+    vector<CompressedView<View_Sc3>> basis_div, local_mass, local_jacobian;
     
-    vector<vector<CompressedViewSc4>> basis_face, basis_grad_face;
+    vector<vector<CompressedView<View_Sc4>>> basis_face, basis_grad_face;
     View_Sc1 hsize;
     
     // Aux variable Information

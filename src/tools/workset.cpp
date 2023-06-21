@@ -88,14 +88,14 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     maxb = std::max(maxb,numb);
   }
   
-  basis = vector<CompressedViewSc4>(basis_pointers.size());
-  basis_grad = vector<CompressedViewSc4>(basis_pointers.size());
-  basis_curl = vector<CompressedViewSc4>(basis_pointers.size());
-  basis_div = vector<CompressedViewSc3>(basis_pointers.size());
+  basis = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_grad = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_curl = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_div = vector<CompressedView<View_Sc3>>(basis_pointers.size());
   
-  basis_side = vector<CompressedViewSc4>(basis_pointers.size());
-  basis_grad_side = vector<CompressedViewSc4>(basis_pointers.size());
-  basis_curl_side = vector<CompressedViewSc4>(basis_pointers.size());
+  basis_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_grad_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  basis_curl_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
   
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   maxTeamSize = 256 / VectorSize;
@@ -850,7 +850,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
       
     }
     else {
-      CompressedViewSc4 cbasis;
+      CompressedView<View_Sc4> cbasis;
       if (soln_fields[fieldnum].derivative_type == "grad") {
         if (isOnSide) {
           cbasis = basis_grad_side[basis_id];
@@ -982,7 +982,7 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
       
     }
     else {
-      CompressedViewSc4 cbasis;
+      CompressedView<View_Sc4> cbasis;
       if (side_soln_fields[fieldnum].derivative_type == "grad") {
         cbasis = basis_grad_side[basis_id];
       }
@@ -1626,11 +1626,11 @@ View_Sc2 workset::getSideWeights() {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasis(const string & var) {
+CompressedView<View_Sc4> workset::getBasis(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  CompressedViewSc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1644,7 +1644,7 @@ CompressedViewSc4 workset::getBasis(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasis(const int & index) {
+CompressedView<View_Sc4> workset::getBasis(const int & index) {
   return basis[index];
 }
 
@@ -1652,11 +1652,11 @@ CompressedViewSc4 workset::getBasis(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisGrad(const string & var) {
+CompressedView<View_Sc4> workset::getBasisGrad(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  CompressedViewSc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1670,7 +1670,7 @@ CompressedViewSc4 workset::getBasisGrad(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisGrad(const int & index) {
+CompressedView<View_Sc4> workset::getBasisGrad(const int & index) {
   return basis_grad[index];
 }
 
@@ -1678,11 +1678,11 @@ CompressedViewSc4 workset::getBasisGrad(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc3 workset::getBasisDiv(const string & var) {
+CompressedView<View_Sc3> workset::getBasisDiv(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  CompressedViewSc3 dataout;
+  CompressedView<View_Sc3> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1696,7 +1696,7 @@ CompressedViewSc3 workset::getBasisDiv(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc3 workset::getBasisDiv(const int & index) {
+CompressedView<View_Sc3> workset::getBasisDiv(const int & index) {
   return basis_div[index];
 }
 
@@ -1704,11 +1704,11 @@ CompressedViewSc3 workset::getBasisDiv(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisCurl(const string & var) {
+CompressedView<View_Sc4> workset::getBasisCurl(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  CompressedViewSc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1722,7 +1722,7 @@ CompressedViewSc4 workset::getBasisCurl(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisCurl(const int & index) {
+CompressedView<View_Sc4> workset::getBasisCurl(const int & index) {
   return basis_curl[index];
 }
 
@@ -1730,11 +1730,11 @@ CompressedViewSc4 workset::getBasisCurl(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisSide(const string & var) {
+CompressedView<View_Sc4> workset::getBasisSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  CompressedViewSc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1748,7 +1748,7 @@ CompressedViewSc4 workset::getBasisSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisSide(const int & index) {
+CompressedView<View_Sc4> workset::getBasisSide(const int & index) {
   return basis_side[index];
 }
 
@@ -1756,11 +1756,11 @@ CompressedViewSc4 workset::getBasisSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisGradSide(const string & var) {
+CompressedView<View_Sc4> workset::getBasisGradSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  CompressedViewSc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1774,7 +1774,7 @@ CompressedViewSc4 workset::getBasisGradSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisGradSide(const int & index) {
+CompressedView<View_Sc4> workset::getBasisGradSide(const int & index) {
   return basis_grad_side[index];
 }
 
@@ -1782,11 +1782,11 @@ CompressedViewSc4 workset::getBasisGradSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisCurlSide(const string & var) {
+CompressedView<View_Sc4> workset::getBasisCurlSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
-  CompressedViewSc4 dataout;
+  CompressedView<View_Sc4> dataout;
   int basisindex;
   
   bool found = this->findBasisIndex(var, basisindex);
@@ -1800,7 +1800,7 @@ CompressedViewSc4 workset::getBasisCurlSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedViewSc4 workset::getBasisCurlSide(const int & index) {
+CompressedView<View_Sc4> workset::getBasisCurlSide(const int & index) {
   return basis_curl_side[index];
 }
 

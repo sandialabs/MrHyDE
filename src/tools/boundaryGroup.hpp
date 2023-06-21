@@ -438,8 +438,8 @@ namespace MrHyDE {
     vector<View_Sc4> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
     
     // basis information
-    vector<CompressedViewSc4> basis, basis_grad, basis_curl;
-    vector<CompressedViewSc3> basis_div;
+    vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl;
+    vector<CompressedView<View_Sc3>> basis_div;
     
     // Aux variable Information
     vector<string> auxlist;
