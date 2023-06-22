@@ -15,9 +15,9 @@ ANONYMOUS:
     ymax: 1.0
     zmin: 0.0
     zmax: 1.0
-    NX: 512
-    NY: 2
-    NZ: 2
+    NX: 256
+    NY: 4
+    NZ: 4
     Periodic BCs:
       Count: 3
       Periodic Condition 1: 'xz-all 1e-10,3D: top;bottom'
@@ -26,10 +26,10 @@ ANONYMOUS:
   Physics:
     modules: navier stokes
     Initial conditions: # TODO
-      ux: 'init_vec_x*sin(2*pi*x)'
-      uy: 'init_vec_y*sin(2*pi*x)'
-      uz: 'init_vec_z*sin(2*pi*x)'
-      pr: 'init_val_pr+pr_amp*sin(2*pi*x)'
+      ux: 'init_momentum_x*sin(2*pi*x)/density'
+      uy: 'init_momentum_y*sin(2*pi*x)/density'
+      uz: 'init_momentum_z*sin(2*pi*x)/density'
+      pr: 'init_val_pr'
     usePSPG: true
   Discretization:
     order:
@@ -55,16 +55,18 @@ ANONYMOUS:
     B3_comp: 'B3_amp*(B3_0+B3_amp*sin_xp2t)'
     sin_xp2t: 'sin(2*pi*(x+2*t))'
     cos_xp2t: '2*pi*cos(2*pi*(x+2*t))'
+    density: 1
 
   Postprocess:
     write solution: true
     output file: output
     compute errors: true
     True solutions: # TODO: Fix?
-      ux: 'init_vec_x*sin(2*pi*(x+2*t))'
-      uy: 'init_vec_y*sin(2*pi*(x+2*t))'
-      uz: 'init_vec_z*sin(2*pi*(x+2*t))'
+      ux: 'init_momentum_x*sin(2*pi*(x+2*t))/density'
+      uy: 'init_momentum_y*sin(2*pi*(x+2*t))/density'
+      uz: 'init_momentum_z*sin(2*pi*(x+2*t))/density'
       pr: 'init_val_pr+pr_amp*sin(2*pi*(x+2*t))'
+
   Parameters:
     B1: # First, background magnetic field. No induction in x dir, so magnet is static
       type: scalar
@@ -82,29 +84,29 @@ ANONYMOUS:
       type: scalar
       value: 1.25663706212e-6
       usage: inactive
-    init_vec_x:
+    init_momentum_x:
       type: scalar # Initial condition rotation of velocity, x
-      value: -8.94450354e-05
+      value: -8.94450354e-05 # 1e-4 * (-12)/(6*sqrt(5))
       usage: inactive
-    init_vec_y:
+    init_momentum_y:
       type: scalar # i.c. for u, y
-      value: 4.21647940e-05
+      value: 4.21647940e-05 # 1e-4 * (4*sqrt(2))/(6*sqrt(5))
       usage: inactive
-    init_vec_z:
+    init_momentum_z:
       type: scalar # i.c. for u, z
-      value: 1.49075059e-05
+      value: 1.49075059e-05 # 1e-4 * (2)/(6*sqrt(5))
       usage: inactive
     B2_amp: # Amplitude of Alfven wave
       type: scalar
-      value: 8.432740907398035e-05
+      value: 8.432740907398035e-05 # 1e-4 * (8*sqrt(2))/(6*sqrt(5))
       usage: inactive
     B3_amp:  # Amplitude of Alfven wave    
       type: scalar
-      value: 2.98142395850023e-05
+      value: 2.98142395850023e-05 # 1e-4 * (4)/(6*sqrt(5))
       usage: inactive
     pr_amp: # Amplitude of the Pressure wave
       type: scalar
-      value: 4.472113853102992e-05
+      value: 4.472113853102992e-05 # 1e-4 * (6)/(6*sqrt(5))
       usage: inactive
     init_val_pr: # Offset of the pressure
       type: scalar

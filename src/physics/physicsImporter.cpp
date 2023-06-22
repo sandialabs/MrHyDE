@@ -30,6 +30,7 @@
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
 #include "mhd.hpp"
+#include "mhd1d.hpp"
 #include "ode.hpp"
 #include "burgers.hpp"
 #include "kuramotoSivashinsky.hpp"
@@ -131,6 +132,11 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // MHD
     if (modname == "mhd" || modname == "MHD") {
       modules.push_back(Teuchos::rcp(new mhd(settings, dimension) ) );
+    }
+    
+    // MHD1d
+    if (modname == "mhd1d" || modname == "MHD1D") {
+      modules.push_back(Teuchos::rcp(new mhd1d(settings, dimension) ) );
     }
     
     // Linear Elasticity
