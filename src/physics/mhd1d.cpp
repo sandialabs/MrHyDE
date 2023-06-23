@@ -202,7 +202,7 @@ void mhd1d::volumeResidual()
 
         auto drho_uz_dt = wkset->getSolutionField("rho_uz_t");
 
-        auto off = subview(wkset->offsets, rho_uy_num, ALL());
+        auto off = subview(wkset->offsets, rho_uz_num, ALL());
 
         parallel_for(
             "MHD1D rho_uz volume resid",

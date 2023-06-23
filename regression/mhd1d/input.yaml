@@ -69,8 +69,8 @@ ANONYMOUS:
     workset size: 200
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-12
-    max nonlinear iters: 1
-    max linear iters: 1000
+    max nonlinear iters: 2
+    max linear iters: 750
     final time: 0.2
     delta t: 0.010625
     use domain decomposition: true
