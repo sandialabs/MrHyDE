@@ -154,9 +154,9 @@ void mhd1d::volumeResidual()
             });
     }
     { // momentum eqn y
-        int By_basis = wkset->usebasis[rho_uy_num];
-        auto basis = wkset->basis[By_basis];
-        auto basis_grad = wkset->basis_grad[By_basis];
+        int rho_uy_basis = wkset->usebasis[rho_uy_num];
+        auto basis = wkset->basis[rho_uy_basis];
+        auto basis_grad = wkset->basis_grad[rho_uy_basis];
         auto rho = wkset->getSolutionField("rho");
         auto rho_ux = wkset->getSolutionField("rho_ux");
         auto rho_uy = wkset->getSolutionField("rho_uy");
