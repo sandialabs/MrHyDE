@@ -9,60 +9,37 @@ ANONYMOUS:
   Mesh:
     dimension: 1
     element type: interval
-    xmin: -1.0
-    xmax:  1.0
+    xmin: 0.0
+    xmax: 1.0
     NX: 400
+    Periodic BCs:
+      Count: 1
+      Periodic Condition 1: 'x-all 1e-8: left;right'
   Physics:
     modules: mhd1d
-    assemble boundary terms: true
-    Dirichlet conditions:
-      scalar data: true
-      rho:
-        left: 1.0
-        right: 0.125
-      rho_ux:
-        left: 0.0
-        right: 0.0
-      rho_uy:
-        left: 0.0
-        right: 0.0
-      rho_uz:
-        left: 0.0
-        right: 0.0
-      By:
-        left: 1.
-        right: -1.
-      Bz:
-        left: 0.0
-        right: 0.0
-      E:
-        left: 1.78125
-        right: 1.78125
+    assemble boundary terms: false
     Initial conditions: # TODO
-      rho: '0.125 + (0.875*(x<0))'
-      rho_ux: 0.0
-      rho_uy: 0.0
-      rho_uz: 0.0
-      By: '-1.0 + (2*(x<0))'
-      Bz: 0.0
-      E: '(0.1 + (0.9*(x<0)))/(gamma-1) + (Bx*Bx + By*By)/2'
+      pr: 0.6
+      ux: '-5.36656*sin(2*pi*x)*1e-5'
+      uy: ' 2.52982*sin(2*pi*x)*1e-5'
+      uz: ' 0.89448*sin(2*pi*x)*1e-5'
+      By: 1.4142136
+      Bz: 0.5
     Active Variables:
-      rho: HGRAD-DG
-      rho_ux: HGRAD-DG
-      rho_uy: HGRAD-DG
-      rho_uz: HGRAD-DG
+      pr: HGRAD-DG
+      ux: HGRAD-DG
+      uy: HGRAD-DG
+      uz: HGRAD-DG
       By: HGRAD-DG
       Bz: HGRAD-DG
-      E: HGRAD-DG
   Discretization:
     order:
-      rho: 1
-      rho_ux: 1
-      rho_uy: 1
-      rho_uz: 1
+      pr: 1
+      ux: 1
+      uy: 1
+      uz: 1
       By: 1
       Bz: 1
-      E: 1
     quadrature: 2
   Solver:
     solver: transient
@@ -71,8 +48,8 @@ ANONYMOUS:
     linear TOL: 1.0e-12
     max nonlinear iters: 2
     max linear iters: 750
-    final time: 0.2
-    delta t: 0.010625
+    final time: 1.0
+    delta t: 0.05
     use domain decomposition: true
     use preconditioner: true
     preconditioner reuse type: full
@@ -91,10 +68,18 @@ ANONYMOUS:
   Parameters:
     Bx: # First, background magnetic field. No induction in x dir, so magnet is static
       type: scalar
-      value: 0.75
+      value: 1.0
       usage: inactive
-    gamma:
+    permeability:
       type: scalar
-      value: 2.0
+      value: 1.2e-7
+      usage: inactive
+    viscosity:
+      type: scalar
+      value: 0.0
+      usage: inactive
+    resistivity:
+      type: scalar
+      value: 0.0
       usage: inactive
 ...

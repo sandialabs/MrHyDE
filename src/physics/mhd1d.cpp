@@ -40,7 +40,6 @@ mhd1d::mhd1d(Teuchos::ParameterList &settings, const int &dimension_)
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
-    mybasistypes.push_back("HGRAD");
 
     /* useSUPG = settings.get<bool>("useSUPG", false);
     usePSPG = settings.get<bool>("usePSPG", false);
@@ -62,7 +61,7 @@ void mhd1d::defineFunctions(Teuchos::ParameterList &fs,
 
     functionManager = functionManager_;
 
-    functionManager->addFunction("Bx", fs.get<string>("Bx", "0.0"), "ip");
+    functionManager->addFunction("Bx", fs.get<string>("Bx", "1.0"), "ip");
     functionManager->addFunction("density", fs.get<string>("density", "1.0"), "ip");
     functionManager->addFunction("viscosity", fs.get<string>("viscosity", "1.0"), "ip");
     functionManager->addFunction("permeability", fs.get<string>("permeability", "1.2e-6"), "ip");
@@ -158,7 +157,6 @@ void mhd1d::volumeResidual()
         int uy_basis = wkset->usebasis[uy_num];
         auto basis = wkset->basis[uy_basis];
         auto basis_grad = wkset->basis_grad[uy_basis];
-        auto rho = wkset->getSolutionField("rho");
         auto ux = wkset->getSolutionField("ux");
         auto uy = wkset->getSolutionField("uy");
         auto uz = wkset->getSolutionField("uz");
@@ -193,7 +191,6 @@ void mhd1d::volumeResidual()
         int uz_basis = wkset->usebasis[uz_num];
         auto basis = wkset->basis[uz_basis];
         auto basis_grad = wkset->basis_grad[uz_basis];
-        auto rho = wkset->getSolutionField("rho");
         auto ux = wkset->getSolutionField("ux");
         auto uy = wkset->getSolutionField("uy");
         auto uz = wkset->getSolutionField("uz");
@@ -298,11 +295,11 @@ void mhd1d::boundaryResidual()
 
     int cside = wkset->currentside;
 
-    string rho_ux_sidetype = bcs(rho_ux_num, cside);
-    string rho_uy_sidetype = "Dirichlet";
-    string rho_uz_sidetype = "Dirichlet";
-    rho_uy_sidetype = bcs(rho_uy_num, cside);
-    rho_uz_sidetype = bcs(rho_uz_num, cside);
+    string ux_sidetype = bcs(ux_num, cside);
+    string uy_sidetype = "Dirichlet";
+    string uz_sidetype = "Dirichlet";
+    uy_sidetype = bcs(uy_num, cside);
+    uz_sidetype = bcs(uz_num, cside);
     // TODO: Enforce that sidetypes are periodic
 }
 
@@ -328,20 +325,18 @@ void mhd1d::setWorkset(Teuchos::RCP<workset> &wkset_)
     vector<string> varlist = wkset->varlist;
     for (size_t i = 0; i < varlist.size(); i++)
     {
+        if (varlist[i] == "pr")
+            pr_num = i;
         if (varlist[i] == "ux")
-            rho_ux_num = i;
+            ux_num = i;
         if (varlist[i] == "uy")
-            rho_uy_num = i;
-        if (varlist[i] == "rho_uz")
-            rho_uz_num = i;
-        if (varlist[i] == "rho")
-            rho_num = i;
+            uy_num = i;
+        if (varlist[i] == "uz")
+            uz_num = i;
         if (varlist[i] == "By")
             By_num = i;
         if (varlist[i] == "Bz")
             Bz_num = i;
-        if (varlist[i] == "E")
-            E_num = i;
     }
 }
 
