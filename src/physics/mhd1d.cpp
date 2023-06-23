@@ -199,7 +199,6 @@ void mhd1d::volumeResidual()
 
         auto By = wkset->getSolutionField("By");
         auto Bz = wkset->getSolutionField("Bz");
-        auto E = wkset->getSolutionField("E");
 
         auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
         auto duz_dt = wkset->getSolutionField("uz_t");
@@ -207,14 +206,14 @@ void mhd1d::volumeResidual()
         auto off = subview(wkset->offsets, uz_num, ALL());
 
         parallel_for(
-            "MHD1D rho_uz volume resid",
+            "MHD1D uz volume resid",
             RangePolicy<AssemblyExec>(0, wkset->numElem),
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = ux(elem, pt) * rho_uz(elem, pt) / rho(elem, pt) - Bx(elem, pt) * Bz(elem, pt);
+                    AD Fx = ux(elem, pt)*uz(elem, pt)*dens(elem, pt) - Bx(elem, pt) * Bz(elem, pt);
                     Fx *= wts(elem, pt);
-                    AD F = drho_uz_dt(elem, pt);
+                    AD F = dens(elem, pt)*duz_dt(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
