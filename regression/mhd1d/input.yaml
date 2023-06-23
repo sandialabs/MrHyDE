@@ -14,7 +14,7 @@ ANONYMOUS:
     NX: 400
   Physics:
     modules: mhd1d
-    assemble boundary terms: false
+    assemble boundary terms: true
     Dirichlet conditions:
       scalar data: true
       rho:
