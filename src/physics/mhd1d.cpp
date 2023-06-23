@@ -110,7 +110,7 @@ void mhd1d::volumeResidual()
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += -Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
@@ -148,7 +148,7 @@ void mhd1d::volumeResidual()
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += -Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
@@ -182,7 +182,7 @@ void mhd1d::volumeResidual()
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += -Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
@@ -216,7 +216,7 @@ void mhd1d::volumeResidual()
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += -Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
@@ -247,7 +247,7 @@ void mhd1d::volumeResidual()
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += -Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
@@ -278,7 +278,7 @@ void mhd1d::volumeResidual()
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += -Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
@@ -319,7 +319,7 @@ void mhd1d::volumeResidual()
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += -Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
@@ -342,7 +342,7 @@ void mhd1d::boundaryResidual()
     string rho_uz_sidetype = "Dirichlet";
     rho_uy_sidetype = bcs(rho_uy_num, cside);
     rho_uz_sidetype = bcs(rho_uz_num, cside);
-    // TODO: Enforce that sidetypes are periodic
+    // TODO: Enforce that sidetypes are dirichlet
 }
 
 // ========================================================================================
