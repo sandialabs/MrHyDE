@@ -25,7 +25,7 @@ namespace MrHyDE {
    * \f{eqnarray*}
    *   \frac{du}{dt}
    *   +
-   *   \nabla \cdot \left(\frac{1}{2}\vec{\nu} u^2 - \epsilon(\vec{x}) \nabla u \right)
+   *   \nabla \cdot \left(\frac{1}{2}\vec{\nu} u^2 - \epsilon(u) \nabla u \right)
    *   =
    *   f
    * \f}
