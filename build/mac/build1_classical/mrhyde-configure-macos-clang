@@ -1,0 +1,23 @@
+EXTRA_ARGS=$@
+
+rm CMakeCache.txt
+rm -rf CMakeFiles/
+
+TRILINOS_HOME='/Users/eeprude/work/trilinos/Trilinos'
+
+TRILINOS_INSTALL='/Users/eeprude/install/trilinos/trilinos-clang'
+
+MRHYDE_HOME='/Users/eeprude/work/mrhyde/MrHyDE'
+
+MRHYDE_INSTALL='/Users/eeprude/install/MrHyDE'
+
+cmake \
+-D Trilinos_SRC_DIR=${TRILINOS_HOME} \
+-D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+-D CMAKE_INSTALL_PREFIX:PATH=${MRHYDE_INSTALL} \
+-D CMAKE_CXX_FLAGS:STRING="-Wall" \
+-D MrHyDE_ENABLE_SANDBOX=ON \
+-D MrHyDE_MAX_DERIVS=64 \
+-D MrHyDE_BUILD_DOXYGEN=false \
+${EXTRA-ARGS} \
+${MRHYDE_HOME}
