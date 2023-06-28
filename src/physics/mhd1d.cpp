@@ -151,7 +151,7 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt);
-                    AD pr = Cp(elem, pt)*T(elem, pt)*(gamma(elem, pt) - 1);
+                    AD pr = Cp(elem, pt)*T(elem, pt)*(gamma(elem, pt) - 1)/gamma(elem, pt);
                     AD Fx = -4*visc(elem,pt)*dux_dx(elem,pt)/3 +
                             pr + (norm_B/2 - Bx(elem, pt)*Bx(elem, pt))/mu(elem,pt);
                     Fx *= wts(elem, pt);
@@ -319,7 +319,7 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD pr = Cp(elem, pt)*T(elem, pt)*(gamma(elem, pt) - 1);
+                    AD pr = Cp(elem, pt)*T(elem, pt)*(gamma(elem, pt) - 1)/gamma(elem, pt);
                     AD norm_dx_u = dux_dx(elem, pt)*dux_dx(elem, pt) +
                                    duy_dx(elem, pt)*duy_dx(elem, pt) +
                                    duz_dx(elem, pt)*duz_dx(elem, pt) ;
@@ -328,8 +328,8 @@ void mhd1d::volumeResidual()
                     AD Fx = -k(elem, pt)*dT_dx(elem, pt);
                     Fx *= wts(elem, pt);
                     AD F = rho(elem, pt)*Cp(elem, pt)*(dT_dt(elem, pt) + ux(elem, pt)*T(elem, pt)) +
-                           dux_dx(elem, pt)*(pr - visc(elem, pt)*dux_dx(elem, pt)) -
-                           visc(elem, pt)*norm_dx_u - eta(elem, pt)*norm_dx_B/mu(elem, pt);
+                           dux_dx(elem, pt)*(pr - visc(elem, pt)*dux_dx(elem, pt)) +
+                           -visc(elem, pt)*norm_dx_u - eta(elem, pt)*norm_dx_B/mu(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
