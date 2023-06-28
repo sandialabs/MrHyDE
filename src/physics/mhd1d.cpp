@@ -81,12 +81,11 @@ void mhd1d::volumeResidual()
     int spaceDim = wkset->dimension;
     ScalarT dt = wkset->deltat;
     bool isTransient = wkset->isTransient;
-    Vista Bx, dens, visc, mu, eta, gamma, Cp;
+    Vista Bx, visc, mu, eta, gamma, Cp;
     {
         Teuchos::TimeMonitor funceval(*volumeResidualFunc);
         Bx = functionManager->evaluate("Bx", "ip");
         visc = functionManager->evaluate("viscosity", "ip");
-        dens = functionManager->evaluate("density", "ip");
         mu = functionManager->evaluate("permeability", "ip");
         eta = functionManager->evaluate("resistivity", "ip");
         gamma = functionManager->evaluate("adiabatic index", "ip");
@@ -113,7 +112,7 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = dens(elem,pt)*ux(elem, pt);
+                    AD Fx = rho(elem,pt)*ux(elem, pt);
                     Fx *= wts(elem, pt);
                     AD F = drho_dt(elem, pt); // time derivative of density
                     F *= wts(elem, pt);
@@ -198,6 +197,7 @@ void mhd1d::volumeResidual()
         int uz_basis = wkset->usebasis[uz_num];
         auto basis = wkset->basis[uz_basis];
         auto basis_grad = wkset->basis_grad[uz_basis];
+        auto rho = wkset->getSolutionField("rho");
         auto ux = wkset->getSolutionField("ux");
         auto uz = wkset->getSolutionField("uz");
 
@@ -217,7 +217,7 @@ void mhd1d::volumeResidual()
                 {
                     AD Fx = -visc(elem, pt)*duz_dx(elem, pt) - Bx(elem, pt)*Bz(elem, pt)/mu(elem, pt);
                     Fx *= wts(elem, pt);
-                    AD F = dens(elem, pt)*(duz_dt(elem, pt) + ux(elem, pt)*duz_dx(elem, pt));
+                    AD F = rho(elem, pt)*(duz_dt(elem, pt) + ux(elem, pt)*duz_dx(elem, pt));
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
