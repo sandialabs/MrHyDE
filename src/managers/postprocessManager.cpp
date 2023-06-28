@@ -4171,6 +4171,23 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         mesh->stk_mesh->setCellFieldData("unique Jacobian ID", blockID, myElements, jacnum);
       }
 
+      if (write_database_scaling) {
+        Kokkos::View<ScalarT*,AssemblyDevice> jacnum_dev("unique jac ID",myElements.size());
+        auto jacnum = Kokkos::create_mirror_view(jacnum_dev);
+        
+        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+          auto index = assembler->groups[block][grp]->basis_index;
+          auto eID = assembler->groups[block][grp]->localElemID;
+          parallel_for("postproc plot param HVOL",
+                       RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                       KOKKOS_LAMBDA (const int elem ) {
+            jacnum_dev(eID(elem)) = index(elem); // TMW: is this what we want?
+          });
+        }
+        Kokkos::deep_copy(jacnum, jacnum_dev);
+        mesh->stk_mesh->setCellFieldData("database scale factor", blockID, myElements, jacnum);
+      }
+
       if (write_subgrid_model) {
         Kokkos::View<ScalarT*,AssemblyDevice> sgmodel_dev("subgrid model",myElements.size());
         auto sgmodel = Kokkos::create_mirror_view(sgmodel_dev);

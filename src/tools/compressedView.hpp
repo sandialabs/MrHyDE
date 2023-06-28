@@ -49,16 +49,54 @@ enum DeRham_t { zero, one, two, three };
     //! Constructor for the case where the view is compressed and scaled.
     CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key, View_Sc2 mesh_scales, DeRham_t form)
     : have_key_(true),
-      have_scales_(mesh_scales.is_allocated()),
+      have_scales_((form != DeRham_t::zero) && mesh_scales.is_allocated()), // note: we also skip scaling altogether if we have an object with a simple pullback (e.g. 0-forms)
       view_(view),
       key_(key)
     {
       // GH: scales don't make sense unless we're on a view of dimensions elem-dof-pt-dim
       //     since the scales are applied to each component of a tensor basis
       if constexpr (std::is_same_v<ViewType,View_Sc4>) {
+        // If it's a 0-form, this all gets skipped
         if(have_scales_) {
           scales_ = View_Sc2("database scales", key_.extent(0), view_.extent(3));
-          Kokkos::deep_copy(scales_,1.0);
+          // If it's a 1-form, we need to store D^{-1}
+          if(form == DeRham_t::one) {
+            parallel_for("compressedView compute 1-form scales",
+                        RangePolicy<AssemblyExec>(0,key_.extent(0)),
+                        KOKKOS_LAMBDA (const int i) {
+              for(size_t l = 0; l<view_.extent(3); ++l) {
+                scales_(i,l) = 1.0/mesh_scales(i,l);
+              }
+            });
+          }
+          // If it's a 2-form, we need to store D/det(D)
+          else if(form == DeRham_t::two) {
+            parallel_for("compressedView compute 2-form scales",
+                        RangePolicy<AssemblyExec>(0,key_.extent(0)),
+                        KOKKOS_LAMBDA (const int i) {
+              ScalarT det = 1.0;
+              for(size_t l = 0; l<view_.extent(3); ++l) {
+                det *= mesh_scales(i,l);
+              }
+              for(size_t l = 0; l<view_.extent(3); ++l) {
+                scales_(i,l) = mesh_scales(i,l)/det;
+              }
+            });
+          }
+          // If it's a 3-form, we need to store 1/det(D)
+          else if(form == DeRham_t::three) {
+            parallel_for("compressedView compute 2-form scales",
+                        RangePolicy<AssemblyExec>(0,key_.extent(0)),
+                        KOKKOS_LAMBDA (const int i) {
+              ScalarT det = 1.0;
+              for(size_t l = 0; l<view_.extent(3); ++l) {
+                det *= mesh_scales(i,l);
+              }
+              for(size_t l = 0; l<view_.extent(3); ++l) {
+                scales_(i,l) = 1.0/det;
+              }
+            });
+          }
         }
       }
     }
