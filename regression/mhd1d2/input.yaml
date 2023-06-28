@@ -18,27 +18,30 @@ ANONYMOUS:
   Physics:
     modules: mhd1d
     Initial conditions: # TODO
-      pr: '0.6000000 +         cos(2*pi*x)*0.000001'
+      rho: '1e-10'
       ux: '           -5.36656*cos(2*pi*x)*0.000001'
       uy: '            2.52982*cos(2*pi*x)*0.000001'
       uz: '            0.89448*cos(2*pi*x)*0.000001'
       By: '1.4142136 + 0.84327*cos(2*pi*x)*0.000001'
       Bz: '0.5000000 + 0.42164*cos(2*pi*x)*0.000001'
+      T:  '273'
     Active Variables:
-      pr: HGRAD-DG
+      rho: HGRAD-DG
       ux: HGRAD-DG
       uy: HGRAD-DG
       uz: HGRAD-DG
       By: HGRAD-DG
       Bz: HGRAD-DG
+      T: HGRAD-DG
   Discretization:
     order:
-      pr: 1
+      rho: 1
       ux: 1
       uy: 1
       uz: 1
       By: 1
       Bz: 1
+      T: 1
     quadrature: 2
   Solver:
     solver: transient
@@ -75,7 +78,7 @@ ANONYMOUS:
       usage: inactive
     viscosity:
       type: scalar
-      value: 0.0
+      value: 1.0e-4
       usage: inactive
     resistivity:
       type: scalar
