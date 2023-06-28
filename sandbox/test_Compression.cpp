@@ -161,7 +161,15 @@ class Compressor {
     void identifyVolumetricDatabase(const size_t & block, vector<size_t> & first_users) {
   
       vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
-      vector<ScalarT> db_measures, db_jacobian_norms;      
+      vector<ScalarT> db_rotations;      
+
+      // scaling factors for x,y,z axes
+      DRV scale;
+      if(compute_scaling) {
+        scale = DRV("scale", numElem[block], dimension);
+      }
+
+      vector<ScalarT> db_measures, db_jacobian_norms;
       topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
 
       // There are only so many unique orientation
@@ -192,9 +200,9 @@ class Compressor {
       }
       
       ///////////////////////////////////////////////////////////////
-      // Now we actually determine the uniue elements
+      // Now we actually determine the unique elements
       ///////////////////////////////////////////////////////////////
-      
+
       for (size_t e=0; e<numElem[block]; ++e) {
 
         // Get the Jacobian for this element
@@ -249,39 +257,85 @@ class Compressor {
           
             // Check #2: element measures
             ScalarT diff = std::abs(measure-db_measures[prog]);
-        
             if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
-            
               ScalarT refnorm = db_jacobian_norms[prog];
+
               // Check #3: element Jacobians
-              ScalarT diff2 = 0.0;
-              size_type pt=0;
-              while (pt<numip[block] && diff2<database_TOL) {
-                size_type d0=0;
-                while (d0<dimension && diff2<database_TOL) {
-                  size_type d1=0;
-                  while (d1<dimension && diff2<database_TOL) { 
-                    diff2 += std::abs(jacobian(0,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
-                    d1++;
-                  }
-                  d0++;
-                }
-                pt++;
-              }
-            
+              ScalarT diff2 = compute_jacobian_diff(jacobian,db_jacobians[prog],block);
+              
               if (diff2/refnorm<database_TOL) {
                 found = true;
               }
-              else {
+              else { // Check #3 failed
+                if(compute_scaling) {
+                  ScalarT measure_scale = 1;
+                  for(size_type d0=0; d0<dimension; ++d0) {
+                    ScalarT rowsum = 0;
+                    ScalarT dbrowsum = 0;
+                    for(size_type d1=0; d1<dimension; ++d1) {
+                      rowsum += jacobian(0,0,d0,d1);
+                      dbrowsum += db_jacobians[prog](0,d0,d1); 
+                    }
+                    scale(e,d0) = dbrowsum/rowsum; // scale the diagonal entries to match at ip 0
+                    measure_scale *= scale(e,d0);
+                  }
+                  
+                  // Check #2 scaled: element measures
+                  ScalarT scaled_diff = std::abs(measure_scale*measure-db_measures[prog]); // compute the diff again after scaling the Jacobian
+                  if (std::abs(scaled_diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
+                    ScalarT refnorm = db_jacobian_norms[prog];
+
+                    // Check #3 scaled: element Jacobians
+                    ScalarT scaled_diff = std::abs(measure_scale*measure-db_measures[prog]); // compute the diff again after scaling the Jacobian
+                    
+                    if (diff2/refnorm<database_TOL) {
+                      found = true;
+                    } else { // Check scaled #3 failed
+                      ++prog;
+                    }
+                  } else { // Check scaled #2 failed
+                    ++prog;
+                  }
+                } else { // Check #3 failed above and no scaling
+                  ++prog;
+                }
+              }
+            } else { // Check #2 failed
+              // if Check #2 failed and we want diagonal scaling, check if diagonal scaling is possible
+              if(compute_scaling) {
+                ScalarT measure_scale = 1;
+                for(size_type d0=0; d0<dimension; ++d0) {
+                  ScalarT rowsum = 0;
+                  ScalarT dbrowsum = 0;
+                  for(size_type d1=0; d1<dimension; ++d1) {
+                    rowsum += jacobian(0,0,d0,d1);
+                    dbrowsum += db_jacobians[prog](0,d0,d1); 
+                  }
+                  scale(e,d0) = dbrowsum/rowsum; // scale the diagonal entries to match at ip 0
+                  measure_scale *= scale(e,d0);
+                }
+
+                // Check #2 scaled: element measures
+                ScalarT scaled_diff = std::abs(measure_scale*measure-db_measures[prog]); // compute the diff again after scaling the Jacobian
+                if (std::abs(scaled_diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
+                  ScalarT refnorm = db_jacobian_norms[prog];
+
+                  // Check #3 scaled: element Jacobians
+                  ScalarT diff2 = compute_scaled_jacobian_diff(jacobian, db_jacobians[prog], scale, e, block);
+                
+                  if (diff2/refnorm<database_TOL) {
+                    found = true;
+                  } else { // Check scaled #3 failed
+                    ++prog;
+                  }
+                } else { // Check scaled #2 failed
+                  ++prog;
+                }
+              } else { // Check #2 failed above and no scaling
                 ++prog;
               }
-            
             }
-            else {
-              ++prog;
-            }
-          }
-          else {
+          } else { // Check #1 failed
             ++prog;
           }
         }
@@ -303,6 +357,17 @@ class Compressor {
           db_jacobian_norms.push_back(jnorm);
         
         }
+      }
+
+      for(size_type idb=0; idb<db_jacobians.size(); ++idb) {
+        std::cout << "J = [";
+        for(size_type d0=0; d0<dimension; ++d0) {
+          for(size_type d1=0; d1<dimension-1; ++d1) {
+            std::cout << db_jacobians[idb](0,d0,d1) << ", ";
+          }
+          std::cout << db_jacobians[idb](0,d0,dimension-1) << "\n     ";
+        }
+        std::cout << "]" << std::endl;
       }
     }
 
@@ -329,7 +394,6 @@ class Compressor {
     double database_TOL;
     //! Boolean flag whether to ignore Intrepid2's orientations or not
     bool ignore_orientations;
-
     //! Boolean flag whether to compute diagonal scaling factors or not
     bool compute_scaling;
     //! Scaling factors when scaling compression is considered (size: num_elems-by-dim)
@@ -348,6 +412,45 @@ class Compressor {
     std::vector<Intrepid2::Orientation> orientations;
     vector<size_t> numElem, numip;
     int dimension;
+
+  private:
+    //! Compute the l1 difference of two Jacobians across all integration points
+    inline ScalarT compute_jacobian_diff(const DRV &jac, const Kokkos::View<ScalarT***,HostDevice> &database_jac, const size_t &block) {
+      ScalarT diff2 = 0;
+      size_type pt=0;
+      while (pt<numip[block] && diff2<database_TOL) {
+        size_type d0=0;
+        while (d0<dimension && diff2<database_TOL) {
+          size_type d1=0;
+          while (d1<dimension && diff2<database_TOL) { 
+            diff2 += std::abs(jac(0,pt,d0,d1) - database_jac(pt,d0,d1));
+            d1++;
+          }
+          d0++;
+        }
+        pt++;
+      }
+      return diff2;
+    }
+    
+    //! Compute the l1 difference of two Jacobians across all integration points using a diagonal scaling
+    inline ScalarT compute_scaled_jacobian_diff(const DRV &jac, const Kokkos::View<ScalarT***,HostDevice> &database_jac, const DRV &scale, const size_t &e, const size_t &block) {
+      ScalarT diff2 = 0;
+      size_type pt=0;
+      while (pt<numip[block] && diff2<database_TOL) {
+        size_type d0=0;
+        while (d0<dimension && diff2<database_TOL) {
+          size_type d1=0;
+          while (d1<dimension && diff2<database_TOL) { 
+            diff2 += std::abs(scale(e,d0)*jac(0,pt,d0,d1) - database_jac(pt,d0,d1));
+            d1++;
+          }
+          d0++;
+        }
+        pt++;
+      }
+      return diff2;
+    }
 };
 
 
@@ -371,6 +474,7 @@ int main(int argc, char * argv[]) {
     std::string input_file_name = "hex-reference.exo";
     bool compute_scaling = false;
     bool compute_rotation = false; // TODO: only works in 2D at the moment
+    bool ignore_orientations = false;
     double tol = 1e-12;
     bool verbose = false;
 
@@ -378,6 +482,7 @@ int main(int argc, char * argv[]) {
     clp.setOption("mesh", &input_file_name,                                      "Name of the mesh (default: hex-reference.exo)");
     clp.setOption("compute-scaling", "no-compute-scaling", &compute_scaling,     "Whether to compute compression based on a diagonal scaling (default: false)");
     clp.setOption("compute-rotation", "no-compute-rotation", &compute_rotation,  "Whether to compute compression based on a rotation (default: false)");
+    clp.setOption("ignore-orientations", "no-ignore-orientations", &ignore_orientations,  "Whether to ignore orientations when compressing (default: false)");
     clp.setOption("tol", &tol,                                                   "Compression tolerance (default: 1e-12)");
     clp.setOption("verbose", "no-verbose", &verbose,                             "Verbose output (default: false)");
     
@@ -399,6 +504,7 @@ int main(int argc, char * argv[]) {
                 << "    mesh = " << input_file_name << "\n"
                 << "    compute-scaling = "<< compute_scaling << "\n"
                 << "    compute-rotation = " << compute_rotation << "\n"
+                << "    ignore-orientations = " << ignore_orientations << "\n"
                 << "    tol = " << tol << "\n"
                 << "    verbose = " << verbose << std::endl; 
     }
@@ -480,7 +586,7 @@ int main(int argc, char * argv[]) {
     Teuchos::RCP<Compressor> compressor = Teuchos::rcp(new Compressor(comm, mesh, DOF));
     compressor->setComputeRotation(compute_rotation);
     compressor->setComputeScaling(compute_scaling);
-    compressor->setIgnoreOrientations(false);
+    compressor->setIgnoreOrientations(ignore_orientations);
     compressor->setTolerance(tol);
     
     // ==========================================================

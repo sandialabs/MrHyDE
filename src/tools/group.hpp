@@ -354,14 +354,26 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     
     // Data created here (Views should all be AssemblyDevice)
+
+    //! The number of elements
     size_t numElem;
+    //! The integration points on elements
     vector<View_Sc2> ip;
+    //! The weights at quadrature points
     View_Sc2 wts; 
+    //! The integration points and normals on element faces
     vector<vector<View_Sc2>> ip_face, normals_face;
+    //! The integration weights at face quadrature points
     vector<View_Sc2> wts_face;
+    //! The sizes of element faces
     vector<View_Sc1> hsize_face;
-    Kokkos::View<LO*,AssemblyDevice> basis_index;
     
+    //! The basis index for the database
+    Kokkos::View<LO*,AssemblyDevice> basis_index;
+    //! The diagonal scaling for the supercompressedview
+    View_Sc2 diagonal_scaling;
+
+    //! The Intrepid2 orientation for the basis functions
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     vector<View_Sc3> u, phi;
     View_Sc3 param, aux; // (elem,var,numdof)

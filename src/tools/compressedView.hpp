@@ -18,7 +18,9 @@
 #include "preferences.hpp"
 
 namespace MrHyDE {
-  
+
+enum DeRham_t { zero, one, two, three };
+
   // =================================================================
   // New data structure to store compressed views (using a database)
   // =================================================================
@@ -45,35 +47,36 @@ namespace MrHyDE {
     View_Sc2 scales_;
 
     //! Constructor for the case where the view is compressed and scaled.
-    CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key, View_Sc2 scales)
-    : view_(view),
-      key_(key),
-      scales_(scales)
+    CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key, View_Sc2 mesh_scales, DeRham_t form)
+    : have_key_(true),
+      have_scales_(mesh_scales.is_allocated()),
+      view_(view),
+      key_(key)
     {
-      have_key_ = true;
-      have_scales_ = true;
+      // GH: scales don't make sense unless we're on a view of dimensions elem-dof-pt-dim
+      //     since the scales are applied to each component of a tensor basis
+      if constexpr (std::is_same_v<ViewType,View_Sc4>) {
+        if(have_scales_) {
+          scales_ = View_Sc2("database scales", key_.extent(0), view_.extent(3));
+          Kokkos::deep_copy(scales_,1.0);
+        }
+      }
     }
 
     //! Constructor for the case where the view is compressed.
     CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key)
-    : view_(view),
+    : have_key_(true),
+      have_scales_(false),
+      view_(view),
       key_(key)
-    {
-      have_key_ = true;
-      have_scales_ = false;
-      // TODO: Remove the following lines after performance testing is done
-      have_scales_ = true;
-      scales_ = View_Sc2("database scales", key_.extent(0), 3);
-      Kokkos::deep_copy(scales_,1.0);
-    }
+    {}
 
     //! Constructor for the case where the view is not compressed.
     CompressedView(ViewType view)
-    : view_(view)
-    {
-      have_key_ = false;
-      have_scales_ = false;
-    }
+    : have_key_(false),
+      have_scales_(false),
+      view_(view)
+    {}
 
     //! Default constructor
     KOKKOS_INLINE_FUNCTION    
