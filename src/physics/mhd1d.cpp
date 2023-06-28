@@ -64,12 +64,15 @@ void mhd1d::defineFunctions(Teuchos::ParameterList &fs,
     functionManager = functionManager_;
 
     functionManager->addFunction("Bx", fs.get<string>("Bx", "1.0"), "ip");
-    functionManager->addFunction("viscosity", fs.get<string>("viscosity", "1.0"), "ip");
+    // Viscosity of air at 273 kelvin
+    functionManager->addFunction("viscosity", fs.get<string>("viscosity", "0.0000146"), "ip");
     functionManager->addFunction("permeability", fs.get<string>("permeability", "1.2e-6"), "ip");
     functionManager->addFunction("resistivity", fs.get<string>("resistivity", "0.0"), "ip");
     functionManager->addFunction("adiabatic index", fs.get<string>("adiabatic index", "1.667"), "ip");
-    // Specific heat at constant pressure for one mole of gas with adiabatic index 5/3
+    // Specific heat at constant pressure for one mole of gas with adiabatic index 5/3 at 273 kelvin
     functionManager->addFunction("specific heat", fs.get<string>("specific heat", "20.785"), "ip");
+    // Heat diffusivity of air at 273 kelvin
+    functionManager->addFunction("diffusivity", fs.get<string>("diffusivity", "0.000019"), "ip");
 }
 
 // ========================================================================================
@@ -81,7 +84,7 @@ void mhd1d::volumeResidual()
     int spaceDim = wkset->dimension;
     ScalarT dt = wkset->deltat;
     bool isTransient = wkset->isTransient;
-    Vista Bx, visc, mu, eta, gamma, Cp;
+    Vista Bx, visc, mu, eta, gamma, Cp, k;
     {
         Teuchos::TimeMonitor funceval(*volumeResidualFunc);
         Bx = functionManager->evaluate("Bx", "ip");
@@ -90,6 +93,7 @@ void mhd1d::volumeResidual()
         eta = functionManager->evaluate("resistivity", "ip");
         gamma = functionManager->evaluate("adiabatic index", "ip");
         Cp = functionManager->evaluate("specific heat", "ip");
+        k = functionManager->evaluate("diffusivity", "ip");
     }
 
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -300,6 +304,9 @@ void mhd1d::volumeResidual()
         auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
 
+        auto dBy_dx = wkset->getSolutionField("grad(By)[x]");
+        auto dBz_dx = wkset->getSolutionField("grad(Bz)[x]");
+
         auto T = wkset->getSolutionField("T");
         auto dT_dt = wkset->getSolutionField("T_t");
         auto dT_dx = wkset->getSolutionField("grad(T)[x]");
@@ -307,7 +314,7 @@ void mhd1d::volumeResidual()
         auto off = subview(wkset->offsets, T_num, ALL());
 
         parallel_for(
-            "MHD1D Bz volume resid",
+            "MHD1D Temp volume resid",
             RangePolicy<AssemblyExec>(0, wkset->numElem),
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
@@ -315,12 +322,14 @@ void mhd1d::volumeResidual()
                     AD pr = Cp(elem, pt)*T(elem, pt)*(gamma(elem, pt) - 1);
                     AD norm_dx_u = dux_dx(elem, pt)*dux_dx(elem, pt) +
                                    duy_dx(elem, pt)*duy_dx(elem, pt) +
-                                   duz_dx(elem, pt)*duz_dx(elem, pt);
-                    AD Fx = 0.;
+                                   duz_dx(elem, pt)*duz_dx(elem, pt) ;
+                    AD norm_dx_B = dBy_dx(elem, pt)*dBy_dx(elem, pt) +
+                                   dBz_dx(elem, pt)*dBz_dx(elem, pt) ;
+                    AD Fx = -k(elem, pt)*dT_dx(elem, pt);
                     Fx *= wts(elem, pt);
                     AD F = rho(elem, pt)*Cp(elem, pt)*(dT_dt(elem, pt) + ux(elem, pt)*T(elem, pt)) +
                            dux_dx(elem, pt)*(pr - visc(elem, pt)*dux_dx(elem, pt)) -
-                           visc(elem, pt)*norm_dx_u;
+                           visc(elem, pt)*norm_dx_u - eta(elem, pt)*norm_dx_B/mu(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {

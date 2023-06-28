@@ -78,7 +78,7 @@ ANONYMOUS:
       usage: inactive
     viscosity:
       type: scalar
-      value: 1.0e-4
+      value: 1.46e-5
       usage: inactive
     resistivity:
       type: scalar
