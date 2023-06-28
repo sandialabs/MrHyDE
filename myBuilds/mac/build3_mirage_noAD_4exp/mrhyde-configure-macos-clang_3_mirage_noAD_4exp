@@ -9,7 +9,7 @@ TRILINOS_INSTALL='/Users/eeprude/install/trilinos/trilinos-clang'
 
 MRHYDE_HOME='/Users/eeprude/work/mrhyde/MrHyDE'
 
-MRHYDE_INSTALL='/Users/eeprude/install/MrHyDE2_mirage_implicit'
+MRHYDE_INSTALL='/Users/eeprude/install/MrHyDE3_mirage_noAD_4exp'
 
 MIRAGE_EXTENSIONS='/Users/eeprude/work/mrhyde/mirage-extensions'
 
@@ -23,6 +23,7 @@ cmake \
 -D MrHyDE_BUILD_DOXYGEN=false \
 -D MrHyDE_ENABLE_MIRAGE_EXTENSIONS=ON \
 -D MrHyDE_MIRAGE_EXTENSIONS_DIR=${MIRAGE_EXTENSIONS} \
--D MrHyDE_MAX_DERIVS=18 \
+-D MrHyDE_MAX_DERIVS=1 \
+-D MrHyDE_DISABLE_AD=ON \
 ${EXTRA-ARGS} \
 ${MRHYDE_HOME}
