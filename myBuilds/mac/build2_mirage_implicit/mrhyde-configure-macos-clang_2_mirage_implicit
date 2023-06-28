@@ -9,7 +9,7 @@ TRILINOS_INSTALL='/Users/eeprude/install/trilinos/trilinos-clang'
 
 MRHYDE_HOME='/Users/eeprude/work/mrhyde/MrHyDE'
 
-MRHYDE_INSTALL='/Users/eeprude/install/MrHyDE'
+MRHYDE_INSTALL='/Users/eeprude/install/MrHyDE2_mirage_implicit'
 
 MIRAGE_EXTENSIONS='/Users/eeprude/work/mrhyde/mirage-extensions'
 
