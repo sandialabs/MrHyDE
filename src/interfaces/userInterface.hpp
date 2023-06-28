@@ -29,7 +29,7 @@
 #include "MirageTranslator.hpp"
 #endif
 
-#include <unistd.h> // sleep()
+//#include <unistd.h> // sleep()
 
 namespace MrHyDE {
   
@@ -80,19 +80,19 @@ namespace MrHyDE {
     // If called from Mirage, then the input file will be called FEM3.xml
     // This required a special interpreter
 
-    size_t flen(filename.size());
 #if 1
+    size_t flen(filename.size());
     if ((flen             >= 8  ) &&
-	(filename[0]      == 'F') &&
-	(filename[1]      == 'E') &&
-	(filename[2]      == 'M') &&
-	(filename[3]      == '3') &&
-	(filename[flen-4] == '.') &&
-	(filename[flen-3] == 'x') &&
-	(filename[flen-2] == 'm') &&
-	(filename[flen-1] == 'l')) {
-      std::cout << "Treating a FEM3 input file" << std::endl;
-      sleep(5);
+        (filename[0]      == 'F') &&
+        (filename[1]      == 'E') &&
+        (filename[2]      == 'M') &&
+        (filename[3]      == '3') &&
+        (filename[flen-4] == '.') &&
+        (filename[flen-3] == 'x') &&
+        (filename[flen-2] == 'm') &&
+        (filename[flen-1] == 'l')) {
+      //std::cout << "Treating a FEM3 input file" << std::endl;
+      //sleep(5);
 #else
     if (filename == "FEM3.xml") {
 #endif
