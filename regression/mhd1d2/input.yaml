@@ -18,13 +18,13 @@ ANONYMOUS:
   Physics:
     modules: mhd1d
     Initial conditions: # TODO
-      rho: '1e-10'
-      ux: '           -5.36656*cos(2*pi*x)*0.000001'
-      uy: '            2.52982*cos(2*pi*x)*0.000001'
-      uz: '            0.89448*cos(2*pi*x)*0.000001'
-      By: '1.4142136 + 0.84327*cos(2*pi*x)*0.000001'
-      Bz: '0.5000000 + 0.42164*cos(2*pi*x)*0.000001'
-      T:  '273'
+      rho: '1.0000000000000000 + 0.472135954999580*cos(2*pi*x)*0.000001'
+      ux:  '                    -2.000000000000000*cos(2*pi*x)*0.000001'
+      uy:  '                     0.942809041582063*cos(2*pi*x)*0.000001'
+      uz:  '                     0.333333333333333*cos(2*pi*x)*0.000001'
+      By:  '0.3989422804014327 + 0.843274042711568*cos(2*pi*x)*0.000001'
+      Bz:  '0.1410473958869391 + 0.298142396999972*cos(2*pi*x)*0.000001'
+      E:   '0.1293133912621650 + 2.012457825664615*cos(2*pi*x)*0.000001' # The cos^2 term is approximately zero
     Active Variables:
       rho: HGRAD-DG
       ux: HGRAD-DG
@@ -32,7 +32,7 @@ ANONYMOUS:
       uz: HGRAD-DG
       By: HGRAD-DG
       Bz: HGRAD-DG
-      T: HGRAD-DG
+      E: HGRAD-DG
   Discretization:
     order:
       rho: 1
@@ -41,18 +41,18 @@ ANONYMOUS:
       uz: 1
       By: 1
       Bz: 1
-      T: 1
+      E: 1
     quadrature: 2
   Solver:
     solver: transient
-    workset size: 200
+    workset size: 100
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-12
     max nonlinear iters: 1
-    max linear iters: 150
-    final time: 1.0
+    max linear iters: 1000
+    final time: 5.0
     delta t: 0.05
-    # use domain decomposition: true
+    use domain decomposition: true
     use preconditioner: true
     preconditioner reuse type: full
     # Preconditioner Settings:
@@ -62,7 +62,7 @@ ANONYMOUS:
   Analysis:
     analysis type: forward
   Functions:
-
+    viscosity: "nu"
   Postprocess:
     write solution: true
     output file: output
@@ -70,15 +70,15 @@ ANONYMOUS:
   Parameters:
     Bx: # First, background magnetic field. No induction in x dir, so magnet is static
       type: scalar
-      value: 1.0
+      value: 0.28209479177387814
       usage: inactive
     permeability:
       type: scalar
-      value: 1.2e-7
+      value: 1.0
       usage: inactive
-    viscosity:
+    nu:
       type: scalar
-      value: 1.46e-5
+      value: 0.
       usage: inactive
     resistivity:
       type: scalar

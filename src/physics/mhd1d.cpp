@@ -33,7 +33,7 @@ mhd1d::mhd1d(Teuchos::ParameterList &settings, const int &dimension_)
     myvars.push_back("ux");
     myvars.push_back("uy");
     myvars.push_back("uz");
-    myvars.push_back("T");
+    myvars.push_back("E");
 
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
@@ -132,9 +132,11 @@ void mhd1d::volumeResidual()
         auto basis = wkset->basis[ux_basis];
         auto basis_grad = wkset->basis_grad[ux_basis];
         auto ux = wkset->getSolutionField("ux");
+        auto uy = wkset->getSolutionField("uy");
+        auto uz = wkset->getSolutionField("uz");
 
         auto rho = wkset->getSolutionField("rho");
-        auto T = wkset->getSolutionField("T");
+        auto E = wkset->getSolutionField("E");
 
         auto By = wkset->getSolutionField("By");
         auto Bz = wkset->getSolutionField("Bz");
@@ -151,7 +153,9 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt);
-                    AD pr = Cp(elem, pt)*T(elem, pt)*(gamma(elem, pt) - 1)/gamma(elem, pt);
+                    AD norm_u = ux(elem, pt)*ux(elem, pt) + uy(elem, pt)*uy(elem, pt) + uz(elem, pt)*uz(elem, pt);
+                    AD pr = E(elem, pt) - rho(elem, pt)*norm_u/2 - norm_B/(2*mu(elem, pt));
+                    pr *= gamma(elem, pt) - 1;
                     AD Fx = -4*visc(elem,pt)*dux_dx(elem,pt)/3 +
                             pr + (norm_B/2 - Bx(elem, pt)*Bx(elem, pt))/mu(elem,pt);
                     Fx *= wts(elem, pt);
@@ -292,44 +296,49 @@ void mhd1d::volumeResidual()
                 }
             });
     }
-    {// Temperature
-        int T_basis = wkset->usebasis[T_num];
-        auto basis = wkset->basis[T_basis];
-        auto basis_grad = wkset->basis_grad[T_basis];
+    {// Energy
+        int E_basis = wkset->usebasis[E_num];
+        auto basis = wkset->basis[E_basis];
+        auto basis_grad = wkset->basis_grad[E_basis];
         auto rho = wkset->getSolutionField("rho");
-        auto ux = wkset->getSolutionField("ux");
 
         
+        auto ux = wkset->getSolutionField("ux");
+        auto uy = wkset->getSolutionField("uy");
+        auto uz = wkset->getSolutionField("uz");
+
         auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
         auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
 
+        auto By = wkset->getSolutionField("By");
+        auto Bz = wkset->getSolutionField("Bz");
         auto dBy_dx = wkset->getSolutionField("grad(By)[x]");
         auto dBz_dx = wkset->getSolutionField("grad(Bz)[x]");
 
-        auto T = wkset->getSolutionField("T");
-        auto dT_dt = wkset->getSolutionField("T_t");
-        auto dT_dx = wkset->getSolutionField("grad(T)[x]");
+        auto E = wkset->getSolutionField("E");
+        auto dE_dt = wkset->getSolutionField("E_t");
 
-        auto off = subview(wkset->offsets, T_num, ALL());
+        auto off = subview(wkset->offsets, E_num, ALL());
 
         parallel_for(
-            "MHD1D Temp volume resid",
+            "MHD1D Energy volume resid",
             RangePolicy<AssemblyExec>(0, wkset->numElem),
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD pr = Cp(elem, pt)*T(elem, pt)*(gamma(elem, pt) - 1)/gamma(elem, pt);
-                    AD norm_dx_u = dux_dx(elem, pt)*dux_dx(elem, pt) +
-                                   duy_dx(elem, pt)*duy_dx(elem, pt) +
-                                   duz_dx(elem, pt)*duz_dx(elem, pt) ;
-                    AD norm_dx_B = dBy_dx(elem, pt)*dBy_dx(elem, pt) +
-                                   dBz_dx(elem, pt)*dBz_dx(elem, pt) ;
-                    AD Fx = -k(elem, pt)*dT_dx(elem, pt);
+                    AD norm_u  = ux(elem, pt)*ux(elem, pt) + uy(elem, pt)*uy(elem, pt) + uz(elem, pt)*uz(elem, pt);
+                    AD norm_du = dux_dx(elem, pt)*dux_dx(elem, pt) + duy_dx(elem, pt)*duy_dx(elem, pt) + duz_dx(elem, pt)*duz_dx(elem, pt);
+                    AD norm_B  = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt);
+                    AD B_dot_u = ux(elem, pt)*Bx(elem, pt) + uy(elem, pt)*By(elem, pt) + uz(elem, pt)*Bz(elem, pt);
+                    AD pr = E(elem, pt) - rho(elem, pt)*norm_u/2 - norm_B/(2*mu(elem, pt));
+                    pr *= gamma(elem, pt) - 1;
+                    AD pr_star = pr + norm_B/(2*mu(elem, pt));
+                    AD Fx = (E(elem, pt) + pr_star)*ux(elem, pt) - Bx(elem, pt)*B_dot_u +
+                            4*visc(elem, pt)*rho(elem, pt)*ux(elem, pt)*dux_dx(elem, pt)/3 -
+                            eta(elem, pt)*(Bz(elem, pt)*dBz_dx(elem, pt) + By(elem, pt)*dBy_dx(elem, pt))/mu(elem, pt);
                     Fx *= wts(elem, pt);
-                    AD F = rho(elem, pt)*Cp(elem, pt)*(dT_dt(elem, pt) + ux(elem, pt)*T(elem, pt)) +
-                           dux_dx(elem, pt)*(pr - visc(elem, pt)*dux_dx(elem, pt)) +
-                           -visc(elem, pt)*norm_dx_u - eta(elem, pt)*norm_dx_B/mu(elem, pt);
+                    AD F = dE_dt(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
@@ -393,8 +402,8 @@ void mhd1d::setWorkset(Teuchos::RCP<workset> &wkset_)
             By_num = i;
         if (varlist[i] == "Bz")
             Bz_num = i;
-        if (varlist[i] == "T")
-            T_num = i;
+        if (varlist[i] == "E")
+            E_num = i;
     }
 }
 
