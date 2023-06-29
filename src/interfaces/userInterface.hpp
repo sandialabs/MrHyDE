@@ -29,8 +29,6 @@
 #include "MirageTranslator.hpp"
 #endif
 
-//#include <unistd.h> // sleep()
-
 namespace MrHyDE {
   
   //////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,7 +90,6 @@ namespace MrHyDE {
         (filename[flen-2] == 'm') &&
         (filename[flen-1] == 'l')) {
       //std::cout << "Treating a FEM3 input file" << std::endl;
-      //sleep(5);
 #else
     if (filename == "FEM3.xml") {
 #endif
