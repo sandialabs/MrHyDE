@@ -769,8 +769,8 @@ void AnalysisManager::run() {
     obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params));
 
     std::cout << "analysis option: " << analysis_type << std::endl;     
-    //bvbw compile error    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj,postproc);
-    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj);
+    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj,postproc);
+    // HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj);
     HDSA::Ptr<HDSA::Model_Discrepancy_Update<RealT> > md_update = HDSA::makePtr<HDSA::Model_Discrepancy_Update<RealT> >(md_interface);
   
   RealT alpha = 1.e-3;
