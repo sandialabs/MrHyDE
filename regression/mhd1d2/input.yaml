@@ -18,13 +18,13 @@ ANONYMOUS:
   Physics:
     modules: mhd1d
     Initial conditions: # TODO
-      rho: '1.0000000000000000 + 0.472135954999580*cos(2*pi*x)*0.000001'
-      ux:  '                    -2.000000000000000*cos(2*pi*x)*0.000001'
-      uy:  '                     0.942809041582063*cos(2*pi*x)*0.000001'
-      uz:  '                     0.333333333333333*cos(2*pi*x)*0.000001'
-      By:  '0.3989422804014327 + 0.843274042711568*cos(2*pi*x)*0.000001'
-      Bz:  '0.1410473958869391 + 0.298142396999972*cos(2*pi*x)*0.000001'
-      E:   '0.1293133912621650 + 2.012457825664615*cos(2*pi*x)*0.000001' # The cos^2 term is approximately zero
+      rho: ' 0.4472135954999580*sin(2*pi*x)*0.000001'
+      ux:  '-2.0000000000000000*sin(2*pi*x)*0.000001'
+      uy:  ' 0.9428090415820635*sin(2*pi*x)*0.000001'
+      uz:  ' 0.3333333333333333*sin(2*pi*x)*0.000001'
+      By:  ' 0.8432740427115680*sin(2*pi*x)*0.000001 + 5.0132565492620010'
+      Bz:  ' 0.2981423969999720*sin(2*pi*x)*0.000001 + 1.7724538509055159'
+      E:   ' 2.0124578256646150*sin(2*pi*x)*0.000001'
     Active Variables:
       rho: HGRAD-DG
       ux: HGRAD-DG
@@ -49,9 +49,9 @@ ANONYMOUS:
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-12
     max nonlinear iters: 1
-    max linear iters: 1000
+    max linear iters: 200
     final time: 5.0
-    delta t: 0.05
+    delta t: 0.01
     use domain decomposition: true
     use preconditioner: true
     preconditioner reuse type: full
@@ -70,18 +70,22 @@ ANONYMOUS:
   Parameters:
     Bx: # First, background magnetic field. No induction in x dir, so magnet is static
       type: scalar
-      value: 0.28209479177387814
+      value: 3.5449077018110318
       usage: inactive
     permeability:
       type: scalar
-      value: 1.0
+      value: 12.566370614359172 # 4pi
       usage: inactive
     nu:
       type: scalar
-      value: 0.
+      value: 1.0e-4
       usage: inactive
     resistivity:
       type: scalar
-      value: 0.02
+      value: 0.0
+      usage: inactive
+    adiabatic index:
+      type: scalar
+      value: 1.66666667
       usage: inactive
 ...

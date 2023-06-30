@@ -117,8 +117,8 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD Fx = rho(elem,pt)*ux(elem, pt);
-                    Fx *= wts(elem, pt);
                     AD F = drho_dt(elem, pt); // time derivative of density
+                    Fx *= wts(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
@@ -158,8 +158,8 @@ void mhd1d::volumeResidual()
                     pr *= gamma(elem, pt) - 1;
                     AD Fx = -4*visc(elem,pt)*dux_dx(elem,pt)/3 +
                             pr + (norm_B/2 - Bx(elem, pt)*Bx(elem, pt))/mu(elem,pt);
-                    Fx *= wts(elem, pt);
                     AD F = rho(elem, pt)*(dux_dt(elem, pt) + ux(elem, pt)*dux_dx(elem, pt));
+                    Fx *= wts(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
@@ -191,8 +191,8 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD Fx = -visc(elem, pt)*duy_dx(elem, pt) - Bx(elem, pt)*By(elem, pt)/mu(elem, pt);
-                    Fx *= wts(elem, pt);
                     AD F = rho(elem, pt)*(duy_dt(elem, pt) + ux(elem, pt)*duy_dx(elem, pt));
+                    Fx *= wts(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
@@ -224,8 +224,8 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD Fx = -visc(elem, pt)*duz_dx(elem, pt) - Bx(elem, pt)*Bz(elem, pt)/mu(elem, pt);
-                    Fx *= wts(elem, pt);
                     AD F = rho(elem, pt)*(duz_dt(elem, pt) + ux(elem, pt)*duz_dx(elem, pt));
+                    Fx *= wts(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
@@ -255,8 +255,8 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD Fx = (By(elem, pt) * ux(elem, pt) - Bx(elem, pt)*uy(elem, pt)) - dBy_dx(elem, pt)*eta(elem, pt)/mu(elem, pt);
-                    Fx *= wts(elem, pt);
                     AD F = dBy_dt(elem, pt);
+                    Fx *= wts(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
@@ -286,8 +286,8 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD Fx = Bz(elem, pt) * ux(elem, pt) - Bx(elem, pt) * uz(elem, pt) - dBz_dx(elem, pt)*eta(elem, pt)/mu(elem, pt);
-                    Fx *= wts(elem, pt);
                     AD F = dBz_dt(elem, pt);
+                    Fx *= wts(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
@@ -328,17 +328,16 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD norm_u  = ux(elem, pt)*ux(elem, pt) + uy(elem, pt)*uy(elem, pt) + uz(elem, pt)*uz(elem, pt);
-                    AD norm_du = dux_dx(elem, pt)*dux_dx(elem, pt) + duy_dx(elem, pt)*duy_dx(elem, pt) + duz_dx(elem, pt)*duz_dx(elem, pt);
                     AD norm_B  = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt) + Bz(elem, pt)*Bz(elem, pt);
                     AD B_dot_u = ux(elem, pt)*Bx(elem, pt) + uy(elem, pt)*By(elem, pt) + uz(elem, pt)*Bz(elem, pt);
                     AD pr = E(elem, pt) - rho(elem, pt)*norm_u/2 - norm_B/(2*mu(elem, pt));
                     pr *= gamma(elem, pt) - 1;
                     AD pr_star = pr + norm_B/(2*mu(elem, pt));
-                    AD Fx = (E(elem, pt) + pr_star)*ux(elem, pt) - Bx(elem, pt)*B_dot_u +
+                    AD Fx = (E(elem, pt) + pr_star)*ux(elem, pt) - Bx(elem, pt)*B_dot_u - // Is viscosity negative or positive?
                             4*visc(elem, pt)*rho(elem, pt)*ux(elem, pt)*dux_dx(elem, pt)/3 -
                             eta(elem, pt)*(Bz(elem, pt)*dBz_dx(elem, pt) + By(elem, pt)*dBy_dx(elem, pt))/mu(elem, pt);
-                    Fx *= wts(elem, pt);
                     AD F = dE_dt(elem, pt);
+                    Fx *= wts(elem, pt);
                     F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
