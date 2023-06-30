@@ -11,7 +11,7 @@ ANONYMOUS:
     element type: interval
     xmin: 0.0
     xmax: 1.0
-    NX: 1000
+    NX: 250
     Periodic BCs:
       Count: 1
       Periodic Condition 1: 'y-all 1e-12: left;right'
@@ -49,9 +49,9 @@ ANONYMOUS:
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-12
     max nonlinear iters: 1
-    max linear iters: 200
-    final time: 5.0
-    delta t: 0.01
+    max linear iters: 1000
+    final time: 1.0
+    delta t: 0.001
     use domain decomposition: true
     use preconditioner: true
     preconditioner reuse type: full

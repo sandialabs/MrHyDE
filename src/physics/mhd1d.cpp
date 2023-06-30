@@ -156,7 +156,7 @@ void mhd1d::volumeResidual()
                     AD norm_u = ux(elem, pt)*ux(elem, pt) + uy(elem, pt)*uy(elem, pt) + uz(elem, pt)*uz(elem, pt);
                     AD pr = E(elem, pt) - rho(elem, pt)*norm_u/2 - norm_B/(2*mu(elem, pt));
                     pr *= gamma(elem, pt) - 1;
-                    AD Fx = -4*visc(elem,pt)*dux_dx(elem,pt)/3 +
+                    AD Fx =-visc(elem,pt)*dux_dx(elem,pt) +
                             pr + (norm_B/2 - Bx(elem, pt)*Bx(elem, pt))/mu(elem,pt);
                     AD F = rho(elem, pt)*(dux_dt(elem, pt) + ux(elem, pt)*dux_dx(elem, pt));
                     Fx *= wts(elem, pt);
@@ -334,7 +334,7 @@ void mhd1d::volumeResidual()
                     pr *= gamma(elem, pt) - 1;
                     AD pr_star = pr + norm_B/(2*mu(elem, pt));
                     AD Fx = (E(elem, pt) + pr_star)*ux(elem, pt) - Bx(elem, pt)*B_dot_u - // Is viscosity negative or positive?
-                            4*visc(elem, pt)*rho(elem, pt)*ux(elem, pt)*dux_dx(elem, pt)/3 -
+                            visc(elem, pt)*rho(elem, pt)*ux(elem, pt)*dux_dx(elem, pt) -
                             eta(elem, pt)*(Bz(elem, pt)*dBz_dx(elem, pt) + By(elem, pt)*dBy_dx(elem, pt))/mu(elem, pt);
                     AD F = dE_dt(elem, pt);
                     Fx *= wts(elem, pt);
