@@ -19,6 +19,8 @@
 
 using namespace MrHyDE;
 
+#define EEP_DEBUG_ASSEMBLY_MANAGER 0
+
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
@@ -1849,6 +1851,11 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
                                            vector_RCP & Psol, const bool & is_final_time,
                                            const ScalarT & deltat) {
   
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Entering AssemblyManager<Node>::assembleJacRes(a)"
+              << ", set = " << set
+              << std::endl;
+  }
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       cout << "******** Starting AssemblyManager::assembleJacRes ..." << endl;
@@ -1867,9 +1874,26 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
       this->performGather(set, phi, 2, 0);
     }
   }
-  
+
+  Comm->barrier();
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "In AssemblyManager<Node>::assembleJacRes(a)"
+              << ", set = " << set
+              << ": groups.size() = " << groups.size()
+              << std::endl;
+  }
+  Comm->barrier();
   
   for (size_t block=0; block<groups.size(); ++block) {
+    Comm->barrier();
+    if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "In AssemblyManager<Node>::assembleJacRes(a)"
+                << ", set = " << set
+                << ": block = " << block
+                << ": groups[block].size() = " << groups[block].size()
+                << std::endl;
+    }
+    Comm->barrier();
     if (groups[block].size() > 0) {
       this->assembleJacRes(set, compute_jacobian,
                            compute_sens, compute_disc_sens, res, J, isTransient,
@@ -1882,6 +1906,11 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
     if (Comm->getRank() == 0) {
       cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
     }
+  }
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Leaving AssemblyManager<Node>::assembleJacRes(a)"
+              << ", set = " << set
+              << std::endl;
   }
 }
 
@@ -1899,6 +1928,13 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
                                            const bool & is_final_time,
                                            const int & block, const ScalarT & deltat) {
   
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Entering AssemblyManager<Node>::assembleJacRes(b)"
+              << ", set = " << set
+              << ", block = " << block
+              << std::endl;
+  }
+
   Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
   
   // Kokkos::CRSMatrix and Kokkos::View for J and res
@@ -1997,9 +2033,19 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   /////////////////////////////////////////////////////////////////////////////
   
   // Note: Cannot parallelize over groups since data structures are re-used
-  
+
   for (size_t grp=0; grp<groups[block].size(); ++grp) {
     
+    if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                << ", set = " << set
+                << ", block = " << block
+                << ": beginning iteration for grp = " << grp
+                << ", assemble_volume_terms[set][block] = " << assemble_volume_terms[set][block]
+                << ", assemble_face_terms[set][block] = " << assemble_face_terms[set][block]
+                << std::endl;
+    }
+
     wkset[block]->localEID = grp;
     
     if (isTransient && useadjoint && !groups[block][0]->groupData->multiscale) {
@@ -2039,6 +2085,15 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         }
       }
       
+      if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+        std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                  << ", set = " << set
+                  << ", block = " << block
+                  << ": in iteration for grp = " << grp
+                  << ", done with assembling volume terms"
+                  << std::endl;
+      }
+
       ///////////////////////////////////////////////////////////////////////////
       // Edge/face contribution
       ///////////////////////////////////////////////////////////////////////////
@@ -2057,6 +2112,14 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         }
       }
       
+      if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+        std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                  << ", set = " << set
+                  << ", block = " << block
+                  << ": in iteration for grp = " << grp
+                  << ", done with assembling face terms"
+                  << std::endl;
+      }
     }
     
     ///////////////////////////////////////////////////////////////////////////
@@ -2138,12 +2201,25 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       }
     }
     
+    if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                << ": ending iteration for grp = " << grp
+                << std::endl;
+    }
   } // group loop
   
   //////////////////////////////////////////////////////////////////////////////////////
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
-  
+
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+              << ", set = " << set
+              << ", block = " << block
+              << ": assemble_boundary_terms[set][block] = " << assemble_boundary_terms[set][block]
+              << std::endl;
+  }
+
   if (assemble_boundary_terms[set][block]) {
     
     wkset[block]->isOnSide = true;
@@ -2164,8 +2240,23 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       }
     }
     
+    if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                << ", set = " << set
+                << ", block = " << block
+                << ": boundary_groups[block].size() = " << boundary_groups[block].size()
+                << std::endl;
+    }
     for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
       
+      if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+        std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                  << ", set = "   << set
+                  << ", block = " << block
+                  << ", grp = "   << grp
+                  << ": boundary_groups[block][grp]->numElem = " << boundary_groups[block][grp]->numElem
+                  << std::endl;
+      }
       if (boundary_groups[block][grp]->numElem > 0) {
         
         /////////////////////////////////////////////////////////////////////////////
@@ -2176,9 +2267,25 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         
         if (!groupData[block]->multiscale) {
           Teuchos::TimeMonitor localtimer(*phystimer);
+          if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+            std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                      << ", set = " << set
+                      << ", block = " << block
+                      << ": grp = " << grp
+                      << ", calling phys->boundaryResidual()..."
+                      << std::endl;
+          }
           phys->boundaryResidual(set,block);
         }
         
+        if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+          std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+                    << ", set = " << set
+                    << ", block = " << block
+                    << ": grp = " << grp
+                    << ", calling phys->fluxConditions()..."
+                    << std::endl;
+        }
         {
           phys->fluxConditions(set,block);
         }
@@ -2251,14 +2358,29 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         }
         
       }
-    } // element loop
+    } // element loop // Aqui_: or group loop ???
     wkset[block]->isOnSide = false;
   }
   
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+              << ", set = " << set
+              << ", block = " << block
+              << ": done with assembling boundary terms"
+              << std::endl;
+  }
+
   // Apply constraints, e.g., strongly imposed Dirichlet
   this->dofConstraints(set, J, res, current_time, compute_jacobian, compute_disc_sens);
-  
-  
+
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
+              << ", set = " << set
+              << ", block = " << block
+              << ": fix_zero_rows = " << fix_zero_rows
+              << std::endl;
+  }
+
   if (fix_zero_rows) {
     size_t numrows = J->getLocalNumRows();
     
@@ -2280,6 +2402,12 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     });
   }
   
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Leaving AssemblyManager<Node>::assembleJacRes(b)"
+              << ", set = " << set
+              << ", block = " << block
+              << std::endl;
+  }
 }
 
 

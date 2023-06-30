@@ -16,6 +16,8 @@
 
 using namespace MrHyDE;
 
+#define EEP_DEBUG_POST_PROC_MANAGER 0
+
 // ========================================================================================
 /* Minimal constructor to set up the problem */
 // ========================================================================================
@@ -2694,6 +2696,16 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          const ScalarT & deltat,
                                                          vector_RCP & grad) {
   
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Entering PostprocessManager<Node>::computeObjectiveGradState()"
+              << ", set = " << set
+#ifndef MrHyDE_NO_AD
+              << ", AD will be used..."
+#else
+              << ", AD will not be used..."
+#endif
+              << std::endl;
+  }
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting PostprocessManager::computeObjectiveGradState ..." << std::endl;
@@ -3488,6 +3500,11 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   
 #endif
   
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Leaving PostprocessManager<Node>::computeObjectiveGradState()"
+              << ", set = " << set
+              << std::endl;
+  }
 }
 
 
@@ -3502,6 +3519,10 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
                                                     const ScalarT & deltat,
                                                     MrHyDE_OptVector & gradient) {
   
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Entering PostprocessManager<Node>::computeSensitivities()"
+              << std::endl;
+  }
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting PostprocessManager::computeSensitivities ..." << std::endl;
@@ -3625,6 +3646,10 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     if (Comm->getRank() == 0) {
       std::cout << "******** Finished PostprocessManager::computeSensitivities ..." << std::endl;
     }
+  }
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Leaving PostprocessManager<Node>::computeSensitivities()"
+              << std::endl;
   }
   
 }

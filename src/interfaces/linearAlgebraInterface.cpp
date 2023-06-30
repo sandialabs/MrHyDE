@@ -26,6 +26,8 @@
 
 using namespace MrHyDE;
 
+#define EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE 0
+
 // ========================================================================================
 // Constructor  
 // ========================================================================================
@@ -366,6 +368,17 @@ template<class Node>
 void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node> > & opt,
                                                 matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
 
+  if (EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE && (Comm->getRank() == 0)) {
+    std::cout << "Entering LinearAlgebraInterface<Node>::linearSolver()"
+              << ": opt->useDirect = "           << opt->useDirect
+              << ", opt->usePreconditioner = "   << opt->usePreconditioner
+              << ", opt->precType = "            << opt->precType
+              << ", opt->reusePreconditioner = " << opt->reusePreconditioner
+              << ", opt->havePreconditioner = "  << opt->havePreconditioner
+              << ", opt->rightPreconditioner = " << opt->rightPreconditioner
+              << std::endl;
+  }
+
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
   if (opt->useDirect) {
@@ -493,6 +506,10 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
     
   }
   
+  if (EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE && (Comm->getRank() == 0)) {
+    std::cout << "Leaving LinearAlgebraInterface<Node>::linearSolver()"
+              << std::endl;
+  }
 }
 // ========================================================================================
 // Linear Solver for Tpetra stack

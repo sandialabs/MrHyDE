@@ -1211,7 +1211,9 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   Comm->barrier();
   if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "Entering======================================================" << std::endl;
-    std::cout << "EEP Entering SolverManager<Node>::adjointModel()" << std::endl;
+    std::cout << "EEP Entering SolverManager<Node>::adjointModel()"
+              << ": solver_type = " << solver_type
+              << std::endl;
   }
   Comm->barrier();
   if (debug_level > 0) {
@@ -1579,7 +1581,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         if (status>0) {
           // throw error // Aqui_
         }
-	// Aqui_: no need to do the same stuff done during the forward loop ???
+        // Aqui_: no need to do the same stuff done during the forward loop ???
         postproc->computeSensitivities(u_cur, phi_cur, current_time, cindex, deltat, gradient); // Aqui important
       }
       else {
@@ -1657,10 +1659,12 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
 // ========================================================================================
 
 template<class Node>
-int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, vector_RCP & phi) {
+int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, vector_RCP & phi_io) {
   Comm->barrier();
   if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-    std::cout << "EEP Entering SolverManager<Node>::nonlinearSolver()" << std::endl;
+    std::cout << "EEP Entering SolverManager<Node>::nonlinearSolver()"
+              << ": set = " << set
+              << std::endl;
   }
   Comm->barrier();
   
@@ -1748,7 +1752,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     }
     Comm->barrier();
 
-    assembler->assembleJacRes(set, u_io, phi, build_jacobian, false, false,
+    assembler->assembleJacRes(set, u_io, phi_io, build_jacobian, false, false, // Aqui important
                               current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                               params->num_active_params, params->Psol_over, is_final_time, deltat);
 
@@ -1772,7 +1776,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       }
       Comm->barrier();
 
-      postproc->computeObjectiveGradState(set, u_io, current_time+cdt, deltat, current_res);
+      postproc->computeObjectiveGradState(set, u_io, current_time+cdt, deltat, current_res); // Aqui important
 
       Comm->barrier();
       if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
@@ -1814,7 +1818,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       alpha *= 0.5;
       if (is_adjoint) { // Aqui_ ?????
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(-1.0*alpha, *(current_du_over), 1.0);
+        phi_io->update(-1.0*alpha, *(current_du_over), 1.0);
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
@@ -1861,14 +1865,14 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       }
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
-      linalg->linearSolver(set, J, current_res, current_du);
+      linalg->linearSolver(set, J, current_res, current_du); // Aqui important
       linalg->writeToFile(J, current_res, current_du);
       linalg->importVectorToOverlapped(set, current_du_over, current_du);
       
       alpha = 1.0;
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(alpha, *(current_du_over), 1.0);
+        phi_io->update(alpha, *(current_du_over), 1.0);
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
