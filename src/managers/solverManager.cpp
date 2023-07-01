@@ -1106,9 +1106,15 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
 template<class Node>
 void SolverManager<Node>::forwardModel(DFAD & objective) {
   Comm->barrier();
+#if 0
   if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "Entering======================================================" << std::endl;
-    std::cout << "EEP Entering SolverManager<Node>::forwardModel()" << std::endl;
+#else
+    if (false) { // (Comm->getRank() == 0) {
+#endif
+    std::cout << "EEP Entering SolverManager<Node>::forwardModel()"
+              << ": setnames.size() = " << setnames.size()
+              << std::endl;
   }
   Comm->barrier();
   
@@ -1209,10 +1215,15 @@ template<class Node>
 void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
   Comm->barrier();
+#if 0
   if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "Entering======================================================" << std::endl;
+#else
+    if (false) { // (Comm->getRank() == 0) {
+#endif
     std::cout << "EEP Entering SolverManager<Node>::adjointModel()"
-              << ": solver_type = " << solver_type
+              << ": setnames.size() = " << setnames.size()
+              << ", solver_type = " << solver_type
               << std::endl;
   }
   Comm->barrier();
@@ -1224,7 +1235,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
   if (setnames.size()>1) {
     if (Comm->getRank() == 0) {
-      cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl;
+      cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl; // Aqui_
     }
   }
   else {
@@ -1664,6 +1675,8 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
   if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "EEP Entering SolverManager<Node>::nonlinearSolver()"
               << ": set = " << set
+              << ", useRelativeTOL = " << useRelativeTOL
+              << ", useAbsoluteTOL = " << useAbsoluteTOL
               << std::endl;
   }
   Comm->barrier();
@@ -1748,7 +1761,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
 
     Comm->barrier();
     if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-      std::cout << "EEP In SolverManager<Node>::nonlinearSolver(): calling assembler->assembleJacRes()" << std::endl;
+      std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                << ": numNonlinearSteps = " << numNonlinearSteps
+                << ", calling assembler->assembleJacRes()"
+                << std::endl;
     }
     Comm->barrier();
 
@@ -1758,7 +1774,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
 
     Comm->barrier();
     if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-      std::cout << "EEP In SolverManager<Node>::nonlinearSolver(): returned from assembler->assembleJacRes()" << std::endl;
+      std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                << ": numNonlinearSteps = " << numNonlinearSteps
+                << ", returned from assembler->assembleJacRes()"
+                << std::endl;
     }
     Comm->barrier();
     
@@ -1772,7 +1791,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       
       Comm->barrier();
       if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-        std::cout << "EEP In SolverManager<Node>::nonlinearSolver(): calling postproc->computeObjectiveGradState()" << std::endl;
+        std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                  << ": numNonlinearSteps = " << numNonlinearSteps
+                  << ", calling postproc->computeObjectiveGradState()"
+                  << std::endl;
       }
       Comm->barrier();
 
@@ -1780,7 +1802,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
 
       Comm->barrier();
       if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-        std::cout << "EEP In SolverManager<Node>::nonlinearSolver(): returned from postproc->computeObjectiveGradState()" << std::endl;
+        std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                  << ": numNonlinearSteps = " << numNonlinearSteps
+                  << ", returned from postproc->computeObjectiveGradState()"
+                  << std::endl;
       }
       Comm->barrier();
     }
@@ -1805,6 +1830,15 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       resnorm_scaled[0] = resnorm[0]/resnorm_first[0];
     }
     
+    Comm->barrier();
+    if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                << ": numNonlinearSteps = " << numNonlinearSteps
+                << ", resnorm = " << resnorm
+                << std::endl;
+    }
+    Comm->barrier();
+
     if (Comm->getRank() == 0 && verbosity > 1) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Iteration: " << NLiter << endl;
