@@ -1382,23 +1382,42 @@ View_Sc2 Group::getInitial(const bool & project, const bool & isAdjoint) {
   
   if (project) { // works for any basis
     auto initialip = groupData->physics_RCP->getInitial(ip, set,
-                                                       groupData->myBlock,
-                                                       project,
-                                                       wkset);
+                                                        groupData->myBlock,
+                                                        project, wkset);
+
     for (size_type n=0; n<numDOF.extent(0); n++) {
       auto cbasis = basis[wkset->usebasis[n]];
       auto off = subview(offsets, n, ALL());
-      auto initvar = subview(initialip, ALL(), n, ALL());
-      parallel_for("Group init project",
-                   TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
-          for(size_type pt=0; pt<cwts.extent(1); pt++ ) {
-            initialvals(elem,off(dof)) += initvar(elem,pt)*cbasis(elem,dof,pt,0)*cwts(elem,pt);
+      string btype = wkset->basis_types[wkset->usebasis[n]];
+      if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
+        auto initvar = subview(initialip, ALL(), n, ALL(), 0);
+        parallel_for("Group init project",
+                     TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
+            for(size_type pt=0; pt<cwts.extent(1); pt++ ) {
+              initialvals(elem,off(dof)) += initvar(elem,pt)*cbasis(elem,dof,pt,0)*cwts(elem,pt);
+            }
           }
-        }
-      });
+        });
+      }
+      else if (btype.substr(0,5) == "HCURL" || btype.substr(0,4) == "HDIV") {
+        auto initvar = subview(initialip, ALL(), n, ALL(), ALL());
+        parallel_for("Group init project",
+                     TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
+            for (size_type pt=0; pt<cwts.extent(1); pt++ ) {
+              for (size_type dim=0; dim<cbasis.extent(3); dim++ ) {
+                initialvals(elem,off(dof)) += initvar(elem,pt,dim)*cbasis(elem,dof,pt,dim)*cwts(elem,pt);
+              }
+            }
+          }
+        });
+      }
+      
     }
   }
   else { // only works if using HGRAD linear basis
@@ -1427,7 +1446,7 @@ View_Sc2 Group::getInitial(const bool & project, const bool & isAdjoint) {
                                                           wkset);
     for (size_type n=0; n<numDOF.extent(0); n++) {
       auto off = subview( offsets, n, ALL());
-      auto initvar = subview(initialnodes, ALL(), n, ALL());
+      auto initvar = subview(initialnodes, ALL(), n, ALL(), 0);
       parallel_for("Group init project",
                    TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
