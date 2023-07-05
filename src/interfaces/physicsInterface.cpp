@@ -126,25 +126,70 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & 
       if (setPhysSettings[set][block].isSublist("Initial conditions")) {
         Teuchos::ParameterList initial_conds = setPhysSettings[set][block].sublist("Initial conditions");
         for (size_t j=0; j<varlist[set][block].size(); j++) {
-          string expression;
           string var = varlist[set][block][j];
-          if (initial_conds.isType<string>(var)) {
-            expression = initial_conds.get<string>(var);
+          if (types[set][block][j].substr(0,5) == "HGRAD" || types[set][block][j].substr(0,4) == "HVOL" || types[set][block][j].substr(0,5) == "HFACE") {
+            string expression;
+            if (initial_conds.isType<string>(var)) {
+              expression = initial_conds.get<string>(var);
+            }
+            else if (initial_conds.isType<double>(var)) {
+              double value = initial_conds.get<double>(var);
+              expression = std::to_string(value);
+            }
+            else {
+              expression = "0.0";
+            }
+            functionManagers[block]->addFunction("initial "+var,expression,"ip");
+            functionManagers[block]->addFunction("initial "+var,expression,"point");
+            if (types[set][block][j] == "HFACE") {
+              // we have found an HFACE variable and need to have side ip evaluations
+              // TODO check aux, etc?
+              functionManagers[block]->addFunction("initial "+var,expression,"side ip");
+            }
           }
-          else if (initial_conds.isType<double>(var)) {
-            double value = initial_conds.get<double>(var);
-            expression = std::to_string(value);
+          else if (types[set][block][j].substr(0,5) == "HCURL" || types[set][block][j].substr(0,4) == "HDIV") {
+            string expressionx, expressiony, expressionz;          
+            if (initial_conds.isType<string>(var+"[x]")) {
+              expressionx = initial_conds.get<string>(var+"[x]");
+            }
+            else if (initial_conds.isType<double>(var+"[x]")) {
+              double value = initial_conds.get<double>(var+"[x]");
+              expressionx = std::to_string(value);
+            }
+            else {
+              expressionx = "0.0";
+            }
+            functionManagers[block]->addFunction("initial "+var+"[x]",expressionx,"ip");
+            functionManagers[block]->addFunction("initial "+var+"[x]",expressionx,"point");
+          
+            if (initial_conds.isType<string>(var+"[y]")) {
+              expressiony = initial_conds.get<string>(var+"[y]");
+            }
+            else if (initial_conds.isType<double>(var+"[y]")) {
+              double value = initial_conds.get<double>(var+"[y]");
+              expressiony = std::to_string(value);
+            }
+            else {
+              expressiony = "0.0";
+            }
+            functionManagers[block]->addFunction("initial "+var+"[y]",expressiony,"ip");
+            functionManagers[block]->addFunction("initial "+var+"[y]",expressiony,"point");
+          
+            if (initial_conds.isType<string>(var+"[z]")) {
+              expressionz = initial_conds.get<string>(var+"[z]");
+            }
+            else if (initial_conds.isType<double>(var+"[z]")) {
+              double value = initial_conds.get<double>(var+"[z]");
+              expressionz = std::to_string(value);
+            }
+            else {
+              expressionz = "0.0";
+            }
+            functionManagers[block]->addFunction("initial "+var+"[z]",expressionz,"ip");
+            functionManagers[block]->addFunction("initial "+var+"[z]",expressionz,"point");
+          
           }
-          else {
-            expression = "0.0";
-          }
-          functionManagers[block]->addFunction("initial "+var,expression,"ip");
-          functionManagers[block]->addFunction("initial "+var,expression,"point");
-          if (types[set][block][j] == "HFACE") {
-            // we have found an HFACE variable and need to have side ip evaluations
-            // TODO check aux, etc?
-            functionManagers[block]->addFunction("initial "+var,expression,"side ip");
-          }
+          
         }
       }
     }
@@ -693,35 +738,84 @@ bool PhysicsInterface::checkFace(const size_t & set, const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
+View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
                                       const bool & project, Teuchos::RCP<workset> & wkset) {
   
   
   size_t currnumVars = varlist[set][block].size();
   
-  View_Sc3 ivals;
+  View_Sc4 ivals;
   
   if (project) {
     
-    ivals = View_Sc3("tmp ivals",pts[0].extent(0), currnumVars, pts[0].extent(1));
+    ivals = View_Sc4("tmp ivals",pts[0].extent(0), currnumVars, pts[0].extent(1),spaceDim);
     
     // ip in wkset are set in cell::getInitial
     for (size_t n=0; n<varlist[set][block].size(); n++) {
-  
-      auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n],"ip");
-      auto cvals = subview( ivals, ALL(), n, ALL());
-      //copy
-      parallel_for("physics fill initial values",
-                   RangePolicy<AssemblyExec>(0,cvals.extent(0)),
-                   KOKKOS_LAMBDA (const int e ) {
-        for (size_t i=0; i<cvals.extent(1); i++) {
+      if (types[set][block][n].substr(0,5) == "HGRAD" || types[set][block][n].substr(0,4) == "HVOL") {
+        auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n],"ip");
+        auto cvals = subview( ivals, ALL(), n, ALL(), 0);
+        //copy
+        parallel_for("physics fill initial values",
+                     RangePolicy<AssemblyExec>(0,cvals.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_t i=0; i<cvals.extent(1); i++) {
 #ifndef MrHyDE_NO_AD
-          cvals(e,i) = ivals_AD(e,i).val();
+            cvals(e,i) = ivals_AD(e,i).val();
 #else
-          cvals(e,i) = ivals_AD(e,i);
+            cvals(e,i) = ivals_AD(e,i);
 #endif
+          }
+        });
+      }
+      else if (types[set][block][n].substr(0,5) == "HCURL" || types[set][block][n].substr(0,4) == "HDIV") {
+        auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n] + "[x]","ip");
+        auto cvals = subview( ivals, ALL(), n, ALL(), 0);
+        //copy
+        parallel_for("physics fill initial values",
+                     RangePolicy<AssemblyExec>(0,cvals.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          for (size_t i=0; i<cvals.extent(1); i++) {
+#ifndef MrHyDE_NO_AD
+            cvals(e,i) = ivals_AD(e,i).val();
+#else
+            cvals(e,i) = ivals_AD(e,i);
+#endif
+          }
+        });
+        if (spaceDim > 1) {
+          auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n] + "[y]","ip");
+          auto cvals = subview( ivals, ALL(), n, ALL(), 1);
+          //copy
+          parallel_for("physics fill initial values",
+                       RangePolicy<AssemblyExec>(0,cvals.extent(0)),
+                       KOKKOS_LAMBDA (const int e ) {
+            for (size_t i=0; i<cvals.extent(1); i++) {
+#ifndef MrHyDE_NO_AD
+              cvals(e,i) = ivals_AD(e,i).val();
+#else
+              cvals(e,i) = ivals_AD(e,i);
+#endif
+            }
+          });
         }
-      });
+        if (spaceDim>2) {
+          auto ivals_AD = functionManagers[block]->evaluate("initial " + varlist[set][block][n] + "[z]","ip");
+          auto cvals = subview( ivals, ALL(), n, ALL(), 2);
+          //copy
+          parallel_for("physics fill initial values",
+                       RangePolicy<AssemblyExec>(0,cvals.extent(0)),
+                       KOKKOS_LAMBDA (const int e ) {
+            for (size_t i=0; i<cvals.extent(1); i++) {
+#ifndef MrHyDE_NO_AD
+              cvals(e,i) = ivals_AD(e,i).val();
+#else
+              cvals(e,i) = ivals_AD(e,i);
+#endif
+            }
+          });
+        }
+      }
     }
   }
   else {
@@ -748,7 +842,7 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
     }
     
     
-    ivals = View_Sc3("tmp ivals",Nelem,currnumVars,Npts);
+    ivals = View_Sc4("tmp ivals",Nelem,currnumVars,Npts,spaceDim);
     for (size_t e=0; e<ptx.extent(0); e++) {
       for (size_t i=0; i<ptx.extent(1); i++) {
         // set the node in wkset
@@ -775,7 +869,7 @@ View_Sc3 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
                        RangePolicy<AssemblyExec>(0,1),
                        KOKKOS_LAMBDA (const int s ) {
 #ifndef MrHyDE_NO_AD
-            ivals(e,n,i) = ivals_AD(0,0).val();
+            ivals(e,n,i,0) = ivals_AD(0,0).val();
 #else
             ivals(e,n,i) = ivals_AD(0,0);
 #endif

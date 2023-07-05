@@ -1,0 +1,8 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Functions: 
+    current x: '0.0'
+    permittivity: '1.0'
+    permeability: '1.0'
+...

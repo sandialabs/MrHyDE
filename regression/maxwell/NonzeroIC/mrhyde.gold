@@ -1,0 +1,9 @@
+p=0 | CubeHexMesh: Building sub cells
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for E = 0.0692758  (time = 0)
+***** L2 norm of the error for E = 0.0743729  (time = 0.01)
+***** L2 norm of the error for B = 0.0976523  (time = 0)
+***** L2 norm of the error for B = 0.101339  (time = 0.01)

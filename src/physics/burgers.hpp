@@ -19,19 +19,30 @@
 namespace MrHyDE {
   
   /**
-   * \brief burgers physics class.
+   * \brief Burgers' physics class.
    *
-   * This class computes volumetric residuals for the physics described by the following weak form:
+   * This class computes volumetric residuals for the physics described by the following strong form:
    * \f{eqnarray*}
-   *   \dots
+   *   \frac{du}{dt}
+   *   +
+   *   \nabla \cdot \left(\frac{1}{2}\vec{\nu} u^2 - \epsilon(u) \nabla u \right)
+   *   =
+   *   f
    * \f}
-   * Where the unknown ___ is the ___.
+   * Where the unknown \f$u\f$ is the quantity being solved for, \f$\nu\f$ is the advection term,
+   * and \f$\epsilon\f$ is an entropy viscosity term.
+   * This is also known as a entropy viscosity formulation with SUPG stabilization.
    * The following functions may be specified in the input.yaml file:
-   *   - "diffusion" is the diffusion.
-   *   - "zvel" is the zvel.
-   *   - "Burgers source" is the Burgers source.
-   *   - "yvel" is the yvel.
-   *   - "xvel" is the xvel.
+   *   - "diffusion" is the diffusion coefficient \f$\epsilon\f$.
+   *   - "Burgers source" is the Burgers source term \f$f\f$.
+   *   - "xvel" is the x-component of \f$\nu\f$.
+   *   - "yvel" is the y-component of \f$\nu\f$.
+   *   - "zvel" is the z-component of \f$\nu\f$.
+   *   - "C1" is the entropy viscosity numerator.
+   *   - "C2" is the entropy viscosity denominator.
+   *   - "supg C" is a supg coefficient.
+   *   - "supg C1" is a supg coefficient.
+   *   - "supg C2" is a supg coefficient.
    */
   class Burgers : public physicsbase {
   public:
