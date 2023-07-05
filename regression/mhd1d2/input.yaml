@@ -11,20 +11,20 @@ ANONYMOUS:
     element type: interval
     xmin: 0.0
     xmax: 1.0
-    NX: 250
+    NX: 513
     Periodic BCs:
       Count: 1
       Periodic Condition 1: 'y-all 1e-12: left;right'
   Physics:
     modules: mhd1d
     Initial conditions: # TODO
-      rho: ' 0.4472135954999580*sin(2*pi*x)*0.000001'
-      ux:  '-2.0000000000000000*sin(2*pi*x)*0.000001'
-      uy:  ' 0.9428090415820635*sin(2*pi*x)*0.000001'
-      uz:  ' 0.3333333333333333*sin(2*pi*x)*0.000001'
-      By:  ' 0.8432740427115680*sin(2*pi*x)*0.000001 + 5.0132565492620010'
-      Bz:  ' 0.2981423969999720*sin(2*pi*x)*0.000001 + 1.7724538509055159'
-      E:   ' 2.0124578256646150*sin(2*pi*x)*0.000001'
+      rho: '1e-10'
+      ux: '            8.94450*sin(2*pi*x)*0.00001'
+      uy: '            4.21610*sin(2*pi*x)*0.00001'
+      uz: '            1.49062*sin(2*pi*x)*0.00001'
+      By: '1.4142136 + 8.43253*sin(2*pi*x)*0.00001'
+      Bz: '0.5000000 + 2.98135*sin(2*pi*x)*0.00001'
+      E:  '            2.01246*sin(2*pi*x)*0.00001'
     Active Variables:
       rho: HGRAD-DG
       ux: HGRAD-DG
@@ -32,7 +32,7 @@ ANONYMOUS:
       uz: HGRAD-DG
       By: HGRAD-DG
       Bz: HGRAD-DG
-      E: HGRAD-DG
+      T: HGRAD-DG
   Discretization:
     order:
       rho: 1
@@ -45,24 +45,24 @@ ANONYMOUS:
     quadrature: 2
   Solver:
     solver: transient
-    workset size: 100
+    workset size: 200
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-12
     max nonlinear iters: 1
-    max linear iters: 1000
+    max linear iters: 500
     final time: 1.0
-    delta t: 0.001
+    delta t: 0.05
     use domain decomposition: true
     use preconditioner: true
-    preconditioner reuse type: full
+    # preconditioner reuse type: full
     # Preconditioner Settings:
     #   verbosity: none
-    #   number of equations: 7
+    #   number of equations: 6
     #   'problem: type': MHD
   Analysis:
     analysis type: forward
   Functions:
-    viscosity: "nu"
+
   Postprocess:
     write solution: true
     output file: output
@@ -70,22 +70,18 @@ ANONYMOUS:
   Parameters:
     Bx: # First, background magnetic field. No induction in x dir, so magnet is static
       type: scalar
-      value: 3.5449077018110318
+      value: 1.0
       usage: inactive
     permeability:
       type: scalar
-      value: 12.566370614359172 # 4pi
+      value: 1.2e-7
       usage: inactive
-    nu:
+    viscosity:
       type: scalar
-      value: 1.0e-4
+      value: 1.46e-5
       usage: inactive
     resistivity:
       type: scalar
       value: 0.0
-      usage: inactive
-    adiabatic index:
-      type: scalar
-      value: 1.66666667
       usage: inactive
 ...
