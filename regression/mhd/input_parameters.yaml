@@ -20,7 +20,7 @@ ANONYMOUS:
       usage: inactive
     mu_0: # Free space permeability
       type: scalar
-      value: 1.25663706212e-6
+      value: 1. #1.25663706212e-6
       usage: inactive
     sigma: # Conductivity
       type: scalar
