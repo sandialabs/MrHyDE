@@ -100,6 +100,7 @@ void mhd2d::volumeResidual()
         auto dux_dt = wkset->getSolutionField("ux_t");
         auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
         auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+        auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
         auto Bx = wkset->getSolutionField("Bx");
         auto By = wkset->getSolutionField("By");
@@ -115,15 +116,15 @@ void mhd2d::volumeResidual()
                     AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
                     AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt);
                     AD diag_ctrb = pr(elem, pt)+2*visc(elem, pt)*div_u/3 + norm_B/(2*mu(elem, pt));
-                    AD Fx = -Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt) - visc(elem, pt)*dux_dx(elem, pt) + diag_ctrb;
-                    AD Fy = -Bx(elem, pt)*By(elem, pt)/mu(elem, pt) - visc(elem, pt)*dux_dy(elem, pt);
+                    AD Fx = -Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt) - visc(elem, pt)*2*dux_dx(elem, pt) + diag_ctrb;
+                    AD Fy = -Bx(elem, pt)*By(elem, pt)/mu(elem, pt) - visc(elem, pt)*(dux_dy(elem, pt) + duy_dx(elem, pt));
                     AD F =-source_ux(elem, pt) + dens(elem, pt)*(
                            dux_dt(elem, pt) +
                            ux(elem, pt) * dux_dx(elem, pt) +
                            uy(elem, pt) * dux_dy(elem, pt) );
                     Fx *= -wts(elem, pt);
                     Fy *= -wts(elem, pt);
-                    F *= dens(elem, pt) * wts(elem, pt);
+                    F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
@@ -141,9 +142,10 @@ void mhd2d::volumeResidual()
         auto ux = wkset->getSolutionField("ux");
         auto uy = wkset->getSolutionField("uy");
         auto duy_dt = wkset->getSolutionField("uy_t");
+        auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+        auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
         auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
-        auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
         auto Bx = wkset->getSolutionField("Bx");
         auto By = wkset->getSolutionField("By");
         auto pr = wkset->getSolutionField("pr");
@@ -158,14 +160,14 @@ void mhd2d::volumeResidual()
                     AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
                     AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt);
                     AD diag_contr = pr(elem, pt)-2*visc(elem, pt)*div_u/3 + norm_B/(2*mu(elem, pt));
-                    AD Fx = visc(elem, pt) * duy_dx(elem, pt) - By(elem, pt)*Bx(elem, pt)/mu(elem, pt);
-                    AD Fy = visc(elem, pt) * duy_dy(elem, pt) - By(elem, pt)*By(elem, pt)/mu(elem, pt) + diag_contr;
-                    AD F = - source_uy(elem, pt) + dens(elem, pt)*(duy_dt(elem, pt) +
+                    AD Fx = -By(elem, pt)*Bx(elem, pt)/mu(elem, pt) - visc(elem, pt)*(duy_dx(elem, pt) + dux_dy(elem, pt)) ;
+                    AD Fy = -By(elem, pt)*By(elem, pt)/mu(elem, pt) - visc(elem, pt)*2*duy_dy(elem, pt) + diag_contr;
+                    AD F = -source_uy(elem, pt) + dens(elem, pt)*(duy_dt(elem, pt) +
                         ux(elem, pt) * duy_dx(elem, pt) +
                         uy(elem, pt) * duy_dy(elem, pt) );
-                    Fx *= wts(elem, pt);
-                    Fy *= wts(elem, pt);
-                    F *= dens(elem, pt) * wts(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    Fy *= -wts(elem, pt);
+                    F *=   wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
@@ -180,11 +182,7 @@ void mhd2d::volumeResidual()
             // TODO
         }
     }
-    {
-        /////////////////////////////
-        // pressure equation
-        /////////////////////////////
-
+    {// pr equation
         int pr_basis = wkset->usebasis[pr_num];
         auto basis = wkset->basis[pr_basis];
         auto basis_grad = wkset->basis_grad[pr_basis];
@@ -211,7 +209,7 @@ void mhd2d::volumeResidual()
             // TODO
         }
     }
-    {// T equation
+    { // T equation
         int T_basis = wkset->usebasis[T_num];
         auto basis = wkset->basis[T_basis];
         auto basis_grad = wkset->basis_grad[T_basis];
@@ -317,7 +315,7 @@ void mhd2d::volumeResidual()
                     AD F  = dAz_dt(elem, pt) + ux(elem, pt)*dAz_dx(elem, pt) + uy(elem, pt)*dAz_dy(elem, pt) + source_E(elem, pt);
                     Fx *= -wts(elem, pt);
                     Fy *= -wts(elem, pt);
-                    F *= wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += F*basis(elem, dof, pt, 0) + Fx*basis_grad(elem, dof, pt, 0) + Fy*basis_grad(elem, dof, pt, 1);
