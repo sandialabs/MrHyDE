@@ -486,29 +486,68 @@ void mhd2d::setWorkset(Teuchos::RCP<workset> &wkset_)
 // return the value of the stabilization parameter
 // ========================================================================================
 
-KOKKOS_FUNCTION AD mhd2d::computeTau(const AD &localdiff, const AD &xvl, const AD &yvl, const AD &zvl, const ScalarT &h, const int &spaceDim, const ScalarT &dt, const bool &isTransient) const
+KOKKOS_FUNCTION AD mhd2d::computeTauMomentum(const AD &dens, const AD &visc, const AD &xvl, const AD &yvl, const AD &xmag, const AD &ymag, const ScalarT &h, const ScalarT &dt) const
 {
-
-    ScalarT C1 = 4.0;
-    ScalarT C2 = 2.0;
-    ScalarT C3 = isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
+    // We take Gc as I/h^2
+    ScalarT C1 = 3.0;
+    ScalarT C2 = 10.0;
 
     AD nvel = 0.0;
-    if (spaceDim == 1)
-        nvel = xvl * xvl;
-    else if (spaceDim == 2)
-        nvel = xvl * xvl + yvl * yvl;
-    else if (spaceDim == 3)
-        nvel = xvl * xvl + yvl * yvl + zvl * zvl;
+    nvel = xvl * xvl + yvl * yvl;
+    AD nmag = xmag * xmag + ymag * ymag;
+
+    if (nvel > 1E-12)
+        nvel = sqrt(nvel);
+
+    if (nmag > 1E-12)
+        nmag = sqrt(nmag);
+
+    AD tau;
+    tau = (2 * dens / dt) * (2 * dens / dt) +
+          (dens * nvel / h) * (dens * nvel / h) +
+          (C1 * visc / h) * (C1 * visc / h) +
+          (C2 * nmag / h) * (C2 * nmag / h);
+    tau = 1. / sqrt(tau);
+
+    return tau;
+}
+
+KOKKOS_FUNCTION AD mhd2d::computeTauTemp(const AD &dens, const AD &xvl, const AD &yvl, const AD &Cp, const ScalarT &h, const ScalarT &dt) const
+{
+    // We take Gc as I/h^2
+    ScalarT C1 = 3.0;
+    ScalarT lam = 1.0; // UNSURE WHAT THIS SHOULD BE-- THINK IT'S CONDUCTIVITY?
+
+    AD nvel = 0.0;
+    nvel = xvl * xvl + yvl * yvl;
 
     if (nvel > 1E-12)
         nvel = sqrt(nvel);
 
     AD tau;
-    // see, e.g. wikipedia article on SUPG/PSPG
-    // coefficients can be changed/tuned for different scenarios (including order of time scheme)
-    // https://arxiv.org/pdf/1710.08898.pdf had a good, clear writeup of the final eqns
-    tau = (C1 * localdiff / h / h) * (C1 * localdiff / h / h) + (C2 * nvel / h) * (C2 * nvel / h) + (C3 / dt) * (C3 / dt);
+    tau = (2 * dens * Cp / dt) * (2 * dens * Cp / dt) +
+          (dens * Cp * nvel / h) * (dens * Cp * nvel / h) +
+          (C1 * lam / h) * (C1 * lam / h);
+    tau = 1. / sqrt(tau);
+
+    return tau;
+}
+
+KOKKOS_FUNCTION AD mhd2d::computeTauAz(const AD &eta, const AD &xvl, const AD &yvl, const ScalarT &h, const ScalarT &dt) const
+{
+    // We take Gc as I/h^2
+    ScalarT C1 = 3.0;
+
+    AD nvel = 0.0;
+    nvel = xvl * xvl + yvl * yvl;
+
+    if (nvel > 1E-12)
+        nvel = sqrt(nvel);
+
+    AD tau;
+    tau = (2 / dt) * (2 / dt) +
+          (nvel / h) * (nvel / h) +
+          (C1 * eta / h) * (C1 * eta / h);
     tau = 1. / sqrt(tau);
 
     return tau;
