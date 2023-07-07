@@ -2,7 +2,11 @@
 ---
 ANONYMOUS:
   Parameters:
-    rho:
+    density:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    permeability:
       type: scalar
       value: 1.0
       usage: inactive
@@ -18,16 +22,20 @@ ANONYMOUS:
       type: scalar
       value: 1.0
       usage: inactive
-    v:
+    viscosity:
       type: scalar
       value: 1.0
       usage: inactive
-    eta:
+    resistivity:
       type: scalar
       value: 1.0
       usage: inactive
     L:
       type: scalar
       value: 1.0
+      usage: inactive
+    T0:
+      type: scalar
+      value: 10.0
       usage: inactive
 ...

@@ -340,7 +340,8 @@ void mhd2d::boundaryResidual()
     string ux_sidetype = bcs(ux_num, cside);
     string uy_sidetype = "Dirichlet";
     uy_sidetype = bcs(uy_num, cside);
-    Vista source_ux, source_uy;
+    string T_sidetype = bcs(T_num, cside);
+    Vista source_ux, source_uy, chi;
 
     auto nx = wkset->getScalarField("n[x]");
     auto ny = wkset->getScalarField("n[y]");
@@ -416,11 +417,14 @@ void mhd2d::boundaryResidual()
         auto wts = wkset->wts_side;
         auto h = wkset->h;
         auto res = wkset->res;
+        chi = functionManager->evaluate("thermal conductivity", "ip");
 
         // T equation boundary residual
         { // TODO
             int T_basis = wkset->usebasis[T_num];
             auto basis = wkset->basis_side[T_basis];
+            auto dT_dx = wkset->getSolutionField("grad(T)[x]");
+            auto dT_dy = wkset->getSolutionField("grad(T)[y]");
             auto off = Kokkos::subview(wkset->offsets, T_num, Kokkos::ALL());
 
             if (T_sidetype == "Neumann")
