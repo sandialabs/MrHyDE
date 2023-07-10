@@ -124,7 +124,7 @@ void mhd2d::volumeResidual()
                            uy(elem, pt) * dux_dy(elem, pt) );
                     Fx *= -wts(elem, pt);
                     Fy *= -wts(elem, pt);
-                    F *= wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
@@ -178,9 +178,8 @@ void mhd2d::volumeResidual()
         // SUPG contribution
 
         if (useSUPG)
-        {
-            // TODO
-        }
+        { /* TODO */ }
+
     }
     {// pr equation
         int pr_basis = wkset->usebasis[pr_num];
@@ -205,9 +204,7 @@ void mhd2d::volumeResidual()
             });
 
         if (usePSPG)
-        {
-            // TODO
-        }
+        { /* TODO */ }
     }
     { // T equation
         int T_basis = wkset->usebasis[T_num];
@@ -235,15 +232,15 @@ void mhd2d::volumeResidual()
                     AD Jz = (dBy_dx(elem, pt) - dBx_dy(elem, pt))/mu(elem, pt);
                     AD heat_in = dT_dt(elem, pt) + ux(elem, pt)*dT_dx(elem, pt) + uy(elem, pt)*dT_dy(elem, pt);
                     heat_in *= dens(elem, pt)*Cp(elem, pt);
-                    AD qx = -chi(elem, pt)*dT_dx(elem, pt);
-                    AD qy = -chi(elem, pt)*dT_dy(elem, pt);
+                    AD Fx = -chi(elem, pt)*dT_dx(elem, pt);
+                    AD Fy = -chi(elem, pt)*dT_dy(elem, pt);
                     AD F = heat_in - eta(elem, pt)*Jz*Jz;
-                    qx *= -wts(elem, pt);
-                    qy *= -wts(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    Fy *= -wts(elem, pt);
                     F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += qx * basis_grad(elem, dof, pt, 0) + qy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
+                        res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
