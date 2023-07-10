@@ -36,6 +36,10 @@ ANONYMOUS:
       usage: inactive
     T0:
       type: scalar
-      value: 10.0
+      value: 1.0
+      usage: inactive
+    ad_idx:
+      type: scalar
+      value: 1.6666666666667
       usage: inactive
 ...

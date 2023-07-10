@@ -57,9 +57,9 @@ void mhd2d::defineFunctions(Teuchos::ParameterList &fs,
     functionManager->addFunction("source Az", fs.get<string>("source Az", "0.0"), "ip");
     functionManager->addFunction("density", fs.get<string>("density", "1.0"), "ip");
     functionManager->addFunction("viscosity", fs.get<string>("viscosity", "1.0"), "ip");
-    functionManager->addFunction("specific heat", fs.get<string>("specific heat", "1.0"), "ip");
-    functionManager->addFunction("thermal conductivity", fs.get<string>("thermal conductivity", "1.0"), "ip");
-    functionManager->addFunction("resistivity", fs.get<string>("resistivity", "0.0"), "ip");
+    functionManager->addFunction("specificHeat", fs.get<string>("specific heat", "1.0"), "ip");
+    functionManager->addFunction("thermalConductivity", fs.get<string>("thermal conductivity", "1.0"), "ip");
+    functionManager->addFunction("resistivity", fs.get<string>("resistivity", "1.0"), "ip");
     functionManager->addFunction("permeability", fs.get<string>("permeability", "1.0"), "ip");
 }
 
@@ -82,8 +82,8 @@ void mhd2d::volumeResidual()
 
         dens = functionManager->evaluate("density", "ip");
         visc = functionManager->evaluate("viscosity", "ip");
-        Cp = functionManager->evaluate("specific heat", "ip");
-        chi = functionManager->evaluate("thermal conductivity", "ip");
+        Cp = functionManager->evaluate("specificHeat", "ip");
+        chi = functionManager->evaluate("thermalConductivity", "ip");
         eta = functionManager->evaluate("resistivity", "ip");
         mu = functionManager->evaluate("permeability", "ip");
     }
