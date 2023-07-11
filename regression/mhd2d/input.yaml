@@ -62,39 +62,7 @@ ANONYMOUS:
       pr: 1
     quadrature: 2
   Functions input file: input_functions.yaml
-  Parameters:
-    density:
-      type: scalar
-      value: 1.0
-      usage: inactive
-    permeability:
-      type: scalar
-      value: 1.0
-      usage: inactive
-    Ha:
-      type: scalar
-      value: 1.0
-      usage: inactive
-    Re:
-      type: scalar
-      value: 1.0
-      usage: inactive
-    Re_m:
-      type: scalar
-      value: 1.0
-      usage: inactive
-    viscosity:
-      type: scalar
-      value: 1.0
-      usage: inactive
-    resistivity:
-      type: scalar
-      value: 1.0
-      usage: inactive
-    L:
-      type: scalar
-      value: 1.0
-      usage: inactive
+  Parameters input file: input_parameters.yaml
   Solver:
     initial type: L2-projection
     solver: steady-state
