@@ -103,7 +103,7 @@ namespace MrHyDE {
     
     int ux_num, uy_num, Bx_num, By_num, Az_num, pr_num, T_num;
     
-    bool useSUPG, usePSPG;
+    bool useSUPG, usePSPG, useTemp;
 
     vector<ScalarT> pik;
     Kokkos::View<ScalarT*,AssemblyDevice> model_params;

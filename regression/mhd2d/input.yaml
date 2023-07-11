@@ -45,19 +45,13 @@ ANONYMOUS:
         bottom: '-G0*x'
         left: 'G0'
         right: '-G0'
-      T:
-        top: '-G0*x/ad_idx'
-        bottom: '-G0*x/ad_idx'
-        left: 'G0/ad_idx'
-        right: '-G0/ad_idx'
     Initial conditions:
       ux: '-rho*G0*Ha*((cosh(Ha)-cosh(y*Ha/L))/sinh(Ha))/(mu_0*B0*B0)'
       uy: 0.0
       Bx: '-(B0*Re_m/Ha)*(sinh(y*Ha/L) - (y/L)*sinh(Ha))/(cosh(Ha)-1)'
       By: 'B0'
-      Az: '-B0*x - G0*y*y/(2*B0) + (G0/B0)*(Ha*cosh(y*Ha)/sin(Ha))'
+      Az: '-B0*x - G0*y*y/(2*B0) + (G0/B0)*(Ha*cosh(y*Ha)/sinh(Ha))'
       pr: '-G0*x'
-      T:  'T0'
   Discretization:
     order:
       ux: 1
@@ -66,7 +60,6 @@ ANONYMOUS:
       By: 1
       Az: 1
       pr: 1
-      T:  1
     quadrature: 2
   Functions input file: input_functions.yaml
   Parameters:
@@ -102,12 +95,8 @@ ANONYMOUS:
       type: scalar
       value: 1.0
       usage: inactive
-    T0:
-      type: scalar
-      value: 10.0
-      usage: inactive
   Solver:
-    # initial type: L2-projection
+    initial type: L2-projection
     solver: steady-state
     nonlinear TOL: 1.0e-07
     max nonlinear iters: 4

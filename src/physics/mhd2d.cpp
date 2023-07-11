@@ -29,7 +29,6 @@ mhd2d::mhd2d(Teuchos::ParameterList &settings, const int &dimension_)
     myvars.push_back("pr");
     myvars.push_back("ux");
     myvars.push_back("uy");
-    myvars.push_back("T");
     myvars.push_back("Bx");
     myvars.push_back("By");
     myvars.push_back("Az");
@@ -40,7 +39,13 @@ mhd2d::mhd2d(Teuchos::ParameterList &settings, const int &dimension_)
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
-    mybasistypes.push_back("HGRAD");
+    
+    useTemp = settings.get<bool>("useTemp", false);
+
+    if(useTemp) {
+        myvars.push_back("T");
+        mybasistypes.push_back("HGRAD");
+    }
 }
 
 // ========================================================================================
@@ -57,10 +62,12 @@ void mhd2d::defineFunctions(Teuchos::ParameterList &fs,
     functionManager->addFunction("source Az", fs.get<string>("source Az", "0.0"), "ip");
     functionManager->addFunction("density", fs.get<string>("density", "1.0"), "ip");
     functionManager->addFunction("viscosity", fs.get<string>("viscosity", "1.0"), "ip");
-    functionManager->addFunction("specificHeat", fs.get<string>("specific heat", "1.0"), "ip");
-    functionManager->addFunction("thermalConductivity", fs.get<string>("thermal conductivity", "1.0"), "ip");
     functionManager->addFunction("resistivity", fs.get<string>("resistivity", "1.0"), "ip");
     functionManager->addFunction("permeability", fs.get<string>("permeability", "1.0"), "ip");
+    if(useTemp) {
+        functionManager->addFunction("specificHeat", fs.get<string>("specific heat", "1.0"), "ip");
+        functionManager->addFunction("thermalConductivity", fs.get<string>("thermal conductivity", "1.0"), "ip");
+    }
 }
 
 // ========================================================================================
@@ -72,7 +79,7 @@ void mhd2d::volumeResidual()
     int spaceDim = wkset->dimension;
     ScalarT dt = wkset->deltat;
     bool isTransient = wkset->isTransient;
-    Vista dens, visc, source_ux, source_uy, source_E, Cp, chi, eta, mu;
+    Vista dens, visc, source_ux, source_uy, source_E, specific_heat, heat_cond, eta, mu;
 
     {
         Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -82,10 +89,12 @@ void mhd2d::volumeResidual()
 
         dens = functionManager->evaluate("density", "ip");
         visc = functionManager->evaluate("viscosity", "ip");
-        Cp = functionManager->evaluate("specificHeat", "ip");
-        chi = functionManager->evaluate("thermalConductivity", "ip");
         eta = functionManager->evaluate("resistivity", "ip");
         mu = functionManager->evaluate("permeability", "ip");
+        if(useTemp) {
+            specific_heat = functionManager->evaluate("specificHeat", "ip");
+            heat_cond = functionManager->evaluate("thermalConductivity", "ip");
+        }
     }
 
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -206,7 +215,7 @@ void mhd2d::volumeResidual()
         if (usePSPG)
         { /* TODO */ }
     }
-    { // T equation
+    if (useTemp) { // T equation
         int T_basis = wkset->usebasis[T_num];
         auto basis = wkset->basis[T_basis];
         auto basis_grad = wkset->basis_grad[T_basis];
@@ -231,9 +240,9 @@ void mhd2d::volumeResidual()
                 {
                     AD Jz = (dBy_dx(elem, pt) - dBx_dy(elem, pt))/mu(elem, pt);
                     AD heat_in = dT_dt(elem, pt) + ux(elem, pt)*dT_dx(elem, pt) + uy(elem, pt)*dT_dy(elem, pt);
-                    heat_in *= dens(elem, pt)*Cp(elem, pt);
-                    AD Fx = -chi(elem, pt)*dT_dx(elem, pt);
-                    AD Fy = -chi(elem, pt)*dT_dy(elem, pt);
+                    heat_in *= dens(elem, pt)*specific_heat(elem, pt);
+                    AD Fx = -heat_cond(elem, pt)*dT_dx(elem, pt);
+                    AD Fy = -heat_cond(elem, pt)*dT_dy(elem, pt);
                     AD F = heat_in - eta(elem, pt)*Jz*Jz;
                     Fx *= -wts(elem, pt);
                     Fy *= -wts(elem, pt);
@@ -336,7 +345,7 @@ void mhd2d::boundaryResidual()
     string uy_sidetype = "Dirichlet";
     uy_sidetype = bcs(uy_num, cside);
     string T_sidetype = bcs(T_num, cside);
-    Vista source_ux, source_uy, chi;
+    Vista source_ux, source_uy, heat_cond;
 
     auto nx = wkset->getScalarField("n[x]");
     auto ny = wkset->getScalarField("n[y]");
@@ -412,7 +421,7 @@ void mhd2d::boundaryResidual()
         auto wts = wkset->wts_side;
         auto h = wkset->h;
         auto res = wkset->res;
-        chi = functionManager->evaluate("thermal conductivity", "ip");
+        heat_cond = functionManager->evaluate("thermal conductivity", "ip");
 
         // T equation boundary residual
         { // TODO
@@ -432,7 +441,7 @@ void mhd2d::boundaryResidual()
                         {
                             for (size_type i = 0; i < basis.extent(1); i++)
                             {
-                                res(e, off(i)) += -chi(e, k)*(dT_dx(e, k)*nx(e, k) + dT_dy(e, k)*ny(e, k)) * basis(e, i, k, 0) * wts(e, k);
+                                res(e, off(i)) += -heat_cond(e, k)*(dT_dx(e, k)*nx(e, k) + dT_dy(e, k)*ny(e, k)) * basis(e, i, k, 0) * wts(e, k);
                             }
                         }
                     });
@@ -460,6 +469,7 @@ void mhd2d::setWorkset(Teuchos::RCP<workset> &wkset_)
     wkset = wkset_;
 
     vector<string> varlist = wkset->varlist;
+    T_num = -1;
     for (size_t i = 0; i < varlist.size(); i++)
     {
         if (varlist[i] == "pr")
@@ -477,6 +487,8 @@ void mhd2d::setWorkset(Teuchos::RCP<workset> &wkset_)
         if (varlist[i] == "Az")
             Az_num = i;
     }
+    if(T_num >= 0)
+        useTemp = true;
 }
 
 // ========================================================================================
@@ -509,7 +521,7 @@ KOKKOS_FUNCTION AD mhd2d::computeTauMomentum(const AD &dens, const AD &visc, con
     return tau;
 }
 
-KOKKOS_FUNCTION AD mhd2d::computeTauTemp(const AD &dens, const AD &xvl, const AD &yvl, const AD &Cp, const ScalarT &h, const ScalarT &dt) const
+KOKKOS_FUNCTION AD mhd2d::computeTauTemp(const AD &dens, const AD &xvl, const AD &yvl, const AD &specific_heat, const ScalarT &h, const ScalarT &dt) const
 {
     // We take Gc as I/h^2
     ScalarT C1 = 3.0;
@@ -522,8 +534,8 @@ KOKKOS_FUNCTION AD mhd2d::computeTauTemp(const AD &dens, const AD &xvl, const AD
         nvel = sqrt(nvel);
 
     AD tau;
-    tau = (2 * dens * Cp / dt) * (2 * dens * Cp / dt) +
-          (dens * Cp * nvel / h) * (dens * Cp * nvel / h) +
+    tau = (2 * dens * specific_heat / dt) * (2 * dens * specific_heat / dt) +
+          (dens * specific_heat * nvel / h) * (dens * specific_heat * nvel / h) +
           (C1 * lam / h) * (C1 * lam / h);
     tau = 1. / sqrt(tau);
 
