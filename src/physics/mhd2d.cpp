@@ -29,21 +29,25 @@ mhd2d::mhd2d(Teuchos::ParameterList &settings, const int &dimension_)
     myvars.push_back("pr");
     myvars.push_back("ux");
     myvars.push_back("uy");
-    myvars.push_back("Bx");
-    myvars.push_back("By");
     myvars.push_back("Az");
 
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
-    mybasistypes.push_back("HGRAD");
-    mybasistypes.push_back("HGRAD");
     
     useTemp = settings.get<bool>("useTemp", false);
+    useB = settings.get<bool>("useB", true);
 
     if(useTemp) {
         myvars.push_back("T");
+        mybasistypes.push_back("HGRAD");
+    }
+
+    if(useB) {
+        myvars.push_back("Bx");
+        myvars.push_back("By");
+        mybasistypes.push_back("HGRAD");
         mybasistypes.push_back("HGRAD");
     }
 }
@@ -111,8 +115,11 @@ void mhd2d::volumeResidual()
         auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
         auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
-        auto Bx = wkset->getSolutionField("Bx");
-        auto By = wkset->getSolutionField("By");
+        decltype(ux) Bx, By;
+        if (useB) {
+            Bx = wkset->getSolutionField("Bx");
+            By = wkset->getSolutionField("By");
+        }
         auto pr = wkset->getSolutionField("pr");
         auto off = subview(wkset->offsets, ux_num, ALL());
 
@@ -123,10 +130,15 @@ void mhd2d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
-                    AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt);
-                    AD diag_ctrb = pr(elem, pt)+2*visc(elem, pt)*div_u/3 + norm_B/(2*mu(elem, pt));
-                    AD Fx = -Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt) - visc(elem, pt)*2*dux_dx(elem, pt) + diag_ctrb;
-                    AD Fy = -Bx(elem, pt)*By(elem, pt)/mu(elem, pt) - visc(elem, pt)*(dux_dy(elem, pt) + duy_dx(elem, pt));
+                    AD diag_ctrb = pr(elem, pt)+2*visc(elem, pt)*div_u/3;
+                    AD Fx = -visc(elem, pt)*(dux_dx(elem, pt) + dux_dx(elem, pt));
+                    AD Fy = -visc(elem, pt)*(dux_dy(elem, pt) + duy_dx(elem, pt));
+                    if(useB) {
+                        diag_ctrb += (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt))/(2*mu(elem, pt));
+                        Fx += -Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt);
+                        Fy += -Bx(elem, pt)*By(elem, pt)/mu(elem, pt);
+                    }
+                    Fx += diag_ctrb;
                     AD F =-source_ux(elem, pt) + dens(elem, pt)*(
                            dux_dt(elem, pt) +
                            ux(elem, pt) * dux_dx(elem, pt) +
@@ -155,8 +167,11 @@ void mhd2d::volumeResidual()
         auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
         auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
-        auto Bx = wkset->getSolutionField("Bx");
-        auto By = wkset->getSolutionField("By");
+        decltype(ux) Bx, By;
+        if (useB) {
+            Bx = wkset->getSolutionField("Bx");
+            By = wkset->getSolutionField("By");
+        }
         auto pr = wkset->getSolutionField("pr");
         auto off = subview(wkset->offsets, uy_num, ALL());
 
@@ -167,10 +182,15 @@ void mhd2d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
-                    AD norm_B = Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt);
-                    AD diag_contr = pr(elem, pt)-2*visc(elem, pt)*div_u/3 + norm_B/(2*mu(elem, pt));
-                    AD Fx = -By(elem, pt)*Bx(elem, pt)/mu(elem, pt) - visc(elem, pt)*(duy_dx(elem, pt) + dux_dy(elem, pt)) ;
-                    AD Fy = -By(elem, pt)*By(elem, pt)/mu(elem, pt) - visc(elem, pt)*2*duy_dy(elem, pt) + diag_contr;
+                    AD diag_contr = pr(elem, pt)-2*visc(elem, pt)*div_u/3;
+                    AD Fx = -visc(elem, pt)*(duy_dx(elem, pt) + dux_dy(elem, pt));
+                    AD Fy = -visc(elem, pt)*(duy_dy(elem, pt) + duy_dy(elem, pt));
+                    if(useB) {
+                        diag_contr += (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt))/(2*mu(elem, pt));
+                        Fx += -By(elem, pt)*Bx(elem, pt)/mu(elem, pt);
+                        Fy += -By(elem, pt)*By(elem, pt)/mu(elem, pt);
+                    }
+                    Fy += diag_contr;
                     AD F = -source_uy(elem, pt) + dens(elem, pt)*(duy_dt(elem, pt) +
                         ux(elem, pt) * duy_dx(elem, pt) +
                         uy(elem, pt) * duy_dy(elem, pt) );
@@ -255,49 +275,51 @@ void mhd2d::volumeResidual()
             });
 
     }
-    { // Bx Eqn
-        int Bx_basis = wkset->usebasis[Bx_num];
-        auto basis = wkset->basis[Bx_basis];
-        auto basis_grad = wkset->basis_grad[Bx_basis];
-        auto dAz_dy = wkset->getSolutionField("grad(Az)[y]");
-        auto Bx = wkset->getSolutionField("Bx");
-        auto off = subview(wkset->offsets, Bx_num, ALL());
+    if (useB) {
+        { // Bx Eqn
+            int Bx_basis = wkset->usebasis[Bx_num];
+            auto basis = wkset->basis[Bx_basis];
+            auto basis_grad = wkset->basis_grad[Bx_basis];
+            auto dAz_dy = wkset->getSolutionField("grad(Az)[y]");
+            auto Bx = wkset->getSolutionField("Bx");
+            auto off = subview(wkset->offsets, Bx_num, ALL());
 
-        parallel_for(
-            "MHD Bx volume resid",
-            RangePolicy<AssemblyExec>(0, wkset->numElem),
-            KOKKOS_LAMBDA(const int elem) {
-                for (size_type pt = 0; pt < basis.extent(2); pt++)
-                {
-                    AD curlAz_x = (Bx(elem, pt) - dAz_dy(elem, pt))*wts(elem, pt);
-                    for (size_type dof = 0; dof < basis.extent(1); dof++)
+            parallel_for(
+                "MHD Bx volume resid",
+                RangePolicy<AssemblyExec>(0, wkset->numElem),
+                KOKKOS_LAMBDA(const int elem) {
+                    for (size_type pt = 0; pt < basis.extent(2); pt++)
                     {
-                        res(elem, off(dof)) += curlAz_x * basis(elem, dof, pt, 0);
+                        AD curlAz_x = (Bx(elem, pt) - dAz_dy(elem, pt))*wts(elem, pt);
+                        for (size_type dof = 0; dof < basis.extent(1); dof++)
+                        {
+                            res(elem, off(dof)) += curlAz_x * basis(elem, dof, pt, 0);
+                        }
                     }
-                }
-            });
-    }
-    { // By Eqn
-        int By_basis = wkset->usebasis[By_num];
-        auto basis = wkset->basis[By_basis];
-        auto basis_grad = wkset->basis_grad[By_basis];
-        auto dAz_dx = wkset->getSolutionField("grad(Az)[x]");
-        auto By = wkset->getSolutionField("By");
-        auto off = subview(wkset->offsets, By_num, ALL());
+                });
+        }
+        { // By Eqn
+            int By_basis = wkset->usebasis[By_num];
+            auto basis = wkset->basis[By_basis];
+            auto basis_grad = wkset->basis_grad[By_basis];
+            auto dAz_dx = wkset->getSolutionField("grad(Az)[x]");
+            auto By = wkset->getSolutionField("By");
+            auto off = subview(wkset->offsets, By_num, ALL());
 
-        parallel_for(
-            "MHD By volume resid",
-            RangePolicy<AssemblyExec>(0, wkset->numElem),
-            KOKKOS_LAMBDA(const int elem) {
-                for (size_type pt = 0; pt < basis.extent(2); pt++)
-                {
-                    AD curlAz_y = (By(elem, pt) + dAz_dx(elem, pt))*wts(elem, pt);
-                    for (size_type dof = 0; dof < basis.extent(1); dof++)
+            parallel_for(
+                "MHD By volume resid",
+                RangePolicy<AssemblyExec>(0, wkset->numElem),
+                KOKKOS_LAMBDA(const int elem) {
+                    for (size_type pt = 0; pt < basis.extent(2); pt++)
                     {
-                        res(elem, off(dof)) += curlAz_y*basis(elem, dof, pt, 0);
+                        AD curlAz_y = (By(elem, pt) + dAz_dx(elem, pt))*wts(elem, pt);
+                        for (size_type dof = 0; dof < basis.extent(1); dof++)
+                        {
+                            res(elem, off(dof)) += curlAz_y*basis(elem, dof, pt, 0);
+                        }
                     }
-                }
-            });
+                });
+        }
     }
     { // Az Eqn
         int Az_basis = wkset->usebasis[Az_num];
@@ -344,7 +366,6 @@ void mhd2d::boundaryResidual()
     string ux_sidetype = bcs(ux_num, cside);
     string uy_sidetype = "Dirichlet";
     uy_sidetype = bcs(uy_num, cside);
-    string T_sidetype = bcs(T_num, cside);
     Vista source_ux, source_uy, heat_cond;
 
     auto nx = wkset->getScalarField("n[x]");
@@ -414,37 +435,39 @@ void mhd2d::boundaryResidual()
             }
         }
     }
-    if (T_sidetype != "Dirichlet")
-    {
+    if(useTemp) {
+        string T_sidetype = bcs(T_num, cside);
+        if (T_sidetype != "Dirichlet")
+        {
+            // Since normals get recomputed often, this needs to be reset
+            auto wts = wkset->wts_side;
+            auto h = wkset->h;
+            auto res = wkset->res;
+            heat_cond = functionManager->evaluate("thermal conductivity", "ip");
 
-        // Since normals get recomputed often, this needs to be reset
-        auto wts = wkset->wts_side;
-        auto h = wkset->h;
-        auto res = wkset->res;
-        heat_cond = functionManager->evaluate("thermal conductivity", "ip");
+            // T equation boundary residual
+            { // TODO
+                int T_basis = wkset->usebasis[T_num];
+                auto basis = wkset->basis_side[T_basis];
+                auto dT_dx = wkset->getSolutionField("grad(T)[x]");
+                auto dT_dy = wkset->getSolutionField("grad(T)[y]");
+                auto off = Kokkos::subview(wkset->offsets, T_num, Kokkos::ALL());
 
-        // T equation boundary residual
-        { // TODO
-            int T_basis = wkset->usebasis[T_num];
-            auto basis = wkset->basis_side[T_basis];
-            auto dT_dx = wkset->getSolutionField("grad(T)[x]");
-            auto dT_dy = wkset->getSolutionField("grad(T)[y]");
-            auto off = Kokkos::subview(wkset->offsets, T_num, Kokkos::ALL());
-
-            if (T_sidetype == "Neumann")
-            { // traction (Neumann)
-                parallel_for(
-                    "MHD2D T bndry resid N",
-                    RangePolicy<AssemblyExec>(0, wkset->numElem),
-                    KOKKOS_LAMBDA(const int e) {
-                        for (size_type k = 0; k < basis.extent(2); k++)
-                        {
-                            for (size_type i = 0; i < basis.extent(1); i++)
+                if (T_sidetype == "Neumann")
+                { // traction (Neumann)
+                    parallel_for(
+                        "MHD2D T bndry resid N",
+                        RangePolicy<AssemblyExec>(0, wkset->numElem),
+                        KOKKOS_LAMBDA(const int e) {
+                            for (size_type k = 0; k < basis.extent(2); k++)
                             {
-                                res(e, off(i)) += -heat_cond(e, k)*(dT_dx(e, k)*nx(e, k) + dT_dy(e, k)*ny(e, k)) * basis(e, i, k, 0) * wts(e, k);
+                                for (size_type i = 0; i < basis.extent(1); i++)
+                                {
+                                    res(e, off(i)) += -heat_cond(e, k)*(dT_dx(e, k)*nx(e, k) + dT_dy(e, k)*ny(e, k)) * basis(e, i, k, 0) * wts(e, k);
+                                }
                             }
-                        }
-                    });
+                        });
+                }
             }
         }
     }
@@ -469,7 +492,7 @@ void mhd2d::setWorkset(Teuchos::RCP<workset> &wkset_)
     wkset = wkset_;
 
     vector<string> varlist = wkset->varlist;
-    T_num = -1;
+    Bx_num = By_num = T_num = -1;
     for (size_t i = 0; i < varlist.size(); i++)
     {
         if (varlist[i] == "pr")
@@ -489,6 +512,11 @@ void mhd2d::setWorkset(Teuchos::RCP<workset> &wkset_)
     }
     if(T_num >= 0)
         useTemp = true;
+    if(Bx_num >= 0 && By_num >= 0)
+        useB = true;
+    else if(Bx_num >= 0 ^ By_num >= 0) {
+        // TODO: Throw error?
+    }
 }
 
 // ========================================================================================
