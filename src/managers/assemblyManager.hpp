@@ -246,7 +246,7 @@ namespace MrHyDE {
     /**
      * \brief For a given block id block and list of IDs given by first_users, assigns the finite element information related to the databases
      */
-    void buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
+    void buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users, vector<ScalarT> & scales);
 
     /**
      * \brief For a given block id block and list of IDs given by first_users, assigns the finite element information on boundaries related to the databases

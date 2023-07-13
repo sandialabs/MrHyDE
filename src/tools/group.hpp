@@ -370,8 +370,6 @@ namespace MrHyDE {
     
     //! The basis index for the database
     Kokkos::View<LO*,AssemblyDevice> basis_index;
-    //! The diagonal scaling for the supercompressedview
-    View_Sc2 diagonal_scaling;
 
     //! The Intrepid2 orientation for the basis functions
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
@@ -384,6 +382,7 @@ namespace MrHyDE {
     // basis information
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_nodes;
     vector<CompressedView<View_Sc3>> basis_div, local_mass, local_jacobian;
+    View_Sc2 mesh_scales;
     
     vector<vector<CompressedView<View_Sc4>>> basis_face, basis_grad_face;
     View_Sc1 hsize;

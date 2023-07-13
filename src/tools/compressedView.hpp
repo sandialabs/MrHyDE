@@ -49,7 +49,7 @@ enum DeRham_t { zero, one, two, three };
     //! Constructor for the case where the view is compressed and scaled.
     CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key, View_Sc2 mesh_scales, DeRham_t form)
     : have_key_(true),
-      have_scales_((form != DeRham_t::zero) && mesh_scales.is_allocated()), // note: we also skip scaling altogether if we have an object with a simple pullback (e.g. 0-forms)
+      have_scales_((form != DeRham_t::zero) && mesh_scales.is_allocated()), // skip scaling if we have an object with a simple pullback (e.g. 0-forms), and skip scaling if we feed in an unallocated view
       view_(view),
       key_(key)
     {

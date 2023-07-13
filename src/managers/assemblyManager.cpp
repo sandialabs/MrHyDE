@@ -2801,12 +2801,24 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   
   vector<std::pair<size_t,size_t> > first_users; // stores <grpID,elemID>
   vector<std::pair<size_t,size_t> > first_boundary_users; // stores <grpID,elemID>
+  vector<ScalarT> scales; // stores elems-by-dims scale factors (e.g. 3 scales per elem in 3D)
+
+  bool do_scaling = settings->sublist("Solver").get<bool>("use database scaling",false);
+
   
   /////////////////////////////////////////////////////////////////////////////
   // Step 1: identify the duplicate information
   /////////////////////////////////////////////////////////////////////////////
-  
-  this->identifyVolumetricDatabase(block, first_users);
+
+  // GH: the scaling algorithm is fundamentally more complex and computes more information,
+  //     so I'm storing it in a separate location for now.
+  if(do_scaling) {
+    std::cout << "Taking volumetric scaling route..." << std::endl;
+    this->identifyVolumetricScalingDatabase(block, first_users, scales);
+  } else {
+    std::cout << "Taking non-volumetric scaling route..." << std::endl;
+    this->identifyVolumetricDatabase(block, first_users);
+  }
   
   this->identifyBoundaryDatabase(block, first_boundary_users);
   
@@ -2837,7 +2849,7 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   // Step 3: build the database
   /////////////////////////////////////////////////////////////////////////////
   
-  this->buildVolumetricDatabase(block, first_users);
+  this->buildVolumetricDatabase(block, first_users, scales);
   
   this->buildBoundaryDatabase(block, first_boundary_users);
   
@@ -2848,6 +2860,188 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
 
 template<class Node>
 void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users) {
+  Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
+  
+  double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0e-10);
+  
+  int dimension = groupData[block]->dimension;
+  size_type numip = groupData[block]->ref_ip.extent(0);
+  bool ignore_orientations = true;
+  for (size_t i=0; i<groupData[block]->basis_pointers.size(); ++i) {
+    if (groupData[block]->basis_pointers[i]->requireOrientation()) {
+      ignore_orientations = false;
+    }
+  }
+  
+  vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
+  vector<ScalarT> db_measures, db_jacobian_norms;
+  
+  // There are only so many unique orientation
+  // Creating a short list of the unique ones and the index for each element
+  
+  vector<string> unique_orients;
+  vector<vector<size_t> > all_orients;
+  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    auto orient_host = create_mirror_view(groups[block][grp]->orientation);
+    deep_copy(orient_host, groups[block][grp]->orientation);
+    vector<size_t> grp_orient(groups[block][grp]->numElem);
+    for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+      string orient = orient_host(e).to_string();
+      bool found = false;
+      size_t oprog = 0;
+      while (!found && oprog<unique_orients.size()) {
+        if (orient == unique_orients[oprog]) {
+          found = true;
+        }
+        else {
+          ++oprog;
+        }
+      }
+      if (found) {
+        grp_orient[e] = oprog;
+      }
+      else {
+        unique_orients.push_back(orient);
+        grp_orient[e] = unique_orients.size()-1;
+      }
+    }
+    all_orients.push_back(grp_orient);
+  }
+  
+  // Write data to file (for clustering)
+  
+  bool write_volumetric_data = settings->sublist("Solver").get<bool>("write volumetric data",false);
+  if (write_volumetric_data) {
+    this->writeVolumetricData(block, all_orients);
+  }
+  
+  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    groups[block][grp]->storeAll = false;
+    Kokkos::View<LO*,AssemblyDevice> index("basis database index",groups[block][grp]->numElem);
+    auto index_host = create_mirror_view(index);
+    
+    // Get the Jacobian for this group
+    DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
+    disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+    auto jacobian_host = create_mirror_view(jacobian);
+    deep_copy(jacobian_host,jacobian);
+    
+    // Get the measures for this group
+    DRV measure("measure", groups[block][grp]->numElem);
+    disc->getMeasure(groupData[block], jacobian, measure);
+    auto measure_host = create_mirror_view(measure);
+    deep_copy(measure_host,measure);
+    
+    for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+      bool found = false;
+      size_t prog = 0;
+
+      //ScalarT refmeas = std::pow(measure_host(e),1.0/dimension);
+            
+      while (!found && prog<first_users.size()) {
+        size_t refgrp = first_users[prog].first;
+        size_t refelem = first_users[prog].second;
+        
+        // Check #1: element orientations
+        size_t orient = all_orients[grp][e];
+        size_t reforient = all_orients[refgrp][refelem];
+        if (ignore_orientations || orient == reforient) {
+          
+          // Check #2: element measures
+          ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
+          
+          if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
+            
+            ScalarT refnorm = db_jacobian_norms[prog];
+            
+            // Check #3: element Jacobians
+            ScalarT diff2 = 0.0;
+            size_type pt=0;
+            bool ruled_out = false;
+            while (pt<numip && !ruled_out) { 
+              size_type d0=0;
+              ScalarT fronorm = 0.0;
+              ScalarT frodiff = 0.0;
+              ScalarT diff = 0.0;
+              for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
+                for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
+                  diff = jacobian_host(e,pt,d0,d1)-db_jacobians[prog](pt,d0,d1);
+                  frodiff += diff*diff;
+                  fronorm += jacobian_host(e,pt,d0,d1)*jacobian_host(e,pt,d0,d1);
+                }
+              }
+              if (std::sqrt(frodiff)/std::sqrt(fronorm) > database_TOL) {
+                ruled_out = true;
+              }
+              /*   
+              while (d0<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
+                size_type d1=0;
+                while (d1<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
+                  //ScalarT ds = (jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
+                  ScalarT ds = std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1))/std::abs(jacobian_host(e,pt,d0,d1));
+                  //diff2 += ds*ds;
+                  cout << ds << endl;
+                  if (ds > database_TOL) {
+                    ruled_out = true;
+                  }
+                  d1++;
+                }
+                d0++;
+              }*/
+              pt++;
+            }
+            //diff2 = std::sqrt(diff2);
+
+            //ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
+            
+            if (!ruled_out){ //diff2/refnorm<database_TOL) {
+              found = true;
+              index_host(e) = prog;
+            }
+            else {
+              ++prog;
+            }
+            
+          }
+          else {
+            ++prog;
+          }
+        }
+        else {
+          ++prog;
+        }
+      }
+      if (!found) {
+        index_host(e) = first_users.size();
+        std::pair<size_t,size_t> newuj{grp,e};
+        first_users.push_back(newuj);
+        
+        Kokkos::View<ScalarT***,HostDevice> new_jac("new db jac",numip, dimension, dimension);
+        ScalarT jnorm = 0.0;
+        for (size_type pt=0; pt<new_jac.extent(0); ++pt) {
+          for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
+            for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
+              new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
+              jnorm += jacobian(e,pt,d0,d1)*jacobian(e,pt,d0,d1);
+            }
+          }
+        }
+        db_jacobians.push_back(new_jac);
+        db_measures.push_back(measure_host(e));
+        db_jacobian_norms.push_back(std::sqrt(jnorm));
+        
+      }
+    }
+    deep_copy(index,index_host);
+    groups[block][grp]->basis_index = index;
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users, vector<ScalarT> & db_scales) {
   Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
   
   double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0e-10);
@@ -3179,7 +3373,7 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
 /////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users) {
+void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users, vector<ScalarT> & scales) {
   
   Teuchos::TimeMonitor localtimer(*groupdatabaseBasistimer);
   
@@ -3190,10 +3384,13 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   size_t database_numElem = first_users.size();
   DRV database_nodes("nodes for the database",database_numElem, groups[block][0]->nodes.extent(1), dimension);
   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_orientation("database orientations",database_numElem);
+  // GH: touch this up and do not allocate this unless we need it; we can later check if it's allocated by database_scales.is_allocated()
+  View_Sc2 database_scales("database scales",database_numElem, dimension);
   View_Sc2 database_wts("physical wts",database_numElem, groupData[block]->ref_ip.extent(0));
   
   auto database_nodes_host = create_mirror_view(database_nodes);
   auto database_orientation_host = create_mirror_view(database_orientation);
+  auto database_scales_host = create_mirror_view(database_scales);
   auto database_wts_host = create_mirror_view(database_wts);
   
   for (size_t e=0; e<first_users.size(); ++e) {
@@ -3214,6 +3411,13 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     auto orientations_host = create_mirror_view(groups[block][refgrp]->orientation);
     deep_copy(orientations_host, groups[block][refgrp]->orientation);
     database_orientation_host(e) = orientations_host(refelem);
+
+    // Get the scales on host
+    auto scales_host = create_mirror_view(groups[block][refgrp]->mesh_scales);
+    deep_copy(scales_host, groups[block][refgrp]->mesh_scales);
+    for (size_type d=0; d<dimension; ++d) {
+      database_scales_host(e,d) = scales_host(e,d);
+    }
     
     // Get the wts on the host
     auto wts_host = create_mirror_view(groups[block][refgrp]->wts);
@@ -3227,6 +3431,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   
   deep_copy(database_nodes, database_nodes_host);
   deep_copy(database_orientation, database_orientation_host);
+  deep_copy(database_scales, database_scales_host);
   deep_copy(database_wts, database_wts_host);
   
   

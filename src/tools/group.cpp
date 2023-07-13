@@ -38,6 +38,10 @@ groupData(groupData_), localElemID(localID_), nodes(nodes_), disc(disc_)
   orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
   disc->getPhysicalOrientations(groupData, localElemID,
                                 orientation, true);
+
+  // GH TODO: only store this if the user turned on mesh database scaling
+  mesh_scales = View_Sc2("group mesh scales", numElem, groupData->dimension);
+  deep_copy(mesh_scales,1.0);
   
   size_type numip = groupData->ref_ip.extent(0);
   wts = View_Sc2("physical wts",numElem, numip);
@@ -174,14 +178,27 @@ void Group::computeBasis(const bool & keepnodes) {
     }
   }
   else if (groupData->use_basis_database) {
-    for (size_t i=0; i<groupData->database_basis.size(); ++i) {
-      basis.push_back(CompressedView<View_Sc4>(groupData->database_basis[i],basis_index));
-      basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_basis_grad[i],basis_index));
-      basis_div.push_back(CompressedView<View_Sc3>(groupData->database_basis_div[i],basis_index));
-      basis_curl.push_back(CompressedView<View_Sc4>(groupData->database_basis_curl[i],basis_index));
-    }
-    if (!keepnodes) {
-      nodes = DRV("empty nodes",1);
+    if(groupData->use_database_scaling) {
+      for (size_t i=0; i<groupData->database_basis.size(); ++i) {
+        std::cout << "Is this working?" << std::endl;
+        basis.push_back(CompressedView<View_Sc4>(groupData->database_basis[i],basis_index,mesh_scales,DeRham_t::zero));
+        basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_basis_grad[i],basis_index,mesh_scales,DeRham_t::one));
+        basis_div.push_back(CompressedView<View_Sc3>(groupData->database_basis_div[i],basis_index,mesh_scales,DeRham_t::two));
+        basis_curl.push_back(CompressedView<View_Sc4>(groupData->database_basis_curl[i],basis_index,mesh_scales,DeRham_t::three));
+      }
+      if (!keepnodes) {
+        nodes = DRV("empty nodes",1);
+      }
+    } else {
+      for (size_t i=0; i<groupData->database_basis.size(); ++i) {
+        basis.push_back(CompressedView<View_Sc4>(groupData->database_basis[i],basis_index));
+        basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_basis_grad[i],basis_index));
+        basis_div.push_back(CompressedView<View_Sc3>(groupData->database_basis_div[i],basis_index));
+        basis_curl.push_back(CompressedView<View_Sc4>(groupData->database_basis_curl[i],basis_index));
+      }
+      if (!keepnodes) {
+        nodes = DRV("empty nodes",1);
+      }
     }
   }
   
