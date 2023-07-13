@@ -38,6 +38,9 @@ mhd2d::mhd2d(Teuchos::ParameterList &settings, const int &dimension_)
     
     useTemp = settings.get<bool>("useTemp", false);
     useB = settings.get<bool>("useB", true);
+    isStabilizedU  = settings.get<bool>("stabilize u" ,false);
+    isStabilizedPr = settings.get<bool>("stabilize pr",false);
+    isStabilizedAz = settings.get<bool>("stabilize Az",false);
 
     if(useTemp) {
         myvars.push_back("T");
@@ -129,10 +132,11 @@ void mhd2d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
-                    AD diag_ctrb = pr(elem, pt)+2*visc(elem, pt)*div_u/3;
                     AD Fx = -visc(elem, pt)*(dux_dx(elem, pt) + dux_dx(elem, pt));
                     AD Fy = -visc(elem, pt)*(dux_dy(elem, pt) + duy_dx(elem, pt));
+
+                    AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
+                    AD diag_ctrb = pr(elem, pt) + 2*visc(elem, pt)*div_u/3;
                     if(useB) {
                         diag_ctrb += (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt))/(2*mu(elem, pt));
                         Fx += -Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt);
@@ -153,7 +157,7 @@ void mhd2d::volumeResidual()
                 }
             });
         // SUPG contribution
-        if (useSUPG)
+        if (isStabilizedU)
         { /* TODO */ }
     }
     {// Uy equation
@@ -181,10 +185,11 @@ void mhd2d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
-                    AD diag_contr = pr(elem, pt)-2*visc(elem, pt)*div_u/3;
                     AD Fx = -visc(elem, pt)*(duy_dx(elem, pt) + dux_dy(elem, pt));
                     AD Fy = -visc(elem, pt)*(duy_dy(elem, pt) + duy_dy(elem, pt));
+
+                    AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
+                    AD diag_contr = pr(elem, pt) + 2*visc(elem, pt)*div_u/3;
                     if(useB) {
                         diag_contr += (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt))/(2*mu(elem, pt));
                         Fx += -By(elem, pt)*Bx(elem, pt)/mu(elem, pt);
@@ -206,7 +211,7 @@ void mhd2d::volumeResidual()
 
         // SUPG contribution
 
-        if (useSUPG)
+        if (isStabilizedU)
         { /* TODO */ }
 
     }
@@ -232,8 +237,32 @@ void mhd2d::volumeResidual()
                 }
             });
 
-        if (usePSPG)
-        { /* TODO */ }
+        if (isStabilizedPr) {
+            auto h = wkset->h;
+            auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
+            auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
+            auto ux =wkset->getSolutionField("ux");
+            auto uy = wkset->getSolutionField("uy");
+            auto dux_dt = wkset->getSolutionField("ux_t");
+            auto duy_dt = wkset->getSolutionField("uy_t");
+            auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
+            auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
+            
+            parallel_for("MHD2d pr volume stabilized",
+                        RangePolicy<AssemblyExec>(0,wkset->numElem),
+                        KOKKOS_LAMBDA (const int elem ) {
+            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+                AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
+                AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
+                Sx *= tau*wts(elem,pt)/dens(elem,pt);
+                AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
+                Sy *= tau*wts(elem,pt)/dens(elem,pt);
+                for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+                    res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
+                }
+            }
+            });
+        }
     }
     if (useTemp) { // T equation
         int T_basis = wkset->usebasis[T_num];
@@ -338,9 +367,9 @@ void mhd2d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
+                    AD F  = dAz_dt(elem, pt) + ux(elem, pt)*dAz_dx(elem, pt) + uy(elem, pt)*dAz_dy(elem, pt) + source_E(elem, pt);
                     AD Fx = -eta(elem, pt)*dAz_dx(elem, pt)/mu(elem, pt);
                     AD Fy = -eta(elem, pt)*dAz_dy(elem, pt)/mu(elem, pt);
-                    AD F  = dAz_dt(elem, pt) + ux(elem, pt)*dAz_dx(elem, pt) + uy(elem, pt)*dAz_dy(elem, pt) + source_E(elem, pt);
                     Fx *= -wts(elem, pt);
                     Fy *= -wts(elem, pt);
                     F  *=  wts(elem, pt);
@@ -350,6 +379,26 @@ void mhd2d::volumeResidual()
                     }
                 }
             });
+        if(isStabilizedAz) {
+            auto h = wkset->h;
+            parallel_for(
+                "MHD2D Az stabilize vol",
+                RangePolicy<AssemblyExec>(0, wkset->numElem),
+                KOKKOS_LAMBDA(const int elem) {
+                    for (size_type pt = 0; pt < basis.extent(2); pt++)
+                    {
+                        AD tau = this->computeTauAz(eta(elem, pt), ux(elem, pt), uy(elem, pt), h(elem), dt);
+                        AD F = dAz_dt(elem, pt) + ux(elem, pt)*dAz_dx(elem, pt) + uy(elem, pt)*dAz_dy(elem, pt) + source_E(elem, pt);
+                        F *= -wts(elem, pt);
+                        AD Fx = tau*ux(elem, pt)*F;
+                        AD Fy = tau*uy(elem, pt)*F;
+                        for (size_type dof = 0; dof < basis.extent(1); dof++)
+                        {
+                            res(elem, off(dof)) += + Fx*basis_grad(elem, dof, pt, 0) + Fy*basis_grad(elem, dof, pt, 1);
+                        }
+                    }
+                });
+        }
     }
 
 }
@@ -588,4 +637,35 @@ KOKKOS_FUNCTION AD mhd2d::computeTauAz(const AD &eta, const AD &xvl, const AD &y
     tau = 1. / sqrt(tau);
 
     return tau;
+}
+
+// ========================================================================================
+// return the value of the stabilization parameter
+// ========================================================================================
+
+KOKKOS_FUNCTION AD mhd2d::computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const {
+  
+  ScalarT C1 = 4.0;
+  ScalarT C2 = 2.0;
+  ScalarT C3 = isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
+  
+  AD nvel = 0.0;
+  if (spaceDim == 1)
+    nvel = xvl*xvl;
+  else if (spaceDim == 2)
+    nvel = xvl*xvl + yvl*yvl;
+  else if (spaceDim == 3)
+    nvel = xvl*xvl + yvl*yvl + zvl*zvl;
+  
+  if (nvel > 1E-12)
+    nvel = sqrt(nvel);
+  
+  AD tau;
+  // see, e.g. wikipedia article on SUPG/PSPG 
+  // coefficients can be changed/tuned for different scenarios (including order of time scheme)
+  // https://arxiv.org/pdf/1710.08898.pdf had a good, clear writeup of the final eqns
+  tau = (C1*localdiff/h/h)*(C1*localdiff/h/h) + (C2*nvel/h)*(C2*nvel/h) + (C3/dt)*(C3/dt);
+  tau = 1./sqrt(tau);
+
+  return tau;
 }

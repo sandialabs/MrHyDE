@@ -6,51 +6,68 @@ ANONYMOUS:
   Mesh:
     dimension: 2
     element type: quad
-    xmin: -1.0
-    xmax:  1.0
-    ymin: -1.0
-    ymax:  1.0
-    NX: 100
-    NY: 100
+    xmin: 0.0
+    xmax: 5.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 50
+    NY: 10
   Physics: 
     modules: mhd2d
     Dirichlet conditions:
       ux:
-        all boundaries: '0.0'
+        bottom: '0.0'
+        top: '0.0'
       uy:
-        all boundaries: '0.0'
+        bottom: '0.0'
+        top: '0.0'
       Az:
-        all boundaries: '0.0'
-      pr:
-        all boundaries: '0.0'
+        bottom: '0.0'
+        top: '0.0'
     Initial conditions:
       ux: 0.0
       uy: 0.0
       Az: 0.0
       pr: 0.0
+      Bx: 0.0
+      By: 0.0
     useB: false
+    stabilize Pr: true
   Discretization:
     order:
       ux: 1
       uy: 1
       Az: 1
       pr: 1
+      Bx: 1
+      By: 1
     quadrature: 2
   Parameters input file: input_parameters.yaml
   Solver:
-    solver: transient
-    workset size: 200
-    nonlinear TOL: 1.0e-12
-    linear TOL: 1.0e-12
-    max nonlinear iters: 1
+    solver: steady-state
+    Preconditioner Settings:
+      'smoother: type': RELAXATION
+      'smoother: params':
+        'relaxation: type': Jacobi
+    workset Size: 100
+    nonlinear TOL: 1.0e-7
+    linear TOL: 1.0e-9
+    max nonlinear iters: 5
     max linear iters: 500
-    final time: 1.0
     delta t: 0.05
-    use domain decomposition: true
-    use preconditioner: true
+    final time: 5.0
   Analysis: 
     analysis type: forward
   Postprocess: 
     write solution: true
     output file: output
+  Functions:
+    source ux: '1.0'
+    source Az: '-exp(bubble)'
+    xvel: 'ux'
+    yvel: 'uy'
+    bubble: '-10.0*(x-2)*(x-2) - 10.0*(y-0.5)*(y-0.5)'
+    resistivity: '0.01'
+    permeability: '1.0'
+    viscosity: '1.0'
 ...

@@ -95,6 +95,7 @@ namespace MrHyDE {
      *
      */
     // TODO: Document these functions
+    KOKKOS_FUNCTION AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const;
     KOKKOS_FUNCTION AD computeTauMomentum(const AD &dens, const AD &visc, const AD &xvl, const AD &yvl, const AD &xmag, const AD &ymag, const ScalarT &h, const ScalarT &dt) const;
     KOKKOS_FUNCTION AD computeTauTemp(const AD &dens, const AD &xvl, const AD &yvl, const AD &Cp, const ScalarT &h, const ScalarT &dt) const;
     KOKKOS_FUNCTION AD computeTauAz(const AD &eta, const AD &xvl, const AD &yvl, const ScalarT &h, const ScalarT &dt) const;
@@ -103,7 +104,7 @@ namespace MrHyDE {
     
     int ux_num, uy_num, Bx_num, By_num, Az_num, pr_num, T_num;
     
-    bool useSUPG, usePSPG, useTemp, useB;
+    bool isStabilizedU, isStabilizedPr, isStabilizedAz, useTemp, useB;
 
     vector<ScalarT> pik;
     Kokkos::View<ScalarT*,AssemblyDevice> model_params;
