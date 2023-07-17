@@ -35,22 +35,16 @@ mhd2d::mhd2d(Teuchos::ParameterList &settings, const int &dimension_)
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
-    
+
     useTemp = settings.get<bool>("useTemp", false);
     useB = settings.get<bool>("useB", true);
-    isStabilizedU  = settings.get<bool>("stabilize u" ,false);
-    isStabilizedPr = settings.get<bool>("stabilize pr",false);
-    isStabilizedAz = settings.get<bool>("stabilize Az",false);
+    isStabilizedU = settings.get<bool>("stabilize u", false);
+    isStabilizedPr = settings.get<bool>("stabilize pr", false);
+    isStabilizedAz = settings.get<bool>("stabilize Az", false);
 
-    if(useTemp) {
+    if (useTemp)
+    {
         myvars.push_back("T");
-        mybasistypes.push_back("HGRAD");
-    }
-
-    if(useB) {
-        myvars.push_back("Bx");
-        myvars.push_back("By");
-        mybasistypes.push_back("HGRAD");
         mybasistypes.push_back("HGRAD");
     }
 }
@@ -71,7 +65,8 @@ void mhd2d::defineFunctions(Teuchos::ParameterList &fs,
     functionManager->addFunction("viscosity", fs.get<string>("viscosity", "1.0"), "ip");
     functionManager->addFunction("resistivity", fs.get<string>("resistivity", "1.0"), "ip");
     functionManager->addFunction("permeability", fs.get<string>("permeability", "1.0"), "ip");
-    if(useTemp) {
+    if (useTemp)
+    {
         functionManager->addFunction("specificHeat", fs.get<string>("specific heat", "1.0"), "ip");
         functionManager->addFunction("thermalConductivity", fs.get<string>("thermal conductivity", "1.0"), "ip");
     }
@@ -98,7 +93,8 @@ void mhd2d::volumeResidual()
         visc = functionManager->evaluate("viscosity", "ip");
         eta = functionManager->evaluate("resistivity", "ip");
         mu = functionManager->evaluate("permeability", "ip");
-        if(useTemp) {
+        if (useTemp)
+        {
             specific_heat = functionManager->evaluate("specificHeat", "ip");
             heat_cond = functionManager->evaluate("thermalConductivity", "ip");
         }
@@ -107,7 +103,7 @@ void mhd2d::volumeResidual()
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
     auto wts = wkset->wts;
     auto res = wkset->res;
-    {// Ux equation
+    { // Ux equation
         int ux_basis = wkset->usebasis[ux_num];
         auto basis = wkset->basis[ux_basis];
         auto basis_grad = wkset->basis_grad[ux_basis];
@@ -118,10 +114,11 @@ void mhd2d::volumeResidual()
         auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
         auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
-        decltype(ux) Bx, By;
-        if (useB) {
-            Bx = wkset->getSolutionField("Bx");
-            By = wkset->getSolutionField("By");
+        decltype(ux) dAz_dx, dAz_dy;
+        if (useB)
+        {
+            dAz_dx = wkset->getSolutionField("grad(Az)[x]");
+            dAz_dy = wkset->getSolutionField("grad(Az)[y]");
         }
         auto pr = wkset->getSolutionField("pr");
         auto off = subview(wkset->offsets, ux_num, ALL());
@@ -132,24 +129,25 @@ void mhd2d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = -visc(elem, pt)*(dux_dx(elem, pt) + dux_dx(elem, pt));
-                    AD Fy = -visc(elem, pt)*(dux_dy(elem, pt) + duy_dx(elem, pt));
+                    AD Fx = visc(elem, pt) * (dux_dx(elem, pt) + dux_dx(elem, pt));
+                    AD Fy = visc(elem, pt) * (dux_dy(elem, pt) + duy_dx(elem, pt));
 
                     AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
-                    AD diag_ctrb = pr(elem, pt) + 2*visc(elem, pt)*div_u/3;
-                    if(useB) {
-                        diag_ctrb += (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt))/(2*mu(elem, pt));
-                        Fx += -Bx(elem, pt)*Bx(elem, pt)/mu(elem, pt);
-                        Fy += -Bx(elem, pt)*By(elem, pt)/mu(elem, pt);
+                    AD diag_ctrb = -(pr(elem, pt) + 2*visc(elem, pt)*div_u/3);
+                    if (useB)
+                    {
+                        AD Bx =  dAz_dy(elem, pt);
+                        AD By = -dAz_dx(elem, pt);
+                        AD normB = -(Bx*Bx + By*By) / (2 * mu(elem, pt));
+                        diag_ctrb += normB;
+                        Fx += Bx * Bx / mu(elem, pt);
+                        Fy += Bx * By / mu(elem, pt);
                     }
                     Fx += diag_ctrb;
-                    AD F =-source_ux(elem, pt) + dens(elem, pt)*(
-                           dux_dt(elem, pt) +
-                           ux(elem, pt) * dux_dx(elem, pt) +
-                           uy(elem, pt) * dux_dy(elem, pt) );
-                    Fx *= -wts(elem, pt);
-                    Fy *= -wts(elem, pt);
-                    F  *=  wts(elem, pt);
+                    AD F = dux_dt(elem, pt) + ux(elem, pt) * dux_dx(elem, pt) + uy(elem, pt) * dux_dy(elem, pt) - source_ux(elem, pt);
+                    Fx *= wts(elem, pt);
+                    Fy *= wts(elem, pt);
+                    F  *= wts(elem, pt) * dens(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
@@ -158,9 +156,10 @@ void mhd2d::volumeResidual()
             });
         // SUPG contribution
         if (isStabilizedU)
-        { /* TODO */ }
+        { /* TODO */
+        }
     }
-    {// Uy equation
+    { // Uy equation
         int uy_basis = wkset->usebasis[uy_num];
         auto basis = wkset->basis[uy_basis];
         auto basis_grad = wkset->basis_grad[uy_basis];
@@ -171,10 +170,11 @@ void mhd2d::volumeResidual()
         auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
         auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
-        decltype(ux) Bx, By;
-        if (useB) {
-            Bx = wkset->getSolutionField("Bx");
-            By = wkset->getSolutionField("By");
+        decltype(ux) dAz_dx, dAz_dy;
+        if (useB)
+        {
+            dAz_dx = wkset->getSolutionField("grad(Az)[x]");
+            dAz_dy = wkset->getSolutionField("grad(Az)[y]");
         }
         auto pr = wkset->getSolutionField("pr");
         auto off = subview(wkset->offsets, uy_num, ALL());
@@ -185,23 +185,26 @@ void mhd2d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = -visc(elem, pt)*(duy_dx(elem, pt) + dux_dy(elem, pt));
-                    AD Fy = -visc(elem, pt)*(duy_dy(elem, pt) + duy_dy(elem, pt));
+                    AD Fx = visc(elem, pt) * (duy_dx(elem, pt) + dux_dy(elem, pt));
+                    AD Fy = visc(elem, pt) * (duy_dy(elem, pt) + duy_dy(elem, pt));
 
                     AD div_u = dux_dx(elem, pt) + duy_dy(elem, pt);
-                    AD diag_contr = pr(elem, pt) + 2*visc(elem, pt)*div_u/3;
-                    if(useB) {
-                        diag_contr += (Bx(elem, pt)*Bx(elem, pt) + By(elem, pt)*By(elem, pt))/(2*mu(elem, pt));
-                        Fx += -By(elem, pt)*Bx(elem, pt)/mu(elem, pt);
-                        Fy += -By(elem, pt)*By(elem, pt)/mu(elem, pt);
+                    AD diag_ctrb = -(pr(elem, pt) + 2*visc(elem, pt)*div_u/3);
+                    if (useB)
+                    {
+                        AD Bx =  dAz_dy(elem, pt);
+                        AD By = -dAz_dx(elem, pt);
+                        AD normB = -(Bx*Bx + By*By) / (2 * mu(elem, pt));
+
+                        diag_ctrb += normB;
+                        Fx += By*Bx / mu(elem, pt);
+                        Fy += By*By / mu(elem, pt);
                     }
-                    Fy += diag_contr;
-                    AD F = -source_uy(elem, pt) + dens(elem, pt)*(duy_dt(elem, pt) +
-                        ux(elem, pt) * duy_dx(elem, pt) +
-                        uy(elem, pt) * duy_dy(elem, pt) );
-                    Fx *= -wts(elem, pt);
-                    Fy *= -wts(elem, pt);
-                    F *=   wts(elem, pt);
+                    Fy += diag_ctrb;
+                    AD F = duy_dt(elem, pt) + ux(elem, pt) * duy_dx(elem, pt) + uy(elem, pt) * duy_dy(elem, pt) - source_uy(elem, pt);
+                    Fx *= wts(elem, pt);
+                    Fy *= wts(elem, pt);
+                    F *= wts(elem, pt) * dens(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
@@ -212,10 +215,10 @@ void mhd2d::volumeResidual()
         // SUPG contribution
 
         if (isStabilizedU)
-        { /* TODO */ }
-
+        { /* TODO */
+        }
     }
-    {// pr equation
+    { // pr equation
         int pr_basis = wkset->usebasis[pr_num];
         auto basis = wkset->basis[pr_basis];
         auto basis_grad = wkset->basis_grad[pr_basis];
@@ -237,34 +240,39 @@ void mhd2d::volumeResidual()
                 }
             });
 
-        if (isStabilizedPr) {
+        if (isStabilizedPr)
+        {
             auto h = wkset->h;
             auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
             auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
-            auto ux =wkset->getSolutionField("ux");
+            auto ux = wkset->getSolutionField("ux");
             auto uy = wkset->getSolutionField("uy");
             auto dux_dt = wkset->getSolutionField("ux_t");
             auto duy_dt = wkset->getSolutionField("uy_t");
             auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
             auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
-            
-            parallel_for("MHD2d pr volume stabilized",
-                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                        KOKKOS_LAMBDA (const int elem ) {
-            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-                AD tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
-                AD Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
-                Sx *= tau*wts(elem,pt)/dens(elem,pt);
-                AD Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
-                Sy *= tau*wts(elem,pt)/dens(elem,pt);
-                for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-                    res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
-                }
-            }
-            });
+
+            parallel_for(
+                "MHD2d pr volume stabilized",
+                RangePolicy<AssemblyExec>(0, wkset->numElem),
+                KOKKOS_LAMBDA(const int elem) {
+                    for (size_type pt = 0; pt < basis.extent(2); pt++)
+                    {
+                        AD tau = this->computeTau(visc(elem, pt), ux(elem, pt), uy(elem, pt), 0.0, h(elem), spaceDim, dt, isTransient);
+                        AD Sx = dens(elem, pt) * dux_dt(elem, pt) + dens(elem, pt) * (ux(elem, pt) * dux_dx(elem, pt) + uy(elem, pt) * dux_dy(elem, pt)) + dpr_dx(elem, pt) - dens(elem, pt) * source_ux(elem, pt);
+                        Sx *= tau * wts(elem, pt) / dens(elem, pt);
+                        AD Sy = dens(elem, pt) * duy_dt(elem, pt) + dens(elem, pt) * (ux(elem, pt) * duy_dx(elem, pt) + uy(elem, pt) * duy_dy(elem, pt)) + dpr_dy(elem, pt) - dens(elem, pt) * source_uy(elem, pt);
+                        Sy *= tau * wts(elem, pt) / dens(elem, pt);
+                        for (size_type dof = 0; dof < basis.extent(1); dof++)
+                        {
+                            res(elem, off(dof)) += Sx * basis_grad(elem, dof, pt, 0) + Sy * basis_grad(elem, dof, pt, 1);
+                        }
+                    }
+                });
         }
     }
-    if (useTemp) { // T equation
+    if (useTemp)
+    { // T equation
         int T_basis = wkset->usebasis[T_num];
         auto basis = wkset->basis[T_basis];
         auto basis_grad = wkset->basis_grad[T_basis];
@@ -287,24 +295,24 @@ void mhd2d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Jz = (dBy_dx(elem, pt) - dBx_dy(elem, pt))/mu(elem, pt);
-                    AD heat_in = dT_dt(elem, pt) + ux(elem, pt)*dT_dx(elem, pt) + uy(elem, pt)*dT_dy(elem, pt);
-                    heat_in *= dens(elem, pt)*specific_heat(elem, pt);
-                    AD Fx = -heat_cond(elem, pt)*dT_dx(elem, pt);
-                    AD Fy = -heat_cond(elem, pt)*dT_dy(elem, pt);
-                    AD F = heat_in - eta(elem, pt)*Jz*Jz;
+                    AD Jz = (dBy_dx(elem, pt) - dBx_dy(elem, pt)) / mu(elem, pt);
+                    AD heat_in = dT_dt(elem, pt) + ux(elem, pt) * dT_dx(elem, pt) + uy(elem, pt) * dT_dy(elem, pt);
+                    heat_in *= dens(elem, pt) * specific_heat(elem, pt);
+                    AD Fx = -heat_cond(elem, pt) * dT_dx(elem, pt);
+                    AD Fy = -heat_cond(elem, pt) * dT_dy(elem, pt);
+                    AD F = heat_in - eta(elem, pt) * Jz * Jz;
                     Fx *= -wts(elem, pt);
                     Fy *= -wts(elem, pt);
-                    F  *=  wts(elem, pt);
+                    F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1) + F * basis(elem, dof, pt, 0);
                     }
                 }
             });
-
     }
-    if (useB) {
+    if (false) // (useB)
+    {
         { // Bx Eqn
             int Bx_basis = wkset->usebasis[Bx_num];
             auto basis = wkset->basis[Bx_basis];
@@ -319,7 +327,7 @@ void mhd2d::volumeResidual()
                 KOKKOS_LAMBDA(const int elem) {
                     for (size_type pt = 0; pt < basis.extent(2); pt++)
                     {
-                        AD curlAz_x = (Bx(elem, pt) - dAz_dy(elem, pt))*wts(elem, pt);
+                        AD curlAz_x = (Bx(elem, pt) - dAz_dy(elem, pt)) * wts(elem, pt);
                         for (size_type dof = 0; dof < basis.extent(1); dof++)
                         {
                             res(elem, off(dof)) += curlAz_x * basis(elem, dof, pt, 0);
@@ -341,10 +349,10 @@ void mhd2d::volumeResidual()
                 KOKKOS_LAMBDA(const int elem) {
                     for (size_type pt = 0; pt < basis.extent(2); pt++)
                     {
-                        AD curlAz_y = (By(elem, pt) + dAz_dx(elem, pt))*wts(elem, pt);
+                        AD curlAz_y = (By(elem, pt) + dAz_dx(elem, pt)) * wts(elem, pt);
                         for (size_type dof = 0; dof < basis.extent(1); dof++)
                         {
-                            res(elem, off(dof)) += curlAz_y*basis(elem, dof, pt, 0);
+                            res(elem, off(dof)) += curlAz_y * basis(elem, dof, pt, 0);
                         }
                     }
                 });
@@ -367,19 +375,21 @@ void mhd2d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD F  = dAz_dt(elem, pt) + ux(elem, pt)*dAz_dx(elem, pt) + uy(elem, pt)*dAz_dy(elem, pt) + source_E(elem, pt);
-                    AD Fx = -eta(elem, pt)*dAz_dx(elem, pt)/mu(elem, pt);
-                    AD Fy = -eta(elem, pt)*dAz_dy(elem, pt)/mu(elem, pt);
-                    Fx *= -wts(elem, pt);
-                    Fy *= -wts(elem, pt);
-                    F  *=  wts(elem, pt);
+                    AD F = dAz_dt(elem, pt) + ux(elem, pt) * dAz_dx(elem, pt) +
+                           uy(elem, pt) * dAz_dy(elem, pt) + source_E(elem, pt);
+                    AD Fx = eta(elem, pt) * dAz_dx(elem, pt) / mu(elem, pt);
+                    AD Fy = eta(elem, pt) * dAz_dy(elem, pt) / mu(elem, pt);
+                    Fx *= wts(elem, pt);
+                    Fy *= wts(elem, pt);
+                    F *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
-                        res(elem, off(dof)) += F*basis(elem, dof, pt, 0) + Fx*basis_grad(elem, dof, pt, 0) + Fy*basis_grad(elem, dof, pt, 1);
+                        res(elem, off(dof)) += F * basis(elem, dof, pt, 0) + Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1);
                     }
                 }
             });
-        if(isStabilizedAz) {
+        if (isStabilizedAz)
+        {
             auto h = wkset->h;
             parallel_for(
                 "MHD2D Az stabilize vol",
@@ -388,19 +398,18 @@ void mhd2d::volumeResidual()
                     for (size_type pt = 0; pt < basis.extent(2); pt++)
                     {
                         AD tau = this->computeTauAz(eta(elem, pt), ux(elem, pt), uy(elem, pt), h(elem), dt);
-                        AD F = dAz_dt(elem, pt) + ux(elem, pt)*dAz_dx(elem, pt) + uy(elem, pt)*dAz_dy(elem, pt) + source_E(elem, pt);
+                        AD F = dAz_dt(elem, pt) + ux(elem, pt) * dAz_dx(elem, pt) + uy(elem, pt) * dAz_dy(elem, pt) + source_E(elem, pt);
                         F *= -wts(elem, pt);
-                        AD Fx = tau*ux(elem, pt)*F;
-                        AD Fy = tau*uy(elem, pt)*F;
+                        AD Fx = tau * ux(elem, pt) * F;
+                        AD Fy = tau * uy(elem, pt) * F;
                         for (size_type dof = 0; dof < basis.extent(1); dof++)
                         {
-                            res(elem, off(dof)) += + Fx*basis_grad(elem, dof, pt, 0) + Fy*basis_grad(elem, dof, pt, 1);
+                            res(elem, off(dof)) += +Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1);
                         }
                     }
                 });
         }
     }
-
 }
 
 // ========================================================================================
@@ -484,7 +493,8 @@ void mhd2d::boundaryResidual()
             }
         }
     }
-    if(useTemp) {
+    if (useTemp)
+    {
         string T_sidetype = bcs(T_num, cside);
         if (T_sidetype != "Dirichlet")
         {
@@ -512,7 +522,7 @@ void mhd2d::boundaryResidual()
                             {
                                 for (size_type i = 0; i < basis.extent(1); i++)
                                 {
-                                    res(e, off(i)) += -heat_cond(e, k)*(dT_dx(e, k)*nx(e, k) + dT_dy(e, k)*ny(e, k)) * basis(e, i, k, 0) * wts(e, k);
+                                    res(e, off(i)) += -heat_cond(e, k) * (dT_dx(e, k) * nx(e, k) + dT_dy(e, k) * ny(e, k)) * basis(e, i, k, 0) * wts(e, k);
                                 }
                             }
                         });
@@ -559,11 +569,12 @@ void mhd2d::setWorkset(Teuchos::RCP<workset> &wkset_)
         if (varlist[i] == "Az")
             Az_num = i;
     }
-    if(T_num >= 0)
+    if (T_num >= 0)
         useTemp = true;
-    if(Bx_num >= 0 && By_num >= 0)
+    if (Bx_num >= 0 && By_num >= 0)
         useB = true;
-    else if(Bx_num >= 0 ^ By_num >= 0) {
+    else if (Bx_num >= 0 ^ By_num >= 0)
+    {
         // TODO: Throw error?
     }
 }
@@ -643,29 +654,30 @@ KOKKOS_FUNCTION AD mhd2d::computeTauAz(const AD &eta, const AD &xvl, const AD &y
 // return the value of the stabilization parameter
 // ========================================================================================
 
-KOKKOS_FUNCTION AD mhd2d::computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const {
-  
-  ScalarT C1 = 4.0;
-  ScalarT C2 = 2.0;
-  ScalarT C3 = isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
-  
-  AD nvel = 0.0;
-  if (spaceDim == 1)
-    nvel = xvl*xvl;
-  else if (spaceDim == 2)
-    nvel = xvl*xvl + yvl*yvl;
-  else if (spaceDim == 3)
-    nvel = xvl*xvl + yvl*yvl + zvl*zvl;
-  
-  if (nvel > 1E-12)
-    nvel = sqrt(nvel);
-  
-  AD tau;
-  // see, e.g. wikipedia article on SUPG/PSPG 
-  // coefficients can be changed/tuned for different scenarios (including order of time scheme)
-  // https://arxiv.org/pdf/1710.08898.pdf had a good, clear writeup of the final eqns
-  tau = (C1*localdiff/h/h)*(C1*localdiff/h/h) + (C2*nvel/h)*(C2*nvel/h) + (C3/dt)*(C3/dt);
-  tau = 1./sqrt(tau);
+KOKKOS_FUNCTION AD mhd2d::computeTau(const AD &localdiff, const AD &xvl, const AD &yvl, const AD &zvl, const ScalarT &h, const int &spaceDim, const ScalarT &dt, const bool &isTransient) const
+{
 
-  return tau;
+    ScalarT C1 = 4.0;
+    ScalarT C2 = 2.0;
+    ScalarT C3 = isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
+
+    AD nvel = 0.0;
+    if (spaceDim == 1)
+        nvel = xvl * xvl;
+    else if (spaceDim == 2)
+        nvel = xvl * xvl + yvl * yvl;
+    else if (spaceDim == 3)
+        nvel = xvl * xvl + yvl * yvl + zvl * zvl;
+
+    if (nvel > 1E-12)
+        nvel = sqrt(nvel);
+
+    AD tau;
+    // see, e.g. wikipedia article on SUPG/PSPG
+    // coefficients can be changed/tuned for different scenarios (including order of time scheme)
+    // https://arxiv.org/pdf/1710.08898.pdf had a good, clear writeup of the final eqns
+    tau = (C1 * localdiff / h / h) * (C1 * localdiff / h / h) + (C2 * nvel / h) * (C2 * nvel / h) + (C3 / dt) * (C3 / dt);
+    tau = 1. / sqrt(tau);
+
+    return tau;
 }

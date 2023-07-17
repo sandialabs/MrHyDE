@@ -1,8 +1,8 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 1111
-  debug level: 1111
+  verbosity: 0
+  debug level: 0
   Mesh:
     dimension: 2
     element type: quad
@@ -10,8 +10,8 @@ ANONYMOUS:
     xmax: 5.0
     ymin: 0.0
     ymax: 1.0
-    NX: 50
-    NY: 10
+    NX: 100
+    NY: 20
   Physics: 
     modules: mhd2d
     Dirichlet conditions:
@@ -21,16 +21,18 @@ ANONYMOUS:
       uy:
         bottom: '0.0'
         top: '0.0'
+        left: '0.0'
+        right: '0.0'
       Az:
         bottom: '0.0'
         top: '0.0'
+      pr:
+        left: '0.0'
     Initial conditions:
       ux: 0.0
       uy: 0.0
-      Az: 0.0
+      Az: 'exp(-10.0 * bubble)'
       pr: 0.0
-      Bx: 0.0
-      By: 0.0
     useB: false
     stabilize Pr: true
   Discretization:
@@ -39,34 +41,38 @@ ANONYMOUS:
       uy: 1
       Az: 1
       pr: 1
-      Bx: 1
-      By: 1
     quadrature: 2
   Parameters input file: input_parameters.yaml
   Solver:
     solver: steady-state
-    Preconditioner Settings:
-      'smoother: type': RELAXATION
-      'smoother: params':
-        'relaxation: type': Jacobi
-    workset Size: 100
+    # use preconditioner: true
+    # reuse preconditioner: true
+    # preconditioner reuse type: full
+    workset Size: 1
     nonlinear TOL: 1.0e-7
     linear TOL: 1.0e-9
-    max nonlinear iters: 5
+    max nonlinear iters: 1
     max linear iters: 500
-    delta t: 0.05
-    final time: 5.0
+    final time: 1.0
+    number of steps: 10
+    initial type: L2-projection
   Analysis: 
     analysis type: forward
   Postprocess: 
     write solution: true
     output file: output
+    compute errors: true
+    True solutions:
+      ux: 'y*(1.0-y)'
+      uy: '0.0'
+      pr: '0.0'
+      Az: '0.0'
   Functions:
-    source ux: '1.0'
-    source Az: '-exp(bubble)'
-    xvel: 'ux'
-    yvel: 'uy'
-    bubble: '-10.0*(x-2)*(x-2) - 10.0*(y-0.5)*(y-0.5)'
+    source ux: '3.0'
+    source Az: '-scale*exp(-10.0 * bubble)'
+    scale: '1.0'
+    bubble: '(x-2.0)*(x-2.0)+(y-0.5)*(y-0.5)'
+    sigma: '0.1'
     resistivity: '0.01'
     permeability: '1.0'
     viscosity: '1.0'
