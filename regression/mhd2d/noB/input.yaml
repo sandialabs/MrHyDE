@@ -1,40 +1,49 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 0
-  debug level: 0
+  verbosity: 111
+  debug level: 111
   Mesh:
     dimension: 2
-    element type: quad
-    xmin: 0.0
-    xmax: 5.0
-    ymin: 0.0
-    ymax: 1.0
-    NX: 100
-    NY: 20
+    source: Exodus
+    mesh file: channel-2D-bump.e
+  #   element type: quad
+  #   xmin: 0.0
+  #   xmax: 5.0
+  #   ymin: 0.0
+  #   ymax: 1.0
+  #   NX: 100
+  #   NY: 20
+
   Physics: 
     modules: mhd2d
     Dirichlet conditions:
       ux:
         bottom: '0.0'
         top: '0.0'
+        left: '1.0*(5.-y)*(5.+y)/(5.*5.)'  ## parabolic profile, centerline is 0.5
       uy:
         bottom: '0.0'
         top: '0.0'
-        left: '0.0'
-        right: '0.0'
       Az:
         bottom: '0.0'
         top: '0.0'
-      pr:
-        left: '0.0'
+    Neumann conditions:
+      ux:
+        right: '0.0'
+      uy:
+        right: '0.0'
+      Az:
+        right: '0.0'
+        #sides: '0.0'
     Initial conditions:
       ux: 0.0
       uy: 0.0
-      Az: 'exp(-10.0 * bubble)'
+      Az: 0.0 #1.0e-4 #'y*(1-y)' #'exp(-10.0*bubble)'
       pr: 0.0
     useB: false
     stabilize Pr: true
+    stabilize Az: false
   Discretization:
     order:
       ux: 1
@@ -44,23 +53,56 @@ ANONYMOUS:
     quadrature: 2
   Parameters input file: input_parameters.yaml
   Solver:
-    solver: steady-state
-    # use preconditioner: true
-    # reuse preconditioner: true
-    # preconditioner reuse type: full
-    workset Size: 1
-    nonlinear TOL: 1.0e-7
-    linear TOL: 1.0e-9
-    max nonlinear iters: 1
-    max linear iters: 500
-    final time: 1.0
-    number of steps: 10
-    initial type: L2-projection
+    #solver: steady-state
+    solver: transient
+    workset size: 100
+    nonlinear TOL: 1.0e-06
+    linear TOL: 1.0e-6
+    max nonlinear iters: 5
+    max linear iters: 100
+    final time: 30.
+    delta t: 0.5
+    use direct solver: false
+    use domain decomposition: false
+    use strong DBCs: true
+    Preconditioner Settings:
+      verbosity: none
+      number of equations: 4
+      multigrid algorithm: sa
+      'sa: use filtered matrix': true
+      'sa: damping factor': 0.0
+      'coarse: max size': 2000
+      'transpose: use implicit': false
+      'aggregation: type': uncoupled
+      'aggregation: drop scheme': classical
+      'aggregation: drop tol': 0.0
+      'smoother: pre or post': both
+      'smoother: type': SCHWARZ
+      'smoother: params':
+        'schwarz: overlap level': 1
+        'schwarz: combine mode': Zero
+        'schwarz: use reordering': false
+        'schwarz: reordering list':
+          order_method: rcm
+        subdomain solver name: RILUK
+        subdomain solver parameters:
+          'fact: iluk level-of-fill': 1
+          'fact: ilut level-of-fill': 1.75
+          'fact: absolute threshold': 0.0
+          'fact: relative threshold': 1.0
+          'fact: relax value': 0.0
+        # 'chebyshev: degree': 2
+        # 'chebyshev: ratio eigenvalue': 7.0
+        # 'chebyshev: min eigenvalue': 1.0
+        # 'chebyshev: zero starting solution': true
+        # 'relaxation: type': Gauss-Seidel #MT Gauss-Seidel
+      'repartition: enable': false
+      'reuse: type': none
   Analysis: 
     analysis type: forward
   Postprocess: 
     write solution: true
-    output file: output
+    output file: output_withB
     compute errors: true
     True solutions:
       ux: 'y*(1.0-y)'
@@ -68,12 +110,10 @@ ANONYMOUS:
       pr: '0.0'
       Az: '0.0'
   Functions:
-    source ux: '3.0'
-    source Az: '-scale*exp(-10.0 * bubble)'
-    scale: '1.0'
-    bubble: '(x-2.0)*(x-2.0)+(y-0.5)*(y-0.5)'
-    sigma: '0.1'
-    resistivity: '0.01'
+    source Az: '-exp(bubble)'
+    density: '1.0'
+    viscosity: '0.25e-1'
+    resistivity: '0.1'
     permeability: '1.0'
-    viscosity: '1.0'
+    bubble: '-1.0*(x+6.0)*(x+6.0) - 1.0*(y+1.5)*(y+1.5)'
 ...
