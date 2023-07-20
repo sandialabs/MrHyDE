@@ -180,7 +180,6 @@ void Group::computeBasis(const bool & keepnodes) {
   else if (groupData->use_basis_database) {
     if(groupData->use_database_scaling) {
       for (size_t i=0; i<groupData->database_basis.size(); ++i) {
-        std::cout << "Is this working?" << std::endl;
         basis.push_back(CompressedView<View_Sc4>(groupData->database_basis[i],basis_index,mesh_scales,DeRham_t::zero));
         basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_basis_grad[i],basis_index,mesh_scales,DeRham_t::one));
         basis_div.push_back(CompressedView<View_Sc3>(groupData->database_basis_div[i],basis_index,mesh_scales,DeRham_t::two));

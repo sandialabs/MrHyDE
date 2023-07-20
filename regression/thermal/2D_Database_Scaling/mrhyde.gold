@@ -1,0 +1,27 @@
+p=0 | CubeHexMesh: Building sub cells
+WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for e = 0  (time = 0)
+***** L2 norm of the error for e = 4.72057e-05  (time = 5e-05)
+***** L2 norm of the error for e = 6.88498e-05  (time = 0.0001)
+***** L2 norm of the error for e = 9.6002e-05  (time = 0.00015)
+***** L2 norm of the error for e = 0.000122554  (time = 0.0002)
+***** L2 norm of the error for e = 0.000149717  (time = 0.00025)
+***** L2 norm of the error for e = 0.000177238  (time = 0.0003)
+***** L2 norm of the error for e = 0.00020518  (time = 0.00035)
+***** L2 norm of the error for e = 0.000233525  (time = 0.0004)
+***** L2 norm of the error for e = 0.000262275  (time = 0.00045)
+***** L2 norm of the error for e = 0.00029142  (time = 0.0005)
+***** L2 norm of the error for e = 0.000320953  (time = 0.00055)
+***** L2 norm of the error for e = 0.000350863  (time = 0.0006)
+***** L2 norm of the error for e = 0.000381143  (time = 0.00065)
+***** L2 norm of the error for e = 0.00041178  (time = 0.0007)
+***** L2 norm of the error for e = 0.000442765  (time = 0.00075)
+***** L2 norm of the error for e = 0.000474088  (time = 0.0008)
+***** L2 norm of the error for e = 0.00050574  (time = 0.00085)
+***** L2 norm of the error for e = 0.00053771  (time = 0.0009)
+***** L2 norm of the error for e = 0.000569989  (time = 0.00095)
+***** L2 norm of the error for e = 0.000602569  (time = 0.001)

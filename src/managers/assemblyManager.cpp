@@ -19,6 +19,46 @@
 
 using namespace MrHyDE;
 
+//! Compute the l1 difference of two Jacobians across all integration points
+    inline ScalarT compute_jacobian_diff(const DRV &jac, const Kokkos::View<ScalarT***,HostDevice> &database_jac, const Teuchos::RCP<GroupMetaData> &groupData, const ScalarT &tol) {
+      ScalarT diff2 = 0;
+      size_type pt=0;
+      size_type dimension = jac.extent(2);
+      while (pt<groupData->numip && diff2<tol) {
+        size_type d0=0;
+        while (d0<dimension && diff2<tol) {
+          size_type d1=0;
+          while (d1<dimension && diff2<tol) { 
+            diff2 += std::abs(jac(0,pt,d0,d1) - database_jac(pt,d0,d1));
+            d1++;
+          }
+          d0++;
+        }
+        pt++;
+      }
+      return diff2;
+    }
+    
+    //! Compute the l1 difference of two Jacobians across all integration points using a diagonal scaling
+    inline ScalarT compute_scaled_jacobian_diff(const DRV &jac, const Kokkos::View<ScalarT***,HostDevice> &database_jac, const DRV &scale, const size_t &e, const Teuchos::RCP<GroupMetaData> &groupData, const ScalarT &tol) {
+      ScalarT diff2 = 0;
+      size_type pt=0;
+      size_type dimension = jac.extent(2);
+      while (pt<groupData->numip && diff2<tol) {
+        size_type d0=0;
+        while (d0<dimension && diff2<tol) {
+          size_type d1=0;
+          while (d1<dimension && diff2<tol) { 
+            diff2 += std::abs(scale(e,d0)*jac(0,pt,d0,d1) - database_jac(pt,d0,d1));
+            d1++;
+          }
+          d0++;
+        }
+        pt++;
+      }
+      return diff2;
+    }
+
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
@@ -2813,10 +2853,8 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   // GH: the scaling algorithm is fundamentally more complex and computes more information,
   //     so I'm storing it in a separate location for now.
   if(do_scaling) {
-    std::cout << "Taking volumetric scaling route..." << std::endl;
     this->identifyVolumetricScalingDatabase(block, first_users, scales);
   } else {
-    std::cout << "Taking non-volumetric scaling route..." << std::endl;
     this->identifyVolumetricDatabase(block, first_users);
   }
   
@@ -3113,6 +3151,10 @@ void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & blo
     disc->getMeasure(groupData[block], jacobian, measure);
     auto measure_host = create_mirror_view(measure);
     deep_copy(measure_host,measure);
+
+    DRV scales("scales", groups[block][grp]->numElem);
+    auto scales_host = create_mirror_view(scales);
+    deep_copy(scales_host,1.0);
     
     for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
       bool found = false;
@@ -3120,76 +3162,113 @@ void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & blo
 
       //ScalarT refmeas = std::pow(measure_host(e),1.0/dimension);
             
+      // GH: Okay, I'm going to duplicate some loops in if statements for performance, but here's the big picture.
+      // We're skipping orientations for now because we may be able to cut down duplication by hitting orientations with rotations.
+      // Check #1. Is ||J_A| - |J_B|| < database_TOL?
+      //   If yes, go to check #2, leaving scaling constants as the identity.
+      //   If no, rescale J_A by diagonal D so that diag(D*J_A) == diag(J_B), and check again.
+      //     If ||D*J_A| - |J_B|| < database_TOL after the scaling, continue to check #2 but replace J_A in subsequent steps by D*J_A
+      // Check #2. Is |J_A-J_B|_{l1} < database_TOL?
+      //   If yes, set found=true, leaving theta=0.
+      //   If no, go to check #3.
+      // Check #3. Is there a rotation matrix R such that |R*J_A - J_B|_{l1} < database_TOL?
+      // This can be done by checking is there a rotation matrix R such that |R - J_B inv(J_A)|_{l1} < database_TOL (this may bite us if |J_A|!=1?)
+      // As a surrogate, we find theta so |R - M|_F is minimized (M takes the place of J_B*inv(J_A)).
+      // If M has entries [a,b;c,d], theta=atan((c-b)/(a+d)) minimizes that objective.
+      //   If yes, set found=true, theta=atan((c-b)/(a+d))
+      //   If no, we have not found a match. Move on to the next database entry.
+
+      bool compute_scaling = true;
       while (!found && prog<first_users.size()) {
         size_t refgrp = first_users[prog].first;
         size_t refelem = first_users[prog].second;
-        
+
         // Check #1: element orientations
         size_t orient = all_orients[grp][e];
         size_t reforient = all_orients[refgrp][refelem];
         if (ignore_orientations || orient == reforient) {
-          
+        
           // Check #2: element measures
           ScalarT diff = std::abs(measure_host(e)-db_measures[prog]);
-          
           if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
-            
             ScalarT refnorm = db_jacobian_norms[prog];
-            
-            // Check #3: element Jacobians
-            ScalarT diff2 = 0.0;
-            size_type pt=0;
-            bool ruled_out = false;
-            while (pt<numip && !ruled_out) { 
-              size_type d0=0;
-              ScalarT fronorm = 0.0;
-              ScalarT frodiff = 0.0;
-              ScalarT diff = 0.0;
-              for (size_type d0=0; d0<jacobian_host.extent(2); ++d0) {
-                for (size_type d1=0; d1<jacobian_host.extent(3); ++d1) {
-                  diff = jacobian_host(e,pt,d0,d1)-db_jacobians[prog](pt,d0,d1);
-                  frodiff += diff*diff;
-                  fronorm += jacobian_host(e,pt,d0,d1)*jacobian_host(e,pt,d0,d1);
-                }
-              }
-              if (std::sqrt(frodiff)/std::sqrt(fronorm) > database_TOL) {
-                ruled_out = true;
-              }
-              /*   
-              while (d0<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
-                size_type d1=0;
-                while (d1<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
-                  //ScalarT ds = (jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
-                  ScalarT ds = std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1))/std::abs(jacobian_host(e,pt,d0,d1));
-                  //diff2 += ds*ds;
-                  cout << ds << endl;
-                  if (ds > database_TOL) {
-                    ruled_out = true;
-                  }
-                  d1++;
-                }
-                d0++;
-              }*/
-              pt++;
-            }
-            //diff2 = std::sqrt(diff2);
 
-            //ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
+            // Check #3: element Jacobians
+            ScalarT diff2 = compute_jacobian_diff(jacobian,db_jacobians[prog],groupData[block],database_TOL);
             
-            if (!ruled_out){ //diff2/refnorm<database_TOL) {
+            if (diff2/refnorm<database_TOL) {
               found = true;
-              index_host(e) = prog;
             }
-            else {
+            else { // Check #3 failed
+              if(compute_scaling) {
+                ScalarT measure_scale = 1;
+                for(size_type d0=0; d0<dimension; ++d0) {
+                  ScalarT rowsum = 0;
+                  ScalarT dbrowsum = 0;
+                  for(size_type d1=0; d1<dimension; ++d1) {
+                    rowsum += jacobian(0,0,d0,d1);
+                    dbrowsum += db_jacobians[prog](0,d0,d1); 
+                  }
+                  scales_host(e,d0) = dbrowsum/rowsum; // scale the diagonal entries to match at ip 0
+                  measure_scale *= scales_host(e,d0);
+                }
+                
+                // Check #2 scaled: element measures
+                ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
+                if (std::abs(scaled_diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
+                  ScalarT refnorm = db_jacobian_norms[prog];
+
+                  // Check #3 scaled: element Jacobians
+                  ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
+                  
+                  if (diff2/refnorm<database_TOL) {
+                    found = true;
+                  } else { // Check scaled #3 failed
+                    ++prog;
+                  }
+                } else { // Check scaled #2 failed
+                  ++prog;
+                }
+              } else { // Check #3 failed above and no scaling
+                ++prog;
+              }
+            }
+          } else { // Check #2 failed
+            // if Check #2 failed and we want diagonal scaling, check if diagonal scaling is possible
+            if(compute_scaling) {
+              ScalarT measure_scale = 1;
+              for(size_type d0=0; d0<dimension; ++d0) {
+                ScalarT rowsum = 0;
+                ScalarT dbrowsum = 0;
+                for(size_type d1=0; d1<dimension; ++d1) {
+                  rowsum += jacobian(0,0,d0,d1);
+                  dbrowsum += db_jacobians[prog](0,d0,d1); 
+                }
+                scales_host(e,d0) = dbrowsum/rowsum; // scale the diagonal entries to match at ip 0
+                measure_scale *= scales_host(e,d0);
+              }
+
+              // Check #2 scaled: element measures
+              ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
+              if (std::abs(scaled_diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
+                ScalarT refnorm = db_jacobian_norms[prog];
+
+                // Check #3 scaled: element Jacobians
+                ScalarT diff2 = compute_scaled_jacobian_diff(jacobian, db_jacobians[prog], scales_host, e, groupData[block], database_TOL);
+              
+                if (diff2/refnorm<database_TOL) {
+                  found = true;
+                } else { // Check scaled #3 failed
+                  ++prog;
+                }
+              } else { // Check scaled #2 failed
+                ++prog;
+              }
+            } else { // Check #2 failed above and no scaling
               ++prog;
             }
-            
           }
-          else {
-            ++prog;
-          }
-        }
-        else {
+        } else { // Check #1 failed
           ++prog;
         }
       }
