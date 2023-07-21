@@ -3159,8 +3159,6 @@ void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & blo
     for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
       bool found = false;
       size_t prog = 0;
-
-      //ScalarT refmeas = std::pow(measure_host(e),1.0/dimension);
             
       // GH: Okay, I'm going to duplicate some loops in if statements for performance, but here's the big picture.
       // We're skipping orientations for now because we may be able to cut down duplication by hitting orientations with rotations.
@@ -3178,7 +3176,6 @@ void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & blo
       //   If yes, set found=true, theta=atan((c-b)/(a+d))
       //   If no, we have not found a match. Move on to the next database entry.
 
-      bool compute_scaling = true;
       while (!found && prog<first_users.size()) {
         size_t refgrp = first_users[prog].first;
         size_t refelem = first_users[prog].second;
@@ -3200,42 +3197,6 @@ void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & blo
               found = true;
             }
             else { // Check #3 failed
-              if(compute_scaling) {
-                ScalarT measure_scale = 1;
-                for(size_type d0=0; d0<dimension; ++d0) {
-                  ScalarT rowsum = 0;
-                  ScalarT dbrowsum = 0;
-                  for(size_type d1=0; d1<dimension; ++d1) {
-                    rowsum += jacobian(0,0,d0,d1);
-                    dbrowsum += db_jacobians[prog](0,d0,d1); 
-                  }
-                  scales_host(e,d0) = dbrowsum/rowsum; // scale the diagonal entries to match at ip 0
-                  measure_scale *= scales_host(e,d0);
-                }
-                
-                // Check #2 scaled: element measures
-                ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
-                if (std::abs(scaled_diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
-                  ScalarT refnorm = db_jacobian_norms[prog];
-
-                  // Check #3 scaled: element Jacobians
-                  ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
-                  
-                  if (diff2/refnorm<database_TOL) {
-                    found = true;
-                  } else { // Check scaled #3 failed
-                    ++prog;
-                  }
-                } else { // Check scaled #2 failed
-                  ++prog;
-                }
-              } else { // Check #3 failed above and no scaling
-                ++prog;
-              }
-            }
-          } else { // Check #2 failed
-            // if Check #2 failed and we want diagonal scaling, check if diagonal scaling is possible
-            if(compute_scaling) {
               ScalarT measure_scale = 1;
               for(size_type d0=0; d0<dimension; ++d0) {
                 ScalarT rowsum = 0;
@@ -3247,15 +3208,15 @@ void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & blo
                 scales_host(e,d0) = dbrowsum/rowsum; // scale the diagonal entries to match at ip 0
                 measure_scale *= scales_host(e,d0);
               }
-
+              
               // Check #2 scaled: element measures
               ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
               if (std::abs(scaled_diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
                 ScalarT refnorm = db_jacobian_norms[prog];
 
                 // Check #3 scaled: element Jacobians
-                ScalarT diff2 = compute_scaled_jacobian_diff(jacobian, db_jacobians[prog], scales_host, e, groupData[block], database_TOL);
-              
+                ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
+                
                 if (diff2/refnorm<database_TOL) {
                   found = true;
                 } else { // Check scaled #3 failed
@@ -3264,7 +3225,35 @@ void AssemblyManager<Node>::identifyVolumetricScalingDatabase(const size_t & blo
               } else { // Check scaled #2 failed
                 ++prog;
               }
-            } else { // Check #2 failed above and no scaling
+            }
+          } else { // Check #2 failed
+            // if Check #2 failed and we want diagonal scaling, check if diagonal scaling is possible
+            ScalarT measure_scale = 1;
+            for(size_type d0=0; d0<dimension; ++d0) {
+              ScalarT rowsum = 0;
+              ScalarT dbrowsum = 0;
+              for(size_type d1=0; d1<dimension; ++d1) {
+                rowsum += jacobian(0,0,d0,d1);
+                dbrowsum += db_jacobians[prog](0,d0,d1); 
+              }
+              scales_host(e,d0) = dbrowsum/rowsum; // scale the diagonal entries to match at ip 0
+              measure_scale *= scales_host(e,d0);
+            }
+
+            // Check #2 scaled: element measures
+            ScalarT scaled_diff = std::abs(measure_scale*measure_host(e)-db_measures[prog]); // compute the diff again after scaling the Jacobian
+            if (std::abs(scaled_diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
+              ScalarT refnorm = db_jacobian_norms[prog];
+
+              // Check #3 scaled: element Jacobians
+              ScalarT diff2 = compute_scaled_jacobian_diff(jacobian, db_jacobians[prog], scales_host, e, groupData[block], database_TOL);
+            
+              if (diff2/refnorm<database_TOL) {
+                found = true;
+              } else { // Check scaled #3 failed
+                ++prog;
+              }
+            } else { // Check scaled #2 failed
               ++prog;
             }
           }

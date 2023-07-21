@@ -7,7 +7,7 @@ ANONYMOUS:
     element type: hex
     dimension: 3
     Source: Exodus
-    mesh file: dual_boundary_layer.exo
+    mesh file: dual_boundary_layer_coarse.exo
   Physics: 
     modules: thermal
     Dirichlet conditions:
@@ -27,12 +27,12 @@ ANONYMOUS:
     solver: transient
     transient Butcher tableau: 'FWE'
     transient BDF order: 1
-    final time: 1.0e-3
+    final time: 1.0e-5
     number of steps: 20
     lump mass: false
     fully explicit: true
-    use basis database: false
-    use database scaling: false
+    use basis database: true
+    use database scaling: true
     use mass database: true
     use custom PCG: true
     matrix free: true
