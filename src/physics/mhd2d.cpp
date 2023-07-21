@@ -381,7 +381,7 @@ void mhd2d::volumeResidual()
                     AD Fy = eta(elem, pt) * dAz_dy(elem, pt) / mu(elem, pt);
                     Fx *= wts(elem, pt);
                     Fy *= wts(elem, pt);
-                    F *= wts(elem, pt);
+                    F  *= wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += F * basis(elem, dof, pt, 0) + Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1);
@@ -404,7 +404,7 @@ void mhd2d::volumeResidual()
                         AD Fy = tau * uy(elem, pt) * F;
                         for (size_type dof = 0; dof < basis.extent(1); dof++)
                         {
-                            res(elem, off(dof)) += +Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1);
+                            res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + Fy * basis_grad(elem, dof, pt, 1);
                         }
                     }
                 });

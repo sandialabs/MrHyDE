@@ -39,7 +39,9 @@ ANONYMOUS:
       uy: 0.0
       Az: '-B0*x - G0*y*y/(2*B0) + (G0/B0)*(Ha*cosh(y*Ha)/sinh(Ha))'
       pr: '-G0*x + 20'
-    useB: false
+    useB: true
+    stabilizePr: true
+    stabilizeAz: true
   Discretization:
     order:
       ux: 1

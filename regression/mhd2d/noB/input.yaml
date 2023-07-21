@@ -4,16 +4,13 @@ ANONYMOUS:
   verbosity: 111
   debug level: 111
   Mesh:
-    dimension: 2
-    source: Exodus
-    mesh file: channel-2D-bump.e
-  #   element type: quad
-  #   xmin: 0.0
-  #   xmax: 5.0
-  #   ymin: 0.0
-  #   ymax: 1.0
-  #   NX: 100
-  #   NY: 20
+    element type: quad
+    xmin: 0.0
+    xmax: 5.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 100
+    NY: 20
 
   Physics: 
     modules: mhd2d
