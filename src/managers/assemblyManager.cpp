@@ -1164,7 +1164,6 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
                 }
                 else {
                   for (int k=0; k<nnz(eindex,localrow); k++ ) {
-                    LO localcol = offsets(n,local_columns(eindex,localrow,k));
                     val += values(eindex,localrow,k);
                   }
                 }
@@ -2862,7 +2861,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
   }
   
   vector<Kokkos::View<ScalarT***,HostDevice>> db_jacobians;
-  vector<ScalarT> db_measures, db_jacobian_norms;
+  vector<ScalarT> db_measures;
   
   // There are only so many unique orientation
   // Creating a short list of the unique ones and the index for each element
@@ -2940,14 +2939,10 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
           
           if (std::abs(diff/db_measures[prog])<database_TOL) { // abs(measure) is probably unnecessary here
             
-            ScalarT refnorm = db_jacobian_norms[prog];
-            
             // Check #3: element Jacobians
-            ScalarT diff2 = 0.0;
-            size_type pt=0;
+            size_type pt = 0;
             bool ruled_out = false;
             while (pt<numip && !ruled_out) { 
-              size_type d0=0;
               ScalarT fronorm = 0.0;
               ScalarT frodiff = 0.0;
               ScalarT diff = 0.0;
@@ -2961,28 +2956,10 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
               if (std::sqrt(frodiff)/std::sqrt(fronorm) > database_TOL) {
                 ruled_out = true;
               }
-              /*   
-              while (d0<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
-                size_type d1=0;
-                while (d1<dimension && !ruled_out) { // && std::sqrt(diff2)/refnorm<database_TOL) {
-                  //ScalarT ds = (jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
-                  ScalarT ds = std::abs(jacobian_host(e,pt,d0,d1) - db_jacobians[prog](pt,d0,d1))/std::abs(jacobian_host(e,pt,d0,d1));
-                  //diff2 += ds*ds;
-                  cout << ds << endl;
-                  if (ds > database_TOL) {
-                    ruled_out = true;
-                  }
-                  d1++;
-                }
-                d0++;
-              }*/
               pt++;
             }
-            //diff2 = std::sqrt(diff2);
-
-            //ScalarT refmeas = std::pow(db_measures[prog],1.0/dimension);
             
-            if (!ruled_out){ //diff2/refnorm<database_TOL) {
+            if (!ruled_out) {
               found = true;
               index_host(e) = prog;
             }
@@ -3005,18 +2982,15 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
         first_users.push_back(newuj);
         
         Kokkos::View<ScalarT***,HostDevice> new_jac("new db jac",numip, dimension, dimension);
-        ScalarT jnorm = 0.0;
         for (size_type pt=0; pt<new_jac.extent(0); ++pt) {
           for (size_type d0=0; d0<new_jac.extent(1); ++d0) {
             for (size_type d1=0; d1<new_jac.extent(2); ++d1) {
               new_jac(pt,d0,d1) = jacobian(e,pt,d0,d1);
-              jnorm += jacobian(e,pt,d0,d1)*jacobian(e,pt,d0,d1);
             }
           }
         }
         db_jacobians.push_back(new_jac);
         db_measures.push_back(measure_host(e));
-        db_jacobian_norms.push_back(std::sqrt(jnorm));
         
       }
     }
