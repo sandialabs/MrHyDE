@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE).
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 /** \file   analysisManager.hpp
@@ -50,11 +48,11 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    AnalysisManager(const Teuchos::RCP<MpiComm> & Comm_,
-                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                    Teuchos::RCP<SolverManager<SolverNode> > & solver_,
-                    Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_,
-                    Teuchos::RCP<ParameterManager<SolverNode> > & params_);
+    AnalysisManager(const Teuchos::RCP<MpiComm> & comm,
+                    Teuchos::RCP<Teuchos::ParameterList> & settings,
+                    Teuchos::RCP<SolverManager<SolverNode> > & solver,
+                    Teuchos::RCP<PostprocessManager<SolverNode> > & postproc,
+                    Teuchos::RCP<ParameterManager<SolverNode> > & params);
     
     // ========================================================================================
     // ========================================================================================
@@ -71,7 +69,8 @@ namespace MrHyDE {
 
     void ROL2Solve();
     
-    void recoverSolution(vector_RCP & solution, string & data_type, string & file_name);
+    void recoverSolution(vector_RCP & solution, string & data_type, 
+                         string & plist_filename, string & file_name);
  
     // ========================================================================================
     // ========================================================================================
@@ -80,19 +79,18 @@ namespace MrHyDE {
     
     void writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln);
 
-  protected:
+  private:
     
-    Teuchos::RCP<MpiComm> Comm;
-    Teuchos::RCP<Teuchos::ParameterList> settings;
-    Teuchos::RCP<SolverManager<SolverNode> > solve;
-    Teuchos::RCP<PostprocessManager<SolverNode> > postproc;
-    Teuchos::RCP<ParameterManager<SolverNode> > params;
+    Teuchos::RCP<MpiComm> comm_;
+    Teuchos::RCP<Teuchos::ParameterList> settings_;
+    Teuchos::RCP<SolverManager<SolverNode> > solver_;
+    Teuchos::RCP<PostprocessManager<SolverNode> > postproc_;
+    Teuchos::RCP<ParameterManager<SolverNode> > params_;
     
-    ScalarT response;
-    Teuchos::RCP<MrHyDE_OptVector> gradient;
-    int verbosity, debug_level;
-    
-    bool sensIC;
+    ScalarT response_;
+    //Teuchos::RCP<MrHyDE_OptVector> gradient_;
+    int verbosity_, debug_level_;
+    bool sensIC_;
   };
   
 }
