@@ -366,7 +366,7 @@ void porous::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porous::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void porous::setWorkset(Teuchos::RCP<Workset> & wkset_) {
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); i++) {

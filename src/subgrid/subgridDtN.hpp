@@ -92,7 +92,7 @@ namespace MrHyDE {
                        const bool & compute_jacobian, const bool & compute_sens,
                        const int & num_active_params,
                        const bool & compute_disc_sens, const bool & compute_aux_sens,
-                       workset & macrowkset,
+                       Workset & macrowkset,
                        const int & macrogrp, const int & macroelemindex,
                        Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
     

@@ -81,7 +81,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset> & wkset_);
 
     //void setVars(std::vector<string> & varlist_);
     

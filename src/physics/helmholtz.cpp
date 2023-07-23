@@ -435,7 +435,7 @@ void helmholtz::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void helmholtz::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;

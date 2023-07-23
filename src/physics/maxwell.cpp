@@ -377,7 +377,7 @@ void maxwell::boundaryResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void maxwell::setWorkset(Teuchos::RCP<Workset> & wkset_) {
   
   wkset = wkset_;
   

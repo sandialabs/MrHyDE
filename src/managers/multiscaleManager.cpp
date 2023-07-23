@@ -214,6 +214,24 @@ void MultiscaleManager::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_po
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get the number of subgrid models defined by the user
+////////////////////////////////////////////////////////////////////////////////
+
+size_t MultiscaleManager::getNumberSubgridModels() {
+  return subgridModels.size();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Write the subgrid solution to Exodus
+////////////////////////////////////////////////////////////////////////////////
+
+void MultiscaleManager::writeSolution(const ScalarT & currenttime, string & append) {
+  for (size_t m=0; m<subgridModels.size(); m++) {
+    subgridModels[m]->writeSolution(currenttime, append);
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Initial assignment of subgrid models to groups
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -250,8 +268,8 @@ ScalarT MultiscaleManager::initialize() {
             auto usagecheck = macro_functionManagers[block]->evaluate(subgridModels[s]->name + " usage","ip");
             
             Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
-                                                                  macro_functionManagers[block]->numElem,
-                                                                  macro_functionManagers[block]->numip);
+                                                                  macro_functionManagers[block]->num_elem_,
+                                                                  macro_functionManagers[block]->num_ip_);
                                                                   
             parallel_for("assembly copy LIDs",
                          RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
@@ -454,8 +472,8 @@ void MultiscaleManager::update() {
                 ss << s;
                 auto usagecheck = macro_functionManagers[block]->evaluate(subgridModels[s]->name + " usage","ip");
                 Kokkos::View<ScalarT**,AssemblyDevice> usagecheck_tmp("temp usage check",
-                                                                      macro_functionManagers[block]->numElem,
-                                                                      macro_functionManagers[block]->numip);
+                                                                      macro_functionManagers[block]->num_elem_,
+                                                                      macro_functionManagers[block]->num_ip_);
                                                                     
                 parallel_for("assembly copy LIDs",
                              RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
@@ -923,7 +941,7 @@ void MultiscaleManager::update() {
 // Compute the macro->micro->macro map and Jacobian
 ////////////////////////////////////////////////////////////////////////////////
 
-void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset, Teuchos::RCP<Group> & group,
+void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset, Teuchos::RCP<Group> & group,
                                                    const int & set, 
                                                    const bool & isTransient, const bool & isAdjoint,
                                                    const bool & compute_jacobian, const bool & compute_sens,

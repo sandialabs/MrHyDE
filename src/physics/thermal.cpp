@@ -350,7 +350,7 @@ void thermal::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void thermal::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void thermal::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
   

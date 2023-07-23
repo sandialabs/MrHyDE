@@ -23,7 +23,7 @@ int main(int argc, char * argv[]) {
     //----------------------------------------------------------------------
     
     // Set up a dummy workset just to test interplay between function manager and workset
-    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset() );
+    Teuchos::RCP<Workset> wkset = Teuchos::rcp( new Workset() );
     
     // Define some parameters
     int numElem = 10;
@@ -417,13 +417,6 @@ int main(int argc, char * argv[]) {
     
     functionManager->decomposeFunctions();
     functionManager->printFunctions();
-    
-    for (size_t f=0; f<functionManager->forests[0].trees.size(); ++f) {
-      functionManager->forests[0].trees[f].branches[0].print();
-      if (functionManager->forests[0].trees[f].branches[0].isConstant) {
-        cout << functionManager->forests[0].trees[f].branches[0].data_Sc << endl;
-      }
-    }
     
     //----------------------------------------------------------------------
     // Evaluate the functions and check against ref solutions

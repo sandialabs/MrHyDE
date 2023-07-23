@@ -555,7 +555,7 @@ void porousWeakGalerkin::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousWeakGalerkin::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void porousWeakGalerkin::setWorkset(Teuchos::RCP<Workset> & wkset_) {
   
   wkset = wkset_;
   

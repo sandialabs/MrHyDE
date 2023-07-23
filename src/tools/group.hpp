@@ -76,7 +76,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset> & wkset_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -342,7 +342,7 @@ namespace MrHyDE {
     LIDView_host paramLIDs_host;
     
     Teuchos::RCP<GroupMetaData> groupData;
-    Teuchos::RCP<workset> wkset;
+    Teuchos::RCP<Workset> wkset;
     vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Kokkos::View<LO*,AssemblyDevice> localElemID;
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly

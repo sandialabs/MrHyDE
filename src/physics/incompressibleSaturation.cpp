@@ -68,8 +68,8 @@ void incompressibleSaturation::defineFunctions(Teuchos::ParameterList & fs,
 
   // Storage for the flux vectors
 
-  fluxes_vol  = View_AD4("flux", functionManager->numElem,
-                         functionManager->numip, 1, spaceDim); // neqn = 1
+  fluxes_vol  = View_AD4("flux", functionManager->num_elem_,
+                         functionManager->num_ip_, 1, spaceDim); // neqn = 1
 
 }
 
@@ -191,7 +191,7 @@ void incompressibleSaturation::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void incompressibleSaturation::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void incompressibleSaturation::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
 

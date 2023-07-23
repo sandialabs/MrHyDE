@@ -86,7 +86,7 @@ namespace MrHyDE {
     
     //void setAuxVars(std::vector<string> & auxvarlist);
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset> & wkset_);
     
     // ========================================================================================
     // return the stress

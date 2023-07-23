@@ -500,7 +500,7 @@ void porousMixed::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixed::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void porousMixed::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
   

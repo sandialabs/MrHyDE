@@ -73,7 +73,7 @@ namespace MrHyDE {
                const bool & compute_jacobian, const bool & compute_sens,
                const int & num_active_params,
                const bool & compute_disc_sens, const bool & compute_aux_sens,
-               workset & macrowkset,
+               Workset & macrowkset,
                const int & macrogrp, const int & macroelemindex,
                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
 
@@ -157,7 +157,7 @@ namespace MrHyDE {
                     View_Sc3 lambda,
                     const Teuchos::RCP<SG_MultiVector> & disc_params,
                     const bool & compute_sens, const int macroelemindex,
-                    const ScalarT & time, workset & macrowkset,
+                    const ScalarT & time, Workset & macrowkset,
                     const int & macrogrp,
                     const ScalarT & fluxwt);
     
@@ -168,7 +168,7 @@ namespace MrHyDE {
                     View_Sc3 lambda,
                     ViewType dp_kv,
                     const bool & compute_sens, const int macroelemindex,
-                    const ScalarT & time, workset & macrowkset,
+                    const ScalarT & time, Workset & macrowkset,
                     const int & macrogrp,
                     const ScalarT & fluxwt);
 

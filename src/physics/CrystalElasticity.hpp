@@ -45,16 +45,16 @@ namespace MrHyDE {
 
     //----------------------------------------------------------------------------
 
-    void updateParams(Teuchos::RCP<workset> & wkset);
+    void updateParams(Teuchos::RCP<Workset> & wkset);
     
     //----------------------------------------------------------------------------
     
-    void computeStress(Teuchos::RCP<workset> & wkset, vector<int> & indices,
+    void computeStress(Teuchos::RCP<Workset> & wkset, vector<int> & indices,
                        const bool & onside, View_AD4 stress);
     
     //----------------------------------------------------------------------------
     
-    void computeRotatedTensor(Teuchos::RCP<workset> & wkset);
+    void computeRotatedTensor(Teuchos::RCP<Workset> & wkset);
     
     // Public Data
     int dimension;

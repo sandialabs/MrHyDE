@@ -409,7 +409,7 @@ void porousMixedHybrid::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixedHybrid::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void porousMixedHybrid::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
   

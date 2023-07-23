@@ -1010,9 +1010,9 @@ void PostprocessManager<Node>::report() {
     
     // Error in subgrid models
     if (!(Teuchos::is_null(multiscale_manager))) {
-      if (multiscale_manager->subgridModels.size() > 0) {
+      if (multiscale_manager->getNumberSubgridModels() > 0) {
         
-        for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+        for (size_t m=0; m<multiscale_manager->getNumberSubgridModels(); m++) {
           vector<string> sgvars = multiscale_manager->subgridModels[m]->varlist;
           vector<std::pair<string,string> > sg_error_list;
           // A given processor may not have any elements that use this subgrid model
@@ -1439,14 +1439,14 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
   errors.push_back(host_error);
   
   if (!(Teuchos::is_null(multiscale_manager))) {
-    if (multiscale_manager->subgridModels.size() > 0) {
+    if (multiscale_manager->getNumberSubgridModels() > 0) {
       // Collect all of the errors for each subgrid model
       vector<vector<Kokkos::View<ScalarT*,HostDevice> > > blocksgerrs;
       
       for (size_t block=0; block<assembler->groups.size(); block++) {// loop over blocks
         
         vector<Kokkos::View<ScalarT*,HostDevice> > sgerrs;
-        for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+        for (size_t m=0; m<multiscale_manager->getNumberSubgridModels(); m++) {
           Kokkos::View<ScalarT*,HostDevice> err = multiscale_manager->subgridModels[m]->computeError(currenttime);
           sgerrs.push_back(err);
         }
@@ -4203,10 +4203,8 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
     mesh->stk_mesh->writeToExodus(exodus_filename);
   }
   
-  if (write_subgrid_solution && multiscale_manager->subgridModels.size() > 0) {
-    for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
-      multiscale_manager->subgridModels[m]->writeSolution(currenttime, append);
-    }
+  if (write_subgrid_solution && multiscale_manager->getNumberSubgridModels() > 0) {
+    multiscale_manager->writeSolution(currenttime, append);
   }
 
   if (debug_level > 1) {

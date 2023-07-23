@@ -264,7 +264,7 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<GroupMetaData> > groupData;
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
     std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;
-    std::vector<Teuchos::RCP<workset> > wkset;
+    std::vector<Teuchos::RCP<Workset> > wkset;
     
     bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free;
     

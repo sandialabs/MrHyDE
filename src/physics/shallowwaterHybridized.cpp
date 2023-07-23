@@ -90,10 +90,10 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
 
   // Storage for the flux vectors
 
-  fluxes_vol  = View_AD4("flux", functionManager->numElem,
-                         functionManager->numip, spaceDim + 1, spaceDim); // neqn = spaceDim + 1
-  fluxes_side = View_AD4("flux", functionManager->numElem,
-                         functionManager->numip_side, spaceDim + 1, spaceDim); // see above 
+  fluxes_vol  = View_AD4("flux", functionManager->num_elem_,
+                         functionManager->num_ip_, spaceDim + 1, spaceDim); // neqn = spaceDim + 1
+  fluxes_side = View_AD4("flux", functionManager->num_elem_,
+                         functionManager->num_ip_side_, spaceDim + 1, spaceDim); // see above 
 
   // Storage for stabilization term/boundary flux
 
@@ -104,8 +104,8 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
   // Additionally, this storage is used for the boundary flux B(\hat{S}).
   // This is needed by the computeFlux routine (see for more details).
 
-  stab_bound_side = View_AD3("stab/boundary term", functionManager->numElem,
-                             functionManager->numip_side, spaceDim + 1); // see above 
+  stab_bound_side = View_AD3("stab/boundary term", functionManager->num_elem_,
+                             functionManager->num_ip_side_, spaceDim + 1); // see above 
 
 }
 
@@ -372,7 +372,7 @@ void shallowwaterHybridized::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwaterHybridized::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void shallowwaterHybridized::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
 

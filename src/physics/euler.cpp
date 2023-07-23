@@ -121,10 +121,10 @@ void euler::defineFunctions(Teuchos::ParameterList & fs,
 
   // Storage for the inviscid flux vectors
 
-  fluxes_vol  = View_AD4("inviscid flux", functionManager->numElem,
-                         functionManager->numip, spaceDim + 2, spaceDim); // neqn = spaceDim + 2
-  fluxes_side = View_AD4("inviscid flux", functionManager->numElem,
-                         functionManager->numip_side, spaceDim + 2, spaceDim); // see above 
+  fluxes_vol  = View_AD4("inviscid flux", functionManager->num_elem_,
+                         functionManager->num_ip_, spaceDim + 2, spaceDim); // neqn = spaceDim + 2
+  fluxes_side = View_AD4("inviscid flux", functionManager->num_elem_,
+                         functionManager->num_ip_side_, spaceDim + 2, spaceDim); // see above 
 
   // Storage for stabilization term/boundary flux
 
@@ -135,16 +135,16 @@ void euler::defineFunctions(Teuchos::ParameterList & fs,
   // Additionally, this storage is used for the boundary flux B(\hat{S}).
   // This is needed by the computeFlux routine (see for more details).
 
-  stab_bound_side = View_AD3("stab/boundary term", functionManager->numElem,
-                             functionManager->numip_side, spaceDim + 2); // see above 
+  stab_bound_side = View_AD3("stab/boundary term", functionManager->num_elem_,
+                             functionManager->num_ip_side_, spaceDim + 2); // see above 
 
   // Storage for the thermodynamic properties
   // TODO I don't think T is technically needed... 
   
-  props_vol  = View_AD3("thermo props", functionManager->numElem,
-                       functionManager->numip, 3);
-  props_side = View_AD3("thermo props", functionManager->numElem,
-                       functionManager->numip_side, 3);
+  props_vol  = View_AD3("thermo props", functionManager->num_elem_,
+                       functionManager->num_ip_, 3);
+  props_side = View_AD3("thermo props", functionManager->num_elem_,
+                       functionManager->num_ip_side_, 3);
 
 }
 
@@ -711,7 +711,7 @@ void euler::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void euler::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void euler::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
 

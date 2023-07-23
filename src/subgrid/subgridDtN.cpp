@@ -412,7 +412,7 @@ void SubGridDtN::setUpSubgridModels() {
   
   {
     varlist = sub_physics->varlist[0][0];
-    functionManagers[0]->setupLists(macro_paramnames, macro_disc_paramnames);
+    functionManagers[0]->setupLists(macro_paramnames);
     sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
     
     functionManagers[0]->wkset = sub_assembler->wkset[0];
@@ -994,7 +994,7 @@ void SubGridDtN::subgridSolver(View_Sc3 coarse_fwdsoln,
                                const bool & compute_jacobian, const bool & compute_sens,
                                const int & num_active_params,
                                const bool & compute_disc_sens, const bool & compute_aux_sens,
-                               workset & macrowkset,
+                               Workset & macrowkset,
                                const int & macrogrp, const int & macroelemindex,
                                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) {
   

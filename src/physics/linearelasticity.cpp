@@ -78,11 +78,11 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"side ip");
   functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"side ip");
   
-  stress_vol = View_AD4("stress tensor", functionManager->numElem,
-                        functionManager->numip, spaceDim, spaceDim);
+  stress_vol = View_AD4("stress tensor", functionManager->num_elem_,
+                        functionManager->num_ip_, spaceDim, spaceDim);
   
-  stress_side = View_AD4("stress tensor", functionManager->numElem,
-                         functionManager->numip_side, spaceDim, spaceDim);
+  stress_side = View_AD4("stress tensor", functionManager->num_elem_,
+                         functionManager->num_ip_side_, spaceDim, spaceDim);
   
 }
 
@@ -848,7 +848,7 @@ void linearelasticity::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void linearelasticity::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void linearelasticity::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
   

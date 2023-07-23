@@ -18,33 +18,30 @@ using namespace MrHyDE;
 FunctionManager::FunctionManager() {
   // This really should NOT be constructed
   
-  numElem = 1;
-  numip = 1;
-  numip_side = 1;
+  num_elem_ = 1;
+  num_ip_ = 1;
+  num_ip_side_ = 1;
   
-  known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
+  known_vars_ = {"x","y","z","t","nx","ny","nz","pi","h"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
   
-  interpreter = Teuchos::rcp( new Interpreter());
+  interpreter_ = Teuchos::rcp( new Interpreter());
   
 }
 
 
-FunctionManager::FunctionManager(const string & blockname_, const int & numElem_,
-                                 const int & numip_, const int & numip_side_) :
-blockname(blockname_), numElem(numElem_), numip(numip_), numip_side(numip_side_) {
+FunctionManager::FunctionManager(const string & blockname, const int & num_elem,
+                                 const int & num_ip, const int & num_ip_side) :
+num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(blockname) {
   
-  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager - constructor");
-  Teuchos::TimeMonitor constructortimer(*constructortime);
+  known_vars_ = {"x","y","z","t","nx","ny","nz","pi","h"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
   
-  known_vars = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
+  interpreter_ = Teuchos::rcp( new Interpreter());
   
-  interpreter = Teuchos::rcp( new Interpreter());
-  
-  forests.push_back(Forest("ip",numElem,numip));
-  forests.push_back(Forest("side ip",numElem,numip_side));
-  forests.push_back(Forest("point",1,1));
+  forests_.push_back(Forest("ip",num_elem_,num_ip_));
+  forests_.push_back(Forest("side ip",num_elem_,num_ip_side_));
+  forests_.push_back(Forest("point",1,1));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -55,17 +52,17 @@ int FunctionManager::addFunction(const string & fname, string & expression, cons
   bool found = false;
   int findex = 0;
   
-  for (size_t k=0; k<forests.size(); k++) {
-    if (forests[k].location == location) {
-      for (size_t j=0; j<forests[k].trees.size(); ++j) {
-        if (forests[k].trees[j].name == fname) {
+  for (size_t k=0; k<forests_.size(); k++) {
+    if (forests_[k].location == location) {
+      for (size_t j=0; j<forests_[k].trees.size(); ++j) {
+        if (forests_[k].trees[j].name == fname) {
           found = true;
           findex = j;
         }
       }
       if (!found) {
-        forests[k].addTree(fname, expression);
-        findex = forests[k].trees.size()-1;
+        forests_[k].addTree(fname, expression);
+        findex = forests_[k].trees.size()-1;
       }
     }
   }
@@ -81,17 +78,17 @@ int FunctionManager::addFunction(const string & fname, ScalarT & value, const st
   bool found = false;
   int findex = 0;
   
-  for (size_t k=0; k<forests.size(); k++) {
-    if (forests[k].location == location) {
-      for (size_t j=0; j<forests[k].trees.size(); ++j) {
-        if (forests[k].trees[j].name == fname) {
+  for (size_t k=0; k<forests_.size(); k++) {
+    if (forests_[k].location == location) {
+      for (size_t j=0; j<forests_[k].trees.size(); ++j) {
+        if (forests_[k].trees[j].name == fname) {
           found = true;
           findex = j;
         }
       }
       if (!found) {
-        forests[k].addTree(fname, value);
-        findex = forests[k].trees.size()-1;
+        forests_[k].addTree(fname, value);
+        findex = forests_[k].trees.size()-1;
       }
     }
   }
@@ -100,13 +97,11 @@ int FunctionManager::addFunction(const string & fname, ScalarT & value, const st
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-// Set the lists of variables, parameters and discretized parameters
+// Set the list of parameters
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionManager::setupLists(const vector<string> & parameters_,
-                                 const vector<string> & disc_parameters_) {
-  parameters = parameters_;
-  disc_parameters = disc_parameters_;
+void FunctionManager::setupLists(const vector<string> & parameters) {
+  parameters_ = parameters;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -116,15 +111,13 @@ void FunctionManager::setupLists(const vector<string> & parameters_,
 
 void FunctionManager::decomposeFunctions() {
   
-  Teuchos::TimeMonitor ttimer(*decomposeTimer);
-  
   if (wkset->isInitialized) {
     
-    for (size_t fiter=0; fiter<forests.size(); fiter++) {
+    for (size_t fiter=0; fiter<forests_.size(); fiter++) {
       
       int maxiter = 20; // maximum number of recursions
       
-      for (size_t titer=0; titer<forests[fiter].trees.size(); titer++) {
+      for (size_t titer=0; titer<forests_[fiter].trees.size(); titer++) {
         
         bool done = false; // will turn to "true" when the tree is fully decomposed
         int iter = 0;
@@ -132,34 +125,34 @@ void FunctionManager::decomposeFunctions() {
         while (!done && iter < maxiter) {
 
           iter++;
-          size_t Nbranches = forests[fiter].trees[titer].branches.size();
+          size_t Nbranches = forests_[fiter].trees[titer].branches.size();
           
           for (size_t k=0; k<Nbranches; k++) {
             
             // HAVE WE ALREADY LOOKED AT THIS TERM?
             bool decompose = true;
-            if (forests[fiter].trees[titer].branches[k].isLeaf || forests[fiter].trees[titer].branches[k].isDecomposed) {
+            if (forests_[fiter].trees[titer].branches[k].isLeaf || forests_[fiter].trees[titer].branches[k].isDecomposed) {
               decompose = false;
             }
             
-            string expr = forests[fiter].trees[titer].branches[k].expression;
+            string expr = forests_[fiter].trees[titer].branches[k].expression;
             
             // Is it an AD data stored in the workset?
             if (decompose) {
               
-              if (forests[fiter].location == "side ip") {
+              if (forests_[fiter].location == "side ip") {
                 bool found = 0;
                 size_t j=0;
                 while (!found && j<wkset->side_soln_fields.size()) {
                   if (expr == wkset->side_soln_fields[j].expression) {
                     decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isAD = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                    forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests_[fiter].trees[titer].branches[k].isView = true;
+                    forests_[fiter].trees[titer].branches[k].isAD = true;
+                    forests_[fiter].trees[titer].branches[k].isWorksetData = true;
                   
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    forests_[fiter].trees[titer].branches[k].workset_data_index = j;
                     wkset->isOnSide = true;
                     wkset->checkSolutionFieldAllocation(j);
                     wkset->isOnSide = false;
@@ -168,19 +161,19 @@ void FunctionManager::decomposeFunctions() {
                   j++;
                 }
               }
-              else if (forests[fiter].location == "point") {
+              else if (forests_[fiter].location == "point") {
                 bool found = 0;
                 size_t j=0;
                 while (!found && j<wkset->point_soln_fields.size()) {
                   if (expr == wkset->point_soln_fields[j].expression) {
                     decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isAD = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                    forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests_[fiter].trees[titer].branches[k].isView = true;
+                    forests_[fiter].trees[titer].branches[k].isAD = true;
+                    forests_[fiter].trees[titer].branches[k].isWorksetData = true;
                   
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    forests_[fiter].trees[titer].branches[k].workset_data_index = j;
                     
                     wkset->isOnPoint = true;
                     wkset->checkSolutionFieldAllocation(j);
@@ -196,13 +189,13 @@ void FunctionManager::decomposeFunctions() {
                 while (!found && j<wkset->soln_fields.size()) {
                   if (expr == wkset->soln_fields[j].expression) {
                     decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isAD = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
+                    forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests_[fiter].trees[titer].branches[k].isView = true;
+                    forests_[fiter].trees[titer].branches[k].isAD = true;
+                    forests_[fiter].trees[titer].branches[k].isWorksetData = true;
                   
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    forests_[fiter].trees[titer].branches[k].workset_data_index = j;
                     wkset->checkSolutionFieldAllocation(j);
                     found = true;
                   }
@@ -214,18 +207,18 @@ void FunctionManager::decomposeFunctions() {
             // Is it a Scalar data stored in the workset?
             if (decompose) {
               
-              if (forests[fiter].location == "side ip") {
+              if (forests_[fiter].location == "side ip") {
                 bool found = 0;
                 size_t j=0;
                 while (!found && j<wkset->side_scalar_fields.size()) {
                   if (expr == wkset->side_scalar_fields[j].expression) {
                     decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isAD = false;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests_[fiter].trees[titer].branches[k].isAD = false;
+                    forests_[fiter].trees[titer].branches[k].isView = true;
+                    forests_[fiter].trees[titer].branches[k].isWorksetData = true;
+                    forests_[fiter].trees[titer].branches[k].workset_data_index = j;
                     wkset->isOnSide = true;
                     wkset->checkScalarFieldAllocation(j);
                     wkset->isOnSide = false;
@@ -234,18 +227,18 @@ void FunctionManager::decomposeFunctions() {
                   j++;
                 }
               }
-              else if (forests[fiter].location == "point") {
+              else if (forests_[fiter].location == "point") {
                 bool found = 0;
                 size_t j=0;
                 while (!found && j<wkset->point_scalar_fields.size()) {
                   if (expr == wkset->point_scalar_fields[j].expression) {
                     decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isAD = false;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests_[fiter].trees[titer].branches[k].isAD = false;
+                    forests_[fiter].trees[titer].branches[k].isView = true;
+                    forests_[fiter].trees[titer].branches[k].isWorksetData = true;
+                    forests_[fiter].trees[titer].branches[k].workset_data_index = j;
                     wkset->isOnPoint = true;
                     wkset->checkScalarFieldAllocation(j);
                     wkset->isOnPoint = false;
@@ -260,12 +253,12 @@ void FunctionManager::decomposeFunctions() {
                 while (!found && j<wkset->scalar_fields.size()) {
                   if (expr == wkset->scalar_fields[j].expression) {
                     decompose = false;
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isAD = false;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isWorksetData = true;
-                    forests[fiter].trees[titer].branches[k].workset_data_index = j;
+                    forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests_[fiter].trees[titer].branches[k].isAD = false;
+                    forests_[fiter].trees[titer].branches[k].isView = true;
+                    forests_[fiter].trees[titer].branches[k].isWorksetData = true;
+                    forests_[fiter].trees[titer].branches[k].workset_data_index = j;
                     wkset->checkScalarFieldAllocation(j);
                     found = true;
                   }
@@ -277,28 +270,28 @@ void FunctionManager::decomposeFunctions() {
             // check if it is a parameter
             if (decompose) {
               
-              for (unsigned int j=0; j<parameters.size(); j++) {
+              for (unsigned int j=0; j<parameters_.size(); j++) {
                 
-                if (expr == parameters[j]) {
-                  forests[fiter].trees[titer].branches[k].isLeaf = true;
-                  forests[fiter].trees[titer].branches[k].isView = true;
-                  forests[fiter].trees[titer].branches[k].isAD = true;
-                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                  forests[fiter].trees[titer].branches[k].isParameter = true;
-                  forests[fiter].trees[titer].branches[k].paramIndex = 0;
+                if (expr == parameters_[j]) {
+                  forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests_[fiter].trees[titer].branches[k].isView = true;
+                  forests_[fiter].trees[titer].branches[k].isAD = true;
+                  forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests_[fiter].trees[titer].branches[k].isParameter = true;
+                  forests_[fiter].trees[titer].branches[k].paramIndex = 0;
                   
                   decompose = false;
                   
-                  forests[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                  forests_[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
                   
                 }
                 else { // look for param(*) or param(**)
                   bool found = true;
                   int sindex = 0;
                   size_t nexp = expr.length();
-                  if (nexp == parameters[j].length()+3) {
-                    for (size_t n=0; n<parameters[j].length(); n++) {
-                      if (expr[n] != parameters[j][n]) {
+                  if (nexp == parameters_[j].length()+3) {
+                    for (size_t n=0; n<parameters_[j].length(); n++) {
+                      if (expr[n] != parameters_[j][n]) {
                         found = false;
                       }
                     }
@@ -318,9 +311,9 @@ void FunctionManager::decomposeFunctions() {
                       }
                     }
                   }
-                  else if (nexp == parameters[j].length()+4) {
-                    for (size_t n=0; n<parameters[j].length(); n++) {
-                      if (expr[n] != parameters[j][n]) {
+                  else if (nexp == parameters_[j].length()+4) {
+                    for (size_t n=0; n<parameters_[j].length(); n++) {
+                      if (expr[n] != parameters_[j][n]) {
                         found = false;
                       }
                     }
@@ -346,17 +339,17 @@ void FunctionManager::decomposeFunctions() {
                   }
                   
                   if (found) {
-                    forests[fiter].trees[titer].branches[k].isLeaf = true;
-                    forests[fiter].trees[titer].branches[k].isView = true;
-                    forests[fiter].trees[titer].branches[k].isAD = true;
-                    forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                    forests[fiter].trees[titer].branches[k].isParameter = true;
+                    forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                    forests_[fiter].trees[titer].branches[k].isView = true;
+                    forests_[fiter].trees[titer].branches[k].isAD = true;
+                    forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                    forests_[fiter].trees[titer].branches[k].isParameter = true;
                     
-                    forests[fiter].trees[titer].branches[k].paramIndex = sindex;
+                    forests_[fiter].trees[titer].branches[k].paramIndex = sindex;
                     
                     decompose = false;
                     
-                    forests[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                    forests_[fiter].trees[titer].branches[k].param_data = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
                   }
                 }
               }
@@ -364,12 +357,12 @@ void FunctionManager::decomposeFunctions() {
             
             // check if it is a function
             if (decompose) {
-              for (unsigned int j=0; j<forests[fiter].trees.size(); j++) {
-                if (expr == forests[fiter].trees[j].name) {
-                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                  forests[fiter].trees[titer].branches[k].isFunc = true;
+              for (unsigned int j=0; j<forests_[fiter].trees.size(); j++) {
+                if (expr == forests_[fiter].trees[j].name) {
+                  forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests_[fiter].trees[titer].branches[k].isFunc = true;
                   
-                  forests[fiter].trees[titer].branches[k].funcIndex = j;
+                  forests_[fiter].trees[titer].branches[k].funcIndex = j;
                   decompose = false;
                 }
               }
@@ -377,14 +370,14 @@ void FunctionManager::decomposeFunctions() {
             
             // IS THE TERM A SIMPLE SCALAR: 2.03, 1.0E2, etc.
             if (decompose) {
-              bool isnum = interpreter->isScalar(expr);
+              bool isnum = interpreter_->isScalar(expr);
               if (isnum) {
-                forests[fiter].trees[titer].branches[k].isLeaf = true;
-                forests[fiter].trees[titer].branches[k].isDecomposed = true;
-                forests[fiter].trees[titer].branches[k].isConstant = true;
+                forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                forests_[fiter].trees[titer].branches[k].isDecomposed = true;
+                forests_[fiter].trees[titer].branches[k].isConstant = true;
                 
                 ScalarT val = std::stod(expr);
-                forests[fiter].trees[titer].branches[k].data_Sc = val;
+                forests_[fiter].trees[titer].branches[k].data_Sc = val;
                 
                 decompose = false;
               }
@@ -392,41 +385,41 @@ void FunctionManager::decomposeFunctions() {
             
             // IS THE TERM ONE OF THE KNOWN VARIABLES: t or pi
             if (decompose) {
-              for (size_t j=0; j<known_vars.size(); j++) {
-                if (expr == known_vars[j]) {
+              for (size_t j=0; j<known_vars_.size(); j++) {
+                if (expr == known_vars_[j]) {
                   decompose = false;
-                  forests[fiter].trees[titer].branches[k].isLeaf = true;
-                  forests[fiter].trees[titer].branches[k].isDecomposed = true;
+                  forests_[fiter].trees[titer].branches[k].isLeaf = true;
+                  forests_[fiter].trees[titer].branches[k].isDecomposed = true;
                   
-                  if (known_vars[j] == "t") {
-                    forests[fiter].trees[titer].branches[k].isTime = true;
-                    forests[fiter].trees[titer].branches[k].data_Sc = wkset->time;
+                  if (known_vars_[j] == "t") {
+                    forests_[fiter].trees[titer].branches[k].isTime = true;
+                    forests_[fiter].trees[titer].branches[k].data_Sc = wkset->time;
                   }
-                  else if (known_vars[j] == "pi") {
-                    forests[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
-                    forests[fiter].trees[titer].branches[k].data_Sc = PI;
+                  else if (known_vars_[j] == "pi") {
+                    forests_[fiter].trees[titer].branches[k].isConstant = true; // means in does not need to be copied every time
+                    forests_[fiter].trees[titer].branches[k].data_Sc = PI;
                   }
                 }
               }
-            } // end known_vars
+            } // end known_vars_
             
             // IS THIS TERM ONE OF THE KNOWN OPERATORS: sin(...), exp(...), etc.
             if (decompose) {
-              bool isop = interpreter->isOperator(forests[fiter].trees[titer].branches, k, known_ops);
+              bool isop = interpreter_->isOperator(forests_[fiter].trees[titer].branches, k, known_ops_);
               if (isop) {
                 decompose = false;
               }
             }
             
             if (decompose) {
-              interpreter->split(forests[fiter].trees[titer].branches,k);
-              forests[fiter].trees[titer].branches[k].isDecomposed = true;
+              interpreter_->split(forests_[fiter].trees[titer].branches,k);
+              forests_[fiter].trees[titer].branches[k].isDecomposed = true;
             }
           }
           
           bool isdone = true;
-          for (size_t k=0; k<forests[fiter].trees[titer].branches.size(); k++) {
-            if (!forests[fiter].trees[titer].branches[k].isLeaf && !forests[fiter].trees[titer].branches[k].isDecomposed) {
+          for (size_t k=0; k<forests_[fiter].trees[titer].branches.size(); k++) {
+            if (!forests_[fiter].trees[titer].branches[k].isLeaf && !forests_[fiter].trees[titer].branches[k].isDecomposed) {
               isdone = false;
             }
           }
@@ -435,17 +428,17 @@ void FunctionManager::decomposeFunctions() {
         }
         
         if (!done && iter >= maxiter) {
-          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose " + forests[fiter].trees[titer].name);
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose " + forests_[fiter].trees[titer].name);
         }
       } // trees
-    } // forests
+    } // forests_
     
-    // After all of the forests/trees have been decomposed, we can determine if we need to use arrays of ScalarT or AD
+    // After all of the forests_/trees have been decomposed, we can determine if we need to use arrays of ScalarT or AD
     // Only the leafs should be designated as ScalarT or AD at this point
     
-    for (size_t f=0; f<forests.size(); ++f) {
-      for (size_t k=0; k<forests[f].trees.size(); k++) {
-        for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
+    for (size_t f=0; f<forests_.size(); ++f) {
+      for (size_t k=0; k<forests_[f].trees.size(); k++) {
+        for (size_t j=0; j<forests_[f].trees[k].branches.size(); j++) {
           
           // Rewrite this section
           
@@ -453,19 +446,19 @@ void FunctionManager::decomposeFunctions() {
           
           this->checkDepDataType(f,k,j, isConst, isView, isAD); // is this term a ScalarT
           
-          forests[f].trees[k].branches[j].isConstant = isConst;
-          forests[f].trees[k].branches[j].isView = isView;
-          forests[f].trees[k].branches[j].isAD = isAD;
+          forests_[f].trees[k].branches[j].isConstant = isConst;
+          forests_[f].trees[k].branches[j].isView = isView;
+          forests_[f].trees[k].branches[j].isAD = isAD;
           
           if (isView) {
-            string expr = forests[f].trees[k].branches[j].expression;
+            string expr = forests_[f].trees[k].branches[j].expression;
             if (isAD) {
-              forests[f].trees[k].branches[j].viewdata = View_AD2("data for " + expr,
-                                                                  forests[f].dim0, forests[f].dim1);
+              forests_[f].trees[k].branches[j].viewdata = View_AD2("data for " + expr,
+                                                                  forests_[f].dim0, forests_[f].dim1);
             }
             else {
-              forests[f].trees[k].branches[j].viewdata_Sc = View_Sc2("data for " + expr,
-                                                                     forests[f].dim0, forests[f].dim1);
+              forests_[f].trees[k].branches[j].viewdata_Sc = View_Sc2("data for " + expr,
+                                                                     forests_[f].dim0, forests_[f].dim1);
             }
           }
         }
@@ -473,16 +466,16 @@ void FunctionManager::decomposeFunctions() {
     }
     
     // Now evaluate all of the constant branches (meaning all deps are const, !vector, !AD)
-    for (size_t f=0; f<forests.size(); ++f) {
-      for (size_t k=0; k<forests[f].trees.size(); k++) {
-        for (size_t j=0; j<forests[f].trees[k].branches.size(); j++) {
-          if (forests[f].trees[k].branches[j].isConstant) {
-            if (!forests[f].trees[k].branches[j].isLeaf) { // leafs are already filled
+    for (size_t f=0; f<forests_.size(); ++f) {
+      for (size_t k=0; k<forests_[f].trees.size(); k++) {
+        for (size_t j=0; j<forests_[f].trees[k].branches.size(); j++) {
+          if (forests_[f].trees[k].branches[j].isConstant) {
+            if (!forests_[f].trees[k].branches[j].isLeaf) { // leafs are already filled
               this->evaluate(f,k,j);
             }
           }
         }
-        forests[f].trees[k].setupVista();
+        forests_[f].trees[k].setupVista();
       }
     }
   }
@@ -494,17 +487,17 @@ void FunctionManager::decomposeFunctions() {
 
 bool FunctionManager::isScalarTerm(const int & findex, const int & tindex, const int & bindex) {
   bool is_scalar = true;
-  if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
-    if (forests[findex].trees[tindex].branches[bindex].isAD) {
+  if (forests_[findex].trees[tindex].branches[bindex].isLeaf) {
+    if (forests_[findex].trees[tindex].branches[bindex].isAD) {
       is_scalar = false;
     }
   }
-  else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
+  else if (forests_[findex].trees[tindex].branches[bindex].isFunc) {
     is_scalar = false;
   }
   else {
-    for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++){
-      bool depcheck = isScalarTerm(findex, tindex, forests[findex].trees[tindex].branches[bindex].dep_list[k]);
+    for (size_t k=0; k<forests_[findex].trees[tindex].branches[bindex].dep_list.size(); k++){
+      bool depcheck = isScalarTerm(findex, tindex, forests_[findex].trees[tindex].branches[bindex].dep_list[k]);
       if (!depcheck) {
         is_scalar = false;
       }
@@ -518,24 +511,24 @@ void FunctionManager::checkDepDataType(const int & findex, const int & tindex, c
                                        bool & isConst, bool & isView, bool & isAD) {
   
   
-  if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
-    if (!forests[findex].trees[tindex].branches[bindex].isConstant) {
+  if (forests_[findex].trees[tindex].branches[bindex].isLeaf) {
+    if (!forests_[findex].trees[tindex].branches[bindex].isConstant) {
       isConst = false;
     }
-    if (forests[findex].trees[tindex].branches[bindex].isView) {
+    if (forests_[findex].trees[tindex].branches[bindex].isView) {
       isView = true;
     }
-    if (forests[findex].trees[tindex].branches[bindex].isAD) {
+    if (forests_[findex].trees[tindex].branches[bindex].isAD) {
       isAD = true;
     }
   }
-  else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
-    this->checkDepDataType(findex, forests[findex].trees[tindex].branches[bindex].funcIndex, 0,
+  else if (forests_[findex].trees[tindex].branches[bindex].isFunc) {
+    this->checkDepDataType(findex, forests_[findex].trees[tindex].branches[bindex].funcIndex, 0,
                            isConst, isView, isAD);
   }
   else {
-    for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++){
-      this->checkDepDataType(findex, tindex, forests[findex].trees[tindex].branches[bindex].dep_list[k],
+    for (size_t k=0; k<forests_[findex].trees[tindex].branches[bindex].dep_list.size(); k++){
+      this->checkDepDataType(findex, tindex, forests_[findex].trees[tindex].branches[bindex].dep_list[k],
                              isConst, isView, isAD);
     }
   }
@@ -546,22 +539,20 @@ void FunctionManager::checkDepDataType(const int & findex, const int & tindex, c
 //////////////////////////////////////////////////////////////////////////////////////
 
 Vista FunctionManager::evaluate(const string & fname, const string & location) {
-
-  //Teuchos::TimeMonitor ttimer(*evaluateExtTimer);
   
   bool ffound = false, tfound = false;
   size_t fiter=0, titer=0;
-  while(!ffound && fiter<forests.size()) {
-    if (forests[fiter].location == location) {
+  while(!ffound && fiter<forests_.size()) {
+    if (forests_[fiter].location == location) {
       ffound = true;
       tfound = false;
-      while (!tfound && titer<forests[fiter].trees.size()) {
-        if (fname == forests[fiter].trees[titer].name) {
+      while (!tfound && titer<forests_[fiter].trees.size()) {
+        if (fname == forests_[fiter].trees[titer].name) {
           tfound = true;
-          if (!forests[fiter].trees[titer].branches[0].isDecomposed) {
+          if (!forests_[fiter].trees[titer].branches[0].isDecomposed) {
             this->decomposeFunctions();
           }
-          if (!forests[fiter].trees[titer].branches[0].isConstant) {
+          if (!forests_[fiter].trees[titer].branches[0].isConstant) {
             this->evaluate(fiter,titer,0);
           }
         }
@@ -579,18 +570,11 @@ Vista FunctionManager::evaluate(const string & fname, const string & location) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: function manager could not evaluate: " + fname + " at " + location);
   }
   
-  
-  {
-    //Teuchos::TimeMonitor ttimer(*evaluateCopyTimer);
-    
-    if (!forests[fiter].trees[titer].branches[0].isConstant) {
-      //if (!forests[fiter].trees[titer].branches[0].isView || forests[fiter].trees[titer].branches[0].isParameter) {
-        forests[fiter].trees[titer].updateVista();
-      //}
-    }
+  if (!forests_[fiter].trees[titer].branches[0].isConstant) {
+    forests_[fiter].trees[titer].updateVista();
   }
   
-  return forests[fiter].trees[titer].vista;
+  return forests_[fiter].trees[titer].vista;
   
 }
 
@@ -600,106 +584,104 @@ Vista FunctionManager::evaluate(const string & fname, const string & location) {
 
 void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, const size_t & bindex) {
   
-  //Teuchos::TimeMonitor ttimer(*evaluateIntTimer);
-  
-  //if (!forests[findex].trees[tindex].branches[bindex].isConstant) {
-    if (forests[findex].trees[tindex].branches[bindex].isLeaf) {
-      if (forests[findex].trees[tindex].branches[bindex].isWorksetData) {
-        int wdindex = forests[findex].trees[tindex].branches[bindex].workset_data_index;
+  //if (!forests_[findex].trees[tindex].branches[bindex].isConstant) {
+    if (forests_[findex].trees[tindex].branches[bindex].isLeaf) {
+      if (forests_[findex].trees[tindex].branches[bindex].isWorksetData) {
+        int wdindex = forests_[findex].trees[tindex].branches[bindex].workset_data_index;
         if (wkset->isOnSide) {
-          if (forests[findex].trees[tindex].branches[bindex].isAD) {
+          if (forests_[findex].trees[tindex].branches[bindex].isAD) {
             if (!wkset->side_soln_fields[wdindex].isUpdated) {
               wkset->evaluateSideSolutionField(wdindex);
             }
-            forests[findex].trees[tindex].branches[bindex].viewdata = wkset->side_soln_fields[wdindex].data;
+            forests_[findex].trees[tindex].branches[bindex].viewdata = wkset->side_soln_fields[wdindex].data;
           }
           else {
-            forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->side_scalar_fields[wdindex].data;
+            forests_[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->side_scalar_fields[wdindex].data;
           } 
         }
         else if (wkset->isOnPoint) {
-          if (forests[findex].trees[tindex].branches[bindex].isAD) {
+          if (forests_[findex].trees[tindex].branches[bindex].isAD) {
             if (!wkset->point_soln_fields[wdindex].isUpdated) {
               wkset->evaluateSolutionField(wdindex);
             }
-            forests[findex].trees[tindex].branches[bindex].viewdata = wkset->point_soln_fields[wdindex].data;
+            forests_[findex].trees[tindex].branches[bindex].viewdata = wkset->point_soln_fields[wdindex].data;
           }
           else {
-            forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->point_scalar_fields[wdindex].data;
+            forests_[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->point_scalar_fields[wdindex].data;
           }
         }
         else {
-          if (forests[findex].trees[tindex].branches[bindex].isAD) {
+          if (forests_[findex].trees[tindex].branches[bindex].isAD) {
             if (!wkset->soln_fields[wdindex].isUpdated) {
               wkset->evaluateSolutionField(wdindex);
             }
-            forests[findex].trees[tindex].branches[bindex].viewdata = wkset->soln_fields[wdindex].data;
+            forests_[findex].trees[tindex].branches[bindex].viewdata = wkset->soln_fields[wdindex].data;
           }
           else {
-            forests[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->scalar_fields[wdindex].data;
+            forests_[findex].trees[tindex].branches[bindex].viewdata_Sc = wkset->scalar_fields[wdindex].data;
           }
         }
       }
-      else if (forests[findex].trees[tindex].branches[bindex].isParameter) {
+      else if (forests_[findex].trees[tindex].branches[bindex].isParameter) {
         // Should be set correctly already
       }
-      else if (forests[findex].trees[tindex].branches[bindex].isTime) {
-        forests[findex].trees[tindex].branches[bindex].data_Sc = wkset->time;
+      else if (forests_[findex].trees[tindex].branches[bindex].isTime) {
+        forests_[findex].trees[tindex].branches[bindex].data_Sc = wkset->time;
       }
     }
-    else if (forests[findex].trees[tindex].branches[bindex].isFunc) {
-      int funcIndex = forests[findex].trees[tindex].branches[bindex].funcIndex;
+    else if (forests_[findex].trees[tindex].branches[bindex].isFunc) {
+      int funcIndex = forests_[findex].trees[tindex].branches[bindex].funcIndex;
       this->evaluate(findex,funcIndex, 0);
       
-      if (forests[findex].trees[tindex].branches[bindex].isAD) {
-        if (forests[findex].trees[tindex].branches[bindex].isView) { // use viewdata
-          forests[findex].trees[tindex].branches[bindex].viewdata = forests[findex].trees[funcIndex].branches[0].viewdata;
+      if (forests_[findex].trees[tindex].branches[bindex].isAD) {
+        if (forests_[findex].trees[tindex].branches[bindex].isView) { // use viewdata
+          forests_[findex].trees[tindex].branches[bindex].viewdata = forests_[findex].trees[funcIndex].branches[0].viewdata;
         }
         else { // use data
-          forests[findex].trees[tindex].branches[bindex].data = forests[findex].trees[funcIndex].branches[0].data;
+          forests_[findex].trees[tindex].branches[bindex].data = forests_[findex].trees[funcIndex].branches[0].data;
         }
       }
       else {
-        if (forests[findex].trees[tindex].branches[bindex].isView) { // use viewdata_Sc
-          forests[findex].trees[tindex].branches[bindex].viewdata_Sc = forests[findex].trees[funcIndex].branches[0].viewdata_Sc;
+        if (forests_[findex].trees[tindex].branches[bindex].isView) { // use viewdata_Sc
+          forests_[findex].trees[tindex].branches[bindex].viewdata_Sc = forests_[findex].trees[funcIndex].branches[0].viewdata_Sc;
         }
         else { // use data_Sc
-          forests[findex].trees[tindex].branches[bindex].data_Sc = forests[findex].trees[funcIndex].branches[0].data_Sc;
+          forests_[findex].trees[tindex].branches[bindex].data_Sc = forests_[findex].trees[funcIndex].branches[0].data_Sc;
         }
       }
     }
     else {
-      bool isAD = forests[findex].trees[tindex].branches[bindex].isAD;
-      bool isView = forests[findex].trees[tindex].branches[bindex].isView;
-      for (size_t k=0; k<forests[findex].trees[tindex].branches[bindex].dep_list.size(); k++) {
+      bool isAD = forests_[findex].trees[tindex].branches[bindex].isAD;
+      bool isView = forests_[findex].trees[tindex].branches[bindex].isView;
+      for (size_t k=0; k<forests_[findex].trees[tindex].branches[bindex].dep_list.size(); k++) {
         
-        int dep = forests[findex].trees[tindex].branches[bindex].dep_list[k];
+        int dep = forests_[findex].trees[tindex].branches[bindex].dep_list[k];
         this->evaluate(findex, tindex, dep);
         
-        bool termisAD = forests[findex].trees[tindex].branches[dep].isAD;
-        bool termisView = forests[findex].trees[tindex].branches[dep].isView;
-        bool termisParameter = forests[findex].trees[tindex].branches[dep].isParameter;
+        bool termisAD = forests_[findex].trees[tindex].branches[dep].isAD;
+        bool termisView = forests_[findex].trees[tindex].branches[dep].isView;
+        bool termisParameter = forests_[findex].trees[tindex].branches[dep].isParameter;
         if (isView) {
           if (termisView) {
             if (isAD) {
               if (termisAD) {
                 if (termisParameter) {
-                  this->evaluateOpParamToV(forests[findex].trees[tindex].branches[bindex].viewdata,
-                                           forests[findex].trees[tindex].branches[dep].param_data,
-                                           forests[findex].trees[tindex].branches[dep].paramIndex,
-                                           forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                  this->evaluateOpParamToV(forests_[findex].trees[tindex].branches[bindex].viewdata,
+                                           forests_[findex].trees[tindex].branches[dep].param_data,
+                                           forests_[findex].trees[tindex].branches[dep].paramIndex,
+                                           forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
                 }
                 else {
-                  this->evaluateOpVToV(forests[findex].trees[tindex].branches[bindex].viewdata,
-                                       forests[findex].trees[tindex].branches[dep].viewdata,
-                                       forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                  this->evaluateOpVToV(forests_[findex].trees[tindex].branches[bindex].viewdata,
+                                       forests_[findex].trees[tindex].branches[dep].viewdata,
+                                       forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
                 }
                 
               }
               else {
-                this->evaluateOpVToV(forests[findex].trees[tindex].branches[bindex].viewdata,
-                                     forests[findex].trees[tindex].branches[dep].viewdata_Sc,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpVToV(forests_[findex].trees[tindex].branches[bindex].viewdata,
+                                     forests_[findex].trees[tindex].branches[dep].viewdata_Sc,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
             }
             else {
@@ -707,23 +689,23 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
                 // output error
               }
               else {
-                this->evaluateOpVToV(forests[findex].trees[tindex].branches[bindex].viewdata_Sc,
-                                     forests[findex].trees[tindex].branches[dep].viewdata_Sc,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpVToV(forests_[findex].trees[tindex].branches[bindex].viewdata_Sc,
+                                     forests_[findex].trees[tindex].branches[dep].viewdata_Sc,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
             }
           }
           else { // Scalar data
             if (isAD) {
               if (termisAD) {
-                this->evaluateOpSToV(forests[findex].trees[tindex].branches[bindex].viewdata,
-                                     forests[findex].trees[tindex].branches[dep].data,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpSToV(forests_[findex].trees[tindex].branches[bindex].viewdata,
+                                     forests_[findex].trees[tindex].branches[dep].data,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
               else {
-                this->evaluateOpSToV(forests[findex].trees[tindex].branches[bindex].viewdata,
-                                     forests[findex].trees[tindex].branches[dep].data_Sc,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpSToV(forests_[findex].trees[tindex].branches[bindex].viewdata,
+                                     forests_[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
             }
             else {
@@ -731,9 +713,9 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
                 //error
               }
               else {
-                this->evaluateOpSToV(forests[findex].trees[tindex].branches[bindex].viewdata_Sc,
-                                     forests[findex].trees[tindex].branches[dep].data_Sc,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpSToV(forests_[findex].trees[tindex].branches[bindex].viewdata_Sc,
+                                     forests_[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
             }
             
@@ -746,14 +728,14 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
           else {
             if (isAD) {
               if (termisAD) {
-                this->evaluateOpSToS(forests[findex].trees[tindex].branches[bindex].data,
-                                     forests[findex].trees[tindex].branches[dep].data,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpSToS(forests_[findex].trees[tindex].branches[bindex].data,
+                                     forests_[findex].trees[tindex].branches[dep].data,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
               else {
-                this->evaluateOpSToS(forests[findex].trees[tindex].branches[bindex].data,
-                                     forests[findex].trees[tindex].branches[dep].data_Sc,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpSToS(forests_[findex].trees[tindex].branches[bindex].data,
+                                     forests_[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
             }
             else {
@@ -761,9 +743,9 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
                 //error
               }
               else {
-                this->evaluateOpSToS(forests[findex].trees[tindex].branches[bindex].data_Sc,
-                                     forests[findex].trees[tindex].branches[dep].data_Sc,
-                                     forests[findex].trees[tindex].branches[bindex].dep_ops[k]);
+                this->evaluateOpSToS(forests_[findex].trees[tindex].branches[bindex].data_Sc,
+                                     forests_[findex].trees[tindex].branches[dep].data_Sc,
+                                     forests_[findex].trees[tindex].branches[bindex].dep_ops[k]);
               }
             }
           }
@@ -779,8 +761,6 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
 
 template<class T1, class T2>
 void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
-  
-  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
   
   size_t dim0 = std::min(data.extent(0),tdata.extent(0));
   using namespace std;
@@ -1092,8 +1072,6 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
 template<class T1, class T2>
 void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_, const string & op) {
   
-  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
-  
   size_t dim0 = data.extent(0);
   using namespace std;
   
@@ -1377,8 +1355,6 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
 template<class T1, class T2>
 void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
   
-  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
-  
   T2 tdata = tdata_; // Probably don't need to do this if pass by value
   size_t dim0 = data.extent(0);
   using namespace std;
@@ -1660,8 +1636,6 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
 template<class T1, class T2>
 void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
   
-  //Teuchos::TimeMonitor ttimer(*evaluateOpTimer);
-  
   using namespace std;
   
   if (op == "") {
@@ -1767,18 +1741,18 @@ void FunctionManager::printFunctions() {
   
   cout << endl;
   cout << "===========================================================" << endl;
-  cout << "Printing functions on block: " << blockname << endl;
+  cout << "Printing functions on block: " << blockname_ << endl;
   cout << "-----------------------------------------------------------" << endl;
   
-  for (size_t k=0; k<forests.size(); k++) {
+  for (size_t k=0; k<forests_.size(); k++) {
     
-    cout << "Forest Name:" << forests[k].location << endl;
-    cout << "Number of Trees: " << forests[k].trees.size() << endl;
-    for (size_t t=0; t<forests[k].trees.size(); t++) {
-      cout << "    Tree: " << forests[k].trees[t].name << endl;
-      cout << "    Number of branches: " << forests[k].trees[t].branches.size() << endl;
-      for (size_t b=0; b<forests[k].trees[t].branches.size(); b++) {
-        cout << "        " << forests[k].trees[t].branches[b].expression << endl;
+    cout << "Forest Name:" << forests_[k].location << endl;
+    cout << "Number of Trees: " << forests_[k].trees.size() << endl;
+    for (size_t t=0; t<forests_[k].trees.size(); t++) {
+      cout << "    Tree: " << forests_[k].trees[t].name << endl;
+      cout << "    Number of branches: " << forests_[k].trees[t].branches.size() << endl;
+      for (size_t b=0; b<forests_[k].trees[t].branches.size(); b++) {
+        cout << "        " << forests_[k].trees[t].branches[b].expression << endl;
       }
     }
     

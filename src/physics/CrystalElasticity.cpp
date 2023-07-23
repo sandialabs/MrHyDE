@@ -117,7 +117,7 @@ void CrystalElastic::computeLatticeTensor() {
 
 //----------------------------------------------------------------------------
 
-void CrystalElastic::updateParams(Teuchos::RCP<workset> & wkset) {
+void CrystalElastic::updateParams(Teuchos::RCP<Workset> & wkset) {
   
   ScalarT c11 = c11_;
   ScalarT c12 = c12_;
@@ -226,7 +226,7 @@ void CrystalElastic::updateParams(Teuchos::RCP<workset> & wkset) {
 
 //----------------------------------------------------------------------------
 
-void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & indices,
+void CrystalElastic::computeStress(Teuchos::RCP<Workset> & wkset, vector<int> & indices,
                                    const bool & onside, View_AD4 stress)
 {
   
@@ -352,7 +352,7 @@ void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & 
 }
 //----------------------------------------------------------------------------
 
-void CrystalElastic::computeRotatedTensor(Teuchos::RCP<workset> & wkset) {
+void CrystalElastic::computeRotatedTensor(Teuchos::RCP<Workset> & wkset) {
   
   Teuchos::TimeMonitor rtimer(*computeRotatedTensorTimer);
   

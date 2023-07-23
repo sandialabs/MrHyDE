@@ -229,7 +229,7 @@ namespace MrHyDE {
     std::vector<std::string> stochastic_distribution, discparam_distribution;
     std::vector<ScalarT> stochastic_mean, stochastic_variance, stochastic_min, stochastic_max;
     
-    std::vector<Teuchos::RCP<workset> > wkset;
+    std::vector<Teuchos::RCP<Workset> > wkset;
     
     int batchID;
     

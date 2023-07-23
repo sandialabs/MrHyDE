@@ -184,7 +184,7 @@ void KuramotoSivashinsky::volumeResidual() {
 
 }
 
-void KuramotoSivashinsky::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void KuramotoSivashinsky::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
   

@@ -24,18 +24,18 @@ namespace MrHyDE {
   // =================================================================
   // =================================================================
   
-  class workset {
+  class Workset {
   public:
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Constructors
     ////////////////////////////////////////////////////////////////////////////////////
     
-    workset() {};
+    Workset() {};
     
-    ~workset() {};
+    ~Workset() {};
     
-    workset(const vector<int> & cellinfo,
+    Workset(const vector<int> & cellinfo,
             const vector<size_t> & numVars_, 
             const bool & isTransient_,
             const vector<string> & basis_types_,

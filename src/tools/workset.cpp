@@ -18,7 +18,7 @@ using namespace MrHyDE;
 // Constructors
 ////////////////////////////////////////////////////////////////////////////////////
 
-workset::workset(const vector<int> & cellinfo,
+Workset::Workset(const vector<int> & cellinfo,
                  const vector<size_t> & numVars_,
                  const bool & isTransient_,
                  const vector<string> & basis_types_,
@@ -109,7 +109,7 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
 // Public functions
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::createSolutionFields() {
+void Workset::createSolutionFields() {
 
   // Need to first allocate the residual view
   // This is the largest view in the code (due to the AD) so we are careful with the size
@@ -241,7 +241,7 @@ void workset::createSolutionFields() {
 // Add solution fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::addSolutionFields(vector<string> & vars, vector<string> & types, vector<int> & basis_indices) {
+void Workset::addSolutionFields(vector<string> & vars, vector<string> & types, vector<int> & basis_indices) {
   
   vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
   vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
@@ -300,7 +300,7 @@ void workset::addSolutionFields(vector<string> & vars, vector<string> & types, v
 // Add solution fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::addSolutionField(string & var, size_t & set_index,
+void Workset::addSolutionField(string & var, size_t & set_index,
                                size_t & var_index, string & basistype, string & soltype) {
   
   if (basistype.substr(0,5) == "HGRAD") {
@@ -375,7 +375,7 @@ void workset::addSolutionField(string & var, size_t & set_index,
 // Add scalar fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::addScalarFields(vector<string> & fields) {
+void Workset::addScalarFields(vector<string> & fields) {
   for (size_t i=0; i<fields.size(); ++i) {
     scalar_fields.push_back(ScalarField(fields[i]));
   }
@@ -385,7 +385,7 @@ void workset::addScalarFields(vector<string> & fields) {
 // Reset
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::reset() {
+void Workset::reset() {
   this->resetResidual();
   this->resetSolutionFields();
 }
@@ -394,7 +394,7 @@ void workset::reset() {
 // Reset solution fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::resetSolutionFields() {
+void Workset::resetSolutionFields() {
   for (size_t f=0; f<soln_fields.size(); ++f) {
     soln_fields[f].isUpdated = false;
   }
@@ -410,7 +410,7 @@ void workset::resetSolutionFields() {
 // Reset residuals
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::resetResidual() {
+void Workset::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
   //Kokkos::deep_copy(res,0.0);
   
@@ -444,7 +444,7 @@ void workset::resetResidual() {
 // Compute the seeded solutions for general transient problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeSolnTransientSeeded(const size_t & set,
+void Workset::computeSolnTransientSeeded(const size_t & set,
                                          View_Sc3 u,
                                          View_Sc4 u_prev,
                                          View_Sc4 u_stage,
@@ -683,7 +683,7 @@ void workset::computeSolnTransientSeeded(const size_t & set,
 // Compute the seeded solutions for steady-state problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeSolnSteadySeeded(const size_t & set,
+void Workset::computeSolnSteadySeeded(const size_t & set,
                                       View_Sc3 u,
                                       const int & seedwhat) {
   
@@ -727,7 +727,7 @@ void workset::computeSolnSteadySeeded(const size_t & set,
 // Compute the seeded solutions for steady-state problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::computeParamSteadySeeded(View_Sc3 param,
+void Workset::computeParamSteadySeeded(View_Sc3 param,
                                       const int & seedwhat) {
   
   if (numParams>0) {
@@ -770,7 +770,7 @@ void workset::computeParamSteadySeeded(View_Sc3 param,
 // Compute the seeded solutions at specified ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::evaluateSolutionField(const int & fieldnum) {
+void Workset::evaluateSolutionField(const int & fieldnum) {
   
   auto fielddata = soln_fields[fieldnum].data;
 
@@ -901,7 +901,7 @@ void workset::evaluateSolutionField(const int & fieldnum) {
 // Compute the seeded solutions at specified side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void workset::evaluateSideSolutionField(const int & fieldnum) {
+void Workset::evaluateSideSolutionField(const int & fieldnum) {
   
   auto fielddata = side_soln_fields[fieldnum].data;
   
@@ -1018,7 +1018,7 @@ void workset::evaluateSideSolutionField(const int & fieldnum) {
 // Gets used only in the boundaryCell flux calculation
 // Will not work properly for multi-stage or multi-step
 
-void workset::computeSolnSideIP(const int & side) { 
+void Workset::computeSolnSideIP(const int & side) { 
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
@@ -1182,7 +1182,7 @@ void workset::computeSolnSideIP(const int & side) {
 // Add Aux
 //////////////////////////////////////////////////////////////
 
-void workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,AssemblyDevice> aoffs) {
+void Workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,AssemblyDevice> aoffs) {
   aux_offsets = aoffs;
   aux_varlist = auxvars;
   numAux = aux_varlist.size();
@@ -1212,7 +1212,7 @@ void workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,Assembly
 // Get a pointer to vector of parameters
 //////////////////////////////////////////////////////////////
 
-vector<AD> workset::getParam(const string & name, bool & found) {
+vector<AD> Workset::getParam(const string & name, bool & found) {
   found = false;
   size_t iter=0;
   vector<AD> pvec;
@@ -1235,7 +1235,7 @@ vector<AD> workset::getParam(const string & name, bool & found) {
 // Get a subview associated with a vector of parameters
 //////////////////////////////////////////////////////////////
 
-Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> workset::getParameter(const string & name, bool & found) {
+Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> Workset::getParameter(const string & name, bool & found) {
   found = false;
   size_t iter=0;
   Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> pvals;
@@ -1255,7 +1255,7 @@ Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> workset::getParameter(cons
 // Set the time
 //////////////////////////////////////////////////////////////
 
-void workset::setTime(const ScalarT & newtime) {
+void Workset::setTime(const ScalarT & newtime) {
   time = newtime;
 }
 
@@ -1263,7 +1263,7 @@ void workset::setTime(const ScalarT & newtime) {
 // Set deltat
 //////////////////////////////////////////////////////////////
 
-void workset::setDeltat(const ScalarT & newdt) {
+void Workset::setDeltat(const ScalarT & newdt) {
   deltat = newdt;
 }
 
@@ -1271,11 +1271,11 @@ void workset::setDeltat(const ScalarT & newdt) {
 // Set the stage index
 //////////////////////////////////////////////////////////////
 
-void workset::setStage(const int & newstage) {
+void Workset::setStage(const int & newstage) {
   current_stage = newstage;
 }
 
-int workset::addIntegratedQuantities(const int & nRequested) {
+int Workset::addIntegratedQuantities(const int & nRequested) {
 
   int startingIndex = this->integrated_quantities.extent(0);
 
@@ -1293,14 +1293,14 @@ int workset::addIntegratedQuantities(const int & nRequested) {
 
 //----------------------------------------------------------------
 
-void workset::printSolutionFields() {
+void Workset::printSolutionFields() {
   cout << "Currently defined fields are: " << endl;
   for (size_t f=0; f<soln_fields.size(); ++f) {
     cout << soln_fields[f].expression << endl;
   }
 }
 
-void workset::printScalarFields() {
+void Workset::printScalarFields() {
   if (isOnSide) {
     cout << "Currently defined side scalar fields are: " << endl;
     for (size_t f=0; f<side_scalar_fields.size(); ++f) {
@@ -1326,7 +1326,7 @@ void workset::printScalarFields() {
 // 
 //////////////////////////////////////////////////////////////
 
-View_AD2 workset::getSolutionField(const string & label, const bool & evaluate, 
+View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate, 
                                    const bool & markUpdated) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
@@ -1419,7 +1419,7 @@ View_AD2 workset::getSolutionField(const string & label, const bool & evaluate,
 // 
 //////////////////////////////////////////////////////////////
 
-void workset::checkSolutionFieldAllocation(const size_t & ind) {
+void Workset::checkSolutionFieldAllocation(const size_t & ind) {
   
   if (isOnSide) {
     if (!side_soln_fields[ind].isInitialized) {
@@ -1443,7 +1443,7 @@ void workset::checkSolutionFieldAllocation(const size_t & ind) {
 // 
 //////////////////////////////////////////////////////////////
 
-void workset::checkScalarFieldAllocation(const size_t & ind) {
+void Workset::checkScalarFieldAllocation(const size_t & ind) {
   
   if (isOnSide) {
     if (!side_scalar_fields[ind].isInitialized) {
@@ -1466,7 +1466,7 @@ void workset::checkScalarFieldAllocation(const size_t & ind) {
 // 
 //////////////////////////////////////////////////////////////
 
-View_Sc2 workset::getScalarField(const string & label) {
+View_Sc2 Workset::getScalarField(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
   View_Sc2 outdata;
@@ -1540,7 +1540,7 @@ View_Sc2 workset::getScalarField(const string & label) {
 // Function to determine which basis a variable uses
 //////////////////////////////////////////////////////////////
 
-bool workset::findBasisIndex(const string & var, int & basisindex) {
+bool Workset::findBasisIndex(const string & var, int & basisindex) {
   bool found = false;
   int index;
   found = this->isVar(var,index);
@@ -1564,7 +1564,7 @@ bool workset::findBasisIndex(const string & var, int & basisindex) {
 // Check if a string is a variable
 //////////////////////////////////////////////////////////////
 
-bool workset::isVar(const string & var, int & index) {
+bool Workset::isVar(const string & var, int & index) {
   bool found = false;
   size_t varindex = 0;
   while (!found && varindex<varlist.size()) {
@@ -1584,7 +1584,7 @@ bool workset::isVar(const string & var, int & index) {
 // Check if a string is a discretized parameter
 //////////////////////////////////////////////////////////////
 
-bool workset::isParameter(const string & var, int & index) {
+bool Workset::isParameter(const string & var, int & index) {
   bool found = false;
   size_t varindex = 0;
   while (!found && varindex<param_varlist.size()) {
@@ -1600,7 +1600,7 @@ bool workset::isParameter(const string & var, int & index) {
 // Get the AD residual
 //////////////////////////////////////////////////////////////
 
-View_AD2 workset::getResidual() {
+View_AD2 Workset::getResidual() {
   return res;
 }
 
@@ -1608,7 +1608,7 @@ View_AD2 workset::getResidual() {
 // Get the integration weights (interior)
 //////////////////////////////////////////////////////////////
 
-View_Sc2 workset::getWeights() {
+View_Sc2 Workset::getWeights() {
   return wts;
 }
 
@@ -1616,7 +1616,7 @@ View_Sc2 workset::getWeights() {
 // Get the integration weights (boundary)
 //////////////////////////////////////////////////////////////
 
-View_Sc2 workset::getSideWeights() {
+View_Sc2 Workset::getSideWeights() {
   return wts_side;
 }
 
@@ -1624,7 +1624,7 @@ View_Sc2 workset::getSideWeights() {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasis(const string & var) {
+CompressedView<View_Sc4> Workset::getBasis(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1642,7 +1642,7 @@ CompressedView<View_Sc4> workset::getBasis(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasis(const int & index) {
+CompressedView<View_Sc4> Workset::getBasis(const int & index) {
   return basis[index];
 }
 
@@ -1650,7 +1650,7 @@ CompressedView<View_Sc4> workset::getBasis(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisGrad(const string & var) {
+CompressedView<View_Sc4> Workset::getBasisGrad(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1668,7 +1668,7 @@ CompressedView<View_Sc4> workset::getBasisGrad(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisGrad(const int & index) {
+CompressedView<View_Sc4> Workset::getBasisGrad(const int & index) {
   return basis_grad[index];
 }
 
@@ -1676,7 +1676,7 @@ CompressedView<View_Sc4> workset::getBasisGrad(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc3> workset::getBasisDiv(const string & var) {
+CompressedView<View_Sc3> Workset::getBasisDiv(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1694,7 +1694,7 @@ CompressedView<View_Sc3> workset::getBasisDiv(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc3> workset::getBasisDiv(const int & index) {
+CompressedView<View_Sc3> Workset::getBasisDiv(const int & index) {
   return basis_div[index];
 }
 
@@ -1702,7 +1702,7 @@ CompressedView<View_Sc3> workset::getBasisDiv(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisCurl(const string & var) {
+CompressedView<View_Sc4> Workset::getBasisCurl(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1720,7 +1720,7 @@ CompressedView<View_Sc4> workset::getBasisCurl(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisCurl(const int & index) {
+CompressedView<View_Sc4> Workset::getBasisCurl(const int & index) {
   return basis_curl[index];
 }
 
@@ -1728,7 +1728,7 @@ CompressedView<View_Sc4> workset::getBasisCurl(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisSide(const string & var) {
+CompressedView<View_Sc4> Workset::getBasisSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1746,7 +1746,7 @@ CompressedView<View_Sc4> workset::getBasisSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisSide(const int & index) {
+CompressedView<View_Sc4> Workset::getBasisSide(const int & index) {
   return basis_side[index];
 }
 
@@ -1754,7 +1754,7 @@ CompressedView<View_Sc4> workset::getBasisSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisGradSide(const string & var) {
+CompressedView<View_Sc4> Workset::getBasisGradSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1772,7 +1772,7 @@ CompressedView<View_Sc4> workset::getBasisGradSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisGradSide(const int & index) {
+CompressedView<View_Sc4> Workset::getBasisGradSide(const int & index) {
   return basis_grad_side[index];
 }
 
@@ -1780,7 +1780,7 @@ CompressedView<View_Sc4> workset::getBasisGradSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisCurlSide(const string & var) {
+CompressedView<View_Sc4> Workset::getBasisCurlSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1798,7 +1798,7 @@ CompressedView<View_Sc4> workset::getBasisCurlSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> workset::getBasisCurlSide(const int & index) {
+CompressedView<View_Sc4> Workset::getBasisCurlSide(const int & index) {
   return basis_curl_side[index];
 }
 
@@ -1806,7 +1806,7 @@ CompressedView<View_Sc4> workset::getBasisCurlSide(const int & index) {
 // Extract all of the offsets
 //////////////////////////////////////////////////////////////
 
-Kokkos::View<int**,AssemblyDevice> workset::getOffsets() {
+Kokkos::View<int**,AssemblyDevice> Workset::getOffsets() {
   return offsets;
 }
 
@@ -1814,7 +1814,7 @@ Kokkos::View<int**,AssemblyDevice> workset::getOffsets() {
 // Extract the offsets for a particular variable
 //////////////////////////////////////////////////////////////
 
-Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> workset::getOffsets(const string & var) {
+Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> Workset::getOffsets(const string & var) {
   
   Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> reqdata;
   
@@ -1835,7 +1835,7 @@ Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> workset::getOffsets(const
 //////////////////////////////////////////////////////////////
 
 template<class V1, class V2>
-void workset::copyData(V1 view1, V2 view2) {
+void Workset::copyData(V1 view1, V2 view2) {
   
   //Teuchos::TimeMonitor functimer(*worksetcopyDataTimer);
   
@@ -1861,7 +1861,7 @@ void workset::copyData(V1 view1, V2 view2) {
 // Set the data is a scalar field
 //////////////////////////////////////////////////////////////
 
-void workset::setScalarField(View_Sc2 newdata, const string & expression) {
+void Workset::setScalarField(View_Sc2 newdata, const string & expression) {
   
   bool found = false;
   size_t ind = 0;
@@ -1926,7 +1926,7 @@ void workset::setScalarField(View_Sc2 newdata, const string & expression) {
 // Set the solutions
 //////////////////////////////////////////////////////////////
 
-void workset::setSolution(View_AD4 newsol, const string & pfix) {
+void Workset::setSolution(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
   
@@ -1994,7 +1994,7 @@ void workset::setSolution(View_AD4 newsol, const string & pfix) {
 // Set the solution GRADs
 //////////////////////////////////////////////////////////////
 
-void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
+void Workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
@@ -2019,7 +2019,7 @@ void workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
 // Set the solution DIVs
 //////////////////////////////////////////////////////////////
 
-void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
+void Workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HDIV[current_set].size(); i++) {
     string var = varlist_HDIV[current_set][i];
     int varind = vars_HDIV[current_set][i];
@@ -2033,7 +2033,7 @@ void workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
 // Set the solution CURLs
 //////////////////////////////////////////////////////////////
 
-void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
+void Workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HCURL[current_set].size(); i++) {
     string var = varlist_HCURL[current_set][i];
     int varind = vars_HCURL[current_set][i];
@@ -2058,7 +2058,7 @@ void workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void workset::setSolutionPoint(View_AD2 newsol) {
+void Workset::setSolutionPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
@@ -2145,7 +2145,7 @@ void workset::setSolutionPoint(View_AD2 newsol) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void workset::setSolutionGradPoint(View_AD2 newsol) {
+void Workset::setSolutionGradPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
@@ -2182,7 +2182,7 @@ void workset::setSolutionGradPoint(View_AD2 newsol) {
 // Set the parameter solutions
 //////////////////////////////////////////////////////////////
 
-void workset::setParam(View_AD4 newsol, const string & pfix) {
+void Workset::setParam(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
   
@@ -2250,7 +2250,7 @@ void workset::setParam(View_AD4 newsol, const string & pfix) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void workset::setParamPoint(View_AD2 newsol) {
+void Workset::setParamPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
@@ -2337,7 +2337,7 @@ void workset::setParamPoint(View_AD2 newsol) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void workset::setParamGradPoint(View_AD2 newsol) {
+void Workset::setParamGradPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
@@ -2370,7 +2370,7 @@ void workset::setParamGradPoint(View_AD2 newsol) {
 
 }
 
-void workset::setAux(View_AD4 newsol, const string & pfix) {
+void Workset::setAux(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
 
@@ -2385,7 +2385,7 @@ void workset::setAux(View_AD4 newsol, const string & pfix) {
   
 }
 
-string workset::getParamBasisType(string & name) {
+string Workset::getParamBasisType(string & name) {
   string type = "none";
 
   bool found = false; 
@@ -2434,7 +2434,7 @@ string workset::getParamBasisType(string & name) {
  * @param[in] current_set_ The index of the current physics set
  */
 
-void workset::updatePhysicsSet(const size_t & current_set_) {
+void Workset::updatePhysicsSet(const size_t & current_set_) {
   if (isInitialized) {
     if (numSets>1) {
       current_set = current_set_;
@@ -2454,7 +2454,7 @@ void workset::updatePhysicsSet(const size_t & current_set_) {
 // Allocate the rotation tensor
 //////////////////////////////////////////////////////////////
 
-void workset::allocateRotations() {
+void Workset::allocateRotations() {
   if (rotation.extent_int(0) < numElem) {
     rotation = View_Sc3("rotations", numElem, 3, 3);
   }

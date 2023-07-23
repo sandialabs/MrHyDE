@@ -677,7 +677,7 @@ int PhysicsInterface::getvarOwner(const int & set, const int & block, const stri
 AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y,
                                        const ScalarT & z, const ScalarT & t, const string & var,
                                        const string & gside, const bool & useadjoint,
-                                       Teuchos::RCP<workset> & wkset) {
+                                       Teuchos::RCP<Workset> & wkset) {
   
   // update point in wkset
   auto xpt = wkset->getScalarField("x point");
@@ -739,7 +739,7 @@ bool PhysicsInterface::checkFace(const size_t & set, const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
-                                      const bool & project, Teuchos::RCP<workset> & wkset) {
+                                      const bool & project, Teuchos::RCP<Workset> & wkset) {
   
   
   size_t currnumVars = varlist[set][block].size();
@@ -889,7 +889,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & set,
-                                          const int & block, const bool & project, Teuchos::RCP<workset> & wkset) {
+                                          const int & block, const bool & project, Teuchos::RCP<Workset> & wkset) {
   
   size_t currnumVars = varlist[set][block].size();
   
@@ -939,7 +939,7 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
   auto dvals_AD = functionManagers[block]->evaluate("Dirichlet " + varlist[set][block][var] + " " + sidename,"side ip");
   
   //View_Sc2 dvals("temp dnvals", dvals_AD.extent(0), dvals_AD.extent(1));
-  View_Sc2 dvals("temp dnvals", functionManagers[block]->numElem, functionManagers[block]->numip_side);
+  View_Sc2 dvals("temp dnvals", functionManagers[block]->num_elem_, functionManagers[block]->num_ip_side_);
   
   // copy values
   parallel_for("physics fill Dirichlet values",
@@ -1037,7 +1037,7 @@ void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::setWorkset(vector<Teuchos::RCP<workset> > & wkset) {
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset> > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++) {
     if (wkset[block]->isInitialized) {
       for (size_t set=0; set<modules.size(); set++) {

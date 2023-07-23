@@ -165,7 +165,7 @@ void cdr::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void cdr::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void cdr::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
 

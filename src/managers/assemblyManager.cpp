@@ -848,7 +848,7 @@ void AssemblyManager<Node>::createWorkset() {
         Kokkos::View<string**,HostDevice> vbcs = disc->getVarBCs(set,block);
         bcs[set] = vbcs;
       }
-      wkset.push_back(Teuchos::rcp( new workset(info,
+      wkset.push_back(Teuchos::rcp( new Workset(info,
                                                 numVars,
                                                 isTransient,
                                                 disc->basis_types[block],
@@ -862,7 +862,7 @@ void AssemblyManager<Node>::createWorkset() {
       wkset[block]->var_bcs = bcs[0];
     }
     else {
-      wkset.push_back(Teuchos::rcp( new workset()));
+      wkset.push_back(Teuchos::rcp( new Workset()));
       wkset[block]->isInitialized = false;
       wkset[block]->block = block;
     }

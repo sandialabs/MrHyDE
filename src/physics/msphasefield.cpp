@@ -426,7 +426,7 @@ void msphasefield::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::setWorkset(Teuchos::RCP<workset> & wkset_) {
+void msphasefield::setWorkset(Teuchos::RCP<Workset> & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;

@@ -84,7 +84,7 @@ namespace MrHyDE {
     
     ScalarT initialize();
     
-    void evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset, Teuchos::RCP<Group> & group,
+    void evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset, Teuchos::RCP<Group> & group,
                                     const int & set, 
                                     const bool & isTransient, const bool & isAdjoint,
                                     const bool & compute_jacobian, const bool & compute_sens,
@@ -128,6 +128,13 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    size_t getNumberSubgridModels();
+
+    void writeSolution(const ScalarT & time, string & append);
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
     bool subgrid_static, ml_training, have_ml_models;
     int debug_level, verbosity, subgrid_model_selection;
 
@@ -137,7 +144,7 @@ namespace MrHyDE {
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
-    std::vector<Teuchos::RCP<workset> > macro_wkset;
+    std::vector<Teuchos::RCP<Workset> > macro_wkset;
     std::vector<std::vector<Teuchos::RCP<SGLA_CrsMatrix> > > subgrid_projection_maps;
     std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;
     std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;

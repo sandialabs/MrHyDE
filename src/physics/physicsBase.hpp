@@ -136,7 +136,7 @@ namespace MrHyDE {
      * 
      * \param[in] wkset_ An RCP for the workset to assign
      */
-    virtual void setWorkset(Teuchos::RCP<workset> & wkset_) {
+    virtual void setWorkset(Teuchos::RCP<Workset> & wkset_) {
       wkset = wkset_;
     };
     
@@ -219,7 +219,7 @@ namespace MrHyDE {
      * The \ref workset for the class. This contains a variety of metadata 
      * and numerical data necessary for computing residuals.
      */ 
-    Teuchos::RCP<workset> wkset;
+    Teuchos::RCP<Workset> wkset;
 
     /**
      * The FunctionManager for the class. Depending on the physics module,
