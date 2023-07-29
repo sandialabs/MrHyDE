@@ -56,7 +56,8 @@ namespace MrHyDE {
     
     void computeRotatedTensor(Teuchos::RCP<Workset> & wkset);
     
-    // Public Data
+  private:
+  
     int dimension;
     bool allow_rotations;
     ScalarT c11_,c22_,c33_,c44_,c55_,c66_,c12_,c13_,c23_,c15_,c25_,c35_,c46_;

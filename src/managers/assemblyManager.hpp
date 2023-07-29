@@ -32,6 +32,7 @@
 #include "discretizationInterface.hpp"
 #include "parameterManager.hpp"
 #include "multiscaleManager.hpp"
+#include "functionManager.hpp"
 
 namespace MrHyDE {
   
@@ -235,6 +236,8 @@ namespace MrHyDE {
 
     void buildBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
     
+    void finalizeFunctions(std::vector<Teuchos::RCP<FunctionManager> > & functionManagers);
+
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -244,7 +247,7 @@ namespace MrHyDE {
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<MpiComm> Comm;
+    Teuchos::RCP<MpiComm> comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     
     // Need
@@ -254,7 +257,7 @@ namespace MrHyDE {
     //Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
     Teuchos::RCP<MeshInterface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
-    Teuchos::RCP<PhysicsInterface> phys;
+    Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     
     size_t globalParamUnknowns;
@@ -275,20 +278,22 @@ namespace MrHyDE {
     std::vector<vector<vector<Kokkos::View<LO*,LA_device> > > > fixedDOF; // [set][block][var]
     Teuchos::RCP<ParameterManager<Node> > params;
       
-    Teuchos::RCP<Teuchos::Time> assemblytimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - total assembly");
-    Teuchos::RCP<Teuchos::Time> gathertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::gather()");
-    Teuchos::RCP<Teuchos::Time> phystimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> boundarytimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - boundary evaluation");
-    Teuchos::RCP<Teuchos::Time> scattertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::scatter()");
-    Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dofConstraints()");
-    Teuchos::RCP<Teuchos::Time> completetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - fill complete");
-    Teuchos::RCP<Teuchos::Time> msprojtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - multiscale projection");
-    Teuchos::RCP<Teuchos::Time> setinittimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setInitial()");
-    Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setDirichlet()");
-    Teuchos::RCP<Teuchos::Time> grouptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createGroups()");
-    Teuchos::RCP<Teuchos::Time> wksettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createWorkset()");
-    Teuchos::RCP<Teuchos::Time> groupdatabaseCreatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dataBase - assignment");
-    Teuchos::RCP<Teuchos::Time> groupdatabaseBasistimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dataBase - basis");
+  private:
+
+    Teuchos::RCP<Teuchos::Time> assembly_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - total assembly");
+    Teuchos::RCP<Teuchos::Time> gather_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::gather()");
+    Teuchos::RCP<Teuchos::Time> physics_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - physics evaluation");
+    Teuchos::RCP<Teuchos::Time> boundary_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - boundary evaluation");
+    Teuchos::RCP<Teuchos::Time> scatter_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::scatter()");
+    Teuchos::RCP<Teuchos::Time> dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dofConstraints()");
+    Teuchos::RCP<Teuchos::Time> complete_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - fill complete");
+    Teuchos::RCP<Teuchos::Time> ms_proj_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - multiscale projection");
+    Teuchos::RCP<Teuchos::Time> set_init_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setInitial()");
+    Teuchos::RCP<Teuchos::Time> set_dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::setDirichlet()");
+    Teuchos::RCP<Teuchos::Time> group_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createGroups()");
+    Teuchos::RCP<Teuchos::Time> wkset_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::createWorkset()");
+    Teuchos::RCP<Teuchos::Time> group_database_create_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dataBase - assignment");
+    Teuchos::RCP<Teuchos::Time> group_database_basis_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::dataBase - basis");
   };
   
 }

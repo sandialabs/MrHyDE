@@ -375,7 +375,7 @@ namespace MrHyDE {
       
       {
         Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
-        groupData->physics_RCP->computeFlux(0,groupData->myBlock);
+        groupData->physics->computeFlux(0,groupData->myBlock);
       }
       //wkset->isOnSide = false;
       

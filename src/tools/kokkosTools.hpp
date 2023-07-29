@@ -187,12 +187,14 @@ namespace MrHyDE {
     static void print(Vista V, const string & message="") {
       std::cout << std::endl;
       std::cout << message << std::endl;
-      if (V.isView) {
-        if (V.isAD) {
-          std::cout << "Printing data for View: " << V.viewdata.label() << std::endl;
+      auto viewdata = V.getData();
+      auto viewdata_Sc = V.getDataSc();
+      if (V.isView()) {
+        if (V.isAD()) {
+          std::cout << "Printing data for View: " << viewdata.label() << std::endl;
         }
         else {
-          std::cout << "Printing data for View: " << V.viewdata_Sc.label() << std::endl;
+          std::cout << "Printing data for View: " << viewdata_Sc.label() << std::endl;
         }
       }
       
@@ -201,14 +203,14 @@ namespace MrHyDE {
       std::cout << "-------------------------------" << std::endl;
             
       size_type ext0 = 1, ext1 = 1;
-      if (V.isView) {
-        if (V.isAD) {
-          ext0 = V.viewdata.extent(0);
-          ext1 = V.viewdata.extent(1);
+      if (V.isView()) {
+        if (V.isAD()) {
+          ext0 = viewdata.extent(0);
+          ext1 = viewdata.extent(1);
         }
         else {
-          ext0 = V.viewdata_Sc.extent(0);
-          ext1 = V.viewdata_Sc.extent(1);
+          ext0 = viewdata_Sc.extent(0);
+          ext1 = viewdata_Sc.extent(1);
         }
       }
       for (size_type i=0; i<ext0; i++) {

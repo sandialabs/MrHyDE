@@ -271,7 +271,7 @@ void Group::addAuxVars(const vector<string> & auxlist_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void Group::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
-  groupData->physics_RCP->updateParameters(params, paramnames);
+  groupData->physics->updateParameters(params, paramnames);
 }
 
 
@@ -963,7 +963,7 @@ void Group::computeJacRes(const ScalarT & time, const bool & isTransient, const 
     }
     else {
       this->updateWorkset(seedwhat,seedindex);
-      groupData->physics_RCP->volumeResidual(wkset->current_set,groupData->myBlock);
+      groupData->physics->volumeResidual(wkset->current_set,groupData->myBlock);
     }
   }
   
@@ -976,7 +976,7 @@ void Group::computeJacRes(const ScalarT & time, const bool & isTransient, const 
     else {
       for (size_t s=0; s<groupData->numSides; s++) {
         this->updateWorksetFace(s);
-        groupData->physics_RCP->faceResidual(wkset->current_set,groupData->myBlock);
+        groupData->physics->faceResidual(wkset->current_set,groupData->myBlock);
       }
     }
   }
@@ -1150,7 +1150,7 @@ void Group::updateAdjointRes(const bool & compute_jacobian, const bool & isTrans
         int seedwhat = 2; // 2 for J wrt previous step solutions
         for (size_type step=0; step<u_prev[set].extent(3); step++) {
           this->updateWorkset(seedwhat,step);
-          groupData->physics_RCP->volumeResidual(set,groupData->myBlock);
+          groupData->physics->volumeResidual(set,groupData->myBlock);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));
           this->updateJac(true, Jdot);
@@ -1199,7 +1199,7 @@ void Group::updateAdjointRes(const bool & compute_jacobian, const bool & isTrans
           
           wkset->resetResidual();
           
-          groupData->physics_RCP->volumeResidual(groupData->myBlock);
+          groupData->physics->volumeResidual(groupData->myBlock);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));
           this->updateJac(true, Jdot);
@@ -1381,7 +1381,7 @@ View_Sc2 Group::getInitial(const bool & project, const bool & isAdjoint) {
   auto cwts = wts;
   
   if (project) { // works for any basis
-    auto initialip = groupData->physics_RCP->getInitial(ip, set,
+    auto initialip = groupData->physics->getInitial(ip, set,
                                                         groupData->myBlock,
                                                         project, wkset);
 
@@ -1440,7 +1440,7 @@ View_Sc2 Group::getInitial(const bool & project, const bool & isAdjoint) {
       vnodes.push_back(vz);
     }
     
-    auto initialnodes = groupData->physics_RCP->getInitial(vnodes, set,
+    auto initialnodes = groupData->physics->getInitial(vnodes, set,
                                                           groupData->myBlock,
                                                           project,
                                                           wkset);
@@ -1480,7 +1480,7 @@ View_Sc2 Group::getInitialFace(const bool & project) {
     this->updateWorksetFace(face);
     auto cwts = wkset->wts_side; // face weights get put into wts_side after update
     // get data from IC
-    auto initialip = groupData->physics_RCP->getInitialFace(ip_face[face], set,
+    auto initialip = groupData->physics->getInitialFace(ip_face[face], set,
                                                            groupData->myBlock,
                                                            project,
                                                            wkset);

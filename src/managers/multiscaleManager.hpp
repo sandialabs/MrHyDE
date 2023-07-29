@@ -152,6 +152,8 @@ namespace MrHyDE {
     vector<vector<vector<ScalarT> > > ml_model_inputs; // [model][datapt][data]
     vector<vector<ScalarT> > ml_model_outputs, ml_model_extradata; // [model][datapt] 
 
+  private:
+  
     Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::reset()");
     Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::initialize()");
     Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::update()");

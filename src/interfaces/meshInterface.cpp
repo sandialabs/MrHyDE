@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #include "meshInterface.hpp"
@@ -21,8 +19,8 @@ using namespace MrHyDE;
 // ========================================================================================
 
 MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                             const Teuchos::RCP<MpiComm> & Commptr_) :
-settings(settings_), Commptr(Commptr_) {
+                             const Teuchos::RCP<MpiComm> & comm_) :
+settings(settings_), comm(comm_) {
   
   using Teuchos::RCP;
   using Teuchos::rcp;
@@ -32,7 +30,7 @@ settings(settings_), Commptr(Commptr_) {
   
   debug_level = settings->get<int>("debug level",0);
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh interface constructor ..." << endl;
     }
   }
@@ -41,9 +39,9 @@ settings(settings_), Commptr(Commptr_) {
   if (shape == "none") { // new keywords, but allowing BWDS compat.
     shape = settings->sublist("Mesh").get<string>("element type","quad");
   }
-  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
-  if (spaceDim == 0) {
-    spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  dimension = settings->sublist("Mesh").get<int>("dim",0);
+  if (dimension == 0) {
+    dimension = settings->sublist("Mesh").get<int>("dimension",2);
   }
   verbosity = settings->get<int>("verbosity",0);
   
@@ -75,11 +73,11 @@ settings(settings_), Commptr(Commptr_) {
   shards::CellTopology cTopo;
   shards::CellTopology sTopo;
   
-  if (spaceDim == 1) {
+  if (dimension == 1) {
     cTopo = shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() );// lin. cell topology on the interior
     sTopo = shards::CellTopology(shards::getCellTopologyData<shards::Node>() );          // line cell topology on the boundary
   }
-  if (spaceDim == 2) {
+  if (dimension == 2) {
     if (shape == "quad") {
       cTopo = shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() );// lin. cell topology on the interior
       sTopo = shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() );          // line cell topology on the boundary
@@ -89,7 +87,7 @@ settings(settings_), Commptr(Commptr_) {
       sTopo = shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() );          // line cell topology on the boundary
     }
   }
-  if (spaceDim == 3) {
+  if (dimension == 3) {
     if (shape == "hex") {
       cTopo = shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<> >() );// lin. cell topology on the interior
       sTopo = shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() );          // line cell topology on the boundary
@@ -101,21 +99,21 @@ settings(settings_), Commptr(Commptr_) {
     
   }
   // Get dimensions
-  numNodesPerElem = cTopo.getNodeCount();
-  settings->sublist("Mesh").set("numNodesPerElem",numNodesPerElem,"number of nodes per element");
-  sideDim = 0;
-  if (spaceDim > 1) {
+  num_nodes_per_elem = cTopo.getNodeCount();
+  settings->sublist("Mesh").set("numNodesPerElem",num_nodes_per_elem,"number of nodes per element");
+  side_dim = 0;
+  if (dimension > 1) {
     sTopo.getDimension();
   }
-  settings->sublist("Mesh").set("sideDim",sideDim,"dimension of the sides of each element");
-  numSides = cTopo.getSideCount();
-  numFaces = cTopo.getFaceCount();
-  if (spaceDim == 1)
+  settings->sublist("Mesh").set("sideDim",side_dim,"dimension of the sides of each element");
+  num_sides = cTopo.getSideCount();
+  num_faces = cTopo.getFaceCount();
+  if (dimension == 1)
     settings->sublist("Mesh").set("numSidesPerElem",2,"number of sides per element");
-  if (spaceDim == 2)
-    settings->sublist("Mesh").set("numSidesPerElem",numSides,"number of sides per element");
-  if (spaceDim == 3)
-    settings->sublist("Mesh").set("numSidesPerElem",numFaces,"number of sides per element");
+  if (dimension == 2)
+    settings->sublist("Mesh").set("numSidesPerElem",num_sides,"number of sides per element");
+  if (dimension == 3)
+    settings->sublist("Mesh").set("numSidesPerElem",num_faces,"number of sides per element");
   
   // Define a parameter list with the required fields for the panzer_stk mesh factory
   RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
@@ -129,25 +127,25 @@ settings(settings_), Commptr(Commptr_) {
     pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
     pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
     pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
-    if (spaceDim > 1) {
-      pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",Commptr->getSize()));
+    if (dimension > 1) {
+      pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",comm->getSize()));
       pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
       pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
       pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
       pl->set("Yf",settings->sublist("Mesh").get("ymax",1.0));
       pl->set("Y Procs", settings->sublist("Mesh").get("Yprocs",1));
     }
-    if (spaceDim > 2) {
+    if (dimension > 2) {
       pl->set("Z Blocks",settings->sublist("Mesh").get("Zblocks",1));
       pl->set("Z Elements",settings->sublist("Mesh").get("NZ",20));
       pl->set("Z0",settings->sublist("Mesh").get("zmin",0.0));
       pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
       pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
     }
-    if (spaceDim == 1) {
+    if (dimension == 1) {
       mesh_factory = Teuchos::rcp(new panzer_stk::LineMeshFactory());
     }
-    else if (spaceDim == 2) {
+    else if (dimension == 2) {
       if (shape == "quad") {
         mesh_factory = Teuchos::rcp(new panzer_stk::SquareQuadMeshFactory());
       }
@@ -155,7 +153,7 @@ settings(settings_), Commptr(Commptr_) {
         mesh_factory = Teuchos::rcp(new panzer_stk::SquareTriMeshFactory());
       }
     }
-    else if (spaceDim == 3) {
+    else if (dimension == 3) {
       if (shape == "hex") {
         mesh_factory = Teuchos::rcp(new panzer_stk::CubeHexMeshFactory());
       }
@@ -173,11 +171,11 @@ settings(settings_), Commptr(Commptr_) {
   mesh_factory->setParameterList(pl);
   
   // create the mesh
-  stk_mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
+  stk_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
   
   // create a mesh for an optmization movie
   if (settings->sublist("Postprocess").get("create optimization movie",false)) {
-    stk_optimization_mesh = mesh_factory->buildUncommitedMesh(*(Commptr->getRawMpiComm()));
+    stk_optimization_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
   }
   
   stk_mesh->getElementBlockNames(block_names);
@@ -185,36 +183,36 @@ settings(settings_), Commptr(Commptr_) {
   stk_mesh->getNodesetNames(node_sets);
 
   for (size_t b=0; b<block_names.size(); b++) {
-    cellTopo.push_back(stk_mesh->getCellTopology(block_names[b]));
+    cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
   }
   
   for (size_t b=0; b<block_names.size(); b++) {
-    topo_RCP cellTopo = stk_mesh->getCellTopology(block_names[b]);
-    string shape = cellTopo->getName();
-    if (spaceDim == 1) {
+    topo_RCP cell_topo = stk_mesh->getCellTopology(block_names[b]);
+    string shape = cell_topo->getName();
+    if (dimension == 1) {
       // nothing to do here
     }
-    if (spaceDim == 2) {
+    if (dimension == 2) {
       if (shape == "Quadrilateral_4") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
       }
       if (shape == "Triangle_3") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
       }
     }
-    if (spaceDim == 3) {
+    if (dimension == 3) {
       if (shape == "Hexahedron_8") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
       }
       if (shape == "Tetrahedron_4") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
       }
     }
     
   }
 
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh interface constructor" << endl;
     }
   }
@@ -224,17 +222,17 @@ settings(settings_), Commptr(Commptr_) {
 ////////////////////////////////////////////////////////////////////////////////
 
 MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                             const Teuchos::RCP<MpiComm> & Commptr_,
+                             const Teuchos::RCP<MpiComm> & comm_,
                              Teuchos::RCP<panzer_stk::STK_MeshFactory> & mesh_factory_,
                              Teuchos::RCP<panzer_stk::STK_Interface> & stk_mesh_) :
-settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh_) {
+settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh_) {
   
   using Teuchos::RCP;
   using Teuchos::rcp;
   
   debug_level = settings->get<int>("debug level",0);
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh interface constructor ..." << endl;
     }
   }
@@ -243,9 +241,9 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
   if (shape == "none") { // new keywords, but allowing BWDS compat.
     shape = settings->sublist("Mesh").get<string>("element type","quad");
   }
-  spaceDim = settings->sublist("Mesh").get<int>("dim",0);
-  if (spaceDim == 0) {
-    spaceDim = settings->sublist("Mesh").get<int>("dimension",2);
+  dimension = settings->sublist("Mesh").get<int>("dim",0);
+  if (dimension == 0) {
+    dimension = settings->sublist("Mesh").get<int>("dimension",2);
   }
   
   have_mesh_data = false;
@@ -278,36 +276,36 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
   stk_mesh->getNodesetNames(node_sets);
 
   for (size_t b=0; b<block_names.size(); b++) {
-    cellTopo.push_back(stk_mesh->getCellTopology(block_names[b]));
+    cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
   }
   
   for (size_t b=0; b<block_names.size(); b++) {
-    topo_RCP cellTopo = stk_mesh->getCellTopology(block_names[b]);
-    string shape = cellTopo->getName();
-    if (spaceDim == 1) {
+    topo_RCP cell_topo = stk_mesh->getCellTopology(block_names[b]);
+    string shape = cell_topo->getName();
+    if (dimension == 1) {
       // nothing to do here?
     }
-    if (spaceDim == 2) {
+    if (dimension == 2) {
       if (shape == "Quadrilateral_4") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
       }
       if (shape == "Triangle_3") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
       }
     }
-    if (spaceDim == 3) {
+    if (dimension == 3) {
       if (shape == "Hexahedron_8") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
       }
       if (shape == "Tetrahedron_4") {
-        sideTopo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
+        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
       }
     }
     
   }
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh interface constructor" << endl;
     }
   }
@@ -319,7 +317,7 @@ settings(settings_), Commptr(Commptr_), mesh_factory(mesh_factory_), stk_mesh(st
 void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh interface finalize ..." << endl;
     }
   }
@@ -350,11 +348,11 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
     for (size_t app=0; app<appends.size(); ++app) {
       
       std::string append = appends[app];
-      for (std::size_t set=0; set<phys->setnames.size(); set++) {
+      for (std::size_t set=0; set<phys->set_names.size(); set++) {
         
         for (std::size_t i=0;i<block_names.size();i++) {
           
-          std::vector<string> varlist = phys->varlist[set][i];
+          std::vector<string> varlist = phys->var_list[set][i];
           std::vector<string> vartypes = phys->types[set][i];
           
           for (size_t j=0; j<varlist.size(); j++) {
@@ -369,10 +367,10 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
             }
             else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
               stk_mesh->addCellField(varlist[j]+append+"x", block_names[i]);
-              if (spaceDim > 1) {
+              if (dimension > 1) {
                 stk_mesh->addCellField(varlist[j]+append+"y", block_names[i]);
               }
-              if (spaceDim > 2) {
+              if (dimension > 2) {
                 stk_mesh->addCellField(varlist[j]+append+"z", block_names[i]);
               }
             }
@@ -449,10 +447,10 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
                 }
                 else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
                   stk_mesh->addCellField(pl_itr->first+append+"x", block_names[i]);
-                  if (spaceDim > 1) {
+                  if (dimension > 1) {
                     stk_mesh->addCellField(pl_itr->first+append+"y", block_names[i]);
                   }
-                  if (spaceDim > 2) {
+                  if (dimension > 2) {
                     stk_mesh->addCellField(pl_itr->first+append+"z", block_names[i]);
                   }
                 }
@@ -466,10 +464,10 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
     }
   }
   
-  mesh_factory->completeMeshConstruction(*stk_mesh,*(Commptr->getRawMpiComm()));
+  mesh_factory->completeMeshConstruction(*stk_mesh,*(comm->getRawMpiComm()));
   
   if (verbosity>1) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       stk_mesh->printMetaData(std::cout);
     }
   }
@@ -492,10 +490,10 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
             }
             else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
               stk_optimization_mesh->addCellField(pl_itr->first+"x", block_names[i]);
-              if (spaceDim > 1) {
+              if (dimension > 1) {
                 stk_optimization_mesh->addCellField(pl_itr->first+"y", block_names[i]);
               }
-              if (spaceDim > 2) {
+              if (dimension > 2) {
                 stk_optimization_mesh->addCellField(pl_itr->first+"z", block_names[i]);
               }
             }
@@ -505,7 +503,7 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
       }
     }
     
-    mesh_factory->completeMeshConstruction(*stk_optimization_mesh,*(Commptr->getRawMpiComm()));
+    mesh_factory->completeMeshConstruction(*stk_optimization_mesh,*(comm->getRawMpiComm()));
     if (verbosity>1) {
       stk_optimization_mesh->printMetaData(std::cout);
     }
@@ -517,7 +515,7 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
   }
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh interface finalize" << endl;
     }
   }
@@ -537,7 +535,7 @@ DRV MeshInterface::perturbMesh(const int & b, DRV & blocknodes) {
     //DRV blocknodes;
     //panzer_stk::workset_utils::getIdsAndVertices(*mesh, block_names[b], localIds, blocknodes);
     int numNodesPerElem = blocknodes.extent(1);
-    DRV blocknodePert("blocknodePert",blocknodes.extent(0),numNodesPerElem,spaceDim);
+    DRV blocknodePert("blocknodePert",blocknodes.extent(0),numNodesPerElem,dimension);
     
     if (settings->sublist("Mesh").get("modify mesh height",false)) {
       vector<vector<ScalarT> > values;
@@ -587,7 +585,7 @@ DRV MeshInterface::perturbMesh(const int & b, DRV & blocknodes) {
         }
         //for (int k=0; k<blocknodeVert.extent(0); k++) {
         //  for (int i=0; i<numNodesPerElem; i++){
-        //    for (int s=0; s<spaceDim; s++) {
+        //    for (int s=0; s<dimension; s++) {
         //      blocknodeVert(k,i,s) += blocknodePert(k,i,s);
         //    }
         //  }
@@ -605,7 +603,7 @@ DRV MeshInterface::perturbMesh(const int & b, DRV & blocknodes) {
       }
       //for (int k=0; k<blocknodeVert.extent(0); k++) {
       //  for (int i=0; i<numNodesPerElem; i++){
-      //    for (int s=0; s<spaceDim; s++) {
+      //    for (int s=0; s<dimension; s++) {
       //      blocknodeVert(k,i,s) += blocknodePert(k,i,s);
       //    }
       //  }
@@ -623,7 +621,7 @@ void MeshInterface::setMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
                                 vector<vector<Teuchos::RCP<BoundaryGroup>>> & boundary_groups) {
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh interface setMeshData" << endl;
     }
   }
@@ -638,7 +636,7 @@ void MeshInterface::setMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
   }
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh interface setMeshData" << endl;
     }
   }
@@ -652,14 +650,14 @@ View_Sc2 MeshInterface::getElementCenters(DRV nodes, topo_RCP & reftopo) {
   
   typedef Intrepid2::CellTools<PHX::Device::execution_space> CellTools;
 
-  DRV tmp_refCenter("cell center", spaceDim);
+  DRV tmp_refCenter("cell center", dimension);
   CellTools::getReferenceCellCenter(tmp_refCenter, *reftopo);
-  DRV refCenter("cell center", 1, spaceDim);
+  DRV refCenter("cell center", 1, dimension);
   auto cent_sv = subview(refCenter,0, ALL());
   deep_copy(cent_sv, tmp_refCenter);
-  DRV tmp_centers("tmp physical cell centers", nodes.extent(0), 1, spaceDim);
+  DRV tmp_centers("tmp physical cell centers", nodes.extent(0), 1, dimension);
   CellTools::mapToPhysicalFrame(tmp_centers, refCenter, nodes, *reftopo);
-  View_Sc2 centers("physics cell centers", nodes.extent(0), spaceDim);
+  View_Sc2 centers("physics cell centers", nodes.extent(0), dimension);
   auto tmp_centers_sv = subview(tmp_centers, ALL(), 0, ALL());
   deep_copy(centers, tmp_centers_sv);
   
@@ -674,7 +672,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
                                    vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups) {
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh::importMeshData ..." << endl;
     }
   }
@@ -721,7 +719,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
     int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
     int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
     int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
-    mesh_data = Teuchos::rcp(new Data("mesh data", spaceDim, mesh_data_pts_file,
+    mesh_data = Teuchos::rcp(new Data("mesh data", dimension, mesh_data_pts_file,
                                       mesh_data_file, false, Nx, Ny, Nz));
     
     for (size_t block=0; block<groups.size(); ++block) {
@@ -785,7 +783,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
     }
   }
   else {
-    mesh_data = Teuchos::rcp(new Data("mesh data", spaceDim, mesh_data_pts_file,
+    mesh_data = Teuchos::rcp(new Data("mesh data", dimension, mesh_data_pts_file,
                                       mesh_data_file, false));
     
     for (size_t block=0; block<groups.size(); ++block) {
@@ -860,12 +858,12 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
   
   
   meshimporttimer.stop();
-  if (verbosity>5 && Commptr->getRank() == 0) {
+  if (verbosity>5 && comm->getRank() == 0) {
     cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh::meshDataImport" << endl;
     }
   }
@@ -877,7 +875,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
 View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh::generateNewMicrostructure ..." << endl;
     }
   }
@@ -888,9 +886,9 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
   have_rotation_phi = false;
   
   View_Sc2 seeds;
-  randomSeeds.push_back(randSeed);
+  random_seeds.push_back(randSeed);
   std::default_random_engine generator(randSeed);
-  numSeeds = 0;
+  num_seeds = 0;
   
   ////////////////////////////////////////////////////////////////////////////////
   // Generate the micro-structure using seeds and nearest neighbors
@@ -931,8 +929,8 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     }
     
     std::uniform_real_distribution<ScalarT> pdistribution(-maxpert,maxpert);
-    numSeeds = numxSeeds*numySeeds*numzSeeds;
-    seeds = View_Sc2("seeds",numSeeds,3);
+    num_seeds = numxSeeds*numySeeds*numzSeeds;
+    seeds = View_Sc2("seeds",num_seeds,3);
     auto seeds_host = create_mirror_view(seeds);
     
     int prog = 0;
@@ -953,8 +951,8 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     
   }
   else {
-    numSeeds = settings->sublist("Mesh").get<int>("number of seeds",10);
-    seeds = View_Sc2("seeds",numSeeds,3);
+    num_seeds = settings->sublist("Mesh").get<int>("number of seeds",10);
+    seeds = View_Sc2("seeds",num_seeds,3);
     auto seeds_host = create_mirror_view(seeds);
     
     ScalarT xwt = settings->sublist("Mesh").get<ScalarT>("x weight",1.0);
@@ -983,7 +981,7 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
       int prog = 0;
       Kokkos::View<ScalarT**,HostDevice> cseeds("cand seeds",batch_size,3);
       
-      while (prog<numSeeds) {
+      while (prog<num_seeds) {
         // fill in the candidate seeds
         for (int k=0; k<batch_size; k++) {
           ScalarT x = xdistribution(generator);
@@ -1020,7 +1018,7 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
       }
     }
     else {
-      for (int k=0; k<numSeeds; k++) {
+      for (int k=0; k<num_seeds; k++) {
         ScalarT x = xdistribution(generator);
         seeds_host(k,0) = x;
         ScalarT y = ydistribution(generator);
@@ -1035,12 +1033,12 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
   //KokkosTools::print(seeds);
   
   meshimporttimer.stop();
-  if (verbosity>5 && Commptr->getRank() == 0) {
+  if (verbosity>5 && comm->getRank() == 0) {
     cout << "microstructure regeneration time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh::generateNewMicrostructure ..." << endl;
     }
   }
@@ -1058,7 +1056,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
                                             vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups) {
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh::importNewMicrostructure ..." << endl;
     }
   }
@@ -1067,10 +1065,10 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   
   std::default_random_engine generator(randSeed);
   
-  int numSeeds = seeds.extent(0);
+  num_seeds = seeds.extent(0);
   std::uniform_int_distribution<int> idistribution(0,100);
-  Kokkos::View<int*,HostDevice> seedIndex("seed index",numSeeds);
-  for (int i=0; i<numSeeds; i++) {
+  Kokkos::View<int*,HostDevice> seedIndex("seed index",num_seeds);
+  for (int i=0; i<num_seeds; i++) {
     int ci = idistribution(generator);
     seedIndex(i) = ci;
   }
@@ -1084,8 +1082,8 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   int numdata = 9;
   
   std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
-  Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",numSeeds,numdata);
-  for (int k=0; k<numSeeds; k++) {
+  Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",num_seeds,numdata);
+  for (int k=0; k<num_seeds; k++) {
     ScalarT x = ndistribution(generator);
     ScalarT y = ndistribution(generator);
     ScalarT z = ndistribution(generator);
@@ -1297,12 +1295,12 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   }
   
   meshimporttimer.stop();
-  if (verbosity>5 && Commptr->getRank() == 0) {
+  if (verbosity>5 && comm->getRank() == 0) {
     cout << "microstructure import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh::importNewMicrostructure" << endl;
     }
   }
@@ -1319,9 +1317,9 @@ DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
   panzer_stk::workset_utils::getIdsAndVertices(*stk_mesh, block_names[block], localIds, blocknodes);
   int nnodes = blocknodes.extent(1);
   
-  DRV cnodes("element nodes",1,nnodes,spaceDim);
+  DRV cnodes("element nodes",1,nnodes,dimension);
   for (int i=0; i<nnodes; i++) {
-    for (int j=0; j<spaceDim; j++) {
+    for (int j=0; j<dimension; j++) {
       cnodes(0,i,j) = blocknodes(elemID,i,j);
     }
   }
@@ -1358,7 +1356,7 @@ vector<string> MeshInterface::breakupList(const string & list, const string & de
 void MeshInterface::readExodusData() {
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting mesh::readExodusData ..." << endl;
     }
   }
@@ -1368,10 +1366,10 @@ void MeshInterface::readExodusData() {
   
   exofile = settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo");
   
-  if (Commptr->getSize() > 1) {
+  if (comm->getSize() > 1) {
     std::stringstream ssProc, ssPID;
-    ssProc << Commptr->getSize();
-    ssPID << Commptr->getRank();
+    ssProc << comm->getSize();
+    ssPID << comm->getRank();
     string strProc = ssProc.str();
     string strPID = ssPID.str();
     // this section may need tweaking if the input exodus mesh is
@@ -1514,7 +1512,7 @@ void MeshInterface::readExodusData() {
   exo_error = ex_close(exoid);
   
   if (debug_level > 0) {
-    if (Commptr->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished mesh::readExodusData" << endl;
     }
   }

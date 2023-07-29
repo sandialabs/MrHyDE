@@ -548,7 +548,7 @@ void BoundaryGroup::computeJacRes(const ScalarT & time, const bool & isTransient
       }
     }
     this->updateWorkset(seedwhat);
-    groupData->physics_RCP->boundaryResidual(wkset->current_set,groupData->myBlock);
+    groupData->physics->boundaryResidual(wkset->current_set,groupData->myBlock);
     
   }
   
@@ -750,7 +750,7 @@ View_Sc2 BoundaryGroup::getDirichlet(const size_t & set) {
 
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
-      auto dip = groupData->physics_RCP->getDirichlet(n,set,groupData->myBlock, sidename);
+      auto dip = groupData->physics->getDirichlet(n,set,groupData->myBlock, sidename);
 
       int bind = wkset->usebasis[n];
       std::string btype = groupData->basis_types[bind];

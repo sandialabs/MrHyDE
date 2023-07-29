@@ -24,15 +24,16 @@ namespace MrHyDE {
   // =================================================================
   
   class Vista {
-  public:
+  private:
     
-    bool isView, isAD;
+    bool is_view_, is_AD_;
     
     // Various data storage types
     // Only one of these will get used
-    View_AD2 viewdata;
-    View_Sc2 viewdata_Sc;
+    View_AD2 viewdata_;
+    View_Sc2 viewdata_Sc_;
     
+  public:
     KOKKOS_INLINE_FUNCTION    
     Vista() {};
     
@@ -41,80 +42,96 @@ namespace MrHyDE {
     
 #ifndef MrHyDE_NO_AD
     Vista(View_AD2 vdata) {
-      viewdata = vdata;
-      isAD = true;
-      isView = true;
+      viewdata_ = vdata;
+      is_AD_ = true;
+      is_view_ = true;
     }
 #endif
     
     Vista(View_Sc2 vdata) {
-      viewdata_Sc = vdata;
-      viewdata = View_AD2("2D view",vdata.extent(0),vdata.extent(1));
-      isView = true;
-      isAD = false;
+      viewdata_Sc_ = vdata;
+      viewdata_ = View_AD2("2D view",vdata.extent(0),vdata.extent(1));
+      is_view_ = true;
+      is_AD_ = false;
     }
 
 #ifndef MrHyDE_NO_AD
     Vista(AD & data_) {
-      viewdata = View_AD2("2D view",1,1);
-      deep_copy(viewdata,data_);
-      isView = false;
-      isAD = true;
+      viewdata_ = View_AD2("2D view",1,1);
+      deep_copy(viewdata_,data_);
+      is_view_ = false;
+      is_AD_ = true;
     }
 #endif
     
     Vista(ScalarT & data_) {
-      viewdata = View_AD2("2D view",1,1);
-      deep_copy(viewdata,data_);
-      isView = false;
-      isAD = false;
+      viewdata_ = View_AD2("2D view",1,1);
+      deep_copy(viewdata_,data_);
+      is_view_ = false;
+      is_AD_ = false;
     }
 
 #ifndef MrHyDE_NO_AD
     void update(View_AD2 vdata) {
-      viewdata = vdata;
+      viewdata_ = vdata;
     }
 #endif
     
     void update(View_Sc2 vdata) {
-      viewdata_Sc = vdata;
+      viewdata_Sc_ = vdata;
     }
     
 #ifndef MrHyDE_NO_AD
     void update(AD & data_) {
-      deep_copy(viewdata,data_);
+      deep_copy(viewdata_,data_);
     }
 #endif
     
     void update(ScalarT & data_) {
-      deep_copy(viewdata,data_);
+      deep_copy(viewdata_,data_);
     }
     
     KOKKOS_INLINE_FUNCTION
     View_AD2::reference_type operator()(const size_type & i0, const size_type & i1) const {
-      if (isView) {
-        if (isAD) {
-          return viewdata(i0,i1);
+      if (is_view_) {
+        if (is_AD_) {
+          return viewdata_(i0,i1);
         }
         else {
 #ifndef MrHyDE_NO_AD
-          viewdata(i0,i1).val() = viewdata_Sc(i0,i1);
-          return viewdata(i0,i1);
+          viewdata_(i0,i1).val() = viewdata_Sc_(i0,i1);
+          return viewdata_(i0,i1);
 #else
-          return viewdata_Sc(i0,i1);
+          return viewdata_Sc_(i0,i1);
 #endif
         }
       }
       else {
-        return viewdata(0,0);
+        return viewdata_(0,0);
       }
+    }
+    
+    bool isView() {
+      return is_view_;
+    }
+
+    bool isAD() {
+      return is_AD_;
+    }
+    
+    View_AD2 getData() {
+      return viewdata_;
+    }
+
+    View_Sc2 getDataSc() {
+      return viewdata_Sc_;
     }
     
     /*
     KOKKOS_INLINE_FUNCTION
     size_type extent(const size_type & dim) const {
-      if (isView) {
-        return viewdata.extent(dim);
+      if (is_view_) {
+        return viewdata_.extent(dim);
       }
       else {
         return 1;
@@ -124,8 +141,8 @@ namespace MrHyDE {
     
     void print() {
       std::cout << "Printing Vista -------" <<std::endl;
-      std::cout << "  Is View: " << isView << std::endl;
-      std::cout << "  Is AD: " << isAD << std::endl;
+      std::cout << "  Is View: " << is_view_ << std::endl;
+      std::cout << "  Is AD: " << is_AD_ << std::endl;
       
     }
   };

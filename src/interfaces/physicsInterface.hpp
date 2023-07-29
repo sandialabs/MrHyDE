@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 /** \file   physicsInterface.hpp
@@ -175,25 +173,25 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    Teuchos::RCP<MpiComm> Commptr;
+    vector<Teuchos::RCP<FunctionManager> > function_managers;
+    Teuchos::RCP<MpiComm> comm;
     
-    int spaceDim, debug_level;
-    vector<string> setnames, blocknames, sidenames;
+    int dimension, debug_level;
+    vector<string> set_names, block_names, side_names;
     
-    vector<vector<size_t> > numVars; // [set][block]
+    vector<vector<size_t> > num_vars; // [set][block]
     
     //-----------------------------------------------------
     // Data the depends on physics sets
     vector<vector<vector<Teuchos::RCP<physicsbase> > > > modules;
     
-    vector<vector<Teuchos::ParameterList>> setPhysSettings, setDiscSettings, setSolverSettings; // [set][block]
-    vector<vector<vector<bool> > > useSubgrid;
-    vector<vector<vector<bool> > > useDG;
-    vector<vector<vector<ScalarT> > > masswts, normwts;
+    vector<vector<Teuchos::ParameterList>> physics_settings, disc_settings, solver_settings; // [set][block]
+    vector<vector<vector<bool> > > use_subgrid;
+    vector<vector<vector<bool> > > use_DG;
+    vector<vector<vector<ScalarT> > > mass_wts, norm_wts;
     
-    vector<vector<vector<string> > > varlist; // [set][block][var]
-    vector<vector<vector<int> > > varowned; // [set][block][var]
+    vector<vector<vector<string> > > var_list; // [set][block][var]
+    vector<vector<vector<int> > > var_owned; // [set][block][var]
     vector<vector<vector<int> > > orders; // [set][block][var]
     vector<vector<vector<string> > > types; // [set][block][var]
     //-----------------------------------------------------
@@ -204,13 +202,14 @@ namespace MrHyDE {
     
     string initial_type;
     
-    vector<vector<string> > extrafields_list, extracellfields_list, response_list, target_list, weight_list;
+    vector<vector<string> > extra_fields_list, extra_cell_fields_list, response_list, target_list, weight_list;
     
-    Teuchos::RCP<Teuchos::Time> bctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
-    Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
-    Teuchos::RCP<Teuchos::Time> sideinfotimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");
-    Teuchos::RCP<Teuchos::Time> responsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface:computeResponse()");
-    Teuchos::RCP<Teuchos::Time> pointreponsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::computePointResponse()");
+  private:
+    Teuchos::RCP<Teuchos::Time> bc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
+    Teuchos::RCP<Teuchos::Time> dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
+    Teuchos::RCP<Teuchos::Time> side_info_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");
+    Teuchos::RCP<Teuchos::Time> response_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface:computeResponse()");
+    Teuchos::RCP<Teuchos::Time> point_reponse_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::computePointResponse()");
     
   };
   

@@ -24,22 +24,22 @@ using namespace MrHyDE;
 // ========================================================================================
 
 template<class Node>
-AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & Comm_,
+AssemblyManager<Node>::AssemblyManager(const Teuchos::RCP<MpiComm> & comm_,
                                        Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                        Teuchos::RCP<MeshInterface> & mesh_,
                                        Teuchos::RCP<DiscretizationInterface> & disc_,
-                                       Teuchos::RCP<PhysicsInterface> & phys_,
+                                       Teuchos::RCP<PhysicsInterface> & physics_,
                                        Teuchos::RCP<ParameterManager<Node>> & params_) :
-Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(params_) {
+comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), params(params_) {
   
-  RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager - constructor");
-  Teuchos::TimeMonitor constructortimer(*constructortime);
+  RCP<Teuchos::Time> constructor_time = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager - constructor");
+  Teuchos::TimeMonitor constructor_timer(*constructor_time);
   
   // Get the required information from the settings
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting assembly manager constructor ..." << endl;
     }
   }
@@ -73,12 +73,12 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   mesh->stk_mesh->getElementBlockNames(blocknames);
   
   // check if we need to assembly volumetric, boundary and face terms
-  for (size_t set=0; set<phys->setnames.size(); ++set) {
+  for (size_t set=0; set<physics->set_names.size(); ++set) {
     vector<bool> set_assemble_vol, set_assemble_bndry, set_assemble_face;
     for (size_t block=0; block<blocknames.size(); ++block) {
-      set_assemble_vol.push_back(phys->setPhysSettings[set][block].template get<bool>("assemble volume terms",true));
-      set_assemble_bndry.push_back(phys->setPhysSettings[set][block].template get<bool>("assemble boundary terms",true));
-      set_assemble_face.push_back(phys->setPhysSettings[set][block].template get<bool>("assemble face terms",false));
+      set_assemble_vol.push_back(physics->physics_settings[set][block].template get<bool>("assemble volume terms",true));
+      set_assemble_bndry.push_back(physics->physics_settings[set][block].template get<bool>("assemble boundary terms",true));
+      set_assemble_face.push_back(physics->physics_settings[set][block].template get<bool>("assemble face terms",false));
     }
     assemble_volume_terms.push_back(set_assemble_vol);
     assemble_boundary_terms.push_back(set_assemble_bndry);
@@ -87,7 +87,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   // overwrite assemble_face_terms if HFACE vars are used
   for (size_t set=0; set<assemble_face_terms.size(); ++set) {
     for (size_t block=0; block<blocknames.size(); ++block) {
-      vector<string> ctypes = phys->unique_types[block];
+      vector<string> ctypes = physics->unique_types[block];
       for (size_t n=0; n<ctypes.size(); n++) {
         if (ctypes[n] == "HFACE") {
           assemble_face_terms[set][block] = true;
@@ -100,26 +100,26 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   for (size_t block=0; block<blocknames.size(); ++block) {
     bool build_volume = false, build_bndry = false, build_face = false;
     
-    for (size_t set=0; set<phys->setnames.size(); ++set) {
+    for (size_t set=0; set<physics->set_names.size(); ++set) {
       
       if (assemble_volume_terms[set][block]) {
         build_volume = true;
       }
-      else if (phys->setPhysSettings[set][block].template get<bool>("build volume terms",true) ) {
+      else if (physics->physics_settings[set][block].template get<bool>("build volume terms",true) ) {
         build_volume = true;
       }
       
       if (assemble_boundary_terms[set][block]) {
         build_bndry = true;
       }
-      else if (phys->setPhysSettings[set][block].template get<bool>("build boundary terms",true)) {
+      else if (physics->physics_settings[set][block].template get<bool>("build boundary terms",true)) {
         build_bndry = true;
       }
       
       if (assemble_face_terms[set][block]) {
         build_face = true;
       }
-      else if (phys->setPhysSettings[set][block].template get<bool>("build face terms",false)) {
+      else if (physics->physics_settings[set][block].template get<bool>("build face terms",false)) {
         build_face = true;
       }
     }
@@ -129,7 +129,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   }
   
   // needed information from the physics interface
-  varlist = phys->varlist;
+  varlist = physics->var_list;
   
   // Create groups/boundary groups
   this->createGroups();
@@ -139,7 +139,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), params(
   this->createFixedDOFs();
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished assembly manager constructor" << endl;
     }
   }
@@ -154,7 +154,7 @@ template<class Node>
 void AssemblyManager<Node>::createFixedDOFs() {
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::createFixedDOFs ... " << endl;
     }
   }
@@ -164,7 +164,7 @@ void AssemblyManager<Node>::createFixedDOFs() {
   for (size_t set=0; set<dbc_dofs.size(); ++set) {
     vector<vector<Kokkos::View<LO*,LA_device> > > set_fixedDOF;
     
-    int numLocalDof = disc->DOF_ownedAndShared[set].size();//
+    int numLocalDof = disc->dof_owned_and_shared[set].size();//
     //int numLocalDof = disc->DOF[set]->getNumOwnedAndGhosted();
     Kokkos::View<bool*,LA_device> set_isFixedDOF("logicals for fixed DOFs",numLocalDof);
     auto fixed_host = Kokkos::create_mirror_view(set_isFixedDOF);
@@ -200,7 +200,7 @@ void AssemblyManager<Node>::createFixedDOFs() {
   }
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::createFixedDOFs" << endl;
     }
   }
@@ -214,10 +214,10 @@ void AssemblyManager<Node>::createFixedDOFs() {
 template<class Node>
 void AssemblyManager<Node>::createGroups() {
   
-  Teuchos::TimeMonitor localtimer(*grouptimer);
+  Teuchos::TimeMonitor localtimer(*group_timer);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::createGroups ..." << endl;
     }
   }
@@ -229,7 +229,7 @@ void AssemblyManager<Node>::createGroups() {
   mesh->stk_mesh->getMyElements(all_meshElems);
   
   
-  auto LIDs = disc->DOF_LIDs;
+  auto LIDs = disc->dof_lids;
   
   // Disc manager stores offsets as [set][block][var][dof]
   vector<vector<vector<vector<int> > > > disc_offsets = disc->offsets;
@@ -254,7 +254,7 @@ void AssemblyManager<Node>::createGroups() {
     
     topo_RCP cellTopo = mesh->stk_mesh->getCellTopology(blocknames[block]);
     int numNodesPerElem = cellTopo->getNodeCount();
-    int spaceDim = phys->spaceDim;
+    int dimension = physics->dimension;
     size_t numTotalElem = stk_meshElems.size();
     size_t processedElem = 0;
     
@@ -264,7 +264,7 @@ void AssemblyManager<Node>::createGroups() {
       //Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
       //panzer_stk::workset_utils::getIdsAndVertices(*(mesh->stk_mesh), blocknames[block], localIds, blocknodes); // fill on host
       
-      vector<size_t> myElem = disc->myElements[block];
+      vector<size_t> myElem = disc->my_elements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
       auto host_eIDs = Kokkos::create_mirror_view(eIDs);
       for (size_t elem=0; elem<myElem.size(); elem++) {
@@ -289,7 +289,7 @@ void AssemblyManager<Node>::createGroups() {
         aface.push_back(assemble_face_terms[set][block]);
       }
       blockGroupData = Teuchos::rcp( new GroupMetaData(settings, cellTopo,
-                                                       phys, block, 0, elemPerGroup,
+                                                       physics, block, 0, elemPerGroup,
                                                        build_face_terms[block],
                                                        aface, sideSets,
                                                        params->num_discretized_params));
@@ -301,9 +301,9 @@ void AssemblyManager<Node>::createGroups() {
       
       // if any of the discretizations are greater than 1st order and the user requests output, override the input to plot solution at nodes
       // TMW: modified to only override for HGRAD basis'.  HCURL and HDIV only plot cell averages.
-      for (size_t i_basis=0; i_basis<phys->unique_orders[block].size(); ++i_basis) {
-        if (phys->unique_orders[block][i_basis] > 1 && write_solution) {
-          if (phys->unique_types[block][i_basis] == "HGRAD") {
+      for (size_t i_basis=0; i_basis<physics->unique_orders[block].size(); ++i_basis) {
+        if (physics->unique_orders[block][i_basis] > 1 && write_solution) {
+          if (physics->unique_types[block][i_basis] == "HGRAD") {
             blockGroupData->requireBasisAtNodes = true;
           }
         }
@@ -394,7 +394,7 @@ void AssemblyManager<Node>::createGroups() {
                 }
                 Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
                 //Kokkos::View<LO*,AssemblyDevice> sideIndex("local side indices",currElem);
-                DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+                DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
                 
                 auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
                 Kokkos::View<LO*,HostDevice> host_eIndex2("element indices",currElem);
@@ -599,7 +599,7 @@ void AssemblyManager<Node>::createGroups() {
         processedElem += currElem;
         
         Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
-        DRV currnodes("currnodes", currElem, numNodesPerElem, spaceDim);
+        DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
         
         auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
         Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
@@ -680,7 +680,7 @@ template<class Node>
 void AssemblyManager<Node>::allocateGroupStorage() {
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::allocateGroupStorage" << endl;
     }
   }
@@ -743,9 +743,9 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         }
       }
     }
-    cout << " - Processor " << Comm->getRank() << " has " << numelements << " elements" << endl;
-    cout << " - Processor " << Comm->getRank() << " min element size: " << minsize << endl;
-    cout << " - Processor " << Comm->getRank() << " max element size: " << maxsize << endl;
+    cout << " - Processor " << comm->getRank() << " has " << numelements << " elements" << endl;
+    cout << " - Processor " << comm->getRank() << " min element size: " << minsize << endl;
+    cout << " - Processor " << comm->getRank() << " max element size: " << maxsize << endl;
     
     // Boundary elements
     size_t numbndryelements = 0;
@@ -769,9 +769,9 @@ void AssemblyManager<Node>::allocateGroupStorage() {
         //}
       }
     }
-    cout << " - Processor " << Comm->getRank() << " has " << numbndryelements << " boundary elements" << endl;
-    cout << " - Processor " << Comm->getRank() << " min boundary element size: " << minbsize << endl;
-    cout << " - Processor " << Comm->getRank() << " max boundary element size: " << maxbsize << endl;
+    cout << " - Processor " << comm->getRank() << " has " << numbndryelements << " boundary elements" << endl;
+    cout << " - Processor " << comm->getRank() << " min boundary element size: " << minbsize << endl;
+    cout << " - Processor " << comm->getRank() << " max boundary element size: " << maxbsize << endl;
     
     // Volumetric ip/basis
     size_t groupstorage = 0;
@@ -786,7 +786,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       }
     }
     double totalstorage = static_cast<double>(groupstorage)/1.0e6;
-    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store volumetric data" << endl;
+    cout << " - Processor " << comm->getRank() << " is using " << totalstorage << " MB to store volumetric data" << endl;
     
     // Face ip/basis
     size_t facestorage = 0;
@@ -796,7 +796,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       }
     }
     totalstorage = static_cast<double>(facestorage)/1.0e6;
-    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store face data" << endl;
+    cout << " - Processor " << comm->getRank() << " is using " << totalstorage << " MB to store face data" << endl;
     
     // Boundary ip/basis
     size_t boundarystorage = 0;
@@ -806,10 +806,10 @@ void AssemblyManager<Node>::allocateGroupStorage() {
       }
     }
     totalstorage = static_cast<double>(boundarystorage)/1.0e6;
-    cout << " - Processor " << Comm->getRank() << " is using " << totalstorage << " MB to store boundary data" << endl;
+    cout << " - Processor " << comm->getRank() << " is using " << totalstorage << " MB to store boundary data" << endl;
   }
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::allocategroupstorage" << endl;
     }
   }
@@ -822,10 +822,10 @@ void AssemblyManager<Node>::allocateGroupStorage() {
 template<class Node>
 void AssemblyManager<Node>::createWorkset() {
   
-  Teuchos::TimeMonitor localtimer(*wksettimer);
+  Teuchos::TimeMonitor localtimer(*wkset_timer);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::createWorkset ..." << endl;
     }
   }
@@ -838,13 +838,13 @@ void AssemblyManager<Node>::createWorkset() {
       info.push_back(groupData[block]->numElem);
       info.push_back(groupData[block]->numip);
       info.push_back(groupData[block]->numsideip);
-      info.push_back(phys->setnames.size());
+      info.push_back(physics->set_names.size());
       vector<size_t> numVars;
       for (size_t set=0; set<groupData[block]->set_numDOF.size(); ++set) {
         numVars.push_back(groupData[block]->set_numDOF[set].extent(0));
       }
-      vector<Kokkos::View<string**,HostDevice> > bcs(phys->setnames.size());
-      for (size_t set=0; set<phys->setnames.size(); ++set) {
+      vector<Kokkos::View<string**,HostDevice> > bcs(physics->set_names.size());
+      for (size_t set=0; set<physics->set_names.size(); ++set) {
         Kokkos::View<string**,HostDevice> vbcs = disc->getVarBCs(set,block);
         bcs[set] = vbcs;
       }
@@ -868,19 +868,19 @@ void AssemblyManager<Node>::createWorkset() {
     }
     // this needs to be done even for uninitialized worksets
     // initialize BDF_wts vector (empty views)
-    vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpBDF_wts(phys->setnames.size());
+    vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpBDF_wts(physics->set_names.size());
     wkset[block]->set_BDF_wts = tmpBDF_wts;
     // initialize Butcher tableau vectors (empty views);
-    vector<Kokkos::View<ScalarT**,AssemblyDevice> > tmpbutcher_A(phys->setnames.size());
-    vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_b(phys->setnames.size());
-    vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_c(phys->setnames.size());
+    vector<Kokkos::View<ScalarT**,AssemblyDevice> > tmpbutcher_A(physics->set_names.size());
+    vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_b(physics->set_names.size());
+    vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_c(physics->set_names.size());
     wkset[block]->set_butcher_A = tmpbutcher_A;
     wkset[block]->set_butcher_b = tmpbutcher_b;
     wkset[block]->set_butcher_c = tmpbutcher_c;
   }
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::createWorkset" << endl;
     }
   }
@@ -941,10 +941,10 @@ template<class Node>
 void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                                        const bool & lumpmass, const ScalarT & scale) {
   
-  Teuchos::TimeMonitor localtimer(*setinittimer);
+  Teuchos::TimeMonitor localtimer(*set_init_timer);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::setInitial ..." << endl;
     }
   }
@@ -956,7 +956,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   mass->fillComplete();
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::setInitial ..." << endl;
     }
   }
@@ -1075,10 +1075,10 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
                                             matrix_RCP & mass,
                                             vector_RCP & diagMass) {
   
-  Teuchos::TimeMonitor localtimer(*setinittimer);
+  Teuchos::TimeMonitor localtimer(*set_init_timer);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::getWeightedMass ..." << endl;
     }
   }
@@ -1134,7 +1134,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
 
       if (sparse_mass) {
         auto curr_mass = groupData[block]->sparse_database_mass[set];
-        if (!curr_mass->have_local_columns) {
+        if (!curr_mass->getStatus()) {
           curr_mass->setLocalColumns(offsets,numDOF);
         }
         auto values = curr_mass->getValues();
@@ -1180,7 +1180,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         });
       }
       else {
-        auto localmass = groups[block][grp]->getWeightedMass(phys->masswts[set][block]);
+        auto localmass = groups[block][grp]->getWeightedMass(physics->mass_wts[set][block]);
       
         if (data_avail) {
         
@@ -1337,7 +1337,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   }
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::getWeightedMass ..." << endl;
     }
   }
@@ -1391,7 +1391,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
           
           string btype = wkset[block]->basis_types[bindex];
           auto off = subview(offsets,var,ALL());
-          ScalarT mwt = phys->masswts[set][block][var];
+          ScalarT mwt = physics->mass_wts[set][block][var];
           
           if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
             parallel_for("get mass",
@@ -1452,7 +1452,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
             auto nnz = curr_mass->getNNZPerRow();
             auto index = groups[block][grp]->basis_index;
 
-            if (!curr_mass->have_local_columns) {
+            if (!curr_mass->getStatus()) {
               curr_mass->setLocalColumns(offsets, numDOF);
             }
             
@@ -1549,19 +1549,19 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
 template<class Node>
 void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts) {
   
-  Teuchos::TimeMonitor localtimer(*setinittimer);
+  Teuchos::TimeMonitor localtimer(*set_init_timer);
   
   typedef typename Node::execution_space LA_exec;
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::getWeightVector ..." << endl;
     }
   }
   
   auto wts_view = wts->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
-  vector<vector<ScalarT> > normwts = phys->normwts[set];
+  vector<vector<ScalarT> > normwts = physics->norm_wts[set];
   
   for (size_t block=0; block<groups.size(); ++block) {
     
@@ -1594,7 +1594,7 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
   }
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::getWeightVector ..." << endl;
     }
   }
@@ -1635,10 +1635,10 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
                                          const ScalarT & time,
                                          const bool & lumpmass) {
   
-  Teuchos::TimeMonitor localtimer(*setdbctimer);
+  Teuchos::TimeMonitor localtimer(*set_dbc_timer);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::setDirichlet ..." << endl;
     }
   }
@@ -1723,7 +1723,7 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
   mass->fillComplete();
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::setDirichlet ..." << endl;
     }
   }
@@ -1737,13 +1737,11 @@ template<class Node>
 void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs, matrix_RCP & mass,
                                            const bool & lumpmass) {
   
-  //  // TODO TIMERS BROKEN
-  //  //Teuchos::TimeMonitor localtimer(*setdbctimer);
-  //
+  Teuchos::TimeMonitor localtimer(*set_init_timer);
   
   using namespace std;
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::setInitialFace ..." << endl;
     }
   }
@@ -1826,7 +1824,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   mass->fillComplete();
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished AssemblyManager::setInitialFace ..." << endl;
     }
   }
@@ -1849,13 +1847,13 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
                                            const ScalarT & deltat) {
   
   if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "******** Starting AssemblyManager::assembleJacRes ..." << endl;
     }
   }
   
   {
-    Teuchos::TimeMonitor localtimer(*gathertimer);
+    Teuchos::TimeMonitor localtimer(*gather_timer);
     
     // Local gather of solutions
     this->performGather(set, u, 0, 0);
@@ -1878,7 +1876,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
   }
   
   if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
     }
   }
@@ -1898,7 +1896,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
                                            const bool & is_final_time,
                                            const int & block, const ScalarT & deltat) {
   
-  Teuchos::TimeMonitor localassemblytimer(*assemblytimer);
+  Teuchos::TimeMonitor localassemblytimer(*assembly_timer);
   
   // Kokkos::CRSMatrix and Kokkos::View for J and res
   // Scatter needs to be on LA_device
@@ -2014,7 +2012,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     bool fixJacDiag = false;
     
     {
-      Teuchos::TimeMonitor localtimer(*phystimer);
+      Teuchos::TimeMonitor localtimer(*physics_timer);
       
       //////////////////////////////////////////////////////////////
       // Compute res and J=dF/du
@@ -2034,7 +2032,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         }
         else {
           groups[block][grp]->updateWorkset(seedwhat,0);
-          phys->volumeResidual(set,block);
+          physics->volumeResidual(set,block);
         }
       }
       
@@ -2050,7 +2048,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           wkset[block]->isOnSide = true;
           for (size_t s=0; s<groupData[block]->numSides; s++) {
             groups[block][grp]->updateWorksetFace(s);
-            phys->faceResidual(set,block);
+            physics->faceResidual(set,block);
           }
           wkset[block]->isOnSide =false;
         }
@@ -2069,7 +2067,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     }
     else { // fill local_res and local_J and then scatter
       
-      Teuchos::TimeMonitor localtimer(*scattertimer);
+      Teuchos::TimeMonitor localtimer(*scatter_timer);
       
       Kokkos::deep_copy(local_res,0.0);
       Kokkos::deep_copy(local_J,0.0);
@@ -2174,12 +2172,12 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         boundary_groups[block][grp]->updateWorkset(seedwhat);
         
         if (!groupData[block]->multiscale) {
-          Teuchos::TimeMonitor localtimer(*phystimer);
-          phys->boundaryResidual(set,block);
+          Teuchos::TimeMonitor localtimer(*physics_timer);
+          physics->boundaryResidual(set,block);
         }
         
         {
-          phys->fluxConditions(set,block);
+          physics->fluxConditions(set,block);
         }
         ///////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
@@ -2192,7 +2190,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         }
         else { // fill local_res and local_J and then scatter
           
-          Teuchos::TimeMonitor localtimer(*scattertimer);
+          Teuchos::TimeMonitor localtimer(*scatter_timer);
           
           Kokkos::deep_copy(local_res,0.0);
           Kokkos::deep_copy(local_J,0.0);
@@ -2293,12 +2291,12 @@ void AssemblyManager<Node>::dofConstraints(const size_t & set, matrix_RCP & J, v
                                            const bool & compute_disc_sens) {
   
   if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "******** Starting AssemblyManager::dofConstraints" << endl;
     }
   }
   
-  Teuchos::TimeMonitor localtimer(*dbctimer);
+  Teuchos::TimeMonitor localtimer(*dbc_timer);
   
   if (usestrongDBCs) {
     vector<vector<vector<LO> > > dbcDOFs = disc->dbc_dofs[set];
@@ -2319,7 +2317,7 @@ void AssemblyManager<Node>::dofConstraints(const size_t & set, matrix_RCP & J, v
   }
   
   if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "******** Finished AssemblyManager::dofConstraints" << endl;
     }
   }
@@ -2563,7 +2561,7 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
                                        LIDViewType LIDs, LIDViewType paramLIDs,
                                        const bool & compute_disc_sens) {
   
-  //Teuchos::TimeMonitor localtimer(*scattertimer);
+  //Teuchos::TimeMonitor localtimer(*scatter_timer);
   
   typedef typename Node::execution_space LA_exec;
   
@@ -2622,7 +2620,7 @@ template<class Node>
 template<class VecViewType, class LocalViewType, class LIDViewType>
 void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs) {
   
-  //Teuchos::TimeMonitor localtimer(*scattertimer);
+  //Teuchos::TimeMonitor localtimer(*scatter_timer);
   
   typedef typename Node::execution_space LA_exec;
   
@@ -2671,7 +2669,7 @@ void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewT
                                     const bool & compute_disc_sens,
                                     const bool & isAdjoint) {
   
-  Teuchos::TimeMonitor localtimer(*scattertimer);
+  Teuchos::TimeMonitor localtimer(*scatter_timer);
   
   typedef typename Node::execution_space LA_exec;
   
@@ -2822,13 +2820,13 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   }
   
   if (verbosity > 5) {
-    cout << " - Processor " << Comm->getRank() << ": Number of elements on block " << blocknames[block] << ": " << totalelem << endl;
-    cout << " - Processor " << Comm->getRank() << ": Number of unique elements on block " << blocknames[block] << ": " << first_users.size() << endl;
-    cout << " - Processor " << Comm->getRank() << ": Database memory savings on " << blocknames[block] << ": "
+    cout << " - Processor " << comm->getRank() << ": Number of elements on block " << blocknames[block] << ": " << totalelem << endl;
+    cout << " - Processor " << comm->getRank() << ": Number of unique elements on block " << blocknames[block] << ": " << first_users.size() << endl;
+    cout << " - Processor " << comm->getRank() << ": Database memory savings on " << blocknames[block] << ": "
     << (100.0 - 100.0*((double)first_users.size()/(double)totalelem)) << "%" << endl;
-    cout << " - Processor " << Comm->getRank() << ": Number of boundary elements on block " << blocknames[block] << ": " << boundaryelem << endl;
-    cout << " - Processor " << Comm->getRank() << ": Number of unique boundary elements on block " << blocknames[block] << ": " << first_boundary_users.size() << endl;
-    cout << " - Processor " << Comm->getRank() << ": Database boundary memory savings on " << blocknames[block] << ": "
+    cout << " - Processor " << comm->getRank() << ": Number of boundary elements on block " << blocknames[block] << ": " << boundaryelem << endl;
+    cout << " - Processor " << comm->getRank() << ": Number of unique boundary elements on block " << blocknames[block] << ": " << first_boundary_users.size() << endl;
+    cout << " - Processor " << comm->getRank() << ": Database boundary memory savings on " << blocknames[block] << ": "
     << (100.0 - 100.0*((double)first_boundary_users.size()/(double)boundaryelem)) << "%" << endl;
   }
   
@@ -2847,7 +2845,7 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
 
 template<class Node>
 void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users) {
-  Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
+  Teuchos::TimeMonitor localtimer(*group_database_create_timer);
   
   double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0e-10);
   
@@ -3005,7 +3003,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
 template<class Node>
 void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users) {
   
-  Teuchos::TimeMonitor localtimer(*groupdatabaseCreatetimer);
+  Teuchos::TimeMonitor localtimer(*group_database_create_timer);
 
   double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0e-10);
   
@@ -3155,7 +3153,7 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
 template<class Node>
 void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users) {
   
-  Teuchos::TimeMonitor localtimer(*groupdatabaseBasistimer);
+  Teuchos::TimeMonitor localtimer(*group_database_basis_timer);
   
   using namespace std;
 
@@ -3236,7 +3234,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   if (groupData[block]->use_mass_database) {
 
     size_t database_numElem = first_users.size();
-    for (size_t set=0; set<phys->setnames.size(); ++set) {
+    for (size_t set=0; set<physics->set_names.size(); ++set) {
       View_Sc3 mass("local mass",database_numElem, groups[block][0]->LIDs[set].extent(1),
                     groups[block][0]->LIDs[set].extent(1));
       
@@ -3279,7 +3277,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
         }
 
         if (use_sparse_quad && qrules.size() > 0) {
-          ScalarT mwt = phys->masswts[set][block][n];
+          ScalarT mwt = physics->mass_wts[set][block][n];
           View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
           
           View_Sc3 mass_sparse("local mass", mass.extent(0), cbasis.extent(1), cbasis.extent(1)); 
@@ -3287,7 +3285,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
           if (include_high_order) {
             auto cwts = database_wts;
           //for (size_type n=0; n<numDOF.extent(0); n++) {
-            ScalarT mwt = phys->masswts[set][block][n];
+            ScalarT mwt = physics->mass_wts[set][block][n];
             View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
             string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
             auto off = subview(offsets,n,ALL());
@@ -3384,7 +3382,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
         else {
           auto cwts = database_wts;
           //for (size_type n=0; n<numDOF.extent(0); n++) {
-            ScalarT mwt = phys->masswts[set][block][n];
+            ScalarT mwt = physics->mass_wts[set][block][n];
             View_Sc4 cbasis = tbasis[wkset[block]->set_usebasis[set][n]];
             string btype = wkset[block]->basis_types[wkset[block]->set_usebasis[set][n]];
             auto off = subview(offsets,n,ALL());
@@ -3426,7 +3424,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
         Teuchos::RCP<Sparse3DView> sparse_mass = Teuchos::rcp( new Sparse3DView(mass,tol) );
         groupData[block]->sparse_database_mass.push_back(sparse_mass);
         groupData[block]->use_sparse_mass = true;
-        cout << " - Processor " << Comm->getRank() << ": Sparse mass format savings on " << blocknames[block] << ": "
+        cout << " - Processor " << comm->getRank() << ": Sparse mass format savings on " << blocknames[block] << ": "
              << (100.0 - 100.0*((double)sparse_mass->size()/(double)mass.size())) << "%" << endl;
       }
       //else {
@@ -3572,7 +3570,7 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
     all_fros.push_back(currfro);
   }
   
-  if (Comm->getRank() == 0) {
+  if (comm->getRank() == 0) {
     
     string outfile = "jacobian_data.out";
     std::ofstream respOUT(outfile.c_str());
@@ -3612,6 +3610,23 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
     respOUT.close();
   }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+// After the setup phase, we finalize the function managers
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::finalizeFunctions(std::vector<Teuchos::RCP<FunctionManager> > & functionManagers) {
+  for (size_t block=0; block<functionManagers.size(); ++block) {
+    functionManagers[block]->setupLists(params->paramnames);
+    functionManagers[block]->wkset = wkset[block];
+    functionManagers[block]->decomposeFunctions();
+    if (verbosity >= 20) {
+      functionManagers[block]->printFunctions();
+    }
+  }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 // After the setup phase, we can get rid of a few things
 /////////////////////////////////////////////////////////////////////////////////////////////

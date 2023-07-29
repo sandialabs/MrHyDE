@@ -27,7 +27,7 @@ int main(int argc, char * argv[]) {
     
     // Define some parameters
     int numElem = 10;
-    vector<string> variables = {"a","b","c","d","p"};
+    vector<string> variables = {"a","b","c","d","p","Ha"};
     vector<string> scalars = {"x","y","z"};
     int numip = 4;
     vector<string> btypes = {"HGRAD"};
@@ -51,7 +51,7 @@ int main(int argc, char * argv[]) {
     
     // Set the solution fields in the workset
     View_AD4 sol("sol", numElem, variables.size(), numip, 1);
-    vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2};
+    vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2, 1.0};
     
     // This won't actually work on a GPU
     parallel_for("sol vals",
@@ -409,6 +409,24 @@ int main(int argc, char * argv[]) {
       ref_vals.push_back(ref);
       ref_funcs.push_back(test);
 
+    }
+
+    {
+      string name = "test sinh";
+      string test = "(1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = (1.0+exp(-2))/(2*exp(-1));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
     }
 
     //----------------------------------------------------------------------

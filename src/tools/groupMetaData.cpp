@@ -19,7 +19,7 @@ using namespace MrHyDE;
 
 GroupMetaData::GroupMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                              const topo_RCP & cellTopo_,
-                             const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
+                             const Teuchos::RCP<PhysicsInterface> & physics_,
                              const size_t & myBlock_,
                              const size_t & myLevel_, const int & numElem_,
                              const bool & build_face_terms_,
@@ -28,7 +28,7 @@ GroupMetaData::GroupMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settin
                              const size_t & num_params) :
 assemble_face_terms(assemble_face_terms_), build_face_terms(build_face_terms_),
 myBlock(myBlock_), myLevel(myLevel_), numElem(numElem_),
-physics_RCP(physics_RCP_), sidenames(sidenames_), numDiscParams(num_params),
+physics(physics_), sidenames(sidenames_), numDiscParams(num_params),
 cellTopo(cellTopo_) {
 
   Teuchos::TimeMonitor localtimer(*grptimer);
@@ -82,7 +82,7 @@ cellTopo(cellTopo_) {
   if (settings->sublist("Solver").get("have multidata", false)) {
     have_multidata = true;
   }
-  numSets = physics_RCP->setnames.size();
+  numSets = physics->set_names.size();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

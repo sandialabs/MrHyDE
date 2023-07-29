@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #include <subgridMeshFactory.hpp>
@@ -28,15 +26,15 @@ namespace panzer_stk{
   void SubGridMeshFactory::addElems(DRV newnodes,
                                     std::vector<std::vector<GO> > & newconn) {
     //nodes.push_back(newnodes);
-    conn.push_back(newconn);
-    dimension = newnodes.extent(1);
+    conn_.push_back(newconn);
+    dimension_ = newnodes.extent(1);
     
     Kokkos::View<ScalarT**,HostDevice> newnodes_host("new nodes",
                                                      newnodes.extent(0), newnodes.extent(1));
     auto nodes_host = Kokkos::create_mirror_view(newnodes);
     Kokkos::deep_copy(nodes_host,newnodes);
     Kokkos::deep_copy(newnodes_host,nodes_host);
-    nodes.push_back(newnodes_host);
+    nodes_.push_back(newnodes_host);
   }
   
   ///////////////////////////////////////////////////////////////
@@ -46,25 +44,25 @@ namespace panzer_stk{
   Teuchos::RCP<STK_Interface> SubGridMeshFactory::buildMesh(stk::ParallelMachine parallelMach) const
   {
     
-    Teuchos::RCP<STK_Interface> mesh = Teuchos::rcp(new STK_Interface(dimension));
+    Teuchos::RCP<STK_Interface> mesh = Teuchos::rcp(new STK_Interface(dimension_));
     
     shards::CellTopology cellTopo;
-    if (dimension == 1) {
+    if (dimension_ == 1) {
       cellTopo = shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() );// lin. cell topology on the interior
     }
-    if (dimension == 2) {
-      if (shape == "quad") {
+    if (dimension_ == 2) {
+      if (shape_ == "quad") {
         cellTopo = shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() );// lin. cell topology on the interior
       }
-      if (shape == "tri") {
+      if (shape_ == "tri") {
         cellTopo = shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() );// lin. cell topology on the interior
       }
     }
-    if (dimension == 3) {
-      if (shape == "hex") {
+    if (dimension_ == 3) {
+      if (shape_ == "hex") {
         cellTopo = shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<> >() );// lin. cell topology on the interior
       }
-      if (shape == "tet") {
+      if (shape_ == "tet") {
         cellTopo = shards::CellTopology(shards::getCellTopologyData<shards::Tetrahedron<> >() );// lin. cell topology on the interior
       }
       
@@ -72,8 +70,8 @@ namespace panzer_stk{
     
     // build meta information: blocks and side set setups
     const CellTopologyData * ctd = cellTopo.getCellTopologyData();
-    for (size_t b=0; b<blockname.size(); b++) {
-      mesh->addElementBlock(blockname,ctd);
+    for (size_t b=0; b<blockname_.size(); b++) {
+      mesh->addElementBlock(blockname_,ctd);
     }
     // add sidesets (not really needed)
     
@@ -113,11 +111,11 @@ namespace panzer_stk{
     int nprog = 0;
     
     // build the nodes
-    for (size_t b=0; b<nodes.size(); b++) {
-      for (size_type e=0; e<nodes[b].extent(0); e++) {
+    for (size_t b=0; b<nodes_.size(); b++) {
+      for (size_type e=0; e<nodes_[b].extent(0); e++) {
         vector<double> newnode;
-        for (size_type n=0; n<nodes[b].extent(1); n++) {
-          newnode.push_back(static_cast<double>(nodes[b](e,n)));
+        for (size_type n=0; n<nodes_[b].extent(1); n++) {
+          newnode.push_back(static_cast<double>(nodes_[b](e,n)));
         }
         mesh.addNode(nprog+1,newnode);
         nprog++;
@@ -125,22 +123,22 @@ namespace panzer_stk{
     }
     
     // build the elements
-    stk::mesh::Part * block = mesh.getElementBlockPart(blockname);
+    stk::mesh::Part * block = mesh.getElementBlockPart(blockname_);
     
     int eprog = 0;
     int cprog = 1;
-    for (size_t b=0; b<conn.size(); b++) {
+    for (size_t b=0; b<conn_.size(); b++) {
       int ccprog = 0;
-      for (size_t e=0; e<conn[b].size(); e++) {
+      for (size_t e=0; e<conn_[b].size(); e++) {
         stk::mesh::EntityId gid = eprog+1;
         eprog++;
-        std::vector<stk::mesh::EntityId> elem(conn[b][e].size());
+        std::vector<stk::mesh::EntityId> elem_(conn_[b][e].size());
         
-        for (size_t j=0; j<conn[b][e].size(); j++) {
-          elem[j] = conn[b][e][j]+cprog;
+        for (size_t j=0; j<conn_[b][e].size(); j++) {
+          elem_[j] = conn_[b][e][j]+cprog;
         }
         ccprog++;
-        Teuchos::RCP<ElementDescriptor> ed = Teuchos::rcp(new ElementDescriptor(gid,elem));
+        Teuchos::RCP<ElementDescriptor> ed = Teuchos::rcp(new ElementDescriptor(gid,elem_));
         mesh.addElement(ed,block);
         
       }
@@ -155,7 +153,7 @@ namespace panzer_stk{
   ///////////////////////////////////////////////////////////////
   
   Teuchos::RCP<STK_Interface> SubGridMeshFactory::buildUncommitedMesh(stk::ParallelMachine parallelMach) const {
-    Teuchos::RCP<STK_Interface> mesh = Teuchos::rcp(new STK_Interface(dimension));
+    Teuchos::RCP<STK_Interface> mesh = Teuchos::rcp(new STK_Interface(dimension_));
     return mesh;
   }
   

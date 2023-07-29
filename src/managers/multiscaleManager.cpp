@@ -108,7 +108,7 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
           macro_block = m;
         }
       }
-      topo_RCP macro_topo = mesh_->cellTopo[macro_block]; //mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
+      topo_RCP macro_topo = mesh_->cell_topo[macro_block]; //mesh_->stk_mesh->getCellTopology(macro_blocknames[macro_block]);
       if (subgrid_model_type == "DtN") {
         subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo) ) );
       }
@@ -135,7 +135,7 @@ MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManag
             macro_block = m;
           }
         }
-        topo_RCP macro_topo = mesh_->cellTopo[macro_block]; //stk_mesh->getCellTopology(macro_blocknames[macro_block]);
+        topo_RCP macro_topo = mesh_->cell_topo[macro_block]; //stk_mesh->getCellTopology(macro_blocknames[macro_block]);
         
         if (subgrid_model_type == "DtN") {
           subgridModels.push_back(Teuchos::rcp( new SubGridDtN(Comm, subgrid_pl, macro_topo) ) );

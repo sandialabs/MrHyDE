@@ -92,10 +92,7 @@ namespace MrHyDE {
 
     void computeFluxVector();
 
-// TODO This needs to be handled in a better way, temporary!
-#ifndef MrHyDE_UNITTEST_HIDE_PRIVATE_VARS
   private:
-#endif
 
     int spaceDim;
     

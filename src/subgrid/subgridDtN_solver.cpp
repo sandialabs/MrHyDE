@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #include "solverManager.hpp"
@@ -449,7 +447,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
           
           if (compute_substep_norm) {
             assembler->wkset[0]->setTime(sgtime+macro_deltat/(ScalarT)time_steps);
-            auto tsol = assembler->phys->functionManagers[0]->evaluate("true e","ip");
+            auto tsol = assembler->physics->function_managers[0]->evaluate("true e","ip");
             auto sol = assembler->wkset[0]->getSolutionField("e");
             auto wts = assembler->wkset[0]->wts;
             ScalarT error = 0.0;
@@ -761,7 +759,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
         
         // Volumetric contribution
         assembler->groups[macrogrp][e]->updateWorkset(seedwhat, seedindex);
-        assembler->phys->volumeResidual(0,0);
+        assembler->physics->volumeResidual(0,0);
                 
         //////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
@@ -826,7 +824,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
           //int seedwhat = 1;
           
           assembler->boundary_groups[macrogrp][e]->updateWorkset(seedwhat, seedindex);
-          assembler->phys->boundaryResidual(0,0);
+          assembler->physics->boundaryResidual(0,0);
           
           //////////////////////////////////////////////////////////////////////////
           // Scatter into global matrix/vector
@@ -1271,7 +1269,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         // Compute the residual
         //-----------------------------------------------
         
-        assembler->phys->boundaryResidual(0,0);
+        assembler->physics->boundaryResidual(0,0);
           
         
         //-----------------------------------------------
@@ -1779,7 +1777,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
       //  }
       //}
       
-      Kokkos::DynRankView<int,PHX::Device> inRefCell = solver->disc->checkInclusionPhysicalData(pts, cnodes, solver->mesh->cellTopo[0], 1.0e-12);
+      Kokkos::DynRankView<int,PHX::Device> inRefCell = solver->disc->checkInclusionPhysicalData(pts, cnodes, solver->mesh->cell_topo[0], 1.0e-12);
       //CellTools::mapToReferenceFrame(refpts, pts, cnodes, *(solver->mesh->cellTopo[0]));
       //CellTools::checkPointwiseInclusion(inRefCell, refpts, *(solver->mesh->cellTopo[0]), 1.0e-12);
       for (size_t i=0; i<numpts; i++) {
@@ -1816,7 +1814,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
     //    cnodes(0,k,j) = nodes(owners(i,1),k,j);
     //  }
     //}
-    DRV refpt_buffer = solver->disc->mapPointsToReference(cpt,cnodes,solver->mesh->cellTopo[0]);
+    DRV refpt_buffer = solver->disc->mapPointsToReference(cpt,cnodes,solver->mesh->cell_topo[0]);
     //CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(solver->mesh->cellTopo[0]));
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
@@ -1940,7 +1938,7 @@ void SubGridDtN_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & pa
     assembler->wkset[block]->params = params;
     assembler->wkset[block]->paramnames = paramnames;
   }
-  solver->phys->updateParameters(params, paramnames);
+  solver->physics->updateParameters(params, paramnames);
   
 }
 

@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #include "subgridDtN2.hpp"
@@ -281,7 +279,7 @@ void SubGridDtN2::setUpSubgridModels() {
   /////////////////////////////////////////////////////////////////////////////////////
   
   {
-    varlist = sub_physics->varlist[0][0];
+    varlist = sub_physics->var_list[0][0];
     functionManagers[0]->setupLists(macro_paramnames);
     sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
     functionManagers[0]->wkset = sub_assembler->wkset[0];
@@ -297,9 +295,9 @@ void SubGridDtN2::setUpSubgridModels() {
   }
   
   Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
-                                            sub_physics->numVars[0][0],
+                                            sub_physics->num_vars[0][0],
                                             boundary_groups[0].size());
-  for (size_t i=0; i<sub_physics->numVars[0][0]; i++) { // number of variables
+  for (size_t i=0; i<sub_physics->num_vars[0][0]; i++) { // number of variables
     for (size_t j=0; j<boundary_groups[0].size(); j++) { // number of sides
       currbcs(i,j) = "interface";
     }
@@ -398,7 +396,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
   DRV newnodes = sgt.getPhysicalNodes(macroData[mindex]->macronodes,
                                       macro_cellTopo, sub_disc);
   
-  int numNodesPerElem = sub_mesh->cellTopo[0]->getNodeCount();
+  int numNodesPerElem = sub_mesh->cell_topo[0]->getNodeCount();
   vector<Teuchos::RCP<BoundaryGroup> > newbgroups;
   
   vector<vector<size_t> > elem_groups;
@@ -408,7 +406,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
   Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs;
   
   if (mindex == 0) {
-    LIDs = sub_disc->DOF_LIDs[0];//->getLIDs(); // hard coded
+    LIDs = sub_disc->dof_lids[0];//->getLIDs(); // hard coded
   }
   
   for (size_t s=0; s<elem_groups.size(); s++) {
@@ -1090,7 +1088,7 @@ void SubGridDtN2::setupCombinedExodus(vector<string> & appends) {
                       mesh_type, mesh_file);
     sgt.createSubMesh(numrefine);
     
-    size_t numRefNodes = sgt.subnodes_list.extent(0);
+    size_t numRefNodes = sgt.getNumRefNodes();
     size_t numTotalNodes = 0;
     for (size_t macrogrp=0; macrogrp<macroData.size(); macrogrp++) {
       for (size_t e=0; e<macroData[macrogrp]->macronodes.extent(0); e++) {
@@ -1140,21 +1138,21 @@ void SubGridDtN2::setupCombinedExodus(vector<string> & appends) {
     for (size_t app=0; app<appends.size(); ++app) {
       string capp = appends[app];
       
-      for (size_t j=0; j<sub_physics->varlist[0][0].size(); j++) {
+      for (size_t j=0; j<sub_physics->var_list[0][0].size(); j++) {
         if (vartypes[j] == "HGRAD") {
-          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp, subeBlocks[0]);
+          combined_mesh->addSolutionField(sub_physics->var_list[0][0][j]+capp, subeBlocks[0]);
         }
         else if (vartypes[j] == "HVOL"){
-          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp, subeBlocks[0]);
+          combined_mesh->addCellField(sub_physics->var_list[0][0][j]+capp, subeBlocks[0]);
         }
         else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL"){
-          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp+"x", subeBlocks[0]);
-          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp+"y", subeBlocks[0]);
-          combined_mesh->addCellField(sub_physics->varlist[0][0][j]+capp+"z", subeBlocks[0]);
+          combined_mesh->addCellField(sub_physics->var_list[0][0][j]+capp+"x", subeBlocks[0]);
+          combined_mesh->addCellField(sub_physics->var_list[0][0][j]+capp+"y", subeBlocks[0]);
+          combined_mesh->addCellField(sub_physics->var_list[0][0][j]+capp+"z", subeBlocks[0]);
         
-          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp+"x", subeBlocks[0]);
-          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp+"y", subeBlocks[0]);
-          combined_mesh->addSolutionField(sub_physics->varlist[0][0][j]+capp+"z", subeBlocks[0]);
+          combined_mesh->addSolutionField(sub_physics->var_list[0][0][j]+capp+"x", subeBlocks[0]);
+          combined_mesh->addSolutionField(sub_physics->var_list[0][0][j]+capp+"y", subeBlocks[0]);
+          combined_mesh->addSolutionField(sub_physics->var_list[0][0][j]+capp+"z", subeBlocks[0]);
         }
       }
     
@@ -1262,7 +1260,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
     Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;
     Kokkos::View<int*,AssemblyDevice> numDOF = sub_assembler->groupData[0]->numDOF;
     vector<string> vartypes = sub_physics->types[0][0];
-    vector<string> varlist = sub_physics->varlist[0][0];
+    vector<string> varlist = sub_physics->var_list[0][0];
     
     // Collect the subgrid solution
     for (size_t n = 0; n<varlist.size(); n++) {
@@ -1644,7 +1642,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN2::evaluat
       }
       
       Kokkos::DynRankView<int,PHX::Device> inRefCell = sub_disc->checkInclusionPhysicalData(pts,cnodes,
-                                                                                            sub_mesh->cellTopo[0], 1.0e-12);
+                                                                                            sub_mesh->cell_topo[0], 1.0e-12);
       for (size_t i=0; i<numpts; i++) {
         if (inRefCell(0,i) == 1) {
           owners(i,0) = grp;//groups[0][e]->localElemID[c];
@@ -1672,7 +1670,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN2::evaluat
         cnodes(0,k,j) = nodes(owners(i,1),k,j);
       }
     }
-    DRV refpt_buffer = sub_disc->mapPointsToReference(cpt,cnodes,sub_mesh->cellTopo[0]);
+    DRV refpt_buffer = sub_disc->mapPointsToReference(cpt,cnodes,sub_mesh->cell_topo[0]);
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
     Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;

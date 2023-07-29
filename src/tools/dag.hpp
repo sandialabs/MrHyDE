@@ -25,84 +25,89 @@ namespace MrHyDE {
   // =================================================================
   
   class Branch { // replaces term
+    friend class Tree;
+    friend class Forest;
+    friend class FunctionManager;
+    friend class Interpreter;
   public:
     
     Branch() {};
     
     ~Branch() {};
     
-    Branch(const string & expression_) {
-      expression = expression_;
+    Branch(const string & expression) {
+      expression_ = expression;
       // default settings are all false
-      isLeaf = false;
-      isDecomposed = false;
-      isFunc = false;
-      isView = false;
-      isAD = false;
-      isWorksetData = false;
-      isConstant = false;
-      isParameter = false;
-      isTime = false;
+      is_leaf_ = false;
+      is_decomposed_ = false;
+      is_func_ = false;
+      is_view_ = false;
+      is_AD_ = false;
+      is_workset_data_ = false;
+      is_constant_ = false;
+      is_parameter_ = false;
+      is_time_ = false;
       
-      funcIndex = 0;
-      paramIndex = 0;
+      func_index_ = 0;
+      param_index_ = 0;
       
-      workset_data_index = 0;
+      workset_data_index_ = 0;
     }
     
-    Branch(const ScalarT value_) {
+    Branch(const ScalarT value) {
       std::stringstream stream;
-      stream << std::fixed << std::setprecision(16) << value_;
-      expression = stream.str();
+      stream << std::fixed << std::setprecision(16) << value;
+      expression_ = stream.str();
       
       // default settings are all false
-      isLeaf = true;
-      isDecomposed = true;
-      isFunc = false;
-      isView = false;
-      isAD = false;
-      isWorksetData = false;
-      isConstant = true;
-      isParameter = false;
-      isTime = false;
+      is_leaf_ = true;
+      is_decomposed_ = true;
+      is_func_ = false;
+      is_view_ = false;
+      is_AD_ = false;
+      is_workset_data_ = false;
+      is_constant_ = true;
+      is_parameter_ = false;
+      is_time_ = false;
       
-      funcIndex = 0;
-      paramIndex = 0;
+      func_index_ = 0;
+      param_index_ = 0;
       
-      workset_data_index = 0;
+      workset_data_index_ = 0;
       
-      data_Sc = value_;
+      data_Sc_ = value;
     }
     
     void print() {
     
-      std::cout << "-- Printing metadata for branch: " << expression << std::endl;
-      std::cout << "------ isLeaf: "        << isLeaf << std::endl;
-      std::cout << "------ isDecomposed: "  << isDecomposed << std::endl;
-      std::cout << "------ isFunc: "        << isFunc << std::endl;
-      std::cout << "------ isView: "        << isView << std::endl;
-      std::cout << "------ isAD: "          << isAD << std::endl;
-      std::cout << "------ isWorksetData: " << isWorksetData << std::endl;
-      std::cout << "------ isConstant: "    << isConstant << std::endl;
-      std::cout << "------ isParameter: "   << isParameter << std::endl;
-      std::cout << "------ isTime: "        << isTime << std::endl;
+      std::cout << "-- Printing metadata for branch: " << expression_ << std::endl;
+      std::cout << "------ is_leaf_: "        << is_leaf_ << std::endl;
+      std::cout << "------ is_decomposed_: "  << is_decomposed_ << std::endl;
+      std::cout << "------ is_func_: "        << is_func_ << std::endl;
+      std::cout << "------ is_view_: "        << is_view_ << std::endl;
+      std::cout << "------ is_AD_: "          << is_AD_ << std::endl;
+      std::cout << "------ is_workset_data_: " << is_workset_data_ << std::endl;
+      std::cout << "------ is_constant_: "    << is_constant_ << std::endl;
+      std::cout << "------ is_parameter_: "   << is_parameter_ << std::endl;
+      std::cout << "------ is_time_: "        << is_time_ << std::endl;
     }
     
-    
-    string expression;
-    bool isLeaf, isDecomposed, isFunc, isView, isAD, isConstant, isWorksetData, isParameter, isTime;
-    int funcIndex, paramIndex, workset_data_index;
+  private:
+
+    string expression_;
+    bool is_leaf_, is_decomposed_, is_func_, is_view_, is_AD_, is_constant_, is_workset_data_, is_parameter_, is_time_;
+    int func_index_, param_index_, workset_data_index_;
     
     // Various data storage types
     // Only one of these will get used
-    View_AD2 viewdata;
-    View_Sc2 viewdata_Sc;
-    ScalarT data_Sc;
-    AD data;
-    Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> param_data;
+    View_AD2 viewdata_;
+    View_Sc2 viewdata_Sc_;
+    ScalarT data_Sc_;
+    AD data_;
+    Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> param_data_;
         
-    vector<int> dep_list, dep_ops_int;
-    vector<string> dep_ops;
+    vector<int> dep_list_, dep_ops_int_;
+    vector<string> dep_ops_;
     
   };
   
@@ -111,77 +116,80 @@ namespace MrHyDE {
   // =================================================================
   
   class Tree { // replaces function_class
+    friend class Forest;
+    friend class FunctionManager;
   public:
     
     Tree() {};
     
     ~Tree() {};
     
-    Tree(const string & name_, const string & expression_) {
-      name = name_;
-      expression = expression_;
-      branches.push_back(Branch(expression));
+    Tree(const string & name, const string & expression) {
+      name_ = name;
+      expression_ = expression;
+      branches_.push_back(Branch(expression));
     }
     
-    Tree(const string & name_, ScalarT & value_) {
-      name = name_;
+    Tree(const string & name, ScalarT & value) {
+      name_ = name;
       std::stringstream stream;
-      stream << std::fixed << std::setprecision(16) << value_;
-      expression = stream.str();
-      branches.push_back(Branch(value_));
+      stream << std::fixed << std::setprecision(16) << value;
+      expression_ = stream.str();
+      branches_.push_back(Branch(value));
     }
     
     void setupVista() {
-      if (branches.size() > 0) {
-        if (branches[0].isView) {
-          if (branches[0].isAD) {
-            vista = Vista(branches[0].viewdata);
+      if (branches_.size() > 0) {
+        if (branches_[0].is_view_) {
+          if (branches_[0].is_AD_) {
+            vista_ = Vista(branches_[0].viewdata_);
           }
           else {
-            vista = Vista(branches[0].viewdata_Sc);
+            vista_ = Vista(branches_[0].viewdata_Sc_);
           }
         }
         else {
-          if (branches[0].isAD) {
-            vista = Vista(branches[0].data);
+          if (branches_[0].is_AD_) {
+            vista_ = Vista(branches_[0].data_);
           }
           else {
-            vista = Vista(branches[0].data_Sc);
+            vista_ = Vista(branches_[0].data_Sc_);
           }
         }
       }
     }
     
     void updateVista() {
-      if (branches[0].isAD) {
-        if (branches[0].isView) {
-          if (branches[0].isParameter) {
-            int pind = branches[0].paramIndex;
-            auto pdata = branches[0].param_data;
+      if (branches_[0].is_AD_) {
+        if (branches_[0].is_view_) {
+          if (branches_[0].is_parameter_) {
+            int pind = branches_[0].param_index_;
+            auto pdata = branches_[0].param_data_;
             AD pval = pdata(pind); // Yes, I know this won't work on a GPU
-            vista.update(pval);
+            vista_.update(pval);
           }
           else {
-            vista.update(branches[0].viewdata);
+            vista_.update(branches_[0].viewdata_);
           }
         }
         else {
-          vista.update(branches[0].data);
+          vista_.update(branches_[0].data_);
         }
       }
       else {
-        if (branches[0].isView) {
-          vista.update(branches[0].viewdata_Sc);
+        if (branches_[0].is_view_) {
+          vista_.update(branches_[0].viewdata_Sc_);
         }
         else {
-          vista.update(branches[0].data_Sc);
+          vista_.update(branches_[0].data_Sc_);
         }
       }
     }
     
-    std::vector<Branch> branches;
-    string name, expression;
-    Vista vista;
+  private:
+    std::vector<Branch> branches_;
+    string name_, expression_;
+    Vista vista_;
     
   };
   
@@ -190,29 +198,31 @@ namespace MrHyDE {
   // =================================================================
   
   class Forest {
+    friend class FunctionManager;
   public:
     
     Forest() {};
     
     ~Forest() {};
     
-    Forest(const std::string & location_, const int & dim0_, const int & dim1_){
-      location = location_;
-      dim0 = dim0_;
-      dim1 = dim1_;
+    Forest(const std::string & location, const int & dim0, const int & dim1){
+      location_ = location;
+      dim0_ = dim0;
+      dim1_ = dim1;
     }
     
     void addTree(const string & name, const string & expression) {
-      trees.push_back(Tree(name,expression));
+      trees_.push_back(Tree(name,expression));
     }
     
     void addTree(const string & name, ScalarT & value) {
-      trees.push_back(Tree(name,value));
+      trees_.push_back(Tree(name,value));
     }
     
-    std::string location;
-    int dim0, dim1;
-    std::vector<Tree> trees;
+  private:
+    std::string location_;
+    int dim0_, dim1_;
+    std::vector<Tree> trees_;
     
   };
   

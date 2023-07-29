@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 /** \file   discretizationInterface.hpp
@@ -303,24 +301,25 @@ namespace MrHyDE {
     // Public data
     ////////////////////////////////////////////////////////////////////////////////
     
-    int debug_level, verbosity, spaceDim, quadorder;
+  //private:
+    int debug_level, verbosity, dimension, quadorder;
     double storage_proportion;
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    Teuchos::RCP<MpiComm> Commptr;
+    Teuchos::RCP<MpiComm> comm;
     Teuchos::RCP<panzer_stk::STK_Interface> mesh;
-    Teuchos::RCP<PhysicsInterface> phys;
+    Teuchos::RCP<PhysicsInterface> physics;
     vector<vector<basis_RCP> > basis_pointers; // [block][basis]
     vector<vector<string> > basis_types; // [block][basis]
     
     vector<vector<vector<GO> > > point_dofs; // [set][block][dof]
     vector<vector<vector<vector<LO> > > > dbc_dofs; // [set][block][dof]
-    vector<string> blocknames, sidenames;
+    vector<string> block_names, side_names;
     
     // Purgable
-    std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> DOF_LIDs;
-    std::vector<std::vector<GO> > DOF_owned, DOF_ownedAndShared;
-    std::vector<std::vector<std::vector<GO>>> DOF_GIDs; // [set][elem][gid] may consider a different storage strategy
+    std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids;
+    std::vector<std::vector<GO> > dof_owned, dof_owned_and_shared;
+    std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][gid] may consider a different storage strategy
     
     std::vector<Intrepid2::Orientation> panzer_orientations;
 
@@ -328,54 +327,55 @@ namespace MrHyDE {
     vector<size_t> numip, numip_side;
     
     vector<vector<int> > cards;
-    vector<vector<size_t> > myElements;
+    vector<vector<size_t> > my_elements;
         
     vector<vector<Kokkos::View<int****,HostDevice> > > side_info;
     vector<vector<vector<vector<string> > > > var_bcs; // [set][block][var][boundary]
     vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
     
+    bool have_dirichlet = false, minimize_memory;
+
+  private:
     
-    bool haveDirichlet = false, minimize_memory;
+    Teuchos::RCP<Teuchos::Time> set_bc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setBCData()");
+    Teuchos::RCP<Teuchos::Time> set_dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setDirichletData()");
+    Teuchos::RCP<Teuchos::Time> dofmgr_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::buildDOFManagers()");
     
-    Teuchos::RCP<Teuchos::Time> setbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setBCData()");
-    Teuchos::RCP<Teuchos::Time> setdbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setDirichletData()");
-    Teuchos::RCP<Teuchos::Time> dofmgrtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::buildDOFManagers()");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_total_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - total");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_IP_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - ip");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_set_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - set Jac");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_other_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - other Jac");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_hsize_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - hsize");
+    Teuchos::RCP<Teuchos::Time> phys_orient_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalOrientations");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_wts_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - wts");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_basis_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - basis");
     
-    Teuchos::RCP<Teuchos::Time> physVolDataTotalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - total");
-    Teuchos::RCP<Teuchos::Time> physVolDataIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - ip");
-    Teuchos::RCP<Teuchos::Time> physVolDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - set Jac");
-    Teuchos::RCP<Teuchos::Time> physVolDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - other Jac");
-    Teuchos::RCP<Teuchos::Time> physVolDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - hsize");
-    Teuchos::RCP<Teuchos::Time> physOrientTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalOrientations");
-    Teuchos::RCP<Teuchos::Time> physVolDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - wts");
-    Teuchos::RCP<Teuchos::Time> physVolDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - basis");
+    Teuchos::RCP<Teuchos::Time> phys_basis_new_quad_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::evaluateBasisNewQuadrature()");
     
-    Teuchos::RCP<Teuchos::Time> physBasisNewQuadTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::evaluateBasisNewQuadrature()");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_basis_div_val_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-VALUE");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_basis_div_div_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-DIV");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_basis_curl_val_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HCURL-VALUE");
+    Teuchos::RCP<Teuchos::Time> phys_vol_data_basis_curl_curl_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HCURL-CURL");
     
-    Teuchos::RCP<Teuchos::Time> physVolDataBasisDivValTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-VALUE");
-    Teuchos::RCP<Teuchos::Time> physVolDataBasisDivDivTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HDIV-DIV");
-    Teuchos::RCP<Teuchos::Time> physVolDataBasisCurlValTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HCURL-VALUE");
-    Teuchos::RCP<Teuchos::Time> physVolDataBasisCurlCurlTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - HCURL-CURL");
+    Teuchos::RCP<Teuchos::Time> phys_face_data_total_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - total");
+    Teuchos::RCP<Teuchos::Time> phys_face_data_IP_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - ip");
+    Teuchos::RCP<Teuchos::Time> phys_face_data_set_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - set Jac");
+    Teuchos::RCP<Teuchos::Time> phys_face_data_other_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - other Jac");
+    Teuchos::RCP<Teuchos::Time> phys_face_data_hsize_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - hsize");
+    Teuchos::RCP<Teuchos::Time> phys_face_data_wts_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - wts");
+    Teuchos::RCP<Teuchos::Time> phys_face_data_basis_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - basis");
     
-    Teuchos::RCP<Teuchos::Time> physFaceDataTotalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - total");
-    Teuchos::RCP<Teuchos::Time> physFaceDataIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - ip");
-    Teuchos::RCP<Teuchos::Time> physFaceDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - set Jac");
-    Teuchos::RCP<Teuchos::Time> physFaceDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - other Jac");
-    Teuchos::RCP<Teuchos::Time> physFaceDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - hsize");
-    Teuchos::RCP<Teuchos::Time> physFaceDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - wts");
-    Teuchos::RCP<Teuchos::Time> physFaceDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalFaceData - basis");
-    
-    Teuchos::RCP<Teuchos::Time> physBndryDataTotalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - total");
-    Teuchos::RCP<Teuchos::Time> physBndryDataIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - ip");
-    Teuchos::RCP<Teuchos::Time> physBndryDataSetJacTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - set Jac");
-    Teuchos::RCP<Teuchos::Time> physBndryDataOtherJacTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - other Jac");
-    Teuchos::RCP<Teuchos::Time> physBndryDataHsizeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - hsize");
-    Teuchos::RCP<Teuchos::Time> physBndryDataWtsTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - wts");
-    Teuchos::RCP<Teuchos::Time> physBndryDataBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - basis");
-    Teuchos::RCP<Teuchos::Time> databaseCopyBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - copy");
-    Teuchos::RCP<Teuchos::Time> databaseOrientTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - apply orient");
-    Teuchos::RCP<Teuchos::Time> databaseTotalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - total");
-    Teuchos::RCP<Teuchos::Time> databaseAllocateTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - allocate memory");
+    Teuchos::RCP<Teuchos::Time> phys_bndry_data_total_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - total");
+    Teuchos::RCP<Teuchos::Time> phys_bndry_data_IP_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - ip");
+    Teuchos::RCP<Teuchos::Time> phys_bndry_data_set_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - set Jac");
+    Teuchos::RCP<Teuchos::Time> phys_bndry_data_other_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - other Jac");
+    Teuchos::RCP<Teuchos::Time> phys_bndry_data_hsize_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - hsize");
+    Teuchos::RCP<Teuchos::Time> phys_bndry_data_wts_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - wts");
+    Teuchos::RCP<Teuchos::Time> phys_bndry_data_basis_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalBoundaryData - basis");
+    Teuchos::RCP<Teuchos::Time> database_copy_basis_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - copy");
+    Teuchos::RCP<Teuchos::Time> database_orient_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - apply orient");
+    Teuchos::RCP<Teuchos::Time> database_total_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - total");
+    Teuchos::RCP<Teuchos::Time> database_allocate_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::copyDataFromDatabase() - allocate memory");
   };
   
 }

@@ -68,7 +68,9 @@ namespace MrHyDE {
     void volumeResidual();
     
     void boundaryResidual();
-
+  
+  private:
+  
     bool use_evisc, use_SUPG;
 
   };

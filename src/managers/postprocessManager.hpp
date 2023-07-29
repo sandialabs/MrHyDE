@@ -565,7 +565,7 @@ namespace MrHyDE {
     bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution, write_subgrid_model;
     int write_frequency, exodus_write_frequency, write_group_number, write_database_id;  ///< Solution write frequency (1/timesteps) 
     std::string exodus_filename, cellfield_reduction;
-    int spaceDim;                                                // spatial dimension
+    int dimension;                                                // spatial dimension
     int numNodesPerElem;                                         // nodes on each element
     int numCells;                                                // number of domain cells (normall it is 1)
     size_t numBlocks;                                            // number of element blocks
@@ -595,7 +595,8 @@ namespace MrHyDE {
     Teuchos::RCP<fftInterface> fft;
 #endif
 
-    
+  private:
+
     // Timers
     Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeError");
     Teuchos::RCP<Teuchos::Time> writeSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::writeSolution");

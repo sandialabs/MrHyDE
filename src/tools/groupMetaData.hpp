@@ -26,6 +26,7 @@
 namespace MrHyDE {
   
   class GroupMetaData {
+  
   public:
     
     GroupMetaData() {} ;
@@ -36,14 +37,14 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     GroupMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
-                 const topo_RCP & cellTopo_,
-                 const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
-                 const size_t & myBlock_,
-                 const size_t & myLevel_, const int & numElem_,
-                 const bool & build_face_terms_,
-                 const vector<bool> & assemble_face_terms_,
-                 const vector<string> & sidenames_,
-                 const size_t & num_params);
+                  const topo_RCP & cellTopo_,
+                  const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
+                  const size_t & myBlock_,
+                  const size_t & myLevel_, const int & numElem_,
+                  const bool & build_face_terms_,
+                  const vector<bool> & assemble_face_terms_,
+                  const vector<string> & sidenames_,
+                  const size_t & num_params);
     
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -57,6 +58,8 @@ namespace MrHyDE {
     size_t getDatabaseStorage();
 
     ///////////////////////////////////////////////////////////////////////////////////////
+    // This class is really just for storing common meta-data for groups and bondary groups
+    // As such, all data is public
     ///////////////////////////////////////////////////////////////////////////////////////
     
     vector<bool> assemble_face_terms;
@@ -64,7 +67,7 @@ namespace MrHyDE {
     
     size_t myBlock, myLevel, numSets;
     int numElem=0; // safeguard against case where a proc does not own any elem on a block
-    Teuchos::RCP<PhysicsInterface> physics_RCP;
+    Teuchos::RCP<PhysicsInterface> physics;
     string response_type;
     vector<string> sidenames;
     bool requiresTransient, requiresAdjoint, matrix_free, use_sparse_mass;

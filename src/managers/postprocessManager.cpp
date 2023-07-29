@@ -109,7 +109,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
  
   compute_weighted_norm = settings->sublist("Postprocess").get<bool>("compute weighted norm",false);
   
-  setnames = phys->setnames;
+  setnames = phys->set_names;
   
   for (size_t set=0; set<setnames.size(); ++set) {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
@@ -173,11 +173,11 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   
   //mesh->stk_mesh->getElementBlockNames(blocknames);
   //mesh->stk_mesh->getSidesetNames(sideSets);
-  blocknames = phys->blocknames;
-  sideSets = phys->sidenames;
+  blocknames = phys->block_names;
+  sideSets = phys->side_names;
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
-  spaceDim = phys->spaceDim;//mesh->stk_mesh->getDimension();
+  dimension = phys->dimension;//mesh->stk_mesh->getDimension();
     
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
@@ -187,7 +187,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
   write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
   
-  varlist = phys->varlist;
+  varlist = phys->var_list;
   
   for (size_t block=0; block<blocknames.size(); ++block) {
         
@@ -286,7 +286,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     for (size_t set=0; set<phys->modules.size(); ++set) {
       for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
         vector< vector<string> > integrandsNamesAndTypes =
-        phys->modules[set][block][m]->setupIntegratedQuantities(spaceDim);
+        phys->modules[set][block][m]->setupIntegratedQuantities(dimension);
         vector<integratedQuantity> phys_IQs =
         this->addIntegratedQuantities(integrandsNamesAndTypes, block);
         // add the IQs from this physics to the "running total"
@@ -359,11 +359,11 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           
           string expression = true_solns.get<string>("grad("+vars[j]+")[x]","0.0");
           functionManagers[block]->addFunction("true grad("+vars[j]+")[x]",expression,"ip");
-          if (spaceDim>1) {
+          if (dimension>1) {
             expression = true_solns.get<string>("grad("+vars[j]+")[y]","0.0");
             functionManagers[block]->addFunction("true grad("+vars[j]+")[y]",expression,"ip");
           }
-          if (spaceDim>2) {
+          if (dimension>2) {
             expression = true_solns.get<string>("grad("+vars[j]+")[z]","0.0");
             functionManagers[block]->addFunction("true grad("+vars[j]+")[z]",expression,"ip");
           }
@@ -386,11 +386,11 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           string expression = true_solns.get<string>(vars[j]+"[x]","0.0");
           functionManagers[block]->addFunction("true "+vars[j]+"[x]",expression,"ip");
           
-          if (spaceDim>1) {
+          if (dimension>1) {
             expression = true_solns.get<string>(vars[j]+"[y]","0.0");
             functionManagers[block]->addFunction("true "+vars[j]+"[y]",expression,"ip");
           }
-          if (spaceDim>2) {
+          if (dimension>2) {
             expression = true_solns.get<string>(vars[j]+"[z]","0.0");
             functionManagers[block]->addFunction("true "+vars[j]+"[z]",expression,"ip");
           }
@@ -413,11 +413,11 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           string expression = true_solns.get<string>("curl("+vars[j]+")[x]","0.0");
           functionManagers[block]->addFunction("true curl("+vars[j]+")[x]",expression,"ip");
           
-          if (spaceDim>1) {
+          if (dimension>1) {
             expression = true_solns.get<string>("curl("+vars[j]+")[y]","0.0");
             functionManagers[block]->addFunction("true curl("+vars[j]+")[y]",expression,"ip");
           }
-          if (spaceDim>2) {
+          if (dimension>2) {
             expression = true_solns.get<string>("curl("+vars[j]+")[z]","0.0");
             functionManagers[block]->addFunction("true curl("+vars[j]+")[z]",expression,"ip");
           }
@@ -676,16 +676,16 @@ void PostprocessManager<Node>::report() {
                   attempts++;
                 }
                 respOUT.precision(8);
-                Teuchos::Array<ScalarT> time_data(max_numtimes+spaceDim,0.0);
-                for (size_t dim=0; dim<spaceDim; ++dim) {
+                Teuchos::Array<ScalarT> time_data(max_numtimes+dimension,0.0);
+                for (size_t dim=0; dim<dimension; ++dim) {
                   time_data[dim] = 0.0;
                 }
 
                 for (size_t tt=0; tt<max_numtimes; ++tt) {
-                  time_data[tt+spaceDim] = objectives[obj].response_times[tt];
+                  time_data[tt+dimension] = objectives[obj].response_times[tt];
                 }
               
-                for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
+                for (size_t tt=0; tt<max_numtimes+dimension; ++tt) {
                   respOUT << time_data[tt] << "  ";
                 }
                 respOUT << endl;
@@ -693,8 +693,8 @@ void PostprocessManager<Node>::report() {
               
               auto spts = objectives[obj].sensor_points;
               for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
-                Teuchos::Array<ScalarT> series_data(max_numtimes+spaceDim,0.0);
-                Teuchos::Array<ScalarT> gseries_data(max_numtimes+spaceDim,0.0);
+                Teuchos::Array<ScalarT> series_data(max_numtimes+dimension,0.0);
+                Teuchos::Array<ScalarT> gseries_data(max_numtimes+dimension,0.0);
                 if (objectives[obj].sensor_found[ss]) {
                   size_t sindex = 0;
                   for (size_t j=0; j<ss; ++j) {
@@ -702,21 +702,21 @@ void PostprocessManager<Node>::report() {
                       sindex++;
                     }
                   }
-                  for (size_t dim=0; dim<spaceDim; ++dim) {
+                  for (size_t dim=0; dim<dimension; ++dim) {
                     series_data[dim] = spts(sindex,dim);  
                   }
                   
                   for (size_t tt=0; tt<max_numtimes; ++tt) {
-                    series_data[tt+spaceDim] = sensor_data(sindex,field,tt);
+                    series_data[tt+dimension] = sensor_data(sindex,field,tt);
                   }
                 }
                 
-                const int numentries = max_numtimes+spaceDim;
+                const int numentries = max_numtimes+dimension;
                 Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&series_data[0],&gseries_data[0]);
                 
                 if (Comm->getRank() == 0) {
                   //respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
-                  for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
+                  for (size_t tt=0; tt<max_numtimes+dimension; ++tt) {
                     respOUT << gseries_data[tt] << "  ";
                   }
                   respOUT << endl;
@@ -1191,7 +1191,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             }, error);
             blockerrors(etype) += error;
             
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               // compute the true y-component of grad
               string expression = "grad(" + varname + ")[y]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
@@ -1212,7 +1212,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               blockerrors(etype) += error;
             }
             
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               // compute the true z-component of grad
               string expression = "grad(" + varname + ")[z]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
@@ -1273,7 +1273,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             }, error);
             blockerrors(etype) += error;
             
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               // compute the true y-component of grad
               string expression = "curl(" + varname + ")[y]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
@@ -1294,7 +1294,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               blockerrors(etype) += error;
             }
             
-            if (spaceDim >2) {
+            if (dimension >2) {
               // compute the true z-component of grad
               string expression = "curl(" + varname + ")[z]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
@@ -1335,7 +1335,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             }, error);
             blockerrors(etype) += error;
             
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               // compute the true y-component of grad
               string expression = varname + "[y]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
@@ -1356,7 +1356,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               blockerrors(etype) += error;
             }
             
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               // compute the true z-component of grad
               string expression = varname + "[z]";
               auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
@@ -1550,7 +1550,7 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
                                                assembler->wkset[block]->numVars[0], // hard coded
                                                assembler->wkset[block]->numsideip);
       
-      assembler->groupData[block]->physics_RCP->computeFlux(0,block); // hard coded
+      assembler->groupData[block]->physics->computeFlux(0,block); // hard coded
       auto cflux = assembler->wkset[block]->flux; // View_AD3
       
       for (size_t f=0; f<fluxes.size(); ++f) {
@@ -2169,11 +2169,11 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             assembler->wkset[block]->isOnPoint = true;
             auto x = assembler->wkset[block]->getScalarField("x");
             x(0,0) = objectives[r].sensor_points(pt,0);
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               auto y = assembler->wkset[block]->getScalarField("y");
               y(0,0) = objectives[r].sensor_points(pt,1);
             }
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               auto z = assembler->wkset[block]->getScalarField("z");
               z(0,0) = objectives[r].sensor_points(pt,2);
             }
@@ -2610,7 +2610,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
         for (size_t set=0; set<varlist.size(); ++set) {
           numSols += varlist[set][block].size();
         }
-        Kokkos::View<ScalarT***,HostDevice> sensordat("sensor solution", objectives[r].numSensors, numSols, spaceDim);
+        Kokkos::View<ScalarT***,HostDevice> sensordat("sensor solution", objectives[r].numSensors, numSols, dimension);
         objectives[r].response_times.push_back(current_time); // might store this somewhere else
         
         for (size_t pt=0; pt<objectives[r].numSensors; ++pt) {
@@ -2751,7 +2751,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         
         auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
         
-        //for (int w=0; w<spaceDim+1; ++w) {
+        //for (int w=0; w<dimension+1; ++w) {
         for (int w=0; w<1; ++w) {
           
           // Seed the state and compute the solution at the ip
@@ -2772,8 +2772,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             });
             
-            View_AD4 u_ip("u_ip",numElem,numDOF.extent(0),numip,spaceDim);
-            View_AD4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,spaceDim);
+            View_AD4 u_ip("u_ip",numElem,numDOF.extent(0),numip,dimension);
+            View_AD4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,dimension);
             
             for (size_type var=0; var<numDOF.extent(0); var++) {
               int bnum = assembler->wkset[block]->usebasis[var];
@@ -2828,7 +2828,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             }
             
-            for (int s=0; s<spaceDim; s++) {
+            for (int s=0; s<dimension; s++) {
               auto ugrad_sv = subview(ugrad_ip, ALL(), ALL(), ALL(), s);
               if ((w-1) == s) {
                 parallel_for("grp response seed grad 0",
@@ -3009,7 +3009,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         
         auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
                 
-        for (int w=0; w<spaceDim+1; ++w) {
+        for (int w=0; w<dimension+1; ++w) {
         //for (int w=0; w<1; ++w) {
           
           // Seed the state and compute the solution at the ip
@@ -3030,8 +3030,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             });
             
-            View_AD4 u_ip("u_ip",numElem,numDOF.extent(0),numip,spaceDim);
-            View_AD4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,spaceDim);
+            View_AD4 u_ip("u_ip",numElem,numDOF.extent(0),numip,dimension);
+            View_AD4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,dimension);
             
             for (size_type var=0; var<numDOF.extent(0); var++) {
               int bnum = assembler->wkset[block]->usebasis[var];
@@ -3073,7 +3073,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             }
             
-            for (int s=0; s<spaceDim; s++) {
+            for (int s=0; s<dimension; s++) {
               auto ugrad_sv = subview(ugrad_ip, ALL(), ALL(), ALL(), s);
               if ((w-1) == s) {
                 parallel_for("grp response seed grad 0",
@@ -3286,11 +3286,11 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
 
           auto x = assembler->wkset[block]->getScalarField("x");
           x(0,0) = objectives[r].sensor_points(pt,0);
-          if (spaceDim > 1) {
+          if (dimension > 1) {
             auto y = assembler->wkset[block]->getScalarField("y");
             y(0,0) = objectives[r].sensor_points(pt,1);
           }
-          if (spaceDim > 2) {
+          if (dimension > 2) {
             auto z = assembler->wkset[block]->getScalarField("z");
             z(0,0) = objectives[r].sensor_points(pt,2);
           }
@@ -3378,7 +3378,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                               assembler->groups[block][grp]->numElem,
                               assembler->groups[block][grp]->LIDs[set].extent(1),1);
           
-          for (int w=0; w<spaceDim+1; ++w) {
+          for (int w=0; w<dimension+1; ++w) {
             if (w==0) {
               assembler->wkset[block]->setSolutionPoint(u_ip);
               assembler->wkset[block]->setSolutionGradPoint(ugrad_ip);
@@ -3389,7 +3389,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               deep_copy(u_tmp,u_ip);
               deep_copy(ugrad_tmp,ugrad_ip);
               
-              for (int s=0; s<spaceDim; s++) {
+              for (int s=0; s<dimension; s++) {
                 auto ugrad_sv = subview(ugrad_tmp, ALL(), s);
                 if ((w-1) == s) {
                   parallel_for("grp response seed grad 0",
@@ -3743,7 +3743,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
   
   for (size_t block=0; block<blocknames.size(); ++block) {
     std::string blockID = blocknames[block];
-    vector<size_t> myElements = disc->myElements[block];
+    vector<size_t> myElements = disc->my_elements[block];
     
     if (myElements.size() > 0) {
         
@@ -3753,7 +3753,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       
         vector<string> vartypes = phys->types[set][block];
         vector<int> varorders = phys->orders[set][block];
-        int numVars = phys->numVars[set][block]; // probably redundant
+        int numVars = phys->num_vars[set][block]; // probably redundant
         
         for (int n = 0; n<numVars; n++) {
           
@@ -3830,7 +3830,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
             std::string var = varlist[set][block][n];
-            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,spaceDim);
+            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,dimension);
             
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
@@ -3853,10 +3853,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             Kokkos::deep_copy(soln_y, soln_y_dev);
             Kokkos::deep_copy(soln_z, soln_z_dev);
             mesh->stk_mesh->setCellFieldData(var+append+"x", blockID, myElements, soln_x);
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               mesh->stk_mesh->setCellFieldData(var+append+"y", blockID, myElements, soln_y);
             }
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               mesh->stk_mesh->setCellFieldData(var+append+"z", blockID, myElements, soln_z);
             }
             
@@ -3954,7 +3954,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
-            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,spaceDim);
+            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,dimension);
             
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
@@ -3977,10 +3977,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             Kokkos::deep_copy(soln_y, soln_y_dev);
             Kokkos::deep_copy(soln_z, soln_z_dev);
             mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"x", blockID, myElements, soln_x);
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"y", blockID, myElements, soln_y);
             }
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"z", blockID, myElements, soln_z);
             }
             // TMW: this is not actually implemented yet ... not hard to do though
@@ -4371,7 +4371,7 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
   for (size_t block=0; block<assembler->groups.size(); ++block) {
     std::string blockID = blocknames[block];
     //vector<vector<int> > curroffsets = disc->offsets[block];
-    vector<size_t> myElements = disc->myElements[block];
+    vector<size_t> myElements = disc->my_elements[block];
     //vector<string> vartypes = phys->types[block];
     //vector<int> varorders = phys->orders[block];
     
@@ -4538,7 +4538,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
   
   if (numFound > 0) {
     
-    Kokkos::View<ScalarT**,HostDevice> spts_host("exodus sensors on host",numFound,spaceDim);
+    Kokkos::View<ScalarT**,HostDevice> spts_host("exodus sensors on host",numFound,dimension);
     Kokkos::View<int*[2],HostDevice> spts_owners("exodus sensor owners",numFound);
     
     // TMW: as far as I can tell, this is limited to steady-state data
@@ -4561,13 +4561,13 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
                                              std::find(mesh->efield_names.begin(), mesh->efield_names.end(), fieldLocx));
           spts_host(sprog,0) = mesh->efield_vals[ind_Locx][i];
           
-          if (spaceDim > 1) {
+          if (dimension > 1) {
             string fieldLocy = "sensor_" + sensorNum + "_Loc_y";
             ptrdiff_t ind_Locy = std::distance(mesh->efield_names.begin(),
                                                std::find(mesh->efield_names.begin(), mesh->efield_names.end(), fieldLocy));
             spts_host(sprog,1) = mesh->efield_vals[ind_Locy][i];
           }
-          if (spaceDim > 2) {
+          if (dimension > 2) {
             string fieldLocz = "sensor_" + sensorNum + "_Loc_z";
             ptrdiff_t ind_Locz = std::distance(mesh->efield_names.begin(),
                                                std::find(mesh->efield_names.begin(), mesh->efield_names.end(), fieldLocz));
@@ -4590,7 +4590,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
     // Create and store more compact Views based on number of sensors on this proc
     // ========================================
     
-    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
+    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, dimension);
     Kokkos::View<ScalarT*,AssemblyDevice> stime("sensor times", stime_host.extent(0));
     Kokkos::View<ScalarT**,AssemblyDevice> sdat("sensor data", numFound, stime_host.extent(0));
     Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
@@ -4640,7 +4640,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       if (basis_type == "HGRAD") {
         Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
         csensorBasis.push_back(cbasis);
-        Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, spaceDim);
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, dimension);
         csensorBasisGrad.push_back(cbasisgrad);
       }
       else if (basis_type == "HVOL") {
@@ -4648,18 +4648,18 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
         csensorBasis.push_back(cbasis);
       }
       else if (basis_type == "HDIV") {
-        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
         csensorBasis.push_back(cbasis);
       }
       else if (basis_type == "HCURL") {
-        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
         csensorBasis.push_back(cbasis);
       }
     }
 
     for (size_type pt=0; pt<spts.extent(0); ++pt) {
       
-      DRV cpt("point",1,1,spaceDim);
+      DRV cpt("point",1,1,dimension);
       auto cpt_sub = subview(cpt,0,0,ALL());
       auto pp_sub = subview(spts,pt,ALL());
       Kokkos::deep_copy(cpt_sub,pp_sub);
@@ -4670,7 +4670,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
       deep_copy(cnodes_sv,nodes_sv);
 
-      DRV refpt("refsenspts",1,spaceDim);
+      DRV refpt("refsenspts",1,dimension);
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
       DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
@@ -4725,7 +4725,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
   }
   
   if (debug_level > 0) {
-    if (assembler->Comm->getRank() == 0) {
+    if (Comm->getRank() == 0) {
       cout << "**** Finished SensorManager::importSensorsFromExodus() ..." << endl;
     }
   }
@@ -4754,11 +4754,11 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   bool have_data = false;
   
   if (objectives[objID].sensor_data_file == "") {
-    sdata = Data("Sensor Measurements", spaceDim,
+    sdata = Data("Sensor Measurements", dimension,
                  objectives[objID].sensor_points_file);
   }
   else {
-    sdata = Data("Sensor Measurements", spaceDim,
+    sdata = Data("Sensor Measurements", dimension,
                  objectives[objID].sensor_points_file,
                  objectives[objID].sensor_data_file, false);
     have_data = true;
@@ -4775,7 +4775,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   }
   
   // Check that the data matches the expected format
-  if (spts_host.extent(1) != static_cast<size_type>(spaceDim)) {
+  if (spts_host.extent(1) != static_cast<size_type>(dimension)) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
                                "Error: sensor points dimension does not match simulation dimension");
   }
@@ -4841,7 +4841,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     // Create and store more compact Views based on number of sensors on this proc
     // ========================================
     
-    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
+    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, dimension);
     Kokkos::View<ScalarT*,AssemblyDevice> stime;
     Kokkos::View<ScalarT**,AssemblyDevice> sdat;
     Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
@@ -4918,7 +4918,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
   }
   
   // Check that the data matches the expected format
-  if (spaceDim != 3) {
+  if (dimension != 3) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
                                "Error: defining a grid of sensor points is only implemented in 3-dimensions");
   }
@@ -4966,7 +4966,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     zval += dz;
   }
   
-  Kokkos::View<ScalarT**,HostDevice> spts_host("sensor locations",Nx*Ny*Nz,spaceDim);
+  Kokkos::View<ScalarT**,HostDevice> spts_host("sensor locations",Nx*Ny*Nz,dimension);
   
   size_t prog = 0;
   for (int i=0; i<Nx; i++) {
@@ -5010,7 +5010,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     // Create and store more compact Views based on number of sensors on this proc
     // ========================================
     
-    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
+    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, dimension);
     Kokkos::View<ScalarT*,AssemblyDevice> stime;
     Kokkos::View<ScalarT**,AssemblyDevice> sdat;
     Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
@@ -5069,7 +5069,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     if (basis_type == "HGRAD") {
       Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
       csensorBasis.push_back(cbasis);
-      Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, spaceDim);
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, dimension);
       csensorBasisGrad.push_back(cbasisgrad);
     }
     else if (basis_type == "HVOL") {
@@ -5077,11 +5077,11 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
       csensorBasis.push_back(cbasis);
     }
     else if (basis_type == "HDIV") {
-      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
       csensorBasis.push_back(cbasis);
     }
     else if (basis_type == "HCURL") {
-      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
       csensorBasis.push_back(cbasis);
     }
   }
@@ -5089,7 +5089,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
      
   for (size_type pt=0; pt<spts.extent(0); ++pt) {
       
-    DRV cpt("point",1,1,spaceDim);
+    DRV cpt("point",1,1,dimension);
     auto cpt_sub = subview(cpt,0,0,ALL());
     auto pp_sub = subview(spts,pt,ALL());
     Kokkos::deep_copy(cpt_sub,pp_sub);
@@ -5100,7 +5100,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
     deep_copy(cnodes_sv,nodes_sv);
 
-    DRV refpt("refsenspts",1,spaceDim);
+    DRV refpt("refsenspts",1,dimension);
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
     DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
@@ -5173,7 +5173,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
     // Create a bounding box for the element
     // This serves as a preprocessing check to avoid unnecessary inclusion checks
     // If a sensor point is not in the box, then it is not in the element
-    Kokkos::View<double**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),spaceDim);
+    Kokkos::View<double**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),dimension);
     for (size_type p=0; p<nodes_host.extent(0); ++p) {
       for (size_type dim=0; dim<nodes_host.extent(2); ++dim) {
         double dmin = 1.0e300;
@@ -5197,12 +5197,12 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
           if (spts_host(pt,0)<nodebox(p,0,0)-xbuff || spts_host(pt,0)>nodebox(p,0,1)+xbuff) {
             proceed = false;
           }
-          if (proceed && spaceDim > 1) {
+          if (proceed && dimension > 1) {
             if (spts_host(pt,1)<nodebox(p,1,0)-ybuff || spts_host(pt,1)>nodebox(p,1,1)+ybuff) {
               proceed = false;
             }
           }
-          if (proceed && spaceDim > 2) {
+          if (proceed && dimension > 2) {
             if (spts_host(pt,2)<nodebox(p,2,0)-zbuff || spts_host(pt,2)>nodebox(p,2,1)+zbuff) {
               proceed = false;
             }
@@ -5212,7 +5212,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
             checksPerformed++;
             // Need to use DRV, which are on AssemblyDevice
             // We have less control here
-            DRV phys_pt("phys_pt",1,1,spaceDim);
+            DRV phys_pt("phys_pt",1,1,dimension);
             auto phys_pt_host = create_mirror_view(phys_pt);
             for (size_type d=0; d<spts_host.extent(1); ++d) {
               phys_pt_host(0,0,d) = spts_host(pt,d);

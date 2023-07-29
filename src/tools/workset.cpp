@@ -396,13 +396,13 @@ void Workset::reset() {
 
 void Workset::resetSolutionFields() {
   for (size_t f=0; f<soln_fields.size(); ++f) {
-    soln_fields[f].isUpdated = false;
+    soln_fields[f].is_updated_ = false;
   }
   for (size_t f=0; f<side_soln_fields.size(); ++f) {
-    side_soln_fields[f].isUpdated = false;
+    side_soln_fields[f].is_updated_ = false;
   }
   for (size_t f=0; f<point_soln_fields.size(); ++f) {
-    point_soln_fields[f].isUpdated = false;
+    point_soln_fields[f].is_updated_ = false;
   }
 }
 
@@ -772,21 +772,21 @@ void Workset::computeParamSteadySeeded(View_Sc3 param,
 
 void Workset::evaluateSolutionField(const int & fieldnum) {
   
-  auto fielddata = soln_fields[fieldnum].data;
+  auto fielddata = soln_fields[fieldnum].data_;
 
   bool proceed = true;
-  if (soln_fields[fieldnum].derivative_type == "time" ) {
+  if (soln_fields[fieldnum].derivative_type_ == "time" ) {
     if (!isTransient) {
       proceed = false;
     }
     else if (isOnSide) {
       proceed = false;
     }
-    else if (soln_fields[fieldnum].variable_type == "param") {
+    else if (soln_fields[fieldnum].variable_type_ == "param") {
       proceed = false;
     }
   }
-  if (soln_fields[fieldnum].variable_type == "aux") {
+  if (soln_fields[fieldnum].variable_type_ == "aux") {
     proceed = false;
   }
   if (isOnPoint) {
@@ -799,13 +799,13 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
     // Get the appropriate view of seeded solution values
     //-----------------------------------------------------
     
-    size_t sindex = soln_fields[fieldnum].set_index;
-    size_t vindex = soln_fields[fieldnum].variable_index;
+    size_t sindex = soln_fields[fieldnum].set_index_;
+    size_t vindex = soln_fields[fieldnum].variable_index_;
     
     View_AD2 solvals;
-    size_t uindex = uvals_index[soln_fields[fieldnum].set_index][soln_fields[fieldnum].variable_index];
-    if (soln_fields[fieldnum].variable_type == "solution") { // solution
-      if (soln_fields[fieldnum].derivative_type == "time" ) {
+    size_t uindex = uvals_index[soln_fields[fieldnum].set_index_][soln_fields[fieldnum].variable_index_];
+    if (soln_fields[fieldnum].variable_type_ == "solution") { // solution
+      if (soln_fields[fieldnum].derivative_type_ == "time" ) {
         solvals = u_dotvals[uindex];
       }
       else {
@@ -815,8 +815,8 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
 
     int basis_id;
     
-    if (soln_fields[fieldnum].variable_type == "param") { // discr. params
-      solvals = pvals[soln_fields[fieldnum].variable_index];
+    if (soln_fields[fieldnum].variable_type_ == "param") { // discr. params
+      solvals = pvals[soln_fields[fieldnum].variable_index_];
       basis_id = paramusebasis[vindex];
     }
     else {
@@ -827,9 +827,9 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
     // Get the appropriate basis values and evaluate the fields
     //-----------------------------------------------------
     
-    int component = soln_fields[fieldnum].component;
+    int component = soln_fields[fieldnum].component_;
     
-    if (soln_fields[fieldnum].derivative_type == "div") {
+    if (soln_fields[fieldnum].derivative_type_ == "div") {
       auto sbasis = basis_div[basis_id];
       size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
       
@@ -850,7 +850,7 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
     }
     else {
       CompressedView<View_Sc4> cbasis;
-      if (soln_fields[fieldnum].derivative_type == "grad") {
+      if (soln_fields[fieldnum].derivative_type_ == "grad") {
         if (isOnSide) {
           cbasis = basis_grad_side[basis_id];
         }
@@ -858,7 +858,7 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
           cbasis = basis_grad[basis_id];
         }
       }
-      else if (soln_fields[fieldnum].derivative_type == "curl") {
+      else if (soln_fields[fieldnum].derivative_type_ == "curl") {
         if (isOnSide) {
           // not implemented
         }
@@ -892,7 +892,7 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
       });
     }
     
-    soln_fields[fieldnum].isUpdated = true;
+    soln_fields[fieldnum].is_updated_ = true;
   }
   
 }
@@ -903,21 +903,21 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
 
 void Workset::evaluateSideSolutionField(const int & fieldnum) {
   
-  auto fielddata = side_soln_fields[fieldnum].data;
+  auto fielddata = side_soln_fields[fieldnum].data_;
   
   bool proceed = true;
-  if (side_soln_fields[fieldnum].derivative_type == "time" ) {
+  if (side_soln_fields[fieldnum].derivative_type_ == "time" ) {
     if (!isTransient) {
       proceed = false;
     }
     else if (isOnSide) {
       proceed = false;
     }
-    else if (side_soln_fields[fieldnum].variable_type == "param") {
+    else if (side_soln_fields[fieldnum].variable_type_ == "param") {
       proceed = false;
     }
   }
-  if (side_soln_fields[fieldnum].variable_type == "aux") {
+  if (side_soln_fields[fieldnum].variable_type_ == "aux") {
     proceed = false;
   }
   if (isOnPoint) {
@@ -930,13 +930,13 @@ void Workset::evaluateSideSolutionField(const int & fieldnum) {
     // Get the appropriate view of seeded solution values
     //-----------------------------------------------------
     
-    size_t sindex = side_soln_fields[fieldnum].set_index;
-    size_t vindex = side_soln_fields[fieldnum].variable_index;
+    size_t sindex = side_soln_fields[fieldnum].set_index_;
+    size_t vindex = side_soln_fields[fieldnum].variable_index_;
     
     View_AD2 solvals;
-    size_t uindex = uvals_index[side_soln_fields[fieldnum].set_index][side_soln_fields[fieldnum].variable_index];
-    if (side_soln_fields[fieldnum].variable_type == "solution") { // solution
-      if (side_soln_fields[fieldnum].derivative_type == "time" ) {
+    size_t uindex = uvals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
+    if (side_soln_fields[fieldnum].variable_type_ == "solution") { // solution
+      if (side_soln_fields[fieldnum].derivative_type_ == "time" ) {
         solvals = u_dotvals[uindex];
       }
       else {
@@ -946,8 +946,8 @@ void Workset::evaluateSideSolutionField(const int & fieldnum) {
 
     int basis_id;
     
-    if (side_soln_fields[fieldnum].variable_type == "param") { // discr. params
-      solvals = pvals[side_soln_fields[fieldnum].variable_index];
+    if (side_soln_fields[fieldnum].variable_type_ == "param") { // discr. params
+      solvals = pvals[side_soln_fields[fieldnum].variable_index_];
       basis_id = paramusebasis[vindex];
     }
     else {
@@ -958,9 +958,9 @@ void Workset::evaluateSideSolutionField(const int & fieldnum) {
     // Get the appropriate basis values and evaluate the fields
     //-----------------------------------------------------
     
-    int component = side_soln_fields[fieldnum].component;
+    int component = side_soln_fields[fieldnum].component_;
     
-    if (side_soln_fields[fieldnum].derivative_type == "div") {
+    if (side_soln_fields[fieldnum].derivative_type_ == "div") {
       auto sbasis = basis_div[basis_id];
       size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
       
@@ -981,7 +981,7 @@ void Workset::evaluateSideSolutionField(const int & fieldnum) {
     }
     else {
       CompressedView<View_Sc4> cbasis;
-      if (side_soln_fields[fieldnum].derivative_type == "grad") {
+      if (side_soln_fields[fieldnum].derivative_type_ == "grad") {
         cbasis = basis_grad_side[basis_id];
       }
       else {
@@ -1005,7 +1005,7 @@ void Workset::evaluateSideSolutionField(const int & fieldnum) {
       });
     }
     
-    side_soln_fields[fieldnum].isUpdated = true;
+    side_soln_fields[fieldnum].is_updated_ = true;
   }
   
 }
@@ -1296,7 +1296,7 @@ int Workset::addIntegratedQuantities(const int & nRequested) {
 void Workset::printSolutionFields() {
   cout << "Currently defined fields are: " << endl;
   for (size_t f=0; f<soln_fields.size(); ++f) {
-    cout << soln_fields[f].expression << endl;
+    cout << soln_fields[f].expression_ << endl;
   }
 }
 
@@ -1304,19 +1304,19 @@ void Workset::printScalarFields() {
   if (isOnSide) {
     cout << "Currently defined side scalar fields are: " << endl;
     for (size_t f=0; f<side_scalar_fields.size(); ++f) {
-      cout << side_scalar_fields[f].expression << endl;
+      cout << side_scalar_fields[f].expression_ << endl;
     }
   }
   else if (isOnPoint) {
     cout << "Currently defined point scalar fields are: " << endl;
     for (size_t f=0; f<point_scalar_fields.size(); ++f) {
-      cout << point_scalar_fields[f].expression << endl;
+      cout << point_scalar_fields[f].expression_ << endl;
     }
   }
   else {
     cout << "Currently defined scalar fields are: " << endl;
     for (size_t f=0; f<scalar_fields.size(); ++f) {
-      cout << scalar_fields[f].expression << endl;
+      cout << scalar_fields[f].expression_ << endl;
     }
   }
   
@@ -1337,7 +1337,7 @@ View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate,
     bool found = false;
     size_t ind = 0;
     while (!found && ind<side_soln_fields.size()) {
-      if (label == side_soln_fields[ind].expression) {
+      if (label == side_soln_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1350,20 +1350,20 @@ View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate,
     }
     else {
       this->checkSolutionFieldAllocation(ind);
-      if (evaluate && !side_soln_fields[ind].isUpdated) {
+      if (evaluate && !side_soln_fields[ind].is_updated_) {
         this->evaluateSideSolutionField(ind);
       }
       else if (markUpdated) {
-        side_soln_fields[ind].isUpdated = true;
+        side_soln_fields[ind].is_updated_ = true;
       }
     }
-    outdata = side_soln_fields[ind].data;
+    outdata = side_soln_fields[ind].data_;
   }
   else if (isOnPoint) {
     bool found = false;
     size_t ind = 0;
     while (!found && ind<point_soln_fields.size()) {
-      if (label == point_soln_fields[ind].expression) {
+      if (label == point_soln_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1376,20 +1376,20 @@ View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate,
     }
     else {
       this->checkSolutionFieldAllocation(ind);
-      if (evaluate && !point_soln_fields[ind].isUpdated) {
+      if (evaluate && !point_soln_fields[ind].is_updated_) {
         this->evaluateSolutionField(ind);
       }
       else if (markUpdated) {
-        point_soln_fields[ind].isUpdated = true;
+        point_soln_fields[ind].is_updated_ = true;
       }
     }
-    outdata = point_soln_fields[ind].data;
+    outdata = point_soln_fields[ind].data_;
   }
   else {
     bool found = false;
     size_t ind = 0;
     while (!found && ind<soln_fields.size()) {
-      if (label == soln_fields[ind].expression) {
+      if (label == soln_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1402,14 +1402,14 @@ View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate,
     }
     else {
       this->checkSolutionFieldAllocation(ind);
-      if (evaluate && !soln_fields[ind].isUpdated) {
+      if (evaluate && !soln_fields[ind].is_updated_) {
         this->evaluateSolutionField(ind);
       }
       else if (markUpdated) {
-        soln_fields[ind].isUpdated = true;
+        soln_fields[ind].is_updated_ = true;
       }
     }
-    outdata = soln_fields[ind].data;
+    outdata = soln_fields[ind].data_;
   }
   return outdata;
   
@@ -1422,17 +1422,17 @@ View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate,
 void Workset::checkSolutionFieldAllocation(const size_t & ind) {
   
   if (isOnSide) {
-    if (!side_soln_fields[ind].isInitialized) {
+    if (!side_soln_fields[ind].is_initialized_) {
       side_soln_fields[ind].initialize(maxElem,numsideip);
     }
   }
   else if (isOnPoint) {
-    if (!point_soln_fields[ind].isInitialized) {
+    if (!point_soln_fields[ind].is_initialized_) {
       point_soln_fields[ind].initialize(maxElem,1);
     }
   }
   else {
-    if (!soln_fields[ind].isInitialized) {
+    if (!soln_fields[ind].is_initialized_) {
       soln_fields[ind].initialize(maxElem,numip);
     }
   }
@@ -1446,17 +1446,17 @@ void Workset::checkSolutionFieldAllocation(const size_t & ind) {
 void Workset::checkScalarFieldAllocation(const size_t & ind) {
   
   if (isOnSide) {
-    if (!side_scalar_fields[ind].isInitialized) {
+    if (!side_scalar_fields[ind].is_initialized_) {
       side_scalar_fields[ind].initialize(maxElem,numsideip);
     }
   }
   else if (isOnPoint) {
-    if (!point_scalar_fields[ind].isInitialized) {
+    if (!point_scalar_fields[ind].is_initialized_) {
       point_scalar_fields[ind].initialize(maxElem,1);
     }
   }
   else {
-    if (!scalar_fields[ind].isInitialized) {
+    if (!scalar_fields[ind].is_initialized_) {
       scalar_fields[ind].initialize(maxElem,numip);
     }
   }
@@ -1475,7 +1475,7 @@ View_Sc2 Workset::getScalarField(const string & label) {
     
   if (isOnSide) {
     while (!found && ind<side_scalar_fields.size()) {
-      if (label == side_scalar_fields[ind].expression) {
+      if (label == side_scalar_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1488,13 +1488,13 @@ View_Sc2 Workset::getScalarField(const string & label) {
     }
     else {
       this->checkScalarFieldAllocation(ind);
-      outdata = side_scalar_fields[ind].data;
+      outdata = side_scalar_fields[ind].data_;
     }
   
   }
   else if (isOnPoint) {
     while (!found && ind<point_scalar_fields.size()) {
-      if (label == point_scalar_fields[ind].expression) {
+      if (label == point_scalar_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1507,13 +1507,13 @@ View_Sc2 Workset::getScalarField(const string & label) {
     }
     else {
       this->checkScalarFieldAllocation(ind);
-      outdata = point_scalar_fields[ind].data;
+      outdata = point_scalar_fields[ind].data_;
     }
   
   }
   else {
     while (!found && ind<scalar_fields.size()) {
-      if (label == scalar_fields[ind].expression) {
+      if (label == scalar_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1526,13 +1526,11 @@ View_Sc2 Workset::getScalarField(const string & label) {
     }
     else {
       this->checkScalarFieldAllocation(ind);
-      outdata = scalar_fields[ind].data;
+      outdata = scalar_fields[ind].data_;
     }
   
   }
-  
-  
-  
+
   return outdata;
 }
 
@@ -1867,7 +1865,7 @@ void Workset::setScalarField(View_Sc2 newdata, const string & expression) {
   size_t ind = 0;
   if (isOnSide) {
     while (!found && ind<side_scalar_fields.size()) {
-      if (expression == side_scalar_fields[ind].expression) {
+      if (expression == side_scalar_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1879,13 +1877,13 @@ void Workset::setScalarField(View_Sc2 newdata, const string & expression) {
       this->printScalarFields();
     }
     else {
-      side_scalar_fields[ind].data = newdata;
-      side_scalar_fields[ind].isInitialized = true;
+      side_scalar_fields[ind].data_ = newdata;
+      side_scalar_fields[ind].is_initialized_ = true;
     }
   }
   else if (isOnPoint) {
     while (!found && ind<point_scalar_fields.size()) {
-      if (expression == point_scalar_fields[ind].expression) {
+      if (expression == point_scalar_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1897,13 +1895,13 @@ void Workset::setScalarField(View_Sc2 newdata, const string & expression) {
       this->printScalarFields();
     }
     else {
-      point_scalar_fields[ind].data = newdata;
-      point_scalar_fields[ind].isInitialized = true;
+      point_scalar_fields[ind].data_ = newdata;
+      point_scalar_fields[ind].is_initialized_ = true;
     }
   }
   else {
     while (!found && ind<scalar_fields.size()) {
-      if (expression == scalar_fields[ind].expression) {
+      if (expression == scalar_fields[ind].expression_) {
         found = true;
       }
       else {
@@ -1915,8 +1913,8 @@ void Workset::setScalarField(View_Sc2 newdata, const string & expression) {
       this->printScalarFields();
     }
     else {
-      scalar_fields[ind].data = newdata;
-      scalar_fields[ind].isInitialized = true;
+      scalar_fields[ind].data_ = newdata;
+      scalar_fields[ind].is_initialized_ = true;
     }  
   }
   

@@ -193,8 +193,8 @@ void AnalysisManager::run() {
       //std::cout << "Storing data ... " << std::endl;
       
       for (size_t set=0; set<postproc_->soln.size(); ++set) {
-        vector<vector<ScalarT> > times = postproc_->soln[set]->times;
-        vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc_->soln[set]->data;
+        vector<vector<ScalarT> > times = postproc_->soln[set]->extractAllTimes();
+        vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc_->soln[set]->extractAllData();
         
         for (size_t i=0; i<times.size(); i++) {
           for (size_t j=0; j<times[i].size(); j++) {
@@ -306,7 +306,7 @@ void AnalysisManager::run() {
       solver_->forwardModel(objfun);
       if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
         vector<bool> newflags(1,false);
-        solver_->phys->updateFlags(newflags);
+        solver_->physics->updateFlags(newflags);
         string outfile = "output_only_control.exo";
         postproc_->setNewExodusFile(outfile);
         solver_->forwardModel(objfun);
@@ -382,8 +382,8 @@ void AnalysisManager::run() {
       //std::cout << "Storing data ... " << std::endl;
 
       for (size_t set=0; set<postproc_->soln.size(); ++set) {
-        vector<vector<ScalarT> > times = postproc_->soln[set]->times;
-        vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc_->soln[set]->data;
+        vector<vector<ScalarT> > times = postproc_->soln[set]->extractAllTimes();
+        vector<vector<Teuchos::RCP<LA_MultiVector> > > data = postproc_->soln[set]->extractAllData();
         for (size_t i=0; i<times.size(); i++) {
           for (size_t j=0; j<times[i].size(); j++) {
             postproc_->datagen_soln[set]->store(data[i][j], times[i][j], i);
@@ -467,7 +467,7 @@ void AnalysisManager::run() {
       solver_->forwardModel(objfun);
       if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
         vector<bool> newflags(1,false);
-        solver_->phys->updateFlags(newflags);
+        solver_->physics->updateFlags(newflags);
         string outfile = "output_only_control.exo";
         postproc_->setNewExodusFile(outfile);
         solver_->forwardModel(objfun);

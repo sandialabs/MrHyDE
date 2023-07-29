@@ -60,20 +60,20 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
                             KLlist.sublist("x-direction").get<double>("L"),
                             KLlist.sublist("x-direction").get<double>("sigma"),
                             KLlist.sublist("x-direction").get<double>("eta"));
-      int numindices = permKLx.N;
+      int numindices = permKLx.getNumTerms();
       if (spaceDim > 1) {
         permKLy = klexpansion(KLlist.sublist("y-direction").get<int>("N"),
                               KLlist.sublist("y-direction").get<double>("L"),
                               KLlist.sublist("y-direction").get<double>("sigma"),
                               KLlist.sublist("y-direction").get<double>("eta"));
-        numindices *= permKLy.N;
+        numindices *= permKLy.getNumTerms();
       }
       if (spaceDim > 2) {
         permKLz = klexpansion(KLlist.sublist("z-direction").get<int>("N"),
                               KLlist.sublist("z-direction").get<double>("L"),
                               KLlist.sublist("z-direction").get<double>("sigma"),
                               KLlist.sublist("z-direction").get<double>("eta"));
-        numindices *= permKLz.N;
+        numindices *= permKLz.getNumTerms();
       }
 
       // Need to define these indices so the coeffs are ordered properly
@@ -82,19 +82,19 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
       KLindices = Kokkos::View<size_t**,AssemblyDevice>("KL indices",numindices,spaceDim);
       int prog = 0;
       if (spaceDim == 1) {
-        for (size_t i=0; i<permKLx.N; ++i) {
+        for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
           KLindices(prog,0) = i;
           prog++;
         }
       }
       else if (spaceDim == 2) {
-        size_t alpha_max = permKLx.N + permKLy.N - 1; // max total order
+        size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() - 1; // max total order
         // loop over alpha (total basis order)
         for (size_t alpha=0; alpha<alpha_max; ++alpha) {
           // loop over y-direction basis
-          for (size_t j=0; j<permKLy.N; ++j) {
+          for (size_t j=0; j<permKLy.getNumTerms(); ++j) {
             // loop over x-direction basis
-            for (size_t i=0; i<permKLx.N; ++i) {
+            for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
               if ( i + j == alpha ) {
                 KLindices(prog,0) = i;
                 KLindices(prog,1) = j;
@@ -105,15 +105,15 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
         }
       }
       else if (spaceDim == 3) {
-        size_t alpha_max = permKLx.N + permKLy.N + permKLz.N - 2; // max total order
+        size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() + permKLz.getNumTerms() - 2; // max total order
         // loop over alpha (total basis order)
         for (size_t alpha=0; alpha<alpha_max; ++alpha) {
           // loop over z-direction basis
-          for (size_t k=0; k<permKLz.N; ++k) {
+          for (size_t k=0; k<permKLz.getNumTerms(); ++k) {
             // loop over y-direction basis
-            for (size_t j=0; j<permKLy.N; ++j) {
+            for (size_t j=0; j<permKLy.getNumTerms(); ++j) {
               // loop over x-direction basis
-              for (size_t i=0; i<permKLx.N; ++i) {
+              for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
                 if ( i + j + k == alpha ) {
                   KLindices(prog,0) = i;
                   KLindices(prog,1) = j;

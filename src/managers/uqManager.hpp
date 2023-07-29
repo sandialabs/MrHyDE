@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
  ************************************************************************/
 
 #ifndef MRHYDE_UQ_MANAGER_H
@@ -36,15 +34,15 @@ namespace MrHyDE {
     /**
      * @brief Constructor that actually sets everything up.
      *
-     * @param[in]  Comm_        Teuchos MPI Communicator
-     * @param[in]  uqsettings_  Teuchos ParameterList containing a few settings specific to performing UQ
-     * @param[in]  param*       Vectors of data from parameter manager
+     * @param[in]  comm        Teuchos MPI Communicator
+     * @param[in]  uqsettings  Teuchos ParameterList containing a few settings specific to performing UQ
+     * @param[in]  param*      Vectors of data from parameter manager
      */
 
-    UQManager(const Teuchos::RCP<MpiComm> Comm_, const Teuchos::ParameterList & uqsettings_,
-              const std::vector<string> & param_types_,
-              const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
-              const std::vector<ScalarT> & param_mins_, const std::vector<ScalarT> & param_maxs_);
+    UQManager(const Teuchos::RCP<MpiComm> comm, const Teuchos::ParameterList & uqsettings,
+              const std::vector<string> & param_types,
+              const std::vector<ScalarT> & param_means, const std::vector<ScalarT> & param_variances,
+              const std::vector<ScalarT> & param_mins, const std::vector<ScalarT> & param_maxs);
     
     // ========================================================================================
     // ========================================================================================
@@ -107,16 +105,18 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    Teuchos::RCP<MpiComm> Comm;
-    std::string surrogate;
-    std::vector<std::vector<ScalarT> > points;
-    int evalprog, numstochparams;
-    bool use_user_defined;
-    Teuchos::ParameterList uqsettings;
-    std::vector<string> param_types;
-    std::vector<ScalarT> param_means, param_variances, param_mins, param_maxs;
+  private:
+
+    Teuchos::RCP<MpiComm> comm_;
+    std::string surrogate_;
+    //std::vector<std::vector<ScalarT> > points_;
+    int numstochparams_;
+    bool use_user_defined_;
+    Teuchos::ParameterList uqsettings_;
+    std::vector<string> param_types_;
+    std::vector<ScalarT> param_means_, param_variances_, param_mins_, param_maxs_;
     
-    Kokkos::View<ScalarT**,HostDevice> samples;
+    Kokkos::View<ScalarT**,HostDevice> samples_;
   };
 }
 #endif
