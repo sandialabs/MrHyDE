@@ -742,7 +742,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
       
       auto res_AD = assembler->wkset[0]->res;
       auto offsets = assembler->wkset[0]->offsets;
-      auto numDOF = assembler->groupData[0]->numDOF;
+      auto numDOF = assembler->groupData[0]->num_dof;
     
       for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
         
@@ -1251,8 +1251,8 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       
       auto res_AD = assembler->wkset[0]->res;
       auto offsets = assembler->wkset[0]->offsets;
-      auto numDOF = assembler->groupData[0]->numDOF;
-      auto numAuxDOF = assembler->groupData[0]->numAuxDOF;
+      auto numDOF = assembler->groupData[0]->num_dof;
+      auto numAuxDOF = assembler->groupData[0]->num_aux_dof;
       auto aoffsets = assembler->boundary_groups[macrogrp][0]->auxoffsets;
       
       assembler->wkset[0]->isOnSide = true;
@@ -1982,15 +1982,15 @@ void SubGridDtN_Solver::performGather(const size_t & block, ViewType vec_dev, co
   for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
     switch(type) {
       case 0 :
-        numDOF = assembler->groups[block][grp]->groupData->numDOF;
-        data = assembler->groups[block][grp]->u[0];
+        numDOF = assembler->groups[block][grp]->group_data->num_dof;
+        data = assembler->groups[block][grp]->sol[0];
         LIDs = assembler->groups[block][grp]->LIDs[0];
         offsets = assembler->wkset[0]->offsets;
         break;
       case 1 : // deprecated (was udot)
         break;
       case 2 :
-        numDOF = assembler->groups[block][grp]->groupData->numDOF;
+        numDOF = assembler->groups[block][grp]->group_data->num_dof;
         data = assembler->groups[block][grp]->phi[0];
         LIDs = assembler->groups[block][grp]->LIDs[0];
         offsets = assembler->wkset[0]->offsets;
@@ -1998,13 +1998,13 @@ void SubGridDtN_Solver::performGather(const size_t & block, ViewType vec_dev, co
       case 3 : // deprecated (was phidot)
         break;
       case 4:
-        numDOF = assembler->groups[block][grp]->groupData->numParamDOF;
+        numDOF = assembler->groups[block][grp]->group_data->num_param_dof;
         data = assembler->groups[block][grp]->param;
         LIDs = assembler->groups[block][grp]->paramLIDs;
         offsets = assembler->wkset[0]->paramoffsets;
         break;
       case 5 :
-        numDOF = assembler->groups[block][grp]->groupData->numAuxDOF;
+        numDOF = assembler->groups[block][grp]->group_data->num_aux_dof;
         data = assembler->groups[block][grp]->aux;
         LIDs = assembler->groups[block][grp]->auxLIDs;
         offsets = assembler->groups[block][grp]->auxoffsets;
@@ -2043,15 +2043,15 @@ void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec
         
         switch(type) {
           case 0 :
-            numDOF = assembler->boundary_groups[block][grp]->groupData->numDOF;
-            data = assembler->boundary_groups[block][grp]->u[0];
+            numDOF = assembler->boundary_groups[block][grp]->group_data->num_dof;
+            data = assembler->boundary_groups[block][grp]->sol[0];
             LIDs = assembler->boundary_groups[block][grp]->LIDs[0];
             offsets = assembler->wkset[0]->offsets;
             break;
           case 1 : // deprecated (was udot)
             break;
           case 2 :
-            numDOF = assembler->boundary_groups[block][grp]->groupData->numDOF;
+            numDOF = assembler->boundary_groups[block][grp]->group_data->num_dof;
             data = assembler->boundary_groups[block][grp]->phi[0];
             LIDs = assembler->boundary_groups[block][grp]->LIDs[0];
             offsets = assembler->wkset[0]->offsets;
@@ -2059,13 +2059,13 @@ void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec
           case 3 : // deprecated (was phidot)
             break;
           case 4:
-            numDOF = assembler->boundary_groups[block][grp]->groupData->numParamDOF;
+            numDOF = assembler->boundary_groups[block][grp]->group_data->num_param_dof;
             data = assembler->boundary_groups[block][grp]->param;
             LIDs = assembler->boundary_groups[block][grp]->paramLIDs;
             offsets = assembler->wkset[0]->paramoffsets;
             break;
           case 5 :
-            numDOF = assembler->boundary_groups[block][grp]->groupData->numAuxDOF;
+            numDOF = assembler->boundary_groups[block][grp]->group_data->num_aux_dof;
             data = assembler->boundary_groups[block][grp]->aux;
             LIDs = assembler->boundary_groups[block][grp]->auxLIDs;
             offsets = assembler->boundary_groups[block][grp]->auxoffsets;

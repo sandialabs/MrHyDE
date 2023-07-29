@@ -40,7 +40,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    BoundaryGroup(const Teuchos::RCP<GroupMetaData> & groupData_,
+    BoundaryGroup(const Teuchos::RCP<GroupMetaData> & group_data_,
                   const DRV nodes_,
                   const Kokkos::View<LO*,AssemblyDevice> localID_,
                   LO & sideID_,
@@ -234,9 +234,9 @@ namespace MrHyDE {
       // Currently hard coded to one physics sets
       int set = 0;
 
-      vector<View_AD2> uvals = wkset->uvals;
+      vector<View_AD2> sol_vals = wkset->sol_vals;
       //auto param_AD = wkset->pvals;
-      auto ulocal = u[set];
+      auto ulocal = sol[set];
       auto currLIDs = LIDs[set];
 
       if (useTransientSol) { //wkset->isTransient) {
@@ -249,12 +249,12 @@ namespace MrHyDE {
         ScalarT one = 1.0;
         
         for (size_type var=0; var<ulocal.extent(1); var++ ) {
-          size_t uindex = wkset->uvals_index[set][var];
-          auto u_AD = uvals[uindex];
+          size_t uindex = wkset->sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
           auto off = subview(wkset->set_offsets[set],var,ALL());
           auto cu = subview(ulocal,ALL(),var,ALL());
-          auto cu_prev = subview(u_prev[set],ALL(),var,ALL(),ALL());
-          auto cu_stage = subview(u_stage[set],ALL(),var,ALL(),ALL());
+          auto cu_prev = subview(sol_prev[set],ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(sol_stage[set],ALL(),var,ALL(),ALL());
 
           parallel_for("wkset transient sol seedwhat 1",
                        TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
@@ -301,7 +301,7 @@ namespace MrHyDE {
         
         if (compute_sens) {
           for (size_t var=0; var<ulocal.extent(1); var++) {
-            auto u_AD = uvals[var];
+            auto u_AD = sol_vals[var];
             auto offsets = subview(wkset->offsets,var,ALL());
             parallel_for("flux gather",
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
@@ -314,7 +314,7 @@ namespace MrHyDE {
         }
         else {
           for (size_t var=0; var<ulocal.extent(1); var++) {
-            auto u_AD = uvals[var];
+            auto u_AD = sol_vals[var];
             auto offsets = subview(wkset->offsets,var,ALL());
             parallel_for("flux gather",
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
@@ -343,7 +343,7 @@ namespace MrHyDE {
         
         Teuchos::TimeMonitor localtimer(*fluxAuxTimer);
       
-        auto numAuxDOF = groupData->numAuxDOF;
+        auto numAuxDOF = group_data->num_aux_dof;
         
         for (size_type var=0; var<numAuxDOF.extent(0); var++) {
           auto abasis = auxside_basis[auxusebasis[var]];
@@ -375,7 +375,7 @@ namespace MrHyDE {
       
       {
         Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
-        groupData->physics->computeFlux(0,groupData->myBlock);
+        group_data->physics->computeFlux(0,group_data->my_block);
       }
       //wkset->isOnSide = false;
       
@@ -402,7 +402,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
       
     // Public data 
-    Teuchos::RCP<GroupMetaData> groupData;
+    Teuchos::RCP<GroupMetaData> group_data;
     Teuchos::RCP<Workset> wkset;
     
     Kokkos::View<LO*,AssemblyDevice> localElemID;
@@ -432,10 +432,10 @@ namespace MrHyDE {
     LIDView_host paramLIDs_host, auxLIDs_host;
     vector<LIDView_host> LIDs_host;
     
-    vector<View_Sc3> u, phi;
+    vector<View_Sc3> sol, phi;
     View_Sc3 param, aux;
     
-    vector<View_Sc4> u_prev, phi_prev, u_stage, phi_stage; // (elem,var,numdof,step or stage)
+    vector<View_Sc4> sol_prev, phi_prev, sol_stage, phi_stage; // (elem,var,numdof,step or stage)
     
     // basis information
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl;

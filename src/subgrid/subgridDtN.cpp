@@ -239,7 +239,7 @@ void SubGridDtN::setUpSubgridModels() {
   
   groups = sub_assembler->groups;
   
-  Teuchos::RCP<GroupMetaData> groupData = sub_assembler->groupData[0];
+  Teuchos::RCP<GroupMetaData> group_data = sub_assembler->groupData[0];
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Boundary groups are not set up properly due to the lack of side sets in the subgrid mesh
@@ -332,7 +332,7 @@ void SubGridDtN::setUpSubgridModels() {
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orient_drv("kv to orients",currElem);
       Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(sub_mesh->cell_topo[0]));
       
-      newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(groupData,currnodes,eIndex,sideIndex,
+      newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(group_data,currnodes,eIndex,sideIndex,
                                                           sideID, sidename, newbgroups.size(),
                                                           sub_disc, true)));
       newbgroups[newbgroups.size()-1]->LIDs = vLIDs;
@@ -429,9 +429,9 @@ void SubGridDtN::setUpSubgridModels() {
   
   for(size_t grp=0; grp<boundary_groups[0].size(); ++grp) {
     boundary_groups[0][grp]->addAuxVars(macro_varlist);
-    boundary_groups[0][grp]->groupData->numAuxDOF = macro_numDOF;
-    boundary_groups[0][grp]->groupData->numAuxDOF_host = macro_numDOF_host;
-    //boundary_groups[0][grp]->groupData->numAuxDOF = macro_numDOF;
+    boundary_groups[0][grp]->group_data->num_aux_dof = macro_numDOF;
+    boundary_groups[0][grp]->group_data->num_aux_dof_host = macro_numDOF_host;
+    //boundary_groups[0][grp]->group_data->numAuxDOF = macro_numDOF;
     boundary_groups[0][grp]->setAuxUseBasis(macro_usebasis);
     boundary_groups[0][grp]->auxoffsets = macro_offsets;
     boundary_groups[0][grp]->wkset = wkset[0];
@@ -635,7 +635,7 @@ void SubGridDtN::setUpSubgridModels() {
         newbgroups[newbgroups.size()-1]->computeBasis(true);
         
         newbgroups[s]->addAuxVars(macro_varlist);
-        newbgroups[s]->groupData->numAuxDOF = macro_numDOF;
+        newbgroups[s]->group_data->num_aux_dof = macro_numDOF;
         newbgroups[s]->setAuxUseBasis(macro_usebasis);
         newbgroups[s]->auxoffsets = macro_offsets;
         newbgroups[s]->wkset = wkset[0];
@@ -1459,7 +1459,7 @@ void SubGridDtN::setupCombinedExodus(vector<string> & appends) {
     
     if (discparamnames.size() > 0) {
       for (size_t n=0; n<discparamnames.size(); n++) {
-        int paramnumbasis = groups[0][0]->groupData->numParamDOF.extent(0);
+        int paramnumbasis = groups[0][0]->group_data->num_param_dof.extent(0);
         if (paramnumbasis==1) {
           combined_mesh->addCellField(discparamnames[n], subeBlocks[0]);
         }
@@ -1520,7 +1520,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
     size_t numNodesPerElem = cellTopo->getNodeCount();
     
     Kokkos::View<int**,AssemblyDevice> offsets = wkset[0]->offsets;
-    Kokkos::View<int*,AssemblyDevice> numDOF = sub_assembler->groupData[0]->numDOF;
+    Kokkos::View<int*,AssemblyDevice> numDOF = sub_assembler->groupData[0]->num_dof;
     vector<string> vartypes = sub_physics->types[0][0];
     vector<string> varlist = sub_physics->var_list[0][0];
     
@@ -1533,7 +1533,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
         size_t pprog = 0;
         for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
           for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u[0];
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->sol[0];
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
             for (size_t p=0; p<groups[macrogrp][grp]->numElem; p++) {
@@ -1552,7 +1552,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
         size_t pprog = 0;
         for( size_t macrogrp=0; macrogrp<groups.size(); macrogrp++ ) {
           for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u[0];
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->sol[0];
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
             for (size_t p=0; p<groups[macrogrp][grp]->numElem; p++) {
@@ -1573,7 +1573,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
         
         for( size_t macrogrp=0; macrogrp<groups.size(); macrogrp++ ) {
           for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
-            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->u_avg[0];
+            Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->sol_avg[0];
             auto host_sol = Kokkos::create_mirror_view(sol);
             Kokkos::deep_copy(host_sol,sol);
             for (size_t p=0; p<groups[macrogrp][grp]->numElem; p++) {
@@ -1592,7 +1592,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
         combined_mesh->setCellFieldData(varlist[n]+append+"y", blockID, myElements, soln_y);
         combined_mesh->setCellFieldData(varlist[n]+append+"z", blockID, myElements, soln_z);
         
-        if (sub_assembler->groupData[0]->requireBasisAtNodes) {
+        if (sub_assembler->groupData[0]->require_basis_at_nodes) {
           Kokkos::View<ScalarT**,HostDevice> soln_nx("soln",myElements.size(), numNodesPerElem);
           Kokkos::View<ScalarT**,HostDevice> soln_ny("soln",myElements.size(), numNodesPerElem);
           Kokkos::View<ScalarT**,HostDevice> soln_nz("soln",myElements.size(), numNodesPerElem);
@@ -1632,7 +1632,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
     Kokkos::View<ScalarT*,HostDevice> cseeds("cell data seeds",myElements.size());
     Kokkos::View<ScalarT*,HostDevice> cdata("cell data",myElements.size());
     
-    if (groups[0][0]->groupData->have_phi || groups[0][0]->groupData->have_rotation || groups[0][0]->groupData->have_extra_data) {
+    if (groups[0][0]->group_data->have_phi || groups[0][0]->group_data->have_rotation || groups[0][0]->group_data->have_extra_data) {
       int eprog = 0;
       // TMW: need to use a mirror view here
       for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
@@ -1897,7 +1897,7 @@ DRV SubGridDtN::getIPWts() {
   DRV refwts = DRV("refwts",1,totalip);
   int prog = 0;
   for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
-    DRV wts = groups[0][grp]->groupData->ref_wts;
+    DRV wts = groups[0][grp]->group_data->ref_wts;
     size_t numElem = groups[macrogrp][grp]->numElem;
     for (size_t c=0; c<numElem; c++) {
       for (size_type i=0; i<wts.extent(0); i++) {

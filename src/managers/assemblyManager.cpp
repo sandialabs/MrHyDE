@@ -296,7 +296,7 @@ void AssemblyManager<Node>::createGroups() {
       
       disc->setReferenceData(blockGroupData);
       
-      blockGroupData->requireBasisAtNodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
+      blockGroupData->require_basis_at_nodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
       bool write_solution = settings->sublist("Postprocess").get("write solution",false);
       
       // if any of the discretizations are greater than 1st order and the user requests output, override the input to plot solution at nodes
@@ -304,7 +304,7 @@ void AssemblyManager<Node>::createGroups() {
       for (size_t i_basis=0; i_basis<physics->unique_orders[block].size(); ++i_basis) {
         if (physics->unique_orders[block][i_basis] > 1 && write_solution) {
           if (physics->unique_types[block][i_basis] == "HGRAD") {
-            blockGroupData->requireBasisAtNodes = true;
+            blockGroupData->require_basis_at_nodes = true;
           }
         }
       }
@@ -323,11 +323,11 @@ void AssemblyManager<Node>::createGroups() {
         set_numDOF_host.push_back(numDOF_host);
       }
       
-      blockGroupData->set_numDOF = set_numDOF;
-      blockGroupData->set_numDOF_host = set_numDOF_host;
+      blockGroupData->set_num_dof = set_numDOF;
+      blockGroupData->set_num_dof_host = set_numDOF_host;
       
-      blockGroupData->numDOF = set_numDOF[0];
-      blockGroupData->numDOF_host = set_numDOF_host[0];
+      blockGroupData->num_dof = set_numDOF[0];
+      blockGroupData->num_dof_host = set_numDOF_host[0];
       
       //////////////////////////////////////////////////////////////////////////////////
       // Boundary groups
@@ -834,14 +834,14 @@ void AssemblyManager<Node>::createWorkset() {
     if (groups[block].size() > 0) {
       vector<int> info;
       info.push_back(groupData[block]->dimension);
-      info.push_back((int)groupData[block]->numDiscParams);
-      info.push_back(groupData[block]->numElem);
-      info.push_back(groupData[block]->numip);
-      info.push_back(groupData[block]->numsideip);
+      info.push_back((int)groupData[block]->num_disc_params);
+      info.push_back(groupData[block]->num_elem);
+      info.push_back(groupData[block]->num_ip);
+      info.push_back(groupData[block]->num_side_ip);
       info.push_back(physics->set_names.size());
       vector<size_t> numVars;
-      for (size_t set=0; set<groupData[block]->set_numDOF.size(); ++set) {
-        numVars.push_back(groupData[block]->set_numDOF[set].extent(0));
+      for (size_t set=0; set<groupData[block]->set_num_dof.size(); ++set) {
+        numVars.push_back(groupData[block]->set_num_dof[set].extent(0));
       }
       vector<Kokkos::View<string**,HostDevice> > bcs(physics->set_names.size());
       for (size_t set=0; set<physics->set_names.size(); ++set) {
@@ -854,7 +854,7 @@ void AssemblyManager<Node>::createWorkset() {
                                                 disc->basis_types[block],
                                                 disc->basis_pointers[block],
                                                 params->discretized_param_basis,
-                                                groupData[block]->cellTopo)));
+                                                groupData[block]->cell_topo)));
       //mesh->cellTopo[block]) ) );
       wkset[block]->block = block;
       wkset[block]->blockname = blocknames[block];
@@ -989,7 +989,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   groupData[block]->updatePhysicsSet(set);
   
   auto offsets = wkset[block]->offsets;
-  auto numDOF = groupData[block]->numDOF;
+  auto numDOF = groupData[block]->num_dof;
   
   for (size_t grp=0; grp<groups[groupblock].size(); ++grp) {
     
@@ -1117,7 +1117,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   for (size_t block=0; block<groups.size(); ++block) {
     
     auto offsets = wkset[block]->offsets;
-    auto numDOF = groupData[block]->numDOF;
+    auto numDOF = groupData[block]->num_dof;
     bool sparse_mass = groupData[block]->use_sparse_mass;
 
     // Create mirrors on LA_Device
@@ -1364,7 +1364,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
   
   for (size_t block=0; block<groups.size(); ++block) {
     auto offsets = wkset[block]->offsets;
-    auto numDOF = groupData[block]->numDOF;
+    auto numDOF = groupData[block]->num_dof;
     
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       
@@ -1566,7 +1566,7 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
   for (size_t block=0; block<groups.size(); ++block) {
     
     auto offsets = wkset[block]->offsets;
-    auto numDOF = groupData[block]->numDOF;
+    auto numDOF = groupData[block]->num_dof;
     
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       
@@ -1961,7 +1961,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   wkset[block]->isTransient = isTransient;
   wkset[block]->isAdjoint = useadjoint;
   
-  int numElem = groupData[block]->numElem;
+  int numElem = groupData[block]->num_elem;
   int numDOF = groups[block][0]->LIDs[set].extent(1);
   
   int numParamDOF = 0;
@@ -1999,7 +1999,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     
     wkset[block]->localEID = grp;
     
-    if (isTransient && useadjoint && !groups[block][0]->groupData->multiscale) {
+    if (isTransient && useadjoint && !groups[block][0]->group_data->multiscale) {
       if (is_final_time) {
         groups[block][grp]->resetAdjPrev(set,0.0);
       }
@@ -2046,7 +2046,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         }
         else {
           wkset[block]->isOnSide = true;
-          for (size_t s=0; s<groupData[block]->numSides; s++) {
+          for (size_t s=0; s<groupData[block]->num_sides; s++) {
             groups[block][grp]->updateWorksetFace(s);
             physics->faceResidual(set,block);
           }
@@ -2454,15 +2454,15 @@ void AssemblyManager<Node>::performGather(const size_t & set, ViewType vec_dev, 
       switch(type) {
         case 0 :
           LIDs = groups[block][grp]->LIDs[set];
-          numDOF = groups[block][grp]->groupData->numDOF;
-          data = groups[block][grp]->u[set];
+          numDOF = groups[block][grp]->group_data->num_dof;
+          data = groups[block][grp]->sol[set];
           offsets = wkset[block]->offsets;
           break;
         case 1 : // deprecated (u_dot)
           break;
         case 2 :
           LIDs = groups[block][grp]->LIDs[set];
-          numDOF = groups[block][grp]->groupData->numDOF;
+          numDOF = groups[block][grp]->group_data->num_dof;
           data = groups[block][grp]->phi[set];
           offsets = wkset[block]->offsets;
           break;
@@ -2470,7 +2470,7 @@ void AssemblyManager<Node>::performGather(const size_t & set, ViewType vec_dev, 
           break;
         case 4:
           LIDs = groups[block][grp]->paramLIDs;
-          numDOF = groups[block][grp]->groupData->numParamDOF;
+          numDOF = groups[block][grp]->group_data->num_param_dof;
           data = groups[block][grp]->param;
           offsets = wkset[block]->paramoffsets;
           break;
@@ -2513,15 +2513,15 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & set, ViewType v
         switch(type) {
           case 0 :
             LIDs = boundary_groups[block][grp]->LIDs[set];
-            numDOF = boundary_groups[block][grp]->groupData->numDOF;
-            data = boundary_groups[block][grp]->u[set];
+            numDOF = boundary_groups[block][grp]->group_data->num_dof;
+            data = boundary_groups[block][grp]->sol[set];
             offsets = wkset[block]->offsets;
             break;
           case 1 : // deprecated (u_dot)
             break;
           case 2 :
             LIDs = boundary_groups[block][grp]->LIDs[set];
-            numDOF = boundary_groups[block][grp]->groupData->numDOF;
+            numDOF = boundary_groups[block][grp]->group_data->num_dof;
             data = boundary_groups[block][grp]->phi[set];
             offsets = wkset[block]->offsets;
             break;
@@ -2529,7 +2529,7 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & set, ViewType v
             break;
           case 4:
             LIDs = boundary_groups[block][grp]->paramLIDs;
-            numDOF = boundary_groups[block][grp]->groupData->numParamDOF;
+            numDOF = boundary_groups[block][grp]->group_data->num_param_dof;
             data = boundary_groups[block][grp]->param;
             offsets = wkset[block]->paramoffsets;
             break;
@@ -2682,7 +2682,7 @@ void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewT
   auto fixedDOF = isFixedDOF[set];
   auto res = wkset[block]->res;
   auto offsets = wkset[block]->offsets;
-  auto numDOF = groupData[block]->numDOF;
+  auto numDOF = groupData[block]->num_dof;
   bool compute_sens_ = compute_sens;
 #ifndef MrHyDE_NO_AD
   bool lump_mass_ = lump_mass, isAdjoint_ = isAdjoint, compute_jacobian_ = compute_jacobian;
@@ -3214,7 +3214,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   groupData[block]->database_basis_curl = tbasis_curl;
   
   if (groupData[block]->build_face_terms) {
-    for (size_type side=0; side<groupData[block]->numSides; side++) {
+    for (size_type side=0; side<groupData[block]->num_sides; side++) {
       vector<View_Sc4> face_basis, face_basis_grad;
       
       disc->getPhysicalFaceBasis(groupData[block], side, database_nodes, database_orientation,
@@ -3239,7 +3239,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
                     groups[block][0]->LIDs[set].extent(1));
       
       auto offsets = wkset[block]->set_offsets[set];
-      auto numDOF = groupData[block]->set_numDOF[set];
+      auto numDOF = groupData[block]->set_num_dof[set];
       
       bool use_sparse_quad = settings->sublist("Solver").get<bool>("use sparsifying mass quadrature",false);
       bool include_high_order = false;

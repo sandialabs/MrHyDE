@@ -63,19 +63,19 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     vector<bool> assemble_face_terms;
-    bool storeBasisAtIP = true, requireBasisAtNodes = false, build_face_terms;
+    bool store_basis_at_ip = true, require_basis_at_nodes = false, build_face_terms;
     
-    size_t myBlock, myLevel, numSets;
-    int numElem=0; // safeguard against case where a proc does not own any elem on a block
+    size_t my_block, my_level, num_sets;
+    int num_elem=0; // safeguard against case where a proc does not own any elem on a block
     Teuchos::RCP<PhysicsInterface> physics;
     string response_type;
-    vector<string> sidenames;
-    bool requiresTransient, requiresAdjoint, matrix_free, use_sparse_mass;
+    vector<string> side_names;
+    bool requires_transient, requires_adjoint, matrix_free, use_sparse_mass;
     
     // Geometry Information
-    size_t numnodes, numSides, dimension, numip, numsideip, numDiscParams;
-    topo_RCP cellTopo;
-    DRV refnodes;
+    size_t num_nodes, num_sides, dimension, num_ip, num_side_ip, num_disc_params;
+    topo_RCP cell_topo;
+    DRV ref_nodes;
     
     // Reference element integration and basis data
     DRV ref_ip, ref_wts;
@@ -88,7 +88,7 @@ namespace MrHyDE {
     vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
     vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
         
-    bool compute_diff, useFineScale, loadSensorFiles, writeSensorFiles, use_basis_database = false, use_mass_database = false;
+    bool compute_diff, use_fine_scale, load_sensor_files, write_sensor_files, use_basis_database = false, use_mass_database = false;
     bool mortar_objective;
     bool exodus_sensors = false, compute_sol_avg = false, store_mass = true;
     bool multiscale, have_phi, have_rotation, have_extra_data, have_multidata;
@@ -105,13 +105,13 @@ namespace MrHyDE {
     vector<Teuchos::RCP<Sparse3DView > > sparse_database_mass;  // [set](dof,dof) 
 
     // these are common to all elements/groups and are often used on both devices
-    vector<Kokkos::View<int*,AssemblyDevice> > set_numDOF;
-    vector<Kokkos::View<int*,HostDevice> > set_numDOF_host;
+    vector<Kokkos::View<int*,AssemblyDevice> > set_num_dof;
+    vector<Kokkos::View<int*,HostDevice> > set_num_dof_host;
     
-    Kokkos::View<int*,AssemblyDevice> numDOF, numParamDOF, numAuxDOF;
-    Kokkos::View<int*,HostDevice> numDOF_host, numParamDOF_host, numAuxDOF_host;
+    Kokkos::View<int*,AssemblyDevice> num_dof, num_param_dof, num_aux_dof;
+    Kokkos::View<int*,HostDevice> num_dof_host, num_param_dof_host, num_aux_dof_host;
     
-    Teuchos::RCP<Teuchos::Time> grptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::groupMetaData::constructor()");
+    Teuchos::RCP<Teuchos::Time> grp_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::groupMetaData::constructor()");
   };
   
 }

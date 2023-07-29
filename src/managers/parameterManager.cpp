@@ -329,10 +329,10 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
           numDOF_KV(k) = paramNumBasis[k];
           numLocalDOF += paramNumBasis[k];
         }
-        groups[block][0]->groupData->numParamDOF = numDOF_KV;
+        groups[block][0]->group_data->num_param_dof = numDOF_KV;
         Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",num_discretized_params);
         Kokkos::deep_copy(numDOF_host, numDOF_KV);
-        groups[block][0]->groupData->numParamDOF_host = numDOF_host;
+        groups[block][0]->group_data->num_param_dof_host = numDOF_host;
         
         vector<size_t> myElem = disc->my_elements[block];
         Kokkos::View<size_t*,AssemblyDevice> GEIDs("element IDs on device",myElem.size());
@@ -627,7 +627,7 @@ void ParameterManager<Node>::setInitialParams() {
       Kokkos::deep_copy(host_offsets,offsets);
       for (size_t group=0; group<assembler->groups[block].size(); group++) {
         Kokkos::View<LO**,HostDevice> LIDs = assembler->groups[block][group]->LIDs_host;
-        Kokkos::View<LO*,HostDevice> numDOF = assembler->groups[block][group]->groupData->numDOF_host;
+        Kokkos::View<LO*,HostDevice> numDOF = assembler->groups[block][group]->group_data->numDOF_host;
         //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_LAMBDA (const int e ) {
         for (int e=0; e<LIDs.extent(0); e++) {
           for (size_t n=0; n<numDOF.extent(0); n++) {

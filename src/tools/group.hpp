@@ -37,7 +37,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Group(const Teuchos::RCP<GroupMetaData> & groupData_,
+    Group(const Teuchos::RCP<GroupMetaData> & group_data_,
           const DRV nodes_,
           const Kokkos::View<LO*,AssemblyDevice> localID_,
           Teuchos::RCP<DiscretizationInterface> & disc_,
@@ -276,7 +276,7 @@ namespace MrHyDE {
      */
     
     void setUpAdjointPrev(const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
-      if (groupData->requiresTransient && groupData->requiresAdjoint) {
+      if (group_data->requires_transient && group_data->requires_adjoint) {
         for (size_t set=0; set<LIDs.size(); ++set) {
           View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),maxnumsteps[set]);
           adj_prev.push_back(newaprev);
@@ -290,7 +290,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpSubGradient(const int & numParams) {
-      if (groupData->requiresAdjoint) {
+      if (group_data->requires_adjoint) {
         subgradient = View_Sc2("subgrid gradient",numElem,numParams);
       }
     }
@@ -341,7 +341,7 @@ namespace MrHyDE {
     vector<LIDView_host> LIDs_host;
     LIDView_host paramLIDs_host;
     
-    Teuchos::RCP<GroupMetaData> groupData;
+    Teuchos::RCP<GroupMetaData> group_data;
     Teuchos::RCP<Workset> wkset;
     vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Kokkos::View<LO*,AssemblyDevice> localElemID;
@@ -363,11 +363,11 @@ namespace MrHyDE {
     Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
-    vector<View_Sc3> u, phi;
+    vector<View_Sc3> sol, phi;
     View_Sc3 param, aux; // (elem,var,numdof)
-    vector<View_Sc3> u_avg, u_alt;
+    vector<View_Sc3> sol_avg, sol_alt;
     View_Sc3 param_avg, aux_avg; // (elem,var,dim)
-    vector<View_Sc4> u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
+    vector<View_Sc4> sol_prev, phi_prev, aux_prev, sol_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
     // basis information
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_nodes;

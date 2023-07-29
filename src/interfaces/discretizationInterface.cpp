@@ -379,14 +379,14 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
   // ------------------------------------
   
   size_t dimension = groupData->dimension;
-  size_t block = groupData->myBlock;
+  size_t block = groupData->my_block;
   
-  groupData->numip = ref_ip[block].extent(0);
-  groupData->numsideip = ref_side_ip[block].extent(0);
+  groupData->num_ip = ref_ip[block].extent(0);
+  groupData->num_side_ip = ref_side_ip[block].extent(0);
   groupData->ref_ip = ref_ip[block];
   groupData->ref_wts = ref_wts[block];
   
-  auto cellTopo = groupData->cellTopo;
+  auto cellTopo = groupData->cell_topo;
   
   if (dimension == 1) {
     DRV leftpt("refSidePoints",1, dimension);
@@ -411,8 +411,8 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
     groupData->ref_side_normals.push_back(rightn);
   }
   else {
-    for (size_t s=0; s<groupData->numSides; s++) {
-      DRV refSidePoints("refSidePoints",groupData->numsideip, dimension);
+    for (size_t s=0; s<groupData->num_sides; s++) {
+      DRV refSidePoints("refSidePoints",groupData->num_side_ip, dimension);
       CellTools::mapToReferenceSubcell(refSidePoints, ref_side_ip[block],
                                        dimension-1, s, *cellTopo);
       groupData->ref_side_ip.push_back(refSidePoints);
@@ -444,7 +444,7 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
   
   DRV refnodes("nodes on reference element",cellTopo->getNodeCount(),dimension);
   CellTools::getReferenceSubcellVertices(refnodes, dimension, 0, *cellTopo);
-  groupData->refnodes = refnodes;
+  groupData->ref_nodes = refnodes;
   
   // ------------------------------------
   // Get ref basis
@@ -462,19 +462,19 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
         
     if (basis_types[block][i].substr(0,5) == "HGRAD") {
       
-      basisvals = DRV("basisvals",numb, groupData->numip);
+      basisvals = DRV("basisvals",numb, groupData->num_ip);
       basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0));
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
-      basisgrad = DRV("basisgrad",numb, groupData->numip, dimension);
+      basisgrad = DRV("basisgrad",numb, groupData->num_ip, dimension);
       basis_pointers[block][i]->getValues(basisgrad, groupData->ref_ip, Intrepid2::OPERATOR_GRAD);
       
     }
     else if (basis_types[block][i].substr(0,4) == "HVOL") {
       
-      basisvals = DRV("basisvals",numb, groupData->numip);
+      basisvals = DRV("basisvals",numb, groupData->num_ip);
       basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0));
@@ -483,29 +483,29 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
     }
     else if (basis_types[block][i].substr(0,4) == "HDIV") {
       
-      basisvals = DRV("basisvals",numb, groupData->numip, dimension);
+      basisvals = DRV("basisvals",numb, groupData->num_ip, dimension);
       basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0), dimension);
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
-      basisdiv = DRV("basisdiv",numb, groupData->numip);
+      basisdiv = DRV("basisdiv",numb, groupData->num_ip);
       basis_pointers[block][i]->getValues(basisdiv, groupData->ref_ip, Intrepid2::OPERATOR_DIV);
       
     }
     else if (basis_types[block][i].substr(0,5) == "HCURL"){
       
-      basisvals = DRV("basisvals",numb, groupData->numip, dimension);
+      basisvals = DRV("basisvals",numb, groupData->num_ip, dimension);
       basis_pointers[block][i]->getValues(basisvals, groupData->ref_ip, Intrepid2::OPERATOR_VALUE);
       
       basisnodes = DRV("basisvals",numb, refnodes.extent(0), dimension);
       basis_pointers[block][i]->getValues(basisnodes, refnodes, Intrepid2::OPERATOR_VALUE);
       
       if (dimension == 2) {
-        basiscurl = DRV("basiscurl",numb, groupData->numip);
+        basiscurl = DRV("basiscurl",numb, groupData->num_ip);
       }
       else if (dimension == 3) {
-        basiscurl = DRV("basiscurl",numb, groupData->numip, dimension);
+        basiscurl = DRV("basiscurl",numb, groupData->num_ip, dimension);
       }
       basis_pointers[block][i]->getValues(basiscurl, groupData->ref_ip, Intrepid2::OPERATOR_CURL);
       
@@ -520,27 +520,27 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
   
   // Compute the basis value and basis grad values on reference element
   // at side ip
-  for (size_t s=0; s<groupData->numSides; s++) {
+  for (size_t s=0; s<groupData->num_sides; s++) {
     vector<DRV> sbasis, sbasisgrad, sbasisdiv, sbasiscurl;
     for (size_t i=0; i<basis_pointers[block].size(); i++) {
       int numb = basis_pointers[block][i]->getCardinality();
       DRV basisvals, basisgrad, basisdiv, basiscurl;
       if (basis_types[block][i].substr(0,5) == "HGRAD") {
-        basisvals = DRV("basisvals",numb, groupData->numsideip);
+        basisvals = DRV("basisvals",numb, groupData->num_side_ip);
         basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
-        basisgrad = DRV("basisgrad",numb, groupData->numsideip, dimension);
+        basisgrad = DRV("basisgrad",numb, groupData->num_side_ip, dimension);
         basis_pointers[block][i]->getValues(basisgrad, groupData->ref_side_ip[s], Intrepid2::OPERATOR_GRAD);
       }
       else if (basis_types[block][i].substr(0,4) == "HVOL" || basis_types[block][i].substr(0,5) == "HFACE") {
-        basisvals = DRV("basisvals",numb, groupData->numsideip);
+        basisvals = DRV("basisvals",numb, groupData->num_side_ip);
         basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
       }
       else if (basis_types[block][i].substr(0,4) == "HDIV") {
-        basisvals = DRV("basisvals",numb, groupData->numsideip, dimension);
+        basisvals = DRV("basisvals",numb, groupData->num_side_ip, dimension);
         basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
       }
       else if (basis_types[block][i].substr(0,5) == "HCURL"){
-        basisvals = DRV("basisvals",numb, groupData->numsideip, dimension);
+        basisvals = DRV("basisvals",numb, groupData->num_side_ip, dimension);
         basis_pointers[block][i]->getValues(basisvals, groupData->ref_side_ip[s], Intrepid2::OPERATOR_VALUE);
       }
       sbasis.push_back(basisvals);
@@ -577,7 +577,7 @@ void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaD
   DRV tmpwts("tmp ip wts", numElem, numip);
   
   {
-    CellTools::mapToPhysicalFrame(tmpip, groupData->ref_ip, nodes, *(groupData->cellTopo));
+    CellTools::mapToPhysicalFrame(tmpip, groupData->ref_ip, nodes, *(groupData->cell_topo));
     View_Sc2 x("x",tmpip.extent(0), tmpip.extent(1));
     auto tmpip_x = subview(tmpip, ALL(), ALL(),0);
     deep_copy(x,tmpip_x);
@@ -597,7 +597,7 @@ void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaD
     
   }
   
-  CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
+  CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cell_topo));
   CellTools::setJacobianDet(jacobianDet, jacobian);
   FuncTools::computeCellMeasure(tmpwts, jacobianDet, groupData->ref_wts);
   Kokkos::deep_copy(wts,tmpwts);
@@ -610,7 +610,7 @@ void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaD
 void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
                                           DRV nodes, DRV jacobian) {
 
-  CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
+  CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cell_topo));
                        
 }
 
@@ -708,7 +708,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
   
   {
     Teuchos::TimeMonitor localtimer(*phys_vol_data_set_jac_timer);
-    CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
+    CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cell_topo));
   }
   
   {
@@ -768,7 +768,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           Kokkos::deep_copy(basis_grad_vals,bgrad2);
         }
 
-        if (groupData->requireBasisAtNodes) {
+        if (groupData->require_basis_at_nodes) {
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1));
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1));
           FuncTools::HGRADtransformVALUE(bvals_tmp, groupData->ref_basis_nodes[i]);
@@ -816,7 +816,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           Kokkos::deep_copy(basis_vals,bvals2);
         }
         
-        if (groupData->requireBasisAtNodes) {
+        if (groupData->require_basis_at_nodes) {
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1),dimension);
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
           FuncTools::HDIVtransformVALUE(bvals_tmp, jacobian, jacobianDet, groupData->ref_basis_nodes[i]);
@@ -870,7 +870,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           Kokkos::deep_copy(basis_vals,bvals2);
         }
         
-        if (groupData->requireBasisAtNodes) {
+        if (groupData->require_basis_at_nodes) {
           DRV bnode_vals("basis",numElem,numb,nodes.extent(1),dimension);
           DRV bvals_tmp("basis tmp",numElem,numb,nodes.extent(1),dimension);
           FuncTools::HCURLtransformVALUE(bvals_tmp, jacobianInv, groupData->ref_basis_nodes[i]);
@@ -941,7 +941,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
   jacobianInv = DRV("inverse of jacobian", numElem, numip, dimension, dimension);
   {
     Teuchos::TimeMonitor localtimer(*phys_vol_data_set_jac_timer);
-    CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cellTopo));
+    CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cell_topo));
   }
   {
     Teuchos::TimeMonitor localtimer(*phys_vol_data_other_jac_timer);
@@ -1046,7 +1046,7 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
   for (size_type i=0; i<host_eIndex.extent(0); i++) {
     LO elemID = host_eIndex(i);
     if (use_block) {
-      elemID = my_elements[groupData->myBlock][host_eIndex(i)];
+      elemID = my_elements[groupData->my_block][host_eIndex(i)];
     }
     orientation_host(i) = panzer_orientations[elemID];
   }
@@ -1079,7 +1079,7 @@ void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupM
   
   {
     Teuchos::TimeMonitor localtimer(*phys_face_data_IP_timer);
-    CellTools::mapToPhysicalFrame(sip, ref_ip, nodes, *(groupData->cellTopo));
+    CellTools::mapToPhysicalFrame(sip, ref_ip, nodes, *(groupData->cell_topo));
     
     View_Sc2 x("cell face x",sip.extent(0), sip.extent(1));
     auto sip_x = subview(sip, ALL(), ALL(),0);
@@ -1103,7 +1103,7 @@ void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupM
   
   {
     Teuchos::TimeMonitor localtimer(*phys_face_data_set_jac_timer);
-    CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
+    CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cell_topo));
   }
   
   {
@@ -1200,7 +1200,7 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
   DRV jacobian("face jac", numElem, numip, dimension, dimension);
   DRV jacobianDet("face jacDet", numElem, numip);
   DRV jacobianInv("face jacInv", numElem, numip, dimension, dimension);
-  CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
+  CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cell_topo));
   CellTools::setJacobianInv(jacobianInv, jacobian);
   CellTools::setJacobianDet(jacobianDet, jacobian);
   
@@ -1360,7 +1360,7 @@ void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<Gr
   
   {
     Teuchos::TimeMonitor localtimer(*phys_bndry_data_IP_timer);
-    CellTools::mapToPhysicalFrame(tmpip, ref_ip, nodes, *(groupData->cellTopo));
+    CellTools::mapToPhysicalFrame(tmpip, ref_ip, nodes, *(groupData->cell_topo));
     View_Sc2 x("cell face x",tmpip.extent(0), tmpip.extent(1));
     auto tip_x = subview(tmpip, ALL(), ALL(),0);
     deep_copy(x,tip_x);
@@ -1382,7 +1382,7 @@ void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<Gr
   
   {
     Teuchos::TimeMonitor localtimer(*phys_bndry_data_set_jac_timer);
-    CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
+    CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cell_topo));
   }
   
   //{
@@ -1541,7 +1541,7 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
   DRV jacobian = DRV("bijac", numElem, numip, dimension, dimension);
   DRV jacobianDet = DRV("bijacDet", numElem, numip);
   DRV jacobianInv = DRV("bijacInv", numElem, numip, dimension, dimension);
-  CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cellTopo));
+  CellTools::setJacobian(jacobian, ref_ip, nodes, *(groupData->cell_topo));
   CellTools::setJacobianInv(jacobianInv, jacobian);
   CellTools::setJacobianDet(jacobianDet, jacobian);
   

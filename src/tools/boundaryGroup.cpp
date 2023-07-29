@@ -22,7 +22,7 @@ using namespace MrHyDE;
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-BoundaryGroup::BoundaryGroup(const Teuchos::RCP<GroupMetaData> & groupData_,
+BoundaryGroup::BoundaryGroup(const Teuchos::RCP<GroupMetaData> & group_data_,
                              const DRV nodes_,
                              const Kokkos::View<LO*,AssemblyDevice> localID_,
                              LO & sideID_,
@@ -30,7 +30,7 @@ BoundaryGroup::BoundaryGroup(const Teuchos::RCP<GroupMetaData> & groupData_,
                              const int & groupID_,
                              Teuchos::RCP<DiscretizationInterface> & disc_,
                              const bool & storeAll_) :
-groupData(groupData_), localElemID(localID_), localSideID(sideID_),
+group_data(group_data_), localElemID(localID_), localSideID(sideID_),
 sidenum(sidenum_), groupID(groupID_), nodes(nodes_), 
 sidename(sidename_), disc(disc_)   {
   
@@ -42,19 +42,19 @@ sidename(sidename_), disc(disc_)   {
   
   // Orientations are always stored
   orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
-  disc->getPhysicalOrientations(groupData, localElemID, orientation, false);
+  disc->getPhysicalOrientations(group_data, localElemID, orientation, false);
   
   // Integration points, weights, normals, tangents and element sizes are always stored
-  int numip = groupData->ref_side_ip[0].extent(0);
+  int numip = group_data->ref_side_ip[0].extent(0);
   wts = View_Sc2("physical wts",numElem, numip);
   hsize = View_Sc1("physical meshsize",numElem);
   
-  disc->getPhysicalBoundaryIntegrationData(groupData, nodes, localSideID, ip,
+  disc->getPhysicalBoundaryIntegrationData(group_data, nodes, localSideID, ip,
                                            wts, normals, tangents);
   
   this->computeSize();
   this->initializeBasisIndex();
-  if (groupData->have_multidata) {
+  if (group_data->have_multidata) {
     multidata = View_Sc3("multidata array",numElem,wts.extent(1),54);
   }
   else {
@@ -67,7 +67,7 @@ sidename(sidename_), disc(disc_)   {
 
 void BoundaryGroup::computeSize() {
 
-  size_t dimension = groupData->dimension;
+  size_t dimension = group_data->dimension;
 
   parallel_for("compute hsize",
                RangePolicy<AssemblyExec>(0,wts.extent(0)),
@@ -104,7 +104,7 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
     
-    disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
+    disc->getPhysicalBoundaryBasis(group_data, nodes, localSideID, orientation,
                                    tbasis, tbasis_grad, tbasis_curl, tbasis_div);
     for (size_t i=0; i<tbasis.size(); ++i) {
       basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
@@ -117,10 +117,10 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
       nodes = DRV("dummy nodes",1);
     }
   }
-  else if (groupData->use_basis_database) {
-    for (size_t i=0; i<groupData->database_side_basis.size(); ++i) {
-      basis.push_back(CompressedView<View_Sc4>(groupData->database_side_basis[i],basis_index));
-      basis_grad.push_back(CompressedView<View_Sc4>(groupData->database_side_basis_grad[i],basis_index));
+  else if (group_data->use_basis_database) {
+    for (size_t i=0; i<group_data->database_side_basis.size(); ++i) {
+      basis.push_back(CompressedView<View_Sc4>(group_data->database_side_basis[i],basis_index));
+      basis_grad.push_back(CompressedView<View_Sc4>(group_data->database_side_basis_grad[i],basis_index));
     }
     
     if (!keepnodes) {
@@ -205,22 +205,22 @@ void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<i
   // Set up the containers for usual solution storage
   for (size_t set=0; set<usebasis.size(); ++set) {
     int maxnbasis = 0;
-    for (size_type i=0; i<groupData->set_numDOF_host[set].extent(0); i++) {
-      if (groupData->set_numDOF_host[set](i) > maxnbasis) {
-        maxnbasis = groupData->set_numDOF_host[set](i);
+    for (size_type i=0; i<group_data->set_num_dof_host[set].extent(0); i++) {
+      if (group_data->set_num_dof_host[set](i) > maxnbasis) {
+        maxnbasis = group_data->set_num_dof_host[set](i);
       }
     }
-    View_Sc3 newu("u bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis);
-    u.push_back(newu);
-    if (groupData->requiresAdjoint) {
-      View_Sc3 newphi("phi bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis);
+    View_Sc3 newu("u bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
+    sol.push_back(newu);
+    if (group_data->requires_adjoint) {
+      View_Sc3 newphi("phi bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
       phi.push_back(newphi);
     }
-    if (groupData->requiresTransient) {
-      View_Sc4 newuprev("u previous bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumsteps[set]);
-      u_prev.push_back(newuprev);
-      View_Sc4 newustage("u stages bgrp",numElem,groupData->set_numDOF[set].extent(0),maxnbasis,maxnumstages[set]-1);
-      u_stage.push_back(newustage);
+    if (group_data->requires_transient) {
+      View_Sc4 newuprev("u previous bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumsteps[set]);
+      sol_prev.push_back(newuprev);
+      View_Sc4 newustage("u stages bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumstages[set]-1);
+      sol_stage.push_back(newustage);
     }
   }
 }
@@ -232,7 +232,7 @@ void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<i
 void BoundaryGroup::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_) {
   vector<int> paramusebasis = pusebasis_;
   
-  auto numParamDOF = groupData->numParamDOF;
+  auto numParamDOF = group_data->num_param_dof;
   
   int maxnbasis = 0;
   for (size_type i=0; i<numParamDOF.extent(0); i++) {
@@ -250,8 +250,8 @@ void BoundaryGroup::setParamUseBasis(vector<int> & pusebasis_, vector<int> & par
 
 void BoundaryGroup::setAuxUseBasis(vector<int> & ausebasis_) {
   auxusebasis = ausebasis_;
-  auto numAuxDOF = Kokkos::create_mirror_view(groupData->numAuxDOF);
-  Kokkos::deep_copy(numAuxDOF,groupData->numAuxDOF);
+  auto numAuxDOF = Kokkos::create_mirror_view(group_data->num_aux_dof);
+  Kokkos::deep_copy(numAuxDOF,group_data->num_aux_dof);
   int maxnbasis = 0;
   for (size_type i=0; i<numAuxDOF.extent(0); i++) {
     if (numAuxDOF(i) > maxnbasis) {
@@ -280,14 +280,14 @@ void BoundaryGroup::updateWorkset(const int & seedwhat, const int & seedindex,
   // Update the integration info and basis in workset
   this->updateWorksetBasis();
   // Map the gathered solution to seeded version in workset
-  if (groupData->requiresTransient && !override_transient) {
-    for (size_t set=0; set<groupData->numSets; ++set) {
-      wkset->computeSolnTransientSeeded(set, u[set], u_prev[set], u_stage[set], seedwhat, seedindex);
+  if (group_data->requires_transient && !override_transient) {
+    for (size_t set=0; set<group_data->num_sets; ++set) {
+      wkset->computeSolnTransientSeeded(set, sol[set], sol_prev[set], sol_stage[set], seedwhat, seedindex);
     }
   }
   else { // steady-state
-    for (size_t set=0; set<groupData->numSets; ++set) {
-      wkset->computeSolnSteadySeeded(set, u[set], seedwhat);
+    for (size_t set=0; set<group_data->num_sets; ++set) {
+      wkset->computeSolnSteadySeeded(set, sol[set], seedwhat);
     }
   }
   if (wkset->numParams > 0) {
@@ -324,14 +324,14 @@ void BoundaryGroup::updateWorksetBasis() {
     wkset->setScalarField(tangents[2],"t[z]");
   }
 
-  if (storeAll || groupData->use_basis_database) {
+  if (storeAll || group_data->use_basis_database) {
     wkset->basis_side = basis;
     wkset->basis_grad_side = basis_grad;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation,
+    disc->getPhysicalBoundaryBasis(group_data, nodes, localSideID, orientation,
                                    tbasis, tbasis_grad, tbasis_curl, tbasis_div);
     vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad;
     for (size_t i=0; i<tbasis.size(); ++i) {
@@ -353,7 +353,7 @@ void BoundaryGroup::computeSoln(const int & seedwhat) {
   
   if (wkset->numAux > 0) {
     
-    auto numAuxDOF = groupData->numAuxDOF;
+    auto numAuxDOF = group_data->num_aux_dof;
     
     for (size_type var=0; var<numAuxDOF.extent(0); var++) {
       auto abasis = auxside_basis[auxusebasis[var]];
@@ -403,20 +403,20 @@ void BoundaryGroup::computeSoln(const int & seedwhat) {
 
 void BoundaryGroup::resetPrevSoln(const size_t & set) {
   
-  if (groupData->requiresTransient) {
-    auto sol = u[set];
-    auto sol_prev = u_prev[set];
+  if (group_data->requires_transient) {
+    auto csol = sol[set];
+    auto csol_prev = sol_prev[set];
     
     // shift previous step solns
-    if (sol_prev.extent(3)>1) {
+    if (csol_prev.extent(3)>1) {
       parallel_for("Group reset prev soln 1",
-                   TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
-          for (size_type j=0; j<sol_prev.extent(2); j++) {
-            for (size_type s=sol_prev.extent(3)-1; s>0; s--) {
-              sol_prev(elem,i,j,s) = sol_prev(elem,i,j,s-1);
+        for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
+          for (size_type j=0; j<csol_prev.extent(2); j++) {
+            for (size_type s=csol_prev.extent(3)-1; s>0; s--) {
+              csol_prev(elem,i,j,s) = csol_prev(elem,i,j,s-1);
             }
           }
         }
@@ -425,12 +425,12 @@ void BoundaryGroup::resetPrevSoln(const size_t & set) {
     
     // copy current u into first step
     parallel_for("Group reset prev soln 2",
-                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
-        for (size_type j=0; j<sol.extent(2); j++) {
-          sol_prev(elem,i,j,0) = sol(elem,i,j);
+      for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<csol.extent(2); j++) {
+          csol_prev(elem,i,j,0) = csol(elem,i,j);
         }
       }
     });
@@ -444,18 +444,18 @@ void BoundaryGroup::resetPrevSoln(const size_t & set) {
 
 void BoundaryGroup::revertSoln(const size_t & set) {
   
-  if (groupData->requiresTransient) {
-    auto sol = u[set];
-    auto sol_prev = u_prev[set];
+  if (group_data->requires_transient) {
+    auto csol = sol[set];
+    auto csol_prev = sol_prev[set];
     
     // copy current u into first step
     parallel_for("Group reset prev soln 2",
-                 TeamPolicy<AssemblyExec>(sol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      for (size_type i=team.team_rank(); i<sol_prev.extent(1); i+=team.team_size() ) {
-        for (size_type j=0; j<sol.extent(2); j++) {
-          sol(elem,i,j) = sol_prev(elem,i,j,0);
+      for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<csol.extent(2); j++) {
+          csol(elem,i,j) = csol_prev(elem,i,j,0);
         }
       }
     });
@@ -469,18 +469,18 @@ void BoundaryGroup::revertSoln(const size_t & set) {
 
 void BoundaryGroup::resetStageSoln(const size_t & set) {
   
-  if (groupData->requiresTransient) {
-    auto sol = u[set];
-    auto sol_stage = u_stage[set];
+  if (group_data->requires_transient) {
+    auto csol = sol[set];
+    auto csol_stage = sol_stage[set];
     
     parallel_for("Group reset stage 1",
-                 TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VectorSize),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
-      for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
-        for (size_type j=0; j<sol_stage.extent(2); j++) {
-          for (size_type k=0; k<sol_stage.extent(3); k++) {
-            sol_stage(elem,i,j,k) = sol(elem,i,j);
+      for (size_type i=team.team_rank(); i<csol_stage.extent(1); i+=team.team_size() ) {
+        for (size_type j=0; j<csol_stage.extent(2); j++) {
+          for (size_type k=0; k<csol_stage.extent(3); k++) {
+            csol_stage(elem,i,j,k) = csol(elem,i,j);
           }
         }
       }
@@ -494,19 +494,19 @@ void BoundaryGroup::resetStageSoln(const size_t & set) {
 
 void BoundaryGroup::updateStageSoln(const size_t & set) {
   
-  if (groupData->requiresTransient) {
-    auto sol = u[set];
-    auto sol_stage = u_stage[set];
+  if (group_data->requires_transient) {
+    auto csol = sol[set];
+    auto csol_stage = sol_stage[set];
     // add u into the current stage soln (done after stage solution is computed)
     auto stage = wkset->current_stage;
-    if (stage < sol_stage.extent_int(3)) {
+    if (stage < csol_stage.extent_int(3)) {
       parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(sol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VectorSize),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
-        for (size_type i=team.team_rank(); i<sol_stage.extent(1); i+=team.team_size() ) {
-          for (size_type j=0; j<sol_stage.extent(2); j++) {
-            sol_stage(elem,i,j,stage) = sol(elem,i,j);
+        for (size_type i=team.team_rank(); i<csol_stage.extent(1); i+=team.team_size() ) {
+          for (size_type j=0; j<csol_stage.extent(2); j++) {
+            csol_stage(elem,i,j,stage) = csol(elem,i,j);
           }
         }
       });
@@ -548,7 +548,7 @@ void BoundaryGroup::computeJacRes(const ScalarT & time, const bool & isTransient
       }
     }
     this->updateWorkset(seedwhat);
-    groupData->physics->boundaryResidual(wkset->current_set,groupData->myBlock);
+    group_data->physics->boundaryResidual(wkset->current_set,group_data->my_block);
     
   }
   
@@ -588,7 +588,7 @@ void BoundaryGroup::updateRes(const bool & compute_sens, View_Sc3 local_res) {
   
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
-  auto numDOF = groupData->numDOF;
+  auto numDOF = group_data->num_dof;
   
   if (compute_sens) {
     
@@ -636,7 +636,7 @@ void BoundaryGroup::updateJac(const bool & useadjoint, View_Sc3 local_J) {
 #ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
-  auto numDOF = groupData->numDOF;
+  auto numDOF = group_data->num_dof;
   
   if (useadjoint) {
     parallel_for("bgroup update jac sens",
@@ -682,9 +682,9 @@ void BoundaryGroup::updateParamJac(View_Sc3 local_J) {
 #ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
-  auto numDOF = groupData->numDOF;
+  auto numDOF = group_data->num_dof;
   auto paramoffsets = wkset->paramoffsets;
-  auto numParamDOF = groupData->numParamDOF;
+  auto numParamDOF = group_data->num_param_dof;
   
   parallel_for("bgroup update param jac",
                TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
@@ -711,9 +711,9 @@ void BoundaryGroup::updateAuxJac(View_Sc3 local_J) {
 #ifndef MrHyDE_NO_AD
   auto res_AD = wkset->res;
   auto offsets = wkset->offsets;
-  auto numDOF = groupData->numDOF;
+  auto numDOF = group_data->num_dof;
   auto aoffsets = auxoffsets;
-  auto numAuxDOF = groupData->numAuxDOF;
+  auto numAuxDOF = group_data->num_aux_dof;
   
   parallel_for("bgroup update aux jac",
                TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
@@ -744,16 +744,16 @@ View_Sc2 BoundaryGroup::getDirichlet(const size_t & set) {
   
   Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;
-  auto numDOF = groupData->numDOF;
+  auto numDOF = group_data->num_dof;
   auto cwts = wts;
   auto cnormals = normals;
 
   for (size_t n=0; n<wkset->varlist.size(); n++) {
     if (bcs(n,sidenum) == "Dirichlet") { // is this a strong DBC for this variable
-      auto dip = groupData->physics->getDirichlet(n,set,groupData->myBlock, sidename);
+      auto dip = group_data->physics->getDirichlet(n,set,group_data->my_block, sidename);
 
       int bind = wkset->usebasis[n];
-      std::string btype = groupData->basis_types[bind];
+      std::string btype = group_data->basis_types[bind];
       auto cbasis = basis[bind]; // may fault in memory-saving mode
       
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
@@ -813,7 +813,7 @@ View_Sc3 BoundaryGroup::getMass(const size_t & set) {
   
   Kokkos::View<string**,HostDevice> bcs = wkset->var_bcs;
   auto offsets = wkset->offsets;
-  auto numDOF = groupData->numDOF;
+  auto numDOF = group_data->num_dof;
   auto cwts = wts;
   
   for (size_type n=0; n<numDOF.extent(0); n++) {
@@ -821,7 +821,7 @@ View_Sc3 BoundaryGroup::getMass(const size_t & set) {
       int bind = wkset->usebasis[n];
       auto cbasis = basis[bind];
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
-      std::string btype = groupData->basis_types[bind];
+      std::string btype = group_data->basis_types[bind];
       
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
         parallel_for("bgroup compute mass",
@@ -879,12 +879,12 @@ View_Sc3 BoundaryGroup::getMass(const size_t & set) {
 void BoundaryGroup::updateData() {
   
   // hard coded for what I need it for right now
-  if (groupData->have_phi) {
+  if (group_data->have_phi) {
     wkset->have_rotation_phi = true;
     wkset->rotation_phi = data;
     wkset->allocateRotations();
   }
-  else if (groupData->have_rotation) {
+  else if (group_data->have_rotation) {
     wkset->have_rotation = true;
     wkset->allocateRotations();
     auto rot = wkset->rotation;
@@ -904,7 +904,7 @@ void BoundaryGroup::updateData() {
     });
   
   }
-  else if (groupData->have_extra_data) {
+  else if (group_data->have_extra_data) {
     wkset->extra_data = data;
   }
   wkset->multidata = multidata;

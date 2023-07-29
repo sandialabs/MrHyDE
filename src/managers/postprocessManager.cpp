@@ -1129,7 +1129,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       // Need to use time step solution instead of stage solution
       bool isTransient = assembler->wkset[altblock]->isTransient;
       assembler->wkset[altblock]->isTransient = false;
-      assembler->groupData[altblock]->requiresTransient = false;
+      assembler->groupData[altblock]->requires_transient = false;
       
       // Determine what needs to be updated in the workset
       bool have_vol_errs = false, have_face_errs = false;
@@ -1381,10 +1381,10 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         }
         if (have_face_errs) {
           assembler->wkset[altblock]->isOnSide = true;
-          for (size_t face=0; face<assembler->groups[block][grp]->groupData->numSides; face++) {
+          for (size_t face=0; face<assembler->groups[block][grp]->group_data->num_sides; face++) {
             // TMW - hard coded for now
             for (size_t set=0; set<assembler->wkset[altblock]->numSets; ++set) {
-              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->u[set], seedwhat);
+              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->sol[set], seedwhat);
             }
             assembler->groups[block][grp]->updateWorksetFace(face);
             assembler->wkset[altblock]->resetSolutionFields();
@@ -1423,7 +1423,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         }
       }
       assembler->wkset[altblock]->isTransient = isTransient;
-      assembler->groupData[altblock]->requiresTransient = isTransient;
+      assembler->groupData[altblock]->requires_transient = isTransient;
     }
     currerror.push_back(blockerrors);
   } // end block loop
@@ -2178,9 +2178,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               z(0,0) = objectives[r].sensor_points(pt,2);
             }
             
-            auto numDOF = assembler->groupData[block]->numDOF;
+            auto numDOF = assembler->groupData[block]->num_dof;
             View_AD2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
-            auto cu = subview(assembler->groups[block][grp]->u[0],elem,ALL(),ALL()); // hard coded
+            auto cu = subview(assembler->groups[block][grp]->sol[0],elem,ALL(),ALL()); // hard coded
             parallel_for("grp response get u",
                         RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                         KOKKOS_LAMBDA (const size_type n ) {
@@ -2217,7 +2217,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             
             // Map the local discretized params to param and grad at ip
             if (params->globalParamUnknowns > 0) {
-              auto numParamDOF = assembler->groupData[block]->numParamDOF;
+              auto numParamDOF = assembler->groupData[block]->num_param_dof;
               
               View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
               auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
@@ -2292,7 +2292,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                 // Need to compute derivative w.r.t discretized params
                 params->sacadoizeParams(false);
                 
-                auto numParamDOF = assembler->groupData[block]->numParamDOF;
+                auto numParamDOF = assembler->groupData[block]->num_param_dof;
                 auto poff = assembler->wkset[block]->paramoffsets;
                 View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
                 auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
@@ -2619,8 +2619,8 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
           int grp_owner = objectives[r].sensor_owners(pt,0);
           int elem_owner = objectives[r].sensor_owners(pt,1);
           for (size_t set=0; set<varlist.size(); ++set) {  
-            auto numDOF = assembler->groupData[block]->set_numDOF_host[set];
-            auto cu = subview(assembler->groups[block][grp_owner]->u[set],elem_owner,ALL(),ALL());
+            auto numDOF = assembler->groupData[block]->set_num_dof_host[set];
+            auto cu = subview(assembler->groups[block][grp_owner]->sol[set],elem_owner,ALL(),ALL());
             auto cu_host = create_mirror_view(cu);
             //KokkosTools::print(assembler->groups[block][grp_owner]->u[set]);
             deep_copy(cu_host,cu);
@@ -2738,7 +2738,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       size_t block = objectives[r].block;
       
       auto offsets = assembler->wkset[block]->offsets;
-      auto numDOF = assembler->groupData[block]->numDOF;
+      auto numDOF = assembler->groupData[block]->num_dof;
       
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         
@@ -2761,7 +2761,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
                            assembler->groups[block][grp]->LIDs[set].extent(1)); //(numElem, numVars, numDOF)
-            auto u = assembler->groups[block][grp]->u[set];
+            auto u = assembler->groups[block][grp]->sol[set];
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
@@ -2995,7 +2995,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       size_t block = objectives[r].block;
       
       auto offsets = assembler->wkset[block]->offsets;
-      auto numDOF = assembler->groupData[block]->numDOF;
+      auto numDOF = assembler->groupData[block]->num_dof;
       
       ScalarT intresp = 0.0;
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
@@ -3019,7 +3019,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
                            assembler->groups[block][grp]->LIDs[set].extent(1)); //(numElem, numVars, numDOF)
-            auto u = assembler->groups[block][grp]->u[set];
+            auto u = assembler->groups[block][grp]->sol[set];
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
@@ -3295,12 +3295,12 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             z(0,0) = objectives[r].sensor_points(pt,2);
           }
           
-          auto numDOF = assembler->groupData[block]->numDOF;
+          auto numDOF = assembler->groupData[block]->num_dof;
           auto offsets = assembler->wkset[block]->offsets;
           
           
           View_AD2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[set].extent(1));
-          auto cu = subview(assembler->groups[block][grp]->u[set],elem,ALL(),ALL());
+          auto cu = subview(assembler->groups[block][grp]->sol[set],elem,ALL(),ALL());
           parallel_for("grp response get u",
                        RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                        KOKKOS_LAMBDA (const size_type n ) {
@@ -3334,7 +3334,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Map the local discretized params to param and grad at ip
           if (params->globalParamUnknowns > 0) {
-            auto numParamDOF = assembler->groupData[block]->numParamDOF;
+            auto numParamDOF = assembler->groupData[block]->num_param_dof;
             
             View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
             auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
@@ -3552,7 +3552,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
     for (size_t paramiter=0; paramiter<params->num_active_params; paramiter++) {
       // fine-scale
-      if (assembler->groups[0][0]->groupData->multiscale) {
+      if (assembler->groups[0][0]->group_data->multiscale) {
         ScalarT subsens = 0.0;
         for (size_t block=0; block<assembler->groups.size(); ++block) {
           for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
@@ -3758,7 +3758,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (int n = 0; n<numVars; n++) {
           
           if (vartypes[n] == "HGRAD") {
-            if(assembler->groups[block][0]->groupData->requireBasisAtNodes) {
+            if(assembler->groups[block][0]->group_data->require_basis_at_nodes) {
               std::string var = varlist[set][block][n];
               Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
                                                                                                        numNodesPerElem);
@@ -3780,7 +3780,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               std::string var = varlist[set][block][n];
               for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
                 auto eID = assembler->groups[block][grp]->localElemID;
-                auto sol = Kokkos::subview(assembler->groups[block][grp]->u[set], Kokkos::ALL(), n, Kokkos::ALL());
+                auto sol = Kokkos::subview(assembler->groups[block][grp]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
                 parallel_for("postproc plot HGRAD",
                             RangePolicy<AssemblyExec>(0,eID.extent(0)),
                             KOKKOS_LAMBDA (const int elem ) {
@@ -3812,7 +3812,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             std::string var = varlist[set][block][n];
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->u[set], Kokkos::ALL(), n, Kokkos::ALL());
+              auto sol = Kokkos::subview(assembler->groups[block][grp]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HVOL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -3830,13 +3830,12 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
             std::string var = varlist[set][block][n];
-            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,dimension);
+            View_Sc2 sol("average solution",assembler->groupData[block]->num_elem,dimension);
             
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               
               assembler->groups[block][grp]->computeSolutionAverage(var,sol);
-              //auto sol = Kokkos::subview(assembler->groups[block][grp]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -3870,10 +3869,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             assembler->wkset[block]->isOnSide = true;
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              for (size_t face=0; face<assembler->groupData[block]->numSides; face++) {
+              for (size_t face=0; face<assembler->groupData[block]->num_sides; face++) {
                 int seedwhat = 0;
                 for (size_t iset=0; iset<assembler->wkset[block]->numSets; ++iset) {
-                  assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->u[iset], seedwhat);
+                  assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->sol[iset], seedwhat);
                 }
                 //assembler->groups[block][grp]->computeSolnFaceIP(face);
                 assembler->groups[block][grp]->updateWorksetFace(face);
@@ -3954,7 +3953,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
-            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,dimension);
+            View_Sc2 sol("average solution",assembler->groupData[block]->num_elem,dimension);
             
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
@@ -4109,9 +4108,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       ////////////////////////////////////////////////////////////////
       // TMW This is slightly inefficient, but leaving until grp_data_seed is stored differently
       
-      if (assembler->groups[block][0]->groupData->have_phi ||
-          assembler->groups[block][0]->groupData->have_rotation ||
-          assembler->groups[block][0]->groupData->have_extra_data) {
+      if (assembler->groups[block][0]->group_data->have_phi ||
+          assembler->groups[block][0]->group_data->have_rotation ||
+          assembler->groups[block][0]->group_data->have_extra_data) {
         
         Kokkos::View<ScalarT*,HostDevice> cdata("data",myElements.size());
         Kokkos::View<ScalarT*,HostDevice> cseed("data seed",myElements.size());
@@ -4673,7 +4672,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       DRV refpt("refsenspts",1,dimension);
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
-      DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
+      DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cell_topo);
       
       for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
         refpt(0,d) = refpt_tmp(0,0,d);
@@ -4685,7 +4684,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
         auto basis_ptr = assembler->disc->basis_pointers[block][k];
         string basis_type = assembler->disc->basis_types[block][k];
-        auto cellTopo = assembler->groupData[block]->cellTopo;
+        auto cellTopo = assembler->groupData[block]->cell_topo;
         
         Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
         DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
@@ -5103,7 +5102,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     DRV refpt("refsenspts",1,dimension);
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
-    DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
+    DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cell_topo);
 
     for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
       refpt(0,d) = refpt_tmp(0,0,d);
@@ -5116,7 +5115,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
       auto basis_ptr = assembler->disc->basis_pointers[block][k];
       string basis_type = assembler->disc->basis_types[block][k];
-      auto cellTopo = assembler->groupData[block]->cellTopo;
+      auto cellTopo = assembler->groupData[block]->cell_topo;
         
       Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
       DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
@@ -5224,7 +5223,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
             Kokkos::deep_copy(cn_sub,n_sub);
             
             auto inRefgrp = assembler->disc->checkInclusionPhysicalData(phys_pt,cnodes,
-                                                                         assembler->groupData[block]->cellTopo,
+                                                                         assembler->groupData[block]->cell_topo,
                                                                          1.0e-14);
             auto inRef_host = create_mirror_view(inRefgrp);
             deep_copy(inRef_host,inRefgrp);

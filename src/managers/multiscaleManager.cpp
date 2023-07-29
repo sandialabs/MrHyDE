@@ -208,7 +208,7 @@ void MultiscaleManager::setMacroInfo(vector<vector<basis_RCP> > & macro_basis_po
     subgridModels[j]->macro_paramnames = macro_paramnames;
     subgridModels[j]->macro_disc_paramnames = macro_disc_paramnames;
     subgridModels[j]->subgrid_static = subgrid_static;
-    subgridModels[j]->macrosidenames = groups[0][0]->groupData->sidenames;
+    subgridModels[j]->macrosidenames = groups[0][0]->group_data->side_names;
   }
   
 }
@@ -326,7 +326,7 @@ ScalarT MultiscaleManager::initialize() {
         groups[block][grp]->subgridModels = subgridModels;
         groups[block][grp]->subgrid_model_index = sgwinner;
         groups[block][grp]->subgrid_usernum = sgusernum;
-        groups[block][grp]->groupData->multiscale = true;
+        groups[block][grp]->group_data->multiscale = true;
         my_cost = subgridModels[sgwinner]->cost_estimate * groups[block][grp]->numElem;
         numusers += 1;
       }
@@ -450,7 +450,7 @@ void MultiscaleManager::update() {
     if (subgrid_static) {
       for (size_t block=0; block<groups.size(); ++block) {
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
-          if (groups[block][grp]->groupData->multiscale) {
+          if (groups[block][grp]->group_data->multiscale) {
             int currmodel = groups[block][grp]->subgrid_model_index;
             my_cost += subgridModels[currmodel]->cost_estimate * groups[block][grp]->numElem;
           }
@@ -460,7 +460,7 @@ void MultiscaleManager::update() {
     else if (subgrid_model_selection == 0){
       for (size_t block=0; block<groups.size(); ++block) {
         for (size_t grp=0; grp<groups[block].size(); ++grp) {
-          if (groups[block][grp]->groupData->multiscale) {
+          if (groups[block][grp]->group_data->multiscale) {
           
             groups[block][grp]->updateWorkset(0,0);
           
@@ -578,7 +578,7 @@ void MultiscaleManager::update() {
           for (size_t grp=0; grp<groups[block].size(); ++grp) {
             groups[block][grp]->wkset->reset();
   
-            auto u_curr = groups[block][grp]->u[set];
+            auto u_curr = groups[block][grp]->sol[set];
 
             // Get the coarse time derivative
             bool include_timederiv = true;
@@ -587,8 +587,8 @@ void MultiscaleManager::update() {
 
               for (size_type var=0; var<u_curr.extent(1); ++var) {
             
-                size_t uindex = groups[block][grp]->wkset->uvals_index[set][var];
-                auto uvals_AD = groups[block][grp]->wkset->u_dotvals[uindex];
+                size_t uindex = groups[block][grp]->wkset->sol_vals_index[set][var];
+                auto uvals_AD = groups[block][grp]->wkset->sol_dot_vals[uindex];
                 auto udot_sc_sv = subview(udot_sc,ALL(),var,ALL());
                 parallel_for("assembly compute coarse sol",
                              RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
@@ -606,15 +606,15 @@ void MultiscaleManager::update() {
             }
 
             // Map the gathered solution to seeded version in workset
-            if (groups[block][grp]->groupData->requiresTransient) {
-              for (size_t iset=0; iset<groups[block][grp]->groupData->numSets; ++iset) {
-                groups[block][grp]->wkset->computeSolnTransientSeeded(iset, groups[block][grp]->u[iset], groups[block][grp]->u_prev[iset], 
-                                                                      groups[block][grp]->u_stage[iset], 0);
+            if (groups[block][grp]->group_data->requires_transient) {
+              for (size_t iset=0; iset<groups[block][grp]->group_data->num_sets; ++iset) {
+                groups[block][grp]->wkset->computeSolnTransientSeeded(iset, groups[block][grp]->sol[iset], groups[block][grp]->sol_prev[iset], 
+                                                                      groups[block][grp]->sol_stage[iset], 0);
               }
             }
             else { // steady-state
-              for (size_t iset=0; iset<groups[block][grp]->groupData->numSets; ++iset) {
-                groups[block][grp]->wkset->computeSolnSteadySeeded(iset, groups[block][grp]->u[iset], 0);
+              for (size_t iset=0; iset<groups[block][grp]->group_data->num_sets; ++iset) {
+                groups[block][grp]->wkset->computeSolnSteadySeeded(iset, groups[block][grp]->sol[iset], 0);
               }
             }
           
@@ -623,8 +623,8 @@ void MultiscaleManager::update() {
 
             for (size_type var=0; var<u_curr.extent(1); ++var) {
             
-              size_t uindex = groups[block][grp]->wkset->uvals_index[set][var];
-              auto uvals_AD = groups[block][grp]->wkset->uvals[uindex];
+              size_t uindex = groups[block][grp]->wkset->sol_vals_index[set][var];
+              auto uvals_AD = groups[block][grp]->wkset->sol_vals[uindex];
               auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
               parallel_for("assembly compute coarse sol",
                            RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
@@ -951,18 +951,18 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
   
   wkset->reset();
   
-  auto u_curr = group->u[set];
+  auto u_curr = group->sol[set];
   size_type numElem = u_curr.extent(0);
   // Map the gathered solution to seeded version in workset
-  if (group->groupData->requiresTransient) {
-    for (size_t iset=0; iset<group->groupData->numSets; ++iset) {
-      wkset->computeSolnTransientSeeded(iset, group->u[iset], group->u_prev[iset], 
-                                        group->u_stage[iset], 0);
+  if (group->group_data->requires_transient) {
+    for (size_t iset=0; iset<group->group_data->num_sets; ++iset) {
+      wkset->computeSolnTransientSeeded(iset, group->sol[iset], group->sol_prev[iset], 
+                                        group->sol_stage[iset], 0);
     }
   }
   else { // steady-state
-    for (size_t iset=0; iset<group->groupData->numSets; ++iset) {
-      wkset->computeSolnSteadySeeded(iset, group->u[iset], 0);
+    for (size_t iset=0; iset<group->group_data->num_sets; ++iset) {
+      wkset->computeSolnSteadySeeded(iset, group->sol[iset], 0);
     }
   }
           
@@ -970,8 +970,8 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
 
   for (size_type var=0; var<u_curr.extent(1); ++var) {
             
-    size_t uindex = wkset->uvals_index[set][var];
-    auto uvals_AD = wkset->uvals[uindex];
+    size_t uindex = wkset->sol_vals_index[set][var];
+    auto uvals_AD = wkset->sol_vals[uindex];
     auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
     parallel_for("assembly compute coarse sol",
                  RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
@@ -989,7 +989,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
   if (subgrid_model_selection == 0) { // user defined
     int sgindex = group->subgrid_model_index;
 
-    subgridModels[sgindex]->subgridSolver(uvals_sc, group->u_prev[set], 
+    subgridModels[sgindex]->subgridSolver(uvals_sc, group->sol_prev[set], 
                                           group->phi[set], wkset->time, isTransient, isAdjoint,
                                           compute_jacobian, compute_sens, num_active_params,
                                           compute_disc_sens, false,
@@ -997,7 +997,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
                                           group->subgradient, store_adjPrev);
   }   
   else if (subgrid_model_selection == 1) { // hierarchical - assumes order is in complexity/fidelity
-    subgridModels[0]->subgridSolver(uvals_sc, group->u_prev[set], 
+    subgridModels[0]->subgridSolver(uvals_sc, group->sol_prev[set], 
                                     group->phi[set], wkset->time, isTransient, isAdjoint,
                                     compute_jacobian, compute_sens, num_active_params,
                                     compute_disc_sens, false,
@@ -1017,7 +1017,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
           }
         });
         wkset->resetResidual();
-        subgridModels[cmodel]->subgridSolver(uvals_sc, group->u_prev[set], 
+        subgridModels[cmodel]->subgridSolver(uvals_sc, group->sol_prev[set], 
                                              group->phi[set], wkset->time, isTransient, isAdjoint,
                                              compute_jacobian, compute_sens, num_active_params,
                                              compute_disc_sens, false,
@@ -1096,8 +1096,8 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
 
         for (size_type var=0; var<u_curr.extent(1); ++var) {
             
-          size_t uindex = group->wkset->uvals_index[set][var];
-          auto uvals_AD = group->wkset->u_dotvals[uindex];
+          size_t uindex = group->wkset->sol_vals_index[set][var];
+          auto uvals_AD = group->wkset->sol_dot_vals[uindex];
           auto udot_sc_sv = subview(udot_sc,ALL(),var,ALL());
           parallel_for("assembly compute coarse sol",
                        RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
@@ -1166,7 +1166,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
       }
 
       size_t num_models = subgridModels.size();
-      subgridModels[num_models-1]->subgridSolver(uvals_sc, group->u_prev[set], 
+      subgridModels[num_models-1]->subgridSolver(uvals_sc, group->sol_prev[set], 
                                                  group->phi[set], wkset->time, isTransient, isAdjoint,
                                                  compute_jacobian, compute_sens, num_active_params,
                                                  compute_disc_sens, false,
@@ -1198,7 +1198,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
 
       for (size_t cmodel=0; cmodel<subgridModels.size()-1; ++cmodel) {
         wkset->resetResidual();
-        subgridModels[cmodel]->subgridSolver(uvals_sc, group->u_prev[set], 
+        subgridModels[cmodel]->subgridSolver(uvals_sc, group->sol_prev[set], 
                                              group->phi[set], wkset->time, isTransient, isAdjoint,
                                              compute_jacobian, compute_sens, num_active_params,
                                              compute_disc_sens, false,
@@ -1244,7 +1244,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset
     else {
 
       int sgindex = group->subgrid_model_index;
-      subgridModels[sgindex]->subgridSolver(uvals_sc, group->u_prev[set], 
+      subgridModels[sgindex]->subgridSolver(uvals_sc, group->sol_prev[set], 
                                                  group->phi[set], wkset->time, isTransient, isAdjoint,
                                                  compute_jacobian, compute_sens, num_active_params,
                                                  compute_disc_sens, false,

@@ -727,7 +727,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
         DRV nodes = groups[block][grp]->nodes;
         int numElem = groups[block][grp]->numElem;
         
-        auto centers = this->getElementCenters(nodes, groups[block][grp]->groupData->cellTopo);
+        auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cell_topo);
         auto centers_host = create_mirror_view(centers);
         deep_copy(centers_host,centers);
         
@@ -742,9 +742,9 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
           for (size_type i=0; i<cdata.extent(1); i++) {
             groups[block][grp]->data(c,i) = cdata(0,i);
           }
-          groups[block][grp]->groupData->have_extra_data = true;
-          groups[block][grp]->groupData->have_rotation = have_rotations;
-          groups[block][grp]->groupData->have_phi = have_rotation_phi;
+          groups[block][grp]->group_data->have_extra_data = true;
+          groups[block][grp]->group_data->have_rotation = have_rotations;
+          groups[block][grp]->group_data->have_phi = have_rotation_phi;
           
           groups[block][grp]->data_seed[c] = cnode;
           groups[block][grp]->data_seedindex[c] = cnode % 100;
@@ -758,7 +758,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
         DRV nodes = boundary_groups[block][grp]->nodes;
         int numElem = boundary_groups[block][grp]->numElem;
         
-        auto centers = this->getElementCenters(nodes, boundary_groups[block][grp]->groupData->cellTopo);
+        auto centers = this->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
         auto centers_host = create_mirror_view(centers);
         deep_copy(centers_host,centers);
         
@@ -771,9 +771,9 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
           for (size_type i=0; i<cdata.extent(1); i++) {
             boundary_groups[block][grp]->data(c,i) = cdata(0,i);
           }
-          boundary_groups[block][grp]->groupData->have_extra_data = true;
-          boundary_groups[block][grp]->groupData->have_rotation = have_rotations;
-          boundary_groups[block][grp]->groupData->have_phi = have_rotation_phi;
+          boundary_groups[block][grp]->group_data->have_extra_data = true;
+          boundary_groups[block][grp]->group_data->have_rotation = have_rotations;
+          boundary_groups[block][grp]->group_data->have_phi = have_rotation_phi;
           
           boundary_groups[block][grp]->data_seed[c] = cnode;
           boundary_groups[block][grp]->data_seedindex[c] = cnode % 100;
@@ -791,7 +791,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
         DRV nodes = groups[block][grp]->nodes;
         int numElem = groups[block][grp]->numElem;
         
-        auto centers = this->getElementCenters(nodes, groups[block][grp]->groupData->cellTopo);
+        auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cell_topo);
         
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
         Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
@@ -808,9 +808,9 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
             data_mirror(c,i) = cdata(0,i);
           }
 
-          groups[block][grp]->groupData->have_extra_data = true;
-          groups[block][grp]->groupData->have_rotation = have_rotations;
-          groups[block][grp]->groupData->have_phi = have_rotation_phi;
+          groups[block][grp]->group_data->have_extra_data = true;
+          groups[block][grp]->group_data->have_rotation = have_rotations;
+          groups[block][grp]->group_data->have_phi = have_rotation_phi;
           
           groups[block][grp]->data_seed[c] = cnode(c);
           groups[block][grp]->data_seedindex[c] = cnode(c) % 100;
@@ -826,7 +826,7 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
         DRV nodes = boundary_groups[block][grp]->nodes;
         int numElem = boundary_groups[block][grp]->numElem;
         
-        auto centers = this->getElementCenters(nodes, boundary_groups[block][grp]->groupData->cellTopo);
+        auto centers = this->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
         
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
         Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
@@ -843,9 +843,9 @@ void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & group
             data_mirror(c,i) = cdata(0,i);
           }
 
-          boundary_groups[block][grp]->groupData->have_extra_data = true;
-          boundary_groups[block][grp]->groupData->have_rotation = have_rotations;
-          boundary_groups[block][grp]->groupData->have_phi = have_rotation_phi;
+          boundary_groups[block][grp]->group_data->have_extra_data = true;
+          boundary_groups[block][grp]->group_data->have_rotation = have_rotations;
+          boundary_groups[block][grp]->group_data->have_phi = have_rotation_phi;
           
           boundary_groups[block][grp]->data_seed[c] = cnode(c);
           boundary_groups[block][grp]->data_seedindex[c] = cnode(c) % 50;
@@ -1156,7 +1156,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   // Create a list of all cell centers
   ////////////////////////////////////////////////////////////////////////////////
   
-  auto centers = this->getElementCenters(totalNodes, groups[0][0]->groupData->cellTopo);
+  auto centers = this->getElementCenters(totalNodes, groups[0][0]->group_data->cell_topo);
   
   ////////////////////////////////////////////////////////////////////////////////
   // Find the closest seeds
@@ -1176,7 +1176,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       int numElem = groups[block][grp]->numElem;
-      //auto centers = this->getElementCenters(nodes, groups[block][grp]->groupData->cellTopo);
+      //auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cellTopo);
       
       //Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
       //Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
@@ -1192,8 +1192,8 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
           groups[block][grp]->data(c,i) = rotation_data(cpt,i);//rotation_data(cnode(c),i);
         }
         
-        groups[block][grp]->groupData->have_rotation = true;
-        groups[block][grp]->groupData->have_phi = false;
+        groups[block][grp]->group_data->have_rotation = true;
+        groups[block][grp]->group_data->have_phi = false;
         
         groups[block][grp]->data_seed[c] = cpt % 100;//cnode(c) % 100;
         groups[block][grp]->data_seedindex[c] = seedIndex(cpt); //seedIndex(cnode(c));
@@ -1251,7 +1251,7 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
     // Create a list of all cell centers
     ////////////////////////////////////////////////////////////////////////////////
     
-    centers = this->getElementCenters(totalNodes, groups[0][0]->groupData->cellTopo);
+    centers = this->getElementCenters(totalNodes, groups[0][0]->group_data->cell_topo);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Find the closest seeds
@@ -1281,8 +1281,8 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
             boundary_groups[block][grp]->data(c,i) = rotation_data(cpt,i);
           }
           
-          boundary_groups[block][grp]->groupData->have_rotation = true;
-          boundary_groups[block][grp]->groupData->have_phi = false;
+          boundary_groups[block][grp]->group_data->have_rotation = true;
+          boundary_groups[block][grp]->group_data->have_phi = false;
           
           boundary_groups[block][grp]->data_seed[c] = cpt % 100;
           boundary_groups[block][grp]->data_seedindex[c] = seedIndex(cpt);
@@ -1490,7 +1490,7 @@ void MeshInterface::readExodusData() {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       //cindex = groups[block][grp]->index;
       auto LIDs = groups[block][grp]->LIDs_host;
-      auto nDOF = groups[block][grp]->groupData->numDOF_host;
+      auto nDOF = groups[block][grp]->group_data->numDOF_host;
       
       for (int n=0; n<nDOF(0); n++) {
         //Kokkos::View<GO**,HostDevice> GIDs = assembler->groups[block][grp]->GIDs;

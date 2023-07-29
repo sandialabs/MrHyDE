@@ -132,9 +132,9 @@ void Workset::createSolutionFields() {
     totalvars += set_varlist[set].size();
   }
   
-  uvals = vector<View_AD2>(totalvars);
+  sol_vals = vector<View_AD2>(totalvars);
   if (isTransient) {
-    u_dotvals = vector<View_AD2>(totalvars);
+    sol_dot_vals = vector<View_AD2>(totalvars);
   }
   
   res = View_AD2("residual",numElem, maxRes);
@@ -154,11 +154,11 @@ void Workset::createSolutionFields() {
       string var = set_varlist[set][i];
       
       int numb = basis_pointers[bind]->getCardinality();
-      View_AD2 newsol("seeded uvals",numElem, numb);
-      uvals[uprog] = newsol;
+      View_AD2 newsol("seeded sol_vals",numElem, numb);
+      sol_vals[uprog] = newsol;
       if (isTransient) {
-        View_AD2 newtsol("seeded uvals",numElem, numb);
-        u_dotvals[uprog] = newtsol;
+        View_AD2 newtsol("seeded sol_vals",numElem, numb);
+        sol_dot_vals[uprog] = newtsol;
       }
       
       set_uindex.push_back(uprog);
@@ -188,7 +188,7 @@ void Workset::createSolutionFields() {
         set_varlist_HFACE.push_back(var);
       }
     }
-    uvals_index.push_back(set_uindex);
+    sol_vals_index.push_back(set_uindex);
     vars_HGRAD.push_back(set_vars_HGRAD);
     vars_HVOL.push_back(set_vars_HVOL);
     vars_HDIV.push_back(set_vars_HDIV);
@@ -209,7 +209,7 @@ void Workset::createSolutionFields() {
     int bind = paramusebasis[i];
     string var = param_varlist[i];
     int numb = basis_pointers[bind]->getCardinality();
-    View_AD2 newpsol("seeded uvals",numElem, numb);
+    View_AD2 newpsol("seeded sol_vals",numElem, numb);
     pvals.push_back(newpsol);
     
     this->addSolutionField(var, set, i, basis_types[bind], soltype);
@@ -467,9 +467,9 @@ void Workset::computeSolnTransientSeeded(const size_t & set,
   if (set == current_set) {
     if (seedwhat == 1) {
       for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = uvals_index[set][var];
-        auto u_AD = uvals[uindex];
-        auto u_dot_AD = u_dotvals[uindex];
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto u_dot_AD = sol_dot_vals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
@@ -514,9 +514,9 @@ void Workset::computeSolnTransientSeeded(const size_t & set,
     }
     else if (seedwhat == 2) { // Seed one of the previous step solutions
       for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = uvals_index[set][var];
-        auto u_AD = uvals[uindex];
-        auto u_dot_AD = u_dotvals[uindex];
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto u_dot_AD = sol_dot_vals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
@@ -572,9 +572,9 @@ void Workset::computeSolnTransientSeeded(const size_t & set,
     }
     else if (seedwhat == 3) { // Seed one of the previous stage solutions
       for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = uvals_index[set][var];
-        auto u_AD = uvals[uindex];
-        auto u_dot_AD = u_dotvals[uindex];
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto u_dot_AD = sol_dot_vals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
@@ -623,9 +623,9 @@ void Workset::computeSolnTransientSeeded(const size_t & set,
     }
     else { // Seed nothing
       for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = uvals_index[set][var];
-        auto u_AD = uvals[uindex];
-        auto u_dot_AD = u_dotvals[uindex];
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto u_dot_AD = sol_dot_vals[uindex];
         auto off = subview(set_offsets[set],var,ALL());
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
@@ -663,8 +663,8 @@ void Workset::computeSolnTransientSeeded(const size_t & set,
   }
   else {
     for (size_type var=0; var<u.extent(1); var++ ) {
-      size_t uindex = uvals_index[set][var];
-      auto u_AD = uvals[uindex];
+      size_t uindex = sol_vals_index[set][var];
+      auto u_AD = sol_vals[uindex];
       auto cu = subview(u,ALL(),var,ALL());
       
       parallel_for("wkset steady soln",
@@ -691,8 +691,8 @@ void Workset::computeSolnSteadySeeded(const size_t & set,
   
   for (size_type var=0; var<u.extent(1); var++ ) {
     
-    size_t uindex = uvals_index[set][var];
-    auto u_AD = uvals[uindex];
+    size_t uindex = sol_vals_index[set][var];
+    auto u_AD = sol_vals[uindex];
     auto off = subview(set_offsets[set],var,ALL());
     auto cu = subview(u,ALL(),var,ALL());
     if (seedwhat == 1 && set == current_set) {
@@ -803,13 +803,13 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
     size_t vindex = soln_fields[fieldnum].variable_index_;
     
     View_AD2 solvals;
-    size_t uindex = uvals_index[soln_fields[fieldnum].set_index_][soln_fields[fieldnum].variable_index_];
+    size_t uindex = sol_vals_index[soln_fields[fieldnum].set_index_][soln_fields[fieldnum].variable_index_];
     if (soln_fields[fieldnum].variable_type_ == "solution") { // solution
       if (soln_fields[fieldnum].derivative_type_ == "time" ) {
-        solvals = u_dotvals[uindex];
+        solvals = sol_dot_vals[uindex];
       }
       else {
-        solvals = uvals[uindex];
+        solvals = sol_vals[uindex];
       }
     }
 
@@ -934,13 +934,13 @@ void Workset::evaluateSideSolutionField(const int & fieldnum) {
     size_t vindex = side_soln_fields[fieldnum].variable_index_;
     
     View_AD2 solvals;
-    size_t uindex = uvals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
+    size_t uindex = sol_vals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
     if (side_soln_fields[fieldnum].variable_type_ == "solution") { // solution
       if (side_soln_fields[fieldnum].derivative_type_ == "time" ) {
-        solvals = u_dotvals[uindex];
+        solvals = sol_dot_vals[uindex];
       }
       else {
-        solvals = uvals[uindex];
+        solvals = sol_vals[uindex];
       }
     }
 
@@ -1031,7 +1031,7 @@ void Workset::computeSolnSideIP(const int & side) {
       string var = varlist_HGRAD[current_set][i];
       int varind = vars_HGRAD[current_set][i];
       
-      auto cuvals = uvals[uvals_index[current_set][varind]];
+      auto csol_vals = sol_vals[sol_vals_index[current_set][varind]];
       
       auto csol = this->getSolutionField(var,false);
       auto csol_x = this->getSolutionField("grad("+var+")[x]",false);
@@ -1049,19 +1049,19 @@ void Workset::computeSolnSideIP(const int & side) {
           csol(elem,pt) = 0.0;
           csol_x(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
-            csol_x(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,0);
+            csol(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,0);
+            csol_x(elem,pt) += csol_vals(elem,dof)*cbasis_grad(elem,dof,pt,0);
           }
           if (dim>1) {
             csol_y(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csol_y(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,1);
+              csol_y(elem,pt) += csol_vals(elem,dof)*cbasis_grad(elem,dof,pt,1);
             }
           }
           if (dim>2) {
             csol_z(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csol_z(elem,pt) += cuvals(elem,dof)*cbasis_grad(elem,dof,pt,2);
+              csol_z(elem,pt) += csol_vals(elem,dof)*cbasis_grad(elem,dof,pt,2);
             }
           }
         }
@@ -1076,7 +1076,7 @@ void Workset::computeSolnSideIP(const int & side) {
       string var = varlist_HVOL[current_set][i];
       int varind = vars_HVOL[current_set][i];
       
-      auto cuvals = uvals[uvals_index[current_set][varind]];
+      auto csol_vals = sol_vals[sol_vals_index[current_set][varind]];
       
       auto csol = this->getSolutionField(var,false);
       auto cbasis = basis_side[usebasis[varind]];
@@ -1088,7 +1088,7 @@ void Workset::computeSolnSideIP(const int & side) {
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csol(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csol(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+            csol(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,0);
           }
         }
       });
@@ -1102,7 +1102,7 @@ void Workset::computeSolnSideIP(const int & side) {
       string var = varlist_HDIV[current_set][i];
       int varind = vars_HDIV[current_set][i];
       
-      auto cuvals = uvals[uvals_index[current_set][varind]];
+      auto csol_vals = sol_vals[sol_vals_index[current_set][varind]];
       
       auto csolx = this->getSolutionField(var+"[x]",false);
       auto csoly = this->getSolutionField(var+"[y]",false);
@@ -1117,18 +1117,18 @@ void Workset::computeSolnSideIP(const int & side) {
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csolx(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+            csolx(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,0);
           }
           if (dim>1) {
             csoly(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
+              csoly(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
           if (dim>2) {
             csolz(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
+              csolz(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }
@@ -1143,7 +1143,7 @@ void Workset::computeSolnSideIP(const int & side) {
       string var = varlist_HDIV[current_set][i];
       int varind = vars_HDIV[current_set][i];
       
-      auto cuvals = uvals[uvals_index[current_set][varind]];
+      auto csol_vals = sol_vals[sol_vals_index[current_set][varind]];
       
       auto csolx = this->getSolutionField(var+"[x]",false);
       auto csoly = this->getSolutionField(var+"[y]",false);
@@ -1158,18 +1158,18 @@ void Workset::computeSolnSideIP(const int & side) {
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csolx(elem,pt) = 0.0;
           for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-            csolx(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,0);
+            csolx(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,0);
           }
           if (dim>1) {
             csoly(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csoly(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,1);
+              csoly(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,1);
             }
           }
           if (dim>2) {
             csolz(elem,pt) = 0.0;
             for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
-              csolz(elem,pt) += cuvals(elem,dof)*cbasis(elem,dof,pt,2);
+              csolz(elem,pt) += csol_vals(elem,dof)*cbasis(elem,dof,pt,2);
             }
           }
         }

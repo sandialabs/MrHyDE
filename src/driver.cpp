@@ -125,7 +125,7 @@ int main(int argc,char * argv[]) {
     std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
     for (size_t block=0; block<mesh->block_names.size(); ++block) {
       functionManagers.push_back(Teuchos::rcp(new FunctionManager(mesh->block_names[block],
-                                                                  assembler->groupData[block]->numElem,
+                                                                  assembler->groupData[block]->num_elem,
                                                                   disc->numip[block],
                                                                   disc->numip_side[block])));
     }

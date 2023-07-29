@@ -351,7 +351,7 @@ void SolverManager<Node>::setupExplicitMass() {
         auto offsets_host = create_mirror_view(offsets);
         deep_copy(offsets_host,offsets);
 
-        auto numDOF_host = assembler->groupData[block]->numDOF_host;
+        auto numDOF_host = assembler->groupData[block]->num_dof_host;
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto LIDs_host = assembler->groups[block][grp]->LIDs_host[set];
           
@@ -380,7 +380,7 @@ void SolverManager<Node>::setupExplicitMass() {
       
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
-        auto numDOF = assembler->groupData[block]->numDOF;
+        auto numDOF = assembler->groupData[block]->num_dof;
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto LIDs = assembler->groups[block][grp]->LIDs_host[set];
           
@@ -2020,7 +2020,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
           
           assembler->updatePhysicsSet(set);
           
-          if (assembler->groupData[block]->numElem > 0) {
+          if (assembler->groupData[block]->num_elem > 0) {
             
             Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[set][block].size());
             auto idata_host = Kokkos::create_mirror_view(idata);
@@ -2031,7 +2031,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             
             if (samedevice) {
               auto offsets = assembler->wkset[block]->offsets;
-              auto numDOF = assembler->groupData[block]->numDOF;
+              auto numDOF = assembler->groupData[block]->num_dof;
               for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
                 auto LIDs = assembler->groups[block][cell]->LIDs[set];
                 parallel_for("solver initial scalar",
@@ -2049,7 +2049,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
               auto offsets = assembler->wkset[block]->offsets;
               auto host_offsets = Kokkos::create_mirror_view(offsets);
               Kokkos::deep_copy(host_offsets,offsets);
-              auto numDOF = assembler->groupData[block]->numDOF_host;
+              auto numDOF = assembler->groupData[block]->num_dof_host;
               for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
                 auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
                 parallel_for("solver initial scalar",
@@ -2212,7 +2212,7 @@ void SolverManager<Node>::finalizeMultiscale() {
     multiscale_manager->macro_wkset = assembler->wkset;
     vector<Kokkos::View<int*,AssemblyDevice>> macro_numDOF;
     for (size_t block=0; block<assembler->groupData.size(); ++block) {
-      macro_numDOF.push_back(assembler->groupData[block]->set_numDOF[0]);
+      macro_numDOF.push_back(assembler->groupData[block]->set_num_dof[0]);
     }
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
                                      physics->var_list[0], useBasis[0], disc->offsets[0],
