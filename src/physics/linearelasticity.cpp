@@ -16,6 +16,18 @@
 #include <string>
 using namespace MrHyDE;
 
+#ifndef MrHyDE_NO_AD
+      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
+      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
+      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+    #else
+      typedef View_Sc1 View_AD1;
+      typedef View_Sc2 View_AD2;
+      typedef View_Sc3 View_AD3;
+      typedef View_Sc4 View_AD4;
+    #endif
+
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
@@ -848,7 +860,7 @@ void linearelasticity::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void linearelasticity::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void linearelasticity::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
   

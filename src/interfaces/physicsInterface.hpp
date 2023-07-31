@@ -33,6 +33,19 @@ namespace MrHyDE {
    */
   
   class PhysicsInterface {
+
+    #ifndef MrHyDE_NO_AD
+      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
+      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
+      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+    #else
+      typedef View_Sc1 View_AD1;
+      typedef View_Sc2 View_AD2;
+      typedef View_Sc3 View_AD3;
+      typedef View_Sc4 View_AD4;
+    #endif
+
   public:
     
     // ========================================================================================
@@ -70,7 +83,7 @@ namespace MrHyDE {
     
     AD getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const ScalarT & t, const string & var, const string & gside,
-                         const bool & useadjoint, Teuchos::RCP<Workset> & wkset);
+                         const bool & useadjoint, Teuchos::RCP<Workset<AD> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -82,7 +95,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     View_Sc4 getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
-                        const bool & project, Teuchos::RCP<Workset> & wkset);
+                        const bool & project, Teuchos::RCP<Workset<AD> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,7 +113,7 @@ namespace MrHyDE {
      */
     
     View_Sc3 getInitialFace(vector<View_Sc2> & pts, const int & set, const int & block,
-                            const bool & project, Teuchos::RCP<Workset> & wkset);
+                            const bool & project, Teuchos::RCP<Workset<AD> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +154,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void setWorkset(vector<Teuchos::RCP<Workset> > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////

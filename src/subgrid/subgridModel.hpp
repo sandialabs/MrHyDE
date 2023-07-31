@@ -52,7 +52,7 @@ namespace MrHyDE {
                                const bool & compute_jacobian, const bool & compute_sens,
                                const int & num_active_params,
                                const bool & compute_disc_sens, const bool & compute_aux_sens,
-                               Workset & macrowkset, const int & macroelemindex,
+                               Workset<AD> & macrowkset, const int & macroelemindex,
                                const int & macrogrp,
                                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) = 0;
     
@@ -126,7 +126,7 @@ namespace MrHyDE {
 
     bool useMachineLearning = false;
     
-    vector<Teuchos::RCP<Workset> > wkset;
+    vector<Teuchos::RCP<Workset<AD> > > wkset;
     vector<basis_RCP> macro_basis_pointers;
     vector<string> macro_basis_types;
     vector<string> macro_varlist;

@@ -147,7 +147,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
                               const bool & compute_jacobian, const bool & compute_sens,
                               const int & num_active_params,
                               const bool & compute_disc_sens, const bool & compute_aux_sens,
-                              Workset & macrowkset,
+                              Workset<AD> & macrowkset,
                               const int & macrogrp, const int & macroelemindex,
                               Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) {
   
@@ -1493,7 +1493,7 @@ void SubGridDtN_Solver::updateFlux(const Teuchos::RCP<SG_MultiVector> & u,
                                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                    const Teuchos::RCP<SG_MultiVector> & disc_params,
                                    const bool & compute_sens, const int macroelemindex,
-                                   const ScalarT & time, Workset & macrowkset,
+                                   const ScalarT & time, Workset<AD> & macrowkset,
                                    const int & macrogrp,
                                    const ScalarT & fluxwt) {
   
@@ -1550,7 +1550,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
                                    Kokkos::View<ScalarT***,AssemblyDevice> lambda,
                                    ViewType dp_kv,
                                    const bool & compute_sens, const int macroelemindex,
-                                   const ScalarT & time, Workset & macrowkset,
+                                   const ScalarT & time, Workset<AD> & macrowkset,
                                    const int & macrogrp,
                                    const ScalarT & fluxwt) {
   

@@ -191,7 +191,7 @@ void incompressibleSaturation::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void incompressibleSaturation::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void incompressibleSaturation::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
 

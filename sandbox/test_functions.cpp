@@ -3,7 +3,6 @@
 #include "preferences.hpp"
 #include "functionManager.hpp"
 #include "workset.hpp"
-//#include "discretizationInterface.hpp"
 
 #include <Kokkos_Random.hpp>
 
@@ -12,6 +11,14 @@ using namespace MrHyDE;
 
 int main(int argc, char * argv[]) {
   
+  #ifndef MrHyDE_NO_AD
+    typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+    typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+  #else
+    typedef View_Sc2 View_AD2;
+    typedef View_Sc4 View_AD4;
+  #endif
+    
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
   MpiComm Comm(MPI_COMM_WORLD);
   
@@ -23,7 +30,7 @@ int main(int argc, char * argv[]) {
     //----------------------------------------------------------------------
     
     // Set up a dummy workset just to test interplay between function manager and workset
-    Teuchos::RCP<Workset> wkset = Teuchos::rcp( new Workset() );
+    Teuchos::RCP<Workset<AD> > wkset = Teuchos::rcp( new Workset<AD>() );
     
     // Define some parameters
     int numElem = 10;

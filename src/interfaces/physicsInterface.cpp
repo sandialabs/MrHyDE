@@ -675,7 +675,7 @@ int PhysicsInterface::getvarOwner(const int & set, const int & block, const stri
 AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y,
                                        const ScalarT & z, const ScalarT & t, const string & var,
                                        const string & gside, const bool & useadjoint,
-                                       Teuchos::RCP<Workset> & wkset) {
+                                       Teuchos::RCP<Workset<AD> > & wkset) {
   
   // update point in wkset
   auto xpt = wkset->getScalarField("x point");
@@ -737,7 +737,7 @@ bool PhysicsInterface::checkFace(const size_t & set, const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
-                                      const bool & project, Teuchos::RCP<Workset> & wkset) {
+                                      const bool & project, Teuchos::RCP<Workset<AD> > & wkset) {
   
   
   size_t currnum_vars = var_list[set][block].size();
@@ -887,7 +887,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & set,
-                                          const int & block, const bool & project, Teuchos::RCP<Workset> & wkset) {
+                                          const int & block, const bool & project, Teuchos::RCP<Workset<AD> > & wkset) {
   
   size_t currnum_vars = var_list[set][block].size();
   
@@ -1035,7 +1035,7 @@ void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset> > & wkset) {
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++) {
     if (wkset[block]->isInitialized) {
       for (size_t set=0; set<modules.size(); set++) {

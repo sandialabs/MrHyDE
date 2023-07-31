@@ -172,17 +172,6 @@ typedef Kokkos::View<ScalarT**,AssemblyDevice> View_Sc2;
 typedef Kokkos::View<ScalarT***,AssemblyDevice> View_Sc3;
 typedef Kokkos::View<ScalarT****,AssemblyDevice> View_Sc4;
 typedef Kokkos::View<ScalarT*****,AssemblyDevice> View_Sc5;
-#ifndef MrHyDE_NO_AD
-typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
-typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
-typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
-typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
-#else
-typedef View_Sc1 View_AD1;
-typedef View_Sc2 View_AD2;
-typedef View_Sc3 View_AD3;
-typedef View_Sc4 View_AD4;
-#endif
 
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;

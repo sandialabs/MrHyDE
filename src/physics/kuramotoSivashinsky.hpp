@@ -63,7 +63,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
 
   private:
 

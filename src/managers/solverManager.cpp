@@ -239,7 +239,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   this->finalizeWorkset();
   
   physics->setWorkset(assembler->wkset);
-  params->wkset = assembler->wkset;
+  params->setWorkset(assembler->wkset);
   
   if (store_vectors) {
     for (size_t set=0; set<numSets; ++set) {

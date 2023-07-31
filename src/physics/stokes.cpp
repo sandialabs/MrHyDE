@@ -458,7 +458,7 @@ void stokes::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void stokes::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void stokes::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;

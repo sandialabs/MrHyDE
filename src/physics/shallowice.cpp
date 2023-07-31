@@ -121,7 +121,7 @@ void shallowice::boundaryResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowice::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void shallowice::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
 

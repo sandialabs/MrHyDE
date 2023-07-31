@@ -274,7 +274,7 @@ void shallowwater::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void shallowwater::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
   

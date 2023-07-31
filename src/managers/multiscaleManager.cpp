@@ -941,7 +941,7 @@ void MultiscaleManager::update() {
 // Compute the macro->micro->macro map and Jacobian
 ////////////////////////////////////////////////////////////////////////////////
 
-void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset> & wkset, Teuchos::RCP<Group> & group,
+void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & wkset, Teuchos::RCP<Group> & group,
                                                    const int & set, 
                                                    const bool & isTransient, const bool & isAdjoint,
                                                    const bool & compute_jacobian, const bool & compute_sens,

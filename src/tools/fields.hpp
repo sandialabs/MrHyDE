@@ -22,9 +22,14 @@ namespace MrHyDE {
   // =================================================================
   // =================================================================
   
+  template<class EvalT>
   class SolutionField {
-    friend class Workset;
-    friend class FunctionManager;
+    
+    //friend class Workset<EvalT>;
+    //friend class FunctionManager;
+
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
+  
   public:
     
     SolutionField() {};
@@ -108,7 +113,7 @@ namespace MrHyDE {
     // =================================================================
     // =================================================================
     
-  private:
+  //private:
     string expression_, variable_type_, basis_type_, derivative_type_;
     size_t set_index_, variable_index_, component_;
     bool is_updated_, is_initialized_;
@@ -120,8 +125,8 @@ namespace MrHyDE {
   // =================================================================
   
   class ScalarField {
-    friend class Workset;
-    friend class FunctionManager;
+    //friend class Workset;
+    //friend class FunctionManager;
   public:
     
     ScalarField() {};

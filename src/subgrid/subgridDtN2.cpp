@@ -783,7 +783,7 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
                                 const bool & compute_jacobian, const bool & compute_sens,
                                 const int & num_active_params,
                                 const bool & compute_disc_sens, const bool & compute_aux_sens,
-                                Workset & macrowkset,
+                                Workset<AD> & macrowkset,
                                 const int & macrogrp, const int & macroelemindex,
                                 Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev) {
   

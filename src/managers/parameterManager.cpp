@@ -1171,6 +1171,13 @@ vector<ScalarT> ParameterManager<Node>::getFractionalParams(const std::string & 
   }
 }
 
+template<class Node>
+void ParameterManager<Node>::setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset_) {
+  for (size_t block = 0; block<wkset_.size(); block++) {
+    wkset.push_back(wkset_[block]);
+  }
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 // After the setup phase, we can get rid of a few things

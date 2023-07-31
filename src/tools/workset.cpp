@@ -18,7 +18,8 @@ using namespace MrHyDE;
 // Constructors
 ////////////////////////////////////////////////////////////////////////////////////
 
-Workset::Workset(const vector<int> & cellinfo,
+template<class EvalT>
+Workset<EvalT>::Workset(const vector<int> & cellinfo,
                  const vector<size_t> & numVars_,
                  const bool & isTransient_,
                  const vector<string> & basis_types_,
@@ -109,7 +110,8 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
 // Public functions
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::createSolutionFields() {
+template<class EvalT>
+void Workset<EvalT>::createSolutionFields() {
 
   // Need to first allocate the residual view
   // This is the largest view in the code (due to the AD) so we are careful with the size
@@ -241,7 +243,8 @@ void Workset::createSolutionFields() {
 // Add solution fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::addSolutionFields(vector<string> & vars, vector<string> & types, vector<int> & basis_indices) {
+template<class EvalT>
+void Workset<EvalT>::addSolutionFields(vector<string> & vars, vector<string> & types, vector<int> & basis_indices) {
   
   vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
   vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
@@ -300,73 +303,74 @@ void Workset::addSolutionFields(vector<string> & vars, vector<string> & types, v
 // Add solution fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::addSolutionField(string & var, size_t & set_index,
+template<class EvalT>
+void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
                                size_t & var_index, string & basistype, string & soltype) {
   
   if (basistype.substr(0,5) == "HGRAD") {
     
-    soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[x]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[y]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("grad("+var+")[z]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField("grad("+var+")[x]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField("grad("+var+")[y]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField("grad("+var+")[z]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField("grad("+var+")[x]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField("grad("+var+")[y]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField("grad("+var+")[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[x]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[y]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[x]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[y]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[z]", set_index, soltype, var_index));
   
   }
   else if (basistype.substr(0,4) == "HDIV" ) {
     
-    soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("div("+var+")", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t[x]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t[y]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t[z]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("div("+var+")", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t[z]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,4) == "HVOL") {
     
-    soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,5) == "HCURL") {
     
-    soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("curl("+var+")[x]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("curl("+var+")[y]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField("curl("+var+")[z]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t[x]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t[y]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField(var+"_t[z]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var+"[x]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var+"[y]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField(var+"[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t[x]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t[y]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>(var+"_t[z]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,5) == "HFACE") {
     
-    side_soln_fields.push_back(SolutionField(var, set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
     
   }
 }
@@ -375,7 +379,8 @@ void Workset::addSolutionField(string & var, size_t & set_index,
 // Add scalar fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::addScalarFields(vector<string> & fields) {
+template<class EvalT>
+void Workset<EvalT>::addScalarFields(vector<string> & fields) {
   for (size_t i=0; i<fields.size(); ++i) {
     scalar_fields.push_back(ScalarField(fields[i]));
   }
@@ -385,7 +390,8 @@ void Workset::addScalarFields(vector<string> & fields) {
 // Reset
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::reset() {
+template<class EvalT>
+void Workset<EvalT>::reset() {
   this->resetResidual();
   this->resetSolutionFields();
 }
@@ -394,7 +400,8 @@ void Workset::reset() {
 // Reset solution fields
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::resetSolutionFields() {
+template<class EvalT>
+void Workset<EvalT>::resetSolutionFields() {
   for (size_t f=0; f<soln_fields.size(); ++f) {
     soln_fields[f].is_updated_ = false;
   }
@@ -410,7 +417,8 @@ void Workset::resetSolutionFields() {
 // Reset residuals
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::resetResidual() {
+template<class EvalT>
+void Workset<EvalT>::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
   //Kokkos::deep_copy(res,0.0);
   
@@ -444,7 +452,8 @@ void Workset::resetResidual() {
 // Compute the seeded solutions for general transient problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::computeSolnTransientSeeded(const size_t & set,
+template<class EvalT>
+void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
                                          View_Sc3 u,
                                          View_Sc4 u_prev,
                                          View_Sc4 u_stage,
@@ -683,7 +692,8 @@ void Workset::computeSolnTransientSeeded(const size_t & set,
 // Compute the seeded solutions for steady-state problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::computeSolnSteadySeeded(const size_t & set,
+template<class EvalT>
+void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
                                       View_Sc3 u,
                                       const int & seedwhat) {
   
@@ -727,7 +737,8 @@ void Workset::computeSolnSteadySeeded(const size_t & set,
 // Compute the seeded solutions for steady-state problems
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::computeParamSteadySeeded(View_Sc3 param,
+template<class EvalT>
+void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
                                       const int & seedwhat) {
   
   if (numParams>0) {
@@ -770,7 +781,8 @@ void Workset::computeParamSteadySeeded(View_Sc3 param,
 // Compute the seeded solutions at specified ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::evaluateSolutionField(const int & fieldnum) {
+template<class EvalT>
+void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
   
   auto fielddata = soln_fields[fieldnum].data_;
 
@@ -901,7 +913,8 @@ void Workset::evaluateSolutionField(const int & fieldnum) {
 // Compute the seeded solutions at specified side ip
 ////////////////////////////////////////////////////////////////////////////////////
 
-void Workset::evaluateSideSolutionField(const int & fieldnum) {
+template<class EvalT>
+void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
   
   auto fielddata = side_soln_fields[fieldnum].data_;
   
@@ -1018,7 +1031,8 @@ void Workset::evaluateSideSolutionField(const int & fieldnum) {
 // Gets used only in the boundaryCell flux calculation
 // Will not work properly for multi-stage or multi-step
 
-void Workset::computeSolnSideIP(const int & side) { 
+template<class EvalT>
+void Workset<EvalT>::computeSolnSideIP(const int & side) { 
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
@@ -1182,7 +1196,8 @@ void Workset::computeSolnSideIP(const int & side) {
 // Add Aux
 //////////////////////////////////////////////////////////////
 
-void Workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,AssemblyDevice> aoffs) {
+template<class EvalT>
+void Workset<EvalT>::addAux(const vector<string> & auxvars, Kokkos::View<int**,AssemblyDevice> aoffs) {
   aux_offsets = aoffs;
   aux_varlist = auxvars;
   numAux = aux_varlist.size();
@@ -1199,8 +1214,8 @@ void Workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,Assembly
   for (size_t i=0; i<aux_varlist.size(); ++i) {
     string var = aux_varlist[i];
     
-    soln_fields.push_back(SolutionField("aux "+var,0,"aux",i)); // TMW: I think this is hard-coded for one basis type
-    side_soln_fields.push_back(SolutionField("aux "+var,0,"aux",i));
+    soln_fields.push_back(SolutionField<EvalT>("aux "+var,0,"aux",i)); // TMW: I think this is hard-coded for one basis type
+    side_soln_fields.push_back(SolutionField<EvalT>("aux "+var,0,"aux",i));
     
     //soln_fields.push_back(SolutionField("aux "+var,0,"aux",i,"HGRAD",0,"",0,0,numip,false,false));
     //soln_fields.push_back(SolutionField("aux "+var+" side",0,"aux",i,"HGRAD",0,"",0,0,numsideip,true,false));
@@ -1212,7 +1227,8 @@ void Workset::addAux(const vector<string> & auxvars, Kokkos::View<int**,Assembly
 // Get a pointer to vector of parameters
 //////////////////////////////////////////////////////////////
 
-vector<AD> Workset::getParam(const string & name, bool & found) {
+template<class EvalT>
+vector<AD> Workset<EvalT>::getParam(const string & name, bool & found) {
   found = false;
   size_t iter=0;
   vector<AD> pvec;
@@ -1235,7 +1251,8 @@ vector<AD> Workset::getParam(const string & name, bool & found) {
 // Get a subview associated with a vector of parameters
 //////////////////////////////////////////////////////////////
 
-Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> Workset::getParameter(const string & name, bool & found) {
+template<class EvalT>
+Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> Workset<EvalT>::getParameter(const string & name, bool & found) {
   found = false;
   size_t iter=0;
   Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> pvals;
@@ -1255,7 +1272,8 @@ Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> Workset::getParameter(cons
 // Set the time
 //////////////////////////////////////////////////////////////
 
-void Workset::setTime(const ScalarT & newtime) {
+template<class EvalT>
+void Workset<EvalT>::setTime(const ScalarT & newtime) {
   time = newtime;
 }
 
@@ -1263,7 +1281,8 @@ void Workset::setTime(const ScalarT & newtime) {
 // Set deltat
 //////////////////////////////////////////////////////////////
 
-void Workset::setDeltat(const ScalarT & newdt) {
+template<class EvalT>
+void Workset<EvalT>::setDeltat(const ScalarT & newdt) {
   deltat = newdt;
 }
 
@@ -1271,11 +1290,13 @@ void Workset::setDeltat(const ScalarT & newdt) {
 // Set the stage index
 //////////////////////////////////////////////////////////////
 
-void Workset::setStage(const int & newstage) {
+template<class EvalT>
+void Workset<EvalT>::setStage(const int & newstage) {
   current_stage = newstage;
 }
 
-int Workset::addIntegratedQuantities(const int & nRequested) {
+template<class EvalT>
+int Workset<EvalT>::addIntegratedQuantities(const int & nRequested) {
 
   int startingIndex = this->integrated_quantities.extent(0);
 
@@ -1293,14 +1314,16 @@ int Workset::addIntegratedQuantities(const int & nRequested) {
 
 //----------------------------------------------------------------
 
-void Workset::printSolutionFields() {
+template<class EvalT>
+void Workset<EvalT>::printSolutionFields() {
   cout << "Currently defined fields are: " << endl;
   for (size_t f=0; f<soln_fields.size(); ++f) {
     cout << soln_fields[f].expression_ << endl;
   }
 }
 
-void Workset::printScalarFields() {
+template<class EvalT>
+void Workset<EvalT>::printScalarFields() {
   if (isOnSide) {
     cout << "Currently defined side scalar fields are: " << endl;
     for (size_t f=0; f<side_scalar_fields.size(); ++f) {
@@ -1326,8 +1349,9 @@ void Workset::printScalarFields() {
 // 
 //////////////////////////////////////////////////////////////
 
-View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate, 
-                                   const bool & markUpdated) {
+template<class EvalT>
+Kokkos::View<EvalT**,ContLayout,AssemblyDevice> Workset<EvalT>::getSolutionField(const string & label, const bool & evaluate, 
+                                                                                 const bool & markUpdated) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
@@ -1419,7 +1443,8 @@ View_AD2 Workset::getSolutionField(const string & label, const bool & evaluate,
 // 
 //////////////////////////////////////////////////////////////
 
-void Workset::checkSolutionFieldAllocation(const size_t & ind) {
+template<class EvalT>
+void Workset<EvalT>::checkSolutionFieldAllocation(const size_t & ind) {
   
   if (isOnSide) {
     if (!side_soln_fields[ind].is_initialized_) {
@@ -1443,7 +1468,8 @@ void Workset::checkSolutionFieldAllocation(const size_t & ind) {
 // 
 //////////////////////////////////////////////////////////////
 
-void Workset::checkScalarFieldAllocation(const size_t & ind) {
+template<class EvalT>
+void Workset<EvalT>::checkScalarFieldAllocation(const size_t & ind) {
   
   if (isOnSide) {
     if (!side_scalar_fields[ind].is_initialized_) {
@@ -1466,7 +1492,8 @@ void Workset::checkScalarFieldAllocation(const size_t & ind) {
 // 
 //////////////////////////////////////////////////////////////
 
-View_Sc2 Workset::getScalarField(const string & label) {
+template<class EvalT>
+View_Sc2 Workset<EvalT>::getScalarField(const string & label) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataScTimer);
   View_Sc2 outdata;
@@ -1538,7 +1565,8 @@ View_Sc2 Workset::getScalarField(const string & label) {
 // Function to determine which basis a variable uses
 //////////////////////////////////////////////////////////////
 
-bool Workset::findBasisIndex(const string & var, int & basisindex) {
+template<class EvalT>
+bool Workset<EvalT>::findBasisIndex(const string & var, int & basisindex) {
   bool found = false;
   int index;
   found = this->isVar(var,index);
@@ -1562,7 +1590,8 @@ bool Workset::findBasisIndex(const string & var, int & basisindex) {
 // Check if a string is a variable
 //////////////////////////////////////////////////////////////
 
-bool Workset::isVar(const string & var, int & index) {
+template<class EvalT>
+bool Workset<EvalT>::isVar(const string & var, int & index) {
   bool found = false;
   size_t varindex = 0;
   while (!found && varindex<varlist.size()) {
@@ -1582,7 +1611,8 @@ bool Workset::isVar(const string & var, int & index) {
 // Check if a string is a discretized parameter
 //////////////////////////////////////////////////////////////
 
-bool Workset::isParameter(const string & var, int & index) {
+template<class EvalT>
+bool Workset<EvalT>::isParameter(const string & var, int & index) {
   bool found = false;
   size_t varindex = 0;
   while (!found && varindex<param_varlist.size()) {
@@ -1598,7 +1628,8 @@ bool Workset::isParameter(const string & var, int & index) {
 // Get the AD residual
 //////////////////////////////////////////////////////////////
 
-View_AD2 Workset::getResidual() {
+template<class EvalT>
+Kokkos::View<EvalT**,ContLayout,AssemblyDevice> Workset<EvalT>::getResidual() {
   return res;
 }
 
@@ -1606,7 +1637,8 @@ View_AD2 Workset::getResidual() {
 // Get the integration weights (interior)
 //////////////////////////////////////////////////////////////
 
-View_Sc2 Workset::getWeights() {
+template<class EvalT>
+View_Sc2 Workset<EvalT>::getWeights() {
   return wts;
 }
 
@@ -1614,7 +1646,8 @@ View_Sc2 Workset::getWeights() {
 // Get the integration weights (boundary)
 //////////////////////////////////////////////////////////////
 
-View_Sc2 Workset::getSideWeights() {
+template<class EvalT>
+View_Sc2 Workset<EvalT>::getSideWeights() {
   return wts_side;
 }
 
@@ -1622,7 +1655,8 @@ View_Sc2 Workset::getSideWeights() {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasis(const string & var) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasis(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1640,7 +1674,8 @@ CompressedView<View_Sc4> Workset::getBasis(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasis(const int & index) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasis(const int & index) {
   return basis[index];
 }
 
@@ -1648,7 +1683,8 @@ CompressedView<View_Sc4> Workset::getBasis(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisGrad(const string & var) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisGrad(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1666,7 +1702,8 @@ CompressedView<View_Sc4> Workset::getBasisGrad(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisGrad(const int & index) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisGrad(const int & index) {
   return basis_grad[index];
 }
 
@@ -1674,7 +1711,8 @@ CompressedView<View_Sc4> Workset::getBasisGrad(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc3> Workset::getBasisDiv(const string & var) {
+template<class EvalT>
+CompressedView<View_Sc3> Workset<EvalT>::getBasisDiv(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1692,7 +1730,8 @@ CompressedView<View_Sc3> Workset::getBasisDiv(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc3> Workset::getBasisDiv(const int & index) {
+template<class EvalT>
+CompressedView<View_Sc3> Workset<EvalT>::getBasisDiv(const int & index) {
   return basis_div[index];
 }
 
@@ -1700,7 +1739,8 @@ CompressedView<View_Sc3> Workset::getBasisDiv(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisCurl(const string & var) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisCurl(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1718,7 +1758,8 @@ CompressedView<View_Sc4> Workset::getBasisCurl(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisCurl(const int & index) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisCurl(const int & index) {
   return basis_curl[index];
 }
 
@@ -1726,7 +1767,8 @@ CompressedView<View_Sc4> Workset::getBasisCurl(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisSide(const string & var) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1744,7 +1786,8 @@ CompressedView<View_Sc4> Workset::getBasisSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisSide(const int & index) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisSide(const int & index) {
   return basis_side[index];
 }
 
@@ -1752,7 +1795,8 @@ CompressedView<View_Sc4> Workset::getBasisSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisGradSide(const string & var) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisGradSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1770,7 +1814,8 @@ CompressedView<View_Sc4> Workset::getBasisGradSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisGradSide(const int & index) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisGradSide(const int & index) {
   return basis_grad_side[index];
 }
 
@@ -1778,7 +1823,8 @@ CompressedView<View_Sc4> Workset::getBasisGradSide(const int & index) {
 // Extract a basis identified by a variable name (slower)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisCurlSide(const string & var) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisCurlSide(const string & var) {
 
   //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
@@ -1796,7 +1842,8 @@ CompressedView<View_Sc4> Workset::getBasisCurlSide(const string & var) {
 // Extract a basis identified by an index (faster)
 //////////////////////////////////////////////////////////////
 
-CompressedView<View_Sc4> Workset::getBasisCurlSide(const int & index) {
+template<class EvalT>
+CompressedView<View_Sc4> Workset<EvalT>::getBasisCurlSide(const int & index) {
   return basis_curl_side[index];
 }
 
@@ -1804,7 +1851,8 @@ CompressedView<View_Sc4> Workset::getBasisCurlSide(const int & index) {
 // Extract all of the offsets
 //////////////////////////////////////////////////////////////
 
-Kokkos::View<int**,AssemblyDevice> Workset::getOffsets() {
+template<class EvalT>
+Kokkos::View<int**,AssemblyDevice> Workset<EvalT>::getOffsets() {
   return offsets;
 }
 
@@ -1812,7 +1860,8 @@ Kokkos::View<int**,AssemblyDevice> Workset::getOffsets() {
 // Extract the offsets for a particular variable
 //////////////////////////////////////////////////////////////
 
-Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> Workset::getOffsets(const string & var) {
+template<class EvalT>
+Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> Workset<EvalT>::getOffsets(const string & var) {
   
   Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> reqdata;
   
@@ -1832,8 +1881,9 @@ Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> Workset::getOffsets(const
 // Copy data carefully
 //////////////////////////////////////////////////////////////
 
+template<class EvalT>
 template<class V1, class V2>
-void Workset::copyData(V1 view1, V2 view2) {
+void Workset<EvalT>::copyData(V1 view1, V2 view2) {
   
   //Teuchos::TimeMonitor functimer(*worksetcopyDataTimer);
   
@@ -1859,7 +1909,8 @@ void Workset::copyData(V1 view1, V2 view2) {
 // Set the data is a scalar field
 //////////////////////////////////////////////////////////////
 
-void Workset::setScalarField(View_Sc2 newdata, const string & expression) {
+template<class EvalT>
+void Workset<EvalT>::setScalarField(View_Sc2 newdata, const string & expression) {
   
   bool found = false;
   size_t ind = 0;
@@ -1924,7 +1975,8 @@ void Workset::setScalarField(View_Sc2 newdata, const string & expression) {
 // Set the solutions
 //////////////////////////////////////////////////////////////
 
-void Workset::setSolution(View_AD4 newsol, const string & pfix) {
+template<class EvalT>
+void Workset<EvalT>::setSolution(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
   
@@ -1992,7 +2044,8 @@ void Workset::setSolution(View_AD4 newsol, const string & pfix) {
 // Set the solution GRADs
 //////////////////////////////////////////////////////////////
 
-void Workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
+template<class EvalT>
+void Workset<EvalT>::setSolutionGrad(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
@@ -2017,7 +2070,8 @@ void Workset::setSolutionGrad(View_AD4 newsol, const string & pfix) {
 // Set the solution DIVs
 //////////////////////////////////////////////////////////////
 
-void Workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
+template<class EvalT>
+void Workset<EvalT>::setSolutionDiv(View_AD3 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HDIV[current_set].size(); i++) {
     string var = varlist_HDIV[current_set][i];
     int varind = vars_HDIV[current_set][i];
@@ -2031,7 +2085,8 @@ void Workset::setSolutionDiv(View_AD3 newsol, const string & pfix) {
 // Set the solution CURLs
 //////////////////////////////////////////////////////////////
 
-void Workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
+template<class EvalT>
+void Workset<EvalT>::setSolutionCurl(View_AD4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HCURL[current_set].size(); i++) {
     string var = varlist_HCURL[current_set][i];
     int varind = vars_HCURL[current_set][i];
@@ -2056,7 +2111,8 @@ void Workset::setSolutionCurl(View_AD4 newsol, const string & pfix) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void Workset::setSolutionPoint(View_AD2 newsol) {
+template<class EvalT>
+void Workset<EvalT>::setSolutionPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
@@ -2143,7 +2199,8 @@ void Workset::setSolutionPoint(View_AD2 newsol) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void Workset::setSolutionGradPoint(View_AD2 newsol) {
+template<class EvalT>
+void Workset<EvalT>::setSolutionGradPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
@@ -2180,7 +2237,8 @@ void Workset::setSolutionGradPoint(View_AD2 newsol) {
 // Set the parameter solutions
 //////////////////////////////////////////////////////////////
 
-void Workset::setParam(View_AD4 newsol, const string & pfix) {
+template<class EvalT>
+void Workset<EvalT>::setParam(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
   
@@ -2248,7 +2306,8 @@ void Workset::setParam(View_AD4 newsol, const string & pfix) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void Workset::setParamPoint(View_AD2 newsol) {
+template<class EvalT>
+void Workset<EvalT>::setParamPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
@@ -2335,7 +2394,8 @@ void Workset::setParamPoint(View_AD2 newsol) {
 // Set the solution at a point
 //////////////////////////////////////////////////////////////
 
-void Workset::setParamGradPoint(View_AD2 newsol) {
+template<class EvalT>
+void Workset<EvalT>::setParamGradPoint(View_AD2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
@@ -2368,7 +2428,8 @@ void Workset::setParamGradPoint(View_AD2 newsol) {
 
 }
 
-void Workset::setAux(View_AD4 newsol, const string & pfix) {
+template<class EvalT>
+void Workset<EvalT>::setAux(View_AD4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
 
@@ -2383,7 +2444,8 @@ void Workset::setAux(View_AD4 newsol, const string & pfix) {
   
 }
 
-string Workset::getParamBasisType(string & name) {
+template<class EvalT>
+string Workset<EvalT>::getParamBasisType(string & name) {
   string type = "none";
 
   bool found = false; 
@@ -2432,7 +2494,8 @@ string Workset::getParamBasisType(string & name) {
  * @param[in] current_set_ The index of the current physics set
  */
 
-void Workset::updatePhysicsSet(const size_t & current_set_) {
+template<class EvalT>
+void Workset<EvalT>::updatePhysicsSet(const size_t & current_set_) {
   if (isInitialized) {
     if (numSets>1) {
       current_set = current_set_;
@@ -2452,8 +2515,11 @@ void Workset::updatePhysicsSet(const size_t & current_set_) {
 // Allocate the rotation tensor
 //////////////////////////////////////////////////////////////
 
-void Workset::allocateRotations() {
+template<class EvalT>
+void Workset<EvalT>::allocateRotations() {
   if (rotation.extent_int(0) < numElem) {
     rotation = View_Sc3("rotations", numElem, 3, 3);
   }
 }
+// Explicit template instantiations
+template class MrHyDE::Workset<AD>;

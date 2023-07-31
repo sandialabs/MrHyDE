@@ -75,7 +75,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
 
     // ========================================================================================
     /* return the source term (to be multiplied by test_function) */

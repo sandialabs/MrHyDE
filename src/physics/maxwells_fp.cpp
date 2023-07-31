@@ -1025,7 +1025,7 @@ vector<AD> maxwells_fp::getBoundaryCharge(const ScalarT & x, const ScalarT & y, 
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void maxwells_fp::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;

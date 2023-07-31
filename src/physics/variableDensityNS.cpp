@@ -1288,7 +1288,7 @@ std::vector< std::vector<string> > VDNS::setupIntegratedQuantities(const int & s
 // ========================================================================================
 // ========================================================================================
 
-void VDNS::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void VDNS::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
 

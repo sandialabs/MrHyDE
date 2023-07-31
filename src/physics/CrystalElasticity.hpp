@@ -31,6 +31,19 @@ namespace MrHyDE {
    * The following functions may be specified in the input.yaml file:
    */
   class CrystalElastic {
+
+    #ifndef MrHyDE_NO_AD
+      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
+      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
+      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+    #else
+      typedef View_Sc1 View_AD1;
+      typedef View_Sc2 View_AD2;
+      typedef View_Sc3 View_AD3;
+      typedef View_Sc4 View_AD4;
+    #endif
+
   public:
     
     CrystalElastic() {} ;
@@ -45,16 +58,16 @@ namespace MrHyDE {
 
     //----------------------------------------------------------------------------
 
-    void updateParams(Teuchos::RCP<Workset> & wkset);
+    void updateParams(Teuchos::RCP<Workset<AD> > & wkset);
     
     //----------------------------------------------------------------------------
     
-    void computeStress(Teuchos::RCP<Workset> & wkset, vector<int> & indices,
+    void computeStress(Teuchos::RCP<Workset<AD> > & wkset, vector<int> & indices,
                        const bool & onside, View_AD4 stress);
     
     //----------------------------------------------------------------------------
     
-    void computeRotatedTensor(Teuchos::RCP<Workset> & wkset);
+    void computeRotatedTensor(Teuchos::RCP<Workset<AD> > & wkset);
     
   private:
   

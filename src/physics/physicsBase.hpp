@@ -33,6 +33,18 @@ namespace MrHyDE {
   class physicsbase {
     
   public:
+
+    #ifndef MrHyDE_NO_AD
+      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
+      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
+      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+    #else
+      typedef View_Sc1 View_AD1;
+      typedef View_Sc2 View_AD2;
+      typedef View_Sc3 View_AD3;
+      typedef View_Sc4 View_AD4;
+    #endif
     
     physicsbase() {};
     
@@ -136,7 +148,7 @@ namespace MrHyDE {
      * 
      * \param[in] wkset_ An RCP for the workset to assign
      */
-    virtual void setWorkset(Teuchos::RCP<Workset> & wkset_) {
+    virtual void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
       wkset = wkset_;
     };
     
@@ -219,7 +231,7 @@ namespace MrHyDE {
      * The \ref workset for the class. This contains a variety of metadata 
      * and numerical data necessary for computing residuals.
      */ 
-    Teuchos::RCP<Workset> wkset;
+    Teuchos::RCP<Workset<AD> > wkset;
 
     /**
      * The FunctionManager for the class. Depending on the physics module,

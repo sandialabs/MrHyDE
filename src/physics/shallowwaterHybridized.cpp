@@ -372,7 +372,7 @@ void shallowwaterHybridized::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwaterHybridized::setWorkset(Teuchos::RCP<Workset> & wkset_) {
+void shallowwaterHybridized::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 
   wkset = wkset_;
 

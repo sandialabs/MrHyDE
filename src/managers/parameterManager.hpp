@@ -161,6 +161,11 @@ namespace MrHyDE {
     
     std::vector<ScalarT> getFractionalParams(const std::string & whichparam);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    
+    void setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset);
+    
     // ========================================================================================
     // ========================================================================================
     
@@ -229,7 +234,7 @@ namespace MrHyDE {
     std::vector<std::string> stochastic_distribution, discparam_distribution;
     std::vector<ScalarT> stochastic_mean, stochastic_variance, stochastic_min, stochastic_max;
     
-    std::vector<Teuchos::RCP<Workset> > wkset;
+    std::vector<Teuchos::RCP<Workset<AD> > > wkset;
     
     int batchID;
     

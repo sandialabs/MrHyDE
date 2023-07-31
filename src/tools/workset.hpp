@@ -23,9 +23,15 @@ namespace MrHyDE {
   
   // =================================================================
   // =================================================================
-  
+  template<class EvalT>
   class Workset {
+
   public:
+
+      typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_AD1;
+      typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
+      typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_AD3;
+      typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_AD4;
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Constructors
@@ -328,7 +334,7 @@ namespace MrHyDE {
     
     size_t block, localEID, globalEID;
     
-    vector<SolutionField> soln_fields, side_soln_fields, point_soln_fields;
+    vector<SolutionField<EvalT> > soln_fields, side_soln_fields, point_soln_fields;
     vector<ScalarField> scalar_fields, side_scalar_fields, point_scalar_fields;
     
     View_Sc1 h;

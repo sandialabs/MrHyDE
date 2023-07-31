@@ -84,7 +84,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
 
     /* @brief Update the fluxes for the residual calculation.
      *
