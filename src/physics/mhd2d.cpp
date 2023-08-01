@@ -156,7 +156,29 @@ void mhd2d::volumeResidual()
             });
         // SUPG contribution
         if (isStabilizedU)
-        { /* TODO */
+        {
+            auto h = wkset->h;
+            auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
+
+            parallel_for(
+                "MHD2d ux volume stabilized",
+                RangePolicy<AssemblyExec>(0, wkset->numElem),
+                KOKKOS_LAMBDA(const int elem) {
+                    for (size_type pt = 0; pt < basis.extent(2); pt++)
+                    {
+                        AD tau = this->computeTauMomentum(dens(elem, pt), visc(elem, pt), ux(elem, pt), uy(elem, pt), dAz_dy(elem, pt), -dAz_dx(elem, pt), h(elem), dt);
+                        // What to do about second derivative in viscosity and B term?
+                        AD Sx = dens(elem, pt) * (dux_dt(elem, pt) +
+                                ux(elem, pt) * dux_dx(elem, pt) +
+                                uy(elem, pt) * dux_dy(elem, pt)) +
+                                dpr_dx(elem, pt) - dens(elem, pt) * source_ux(elem, pt);
+                        Sx *= tau * wts(elem, pt);
+                        for (size_type dof = 0; dof < basis.extent(1); dof++)
+                        {
+                            res(elem, off(dof)) += Sx * (ux(elem, pt) * basis_grad(elem, dof, pt, 0) + uy(elem, pt) * basis_grad(elem, dof, pt, 1));
+                        }
+                    }
+                });
         }
     }
     { // Uy equation
@@ -211,11 +233,30 @@ void mhd2d::volumeResidual()
                     }
                 }
             });
-
-        // SUPG contribution
-
         if (isStabilizedU)
-        { /* TODO */
+        {
+            auto h = wkset->h;
+            auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
+
+            parallel_for(
+                "MHD2d uy volume stabilized",
+                RangePolicy<AssemblyExec>(0, wkset->numElem),
+                KOKKOS_LAMBDA(const int elem) {
+                    for (size_type pt = 0; pt < basis.extent(2); pt++)
+                    {
+                        AD tau = this->computeTauMomentum(dens(elem, pt), visc(elem, pt), ux(elem, pt), uy(elem, pt), dAz_dy(elem, pt), -dAz_dx(elem, pt), h(elem), dt);
+                        // What to do about second derivative in viscosity and B term?
+                        AD Sy = dens(elem, pt) * (duy_dt(elem, pt) +
+                                ux(elem, pt) * duy_dx(elem, pt) +
+                                uy(elem, pt) * duy_dy(elem, pt)) +
+                                dpr_dy(elem, pt) - dens(elem, pt) * source_uy(elem, pt);
+                        Sy *= tau * wts(elem, pt);
+                        for (size_type dof = 0; dof < basis.extent(1); dof++)
+                        {
+                            res(elem, off(dof)) += Sy * (ux(elem, pt)*basis_grad(elem, dof, pt, 1) + uy(elem, pt)*basis_grad(elem, dof, pt, 1));
+                        }
+                    }
+                });
         }
     }
     { // pr equation
@@ -247,6 +288,8 @@ void mhd2d::volumeResidual()
             auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
             auto ux = wkset->getSolutionField("ux");
             auto uy = wkset->getSolutionField("uy");
+            auto dAz_dx = wkset->getSolutionField("grad(Az)[x]");
+            auto dAz_dy = wkset->getSolutionField("grad(Az)[y]");
             auto dux_dt = wkset->getSolutionField("ux_t");
             auto duy_dt = wkset->getSolutionField("uy_t");
             auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
@@ -258,11 +301,18 @@ void mhd2d::volumeResidual()
                 KOKKOS_LAMBDA(const int elem) {
                     for (size_type pt = 0; pt < basis.extent(2); pt++)
                     {
-                        AD tau = this->computeTau(visc(elem, pt), ux(elem, pt), uy(elem, pt), 0.0, h(elem), spaceDim, dt, isTransient);
-                        AD Sx = dens(elem, pt) * dux_dt(elem, pt) + dens(elem, pt) * (ux(elem, pt) * dux_dx(elem, pt) + uy(elem, pt) * dux_dy(elem, pt)) + dpr_dx(elem, pt) - dens(elem, pt) * source_ux(elem, pt);
-                        Sx *= tau * wts(elem, pt) / dens(elem, pt);
-                        AD Sy = dens(elem, pt) * duy_dt(elem, pt) + dens(elem, pt) * (ux(elem, pt) * duy_dx(elem, pt) + uy(elem, pt) * duy_dy(elem, pt)) + dpr_dy(elem, pt) - dens(elem, pt) * source_uy(elem, pt);
-                        Sy *= tau * wts(elem, pt) / dens(elem, pt);
+                        AD tau = this->computeTauMomentum(dens(elem, pt), visc(elem, pt), ux(elem, pt), uy(elem, pt), dAz_dy(elem, pt), -dAz_dx(elem, pt), h(elem), dt);
+                        // What to do about second derivative in viscosity and B term?
+                        AD Sx = dens(elem, pt) * (dux_dt(elem, pt) +
+                                ux(elem, pt) * dux_dx(elem, pt) +
+                                uy(elem, pt) * dux_dy(elem, pt)) +
+                                dpr_dx(elem, pt) - dens(elem, pt) * source_ux(elem, pt);
+                        Sx *= tau * wts(elem, pt);
+                        AD Sy = dens(elem, pt) * (duy_dt(elem, pt) +
+                                ux(elem, pt) * duy_dx(elem, pt) +
+                                uy(elem, pt) * duy_dy(elem, pt)) +
+                                dpr_dy(elem, pt) - dens(elem, pt) * source_uy(elem, pt);
+                        Sy *= tau * wts(elem, pt);
                         for (size_type dof = 0; dof < basis.extent(1); dof++)
                         {
                             res(elem, off(dof)) += Sx * basis_grad(elem, dof, pt, 0) + Sy * basis_grad(elem, dof, pt, 1);
@@ -583,14 +633,14 @@ void mhd2d::setWorkset(Teuchos::RCP<workset> &wkset_)
 // return the value of the stabilization parameter
 // ========================================================================================
 
-KOKKOS_FUNCTION AD mhd2d::computeTauMomentum(const AD &dens, const AD &visc, const AD &xvl, const AD &yvl, const AD &xmag, const AD &ymag, const ScalarT &h, const ScalarT &dt) const
+KOKKOS_FUNCTION AD mhd2d::computeTauMomentum(const AD &dens, const AD &visc, const AD &xvl, const AD &yvl,
+        const AD &xmag, const AD &ymag, const ScalarT &h, const ScalarT &dt) const
 {
     // We take Gc as I/h^2
     ScalarT C1 = 3.0;
     ScalarT C2 = 10.0;
 
-    AD nvel = 0.0;
-    nvel = xvl * xvl + yvl * yvl;
+    AD nvel = xvl * xvl + yvl * yvl;
     AD nmag = xmag * xmag + ymag * ymag;
 
     if (nvel > 1E-12)
@@ -603,7 +653,7 @@ KOKKOS_FUNCTION AD mhd2d::computeTauMomentum(const AD &dens, const AD &visc, con
     tau = (2 * dens / dt) * (2 * dens / dt) +
           (dens * nvel / h) * (dens * nvel / h) +
           (C1 * visc / h) * (C1 * visc / h) +
-          (C2 * nmag / h) * (C2 * nmag / h);
+          (C2 * C2 * nmag / h);
     tau = 1. / sqrt(tau);
 
     return tau;
