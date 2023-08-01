@@ -9,7 +9,7 @@ ANONYMOUS:
     Az_bdry_y1: '-B0*x-G0/(2*B0)+(G0/B0)*(Ha*cosh(Ha)/sinh(Ha))'
     Az_bdry_xm1: ' B0-G0*y*y/(2*B0)+(G0/B0)*(Ha*cosh_yHa/sinh(Ha))'
     Az_bdry_xp1: '-B0-G0*y*y/(2*B0)+(G0/B0)*(Ha*cosh_yHa/sinh(Ha))'
-    G0: 'permeability*B0*B0/(density*Ha*ux_trigh0)'
+    G0: 'permeability*B0*B0*(cosh(Ha)-1)/(sinh(Ha)*density*Ha*ux_trigh0)'
     Bx_trigh: '(sinh_yHa-(y/L)*sinh(Ha))/(cosh(Ha)-1)'
     ux_trigh:  '(cosh(Ha) - cosh_yHa)/sinh(Ha)'
     ux_trigh0: '(cosh(Ha) - 1)/sinh(Ha)'
