@@ -28,7 +28,7 @@ ANONYMOUS:
       usage: inactive
     resistivity:
       type: scalar
-      value: 0.0
+      value: 1.0
       usage: inactive
     L:
       type: scalar

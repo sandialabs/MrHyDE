@@ -24,6 +24,8 @@ Bart van Bloemen Waanders (bartv@sandia.gov)
 #include "functionManager.hpp"
 #include "analysisManager.hpp"
 
+#include <cfenv>
+
 int main(int argc,char * argv[]) {
   
 #ifdef HAVE_MPI
@@ -32,6 +34,8 @@ int main(int argc,char * argv[]) {
 #else
   EPIC_FAIL // MRHYDE requires MPI for HostDevice
 #endif
+
+  feenableexcept(FE_INVALID);
   
   using namespace MrHyDE;
   

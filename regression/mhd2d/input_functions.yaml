@@ -2,25 +2,19 @@
 ---
 ANONYMOUS:
   Functions:
-    ux_true: '-rho*G0*Ha*ux_trigh/(mu_0*B0*B0)'
+    ux_true: '-density*G0*Ha*ux_trigh/(permeability*B0*B0)'
     Bx_true: '-B0*Re_m*Bx_trigh/Ha'
-    Az_true: '-B0*x - G0*y*y/(2*B0) + (G0/B0)*( Ha*cosh_yHa/sinh_Ha )'
-    source Az: '(G0/B0)*( Ha*cosh_Ha/sinh_Ha - 1 )'
-    Az_bdry_y1: '-B0*x-G0/(2*B0)+(G0/B0)*(Ha*cosh_Ha/sinh_Ha)'
-    Az_bdry_xm1: ' B0-G0*y*y/(2*B0)+(G0/B0)*(Ha*cosh_yHa/sinh_Ha)'
-    Az_bdry_xp1: '-B0-G0*y*y/(2*B0)+(G0/B0)*(Ha*cosh_yHa/sinh_Ha)'
-    G0: 'mu_0*B0*B0/(rho*Ha*ux_trigh0)'
-    Bx_trigh: '(sinh_yHa-(y/L)*sinh_Ha)/(cosh_Ha-1)'
-    ux_trigh:  '(cosh_Ha - cosh_yHa)/sinh_Ha'
-    ux_trigh0: '(cosh_Ha - 1)/sinh_Ha'
-    U: 'eta*Re/(mu_0*2)'
-    B0: 'Ha*sqrt(rho*v*eta)'
-    cosh_yHa: '(1+exp(-2*y*Ha/L))/(2*exp(-y*Ha/L))' # TODO: sometimes not using y/L?
-    sinh_yHa: '(1-exp(-2*y*Ha/L))/(2*exp(-y*Ha/L))' # TODO: sometimes not using y/L?
-    sinh_Ha: '(1-exp(-2*Ha))/(2*exp(-Ha))'
-    cosh_Ha: '(1+exp(-2*Ha))/(2*exp(-Ha))'
-    eta: 'resistivity'
-    rho: 'density'
-    mu_0: 'permeability'
-    v: 'viscosity/density'
+    Az_true: '-B0*x - G0*y*y/(2*B0) + (G0/B0)*( Ha*cosh_yHa/sinh(Ha) )'
+    source Az: '(G0/B0)*( Ha*cosh(Ha)/sinh(Ha) - 1 )'
+    Az_bdry_y1: '-B0*x-G0/(2*B0)+(G0/B0)*(Ha*cosh(Ha)/sinh(Ha))'
+    Az_bdry_xm1: ' B0-G0*y*y/(2*B0)+(G0/B0)*(Ha*cosh_yHa/sinh(Ha))'
+    Az_bdry_xp1: '-B0-G0*y*y/(2*B0)+(G0/B0)*(Ha*cosh_yHa/sinh(Ha))'
+    G0: 'permeability*B0*B0/(density*Ha*ux_trigh0)'
+    Bx_trigh: '(sinh_yHa-(y/L)*sinh(Ha))/(cosh(Ha)-1)'
+    ux_trigh:  '(cosh(Ha) - cosh_yHa)/sinh(Ha)'
+    ux_trigh0: '(cosh(Ha) - 1)/sinh(Ha)'
+    U: 'resistivity*Re/(permeability*2)'
+    B0: 'Ha*sqrt(resistivity)'
+    cosh_yHa: 'cosh(y*Ha/L)' # TODO: sometimes not using y/L?
+    sinh_yHa: 'sinh(y*Ha/L)' # TODO: sometimes not using y/L?
 ...
