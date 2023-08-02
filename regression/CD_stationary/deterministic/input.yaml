@@ -28,11 +28,11 @@ ANONYMOUS:
   Physics: 
     modules: cdr
     Dirichlet conditions:
-      e:
+      c:
         left: '0.0'
         top: '0.0'
     Neumann conditions:
-      e:
+      c:
         right: '0.0'
         bottom: '0.0'
   Discretization:
@@ -49,6 +49,7 @@ ANONYMOUS:
     response type: pointwise
     compute responses: false
     compute objective: true
+    create optimization movie: true
     write solution: false
     Objective functions:
       J:

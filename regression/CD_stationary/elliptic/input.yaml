@@ -13,7 +13,7 @@ ANONYMOUS:
     NX: 40
     NY: 40
   Functions:
-    source: '(3e-10)*exp(-25.0*(x-0.5)*(x-0.5) - 25.0*(y-0.5)*(y-0.5))'
+    source: 'exp(-17.3*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))'
     xvel: '1.5'
     yvel: '-1.5'
     reaction: '0.0'
@@ -41,18 +41,7 @@ ANONYMOUS:
     use strong DBCs: true
   Analysis: 
     analysis type: forward
-    have sensor data: false
-    save sensor data: true
   Postprocess: 
-    write solution: false
-    response type: pointwise
-    compute responses: true
-    compute obejective: false
-    Objective functions:
-      objval:
-        type: sensors
-        sensor points file: sensor_points.dat
-        save sensor data: true
-        response: 'c'
-        weight: 1.0
+    write solution: true
+    output file: state
 ...

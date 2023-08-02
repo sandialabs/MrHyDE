@@ -12,8 +12,26 @@ ANONYMOUS:
     ymax: 1.0
     NX: 40
     NY: 40
+  Parameters:
+    x0:
+      type: scalar
+      value: 0.5
+      usage: inactive
+    y0:
+      type: scalar
+      value: 0.5
+      usage: inactive
+    sig:
+      type: scalar
+      value: 20.0
+      usage: inactive
+    amp:
+      type: scalar
+      value: 1.0
+      usage: inactive
   Functions:
-    source: '(3e-10)*exp(-25.0*(x-0.5)*(x-0.5) - 25.0*(y-0.5)*(y-0.5))'
+    exponent: '-sig*((x-x0)*(x-x0)+(y-y0)*(y-y0))'
+    source: 'amp*exp(exponent)'
     xvel: '1.5'
     yvel: '-1.5'
     reaction: '0.0'
@@ -22,11 +40,11 @@ ANONYMOUS:
   Physics: 
     modules: cdr
     Dirichlet conditions:
-      e:
+      c:
         left: '0.0'
         top: '0.0'
     Neumann conditions:
-      e:
+      c:
         right: '0.0'
         bottom: '0.0'
   Discretization:
