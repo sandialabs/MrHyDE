@@ -1,0 +1,21 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters: 
+    x0:
+      type: scalar
+      value: 0.5
+      usage: inactive
+    y0:
+      type: scalar
+      value: 0.5
+      usage: inactive
+    sig:
+      type: scalar
+      value: 20.0
+      usage: inactive
+    amp:
+      type: scalar
+      value: 1.0
+      usage: inactive
+...

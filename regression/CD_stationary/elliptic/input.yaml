@@ -12,23 +12,20 @@ ANONYMOUS:
     ymax: 1.0
     NX: 40
     NY: 40
+  Parameters input file: input_paramsIG.yaml
   Functions:
-    source: 'exp(-17.3*((x-0.5)*(x-0.5)+(y-0.5)*(y-0.5)))'
-    xvel: '1.5'
-    yvel: '-1.5'
-    reaction: '0.0'
-    diffusion: '0.06'
+    exponent: '-sig*((x-x0)*(x-x0)+(y-y0)*(y-y0))'
+    source: 'amp*exp(exponent)'
+    xvel: '0.0'
+    yvel: '0.0'
+    reaction: 'a2*c'
+    diffusion: 'a1'
     SUPG tau: '0.0'
   Physics: 
     modules: cdr
-    Dirichlet conditions:
-      c:
-        left: '0.0'
-        top: '0.0'
     Neumann conditions:
       c:
-        right: '0.0'
-        bottom: '0.0'
+        all boundaries: '0.0'
   Discretization:
     order:
       c: 1
@@ -43,5 +40,5 @@ ANONYMOUS:
     analysis type: forward
   Postprocess: 
     write solution: true
-    output file: state
+    output file: ell_solve
 ...

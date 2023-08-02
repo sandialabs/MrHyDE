@@ -49,8 +49,9 @@ ANONYMOUS:
     response type: pointwise
     compute responses: false
     compute objective: true
-    create optimization movie: true
-    write solution: false
+    create optimization movie: false
+    write solution: true
+    output file: source_est
     Objective functions:
       J:
         type: sensors
@@ -63,6 +64,6 @@ ANONYMOUS:
             type: integrated
             location: volume
             function: m^2
-            weight: 1.0e-7
+            weight: 1.0e-4
   Analysis input file: input_rol2.yaml
 ...
