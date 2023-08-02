@@ -7,7 +7,7 @@ ANONYMOUS:
     have sensor data: true
     save sensor data: false
     move sensors to IP: false
-    use line search: false
+    use line search: true
     ROL: 
       General: 
         Variable Objective Function: false
@@ -29,10 +29,10 @@ ANONYMOUS:
           Type: Conjugate Gradients
           Absolute Tolerance: 1.0e-6
           Relative Tolerance: 1.0e-04
-          Iteration Limit: 20
+          Iteration Limit: 50
       Step: 
         Line Search: 
-          Function Evaluation Limit: 20
+          Function Evaluation Limit: 30
           Sufficient Decrease Tolerance: 1.0e-04
           Initial Step Size: 1.0
           User Defined Initial Step Size: false
@@ -121,8 +121,8 @@ ANONYMOUS:
           Cutting Plane Tolerance: 1.0e-08
           Cutting Plane Iteration Limit: 1000
       Status Test: 
-        Gradient Tolerance: 1.0e-7
-        Constraint Tolerance: 1.0e-07
-        Step Tolerance: 1.0e-7
+        Gradient Tolerance: 1.0e-6
+        Constraint Tolerance: 1.0e-6
+        Step Tolerance: 1.0e-6
         Iteration Limit: 100
 ...

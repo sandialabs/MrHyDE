@@ -58,12 +58,11 @@ ANONYMOUS:
         sensor points file: sensor_points.dat
         sensor data file: sensor_data.dat
         response: 'c'
-        weight: 1.0
+        weight: 0.5
         Regularization functions:
           R:
             type: integrated
-            location: volume
             function: m^2
-            weight: 1.0e-4
+            weight: 0.5e-2
   Analysis input file: input_rol2.yaml
 ...
