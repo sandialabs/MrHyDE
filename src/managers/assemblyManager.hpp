@@ -236,11 +236,298 @@ namespace MrHyDE {
 
     void buildBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
     
-    void finalizeFunctions(std::vector<Teuchos::RCP<FunctionManager> > & functionManagers);
+    void finalizeFunctions();
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    // Compute flux and sensitivity wrt params
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    template<class ViewType>
+    void computeFlux(const int & block, const int & grp, ViewType u_kv, 
+                     ViewType du_kv, ViewType dp_kv, View_Sc3 lambda,
+                     const ScalarT & time, const int & side, const ScalarT & coarse_h,
+                     const bool & compute_sens, const ScalarT & fluxwt,
+                     bool & useTransientSol) {
+
+      AD dummyval = 0.0;
+      this->computeFluxEvalT(dummyval, block, grp, u_kv, du_kv, dp_kv, lambda, time, side, coarse_h,
+                             compute_sens, fluxwt, useTransientSol);
+
+    }
+
+    template<class ViewType, class EvalT>
+    void computeFluxEvalT(EvalT & dummyval, const int & block, const int & grp,  
+                          ViewType u_kv, ViewType du_kv, ViewType dp_kv, View_Sc3 lambda,
+                          const ScalarT & time, const int & side, const ScalarT & coarse_h,
+                          const bool & compute_sens, const ScalarT & fluxwt,
+                          bool & useTransientSol) {
+
+
+      #ifndef MrHyDE_NO_AD
+        typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
+      #else
+        typedef View_Sc2 View_AD2;
+      #endif
+      int wkblock = 0;
+
+      wkset[wkblock]->setTime(time);
+      wkset[wkblock]->sidename = boundary_groups[block][grp]->sidename;
+      wkset[wkblock]->currentside = boundary_groups[block][grp]->sidenum;
+      wkset[wkblock]->numElem = boundary_groups[block][grp]->numElem;
+      
+      // Currently hard coded to one physics sets
+      int set = 0;
+
+      vector<View_AD2> sol_vals = wkset[wkblock]->sol_vals;
+      //auto param_AD = wkset->pvals;
+      auto ulocal = boundary_groups[block][grp]->sol[set];
+      auto currLIDs = boundary_groups[block][grp]->LIDs[set];
+
+      if (useTransientSol) { 
+        int stage = wkset[wkblock]->current_stage;
+        auto b_A = wkset[wkblock]->butcher_A;
+        auto b_b = wkset[wkblock]->butcher_b;
+        auto BDF = wkset[wkblock]->BDF_wts;
+
+        ScalarT one = 1.0;
+        
+        for (size_type var=0; var<ulocal.extent(1); var++ ) {
+          size_t uindex = wkset[wkblock]->sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto off = subview(wkset[wkblock]->set_offsets[set],var,ALL());
+          auto cu = subview(ulocal,ALL(),var,ALL());
+          auto cu_prev = subview(boundary_groups[block][grp]->sol_prev[set],ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(boundary_groups[block][grp]->sol_stage[set],ALL(),var,ALL(),ALL());
+
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                       KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            ScalarT beta_u;//, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            //ScalarT timewt = one/dt/b_b(stage);
+            //ScalarT alpha_t = BDF(0)*timewt;
+
+            for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
+            
+              // Seed the stage solution
+#ifndef MrHyDE_NO_AD
+              AD stageval = AD(maxDerivs,0,cu(elem,dof));
+              for( size_t p=0; p<du_kv.extent(1); p++ ) {
+                stageval.fastAccessDx(p) = fluxwt*du_kv(currLIDs(elem,off(dof)),p);
+              }
+#else
+              AD stageval = cu(elem,dof);
+#endif
+              // Compute the evaluating solution
+              beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<stage; s++) {
+                beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_AD(elem,dof) = alpha_u*stageval+beta_u;
+            
+              // Compute the time derivative
+              //beta_t = zero;
+              //for (size_type s=1; s<BDF.extent(0); s++) {
+              //  beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+              //}
+              //beta_t *= timewt;
+              //u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
+            }
+          
+          });
+
+        }
+      }
+      else {
+        //Teuchos::TimeMonitor localtimer(*fluxGatherTimer);
+        
+        if (compute_sens) {
+          for (size_t var=0; var<ulocal.extent(1); var++) {
+            auto u_AD = sol_vals[var];
+            auto offsets = subview(wkset[wkblock]->offsets,var,ALL());
+            parallel_for("flux gather",
+                         RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+              for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
+                u_AD(elem,dof) = AD(u_kv(currLIDs(elem,offsets(dof)),0));
+              }
+            });
+          }
+        }
+        else {
+          for (size_t var=0; var<ulocal.extent(1); var++) {
+            auto u_AD = sol_vals[var];
+            auto offsets = subview(wkset[wkblock]->offsets,var,ALL());
+            parallel_for("flux gather",
+                         RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
+                         KOKKOS_LAMBDA (const int elem ) {
+              for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
+#ifndef MrHyDE_NO_AD
+                u_AD(elem,dof) = AD(maxDerivs, 0, u_kv(currLIDs(elem,offsets(dof)),0));
+                for( size_t p=0; p<du_kv.extent(1); p++ ) {
+                  u_AD(elem,dof).fastAccessDx(p) = du_kv(currLIDs(elem,offsets(dof)),p);
+                }
+#else
+                u_AD(elem,dof) = u_kv(currLIDs(elem,offsets(dof)),0);
+#endif
+              }
+            });
+          }
+        }
+      }
+      
+      {
+        //Teuchos::TimeMonitor localtimer(*fluxWksetTimer);
+        wkset[wkblock]->computeSolnSideIP(boundary_groups[block][grp]->sidenum);//, u_AD, param_AD);
+      }
+      
+      if (wkset[wkblock]->numAux > 0) {
+        
+       // Teuchos::TimeMonitor localtimer(*fluxAuxTimer);
+      
+        auto numAuxDOF = groupData[wkblock]->num_aux_dof;
+        
+        for (size_type var=0; var<numAuxDOF.extent(0); var++) {
+          auto abasis = boundary_groups[block][grp]->auxside_basis[boundary_groups[block][grp]->auxusebasis[var]];
+          auto off = subview(boundary_groups[block][grp]->auxoffsets,var,ALL());
+          string varname = wkset[wkblock]->aux_varlist[var];
+          auto local_aux = wkset[wkblock]->getSolutionField("aux "+varname,false);
+          Kokkos::deep_copy(local_aux,0.0);
+          //auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+          auto localID = boundary_groups[block][grp]->localElemID;
+          auto varaux = subview(lambda,ALL(),var,ALL());
+          parallel_for("flux aux",
+                       RangePolicy<AssemblyExec>(0,localID.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+#ifndef MrHyDE_NO_AD
+              AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+              auxval.fastAccessDx(off(dof)) *= fluxwt;
+#else
+              AD auxval = varaux(localID(elem),dof);
+#endif
+              for (size_type pt=0; pt<abasis.extent(2); ++pt) {
+                local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
+              }
+            }
+          });
+        }
+        
+      }
+      
+      {
+        //Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
+        groupData[block]->physics->computeFlux(0,groupData[block]->my_block);
+      }
+      //wkset->isOnSide = false;
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Functionality moved from boundary groups into here
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    void computeJacResBoundary(const int & block, const size_t & grp,
+                                                     const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
+                                                     const bool & compute_jacobian, const bool & compute_sens,
+                                                     const int & num_active_params, const bool & compute_disc_sens,
+                                                     const bool & compute_aux_sens, const bool & store_adjPrev,
+                                                     View_Sc3 local_res, View_Sc3 local_J);
+
+    void updateWorksetBoundary(const int & block, const size_t & grp, const int & seedwhat, 
+                               const int & seedindex=0, const bool & override_transient=false);
+
+    void updateDataBoundary(const int & block, const size_t & grp);
+
+    void updateWorksetBasisBoundary(const int & block, const size_t & grp);
+
+    void updateResBoundary(const int & block, const size_t & grp,
+                           const bool & compute_sens, View_Sc3 local_res);
+
+    void updateJacBoundary(const int & block, const size_t & grp, 
+                           const bool & useadjoint, View_Sc3 local_J);           
+
+    void updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J);
+
+    void updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J);
+
+    View_Sc2 getDirichletBoundary(const int & block, const size_t & grp, const size_t & set);
+
+    View_Sc3 getMassBoundary(const int & block, const size_t & grp, const size_t & set);
+        
+    ////////////////////////////////////////////////////////////////////////////////
+    // Functionality moved from groups into here
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    void updateWorkset(const int & block, const size_t & grp, const int & seedwhat,
+                       const int & seedindex, const bool & override_transient=false);
+
+    void computeSolAvg(const int & block, const size_t & grp);
+
+    void computeSolutionAverage(const int & block, const size_t & grp,
+                                const string & var, View_Sc2 csol);
+
+    void computeParameterAverage(const int & block, const size_t & grp,
+                                 const string & var, View_Sc2 sol);
+
+    void updateWorksetFace(const int & block, const size_t & grp, const size_t & facenum);
+
+
+    void computeJacRes(const int & block, const size_t & grp, 
+                         const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
+                         const bool & compute_jacobian, const bool & compute_sens,
+                         const int & num_active_params, const bool & compute_disc_sens,
+                         const bool & compute_aux_sens, const bool & store_adjPrev,
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                         Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                         const bool & assemble_volume_terms,
+                         const bool & assemble_face_terms);
+
+    void updateRes(const int & block, const size_t & grp,
+                   const bool & compute_sens, View_Sc3 local_res);
+
+    void updateAdjointRes(const int & block, const size_t & grp,
+                            const bool & compute_jacobian, const bool & isTransient,
+                            const bool & compute_aux_sens, const bool & store_adjPrev,
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+
+    void updateJac(const int & block, const size_t & grp,
+                   const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+
+    void fixDiagJac(const int & block, const size_t & grp, 
+                      Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                      Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+
+    void updateParamJac(const int & block, const size_t & grp,
+                        Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+
+    void updateAuxJac(const int & block, const size_t & grp,
+                      Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+
+    View_Sc2 getInitial(const int & block, const size_t & grp,
+                        const bool & project, const bool & isAdjoint);
+
+    View_Sc2 getInitialFace(const int & block, const size_t & grp, const bool & project);
+
+
+    CompressedView<View_Sc3> getMass(const int & block, const size_t & grp);
+
+    CompressedView<View_Sc3> getWeightedMass(const int & block, const size_t & grp, vector<ScalarT> & masswts);
+
+    CompressedView<View_Sc3> getMassFace(const int & block, const size_t & grp);
+
+    Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & block, const size_t & grp, const int & var);
+
+    void updateGroupData(const int & block, const size_t & grp);
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    vector<vector<int> > identifySubgridModels();
+
+    void createFunctions();
+
     void purgeMemory();
     
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -259,7 +546,8 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
-    
+    std::vector<Teuchos::RCP<FunctionManager> > function_managers;
+
     size_t globalParamUnknowns;
     int verbosity, debug_level;
     

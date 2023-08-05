@@ -752,15 +752,14 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
           }
         }
         
-        
         //////////////////////////////////////////////////////////////
         // Compute res and J=dF/du
         //////////////////////////////////////////////////////////////
         
         // Volumetric contribution
-        assembler->groups[macrogrp][e]->updateWorkset(seedwhat, seedindex);
+        assembler->updateWorkset(macrogrp, e, seedwhat, seedindex);
         assembler->physics->volumeResidual(0,0);
-                
+        
         //////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
         ///////////////////////////////////////////////////////////////////////////
@@ -823,7 +822,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
           
           //int seedwhat = 1;
           
-          assembler->boundary_groups[macrogrp][e]->updateWorkset(seedwhat, seedindex);
+          assembler->updateWorksetBoundary(macrogrp, e, seedwhat, seedindex);
           assembler->physics->boundaryResidual(0,0);
           
           //////////////////////////////////////////////////////////////////////////
@@ -880,7 +879,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
         }
         assembler->wkset[0]->isOnSide = false;
       }
-      
+       
       //////////////////////////////////////////////////////////////////////////
       // Fix up any empty rows due to workset size
       ///////////////////////////////////////////////////////////////////////////
@@ -1156,10 +1155,10 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       for (size_t elem=0; elem<assembler->groups[macrogrp].size(); elem++) {
         
         assembler->wkset[0]->localEID = elem;
-        assembler->groups[macrogrp][elem]->updateData();
+        assembler->updateGroupData(macrogrp, elem);
         Kokkos::deep_copy(local_res, 0.0);
         
-        assembler->groups[macrogrp][elem]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->computeJacRes(macrogrp, elem, time, isTransient, isAdjoint,
                                                     false, true, num_active_params, false, false, false,
                                                     local_res, local_J,
                                                     assembler->assemble_volume_terms[0][0],
@@ -1181,12 +1180,12 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       assembler->wkset[0]->isOnSide = true;
       for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
-        assembler->boundary_groups[macrogrp][elem]->updateData();
+        assembler->updateDataBoundary(macrogrp, elem);
         Kokkos::deep_copy(local_res, 0.0);
         
-        assembler->boundary_groups[macrogrp][elem]->computeJacRes(time, isTransient, isAdjoint,
-                                                               false, true, num_active_params, false, false, false,
-                                                               local_res, local_J);
+        assembler->computeJacResBoundary(macrogrp, elem, time, isTransient, isAdjoint,
+                                 false, true, num_active_params, false, false, false,
+                                 local_res, local_J);
         
         this->updateResSens(false, macrogrp, elem, dres_view, local_res,
                             data_avail, use_host_LIDs, true);
@@ -1230,9 +1229,9 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         Kokkos::deep_copy(local_J, 0.0);
         
         // TMW: this may not work properly with new version
-        assembler->groups[macrogrp][elem]->updateData();
+        assembler->updateGroupData(macrogrp, elem);
         
-        assembler->groups[macrogrp][elem]->computeJacRes(time, isTransient, isAdjoint,
+        assembler->computeJacRes(macrogrp, elem, time, isTransient, isAdjoint,
                                                        true, false, num_active_params, false, true, false,
                                                        local_res, local_J,
                                                        assembler->assemble_volume_terms[0][0],
@@ -1263,14 +1262,13 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         //-----------------------------------------------
         
         int seedwhat = 4;
-        assembler->boundary_groups[macrogrp][elem]->updateWorkset(seedwhat);
+        assembler->updateWorksetBoundary(macrogrp, elem, seedwhat);
           
         //-----------------------------------------------
         // Compute the residual
         //-----------------------------------------------
         
         assembler->physics->boundaryResidual(0,0);
-          
         
         //-----------------------------------------------
         // Scatter to vectors
@@ -1568,8 +1566,8 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
     //if (assembler->boundary_groups[macrogrp][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
-        assembler->boundary_groups[macrogrp][e]->updateData();
-        assembler->boundary_groups[macrogrp][e]->updateWorksetBasis();
+        assembler->updateDataBoundary(macrogrp, e);
+        assembler->updateWorksetBasisBoundary(macrogrp, e); // removed basis
       }
       
       auto cwts = assembler->wkset[0]->wts_side;
@@ -1577,8 +1575,11 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
       //assembler->wkset[0]->sidename = "interior";
       {
         Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
-        assembler->boundary_groups[macrogrp][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
-                                                             0, h, compute_sens, fluxwt, isSynchronous);
+        //assembler->boundary_groups[macrogrp][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
+        //                                                     0, h, compute_sens, fluxwt, isSynchronous);
+
+        assembler->computeFlux(macrogrp, e ,u_kv, du_kv, dp_kv, lambda, time,
+                               0, h, compute_sens, fluxwt, isSynchronous);
 
       }
       
@@ -1712,7 +1713,7 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
   int macrogrp = 0;
   for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
     LIDView LIDs = assembler->groups[macrogrp][e]->LIDs[0];
-    auto localmass = assembler->groups[macrogrp][e]->getMass();
+    auto localmass = assembler->getMass(macrogrp, e);
     
     size_type numVals = LIDs.extent(1);
     LO cols[maxDerivs];

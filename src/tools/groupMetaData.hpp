@@ -73,7 +73,7 @@ namespace MrHyDE {
     bool requires_transient, requires_adjoint, matrix_free, use_sparse_mass;
     
     // Geometry Information
-    size_t num_nodes, num_sides, dimension, num_ip, num_side_ip, num_disc_params;
+    size_t num_nodes, num_sides, dimension, num_ip, num_side_ip, num_disc_params, current_stage=0;
     topo_RCP cell_topo;
     DRV ref_nodes;
     

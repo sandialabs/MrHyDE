@@ -927,7 +927,7 @@ void SolverManager<Node>::finalizeWorkset() {
         block_useBasis.push_back(useBasis[set][block]);
       }
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-        assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
+        //assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
         assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
         assembler->groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
         assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
@@ -940,7 +940,7 @@ void SolverManager<Node>::finalizeWorkset() {
       if (assembler->boundary_groups.size() > block) { // avoid seg faults
         for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
           if (assembler->boundary_groups[block][grp]->numElem > 0) {
-            assembler->boundary_groups[block][grp]->setWorkset(assembler->wkset[block]);
+            //assembler->boundary_groups[block][grp]->setWorkset(assembler->wkset[block]);
             assembler->boundary_groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
           }
         }
@@ -1337,7 +1337,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           // Allow the groups to change subgrid model
           ////////////////////////////////////////////////////////////////////////
           
-          multiscale_manager->update();
+          vector<vector<int> > sgmodels = assembler->identifySubgridModels();
+          multiscale_manager->update(sgmodels);
           vector_RCP u_stage = linalg->getNewOverlappedVector(set);
 
           u_prev[set]->assign(*(u[set]));
@@ -2219,7 +2220,8 @@ void SolverManager<Node>::finalizeMultiscale() {
                                      macro_numDOF,
                                      params->paramnames, params->discretized_param_names);
     
-    ScalarT my_cost = multiscale_manager->initialize();
+    vector<vector<int> > sgmodels = assembler->identifySubgridModels();
+    ScalarT my_cost = multiscale_manager->initialize(sgmodels);
     ScalarT gmin = 0.0;
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
     ScalarT gmax = 0.0;

@@ -119,30 +119,12 @@ int main(int argc,char * argv[]) {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Create the function managers
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    for (size_t block=0; block<mesh->block_names.size(); ++block) {
-      functionManagers.push_back(Teuchos::rcp(new FunctionManager(mesh->block_names[block],
-                                                                  assembler->groupData[block]->num_elem,
-                                                                  disc->numip[block],
-                                                                  disc->numip_side[block])));
-    }
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // Define the functions on each block
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    physics->defineFunctions(functionManagers);
-    
-    ////////////////////////////////////////////////////////////////////////////////
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
                                                                                              assembler->groups,
-                                                                                             functionManagers) );
+                                                                                             assembler->function_managers) );
     
     ///////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
@@ -150,7 +132,7 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<PostprocessManager<SolverNode> >
     postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh,
-                                                                disc, physics, functionManagers, multiscale_manager,
+                                                                disc, physics, assembler->function_managers, multiscale_manager,
                                                                 assembler, params) );
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -161,6 +143,7 @@ int main(int argc,char * argv[]) {
                                                                                                  disc, physics, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;
+    assembler->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
     postproc->linalg = solve->linalg;
     
@@ -192,7 +175,7 @@ int main(int argc,char * argv[]) {
     // Finalize the function and multiscale managers
     ////////////////////////////////////////////////////////////////////////////////
     
-    assembler->finalizeFunctions(functionManagers);
+    assembler->finalizeFunctions();
 
     solve->finalizeMultiscale();
 

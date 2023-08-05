@@ -1111,7 +1111,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
   for (size_t block=0; block<assembler->groups.size(); block++) {// loop over blocks
     
     int altblock; // Needed for subgrid error calculations
-    if (assembler->wkset.size()>block) {
+    if (assembler->wkset.size()>block && error_list.size()>block) {
       altblock = block;
     }
     else {
@@ -1146,9 +1146,9 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       for (size_t grp=0; grp<assembler->groups[block].size(); grp++) {
         if (assembler->groups[block][grp]->active) {
         if (have_vol_errs) {
-          assembler->groups[block][grp]->updateWorkset(seedwhat,true);
+          assembler->updateWorkset(block, grp, seedwhat,true);
         }
-        auto wts = assembler->groups[block][grp]->wkset->wts;
+        auto wts = assembler->wkset[block]->wts;
         
         for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
           string varname = error_list[altblock][etype].first;
@@ -1386,7 +1386,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             for (size_t set=0; set<assembler->wkset[altblock]->numSets; ++set) {
               assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->sol[set], seedwhat);
             }
-            assembler->groups[block][grp]->updateWorksetFace(face);
+            assembler->updateWorksetFace(block, grp, face);
             assembler->wkset[altblock]->resetSolutionFields();
             for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
               string varname = error_list[altblock][etype].first;
@@ -1395,7 +1395,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                 string expression = varname;
                 auto tsol = functionManagers[altblock]->evaluate("true "+expression,"side ip");
                 auto sol = assembler->wkset[altblock]->getSolutionField(expression);
-                auto wts = assembler->groups[block][grp]->wkset->wts_side;
+                auto wts = assembler->wkset[block]->wts_side;
                 
                 // add in the L2 difference at the volumetric ip
                 ScalarT error = 0.0;
@@ -1543,7 +1543,7 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
     for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
       // setup workset for this bgrp
       
-      assembler->boundary_groups[block][grp]->updateWorkset(0,0,true);
+      assembler->updateWorksetBoundary(block, grp, 0, 0, true);
       
       // compute the flux
       assembler->wkset[block]->flux = View_AD3("flux",assembler->wkset[block]->maxElem,
@@ -1632,7 +1632,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           localContribution = 0.; // zero out this grp's contribution JIC here but needed below
 
           // setup the workset for this grp
-          assembler->groups[globalBlock][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(globalBlock, grp, 0,0,true);
           // get integration weights
           auto wts = assembler->wkset[globalBlock]->wts;
           // evaluate the integrand at integration points
@@ -1675,7 +1675,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
                (integratedQuantities[iLocal][iIQ].boundarynames == "all") ) {
 
             // setup the workset for this grp
-            assembler->boundary_groups[globalBlock][grp]->updateWorkset(0,0,true); 
+            assembler->updateWorksetBoundary(globalBlock, grp, 0, 0, true); 
             // get integration weights
             auto wts = assembler->wkset[globalBlock]->wts_side;
             // evaluate the integrand at integration points
@@ -1838,7 +1838,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
         auto wts = assembler->groups[block][grp]->wts;
         
-        assembler->groups[block][grp]->updateWorkset(0,0,true);
+        assembler->updateWorkset(block, grp, 0,0,true);
         
         auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
         
@@ -1899,7 +1899,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           
           auto wts = assembler->groups[block][grp]->wts;
           
-          assembler->groups[block][grp]->updateWorkset(3,0,true);
+          assembler->updateWorkset(block, grp, 3,0,true);
           
           auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
           
@@ -1995,7 +1995,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
           auto wts = assembler->groups[block][grp]->wts;
             
-          assembler->groups[block][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(block, grp, 0,0,true);
         
           auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
         
@@ -2067,7 +2067,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           
           auto wts = assembler->groups[block][grp]->wts;
           
-          assembler->groups[block][grp]->updateWorkset(3,0,true);
+          assembler->updateWorkset(block, grp, 3,0,true);
         
           auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
           
@@ -2380,7 +2380,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             
             auto wts = assembler->groups[block][grp]->wts;
             
-            assembler->groups[block][grp]->updateWorkset(3,0,true);
+            assembler->updateWorkset(block, grp, 3,0,true);
             
             auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
             View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
@@ -2445,7 +2445,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               auto wts = assembler->boundary_groups[block][grp]->wts;
               
-              assembler->boundary_groups[block][grp]->updateWorkset(3,0,true);
+              assembler->updateWorksetBoundary(block, grp, 3, 0, true);
               
               auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
               View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
@@ -2756,7 +2756,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->groups[block][grp]->updateWorkset(1,0,true);
+            assembler->updateWorkset(block, grp, 1,0,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -3014,7 +3014,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->groups[block][grp]->updateWorkset(1,0,true);
+            assembler->updateWorkset(block, grp, 1,0,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -3765,7 +3765,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               auto soln_computed = Kokkos::create_mirror_view(soln_dev);
               for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
                 auto eID = assembler->groups[block][grp]->localElemID;
-                auto sol = Kokkos::subview(assembler->groups[block][grp]->getSolutionAtNodes(n), Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
+                auto sol = Kokkos::subview(assembler->getSolutionAtNodes(block, grp, n), Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
                 parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                   for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                     soln_dev(eID(elem),i) = sol(elem,i);
@@ -3835,7 +3835,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               
-              assembler->groups[block][grp]->computeSolutionAverage(var,sol);
+              assembler->computeSolutionAverage(block, grp, var,sol);
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -3875,7 +3875,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
                   assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->sol[iset], seedwhat);
                 }
                 //assembler->groups[block][grp]->computeSolnFaceIP(face);
-                assembler->groups[block][grp]->updateWorksetFace(face);
+                assembler->updateWorksetFace(block, grp, face);
                 auto wts = assembler->wkset[block]->wts_side;
                 auto sol = assembler->wkset[block]->getSolutionField(varlist[set][block][n]);
                 parallel_for("postproc plot HFACE",
@@ -3958,7 +3958,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               
-              assembler->groups[block][grp]->computeParameterAverage(dpnames[n],sol);
+              assembler->computeParameterAverage(block, grp, dpnames[n],sol);
               //auto sol = Kokkos::subview(assembler->groups[block][grp]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
@@ -4050,7 +4050,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
-          assembler->groups[block][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(block, grp, 0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getExtraCellFields(block, assembler->groups[block][grp]->wts);
@@ -4082,7 +4082,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
-          assembler->groups[block][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(block, grp, 0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getDerivedQuantities(block, assembler->groups[block][grp]->wts);

@@ -88,7 +88,7 @@ namespace MrHyDE {
     // Initial assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
     
-    ScalarT initialize();
+    ScalarT initialize(vector<vector<int> > & sgmodels);
     
     void evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & wkset, Teuchos::RCP<Group> & group,
                                     const int & set, 
@@ -102,7 +102,7 @@ namespace MrHyDE {
     // Re-assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
     
-    void update();
+    void update(vector<vector<int> > & sgmodels);
     
     void reset();
     

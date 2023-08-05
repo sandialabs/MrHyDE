@@ -216,16 +216,16 @@ void SubGridDtN2::setUpSubgridModels() {
   size_t numSubElem = connectivity.size();
   
   settings->sublist("Solver").set<int>("workset size",(int)numSubElem);
-  vector<Teuchos::RCP<FunctionManager> > functionManagers;
-  functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID, numSubElem,
-                                                              sub_disc->numip[0],
-                                                              sub_disc->numip_side[0])));
+  //vector<Teuchos::RCP<FunctionManager> > functionManagers;
+  //functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID, numSubElem,
+  //                                                            sub_disc->numip[0],
+  //                                                            sub_disc->numip_side[0])));
   
   ////////////////////////////////////////////////////////////////////////////////
   // Define the functions on each block
   ////////////////////////////////////////////////////////////////////////////////
   
-  sub_physics->defineFunctions(functionManagers);
+  //sub_physics->defineFunctions(functionManagers);
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the parameter manager, the assembler and the solver
@@ -270,7 +270,7 @@ void SubGridDtN2::setUpSubgridModels() {
   
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                          sub_disc, sub_physics,
-                                                                         functionManagers, sub_assembler) );
+                                                                         sub_assembler->function_managers, sub_assembler) );
   
   sub_assembler->allocateGroupStorage();
 
@@ -278,21 +278,22 @@ void SubGridDtN2::setUpSubgridModels() {
   // Create a subgrid function mananger
   /////////////////////////////////////////////////////////////////////////////////////
   
-  {
-    varlist = sub_physics->var_list[0][0];
-    functionManagers[0]->setupLists(macro_paramnames);
-    sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
-    functionManagers[0]->wkset = sub_assembler->wkset[0];
-    functionManagers[0]->decomposeFunctions();
-  }
+  //{
+  varlist = sub_physics->var_list[0][0];
+  //  functionManagers[0]->setupLists(macro_paramnames);
+  sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
+  //  functionManagers[0]->wkset = sub_assembler->wkset[0];
+  //  functionManagers[0]->decomposeFunctions();
+  //}
   
   wkset = sub_assembler->wkset;
   wkset[0]->addAux(macro_varlist, macro_offsets);
   sub_physics->setWorkset(wkset);
-  
-  for(size_t grp=0; grp<boundary_groups[0].size(); ++grp) {
-    boundary_groups[0][grp]->wkset = wkset[0];
-  }
+  sub_assembler->finalizeFunctions();
+
+  //for(size_t grp=0; grp<boundary_groups[0].size(); ++grp) {
+  //  boundary_groups[0][grp]->wkset = wkset[0];
+  //}
   
   Kokkos::View<string**,HostDevice> currbcs("boundary conditions",
                                             sub_physics->num_vars[0][0],
@@ -331,7 +332,7 @@ void SubGridDtN2::setUpSubgridModels() {
       if (boundary_groups.size() > mindex) { // should always be true here
         for (size_t grp=0; grp<boundary_groups[mindex].size(); ++grp) {
           if (boundary_groups[mindex][grp]->numElem > 0) {
-            boundary_groups[mindex][grp]->wkset = wkset[0];
+            //boundary_groups[mindex][grp]->wkset = wkset[0];
             boundary_groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
                                                   sub_solver->solver->maxnumsteps,
                                                   sub_solver->solver->maxnumstages);
@@ -354,6 +355,11 @@ void SubGridDtN2::setUpSubgridModels() {
   sub_assembler->groups = groups;
   sub_assembler->boundary_groups = boundary_groups;
     
+  for (size_t grp=1; grp<groups.size(); ++ grp) {
+    sub_assembler->wkset.push_back(sub_assembler->wkset[0]);
+    sub_assembler->groupData.push_back(sub_assembler->groupData[0]);
+    sub_assembler->function_managers.push_back(sub_assembler->function_managers[0]);
+  }
   //////////////////////////////////////////////////////////////
   // Set the initial conditions
   //////////////////////////////////////////////////////////////
@@ -565,7 +571,7 @@ void SubGridDtN2::createNewGroups(SubGridTools2 & sgt, size_t & mindex) {
   newgroups[0]->createHostLIDs();
   newgroups[0]->computeBasis(true);
   
-  newgroups[0]->setWorkset(sub_assembler->wkset[0]);
+  //newgroups[0]->setWorkset(sub_assembler->wkset[0]);
   newgroups[0]->setUseBasis(sub_solver->solver->useBasis[0],
                                 sub_solver->solver->maxnumsteps,
                                 sub_solver->solver->maxnumstages);
@@ -961,11 +967,10 @@ vector<std::pair<string, string> > SubGridDtN2::getErrorList() {
 
 Kokkos::View<ScalarT*,HostDevice> SubGridDtN2::computeError(const ScalarT & time) {
   Kokkos::View<ScalarT*,HostDevice> errors;
-  
   if (macroData.size() > 0) {
     
     errors = Kokkos::View<ScalarT*,HostDevice>("error", sub_postproc->error_list[0].size());
-    
+  
     bool compute = true;//false;
     if (subgrid_static) {
       compute = true;
@@ -981,7 +986,6 @@ Kokkos::View<ScalarT*,HostDevice> SubGridDtN2::computeError(const ScalarT & time
       sub_postproc->errors.clear();
     }
   }
-  
   return errors;
 }
 
@@ -990,6 +994,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridDtN2::computeError(const ScalarT & time
 
 Kokkos::View<ScalarT**,HostDevice> SubGridDtN2::computeError(vector<std::pair<string, string> > & sub_error_list,
                                                              const vector<ScalarT> & times) {
+  
   
   Kokkos::View<ScalarT**,HostDevice> errors;
   if (macroData.size() > 0) {
@@ -1320,7 +1325,8 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
         for( size_t macrogrp=0; macrogrp<groups.size(); macrogrp++ ) {
           for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
             if (groups[macrogrp][grp]->active) {
-              groups[macrogrp][grp]->computeSolutionAverage(var,sol);
+              //groups[macrogrp][grp]->computeSolutionAverage(var,sol);
+              sub_assembler->computeSolutionAverage(macrogrp, grp, var, sol);
               auto host_sol = Kokkos::create_mirror_view(sol);
               Kokkos::deep_copy(host_sol,sol);
               for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
@@ -1349,7 +1355,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
           for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
             for( size_t grp=0; grp<groups[macrogrp].size(); ++grp ) {
               if (groups[macrogrp][grp]->active) {
-                Kokkos::View<ScalarT***,AssemblyDevice> sol = groups[macrogrp][grp]->getSolutionAtNodes(n);
+                Kokkos::View<ScalarT***,AssemblyDevice> sol = sub_assembler->getSolutionAtNodes(macrogrp, grp, n);
                 auto host_sol = Kokkos::create_mirror_view(sol);
                 Kokkos::deep_copy(host_sol,sol);
                 for (size_t e=0; e<groups[macrogrp][grp]->numElem; ++e) {
@@ -1428,7 +1434,8 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
     for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
       for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
         if (groups[macrogrp][grp]->active) {
-          groups[macrogrp][grp]->updateWorkset(0,true);
+          //groups[macrogrp][grp]->updateWorkset(0,true);
+          sub_assembler->updateWorkset(macrogrp, grp, 0,true);
           wkset[0]->time = time;
         
           auto cfields = sub_postproc->getExtraCellFields(0, groups[macrogrp][grp]->wts);
@@ -1464,7 +1471,7 @@ void SubGridDtN2::writeSolution(const ScalarT & time, const string & append) {
     for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
       for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
         
-        groups[macrogrp][grp]->updateWorkset(0,true);
+        sub_assembler->updateWorkset(macrogrp, grp, 0,true);
         wkset[0]->time = time;
         
         auto cfields = sub_postproc->getDerivedQuantities(0, groups[macrogrp][grp]->wts);
