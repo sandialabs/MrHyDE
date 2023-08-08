@@ -208,20 +208,6 @@ namespace MrHyDE {
     View_Sc2 data;
     vector<ScalarT> data_distance;
     View_Sc3 multidata;
-    // Boundary groups do not have sensors
-    
-    // Profile timers
-    Teuchos::RCP<Teuchos::Time> computeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeSolnSideIP()");
-    Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - boundary residual");
-    Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - fill local Jacobian");
-    Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - fill local residual");
-    Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - transient residual");
-    Teuchos::RCP<Teuchos::Time> adjointResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeJacRes() - adjoint residual");
-    Teuchos::RCP<Teuchos::Time> fluxGatherTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - gather solution");
-    Teuchos::RCP<Teuchos::Time> fluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - update wkset");
-    Teuchos::RCP<Teuchos::Time> fluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - compute aux solution");
-    Teuchos::RCP<Teuchos::Time> fluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup::computeFlux - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::BoundaryGroup - build basis");
     
   };
   

@@ -269,27 +269,6 @@ namespace MrHyDE {
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
     vector<ScalarT> data_distance;
     
-    // Profile timers
-    Teuchos::RCP<Teuchos::Time> computeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolnVolIP()");
-    Teuchos::RCP<Teuchos::Time> computeSolnFaceTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolnFaceIP()");
-    Teuchos::RCP<Teuchos::Time> volumeResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - volume residual");
-    Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - boundary residual");
-    Teuchos::RCP<Teuchos::Time> faceResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - edge/face residual");
-    Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - fill local Jacobian");
-    Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - fill local residual");
-    Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - transient residual");
-    Teuchos::RCP<Teuchos::Time> adjointResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - adjoint residual");
-    Teuchos::RCP<Teuchos::Time> groupFluxGatherTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - gather solution");
-    Teuchos::RCP<Teuchos::Time> groupFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - update wkset");
-    Teuchos::RCP<Teuchos::Time> groupFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - compute aux solution");
-    Teuchos::RCP<Teuchos::Time> groupFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> computeSolAvgTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolAvg()");
-    Teuchos::RCP<Teuchos::Time> computeNodeSolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::getSolutionAtNodes()");
-    Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::constructor - build basis");
-    Teuchos::RCP<Teuchos::Time> buildFaceBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::constructor - build face basis");
-    Teuchos::RCP<Teuchos::Time> objectiveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::objective");
-    Teuchos::RCP<Teuchos::Time> responseTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::response");
-    
   };
   
 }
