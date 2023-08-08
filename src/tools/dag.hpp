@@ -24,23 +24,14 @@ namespace MrHyDE {
   // New data structures that have a branch \in tree \in forest hierarchy
   // =================================================================
   
+  template<class EvalT>
   class Branch { // replaces term
-    friend class Tree;
-    friend class Forest;
-    friend class FunctionManager;
-    friend class Interpreter;
+    //friend class Tree;
+    //friend class Forest;
+    //friend class FunctionManager;
+    //friend class Interpreter;
 
-    #ifndef MrHyDE_NO_AD
-      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
-      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
-      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
-      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
-    #else
-      typedef View_Sc1 View_AD1;
-      typedef View_Sc2 View_AD2;
-      typedef View_Sc3 View_AD3;
-      typedef View_Sc4 View_AD4;
-    #endif
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
   public:
     
@@ -105,7 +96,7 @@ namespace MrHyDE {
       std::cout << "------ is_time_: "        << is_time_ << std::endl;
     }
     
-  private:
+  //private:
 
     string expression_;
     bool is_leaf_, is_decomposed_, is_func_, is_view_, is_AD_, is_constant_, is_workset_data_, is_parameter_, is_time_;
@@ -113,11 +104,12 @@ namespace MrHyDE {
     
     // Various data storage types
     // Only one of these will get used
-    View_AD2 viewdata_;
+    View_EvalT2 viewdata_;
     View_Sc2 viewdata_Sc_;
     ScalarT data_Sc_;
-    AD data_;
-    Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> param_data_;
+    EvalT data_;
+    Kokkos::View<EvalT*,Kokkos::LayoutStride,AssemblyDevice> param_data_;
+    //Kokkos::View<EvalT*,AssemblyDevice> param_data_;
         
     vector<int> dep_list_, dep_ops_int_;
     vector<string> dep_ops_;
@@ -128,9 +120,10 @@ namespace MrHyDE {
   // Trees have branches
   // =================================================================
   
+  template<class EvalT>
   class Tree { // replaces function_class
-    friend class Forest;
-    friend class FunctionManager;
+    //friend class Forest;
+    //friend class FunctionManager;
   public:
     
     Tree() {};
@@ -140,7 +133,7 @@ namespace MrHyDE {
     Tree(const string & name, const string & expression) {
       name_ = name;
       expression_ = expression;
-      branches_.push_back(Branch(expression));
+      branches_.push_back(Branch<EvalT>(expression));
     }
     
     Tree(const string & name, ScalarT & value) {
@@ -148,25 +141,25 @@ namespace MrHyDE {
       std::stringstream stream;
       stream << std::fixed << std::setprecision(16) << value;
       expression_ = stream.str();
-      branches_.push_back(Branch(value));
+      branches_.push_back(Branch<EvalT>(value));
     }
     
     void setupVista() {
       if (branches_.size() > 0) {
         if (branches_[0].is_view_) {
           if (branches_[0].is_AD_) {
-            vista_ = Vista(branches_[0].viewdata_);
+            vista_ = Vista<EvalT>(branches_[0].viewdata_);
           }
           else {
-            vista_ = Vista(branches_[0].viewdata_Sc_);
+            vista_ = Vista<EvalT>(branches_[0].viewdata_Sc_);
           }
         }
         else {
           if (branches_[0].is_AD_) {
-            vista_ = Vista(branches_[0].data_);
+            //vista_ = Vista<EvalT>(branches_[0].data_);
           }
           else {
-            vista_ = Vista(branches_[0].data_Sc_);
+            vista_ = Vista<EvalT>(branches_[0].data_Sc_);
           }
         }
       }
@@ -178,15 +171,23 @@ namespace MrHyDE {
           if (branches_[0].is_parameter_) {
             int pind = branches_[0].param_index_;
             auto pdata = branches_[0].param_data_;
-            AD pval = pdata(pind); // Yes, I know this won't work on a GPU
-            vista_.update(pval);
+            EvalT pval = pdata(pind); // Yes, I know this won't work on a GPU
+            #ifndef MrHyDE_NO_AD
+              vista_.update(pval);
+            #else
+              vista_.updateSc(pval);
+            #endif
           }
           else {
             vista_.update(branches_[0].viewdata_);
           }
         }
         else {
-          vista_.update(branches_[0].data_);
+          #ifndef MrHyDE_NO_AD
+            vista_.update(branches_[0].data_);
+          #else
+            vista_.updateSc(branches_[0].data_);
+          #endif
         }
       }
       else {
@@ -194,15 +195,15 @@ namespace MrHyDE {
           vista_.update(branches_[0].viewdata_Sc_);
         }
         else {
-          vista_.update(branches_[0].data_Sc_);
+          vista_.updateSc(branches_[0].data_Sc_);
         }
       }
     }
     
-  private:
-    std::vector<Branch> branches_;
+  //private:
+    std::vector<Branch<EvalT> > branches_;
     string name_, expression_;
-    Vista vista_;
+    Vista<EvalT> vista_;
     
   };
   
@@ -210,8 +211,9 @@ namespace MrHyDE {
   // Forests have trees and are associated with a location (enables multiple forests)
   // =================================================================
   
+  template<class EvalT>
   class Forest {
-    friend class FunctionManager;
+    //friend class FunctionManager;
   public:
     
     Forest() {};
@@ -225,21 +227,29 @@ namespace MrHyDE {
     }
     
     void addTree(const string & name, const string & expression) {
-      trees_.push_back(Tree(name,expression));
+      trees_.push_back(Tree<EvalT>(name,expression));
     }
     
     void addTree(const string & name, ScalarT & value) {
-      trees_.push_back(Tree(name,value));
+      trees_.push_back(Tree<EvalT>(name,value));
     }
     
-  private:
+  //private:
     std::string location_;
     int dim0_, dim1_;
-    std::vector<Tree> trees_;
+    std::vector<Tree<EvalT> > trees_;
     
   };
   
 }
 
+//template class MrHyDE::Branch<ScalarT>;
+//template class MrHyDE::Branch<AD>;
+
+//template class MrHyDE::Tree<ScalarT>;
+//template class MrHyDE::Tree<AD>;
+
+//template class MrHyDE::Forest<ScalarT>;
+//template class MrHyDE::Forest<AD>;
 #endif
 

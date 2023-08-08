@@ -28,10 +28,10 @@ namespace MrHyDE {
 
   public:
 
-      typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_AD1;
-      typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
-      typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_AD3;
-      typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_AD4;
+      typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
+      typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+      typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+      typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Constructors
@@ -116,13 +116,13 @@ namespace MrHyDE {
     // Get a pointer to vector of parameters
     //////////////////////////////////////////////////////////////
     
-    vector<AD> getParam(const string & name, bool & found);
+    vector<EvalT> getParam(const string & name, bool & found);
     
     //////////////////////////////////////////////////////////////
     // Get a subview associated with a vector of parameters
     //////////////////////////////////////////////////////////////
 
-    Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> getParameter(const string & name, bool & found);
+    Kokkos::View<EvalT*,Kokkos::LayoutStride,AssemblyDevice> getParameter(const string & name, bool & found);
       
     //////////////////////////////////////////////////////////////
     // Set the time
@@ -146,7 +146,7 @@ namespace MrHyDE {
     // Data extraction methods
     //////////////////////////////////////////////////////////////
     
-    View_AD2 getResidual();
+    View_EvalT2 getResidual();
     
     View_Sc2 getWeights();
     
@@ -164,7 +164,7 @@ namespace MrHyDE {
     
     void printScalarFields();
     
-    View_AD2 getSolutionField(const string & label, const bool & evaluate = SOL_FIELD_EVAL,
+    View_EvalT2 getSolutionField(const string & label, const bool & evaluate = SOL_FIELD_EVAL,
                               const bool & markUpdated = false);
     
     View_Sc2 getScalarField(const string & label);
@@ -255,29 +255,29 @@ namespace MrHyDE {
     // Functions to set solution data (these are not all implemented and will be deprecated eventually)
     //////////////////////////////////////////////////////////////
     
-    void setSolution(View_AD4 newsol, const string & pfix = "");
+    void setSolution(View_EvalT4 newsol, const string & pfix = "");
     
-    void setSolutionGrad(View_AD4 newsolgrad, const string & pfix = "");
+    void setSolutionGrad(View_EvalT4 newsolgrad, const string & pfix = "");
     
-    void setSolutionDiv(View_AD3 newsoldiv, const string & pfix = "");
+    void setSolutionDiv(View_EvalT3 newsoldiv, const string & pfix = "");
     
-    void setSolutionCurl(View_AD4 newsolcurl, const string & pfix = "");
+    void setSolutionCurl(View_EvalT4 newsolcurl, const string & pfix = "");
     
-    void setSolutionPoint(View_AD2 newsol);
+    void setSolutionPoint(View_EvalT2 newsol);
     
-    void setSolutionGradPoint(View_AD2 newsol);
+    void setSolutionGradPoint(View_EvalT2 newsol);
       
-    void setParam(View_AD4 newsol, const string & pfix = "");
+    void setParam(View_EvalT4 newsol, const string & pfix = "");
     
-    void setParamGrad(View_AD4 newsolgrad, const string & pfix = "");
+    void setParamGrad(View_EvalT4 newsolgrad, const string & pfix = "");
     
-    void setParamDiv(View_AD3 newsoldiv, const string & pfix = "");
+    void setParamDiv(View_EvalT3 newsoldiv, const string & pfix = "");
     
-    void setParamCurl(View_AD4 newsolcurl, const string & pfix = "");
+    void setParamCurl(View_EvalT4 newsolcurl, const string & pfix = "");
     
-    void setParamPoint(View_AD2 newsol);
+    void setParamPoint(View_EvalT2 newsol);
     
-    void setParamGradPoint(View_AD2 newsol);
+    void setParamGradPoint(View_EvalT2 newsol);
 
     string getParamBasisType(string & name);
 
@@ -290,15 +290,15 @@ namespace MrHyDE {
      * @param[in] pfix  Optional suffix to the variable string
      */ 
     
-    void setAux(View_AD4 newsol, const string & pfix = "");
+    void setAux(View_EvalT4 newsol, const string & pfix = "");
     
-    void setAuxGrad(View_AD4 newsolgrad, const string & pfix = "");
+    void setAuxGrad(View_EvalT4 newsolgrad, const string & pfix = "");
     
-    void setAuxDiv(View_AD3 newsoldiv, const string & pfix = "");
+    void setAuxDiv(View_EvalT3 newsoldiv, const string & pfix = "");
     
-    void setAuxCurl(View_AD4 newsolcurl, const string & pfix = "");
+    void setAuxCurl(View_EvalT4 newsolcurl, const string & pfix = "");
     
-    void setAuxPoint(View_AD2 newsol);
+    void setAuxPoint(View_EvalT2 newsol);
     
     //////////////////////////////////////////////////////////////
     // Function to change the current physics set
@@ -315,7 +315,7 @@ namespace MrHyDE {
     // Should be the only view stored on Host
     // Used by physics modules to determine the proper contribution to the boundary residual
     
-    bool isAdjoint, onlyTransient, isTransient;
+    bool isAdjoint, onlyTransient, isTransient, only_scalar=false;
     bool isInitialized, usebcs, isOnSide, isOnPoint;
     topo_RCP celltopo;
     size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set, numSets;
@@ -326,8 +326,8 @@ namespace MrHyDE {
     vector<int> numbasis;
     vector<basis_RCP> basis_pointers;
     
-    vector<Teuchos::RCP<vector<AD> > > params;
-    Kokkos::View<AD**,AssemblyDevice> params_AD;
+    vector<Teuchos::RCP<vector<EvalT> > > params;
+    Kokkos::View<EvalT**,AssemblyDevice> params_AD;
     vector<string> paramnames;
     
     ScalarT time, alpha, deltat;
@@ -342,10 +342,10 @@ namespace MrHyDE {
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<CompressedView<View_Sc3>> basis_div;
     
-    View_AD2 res, adjrhs;
-    View_AD3 flux;
+    View_EvalT2 res, adjrhs;
+    View_EvalT3 flux;
     Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
-    vector<View_AD2> pvals;
+    vector<View_EvalT2> pvals;
     vector<string> param_varlist;
     vector<int> paramusebasis;
     vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
@@ -355,8 +355,8 @@ namespace MrHyDE {
     
     // Editing for multi-set
     vector<size_t> numVars;
-    //vector<vector<View_AD2> > uvals, u_dotvals;
-    vector<View_AD2> sol_vals, sol_dot_vals;
+    //vector<vector<View_EvalT2> > uvals, u_dotvals;
+    vector<View_EvalT2> sol_vals, sol_dot_vals;
     vector<vector<size_t>> sol_vals_index; // [set][var]
 
     Kokkos::View<string**,HostDevice> var_bcs;

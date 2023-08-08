@@ -17,8 +17,9 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-cdr::cdr(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+cdr<EvalT>::cdr(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "cdr";
@@ -33,8 +34,9 @@ cdr::cdr(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void cdr::defineFunctions(Teuchos::ParameterList & fs,
-                          Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void cdr<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                          Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -62,7 +64,8 @@ void cdr::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void cdr::volumeResidual() {
+template<class EvalT>
+void cdr<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int c_basis_num = wkset->usebasis[cnum];
@@ -70,7 +73,7 @@ void cdr::volumeResidual() {
   auto basis_grad = wkset->basis_grad[c_basis_num];
   auto wts = wkset->wts;
   
-  Vista source, diff, cp, rho, reax, xvel, yvel, zvel, tau;
+  Vista<EvalT> source, diff, cp, rho, reax, xvel, yvel, zvel, tau;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
@@ -87,7 +90,7 @@ void cdr::volumeResidual() {
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   auto C = wkset->getSolutionField("c");
   auto dC_dt = wkset->getSolutionField("c_t");
-  View_AD2 dC_dx, dC_dy, dC_dz;
+  View_EvalT2 dC_dx, dC_dy, dC_dz;
   dC_dx = wkset->getSolutionField("grad(c)[x]");
   if (spaceDim > 1) {
     dC_dy = wkset->getSolutionField("grad(c)[y]");
@@ -103,8 +106,8 @@ void cdr::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
+        EvalT f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
         }
@@ -116,9 +119,9 @@ void cdr::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + yvel(elem,pt)*dC_dy(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
-        AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dy(elem,pt)*wts(elem,pt);
+        EvalT f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + yvel(elem,pt)*dC_dy(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
+        EvalT Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dy(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
         }
@@ -130,10 +133,10 @@ void cdr::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + yvel(elem,pt)*dC_dy(elem,pt) + zvel(elem,pt)*dC_dz(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
-        AD Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dy(elem,pt)*wts(elem,pt);
-        AD Fz = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dz(elem,pt)*wts(elem,pt);
+        EvalT f = (dC_dt(elem,pt) + xvel(elem,pt)*dC_dx(elem,pt) + yvel(elem,pt)*dC_dy(elem,pt) + zvel(elem,pt)*dC_dz(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dx(elem,pt)*wts(elem,pt);
+        EvalT Fy = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dy(elem,pt)*wts(elem,pt);
+        EvalT Fz = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC_dz(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
         }
@@ -146,26 +149,30 @@ void cdr::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void cdr::boundaryResidual() {
+template<class EvalT>
+void cdr<EvalT>::boundaryResidual() {
   // not re-implemented yet
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void cdr::edgeResidual() {}
+template<class EvalT>
+void cdr<EvalT>::edgeResidual() {}
 
 // ========================================================================================
 // ========================================================================================
 
-void cdr::computeFlux() {
+template<class EvalT>
+void cdr<EvalT>::computeFlux() {
   // not re-implemented yet
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void cdr::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void cdr<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
 
@@ -181,8 +188,9 @@ void cdr::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 // return the value of the stabilization parameter
 // ========================================================================================
 
+template<class EvalT>
 template<class T>
-T cdr::computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const ScalarT & h) const {
+T cdr<EvalT>::computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & zvl, const ScalarT & h) const {
   
   ScalarT C1 = 4.0;
   ScalarT C2 = 2.0;
@@ -202,3 +210,9 @@ T cdr::computeTau(const T & localdiff, const T & xvl, const T & yvl, const T & z
   return 4.0/(C1*localdiff/h/h + C2*(nvel)/h); //msconvdiff has a 1.0 instead of a 4.0 in the numerator
   
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::cdr<ScalarT>;
+#endif
+
+template class MrHyDE::cdr<AD>;

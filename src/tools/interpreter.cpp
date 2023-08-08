@@ -17,7 +17,8 @@ using namespace MrHyDE;
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Interpreter::isScalar(const string & s) {
+template<class EvalT>
+bool Interpreter<EvalT>::isScalar(const string & s) {
   
   bool isnum = true;
   int numdots = 0;
@@ -63,7 +64,8 @@ bool Interpreter::isScalar(const string & s) {
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Interpreter::split(vector<Branch> & branches, const size_t & index) {
+template<class EvalT>
+void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t & index) {
   
   string s = branches[index].expression_;
   if (s[0] == '-') {
@@ -85,7 +87,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
       }
     }*/
     if (!found) {
-      Branch nbranch = Branch(currbranch);
+      Branch nbranch = Branch<EvalT>(currbranch);
       branches.push_back(nbranch);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back(currop);
@@ -153,7 +155,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -171,7 +173,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -200,7 +202,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
               }
             }*/
             if (!found) {
-              Branch nbranch = Branch(currbranch);
+              Branch nbranch = Branch<EvalT>(currbranch);
               branches.push_back(nbranch);
               branches[index].dep_list_.push_back(branches.size()-1);
               branches[index].dep_ops_.push_back(currop);
@@ -236,7 +238,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -254,7 +256,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -272,7 +274,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -296,7 +298,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -325,7 +327,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -357,7 +359,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -379,7 +381,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch(currbranch);
+            Branch nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -395,7 +397,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
         for (size_t k=1; k<s.length()-1; k++) {
           currbranch += s[k];
         }
-        Branch nbranch = Branch(currbranch);
+        Branch nbranch = Branch<EvalT>(currbranch);
         branches.push_back(nbranch);
         branches[index].dep_list_.push_back(branches.size()-1);
         branches[index].dep_ops_.push_back(currop);
@@ -414,7 +416,7 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
           for (size_t k=pindex+1; k<s.length()-1; k++) {
             currbranch += s[k];
           }
-          Branch nbranch = Branch(currbranch);
+          Branch nbranch = Branch<EvalT>(currbranch);
           branches.push_back(nbranch);
           branches[index].dep_list_.push_back(branches.size()-1);
           //branches[index].dep_ops.push_back(currop);
@@ -438,7 +440,8 @@ void Interpreter::split(vector<Branch> & branches, const size_t & index) {
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Interpreter::isOperator(vector<Branch> & branches, size_t & index, vector<string> & ops) {
+template<class EvalT>
+bool Interpreter<EvalT>::isOperator(vector<Branch<EvalT> > & branches, size_t & index, vector<string> & ops) {
   // checks if the string in s can be written as a standard operator on a branch
   // example: sin(whatever)
   
@@ -501,19 +504,19 @@ bool Interpreter::isOperator(vector<Branch> & branches, size_t & index, vector<s
         argument2 += argument[i];
       }
       
-      Branch nbranch1 = Branch(argument1);
+      Branch nbranch1 = Branch<EvalT>(argument1);
       branches.push_back(nbranch1);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back("");
       
-      Branch nbranch2 = Branch(argument2);
+      Branch nbranch2 = Branch<EvalT>(argument2);
       branches.push_back(nbranch2);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back(oper);
       branches[index].is_decomposed_ = true;
     }
     else {
-      Branch nbranch = Branch(argument);
+      Branch nbranch = Branch<EvalT>(argument);
       branches.push_back(nbranch);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back(oper);
@@ -525,4 +528,8 @@ bool Interpreter::isOperator(vector<Branch> & branches, size_t & index, vector<s
   return found;
 }
 
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::Interpreter<ScalarT>;
+#endif
 
+template class MrHyDE::Interpreter<AD>;

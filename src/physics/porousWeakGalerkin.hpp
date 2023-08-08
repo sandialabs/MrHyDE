@@ -44,8 +44,20 @@ namespace MrHyDE {
    *   - "kxx" is the xx entry of the permeability tensor, \f$\mathbf{K}\f$
    *   - "kxy", "kyx", "kyy" are defined similarly, and similar terms involving z are used in 3d
    */
-  class porousWeakGalerkin : public physicsbase {
+
+  template<class EvalT>
+  class porousWeakGalerkin : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    using PhysicsBase<EvalT>::include_face;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     // ========================================================================================
     /* Constructor to set up the problem */
@@ -61,7 +73,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -88,7 +100,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     //void setVars(std::vector<string> & varlist_);
     
@@ -100,7 +112,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void updatePerm(View_AD2 perm);
+    void updatePerm(View_EvalT2 perm);
     
   private:
     

@@ -27,7 +27,7 @@ MultiscaleManager::MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
                                      Teuchos::RCP<MeshInterface> & mesh_,
                                      Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                      vector<vector<Teuchos::RCP<Group> > > & groups_,
-                                     vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_ ) :
+                                     vector<Teuchos::RCP<FunctionManager<AD> > > macro_functionManagers_ ) :
 MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManagers(macro_functionManagers_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager - constructor");

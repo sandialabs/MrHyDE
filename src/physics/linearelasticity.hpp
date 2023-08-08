@@ -35,8 +35,20 @@ namespace MrHyDE {
    *   - "mu" is the mu.
    *   - "lambda" is the lambda.
    */
-  class linearelasticity : public physicsbase {
+
+  template<class EvalT>
+  class linearelasticity : public PhysicsBase<EvalT> {
   public:
+
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
     
     linearelasticity() {} ;
     
@@ -52,7 +64,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -86,19 +98,19 @@ namespace MrHyDE {
     
     //void setAuxVars(std::vector<string> & auxvarlist);
     
-    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
     
     // ========================================================================================
     // return the stress
     // ========================================================================================
     
-    void computeStress(Vista lambda, Vista mu, const bool & onside);
+    void computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, const bool & onside);
         
     // ========================================================================================
     // TMW: needs to be deprecated
     // ========================================================================================
     
-    void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
+    void updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
                           const vector<string> & paramnames);
     
     // ========================================================================================
@@ -109,20 +121,20 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    std::vector<View_AD2> getDerivedValues();
+    std::vector<View_EvalT2> getDerivedValues();
     
   private:
     
     int spaceDim, dx_num, dy_num, dz_num, e_num, p_num;
     int auxdx_num = -1, auxdy_num = -1, auxdz_num = -1, auxe_num = -1, auxp_num = -1;
     
-    View_AD4 stress_vol, stress_side;
+    View_EvalT4 stress_vol, stress_side;
     
     bool useLame, addBiot, useCE, incplanestress;
     //ScalarT formparam, biot_alpha, e_ref, alpha_T, epen;
     Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
     
-    Teuchos::RCP<CrystalElastic> crystalelast;
+    Teuchos::RCP<CrystalElastic<EvalT> > crystalelast;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::elasticity::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::elasticity::volumeResidual() - evaluation of residual");

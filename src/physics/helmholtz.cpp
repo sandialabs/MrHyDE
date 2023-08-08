@@ -18,8 +18,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-helmholtz::helmholtz(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+helmholtz<EvalT>::helmholtz(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "helmholtz";
@@ -35,8 +36,9 @@ helmholtz::helmholtz(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::defineFunctions(Teuchos::ParameterList & fs,
-                                Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void helmholtz<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 
   functionManager = functionManager_;
   
@@ -76,16 +78,17 @@ void helmholtz::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::volumeResidual() {
+template<class EvalT>
+void helmholtz<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int ur_basis_num = wkset->usebasis[ur_num];
   int ui_basis_num = wkset->usebasis[ui_num];
   
-  Vista source_r, source_i;
-  Vista omega2r, omega2i, omegar, omegai;
-  Vista c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
-  Vista alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
+  Vista<EvalT> source_r, source_i;
+  Vista<EvalT> omega2r, omega2i, omegar, omegai;
+  Vista<EvalT> c2r_x, c2i_x, c2r_y, c2i_y, c2r_z, c2i_z;
+  Vista<EvalT> alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
   
   c2r_x = functionManager->evaluate("c2r_x","ip");
   c2i_x = functionManager->evaluate("c2i_x","ip");
@@ -116,7 +119,7 @@ void helmholtz::volumeResidual() {
   auto res = wkset->res;
   auto wts = wkset->wts;
   
-  View_AD2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
+  View_EvalT2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
   Ur = wkset->getSolutionField("ureal");
   Ui = wkset->getSolutionField("uimag");
   dUr_dx = wkset->getSolutionField("grad(ureal)[x]");
@@ -137,12 +140,12 @@ void helmholtz::volumeResidual() {
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int e ) {
     for (size_type k=0; k<Ur.extent(1); k++ ) {
-      AD ur = Ur(e,k);
-      AD durdx = dUr_dx(e,k);
-      AD ui = Ui(e,k);
-      AD duidx = dUi_dx(e,k);
+      EvalT ur = Ur(e,k);
+      EvalT durdx = dUr_dx(e,k);
+      EvalT ui = Ui(e,k);
+      EvalT duidx = dUi_dx(e,k);
       
-      AD durdy= 0.0, duidy= 0.0, durdz= 0.0, duidz= 0.0;
+      EvalT durdy= 0.0, duidy= 0.0, durdz= 0.0, duidz= 0.0;
       if (spaceDim > 1) {
         durdy = dUr_dy(e,k);
         duidy = dUi_dy(e,k);
@@ -195,8 +198,8 @@ void helmholtz::volumeResidual() {
           - (source_i(e,k)*vr - source_r(e,k)*vi))*wts(e,k);
         }
         else {
-          AD omegar_val = sqrt(omega2r(e,k));
-          AD omegai_val = sqrt(omega2i(e,k));
+          EvalT omegar_val = sqrt(omega2r(e,k));
+          EvalT omegai_val = sqrt(omega2i(e,k));
           int resindex = offsets(ur_num,i);
           
           res(e,resindex) += (alphaHr(e,k)*pow(omegar_val,2.0*freqExp(e,k))*(ur*vr + ui*vi)
@@ -252,7 +255,8 @@ void helmholtz::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::boundaryResidual() {
+template<class EvalT>
+void helmholtz<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -263,11 +267,11 @@ void helmholtz::boundaryResidual() {
   
   // Set the parameters
   
-  Vista c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
-  Vista robin_alpha_r, robin_alpha_i;
-  Vista source_r_side, source_i_side;
-  Vista omega2r, omega2i;
-  Vista alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
+  Vista<EvalT> c2r_side_x, c2i_side_x, c2r_side_y, c2i_side_y, c2r_side_z, c2i_side_z;
+  Vista<EvalT> robin_alpha_r, robin_alpha_i;
+  Vista<EvalT> source_r_side, source_i_side;
+  Vista<EvalT> omega2r, omega2i;
+  Vista<EvalT> alphaHr, alphaHi,alphaTr, alphaTi, freqExp; //fractional
   
   c2r_side_x = functionManager->evaluate("c2r_x","side ip");
   c2i_side_x = functionManager->evaluate("c2i_x","side ip");
@@ -301,7 +305,7 @@ void helmholtz::boundaryResidual() {
   View_Sc2 nx,ny,nz;
   nx = wkset->getScalarField("n[x]");
   
-  View_AD2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
+  View_EvalT2 Ur, Ui, dUr_dx, dUi_dx, dUr_dy, dUr_dz, dUi_dy, dUi_dz;
   Ur = wkset->getSolutionField("ureal");
   Ui = wkset->getSolutionField("uimag");
   dUr_dx = wkset->getSolutionField("grad(ureal)[x]");
@@ -322,21 +326,21 @@ void helmholtz::boundaryResidual() {
     for (int e=0; e<wkset->numElem; e++) { // not parallelized yet
       for( size_type k=0; k<urbasis.extent(2); k++ ) {
         
-        AD ur = Ur(e,k);
-        AD ui = Ui(e,k);
-        AD durdx = dUr_dx(e,k);
-        AD duidx = dUi_dx(e,k);
-        AD durdn = durdx*nx(e,k);
-        AD duidn = duidx*nx(e,k);
+        EvalT ur = Ur(e,k);
+        EvalT ui = Ui(e,k);
+        EvalT durdx = dUr_dx(e,k);
+        EvalT duidx = dUi_dx(e,k);
+        EvalT durdn = durdx*nx(e,k);
+        EvalT duidn = duidx*nx(e,k);
         
-        AD durdy= 0.0, duidy= 0.0;
+        EvalT durdy= 0.0, duidy= 0.0;
         if (spaceDim > 1){
           durdy = dUr_dy(e,k);
           duidy = dUi_dy(e,k);
           durdn += durdy*ny(e,k);
           duidn += duidy*ny(e,k);
         }
-        AD durdz = 0.0, duidz= 0.0;
+        EvalT durdz = 0.0, duidz= 0.0;
         if (spaceDim > 2) {
           durdz = dUr_dz(e,k);
           duidz = dUi_dz(e,k);
@@ -344,10 +348,10 @@ void helmholtz::boundaryResidual() {
           duidn += duidz*nz(e,k);
         }
         
-        AD c2durdn = (c2r_side_x(e,k)*durdx - c2i_side_x(e,k)*duidx)*nx(e,k)
+        EvalT c2durdn = (c2r_side_x(e,k)*durdx - c2i_side_x(e,k)*duidx)*nx(e,k)
         + (c2r_side_y(e,k)*durdy - c2i_side_y(e,k)*duidy)*ny(e,k);
         
-        AD c2duidn = (c2r_side_x(e,k)*duidx + c2i_side_x(e,k)*durdx)*nx(e,k)
+        EvalT c2duidn = (c2r_side_x(e,k)*duidx + c2i_side_x(e,k)*durdx)*nx(e,k)
         + (c2r_side_y(e,k)*duidy + c2i_side_y(e,k)*durdy)*ny(e,k);
         
         if (spaceDim > 2) {
@@ -376,8 +380,8 @@ void helmholtz::boundaryResidual() {
         }
         else {
           
-          AD omegar = sqrt(omega2r(e,k));
-          AD omegai = sqrt(omega2i(e,k));
+          EvalT omegar = sqrt(omega2r(e,k));
+          EvalT omegai = sqrt(omega2i(e,k));
           
           for (size_type i=0; i<urbasis.extent(1); i++ ) {
             int resindex = offsets(ur_num,i);
@@ -419,8 +423,8 @@ void helmholtz::boundaryResidual() {
   
 }
 
-
-void helmholtz::edgeResidual() {
+template<class EvalT>
+void helmholtz<EvalT>::edgeResidual() {
   
 }
 
@@ -428,14 +432,16 @@ void helmholtz::edgeResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void helmholtz::computeFlux() {
+template<class EvalT>
+void helmholtz<EvalT>::computeFlux() {
   
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void helmholtz::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void helmholtz<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
@@ -448,3 +454,8 @@ void helmholtz::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
   }
 }
 
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::helmholtz<ScalarT>;
+#endif
+
+template class MrHyDE::helmholtz<AD>;

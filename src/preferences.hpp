@@ -81,6 +81,19 @@ typedef ScalarT AD;
 #else
 typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 #endif
+typedef Sacado::Fad::SFad<ScalarT,1> AD1;
+typedef Sacado::Fad::SFad<ScalarT,2> AD2;
+typedef Sacado::Fad::SFad<ScalarT,4> AD4;
+typedef Sacado::Fad::SFad<ScalarT,8> AD8;
+typedef Sacado::Fad::SFad<ScalarT,16> AD16;
+typedef Sacado::Fad::SFad<ScalarT,32> AD32;
+typedef Sacado::Fad::SFad<ScalarT,64> AD64;
+
+// Rarely used
+typedef Sacado::Fad::SFad<ScalarT,128> AD128;
+typedef Sacado::Fad::SFad<ScalarT,256> AD256;
+typedef Sacado::Fad::SFad<ScalarT,512> AD512;
+typedef Sacado::Fad::SFad<ScalarT,1024> A1024D;
 
 // Host Execution Space
 #if defined(MrHyDE_HOSTEXEC_OPENMP)
@@ -165,7 +178,8 @@ typedef Kokkos::View<LO**,HostDevice> LIDView_host;
 typedef Kokkos::View<ScalarT*>::size_type size_type;
 
 // Use ContLayout for faster hierarchical parallelism
-typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
+//typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
+typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout> ContLayout;
 
 typedef Kokkos::View<ScalarT*,AssemblyDevice> View_Sc1;
 typedef Kokkos::View<ScalarT**,AssemblyDevice> View_Sc2;

@@ -71,7 +71,7 @@ namespace MrHyDE {
     // Add the functions to the function managers
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionManagers_);
+    void defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers_);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +186,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    vector<Teuchos::RCP<FunctionManager> > function_managers;
+    vector<Teuchos::RCP<FunctionManager<AD> > > function_managers;
     Teuchos::RCP<MpiComm> comm;
     
     int dimension, debug_level;
@@ -196,7 +196,7 @@ namespace MrHyDE {
     
     //-----------------------------------------------------
     // Data the depends on physics sets
-    vector<vector<vector<Teuchos::RCP<physicsbase> > > > modules;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules;
     
     vector<vector<Teuchos::ParameterList>> physics_settings, disc_settings, solver_settings; // [set][block]
     vector<vector<vector<bool> > > use_subgrid;

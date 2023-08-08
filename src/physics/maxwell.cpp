@@ -14,8 +14,9 @@
 #include "maxwell.hpp"
 using namespace MrHyDE;
 
-maxwell::maxwell(Teuchos::ParameterList & settings, const int & dimension_)
-: physicsbase(settings, dimension_)
+template<class EvalT>
+maxwell<EvalT>::maxwell(Teuchos::ParameterList & settings, const int & dimension_)
+: PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "maxwell";
@@ -38,8 +39,9 @@ maxwell::maxwell(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::defineFunctions(Teuchos::ParameterList & fs,
-                              Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void maxwell<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                              Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -56,14 +58,15 @@ void maxwell::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::volumeResidual() {
+template<class EvalT>
+void maxwell<EvalT>::volumeResidual() {
   
   
   int E_basis = wkset->usebasis[Enum];
   int B_basis = wkset->usebasis[Bnum];
   
-  Vista mu, epsilon, sigma, rindex;
-  Vista current_x, current_y, current_z;
+  Vista<EvalT> mu, epsilon, sigma, rindex;
+  Vista<EvalT> current_x, current_y, current_z;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -100,7 +103,7 @@ void maxwell::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
+              EvalT f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
               }
@@ -112,7 +115,7 @@ void maxwell::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = dB_dt(elem,pt)*wts(elem,pt);
+              EvalT f0 = dB_dt(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
               }
@@ -126,7 +129,7 @@ void maxwell::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
+            EvalT f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
             }
@@ -156,9 +159,9 @@ void maxwell::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
-              AD f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
-              AD f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
+              EvalT f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
+              EvalT f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
+              EvalT f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -172,9 +175,9 @@ void maxwell::volumeResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-              AD f0 = dBx_dt(elem,pt)*wts(elem,pt);
-              AD f1 = dBy_dt(elem,pt)*wts(elem,pt);
-              AD f2 = dBz_dt(elem,pt)*wts(elem,pt);
+              EvalT f0 = dBx_dt(elem,pt)*wts(elem,pt);
+              EvalT f1 = dBy_dt(elem,pt)*wts(elem,pt);
+              EvalT f2 = dBz_dt(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
                 res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
                 res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -193,9 +196,9 @@ void maxwell::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
-            AD f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
-            AD f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
+            EvalT f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
+            EvalT f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
+            EvalT f2 = (dBz_dt(elem,pt) + curlE_z(elem,pt))*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0);
               res(elem,off(dof)) += f1*basis(elem,dof,pt,1);
@@ -229,9 +232,9 @@ void maxwell::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + (sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + (sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-            AD c0 = -1.0/mu(elem,pt)*B(elem,pt)*wts(elem,pt);
+            EvalT f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + (sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            EvalT f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + (sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            EvalT c0 = -1.0/mu(elem,pt)*B(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0) + f1*basis(elem,dof,pt,1);
             }
@@ -261,14 +264,14 @@ void maxwell::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD eps = epsilon(elem,pt);
-            AD f0 = (rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
-            AD f1 = (rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
-            AD f2 = (rindex(elem,pt)*rindex(elem,pt)*dEz_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
+            EvalT eps = epsilon(elem,pt);
+            EvalT f0 = (rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
+            EvalT f1 = (rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
+            EvalT f2 = (rindex(elem,pt)*rindex(elem,pt)*dEz_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ez(elem,pt) + current_z(elem,pt)))*wts(elem,pt);
             
-            AD c0 = -1.0/mu(elem,pt)*1.0/eps*Bx(elem,pt)*wts(elem,pt);
-            AD c1 = -1.0/mu(elem,pt)*1.0/eps*By(elem,pt)*wts(elem,pt);
-            AD c2 = -1.0/mu(elem,pt)*1.0/eps*Bz(elem,pt)*wts(elem,pt);
+            EvalT c0 = -1.0/mu(elem,pt)*1.0/eps*Bx(elem,pt)*wts(elem,pt);
+            EvalT c1 = -1.0/mu(elem,pt)*1.0/eps*By(elem,pt)*wts(elem,pt);
+            EvalT c2 = -1.0/mu(elem,pt)*1.0/eps*Bz(elem,pt)*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += f0*basis(elem,dof,pt,0) + c0*basis_curl(elem,dof,pt,0);
               res(elem,off(dof)) += f1*basis(elem,dof,pt,1) + c1*basis_curl(elem,dof,pt,1);
@@ -284,7 +287,8 @@ void maxwell::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::boundaryResidual() {
+template<class EvalT>
+void maxwell<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -332,12 +336,12 @@ void maxwell::boundaryResidual() {
                    KOKKOS_LAMBDA (const int elem ) {
     
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
-          AD nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
-          AD nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
-          AD c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
-          AD c1 = -(1.0+gamma)*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
-          AD c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
+          EvalT nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
+          EvalT nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
+          EvalT nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
+          EvalT c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
+          EvalT c1 = -(1.0+gamma)*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
+          EvalT c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
           }
@@ -355,12 +359,12 @@ void maxwell::boundaryResidual() {
     
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           
-          AD nce_x = ny(elem,pt)*Bz(elem,pt) - nz(elem,pt)*By(elem,pt);
-          AD nce_y = nz(elem,pt)*Bx(elem,pt) - nx(elem,pt)*Bz(elem,pt);
-          AD nce_z = nx(elem,pt)*By(elem,pt) - ny(elem,pt)*Bx(elem,pt);
-          AD c0 = nce_x*wts(elem,pt);
-          AD c1 = nce_y*wts(elem,pt);
-          AD c2 = nce_z*wts(elem,pt);
+          EvalT nce_x = ny(elem,pt)*Bz(elem,pt) - nz(elem,pt)*By(elem,pt);
+          EvalT nce_y = nz(elem,pt)*Bx(elem,pt) - nx(elem,pt)*Bz(elem,pt);
+          EvalT nce_z = nx(elem,pt)*By(elem,pt) - ny(elem,pt)*Bx(elem,pt);
+          EvalT c0 = nce_x*wts(elem,pt);
+          EvalT c1 = nce_y*wts(elem,pt);
+          EvalT c2 = nce_z*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
           }
@@ -377,7 +381,8 @@ void maxwell::boundaryResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwell::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void maxwell<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   
   wkset = wkset_;
   
@@ -395,3 +400,8 @@ void maxwell::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
   }
 }
 
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::maxwell<ScalarT>;
+#endif
+
+template class MrHyDE::maxwell<AD>;

@@ -19,8 +19,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-thermal::thermal(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+thermal<EvalT>::thermal(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   // Standard data
@@ -48,8 +49,9 @@ thermal::thermal(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void thermal::defineFunctions(Teuchos::ParameterList & fs,
-                              Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void thermal<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                              Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
 
@@ -70,13 +72,14 @@ void thermal::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void thermal::volumeResidual() {
+template<class EvalT>
+void thermal<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
   
-  Vista source, diff, cp, rho, bx, by, bz;
+  Vista<EvalT> source, diff, cp, rho, bx, by, bz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -115,7 +118,7 @@ void thermal::volumeResidual() {
   auto dTdy = wkset->getSolutionField("grad(e)[y]"); //dedy_vol;
   auto dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_vol;
   
-  View_AD2 Ux, Uy, Uz;
+  View_EvalT2 Ux, Uy, Uz;
   if (have_nsvel) {
     Ux = wkset->getSolutionField("ux");
     Uy = wkset->getSolutionField("uy");
@@ -170,7 +173,8 @@ void thermal::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void thermal::boundaryResidual() {
+template<class EvalT>
+void thermal<EvalT>::boundaryResidual() {
   
   auto bcs = wkset->var_bcs;
   
@@ -180,7 +184,7 @@ void thermal::boundaryResidual() {
   auto basis = wkset->basis_side[e_basis_num];
   auto basis_grad = wkset->basis_grad_side[e_basis_num];
   
-  Vista nsource, diff_side, robin_alpha;
+  Vista<EvalT> nsource, diff_side, robin_alpha;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -233,13 +237,14 @@ void thermal::boundaryResidual() {
     auto nx = wkset->getScalarField("n[x]");
     auto ny = wkset->getScalarField("n[y]");
     auto nz = wkset->getScalarField("n[z]");
-    Vista bdata;
+    Vista<EvalT> bdata;
     
     if (bcs(e_num,cside) == "weak Dirichlet") {
       bdata = nsource;
     }
     else if (bcs(e_num,cside) == "interface") {
-      bdata = wkset->getSolutionField("aux e");
+      auto vbdata = wkset->getSolutionField("aux e");
+      bdata = Vista<EvalT>(vbdata);
     }
     ScalarT epen = 10.0;
     parallel_for("Thermal bndry resid wD",
@@ -284,7 +289,8 @@ void thermal::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void thermal::computeFlux() {
+template<class EvalT>
+void thermal<EvalT>::computeFlux() {
   
   int spaceDim = wkset->dimension;
   // TMW: sf is still an issue for GPUs
@@ -293,14 +299,14 @@ void thermal::computeFlux() {
     sf = formparam;
   }
   
-  Vista diff_side;
+  Vista<EvalT> diff_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     diff_side = functionManager->evaluate("thermal diffusion","side ip");
   }
   
   View_Sc2 nx, ny, nz;
-  View_AD2 T, dTdx, dTdy, dTdz;
+  View_EvalT2 T, dTdx, dTdy, dTdz;
   nx = wkset->getScalarField("n[x]");
   T = wkset->getSolutionField("e");
   dTdx = wkset->getSolutionField("grad(e)[x]"); //dedx_side;
@@ -350,7 +356,8 @@ void thermal::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void thermal::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void thermal<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   
@@ -416,7 +423,8 @@ void thermal::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 // return the integrands for the integrated quantities (testing only for now)
 // ========================================================================================
 
-std::vector< std::vector<string> > thermal::setupIntegratedQuantities(const int & spaceDim) {
+template<class EvalT>
+std::vector< std::vector<string> > thermal<EvalT>::setupIntegratedQuantities(const int & spaceDim) {
 
   std::vector< std::vector<string> > integrandsNamesAndTypes;
 
@@ -441,3 +449,9 @@ std::vector< std::vector<string> > thermal::setupIntegratedQuantities(const int 
   return integrandsNamesAndTypes;
 
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::thermal<ScalarT>;
+#endif
+
+template class MrHyDE::thermal<AD>;

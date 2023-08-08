@@ -18,8 +18,9 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-KuramotoSivashinsky::KuramotoSivashinsky(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+KuramotoSivashinsky<EvalT>::KuramotoSivashinsky(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "Kuramoto-Sivashinsky";
@@ -33,8 +34,9 @@ KuramotoSivashinsky::KuramotoSivashinsky(Teuchos::ParameterList & settings, cons
 // ========================================================================================
 // ========================================================================================
 
-void KuramotoSivashinsky::defineFunctions(Teuchos::ParameterList & fs,
-                              Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void KuramotoSivashinsky<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                              Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   functionManager = functionManager_;
 
 }
@@ -42,7 +44,8 @@ void KuramotoSivashinsky::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void KuramotoSivashinsky::volumeResidual() {
+template<class EvalT>
+void KuramotoSivashinsky<EvalT>::volumeResidual() {
   
   int spacedim = wkset->dimension;
   
@@ -67,9 +70,9 @@ void KuramotoSivashinsky::volumeResidual() {
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD gradu_sq = 0.5*dudx(elem,pt)*dudx(elem,pt);
-          AD f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
-          AD Fx = -(dwdx(elem,pt))*wts(elem,pt);
+          EvalT gradu_sq = 0.5*dudx(elem,pt)*dudx(elem,pt);
+          EvalT f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
+          EvalT Fx = -(dwdx(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
           }
@@ -86,10 +89,10 @@ void KuramotoSivashinsky::volumeResidual() {
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt));
-          AD f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
-          AD Fx = -(dwdx(elem,pt))*wts(elem,pt);
-          AD Fy = -(dwdy(elem,pt))*wts(elem,pt);
+          EvalT gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt));
+          EvalT f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
+          EvalT Fx = -(dwdx(elem,pt))*wts(elem,pt);
+          EvalT Fy = -(dwdy(elem,pt))*wts(elem,pt);
           
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
@@ -109,11 +112,11 @@ void KuramotoSivashinsky::volumeResidual() {
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt) + dudz(elem,pt)*dudz(elem,pt));
-          AD f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
-          AD Fx = -(dwdx(elem,pt))*wts(elem,pt);
-          AD Fy = -(dwdy(elem,pt))*wts(elem,pt);
-          AD Fz = -(dwdz(elem,pt))*wts(elem,pt);
+          EvalT gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt) + dudz(elem,pt)*dudz(elem,pt));
+          EvalT f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
+          EvalT Fx = -(dwdx(elem,pt))*wts(elem,pt);
+          EvalT Fy = -(dwdy(elem,pt))*wts(elem,pt);
+          EvalT Fz = -(dwdz(elem,pt))*wts(elem,pt);
           
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
@@ -134,8 +137,8 @@ void KuramotoSivashinsky::volumeResidual() {
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD f = (w(elem,pt))*wts(elem,pt);
-          AD Fx = (dudx(elem,pt))*wts(elem,pt);
+          EvalT f = (w(elem,pt))*wts(elem,pt);
+          EvalT Fx = (dudx(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
           }
@@ -150,9 +153,9 @@ void KuramotoSivashinsky::volumeResidual() {
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD f = (w(elem,pt))*wts(elem,pt);
-          AD Fx = (dudx(elem,pt))*wts(elem,pt);
-          AD Fy = (dudy(elem,pt))*wts(elem,pt);
+          EvalT f = (w(elem,pt))*wts(elem,pt);
+          EvalT Fx = (dudx(elem,pt))*wts(elem,pt);
+          EvalT Fy = (dudy(elem,pt))*wts(elem,pt);
           
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
@@ -169,10 +172,10 @@ void KuramotoSivashinsky::volumeResidual() {
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
                   KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD f = (w(elem,pt))*wts(elem,pt);
-          AD Fx = (dudx(elem,pt))*wts(elem,pt);
-          AD Fy = (dudy(elem,pt))*wts(elem,pt);
-          AD Fz = (dudz(elem,pt))*wts(elem,pt);
+          EvalT f = (w(elem,pt))*wts(elem,pt);
+          EvalT Fx = (dudx(elem,pt))*wts(elem,pt);
+          EvalT Fy = (dudy(elem,pt))*wts(elem,pt);
+          EvalT Fz = (dudz(elem,pt))*wts(elem,pt);
           
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
@@ -184,7 +187,8 @@ void KuramotoSivashinsky::volumeResidual() {
 
 }
 
-void KuramotoSivashinsky::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void KuramotoSivashinsky<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   
@@ -198,3 +202,9 @@ void KuramotoSivashinsky::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
       w_num = i;
   }
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::KuramotoSivashinsky<ScalarT>;
+#endif
+
+template class MrHyDE::KuramotoSivashinsky<AD>;

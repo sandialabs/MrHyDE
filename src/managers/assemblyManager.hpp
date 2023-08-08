@@ -263,11 +263,11 @@ namespace MrHyDE {
                           bool & useTransientSol) {
 
 
-      #ifndef MrHyDE_NO_AD
+      //#ifndef MrHyDE_NO_AD
         typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
-      #else
-        typedef View_Sc2 View_AD2;
-      #endif
+      //#else
+      //  typedef View_Sc2 View_AD2;
+      //#endif
       int wkblock = 0;
 
       wkset[wkblock]->setTime(time);
@@ -546,7 +546,7 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
-    std::vector<Teuchos::RCP<FunctionManager> > function_managers;
+    std::vector<Teuchos::RCP<FunctionManager<AD> > > function_managers;
 
     size_t globalParamUnknowns;
     int verbosity, debug_level;

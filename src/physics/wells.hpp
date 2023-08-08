@@ -32,20 +32,11 @@ namespace MrHyDE {
    * @brief A helper class to store Peaceman well sources and evalute them
    */
   
+  template<class EvalT>
   class wells {
 
-    #ifndef MrHyDE_NO_AD
-      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
-      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
-      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
-      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
-    #else
-      typedef View_Sc1 View_AD1;
-      typedef View_Sc2 View_AD2;
-      typedef View_Sc3 View_AD3;
-      typedef View_Sc4 View_AD4;
-    #endif
-    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+      
   public:
     
     wells() {};
@@ -91,15 +82,15 @@ namespace MrHyDE {
      * @returns  The finalized source term
      */
 
-    Vista addWellSources(Vista & source, View_Sc1 & h, 
-                         Teuchos::RCP<FunctionManager> & functionManager,
+    Vista<EvalT> addWellSources(Vista<EvalT> & source, View_Sc1 & h, 
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager,
                          int numElem, int numIP) {
 
       auto Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
       auto Kinv_yy = functionManager->evaluate("Kinv_yy","ip");
       auto Kinv_zz = functionManager->evaluate("Kinv_zz","ip");
 
-      View_AD2 source_kv("KV for source", numElem, numIP);
+      View_EvalT2 source_kv("KV for source", numElem, numIP);
 
       for (size_t wellnum=0; wellnum<myWells.size(); wellnum++) {
 
@@ -122,23 +113,23 @@ namespace MrHyDE {
             // need to compute the flow rate from the model
             else {
 #ifndef MrHyDE_NO_AD
-              ScalarT Kxval = 1.0/Kinv_xx(elem,pt).val();
-              ScalarT Kyval = 1.0/Kinv_yy(elem,pt).val();
-              ScalarT Kzval = 1.0/Kinv_zz(elem,pt).val();
+              EvalT Kxval = 1.0/Kinv_xx(elem,pt);
+              EvalT Kyval = 1.0/Kinv_yy(elem,pt);
+              EvalT Kzval = 1.0/Kinv_zz(elem,pt);
 #else
               ScalarT Kxval = 1.0/Kinv_xx(elem,pt);
               ScalarT Kyval = 1.0/Kinv_yy(elem,pt);
               ScalarT Kzval = 1.0/Kinv_zz(elem,pt);
 #endif
               // TODO revisit this, especially for 3-D
-              ScalarT Kval = sqrt(Kxval*Kxval + Kyval*Kyval + Kzval*Kzval);
+              EvalT Kval = sqrt(Kxval*Kxval + Kyval*Kyval + Kzval*Kzval);
               source_kv(elem,pt) += 2.0*PI/C*Kval*wellfun(elem,pt);
             }
           }
         });
       }
 
-      return Vista(source_kv);
+      return Vista<EvalT>(source_kv);
 
     }
     
@@ -151,5 +142,11 @@ namespace MrHyDE {
   };
   
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::wells<ScalarT>;
+#endif
+
+template class MrHyDE::wells<AD>;
 
 #endif

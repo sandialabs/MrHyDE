@@ -27,7 +27,8 @@ test_explicit_views.cpp)
 TARGET_LINK_LIBRARIES(test_explicit_views ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 ADD_EXECUTABLE(test_vistas
-test_vistas.cpp)
+test_vistas.cpp
+../src/tools/vista.cpp)
 TARGET_LINK_LIBRARIES(test_vistas ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 ADD_EXECUTABLE(test_percept
@@ -47,6 +48,7 @@ TARGET_LINK_LIBRARIES(test_compadre ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARI
 ADD_EXECUTABLE(test_functions
 test_functions.cpp
 ../src/tools/workset.cpp
+../src/tools/vista.cpp
 ../src/tools/interpreter.cpp
 ../src/managers/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 

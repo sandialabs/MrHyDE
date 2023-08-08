@@ -16,24 +16,15 @@
 #include <string>
 using namespace MrHyDE;
 
-#ifndef MrHyDE_NO_AD
-      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
-      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
-      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
-      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
-    #else
-      typedef View_Sc1 View_AD1;
-      typedef View_Sc2 View_AD2;
-      typedef View_Sc3 View_AD3;
-      typedef View_Sc4 View_AD4;
-    #endif
+typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_EvalT2;
 
 // ========================================================================================
 /* Constructor to set up the problem */
 // ========================================================================================
 
-linearelasticity::linearelasticity(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+linearelasticity<EvalT>::linearelasticity(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "linearelasticity";
@@ -55,7 +46,7 @@ linearelasticity::linearelasticity(Teuchos::ParameterList & settings, const int 
   
   useCE = settings.get<bool>("use crystal elasticity",false);
   if (useCE) {
-    crystalelast = Teuchos::rcp(new CrystalElastic(settings, spaceDim));
+    crystalelast = Teuchos::rcp(new CrystalElastic<EvalT>(settings, spaceDim));
   }
   
   incplanestress = settings.get<bool>("incplanestress",false);
@@ -77,8 +68,9 @@ linearelasticity::linearelasticity(Teuchos::ParameterList & settings, const int 
 // ========================================================================================
 // ========================================================================================
 
-void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
-                                       Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void linearelasticity<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                       Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -90,10 +82,10 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"side ip");
   functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"side ip");
   
-  stress_vol = View_AD4("stress tensor", functionManager->num_elem_,
+  stress_vol = View_EvalT4("stress tensor", functionManager->num_elem_,
                         functionManager->num_ip_, spaceDim, spaceDim);
   
-  stress_side = View_AD4("stress tensor", functionManager->num_elem_,
+  stress_side = View_EvalT4("stress tensor", functionManager->num_elem_,
                          functionManager->num_ip_side_, spaceDim, spaceDim);
   
 }
@@ -101,10 +93,11 @@ void linearelasticity::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void linearelasticity::volumeResidual() {
+template<class EvalT>
+void linearelasticity<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  Vista lambda, mu, source_dx, source_dy, source_dz;
+  Vista<EvalT> lambda, mu, source_dx, source_dy, source_dz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -252,7 +245,8 @@ void linearelasticity::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void linearelasticity::boundaryResidual() {
+template<class EvalT>
+void linearelasticity<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -269,7 +263,7 @@ void linearelasticity::boundaryResidual() {
     dz_sidetype = bcs(dz_num,cside);
   }
   
-  Vista lambda_side, mu_side, source_dx, source_dy, source_dz;
+  Vista<EvalT> lambda_side, mu_side, source_dx, source_dy, source_dz;
   
   if (dx_sidetype != "Dirichlet" || dy_sidetype != "Dirichlet" || dz_sidetype != "Dirichlet") {
     
@@ -332,9 +326,9 @@ void linearelasticity::boundaryResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
-            AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-            AD deltadx = dx(e,k) - source_dx(e,k);
-            AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k);
+            EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+            EvalT deltadx = dx(e,k) - source_dx(e,k);
+            EvalT bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k);
             for (size_type i=0; i<basis.extent(1); i++ ) {
               res(e,off(i)) += ((-stress(e,k,0,0)*nx(e,k))*basis(e,i,k,0) + penalty*deltadx*basis(e,i,k,0) - modelparams(0)*bx*basis_grad(e,i,k,0))*wts(e,k);
             }
@@ -348,9 +342,9 @@ void linearelasticity::boundaryResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
-            AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-            AD deltadx = dx(e,k) - lambdax(e,k);
-            AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k);
+            EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+            EvalT deltadx = dx(e,k) - lambdax(e,k);
+            EvalT bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k);
             for (size_type i=0; i<basis.extent(1); i++ ) {
               res(e,off(i)) += ((-stress(e,k,0,0)*nx(e,k))*basis(e,i,k,0) + penalty*deltadx*basis(e,i,k,0) - modelparams(0)*bx*basis_grad(e,i,k,0))*wts(e,k);
             }
@@ -387,11 +381,11 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k) - source_dy(e,k); // ditto
-              AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k);
-              AD by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              EvalT deltady = dy(e,k) - source_dy(e,k); // ditto
+              EvalT bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k);
+              EvalT by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
               
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,0,0)*nx(e,k) - stress(e,k,0,1)*ny(e,k))*basis(e,i,k,0) + penalty*deltadx*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1)))*wts(e,k);
@@ -408,11 +402,11 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - lambdax(e,k);
-              AD deltady = dy(e,k) - lambday(e,k);
-              AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k);
-              AD by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - lambdax(e,k);
+              EvalT deltady = dy(e,k) - lambday(e,k);
+              EvalT bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k);
+              EvalT by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,0,0)*nx(e,k) - stress(e,k,0,1)*ny(e,k))*basis(e,i,k,0) + penalty*deltadx*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0) + by*basis_grad(e,i,k,1)))*wts(e,k);
               }
@@ -445,11 +439,11 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k) - source_dy(e,k); // ditto
-              AD bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
-              AD by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              EvalT deltady = dy(e,k) - source_dy(e,k); // ditto
+              EvalT bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,1,0)*nx(e,k) - stress(e,k,1,1)*ny(e,k))*basis(e,i,k,0) + penalty*deltady*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1)))*wts(e,k);
               }
@@ -465,11 +459,11 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - lambdax(e,k);
-              AD deltady = dy(e,k) - lambday(e,k);
-              AD bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
-              AD by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - lambdax(e,k);
+              EvalT deltady = dy(e,k) - lambday(e,k);
+              EvalT bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,1,0)*nx(e,k) - stress(e,k,1,1)*ny(e,k))*basis(e,i,k,0) + penalty*deltady*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0) + by*basis_grad(e,i,k,1)))*wts(e,k);
               }
@@ -509,13 +503,13 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k) - source_dy(e,k); // ditto
-              AD deltadz = dz(e,k) - source_dz(e,k); // ditto
-              AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
-              AD by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
-              AD bz = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              EvalT deltady = dy(e,k) - source_dy(e,k); // ditto
+              EvalT deltadz = dz(e,k) - source_dz(e,k); // ditto
+              EvalT bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
+              EvalT by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT bz = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,0,0)*nx(e,k) - stress(e,k,0,1)*ny(e,k) - stress(e,k,0,2)*nz(e,k))*basis(e,i,k,0) + penalty*deltadx*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1) + bz*basis_grad(e,i,k,2)))*wts(e,k);
               }
@@ -533,13 +527,13 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - lambdax(e,k);
-              AD deltady = dy(e,k) - lambday(e,k); // ditto
-              AD deltadz = dz(e,k) - lambdaz(e,k); // ditto
-              AD bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
-              AD by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
-              AD bz = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - lambdax(e,k);
+              EvalT deltady = dy(e,k) - lambday(e,k); // ditto
+              EvalT deltadz = dz(e,k) - lambdaz(e,k); // ditto
+              EvalT bx = (lambda_side(e,k) + 2.0*mu_side(e,k))*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
+              EvalT by = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT bz = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,0,0)*nx(e,k) - stress(e,k,0,1)*ny(e,k) - stress(e,k,0,2)*nz(e,k))*basis(e,i,k,0) + penalty*deltadx*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1) + bz*basis_grad(e,i,k,2)))*wts(e,k);
               }
@@ -573,13 +567,13 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k) - source_dy(e,k); // ditto
-              AD deltadz = dz(e,k) - source_dz(e,k); // ditto
-              AD bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
-              AD by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
-              AD bz = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              EvalT deltady = dy(e,k) - source_dy(e,k); // ditto
+              EvalT deltadz = dz(e,k) - source_dz(e,k); // ditto
+              EvalT bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
+              EvalT bz = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,1,0)*nx(e,k) - stress(e,k,1,1)*ny(e,k) - stress(e,k,1,2)*nz(e,k))*basis(e,i,k,0) + penalty*deltady*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1) + bz*basis_grad(e,i,k,2)))*wts(e,k);
               }
@@ -597,13 +591,13 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - lambdax(e,k);
-              AD deltady = dy(e,k) - lambday(e,k); // ditto
-              AD deltadz = dz(e,k) - lambdaz(e,k); // ditto
-              AD bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
-              AD by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
-              AD bz = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - lambdax(e,k);
+              EvalT deltady = dy(e,k) - lambday(e,k); // ditto
+              EvalT deltadz = dz(e,k) - lambdaz(e,k); // ditto
+              EvalT bx = mu_side(e,k)*deltady*nx(e,k) + mu_side(e,k)*deltadx*ny(e,k);
+              EvalT by = lambda_side(e,k)*deltadx*nx(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltady*ny(e,k) + lambda_side(e,k)*deltadz*nz(e,k);
+              EvalT bz = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,1,0)*nx(e,k) - stress(e,k,1,1)*ny(e,k) - stress(e,k,1,2)*nz(e,k))*basis(e,i,k,0) + penalty*deltady*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1) + bz*basis_grad(e,i,k,2)))*wts(e,k);
               }
@@ -636,13 +630,13 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
-              AD deltady = dy(e,k) - source_dy(e,k); // ditto
-              AD deltadz = dz(e,k) - source_dz(e,k); // ditto
-              AD bx = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
-              AD by = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
-              AD bz = lambda_side(e,k)*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltadz*nz(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
+              EvalT deltady = dy(e,k) - source_dy(e,k); // ditto
+              EvalT deltadz = dz(e,k) - source_dz(e,k); // ditto
+              EvalT bx = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
+              EvalT by = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
+              EvalT bz = lambda_side(e,k)*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltadz*nz(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,2,0)*nx(e,k) - stress(e,k,2,1)*ny(e,k) - stress(e,k,2,2)*nz(e,k))*basis(e,i,k,0) + penalty*deltadz*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1) + bz*basis_grad(e,i,k,2)))*wts(e,k);
               }
@@ -661,13 +655,13 @@ void linearelasticity::boundaryResidual() {
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
-              AD penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
-              AD deltadx = dx(e,k) - lambdax(e,k);
-              AD deltady = dy(e,k) - lambday(e,k); // ditto
-              AD deltadz = dz(e,k) - lambdaz(e,k); // ditto
-              AD bx = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
-              AD by = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
-              AD bz = lambda_side(e,k)*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltadz*nz(e,k);
+              EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
+              EvalT deltadx = dx(e,k) - lambdax(e,k);
+              EvalT deltady = dy(e,k) - lambday(e,k); // ditto
+              EvalT deltadz = dz(e,k) - lambdaz(e,k); // ditto
+              EvalT bx = mu_side(e,k)*deltadz*nx(e,k) + mu_side(e,k)*deltadx*nz(e,k);
+              EvalT by = mu_side(e,k)*deltadz*ny(e,k) + mu_side(e,k)*deltady*nz(e,k);
+              EvalT bz = lambda_side(e,k)*deltadx*nx(e,k) + lambda_side(e,k)*deltady*ny(e,k) + (lambda_side(e,k)+2.0*mu_side(e,k))*deltadz*nz(e,k);
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += ((-stress(e,k,2,0)*nx(e,k) - stress(e,k,2,1)*ny(e,k) - stress(e,k,2,2)*nz(e,k))*basis(e,i,k,0) + penalty*deltadz*basis(e,i,k,0) - modelparams(0)*(bx*basis_grad(e,i,k,0)+by*basis_grad(e,i,k,1) + bz*basis_grad(e,i,k,2)))*wts(e,k);
               }
@@ -684,7 +678,8 @@ void linearelasticity::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void linearelasticity::computeFlux() {
+template<class EvalT>
+void linearelasticity<EvalT>::computeFlux() {
   
   
   int cside = wkset->currentside;
@@ -699,7 +694,7 @@ void linearelasticity::computeFlux() {
     dz_sidetype = wkset->var_bcs(dz_num,cside);
   }
   
-  Vista lambda_side, mu_side;
+  Vista<EvalT> lambda_side, mu_side;
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
     lambda_side = functionManager->evaluate("lambda","side ip");
@@ -719,12 +714,13 @@ void linearelasticity::computeFlux() {
     if (spaceDim == 1) {
       auto nx = wkset->getScalarField("n[x]");
       auto dx = wkset->getSolutionField("dx");
-      Vista source_dx;
+      Vista<EvalT> source_dx;
       if (dx_sidetype == "Neumann") {
         source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
       }
       else if (dx_sidetype == "interface") {
-        source_dx = wkset->getSolutionField("aux dx");
+        auto vsource_dx = wkset->getSolutionField("aux dx");
+        source_dx = Vista<EvalT>(vsource_dx);
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
         source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
@@ -734,7 +730,7 @@ void linearelasticity::computeFlux() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
-          AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+          EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*stress_side(e,k,0,0)*nx(e,k) + penalty*(source_dx(e,k)-dx(e,k));
         }
       });
@@ -744,12 +740,13 @@ void linearelasticity::computeFlux() {
       auto ny = wkset->getScalarField("n[y]");
       auto dx = wkset->getSolutionField("dx");
       auto dy = wkset->getSolutionField("dy");
-      Vista source_dx, source_dy;
+      Vista<EvalT> source_dx, source_dy;
       if (dx_sidetype == "Neumann") {
         source_dx = functionManager->evaluate("Neumann dx " + wkset->sidename,"side ip");
       }
       else if (dx_sidetype == "interface") {
-        source_dx = wkset->getSolutionField("aux dx");
+        auto vsource_dx = wkset->getSolutionField("aux dx");
+        source_dx = Vista<EvalT>(vsource_dx);
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
         source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
@@ -759,7 +756,8 @@ void linearelasticity::computeFlux() {
         source_dy = functionManager->evaluate("Neumann dy " + wkset->sidename,"side ip");
       }
       else if (dy_sidetype == "interface") {
-        source_dy = wkset->getSolutionField("aux dy");
+        auto vsource_dy = wkset->getSolutionField("aux dy");
+        source_dy = Vista<EvalT>(vsource_dy);
       }
       else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
         source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
@@ -771,7 +769,7 @@ void linearelasticity::computeFlux() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
-          AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+          EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
           flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k)) + penalty*(source_dy(e,k)-dy(e,k));
         }
@@ -785,11 +783,12 @@ void linearelasticity::computeFlux() {
       auto dy = wkset->getSolutionField("dy");
       auto dz = wkset->getSolutionField("dz");
       
-      Vista source_dx, source_dy, source_dz;
+      Vista<EvalT> source_dx, source_dy, source_dz;
       bool compute_dx = true, compute_dy = true, compute_dz = true;
       
       if (dx_sidetype == "interface") {
-        source_dx = wkset->getSolutionField("aux dx");
+        auto vsource_dx = wkset->getSolutionField("aux dx");
+        source_dx = Vista<EvalT>(vsource_dx);
       }
       else if (dx_sidetype == "weak Dirichlet" || dx_sidetype == "Dirichlet") {
         source_dx = functionManager->evaluate("Dirichlet dx " + wkset->sidename,"side ip");
@@ -799,7 +798,8 @@ void linearelasticity::computeFlux() {
       }
       
       if (dy_sidetype == "interface") {
-        source_dy = wkset->getSolutionField("aux dy");
+        auto vsource_dy = wkset->getSolutionField("aux dy");
+        source_dy = Vista<EvalT>(vsource_dy);
       }
       else if (dy_sidetype == "weak Dirichlet" || dy_sidetype == "Dirichlet") {
         source_dy = functionManager->evaluate("Dirichlet dy " + wkset->sidename,"side ip");
@@ -809,7 +809,8 @@ void linearelasticity::computeFlux() {
       }
       
       if (dz_sidetype == "interface") {
-        source_dz = wkset->getSolutionField("aux dz");
+        auto vsource_dz = wkset->getSolutionField("aux dz");
+        source_dz = Vista<EvalT>(vsource_dz);
       }
       else if (dz_sidetype == "weak Dirichlet" || dz_sidetype == "Dirichlet") {
         source_dz = functionManager->evaluate("Dirichlet dz " + wkset->sidename,"side ip");
@@ -824,7 +825,7 @@ void linearelasticity::computeFlux() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<flux_x.extent(1); k++) {
-            AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+            EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
             flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k) + stress_side(e,k,0,2)*nz(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
           }
         });
@@ -836,7 +837,7 @@ void linearelasticity::computeFlux() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<flux_y.extent(1); k++) {
-            AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+            EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
             flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k) + stress_side(e,k,1,2)*nz(e,k)) + penalty*(source_dy(e,k)-dy(e,k));
           }
         });
@@ -848,7 +849,7 @@ void linearelasticity::computeFlux() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_type k=0; k<flux_z.extent(1); k++) {
-            AD penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
+            EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
             flux_z(e,k) = 1.0*(stress_side(e,k,2,0)*nx(e,k) + stress_side(e,k,2,1)*ny(e,k) + stress_side(e,k,2,2)*nz(e,k)) + penalty*(source_dz(e,k)-dz(e,k));
           }
         });
@@ -860,7 +861,8 @@ void linearelasticity::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void linearelasticity::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   
@@ -912,7 +914,8 @@ void linearelasticity::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 // return the stress
 // ========================================================================================
 
-void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside) {
+template<class EvalT>
+void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, const bool & onside) {
   
   Teuchos::TimeMonitor localtime(*fillStress);
            
@@ -1276,7 +1279,8 @@ void linearelasticity::computeStress(Vista lambda, Vista mu, const bool & onside
 //      Need to update crystal elasticity to use function manager or wkset
 // ========================================================================================
 
-void linearelasticity::updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
+template<class EvalT>
+void linearelasticity<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
                                         const vector<string> & paramnames) {
   if (useCE) {
     crystalelast->updateParams(wkset);
@@ -1287,7 +1291,8 @@ void linearelasticity::updateParameters(const vector<Teuchos::RCP<vector<AD> > >
 // ========================================================================================
 // ========================================================================================
 
-std::vector<string> linearelasticity::getDerivedNames() {
+template<class EvalT>
+std::vector<string> linearelasticity<EvalT>::getDerivedNames() {
   std::vector<string> derived;
   derived.push_back("VM stress");
   derived.push_back("MAG stress");
@@ -1297,16 +1302,17 @@ std::vector<string> linearelasticity::getDerivedNames() {
 // ========================================================================================
 // ========================================================================================
 
-std::vector<View_AD2> linearelasticity::getDerivedValues() {
-  std::vector<View_AD2> derived;
+template<class EvalT>
+std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > linearelasticity<EvalT>::getDerivedValues() {
+  std::vector<View_EvalT2> derived;
   
   auto lambda = functionManager->evaluate("lambda","ip");
   auto mu = functionManager->evaluate("mu","ip");
   this->computeStress(lambda, mu, false);
   auto stress = stress_vol;
 
-  View_AD2 vmstress("von mises stress",stress.extent(0),stress.extent(1)); // numElem x numip
-  View_AD2 magstress("magnitude of stress",stress.extent(0),stress.extent(1)); // numElem x numip
+  View_EvalT2 vmstress("von mises stress",stress.extent(0),stress.extent(1)); // numElem x numip
+  View_EvalT2 magstress("magnitude of stress",stress.extent(0),stress.extent(1)); // numElem x numip
   
   int dimension = wkset->dimension;
   using namespace std;
@@ -1316,7 +1322,7 @@ std::vector<View_AD2> linearelasticity::getDerivedValues() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
-        AD sxx = stress(elem,pt,0,0);
+        EvalT sxx = stress(elem,pt,0,0);
         vmstress(elem,pt) = sqrt(sxx*sxx);
         magstress(elem,pt) = sqrt(sxx*sxx);
       }
@@ -1327,9 +1333,9 @@ std::vector<View_AD2> linearelasticity::getDerivedValues() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
-        AD sxx = stress(elem,pt,0,0);
-        AD syy = stress(elem,pt,1,1);
-        AD sxy = stress(elem,pt,0,1);
+        EvalT sxx = stress(elem,pt,0,0);
+        EvalT syy = stress(elem,pt,1,1);
+        EvalT sxy = stress(elem,pt,0,1);
         vmstress(elem,pt) = sqrt(sxx*sxx - sxx*syy + syy*syy + 3.0*sxy*sxy);
         magstress(elem,pt) = sqrt(sxx*sxx + syy*syy);
       }
@@ -1340,12 +1346,12 @@ std::vector<View_AD2> linearelasticity::getDerivedValues() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
-        AD sxx = stress(elem,pt,0,0);
-        AD syy = stress(elem,pt,1,1);
-        AD szz = stress(elem,pt,2,2);
-        AD sxy = stress(elem,pt,0,1);
-        AD syz = stress(elem,pt,1,2);
-        AD szx = stress(elem,pt,2,0);
+        EvalT sxx = stress(elem,pt,0,0);
+        EvalT syy = stress(elem,pt,1,1);
+        EvalT szz = stress(elem,pt,2,2);
+        EvalT sxy = stress(elem,pt,0,1);
+        EvalT syz = stress(elem,pt,1,2);
+        EvalT szx = stress(elem,pt,2,0);
         vmstress(elem,pt) = sqrt(0.5*((sxx-syy)*(sxx-syy) + (syy-szz)*(syy-szz) + (szz-sxx)*(szz-sxx)) + 3.0*(sxy*sxy+syz*syz+szx*szx) );
         magstress(elem,pt) = sqrt(sxx*sxx + syy*syy + szz*szz);
       }
@@ -1357,3 +1363,9 @@ std::vector<View_AD2> linearelasticity::getDerivedValues() {
   
   return derived;
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::linearelasticity<ScalarT>;
+#endif
+
+template class MrHyDE::linearelasticity<AD>;

@@ -608,5 +608,5 @@ template class MrHyDE::LinearAlgebraInterface<SolverNode>;
 template class MrHyDE::SolverOptions<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
 template class MrHyDE::LinearAlgebraInterface<SubgridSolverNode>;
-template class MrHyDE::SolverOptions<SubgridSolverNode>;
+template class MrHyDE::SolverOptions<SubgridSolverNode>; 
 #endif

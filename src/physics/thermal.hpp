@@ -37,8 +37,20 @@ namespace MrHyDE {
    *   - "thermal diffusion" is the thermal diffusion.
    *   - "specific heat" is the specific heat.
    */
-  class thermal : public physicsbase {
+
+  template<class EvalT>
+  class thermal : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    using PhysicsBase<EvalT>::adjrhs;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     thermal() {} ;
     
@@ -54,7 +66,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -75,7 +87,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
     
     /**
      * @brief Returns the integrands and their types (boundary/volume) for integrated quantities required

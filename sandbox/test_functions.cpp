@@ -49,7 +49,7 @@ int main(int argc, char * argv[]) {
     wkset->addScalarFields(scalars);
 
     // Create a function manager
-    Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
+    Teuchos::RCP<FunctionManager<AD> > functionManager = Teuchos::rcp(new FunctionManager<AD>("eblock",numElem,numip,numip));
     functionManager->wkset = wkset;
     
     //----------------------------------------------------------------------

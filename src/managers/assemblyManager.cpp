@@ -5520,10 +5520,10 @@ template<class Node>
 void AssemblyManager<Node>::createFunctions() {    
     
   for (size_t block=0; block<blocknames.size(); ++block) {
-    function_managers.push_back(Teuchos::rcp(new FunctionManager(blocknames[block],
-                                                                 groupData[block]->num_elem,
-                                                                 disc->numip[block],
-                                                                 disc->numip_side[block])));
+    function_managers.push_back(Teuchos::rcp(new FunctionManager<AD>(blocknames[block],
+                                                                     groupData[block]->num_elem,
+                                                                     disc->numip[block],
+                                                                     disc->numip_side[block])));
   }
     
   ////////////////////////////////////////////////////////////////////////////////

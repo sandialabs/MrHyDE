@@ -21,6 +21,7 @@
 
 namespace MrHyDE {
   
+  template<class EvalT>
   class Interpreter {
   public:
     
@@ -38,13 +39,13 @@ namespace MrHyDE {
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    void split(vector<Branch> & branches, const size_t & index);
+    void split(vector<Branch<EvalT> > & branches, const size_t & index);
     
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     //
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    bool isOperator(vector<Branch> & branches, size_t & index, vector<string> & ops);
+    bool isOperator(vector<Branch<EvalT> > & branches, size_t & index, vector<string> & ops);
     
   };
   

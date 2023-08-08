@@ -28,8 +28,19 @@ namespace MrHyDE {
    * Where the unknown ___ is the ___.
    * The following functions may be specified in the input.yaml file:
    */
-  class maxwells_fp : public physicsbase{
+
+  template<class EvalT>
+  class maxwells_fp : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     maxwells_fp() {};
     ~maxwells_fp() {};
@@ -44,7 +55,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT>> & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -72,61 +83,61 @@ namespace MrHyDE {
     // return frequency
     // ======================================================================================
     
-    AD getFreq(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
+    EvalT getFreq(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
     
     // ========================================================================================
     // return magnetic permeability
     // ========================================================================================
     
-    vector<AD> getPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
+    vector<EvalT> getPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
     
     // ========================================================================================
     // return inverse of magnetic permeability
     // ========================================================================================
     
-    vector<AD> getInvPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
+    vector<EvalT> getInvPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
     
     // ========================================================================================
     // return electric permittivity
     // ========================================================================================
     
-    vector<AD> getPermittivity(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
+    vector<EvalT> getPermittivity(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
     
     // ========================================================================================
     // return current density in interior of domain
     // ========================================================================================
     
-    vector<vector<AD> > getInteriorCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
+    vector<vector<EvalT> > getInteriorCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
     
     // ========================================================================================
     // return charge density in interior of domain
     // ========================================================================================
     
-    vector<AD> getInteriorCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
+    vector<EvalT> getInteriorCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
     
     // =======================================================================================
     // return electric current on boundary of domain
     // =======================================================================================
     
-    vector<vector<AD> > getBoundaryCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time,
+    vector<vector<EvalT> > getBoundaryCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time,
                                            const string & side_name, const int & boundary_type) const;
     
     // ========================================================================================
     // return charge density on boundary of domain (should be surface divergence of boundary current divided by i*omega
     // ========================================================================================
     
-    vector<AD> getBoundaryCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
+    vector<EvalT> getBoundaryCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const;
     
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
     
     // ========================================================================================
     // TMW: this needs to be deprecated
     // ========================================================================================
     
-    void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params, const std::vector<string> & paramnames);
+    void updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params, const std::vector<string> & paramnames);
     
     // ========================================================================================
     // ========================================================================================
@@ -134,10 +145,10 @@ namespace MrHyDE {
     
   private:
     
-    vector<AD> mu_params; //permeability
-    vector<AD> eps_params; //permittivity
-    vector<AD> freq_params; //frequency
-    vector<AD> source_params, boundary_params;
+    vector<EvalT> mu_params; //permeability
+    vector<EvalT> eps_params; //permittivity
+    vector<EvalT> freq_params; //frequency
+    vector<EvalT> source_params, boundary_params;
     
     int Axr_num, phir_num, Ayr_num, Azr_num, Axi_num, phii_num, Ayi_num, Azi_num;
     

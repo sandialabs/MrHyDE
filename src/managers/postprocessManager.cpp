@@ -26,7 +26,7 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_
                                              Teuchos::RCP<MeshInterface> & mesh_,
                                              Teuchos::RCP<DiscretizationInterface> & disc_,
                                              Teuchos::RCP<PhysicsInterface> & phys_,
-                                             vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
+                                             vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_) :
 Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
 assembler(assembler_), functionManagers(functionManagers_) {
@@ -46,7 +46,7 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_
                                              Teuchos::RCP<MeshInterface> & mesh_,
                                              Teuchos::RCP<DiscretizationInterface> & disc_,
                                              Teuchos::RCP<PhysicsInterface> & phys_,
-                                             vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
+                                             vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers_,
                                              Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                                              Teuchos::RCP<ParameterManager<Node> > & params_) :
@@ -4296,7 +4296,8 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
   for (size_t set=0; set<phys->modules.size(); ++set) {
     for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
       
-      vector<View_AD2> dqvals = phys->modules[set][block][m]->getDerivedValues();
+      //vector<View_AD2> dqvals = phys->modules[set][block][m]->getDerivedValues();
+      auto dqvals = phys->modules[set][block][m]->getDerivedValues();
       for (size_t k=0; k<dqvals.size(); k++) {
         auto cfield = subview(fields, ALL(), prog);
         auto cdq = dqvals[k];

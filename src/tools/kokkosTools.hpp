@@ -196,7 +196,9 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    static void print(Vista V, const string & message="") {
+    /*
+    template<class EvalT>
+    static void print(Vista<EvalT> V, const string & message="") {
       std::cout << std::endl;
       std::cout << message << std::endl;
       auto viewdata = V.getData();
@@ -235,7 +237,8 @@ namespace MrHyDE {
       std::cout << "-------------------------------" << std::endl;
       
     }
-    
+    */
+   
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     

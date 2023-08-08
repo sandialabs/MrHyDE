@@ -69,7 +69,7 @@ namespace MrHyDE {
                       Teuchos::RCP<MeshInterface> & mesh_,
                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
                       std::vector<std::vector<Teuchos::RCP<Group> > > & groups_,
-                      std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_);
+                      std::vector<Teuchos::RCP<FunctionManager<AD> > > macro_functionManagers_);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set the information from the macro-scale that does not depend on the specific group
@@ -153,7 +153,7 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<Workset<AD> > > macro_wkset;
     std::vector<std::vector<Teuchos::RCP<SGLA_CrsMatrix> > > subgrid_projection_maps;
     std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;
-    std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
+    std::vector<Teuchos::RCP<FunctionManager<AD> > > macro_functionManagers;
     
     vector<vector<vector<ScalarT> > > ml_model_inputs; // [model][datapt][data]
     vector<vector<ScalarT> > ml_model_outputs, ml_model_extradata; // [model][datapt] 

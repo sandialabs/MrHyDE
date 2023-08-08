@@ -46,9 +46,20 @@ namespace MrHyDE {
    *   - "source_S" is the source_S.
    */
 
-  class incompressibleSaturation : public physicsbase {
+  template<class EvalT>
+  class incompressibleSaturation : public PhysicsBase<EvalT> {
   public:
 
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
+    
     incompressibleSaturation() {};
     
     ~incompressibleSaturation() {};
@@ -63,7 +74,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT>> & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -84,7 +95,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     /* @brief Update the fluxes for the residual calculation.
      *
@@ -98,9 +109,9 @@ namespace MrHyDE {
     
     int S_num;
 
-    View_AD4 fluxes_vol; // Storage for the fluxes
+    View_EvalT4 fluxes_vol; // Storage for the fluxes
 
-    wells myWells;
+    wells<EvalT> myWells;
     bool useWells;
 
     ScalarT phi; // porosity

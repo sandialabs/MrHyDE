@@ -14,8 +14,9 @@
 #include "porous.hpp"
 using namespace MrHyDE;
 
-porous::porous(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+porous<EvalT>::porous(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   // Standard data
@@ -28,8 +29,9 @@ porous::porous(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void porous::defineFunctions(Teuchos::ParameterList & fs,
-                             Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void porous<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                             Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
 
@@ -56,7 +58,8 @@ void porous::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void porous::volumeResidual() {
+template<class EvalT>
+void porous<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int p_basis_num = wkset->usebasis[pnum];
@@ -65,7 +68,7 @@ void porous::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  Vista perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  Vista<EvalT> perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -91,10 +94,10 @@ void porous::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
-        AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
-        AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
+        EvalT Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        EvalT M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
         M *= wts(elem,pt);
-        AD Kx = Kdens*dpdx(elem,pt)*wts(elem,pt);
+        EvalT Kx = Kdens*dpdx(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += M*basis(elem,dof,pt,0) + Kx*basis_grad(elem,dof,pt,0);
         }
@@ -108,11 +111,11 @@ void porous::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
-        AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
-        AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
+        EvalT Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        EvalT M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
         M *= wts(elem,pt);
-        AD Kx = Kdens*dpdx(elem,pt)*wts(elem,pt);
-        AD Ky = Kdens*dpdy(elem,pt)*wts(elem,pt);
+        EvalT Kx = Kdens*dpdx(elem,pt)*wts(elem,pt);
+        EvalT Ky = Kdens*dpdy(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += M*basis(elem,dof,pt,0) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1);
         }
@@ -127,12 +130,12 @@ void porous::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
-        AD Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
-        AD M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
+        EvalT Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        EvalT M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
         M *= wts(elem,pt);
-        AD Kx = Kdens*dpdx(elem,pt)*wts(elem,pt);
-        AD Ky = Kdens*dpdy(elem,pt)*wts(elem,pt);
-        AD Kz = Kdens*dpdz(elem,pt)*wts(elem,pt);
+        EvalT Kx = Kdens*dpdx(elem,pt)*wts(elem,pt);
+        EvalT Ky = Kdens*dpdy(elem,pt)*wts(elem,pt);
+        EvalT Kz = Kdens*dpdz(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += M*basis(elem,dof,pt,0) + Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1) + Kz*basis_grad(elem,dof,pt,2);
         }
@@ -146,7 +149,8 @@ void porous::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void porous::boundaryResidual() {
+template<class EvalT>
+void porous<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -158,7 +162,7 @@ void porous::boundaryResidual() {
   auto basis = wkset->basis_side[basis_num];
   auto basis_grad = wkset->basis_grad_side[basis_num];
   
-  Vista perm, viscosity, densref, pref, comp, gravity, source; // porosity is currently unused
+  Vista<EvalT> perm, viscosity, densref, pref, comp, gravity, source; // porosity is currently unused
   
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
@@ -191,7 +195,7 @@ void porous::boundaryResidual() {
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
   View_Sc2 nx, ny, nz;
-  View_AD2 dpdx, dpdy, dpdz;
+  View_EvalT2 dpdx, dpdy, dpdz;
   nx = wkset->getScalarField("n[x]");
   dpdx = wkset->getSolutionField("grad(p)[x]");
   if (spaceDim > 1) {
@@ -211,7 +215,7 @@ void porous::boundaryResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD s = -source(elem,pt)*wts(elem,pt);
+        EvalT s = -source(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += s*basis(elem,dof,pt,0);
         }
@@ -224,11 +228,11 @@ void porous::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD pval = psol(elem,pt);
-        AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
-        AD Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
-        AD weakDiriScale = 10.0*Kval/h(elem);
-        AD Kgradp_dot_n = Kval*dpdx(elem,pt)*nx(elem,pt);
+        EvalT pval = psol(elem,pt);
+        EvalT dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
+        EvalT Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
+        EvalT weakDiriScale = 10.0*Kval/h(elem);
+        EvalT Kgradp_dot_n = Kval*dpdx(elem,pt)*nx(elem,pt);
         if (dim > 1) {
           Kgradp_dot_n += Kval*dpdy(elem,pt)*ny(elem,pt);
         }
@@ -236,10 +240,10 @@ void porous::boundaryResidual() {
           Kgradp_dot_n += Kval*dpdz(elem,pt)*nz(elem,pt);
         }
         Kgradp_dot_n *= wts(elem,pt);
-        AD pdiff = (pval - source(elem,pt))*wts(elem,pt);
+        EvalT pdiff = (pval - source(elem,pt))*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT v = basis(elem,dof,pt,0);
-          AD Kgradv_dot_n = Kval*basis_grad(elem,dof,pt,0)*nx(elem,pt);
+          EvalT Kgradv_dot_n = Kval*basis_grad(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
             Kgradv_dot_n += Kval*basis_grad(elem,dof,pt,1)*ny(elem,pt);
           }
@@ -258,11 +262,11 @@ void porous::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD pval = psol(elem,pt);
-        AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
-        AD Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
-        AD weakDiriScale = 10.0*Kval/h(elem);
-        AD Kgradp_dot_n = Kval*dpdx(elem,pt)*nx(elem,pt);
+        EvalT pval = psol(elem,pt);
+        EvalT dens = densref(elem,pt)*(1.0+comp(elem,pt)*(pval - pref(elem,pt)));
+        EvalT Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
+        EvalT weakDiriScale = 10.0*Kval/h(elem);
+        EvalT Kgradp_dot_n = Kval*dpdx(elem,pt)*nx(elem,pt);
         if (dim > 1) {
           Kgradp_dot_n += Kval*dpdy(elem,pt)*ny(elem,pt);
         }
@@ -270,10 +274,10 @@ void porous::boundaryResidual() {
           Kgradp_dot_n += Kval*dpdz(elem,pt)*nz(elem,pt);
         }
         Kgradp_dot_n *= wts(elem,pt);
-        AD pdiff = (pval - lambda(elem,pt))*wts(elem,pt);
+        EvalT pdiff = (pval - lambda(elem,pt))*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT v = basis(elem,dof,pt,0);
-          AD Kgradv_dot_n = Kval*basis_grad(elem,dof,pt,0)*nx(elem,pt);
+          EvalT Kgradv_dot_n = Kval*basis_grad(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
             Kgradv_dot_n += Kval*basis_grad(elem,dof,pt,1)*ny(elem,pt);
           }
@@ -290,7 +294,8 @@ void porous::boundaryResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void porous::edgeResidual() {
+template<class EvalT>
+void porous<EvalT>::edgeResidual() {
   
 }
 
@@ -298,7 +303,8 @@ void porous::edgeResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void porous::computeFlux() {
+template<class EvalT>
+void porous<EvalT>::computeFlux() {
   
   int spaceDim = wkset->dimension;
   ScalarT sf = 1.0; // TMW: not on device
@@ -306,7 +312,7 @@ void porous::computeFlux() {
     sf = formparam;
   }
   
-  Vista perm, porosity, viscosity, densref, pref, comp, gravity, source;
+  Vista<EvalT> perm, porosity, viscosity, densref, pref, comp, gravity, source;
   
   {
     Teuchos::TimeMonitor localtime(*fluxFunc);
@@ -324,7 +330,7 @@ void porous::computeFlux() {
   {
     Teuchos::TimeMonitor localtime(*fluxFill);
     View_Sc2 nx, ny, nz;
-    View_AD2 dpdx, dpdy, dpdz;
+    View_EvalT2 dpdx, dpdy, dpdz;
     nx = wkset->getScalarField("n[x]");
     dpdx = wkset->getSolutionField("grad(p)[x]");
     if (spaceDim > 1) {
@@ -344,11 +350,11 @@ void porous::computeFlux() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<pflux.extent(1); pt++) {
-        AD dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
-        AD Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
+        EvalT dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
+        EvalT Kval = perm(elem,pt)/viscosity(elem,pt)*dens;
         
-        AD penalty = 10.0*Kval/h(elem);
-        AD Kgradp_dot_n = Kval*dpdx(elem,pt)*nx(elem,pt);
+        EvalT penalty = 10.0*Kval/h(elem);
+        EvalT Kgradp_dot_n = Kval*dpdx(elem,pt)*nx(elem,pt);
         if (dim > 1) {
           Kgradp_dot_n += Kval*dpdy(elem,pt)*ny(elem,pt);
         }
@@ -366,7 +372,8 @@ void porous::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porous::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void porous<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); i++) {
@@ -395,7 +402,8 @@ void porous::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 // ========================================================================================
 // ========================================================================================
 
-void porous::updatePerm(View_AD2 perm) {
+template<class EvalT>
+void porous<EvalT>::updatePerm(View_EvalT2 perm) {
   
   View_Sc2 data = wkset->extra_data;
   
@@ -407,3 +415,9 @@ void porous::updatePerm(View_AD2 perm) {
     }
   });
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::porous<ScalarT>;
+#endif
+
+template class MrHyDE::porous<AD>;

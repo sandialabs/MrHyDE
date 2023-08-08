@@ -47,8 +47,22 @@ namespace MrHyDE {
    * \f$-gH\frac{\partial b}{\partial x}\f$ and \f$-gH\frac{\partial b}{\partial y}\f$, respectively.
    */
   
-  class shallowwaterHybridized : public physicsbase {
+  template<class EvalT>
+  class shallowwaterHybridized : public PhysicsBase<EvalT> {
   public:
+
+  // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
+
 
     shallowwaterHybridized() {};
     
@@ -64,7 +78,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -85,7 +99,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     /* @brief Update the fluxes for the residual calculation.
      *
@@ -128,8 +142,8 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-        const AD & Hux, const AD & H);
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+        const EvalT & Hux, const EvalT & H);
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
      * This is the 2-D version.
@@ -146,8 +160,8 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-        const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny);
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+        const EvalT & rhoux, const EvalT & rhouy, const EvalT & rho, const ScalarT & nx, const ScalarT & ny);
 
     /* @brief Computes y = Ax
      *
@@ -187,8 +201,8 @@ namespace MrHyDE {
 
     bool maxEVstab,roestab; // Options for stabilization
 
-    View_AD4 fluxes_vol, fluxes_side; // Storage for the fluxes
-    View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
+    View_EvalT4 fluxes_vol, fluxes_side; // Storage for the fluxes
+    View_EvalT3 stab_bound_side; // Storage for the stabilization term/boundary term
 
     Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
     

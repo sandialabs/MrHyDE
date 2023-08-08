@@ -23,27 +23,18 @@ namespace MrHyDE {
   // New data structure to wrap views and other data
   // =================================================================
   
+  template<class EvalT>
   class Vista {
 
-    #ifndef MrHyDE_NO_AD
-      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
-      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
-      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
-      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
-    #else
-      typedef View_Sc1 View_AD1;
-      typedef View_Sc2 View_AD2;
-      typedef View_Sc3 View_AD3;
-      typedef View_Sc4 View_AD4;
-    #endif
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
-  private:
+  //private:
     
     bool is_view_, is_AD_;
     
     // Various data storage types
     // Only one of these will get used
-    View_AD2 viewdata_;
+    View_EvalT2 viewdata_;
     View_Sc2 viewdata_Sc_;
     
   public:
@@ -54,69 +45,46 @@ namespace MrHyDE {
     ~Vista() {};
     
 #ifndef MrHyDE_NO_AD
-    Vista(View_AD2 vdata) {
-      viewdata_ = vdata;
-      is_AD_ = true;
-      is_view_ = true;
-    }
+    Vista(View_EvalT2 vdata);
 #endif
     
-    Vista(View_Sc2 vdata) {
-      viewdata_Sc_ = vdata;
-      viewdata_ = View_AD2("2D view",vdata.extent(0),vdata.extent(1));
-      is_view_ = true;
-      is_AD_ = false;
-    }
+    Vista(View_Sc2 vdata);
+
+//#ifndef MrHyDE_NO_AD
+//    Vista(EvalT & data_);
+//#endif
+    
+    
+    Vista(ScalarT & data_);
 
 #ifndef MrHyDE_NO_AD
-    Vista(AD & data_) {
-      viewdata_ = View_AD2("2D view",1,1);
-      deep_copy(viewdata_,data_);
-      is_view_ = false;
-      is_AD_ = true;
-    }
+    void update(View_EvalT2 vdata);
 #endif
     
-    Vista(ScalarT & data_) {
-      viewdata_ = View_AD2("2D view",1,1);
-      deep_copy(viewdata_,data_);
-      is_view_ = false;
-      is_AD_ = false;
-    }
+    void update(View_Sc2 vdata);
+    
+#ifndef MrHyDE_NO_AD
+    void update(EvalT & data_);
+#endif
+    
+    void updateSc(ScalarT & data_);
 
-#ifndef MrHyDE_NO_AD
-    void update(View_AD2 vdata) {
-      viewdata_ = vdata;
-    }
-#endif
-    
-    void update(View_Sc2 vdata) {
-      viewdata_Sc_ = vdata;
-    }
-    
-#ifndef MrHyDE_NO_AD
-    void update(AD & data_) {
-      deep_copy(viewdata_,data_);
-    }
-#endif
-    
-    void update(ScalarT & data_) {
-      deep_copy(viewdata_,data_);
-    }
+    //void updateParam(AD & pdata_);
     
     KOKKOS_INLINE_FUNCTION
-    View_AD2::reference_type operator()(const size_type & i0, const size_type & i1) const {
+    typename Kokkos::View<EvalT**,ContLayout,AssemblyDevice>::reference_type operator()(const size_type & i0, const size_type & i1) const {
       if (is_view_) {
         if (is_AD_) {
           return viewdata_(i0,i1);
         }
         else {
-#ifndef MrHyDE_NO_AD
-          viewdata_(i0,i1).val() = viewdata_Sc_(i0,i1);
-          return viewdata_(i0,i1);
-#else
-          return viewdata_Sc_(i0,i1);
-#endif
+          #ifndef MrHyDE_NO_AD
+            //viewdata_(i0,i1).val() = viewdata_Sc_(i0,i1);
+            viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
+            return viewdata_(i0,i1);
+          #else
+            return viewdata_Sc_(i0,i1);
+          #endif
         }
       }
       else {
@@ -124,40 +92,15 @@ namespace MrHyDE {
       }
     }
     
-    bool isView() {
-      return is_view_;
-    }
+    bool isView();
 
-    bool isAD() {
-      return is_AD_;
-    }
+    bool isAD();
     
-    View_AD2 getData() {
-      return viewdata_;
-    }
+    View_EvalT2 getData();
 
-    View_Sc2 getDataSc() {
-      return viewdata_Sc_;
-    }
+    View_Sc2 getDataSc();
     
-    /*
-    KOKKOS_INLINE_FUNCTION
-    size_type extent(const size_type & dim) const {
-      if (is_view_) {
-        return viewdata_.extent(dim);
-      }
-      else {
-        return 1;
-      }
-    }
-    */
-    
-    void print() {
-      std::cout << "Printing Vista -------" <<std::endl;
-      std::cout << "  Is View: " << is_view_ << std::endl;
-      std::cout << "  Is AD: " << is_AD_ << std::endl;
-      
-    }
+    void print();
   };
   
 }

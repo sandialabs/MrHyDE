@@ -35,8 +35,19 @@ namespace MrHyDE {
    *   - "Kinv_zz" is the Kinv_zz.
    *   - "total_mobility" is the total_mobility.
    */
-  class porousMixed : public physicsbase {
+
+  template<class EvalT>
+  class porousMixed : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     // ========================================================================================
     /* Constructor to set up the problem */
@@ -52,7 +63,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT>> & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -73,7 +84,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<Workset<AD> > & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     //void setVars(std::vector<string> & varlist_);
     
@@ -85,9 +96,9 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_zz);
+    void updatePerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_yy, View_EvalT2 Kinv_zz);
     
-    void updateKLPerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_zz);
+    void updateKLPerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_yy, View_EvalT2 Kinv_zz);
     
     // ========================================================================================
     // ========================================================================================
@@ -97,7 +108,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    std::vector<View_AD2> getDerivedValues();
+    std::vector<View_EvalT2> getDerivedValues();
     
   private:
     
@@ -107,7 +118,7 @@ namespace MrHyDE {
     string auxvar;
     klexpansion permKLx, permKLy, permKLz;
     Kokkos::View<size_t**,AssemblyDevice> KLindices;
-    wells myWells;
+    wells<EvalT> myWells;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousMixed::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::porousMixed::volumeResidual() - evaluation of residual");

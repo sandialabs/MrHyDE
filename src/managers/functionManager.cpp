@@ -15,7 +15,8 @@
 
 using namespace MrHyDE;
 
-FunctionManager::FunctionManager() {
+template<class EvalT>
+FunctionManager<EvalT>::FunctionManager() {
   // This really should NOT be constructed
   
   num_elem_ = 1;
@@ -25,30 +26,31 @@ FunctionManager::FunctionManager() {
   known_vars_ = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
   
-  interpreter_ = Teuchos::rcp( new Interpreter());
+  interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
   
 }
 
-
-FunctionManager::FunctionManager(const string & blockname, const int & num_elem,
+template<class EvalT>
+FunctionManager<EvalT>::FunctionManager(const string & blockname, const int & num_elem,
                                  const int & num_ip, const int & num_ip_side) :
 num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(blockname) {
   
   known_vars_ = {"x","y","z","t","nx","ny","nz","pi","h"};
   known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
   
-  interpreter_ = Teuchos::rcp( new Interpreter());
+  interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
   
-  forests_.push_back(Forest("ip",num_elem_,num_ip_));
-  forests_.push_back(Forest("side ip",num_elem_,num_ip_side_));
-  forests_.push_back(Forest("point",1,1));
+  forests_.push_back(Forest<EvalT>("ip",num_elem_,num_ip_));
+  forests_.push_back(Forest<EvalT>("side ip",num_elem_,num_ip_side_));
+  forests_.push_back(Forest<EvalT>("point",1,1));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 // Add a user defined function
 //////////////////////////////////////////////////////////////////////////////////////
 
-int FunctionManager::addFunction(const string & fname, string & expression, const string & location) {
+template<class EvalT>
+int FunctionManager<EvalT>::addFunction(const string & fname, string & expression, const string & location) {
   bool found = false;
   int findex = 0;
   
@@ -74,7 +76,8 @@ int FunctionManager::addFunction(const string & fname, string & expression, cons
 // Add a user defined function
 //////////////////////////////////////////////////////////////////////////////////////
 
-int FunctionManager::addFunction(const string & fname, ScalarT & value, const string & location) {
+template<class EvalT>
+int FunctionManager<EvalT>::addFunction(const string & fname, ScalarT & value, const string & location) {
   bool found = false;
   int findex = 0;
   
@@ -100,7 +103,8 @@ int FunctionManager::addFunction(const string & fname, ScalarT & value, const st
 // Set the list of parameters
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionManager::setupLists(const vector<string> & parameters) {
+template<class EvalT>
+void FunctionManager<EvalT>::setupLists(const vector<string> & parameters) {
   parameters_ = parameters;
 }
 
@@ -109,7 +113,8 @@ void FunctionManager::setupLists(const vector<string> & parameters) {
 // Also sets up the Kokkos::Views (subviews) to the data for all of the terms
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionManager::decomposeFunctions() {
+template<class EvalT>
+void FunctionManager<EvalT>::decomposeFunctions() {
   
   if (wkset->isInitialized) {
     
@@ -453,7 +458,7 @@ void FunctionManager::decomposeFunctions() {
           if (isView) {
             string expr = forests_[f].trees_[k].branches_[j].expression_;
             if (isAD) {
-              forests_[f].trees_[k].branches_[j].viewdata_ = View_AD2("data for " + expr,
+              forests_[f].trees_[k].branches_[j].viewdata_ = View_EvalT("data for " + expr,
                                                                       forests_[f].dim0_, forests_[f].dim1_);
             }
             else {
@@ -485,7 +490,8 @@ void FunctionManager::decomposeFunctions() {
 // Determine if a branch is a ScalarT or needs to be an AD type
 //////////////////////////////////////////////////////////////////////////////////////
 
-bool FunctionManager::isScalarTerm(const int & findex, const int & tindex, const int & bindex) {
+template<class EvalT>
+bool FunctionManager<EvalT>::isScalarTerm(const int & findex, const int & tindex, const int & bindex) {
   bool is_scalar = true;
   if (forests_[findex].trees_[tindex].branches_[bindex].is_leaf_) {
     if (forests_[findex].trees_[tindex].branches_[bindex].is_AD_) {
@@ -507,7 +513,8 @@ bool FunctionManager::isScalarTerm(const int & findex, const int & tindex, const
 }
 
 
-void FunctionManager::checkDepDataType(const int & findex, const int & tindex, const int & bindex,
+template<class EvalT>
+void FunctionManager<EvalT>::checkDepDataType(const int & findex, const int & tindex, const int & bindex,
                                        bool & isConst, bool & isView, bool & isAD) {
   
   
@@ -538,7 +545,8 @@ void FunctionManager::checkDepDataType(const int & findex, const int & tindex, c
 // Evaluate a function
 //////////////////////////////////////////////////////////////////////////////////////
 
-Vista FunctionManager::evaluate(const string & fname, const string & location) {
+template<class EvalT>
+Vista<EvalT> FunctionManager<EvalT>::evaluate(const string & fname, const string & location) {
   
   bool ffound = false, tfound = false;
   size_t fiter=0, titer=0;
@@ -582,7 +590,8 @@ Vista FunctionManager::evaluate(const string & fname, const string & location) {
 // Evaluate a function
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, const size_t & bindex) {
+template<class EvalT>
+void FunctionManager<EvalT>::evaluate( const size_t & findex, const size_t & tindex, const size_t & bindex) {
   
   //if (!forests_[findex].trees_[tindex].branches_[bindex].isConstant) {
     if (forests_[findex].trees_[tindex].branches_[bindex].is_leaf_) {
@@ -759,8 +768,9 @@ void FunctionManager::evaluate( const size_t & findex, const size_t & tindex, co
 // Evaluate an operator
 //////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT> 
 template<class T1, class T2>
-void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
+void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
   
   size_t dim0 = std::min(data.extent(0),tdata.extent(0));
   using namespace std;
@@ -1069,8 +1079,9 @@ void FunctionManager::evaluateOpVToV(T1 data, T2 tdata, const string & op) {
 // Evaluate an operator
 //////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 template<class T1, class T2>
-void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_, const string & op) {
+void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_, const string & op) {
   
   size_t dim0 = data.extent(0);
   using namespace std;
@@ -1352,8 +1363,9 @@ void FunctionManager::evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_,
 // Evaluate an operator
 //////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 template<class T1, class T2>
-void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
+void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
   
   T2 tdata = tdata_; // Probably don't need to do this if pass by value
   size_t dim0 = data.extent(0);
@@ -1633,8 +1645,9 @@ void FunctionManager::evaluateOpSToV(T1 data, T2 & tdata_, const string & op) {
 // Evaluate an operator
 //////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 template<class T1, class T2>
-void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
+void FunctionManager<EvalT>::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
   
   using namespace std;
   
@@ -1737,7 +1750,8 @@ void FunctionManager::evaluateOpSToS(T1 & data, T2 & tdata, const string & op) {
 // Print out the function information (mostly for debugging)
 //////////////////////////////////////////////////////////////////////////////////////
 
-void FunctionManager::printFunctions() {
+template<class EvalT>
+void FunctionManager<EvalT>::printFunctions() {
   
   cout << endl;
   cout << "===========================================================" << endl;
@@ -1762,4 +1776,9 @@ void FunctionManager::printFunctions() {
   
 }
 
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::FunctionManager<ScalarT>;
+#endif
+
+template class MrHyDE::FunctionManager<AD>;
 

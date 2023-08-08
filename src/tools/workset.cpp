@@ -104,6 +104,10 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   maxTeamSize = 1;
 #endif
   
+  bool is_same_eval = std::is_same<EvalT, ScalarT>::value;
+  if (is_same_eval) {
+    only_scalar = true;
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -134,12 +138,12 @@ void Workset<EvalT>::createSolutionFields() {
     totalvars += set_varlist[set].size();
   }
   
-  sol_vals = vector<View_AD2>(totalvars);
+  sol_vals = vector<View_EvalT2>(totalvars);
   if (isTransient) {
-    sol_dot_vals = vector<View_AD2>(totalvars);
+    sol_dot_vals = vector<View_EvalT2>(totalvars);
   }
   
-  res = View_AD2("residual",numElem, maxRes);
+  res = View_EvalT2("residual",numElem, maxRes);
   
   size_t uprog = 0;
   string soltype = "solution";
@@ -156,10 +160,10 @@ void Workset<EvalT>::createSolutionFields() {
       string var = set_varlist[set][i];
       
       int numb = basis_pointers[bind]->getCardinality();
-      View_AD2 newsol("seeded sol_vals",numElem, numb);
+      View_EvalT2 newsol("seeded sol_vals",numElem, numb);
       sol_vals[uprog] = newsol;
       if (isTransient) {
-        View_AD2 newtsol("seeded sol_vals",numElem, numb);
+        View_EvalT2 newtsol("seeded sol_vals",numElem, numb);
         sol_dot_vals[uprog] = newtsol;
       }
       
@@ -211,7 +215,7 @@ void Workset<EvalT>::createSolutionFields() {
     int bind = paramusebasis[i];
     string var = param_varlist[i];
     int numb = basis_pointers[bind]->getCardinality();
-    View_AD2 newpsol("seeded sol_vals",numElem, numb);
+    View_EvalT2 newpsol("seeded sol_vals",numElem, numb);
     pvals.push_back(newpsol);
     
     this->addSolutionField(var, set, i, basis_types[bind], soltype);
@@ -417,10 +421,25 @@ void Workset<EvalT>::resetSolutionFields() {
 // Reset residuals
 ////////////////////////////////////////////////////////////////////////////////////
 
+template<>
+void Workset<ScalarT>::resetResidual() {
+  Teuchos::TimeMonitor resettimer(*worksetResetTimer);
+  
+  size_t maxRes_ = maxRes;
+  parallel_for("wkset reset res",
+               TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
+               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+    int elem = team.league_rank();
+    for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
+      res(elem,dof) = 0.0;
+    }
+  });
+
+}
+
 template<class EvalT>
 void Workset<EvalT>::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
-  //Kokkos::deep_copy(res,0.0);
   
   size_t maxRes_ = maxRes;
   ScalarT zero = 0.0;
@@ -446,11 +465,93 @@ void Workset<EvalT>::resetResidual() {
     }
   });
 #endif
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the seeded solutions for general transient problems
 ////////////////////////////////////////////////////////////////////////////////////
+
+
+template<>
+void Workset<ScalarT>::computeSolnTransientSeeded(const size_t & set,
+                                         View_Sc3 u,
+                                         View_Sc4 u_prev,
+                                         View_Sc4 u_stage,
+                                         const int & seedwhat,
+                                         const int & index) {
+  
+  Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
+  
+  // These need to be set locally to be available to AssemblyDevice
+  ScalarT dt = deltat;
+  int stage = current_stage;
+  auto b_A = butcher_A;
+  auto b_b = butcher_b;
+  auto BDF = BDF_wts;
+
+  ScalarT one = 1.0;
+  ScalarT zero = 0.0;
+ 
+  // Seed the current stage solution
+  if (set == current_set) {
+    for (size_type var=0; var<u.extent(1); var++ ) {
+      size_t uindex = sol_vals_index[set][var];
+      auto u_AD = sol_vals[uindex];
+      auto u_dot_AD = sol_dot_vals[uindex];
+      auto off = subview(set_offsets[set],var,ALL());
+      auto cu = subview(u,ALL(),var,ALL());
+      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+        
+      parallel_for("wkset transient sol seedwhat 1",
+                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        ScalarT beta_u, beta_t;
+        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+        ScalarT timewt = one/dt/b_b(stage);
+        ScalarT alpha_t = BDF(0)*timewt;
+        for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
+          // Get the stage solution
+          ScalarT stageval = cu(elem,dof);
+          // Compute the evaluating solution
+          beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+          for (int s=0; s<stage; s++) {
+            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+          }
+          u_AD(elem,dof) = alpha_u*stageval+beta_u;
+            
+          // Compute the time derivative
+          beta_t = zero;
+          for (size_type s=1; s<BDF.extent(0); s++) {
+            beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+          }
+          beta_t *= timewt;
+          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
+        }
+      });
+    }
+  }
+  else {
+    for (size_type var=0; var<u.extent(1); var++ ) {
+      size_t uindex = sol_vals_index[set][var];
+      auto u_AD = sol_vals[uindex];
+      auto cu = subview(u,ALL(),var,ALL());
+      
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,u.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+          u_AD(elem,dof) = cu(elem,dof);
+        }
+      });
+    }
+  }
+  
+}
+
+
 
 template<class EvalT>
 void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
@@ -497,9 +598,9 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
             
             // Seed the stage solution
 #ifndef MrHyDE_NO_AD
-            AD stageval = AD(maxDerivs,off(dof),cu(elem,dof));
+            EvalT stageval = EvalT(maxDerivs,off(dof),cu(elem,dof));
 #else
-            AD stageval = cu(elem,dof);
+            EvalT stageval = cu(elem,dof);
 #endif
             // Compute the evaluating solution
             beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
@@ -535,7 +636,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
-          AD beta_u, beta_t;
+          EvalT beta_u, beta_t;
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
@@ -545,10 +646,10 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
             ScalarT stageval = cu(elem,dof);
             
             // Compute the evaluating solution
-            AD u_prev_val = cu_prev(elem,dof,0);
+            EvalT u_prev_val = cu_prev(elem,dof,0);
             if (index == 0) {
 #ifndef MrHyDE_NO_AD
-              u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,0));
+              u_prev_val = EvalT(maxDerivs,off(dof),cu_prev(elem,dof,0));
 #else
               u_prev_val = cu_prev(elem,dof,0);
 #endif
@@ -692,6 +793,30 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
 // Compute the seeded solutions for steady-state problems
 ////////////////////////////////////////////////////////////////////////////////////
 
+
+template<>
+void Workset<ScalarT>::computeSolnSteadySeeded(const size_t & set,
+                                      View_Sc3 u,
+                                      const int & seedwhat) {
+  
+  Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
+  
+  for (size_type var=0; var<u.extent(1); var++ ) {
+    
+    size_t uindex = sol_vals_index[set][var];
+    auto u_AD = sol_vals[uindex];
+    auto off = subview(set_offsets[set],var,ALL());
+    auto cu = subview(u,ALL(),var,ALL());
+    parallel_for("wkset steady soln",
+                 RangePolicy<AssemblyExec>(0,u.extent(0)),
+                 KOKKOS_LAMBDA (const size_type elem ) {
+      for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+        u_AD(elem,dof) = cu(elem,dof);
+      }
+    });
+  }
+}
+
 template<class EvalT>
 void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
                                       View_Sc3 u,
@@ -728,14 +853,37 @@ void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
       });
     }
   }
-  
-  //Kokkos::fence();
-  //AssemblyExec::execution_space().fence();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Compute the seeded solutions for steady-state problems
 ////////////////////////////////////////////////////////////////////////////////////
+
+template<>
+void Workset<ScalarT>::computeParamSteadySeeded(View_Sc3 param,
+                                      const int & seedwhat) {
+  
+  if (numParams>0) {
+    Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
+  
+    for (size_type var=0; var<param.extent(1); var++ ) {
+      
+      auto p_AD = pvals[var];
+      auto off = subview(paramoffsets,var,ALL());
+      auto cp = subview(param,ALL(),var,ALL());
+      
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,param.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
+          p_AD(elem,dof) = cp(elem,dof);
+        }
+      });
+    }
+  }
+  
+}
+
 
 template<class EvalT>
 void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
@@ -755,7 +903,7 @@ void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
                      KOKKOS_LAMBDA (const size_type elem ) {
           for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
 #ifndef MrHyDE_NO_AD
-            p_AD(elem,dof) = AD(maxDerivs,off(dof),cp(elem,dof));
+            p_AD(elem,dof) = EvalT(maxDerivs,off(dof),cp(elem,dof));
 #else
             p_AD(elem,dof) = cp(elem,dof);
 #endif
@@ -814,7 +962,7 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
     size_t sindex = soln_fields[fieldnum].set_index_;
     size_t vindex = soln_fields[fieldnum].variable_index_;
     
-    View_AD2 solvals;
+    View_EvalT2 solvals;
     size_t uindex = sol_vals_index[soln_fields[fieldnum].set_index_][soln_fields[fieldnum].variable_index_];
     if (soln_fields[fieldnum].variable_type_ == "solution") { // solution
       if (soln_fields[fieldnum].derivative_type_ == "time" ) {
@@ -946,7 +1094,7 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
     size_t sindex = side_soln_fields[fieldnum].set_index_;
     size_t vindex = side_soln_fields[fieldnum].variable_index_;
     
-    View_AD2 solvals;
+    View_EvalT2 solvals;
     size_t uindex = sol_vals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
     if (side_soln_fields[fieldnum].variable_type_ == "solution") { // solution
       if (side_soln_fields[fieldnum].derivative_type_ == "time" ) {
@@ -1201,13 +1349,13 @@ void Workset<EvalT>::addAux(const vector<string> & auxvars, Kokkos::View<int**,A
   aux_offsets = aoffs;
   aux_varlist = auxvars;
   numAux = aux_varlist.size();
-  flux = View_AD3("flux",numElem,numAux,numsideip);
+  flux = View_EvalT3("flux",numElem,numAux,numsideip);
   
   if (numAux > 0) {
     size_t maxAux = aux_offsets.extent(0)*aux_offsets.extent(1);
     if (maxAux > maxRes) {
       maxRes = maxAux;
-      res = View_AD2("residual",numElem, maxRes);
+      res = View_EvalT2("residual",numElem, maxRes);
     }
   }
 
@@ -1228,10 +1376,10 @@ void Workset<EvalT>::addAux(const vector<string> & auxvars, Kokkos::View<int**,A
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-vector<AD> Workset<EvalT>::getParam(const string & name, bool & found) {
+vector<EvalT> Workset<EvalT>::getParam(const string & name, bool & found) {
   found = false;
   size_t iter=0;
-  vector<AD> pvec;
+  vector<EvalT> pvec;
   while (!found && iter<paramnames.size()) {
     if (paramnames[iter] == name) {
       found  = true;
@@ -1242,7 +1390,7 @@ vector<AD> Workset<EvalT>::getParam(const string & name, bool & found) {
     }
   }
   if (!found) {
-    pvec = vector<AD>(1);
+    pvec = vector<EvalT>(1);
   }
   return pvec;
 }
@@ -1252,10 +1400,10 @@ vector<AD> Workset<EvalT>::getParam(const string & name, bool & found) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> Workset<EvalT>::getParameter(const string & name, bool & found) {
+Kokkos::View<EvalT*,Kokkos::LayoutStride,AssemblyDevice> Workset<EvalT>::getParameter(const string & name, bool & found) {
   found = false;
   size_t iter=0;
-  Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> pvals;
+  Kokkos::View<EvalT*,Kokkos::LayoutStride,AssemblyDevice> pvals;
   while (!found && iter<paramnames.size()) {
     if (paramnames[iter] == name) {
       found  = true;
@@ -1355,7 +1503,7 @@ Kokkos::View<EvalT**,ContLayout,AssemblyDevice> Workset<EvalT>::getSolutionField
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
   
-  View_AD2 outdata;
+  View_EvalT2 outdata;
   
   if (isOnSide) {
     bool found = false;
@@ -1976,7 +2124,7 @@ void Workset<EvalT>::setScalarField(View_Sc2 newdata, const string & expression)
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setSolution(View_AD4 newsol, const string & pfix) {
+void Workset<EvalT>::setSolution(View_EvalT4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
   
@@ -2045,7 +2193,7 @@ void Workset<EvalT>::setSolution(View_AD4 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setSolutionGrad(View_AD4 newsol, const string & pfix) {
+void Workset<EvalT>::setSolutionGrad(View_EvalT4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
     int varind = vars_HGRAD[current_set][i];
@@ -2071,7 +2219,7 @@ void Workset<EvalT>::setSolutionGrad(View_AD4 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setSolutionDiv(View_AD3 newsol, const string & pfix) {
+void Workset<EvalT>::setSolutionDiv(View_EvalT3 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HDIV[current_set].size(); i++) {
     string var = varlist_HDIV[current_set][i];
     int varind = vars_HDIV[current_set][i];
@@ -2086,7 +2234,7 @@ void Workset<EvalT>::setSolutionDiv(View_AD3 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setSolutionCurl(View_AD4 newsol, const string & pfix) {
+void Workset<EvalT>::setSolutionCurl(View_EvalT4 newsol, const string & pfix) {
   for (size_t i=0; i<varlist_HCURL[current_set].size(); i++) {
     string var = varlist_HCURL[current_set][i];
     int varind = vars_HCURL[current_set][i];
@@ -2112,7 +2260,7 @@ void Workset<EvalT>::setSolutionCurl(View_AD4 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setSolutionPoint(View_AD2 newsol) {
+void Workset<EvalT>::setSolutionPoint(View_EvalT2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
@@ -2200,7 +2348,7 @@ void Workset<EvalT>::setSolutionPoint(View_AD2 newsol) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setSolutionGradPoint(View_AD2 newsol) {
+void Workset<EvalT>::setSolutionGradPoint(View_EvalT2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<varlist_HGRAD[current_set].size(); i++) {
     string var = varlist_HGRAD[current_set][i];
@@ -2238,7 +2386,7 @@ void Workset<EvalT>::setSolutionGradPoint(View_AD2 newsol) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setParam(View_AD4 newsol, const string & pfix) {
+void Workset<EvalT>::setParam(View_EvalT4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
   
@@ -2307,7 +2455,7 @@ void Workset<EvalT>::setParam(View_AD4 newsol, const string & pfix) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setParamPoint(View_AD2 newsol) {
+void Workset<EvalT>::setParamPoint(View_EvalT2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
@@ -2395,7 +2543,7 @@ void Workset<EvalT>::setParamPoint(View_AD2 newsol) {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-void Workset<EvalT>::setParamGradPoint(View_AD2 newsol) {
+void Workset<EvalT>::setParamGradPoint(View_EvalT2 newsol) {
   // newsol has dims numElem x numvars x numip x dimension
   for (size_t i=0; i<paramvarlist_HGRAD.size(); i++) {
     string var = paramvarlist_HGRAD[i];
@@ -2429,7 +2577,7 @@ void Workset<EvalT>::setParamGradPoint(View_AD2 newsol) {
 }
 
 template<class EvalT>
-void Workset<EvalT>::setAux(View_AD4 newsol, const string & pfix) {
+void Workset<EvalT>::setAux(View_EvalT4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
 
@@ -2522,4 +2670,8 @@ void Workset<EvalT>::allocateRotations() {
   }
 }
 // Explicit template instantiations
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::Workset<ScalarT>;
+#endif
+
 template class MrHyDE::Workset<AD>;

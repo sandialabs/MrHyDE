@@ -45,7 +45,7 @@ namespace MrHyDE {
     ~regularization() {};
     
     regularization(Teuchos::ParameterList & regsettings, const string name_,
-                   const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+                   const size_t & block_, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
       name = name_;
       block = block_;
       
@@ -83,7 +83,7 @@ namespace MrHyDE {
     ~objective() {};
     
     objective(Teuchos::ParameterList & objsettings, const string name_,
-              const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+              const size_t & block_, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
       name = name_;
       block = block_;
       type = objsettings.get<string>("type","none");
@@ -199,7 +199,7 @@ namespace MrHyDE {
     ~fluxResponse() {};
     
     fluxResponse(Teuchos::ParameterList & frsettings, const string & name_,
-                 const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+                 const size_t & block_, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
       name = name_;
       block = block_;
       
@@ -249,7 +249,7 @@ namespace MrHyDE {
     ~integratedQuantity() {};
     
     integratedQuantity(Teuchos::ParameterList & iqsettings, const string & name_,
-                 const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+                 const size_t & block_, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
       name = name_;
       block = block_;
       
@@ -284,7 +284,7 @@ namespace MrHyDE {
      */
     
     integratedQuantity(const string & integrand_, const string & name_, const string & integralType, 
-                 const size_t & block_, Teuchos::RCP<FunctionManager> & functionManager_) {
+                 const size_t & block_, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
       integrand = integrand_;
       name = name_;
       block = block_;
@@ -343,7 +343,7 @@ namespace MrHyDE {
                        Teuchos::RCP<MeshInterface> & mesh_,
                        Teuchos::RCP<DiscretizationInterface> & disc_,
                        Teuchos::RCP<PhysicsInterface> & phys_,
-                       std::vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
+                       std::vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_);
     
     // ========================================================================================
@@ -355,7 +355,7 @@ namespace MrHyDE {
                        Teuchos::RCP<MeshInterface> & mesh_,
                        Teuchos::RCP<DiscretizationInterface> & disc_,
                        Teuchos::RCP<PhysicsInterface> & phys_,
-                       std::vector<Teuchos::RCP<FunctionManager> > & functionManagers,
+                       std::vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers,
                        Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                        Teuchos::RCP<ParameterManager<Node> > & params_);
@@ -554,7 +554,7 @@ namespace MrHyDE {
     Teuchos::RCP<PhysicsInterface> phys;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
-    std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
+    std::vector<Teuchos::RCP<FunctionManager<AD> > > functionManagers;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     Teuchos::RCP<LinearAlgebraInterface<Node> > linalg;
     

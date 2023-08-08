@@ -105,7 +105,7 @@ namespace MrHyDE {
 #ifndef MrHyDE_NO_AD
       data_ = View_AD2("solution field for " + expression_, dim0, dim1, maxDerivs);
 #else
-      data = View_AD2("solution field for " + expression, dim0, dim1);
+      data_ = View_AD2("solution field for " + expression_, dim0, dim1);
 #endif
       is_initialized_ = true;
     }

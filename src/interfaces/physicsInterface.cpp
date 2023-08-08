@@ -98,7 +98,7 @@ settings(settings_), comm(comm_){
 // Add the functions to the function managers
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager> > & function_managers_) {
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> > > & function_managers_) {
 
   function_managers = function_managers_;
   
@@ -435,7 +435,7 @@ void PhysicsInterface::importPhysics() {
     vector<vector<string> > set_var_list;
     vector<vector<int> > set_var_owned;
     
-    vector<vector<Teuchos::RCP<physicsbase> > > set_modules;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules;
     vector<vector<bool> > set_use_subgrid, set_use_DG;
     
     for (size_t block=0; block<block_names.size(); ++block) { // element blocks
@@ -444,7 +444,7 @@ void PhysicsInterface::importPhysics() {
       vector<string> block_var_list;
       vector<int> block_var_owned;
       
-      vector<Teuchos::RCP<physicsbase> > block_modules;
+      vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules;
       vector<bool> block_use_subgrid, block_use_DG;
       
       std::string var;
@@ -453,7 +453,7 @@ void PhysicsInterface::importPhysics() {
       
       vector<string> enabled_modules = this->breakupList(module_list, ", ");
       
-      physicsImporter physimp = physicsImporter();
+      PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
       physics_settings[set][block].set<int>("verbosity",settings->get<int>("verbosity",0));
       block_modules = physimp.import(enabled_modules, physics_settings[set][block],
                                      dimension, comm);
@@ -869,7 +869,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
 #ifndef MrHyDE_NO_AD
             ivals(e,n,i,0) = ivals_AD(0,0).val();
 #else
-            ivals(e,n,i) = ivals_AD(0,0);
+            ivals(e,n,i,0) = ivals_AD(0,0);
 #endif
           });
           

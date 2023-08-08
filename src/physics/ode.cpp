@@ -19,8 +19,9 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-ODE::ODE(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+ODE<EvalT>::ODE(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "ode";
@@ -32,8 +33,9 @@ ODE::ODE(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void ODE::defineFunctions(Teuchos::ParameterList & fs,
-                          Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void ODE<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                          Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   functionManager->addFunction("ODE source",fs.get<string>("ODE source","0.0"),"ip");
@@ -43,9 +45,10 @@ void ODE::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void ODE::volumeResidual() {
+template<class EvalT>
+void ODE<EvalT>::volumeResidual() {
   
-  Vista source;
+  Vista<EvalT> source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -69,3 +72,9 @@ void ODE::volumeResidual() {
     }
   });
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::ODE<ScalarT>;
+#endif
+
+template class MrHyDE::ODE<AD>;

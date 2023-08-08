@@ -18,8 +18,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-shallowwaterHybridized::shallowwaterHybridized(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+shallowwaterHybridized<EvalT>::shallowwaterHybridized(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "shallowwaterHybridized";
@@ -74,8 +75,9 @@ shallowwaterHybridized::shallowwaterHybridized(Teuchos::ParameterList & settings
 // ========================================================================================
 // ========================================================================================
 
-void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
-                            Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                            Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -90,9 +92,9 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
 
   // Storage for the flux vectors
 
-  fluxes_vol  = View_AD4("flux", functionManager->num_elem_,
+  fluxes_vol  = View_EvalT4("flux", functionManager->num_elem_,
                          functionManager->num_ip_, spaceDim + 1, spaceDim); // neqn = spaceDim + 1
-  fluxes_side = View_AD4("flux", functionManager->num_elem_,
+  fluxes_side = View_EvalT4("flux", functionManager->num_elem_,
                          functionManager->num_ip_side_, spaceDim + 1, spaceDim); // see above 
 
   // Storage for stabilization term/boundary flux
@@ -104,7 +106,7 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
   // Additionally, this storage is used for the boundary flux B(\hat{S}).
   // This is needed by the computeFlux routine (see for more details).
 
-  stab_bound_side = View_AD3("stab/boundary term", functionManager->num_elem_,
+  stab_bound_side = View_EvalT3("stab/boundary term", functionManager->num_elem_,
                              functionManager->num_ip_side_, spaceDim + 1); // see above 
 
 }
@@ -112,9 +114,10 @@ void shallowwaterHybridized::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void shallowwaterHybridized::volumeResidual() {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::volumeResidual() {
   
-  vector<Vista> sourceterms;
+  vector<Vista<EvalT> > sourceterms;
 
   // TODO is this a good way to do this??
   {
@@ -188,7 +191,8 @@ void shallowwaterHybridized::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwaterHybridized::boundaryResidual() {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::boundaryResidual() {
   
   auto bcs = wkset->var_bcs;
 
@@ -267,7 +271,8 @@ void shallowwaterHybridized::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void shallowwaterHybridized::computeFlux() {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::computeFlux() {
 
   // see Samii 2019 for the details of the implementation
   // they take fluxes on the interfaces to be F(\hat{S}) \cdot n + Stab(S,\hat{S}) ( S - \hat{S} )
@@ -372,7 +377,8 @@ void shallowwaterHybridized::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwaterHybridized::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
 
@@ -404,7 +410,8 @@ void shallowwaterHybridized::setWorkset(Teuchos::RCP<Workset<AD> > & wkset_) {
 // compute the fluxes
 // ========================================================================================
 
-void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::computeFluxVector(const bool & on_side) {
 
   Teuchos::TimeMonitor localtime(*fluxVectorFill);
 
@@ -481,7 +488,8 @@ void shallowwaterHybridized::computeFluxVector(const bool & on_side) {
 // compute the stabilization term
 // ========================================================================================
 
-void shallowwaterHybridized::computeStabilizationTerm() {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::computeStabilizationTerm() {
 
   // The two proposed stabilization matrices in Samii et al. are based off of eigendecompositions
   // of the flux Jacobians
@@ -506,7 +514,7 @@ void shallowwaterHybridized::computeStabilizationTerm() {
   auto stabterm = stab_bound_side;
   auto nx = wkset->getScalarField("n[x]");
 
-  View_AD2 Huy, Huy_hat; // only assign if necessary
+  View_EvalT2 Huy, Huy_hat; // only assign if necessary
   View_Sc2 ny;
 
   size_t nVar = wkset->varlist.size();
@@ -521,18 +529,18 @@ void shallowwaterHybridized::computeStabilizationTerm() {
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
 
-    View_AD2 leftEV,rightEV; // Local eigendecomposition
-    View_AD1 Lambda; // diagonal matrix
-    View_AD1 deltaS; // S - \hat{S} vector
-    View_AD1 tmp; // temporary vector
+    View_EvalT2 leftEV,rightEV; // Local eigendecomposition
+    View_EvalT1 Lambda; // diagonal matrix
+    View_EvalT1 deltaS; // S - \hat{S} vector
+    View_EvalT1 tmp; // temporary vector
 
-    deltaS = View_AD1("delta S", nVar);
+    deltaS = View_EvalT1("delta S", nVar);
 
     if (roestab) {
-      Lambda = View_AD1("Lambda", nVar); 
-      leftEV = View_AD2("left EV", nVar, nVar); 
-      rightEV = View_AD2("right EV", nVar, nVar); 
-      tmp = View_AD1("tmp", nVar);
+      Lambda = View_EvalT1("Lambda", nVar); 
+      leftEV = View_EvalT2("left EV", nVar, nVar); 
+      rightEV = View_EvalT2("right EV", nVar, nVar); 
+      tmp = View_EvalT1("tmp", nVar);
     }
     
     for (size_type pt=0; pt<stabterm.extent(1); ++pt) {
@@ -569,12 +577,12 @@ void shallowwaterHybridized::computeStabilizationTerm() {
 
       } else {
         // the stabilization is just the max abs EV times delta S
-        AD vn = nx(elem,pt)*Hux_hat(elem,pt)/H_hat(elem,pt);
-        AD a = sqrt(H_hat(elem,pt) * modelparams(gravity_mp_num));
+        EvalT vn = nx(elem,pt)*Hux_hat(elem,pt)/H_hat(elem,pt);
+        EvalT a = sqrt(H_hat(elem,pt) * modelparams(gravity_mp_num));
         if (spaceDim > 1) vn += ny(elem,pt)*Huy_hat(elem,pt)/H_hat(elem,pt);
         // max of | vn + a |, | vn - a |
         // a = sqrt{gh}
-        AD lambdaMax = max(abs(vn + a),abs(vn - a));
+        EvalT lambdaMax = max(abs(vn + a),abs(vn - a));
 
         for (int i=0; i<nVar; ++i) {
           stab_sub(i) = deltaS(i) * lambdaMax;
@@ -588,7 +596,8 @@ void shallowwaterHybridized::computeStabilizationTerm() {
 // compute the boundary flux
 // ========================================================================================
 
-void shallowwaterHybridized::computeBoundaryTerm() {
+template<class EvalT>
+void shallowwaterHybridized<EvalT>::computeBoundaryTerm() {
 
   // The two BC types in Peraire 2011/Samii 2019 are inflow/outflow and slip.
   //
@@ -628,7 +637,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
   size_t nVar = wkset->varlist.size();
 
-  View_AD2 Huy, Huy_hat; // and only assign if necessary?
+  View_EvalT2 Huy, Huy_hat; // and only assign if necessary?
   View_Sc2 ny;
 
   if (spaceDim > 1) {
@@ -638,7 +647,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
   }
 
   // Get the freestream info if needed
-  Vista source_H, source_Hux, source_Huy;
+  Vista<EvalT> source_H, source_Hux, source_Huy;
 
   if (sidetype == "Far-field") { 
     source_H = functionManager->evaluate("Far-field H " + wkset->sidename,"side ip");
@@ -653,25 +662,25 @@ void shallowwaterHybridized::computeBoundaryTerm() {
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
 
-    View_AD2 leftEV,rightEV; // Local eigendecomposition
-    View_AD1 Lambda; // diagonal matrix
-    View_AD1 deltaS; // S - \hat{S} vector
-    View_AD1 tmp; // temporary vector
+    View_EvalT2 leftEV,rightEV; // Local eigendecomposition
+    View_EvalT1 Lambda; // diagonal matrix
+    View_EvalT1 deltaS; // S - \hat{S} vector
+    View_EvalT1 tmp; // temporary vector
 
     if (sidetype == "Far-field") {
 
       // allocate storage
-      deltaS = View_AD1("delta S", nVar);
-      Lambda = View_AD1("Lambda", nVar); 
-      leftEV = View_AD2("left EV", nVar, nVar); 
-      rightEV = View_AD2("right EV", nVar, nVar); 
-      tmp = View_AD1("tmp", nVar);
+      deltaS = View_EvalT1("delta S", nVar);
+      Lambda = View_EvalT1("Lambda", nVar); 
+      leftEV = View_EvalT2("left EV", nVar, nVar); 
+      rightEV = View_EvalT2("right EV", nVar, nVar); 
+      tmp = View_EvalT1("tmp", nVar);
     }
     
     for (size_type pt=0; pt<boundterm.extent(1); ++pt) {
 
       // get the appropriate portion of the boundary term
-      // TODO Not sure about FORCING this to be view_ad1 here (and above)
+      // TODO Not sure about FORCING this to be View_EvalT1 here (and above)
       auto bound_sub = Kokkos::subview( boundterm, elem, pt, Kokkos::ALL());
       
       if (sidetype == "Far-field") {
@@ -732,7 +741,7 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 
       } else {
         // Apply the slip condition
-        AD vn = nx(elem,pt)*Hux(elem,pt)/H(elem,pt);
+        EvalT vn = nx(elem,pt)*Hux(elem,pt)/H(elem,pt);
         if (spaceDim > 1) vn += ny(elem,pt)*Huy(elem,pt)/H(elem,pt);
 
         // Depth
@@ -757,8 +766,9 @@ void shallowwaterHybridized::computeBoundaryTerm() {
 // Fill in the local eigendecomposition matrices
 // ========================================================================================
 
-KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-        const AD & Hux, const AD & H) {
+template<class EvalT>
+KOKKOS_FUNCTION void shallowwaterHybridized<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+        const EvalT & Hux, const EvalT & H) {
 
   // In 1D, the eigenvalues are ux - a and ux + a
   // The right eigenvectors are 
@@ -771,7 +781,7 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 le
 
   // TODO CHECK BELOW 
 
-  AD a = sqrt(H*modelparams(gravity_mp_num));
+  EvalT a = sqrt(H*modelparams(gravity_mp_num));
   
   rightEV(0,0) = 1.; rightEV(1,0) = Hux/H - a; 
   rightEV(0,1) = 1.; rightEV(1,1) = Hux/H + a;
@@ -783,12 +793,13 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 le
   
 }
 
-KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-    const AD & Hux, const AD & Huy, const AD & H, const ScalarT & nx, const ScalarT & ny) {
+template<class EvalT>
+KOKKOS_FUNCTION void shallowwaterHybridized<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+    const EvalT & Hux, const EvalT & Huy, const EvalT & H, const ScalarT & nx, const ScalarT & ny) {
 
-  AD vn = Hux/H*nx + Huy/H*ny;
+  EvalT vn = Hux/H*nx + Huy/H*ny;
 
-  AD a = sqrt(H*modelparams(gravity_mp_num));
+  EvalT a = sqrt(H*modelparams(gravity_mp_num));
 
   // With eigenvalues vn + a, vn, vn - a (flipped order from above)
   // See e.g. Li, Liu (2001) -- note there is a typo in their expression
@@ -815,3 +826,9 @@ KOKKOS_FUNCTION void shallowwaterHybridized::eigendecompFluxJacobian(View_AD2 le
   Lambda(0) = vn + a; Lambda(1) = vn; Lambda(2) = vn - a;
 
 }
+
+#ifndef MrHyDE_NO_AD
+template class MrHyDE::shallowwaterHybridized<ScalarT>;
+#endif
+
+template class MrHyDE::shallowwaterHybridized<AD>;
