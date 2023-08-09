@@ -230,8 +230,24 @@ void physicsTest<EvalT>::updatePerm(View_EvalT2 perm) {
   });
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::physicsTest<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::physicsTest<AD>;
+
+// Standard built-in types
+template class MrHyDE::physicsTest<AD2>;
+template class MrHyDE::physicsTest<AD4>;
+template class MrHyDE::physicsTest<AD8>;
+template class MrHyDE::physicsTest<AD16>;
+template class MrHyDE::physicsTest<AD18>;
+template class MrHyDE::physicsTest<AD24>;
+template class MrHyDE::physicsTest<AD32>;

@@ -482,8 +482,24 @@ void stokes<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::stokes<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::stokes<AD>;
+
+// Standard built-in types
+template class MrHyDE::stokes<AD2>;
+template class MrHyDE::stokes<AD4>;
+template class MrHyDE::stokes<AD8>;
+template class MrHyDE::stokes<AD16>;
+template class MrHyDE::stokes<AD18>;
+template class MrHyDE::stokes<AD24>;
+template class MrHyDE::stokes<AD32>;

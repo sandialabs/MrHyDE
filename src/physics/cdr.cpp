@@ -211,8 +211,24 @@ T cdr<EvalT>::computeTau(const T & localdiff, const T & xvl, const T & yvl, cons
   
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::cdr<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::cdr<AD>;
+
+// Standard built-in types
+template class MrHyDE::cdr<AD2>;
+template class MrHyDE::cdr<AD4>;
+template class MrHyDE::cdr<AD8>;
+template class MrHyDE::cdr<AD16>;
+template class MrHyDE::cdr<AD18>;
+template class MrHyDE::cdr<AD24>;
+template class MrHyDE::cdr<AD32>;

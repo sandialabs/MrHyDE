@@ -593,12 +593,13 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
+          EvalT dummyval = 0.0;
 
           for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             
             // Seed the stage solution
 #ifndef MrHyDE_NO_AD
-            EvalT stageval = EvalT(maxDerivs,off(dof),cu(elem,dof));
+            EvalT stageval = EvalT(dummyval.size(),off(dof),cu(elem,dof));
 #else
             EvalT stageval = cu(elem,dof);
 #endif
@@ -649,7 +650,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
             EvalT u_prev_val = cu_prev(elem,dof,0);
             if (index == 0) {
 #ifndef MrHyDE_NO_AD
-              u_prev_val = EvalT(maxDerivs,off(dof),cu_prev(elem,dof,0));
+              u_prev_val = EvalT(u_prev_val.size(),off(dof),cu_prev(elem,dof,0));
 #else
               u_prev_val = cu_prev(elem,dof,0);
 #endif
@@ -664,10 +665,10 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
             // Compute and seed the time derivative
             beta_t = zero;
             for (int s=1; s<BDF.extent_int(0); s++) {
-              AD u_prev_val = cu_prev(elem,dof,s-1);
+              EvalT u_prev_val = cu_prev(elem,dof,s-1);
               if (index == (s-1)) {
 #ifndef MrHyDE_NO_AD
-                u_prev_val = AD(maxDerivs,off(dof),cu_prev(elem,dof,s-1));
+                u_prev_val = EvalT(u_prev_val.size(),off(dof),cu_prev(elem,dof,s-1));
 #else
                 u_prev_val = cu_prev(elem,dof,s-1);
 #endif
@@ -693,7 +694,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
-          AD beta_u, beta_t;
+          EvalT beta_u, beta_t;
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
@@ -707,10 +708,10 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
             
             beta_u = (one-alpha_u)*u_prev_val;
             for (int s=0; s<stage; s++) {
-              AD u_stage_val = cu_stage(elem,dof,s);
+              EvalT u_stage_val = cu_stage(elem,dof,s);
               if (index == s) {
 #ifndef MrHyDE_NO_AD
-                u_stage_val = AD(maxDerivs,off(dof),cu_stage(elem,dof,s));
+                u_stage_val = EvalT(u_stage_val.size(),off(dof),cu_stage(elem,dof,s));
 #else
                 u_stage_val = cu_stage(elem,dof,s);
 #endif
@@ -834,9 +835,10 @@ void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
       parallel_for("wkset steady soln",
                    RangePolicy<AssemblyExec>(0,u.extent(0)),
                    KOKKOS_LAMBDA (const size_type elem ) {
+        EvalT dummyval = 0.0;
         for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
 #ifndef MrHyDE_NO_AD
-          u_AD(elem,dof) = AD(maxDerivs,off(dof),cu(elem,dof));
+          u_AD(elem,dof) = EvalT(dummyval.size(), off(dof), cu(elem,dof));
 #else
           u_AD(elem,dof) = cu(elem,dof);
 #endif
@@ -901,9 +903,10 @@ void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
         parallel_for("wkset steady soln",
                      RangePolicy<AssemblyExec>(0,param.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
+          EvalT dummyval = 0.0;
           for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
 #ifndef MrHyDE_NO_AD
-            p_AD(elem,dof) = EvalT(maxDerivs,off(dof),cp(elem,dof));
+            p_AD(elem,dof) = EvalT(dummyval.size(), off(dof), cp(elem,dof));
 #else
             p_AD(elem,dof) = cp(elem,dof);
 #endif
@@ -2669,9 +2672,25 @@ void Workset<EvalT>::allocateRotations() {
     rotation = View_Sc3("rotations", numElem, 3, 3);
   }
 }
+
+
+//////////////////////////////////////////////////////////////
 // Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::Workset<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::Workset<AD>;
+
+// Standard built-in types
+template class MrHyDE::Workset<AD2>;
+template class MrHyDE::Workset<AD4>;
+template class MrHyDE::Workset<AD8>;
+template class MrHyDE::Workset<AD16>;
+template class MrHyDE::Workset<AD18>;
+template class MrHyDE::Workset<AD24>;
+template class MrHyDE::Workset<AD32>;

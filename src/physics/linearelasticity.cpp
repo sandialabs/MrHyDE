@@ -1364,8 +1364,24 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > linearelasticity<E
   return derived;
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::linearelasticity<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::linearelasticity<AD>;
+
+// Standard built-in types
+template class MrHyDE::linearelasticity<AD2>;
+template class MrHyDE::linearelasticity<AD4>;
+template class MrHyDE::linearelasticity<AD8>;
+template class MrHyDE::linearelasticity<AD16>;
+template class MrHyDE::linearelasticity<AD18>;
+template class MrHyDE::linearelasticity<AD24>;
+template class MrHyDE::linearelasticity<AD32>;

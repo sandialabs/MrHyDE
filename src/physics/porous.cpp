@@ -416,8 +416,24 @@ void porous<EvalT>::updatePerm(View_EvalT2 perm) {
   });
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::porous<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::porous<AD>;
+
+// Standard built-in types
+template class MrHyDE::porous<AD2>;
+template class MrHyDE::porous<AD4>;
+template class MrHyDE::porous<AD8>;
+template class MrHyDE::porous<AD16>;
+template class MrHyDE::porous<AD18>;
+template class MrHyDE::porous<AD24>;
+template class MrHyDE::porous<AD32>;

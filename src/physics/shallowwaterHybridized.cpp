@@ -827,8 +827,24 @@ KOKKOS_FUNCTION void shallowwaterHybridized<EvalT>::eigendecompFluxJacobian(View
 
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::shallowwaterHybridized<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::shallowwaterHybridized<AD>;
+
+// Standard built-in types
+template class MrHyDE::shallowwaterHybridized<AD2>;
+template class MrHyDE::shallowwaterHybridized<AD4>;
+template class MrHyDE::shallowwaterHybridized<AD8>;
+template class MrHyDE::shallowwaterHybridized<AD16>;
+template class MrHyDE::shallowwaterHybridized<AD18>;
+template class MrHyDE::shallowwaterHybridized<AD24>;
+template class MrHyDE::shallowwaterHybridized<AD32>;

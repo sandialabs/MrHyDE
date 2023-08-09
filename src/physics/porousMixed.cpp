@@ -823,8 +823,24 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > porousMixed<EvalT>
   return derived;
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::porousMixed<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::porousMixed<AD>;
+
+// Standard built-in types
+template class MrHyDE::porousMixed<AD2>;
+template class MrHyDE::porousMixed<AD4>;
+template class MrHyDE::porousMixed<AD8>;
+template class MrHyDE::porousMixed<AD16>;
+template class MrHyDE::porousMixed<AD18>;
+template class MrHyDE::porousMixed<AD24>;
+template class MrHyDE::porousMixed<AD32>;

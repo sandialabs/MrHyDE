@@ -73,8 +73,24 @@ void ODE<EvalT>::volumeResidual() {
   });
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::ODE<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::ODE<AD>;
+
+// Standard built-in types
+template class MrHyDE::ODE<AD2>;
+template class MrHyDE::ODE<AD4>;
+template class MrHyDE::ODE<AD8>;
+template class MrHyDE::ODE<AD16>;
+template class MrHyDE::ODE<AD18>;
+template class MrHyDE::ODE<AD24>;
+template class MrHyDE::ODE<AD32>;

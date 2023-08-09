@@ -324,7 +324,7 @@ namespace MrHyDE {
     std::vector<Intrepid2::Orientation> panzer_orientations;
 
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;
-    vector<size_t> numip, numip_side;
+    vector<size_t> numip, numip_side, num_derivs_required;
     
     vector<vector<int> > cards;
     vector<vector<size_t> > my_elements;

@@ -400,8 +400,24 @@ void maxwell<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   }
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::maxwell<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::maxwell<AD>;
+
+// Standard built-in types
+template class MrHyDE::maxwell<AD2>;
+template class MrHyDE::maxwell<AD4>;
+template class MrHyDE::maxwell<AD8>;
+template class MrHyDE::maxwell<AD16>;
+template class MrHyDE::maxwell<AD18>;
+template class MrHyDE::maxwell<AD24>;
+template class MrHyDE::maxwell<AD32>;

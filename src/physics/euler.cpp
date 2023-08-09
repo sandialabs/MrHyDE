@@ -1656,8 +1656,24 @@ KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, V
 //
 //}
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::euler<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::euler<AD>;
+
+// Standard built-in types
+template class MrHyDE::euler<AD2>;
+template class MrHyDE::euler<AD4>;
+template class MrHyDE::euler<AD8>;
+template class MrHyDE::euler<AD16>;
+template class MrHyDE::euler<AD18>;
+template class MrHyDE::euler<AD24>;
+template class MrHyDE::euler<AD32>;

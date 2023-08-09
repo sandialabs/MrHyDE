@@ -450,8 +450,24 @@ std::vector< std::vector<string> > thermal<EvalT>::setupIntegratedQuantities(con
 
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::thermal<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::thermal<AD>;
+
+// Standard built-in types
+template class MrHyDE::thermal<AD2>;
+template class MrHyDE::thermal<AD4>;
+template class MrHyDE::thermal<AD8>;
+template class MrHyDE::thermal<AD16>;
+template class MrHyDE::thermal<AD18>;
+template class MrHyDE::thermal<AD24>;
+template class MrHyDE::thermal<AD32>;

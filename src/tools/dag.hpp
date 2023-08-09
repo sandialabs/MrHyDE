@@ -243,13 +243,5 @@ namespace MrHyDE {
   
 }
 
-//template class MrHyDE::Branch<ScalarT>;
-//template class MrHyDE::Branch<AD>;
-
-//template class MrHyDE::Tree<ScalarT>;
-//template class MrHyDE::Tree<AD>;
-
-//template class MrHyDE::Forest<ScalarT>;
-//template class MrHyDE::Forest<AD>;
 #endif
 

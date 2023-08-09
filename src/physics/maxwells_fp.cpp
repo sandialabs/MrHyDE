@@ -1084,8 +1084,24 @@ void maxwells_fp<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT
   }
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::maxwells_fp<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::maxwells_fp<AD>;
+
+// Standard built-in types
+template class MrHyDE::maxwells_fp<AD2>;
+template class MrHyDE::maxwells_fp<AD4>;
+template class MrHyDE::maxwells_fp<AD8>;
+template class MrHyDE::maxwells_fp<AD16>;
+template class MrHyDE::maxwells_fp<AD18>;
+template class MrHyDE::maxwells_fp<AD24>;
+template class MrHyDE::maxwells_fp<AD32>;

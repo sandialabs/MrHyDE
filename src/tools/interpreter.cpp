@@ -528,8 +528,24 @@ bool Interpreter<EvalT>::isOperator(vector<Branch<EvalT> > & branches, size_t & 
   return found;
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::Interpreter<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::Interpreter<AD>;
+
+// Standard built-in types
+template class MrHyDE::Interpreter<AD2>;
+template class MrHyDE::Interpreter<AD4>;
+template class MrHyDE::Interpreter<AD8>;
+template class MrHyDE::Interpreter<AD16>;
+template class MrHyDE::Interpreter<AD18>;
+template class MrHyDE::Interpreter<AD24>;
+template class MrHyDE::Interpreter<AD32>;

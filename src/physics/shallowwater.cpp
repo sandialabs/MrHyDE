@@ -296,8 +296,24 @@ void shallowwater<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   }
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::shallowwater<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::shallowwater<AD>;
+
+// Standard built-in types
+template class MrHyDE::shallowwater<AD2>;
+template class MrHyDE::shallowwater<AD4>;
+template class MrHyDE::shallowwater<AD8>;
+template class MrHyDE::shallowwater<AD16>;
+template class MrHyDE::shallowwater<AD18>;
+template class MrHyDE::shallowwater<AD24>;
+template class MrHyDE::shallowwater<AD32>;

@@ -197,8 +197,24 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
   
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::PhysicsImporter<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::PhysicsImporter<AD>;
+
+// Standard built-in types
+template class MrHyDE::PhysicsImporter<AD2>;
+template class MrHyDE::PhysicsImporter<AD4>;
+template class MrHyDE::PhysicsImporter<AD8>;
+template class MrHyDE::PhysicsImporter<AD16>;
+template class MrHyDE::PhysicsImporter<AD18>;
+template class MrHyDE::PhysicsImporter<AD24>;
+template class MrHyDE::PhysicsImporter<AD32>;

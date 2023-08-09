@@ -613,8 +613,24 @@ void porousWeakGalerkin<EvalT>::updatePerm(View_EvalT2 perm) {
   });
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+// Avoid redefining since ScalarT=AD if no AD
 #ifndef MrHyDE_NO_AD
 template class MrHyDE::porousWeakGalerkin<ScalarT>;
 #endif
 
+// Custom AD type
 template class MrHyDE::porousWeakGalerkin<AD>;
+
+// Standard built-in types
+template class MrHyDE::porousWeakGalerkin<AD2>;
+template class MrHyDE::porousWeakGalerkin<AD4>;
+template class MrHyDE::porousWeakGalerkin<AD8>;
+template class MrHyDE::porousWeakGalerkin<AD16>;
+template class MrHyDE::porousWeakGalerkin<AD18>;
+template class MrHyDE::porousWeakGalerkin<AD24>;
+template class MrHyDE::porousWeakGalerkin<AD32>;
