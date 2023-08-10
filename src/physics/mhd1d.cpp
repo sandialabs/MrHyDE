@@ -27,12 +27,13 @@ mhd1d::mhd1d(Teuchos::ParameterList &settings, const int &dimension_)
 
     label = "mhd1d";
 
-    myvars.push_back("pr");
-    myvars.push_back("ux");
-    myvars.push_back("uy");
-    myvars.push_back("uz");
+    myvars.push_back("rho");
+    myvars.push_back("rho_ux");
+    myvars.push_back("rho_uy");
+    myvars.push_back("rho_uz");
     myvars.push_back("By");
     myvars.push_back("Bz");
+    myvars.push_back("E");
 
     mybasistypes.push_back("HGRAD");
     mybasistypes.push_back("HGRAD");
@@ -63,9 +64,7 @@ void mhd1d::defineFunctions(Teuchos::ParameterList &fs,
     functionManager = functionManager_;
 
     functionManager->addFunction("Bx", fs.get<string>("Bx", "0.0"), "ip");
-    functionManager->addFunction("density", fs.get<string>("density", "1.0"), "ip");
-    functionManager->addFunction("viscosity", fs.get<string>("viscosity", "1.0"), "ip");
-    functionManager->addFunction("permeability", fs.get<string>("permeability", "1.0"), "ip");
+    functionManager->addFunction("gamma", fs.get<string>("gamma", "2.0"), "ip");
 }
 
 // ========================================================================================
@@ -77,14 +76,12 @@ void mhd1d::volumeResidual()
     int spaceDim = wkset->dimension;
     ScalarT dt = wkset->deltat;
     bool isTransient = wkset->isTransient;
-    Vista Bx, dens, visc, mu;
+    Vista Bx, gamma;
 
     {
         Teuchos::TimeMonitor funceval(*volumeResidualFunc);
         Bx = functionManager->evaluate("Bx", "ip");
-        visc = functionManager->evaluate("viscosity", "ip");
-        dens = functionManager->evaluate("density", "ip");
-        mu = functionManager->evaluate("permeability", "ip");
+        gamma = functionManager->evaluate("gamma", "ip");
     }
 
     Teuchos::TimeMonitor resideval(*volumeResidualFill);
@@ -92,12 +89,13 @@ void mhd1d::volumeResidual()
     auto res = wkset->res;
 
     { // density
-        int pr_basis = wkset->usebasis[pr_num];
-        auto basis = wkset->basis[pr_basis];
-        auto basis_grad = wkset->basis_grad[pr_basis];
-        auto ux = wkset->getSolutionField("ux");
+        int rho_basis = wkset->usebasis[rho_num];
+        auto basis = wkset->basis[rho_basis];
+        auto basis_grad = wkset->basis_grad[rho_basis];
+        auto drho_dt = wkset->getSolutionField("rho_t");
+        auto rho_ux = wkset->getSolutionField("rho_ux");
 
-        auto off = subview(wkset->offsets, pr_num, ALL());
+        auto off = subview(wkset->offsets, rho_num, ALL());
 
         parallel_for(
             "MHD1D pressure volume residual",
@@ -105,10 +103,10 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = dens(elem,pt)*ux(elem, pt);
-                    Fx *= wts(elem, pt);
-                    AD F = 0.; // time derivative of density
-                    F *= wts(elem, pt);
+                    AD Fx = rho_ux(elem, pt);
+                    AD F = drho_dt(elem, pt); // time derivative of density
+                    Fx *= -wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
@@ -117,22 +115,23 @@ void mhd1d::volumeResidual()
             });
     }
     { // momentum eqn x
-        int ux_basis = wkset->usebasis[ux_num];
-        auto basis = wkset->basis[ux_basis];
-        auto basis_grad = wkset->basis_grad[ux_basis];
-        auto ux = wkset->getSolutionField("ux");
-        auto uy = wkset->getSolutionField("uy");
-        auto uz = wkset->getSolutionField("uz");
-
-        auto pr = wkset->getSolutionField("pr");
+        int rho_ux_basis = wkset->usebasis[rho_ux_num];
+        auto basis = wkset->basis[rho_ux_basis];
+        auto basis_grad = wkset->basis_grad[rho_ux_basis];
+        auto rho = wkset->getSolutionField("rho");
+        auto rho_ux = wkset->getSolutionField("rho_ux");
+        auto rho_uy = wkset->getSolutionField("rho_uy");
+        auto rho_uz = wkset->getSolutionField("rho_uz");
 
         auto By = wkset->getSolutionField("By");
         auto Bz = wkset->getSolutionField("Bz");
 
-        auto dux_dt = wkset->getSolutionField("ux_t");
-        auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
+        auto E = wkset->getSolutionField("E");
 
-        auto off = subview(wkset->offsets, ux_num, ALL());
+        auto drho_ux_dt = wkset->getSolutionField("rho_ux_t");
+        auto drho_ux_dx = wkset->getSolutionField("grad(rho_ux)[x]");
+
+        auto off = subview(wkset->offsets, rho_ux_num, ALL());
 
         parallel_for(
             "MHD1D ux volume resid",
@@ -140,12 +139,14 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
+                    AD norm_rhou = rho_ux(elem, pt)*rho_ux(elem, pt) + rho_uy(elem, pt)*rho_uy(elem, pt) + rho_uz(elem, pt)*rho_uz(elem, pt);
                     AD norm_B = Bx(elem, pt) * Bx(elem, pt) + By(elem, pt) * By(elem, pt) + Bz(elem, pt) * Bz(elem, pt);
-                    AD Fx = dens(elem,pt) * ux(elem, pt) * ux(elem, pt) - visc(elem,pt)* dux_dx(elem,pt) +
-                            pr(elem,pt) + (norm_B/2 - Bx(elem, pt) * Bx(elem, pt))/mu(elem,pt);
-                    Fx *= wts(elem, pt);
-                    AD F = dens(elem,pt) * dux_dt(elem, pt);
-                    F *= wts(elem, pt);
+                    AD pr = (gamma(elem, pt) - 1)*(E(elem, pt) - norm_rhou/(2*rho(elem, pt)) - norm_B/2);
+                    AD pr_star = pr + norm_B/2;
+                    AD Fx = rho_ux(elem, pt)*rho_ux(elem, pt)/rho(elem, pt) + pr_star - Bx(elem, pt)*Bx(elem, pt);
+                    AD F = drho_ux_dt(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
@@ -154,21 +155,21 @@ void mhd1d::volumeResidual()
             });
     }
     { // momentum eqn y
-        int uy_basis = wkset->usebasis[uy_num];
-        auto basis = wkset->basis[uy_basis];
-        auto basis_grad = wkset->basis_grad[uy_basis];
+        int rho_uy_basis = wkset->usebasis[rho_uy_num];
+        auto basis = wkset->basis[rho_uy_basis];
+        auto basis_grad = wkset->basis_grad[rho_uy_basis];
         auto rho = wkset->getSolutionField("rho");
-        auto ux = wkset->getSolutionField("ux");
-        auto uy = wkset->getSolutionField("uy");
-        auto uz = wkset->getSolutionField("uz");
+        auto rho_ux = wkset->getSolutionField("rho_ux");
+        auto rho_uy = wkset->getSolutionField("rho_uy");
+        auto rho_uz = wkset->getSolutionField("rho_uz");
 
         auto By = wkset->getSolutionField("By");
         auto Bz = wkset->getSolutionField("Bz");
 
-        auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
-        auto duy_dt = wkset->getSolutionField("uy_t");
+        auto drho_uy_dx = wkset->getSolutionField("grad(rho_uy)[x]");
+        auto drho_uy_dt = wkset->getSolutionField("rho_uy_t");
 
-        auto off = subview(wkset->offsets, uy_num, ALL());
+        auto off = subview(wkset->offsets, rho_uy_num, ALL());
 
         parallel_for(
             "MHD1D uy volume resid",
@@ -176,11 +177,10 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = ux(elem, pt) * uy(elem, pt) * dens(elem, pt) - visc(elem, pt)* duy_dx(elem, pt) -
-                            Bx(elem, pt)*By(elem, pt)/mu(elem, pt);
-                    Fx *= wts(elem, pt);
-                    AD F = dens(elem, pt) * duy_dt(elem, pt);
-                    F *= wts(elem, pt);
+                    AD Fx = rho_ux(elem, pt)*rho_uy(elem, pt)/rho(elem, pt) - Bx(elem, pt)*By(elem, pt);
+                    AD F = drho_uy_dt(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
@@ -189,22 +189,22 @@ void mhd1d::volumeResidual()
             });
     }
     { // momentum eqn z
-        int uz_basis = wkset->usebasis[uz_num];
-        auto basis = wkset->basis[uz_basis];
-        auto basis_grad = wkset->basis_grad[uz_basis];
+        int rho_uz_basis = wkset->usebasis[rho_uz_num];
+        auto basis = wkset->basis[rho_uz_basis];
+        auto basis_grad = wkset->basis_grad[rho_uz_basis];
         auto rho = wkset->getSolutionField("rho");
-        auto ux = wkset->getSolutionField("ux");
-        auto uy = wkset->getSolutionField("uy");
-        auto uz = wkset->getSolutionField("uz");
+        auto rho_ux = wkset->getSolutionField("rho_ux");
+        auto rho_uy = wkset->getSolutionField("rho_uy");
+        auto rho_uz = wkset->getSolutionField("rho_uz");
 
         auto By = wkset->getSolutionField("By");
         auto Bz = wkset->getSolutionField("Bz");
         auto E = wkset->getSolutionField("E");
 
-        auto duz_dx = wkset->getSolutionField("grad(uz)[x]");
-        auto duz_dt = wkset->getSolutionField("uz_t");
+        auto drho_uz_dx = wkset->getSolutionField("grad(rho_uz)[x]");
+        auto drho_uz_dt = wkset->getSolutionField("rho_uz_t");
 
-        auto off = subview(wkset->offsets, uz_num, ALL());
+        auto off = subview(wkset->offsets, rho_uz_num, ALL());
 
         parallel_for(
             "MHD1D rho_uz volume resid",
@@ -212,10 +212,10 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = ux(elem, pt) * rho_uz(elem, pt) / rho(elem, pt) - Bx(elem, pt) * Bz(elem, pt);
-                    Fx *= wts(elem, pt);
+                    AD Fx = rho_ux(elem, pt) * rho_uz(elem, pt) / rho(elem, pt) - Bx(elem, pt) * Bz(elem, pt);
                     AD F = drho_uz_dt(elem, pt);
-                    F *= wts(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
@@ -228,8 +228,8 @@ void mhd1d::volumeResidual()
         auto basis = wkset->basis[By_basis];
         auto basis_grad = wkset->basis_grad[By_basis];
         auto rho = wkset->getSolutionField("rho");
-        auto ux = wkset->getSolutionField("ux");
-        auto uy = wkset->getSolutionField("uy");
+        auto rho_ux = wkset->getSolutionField("rho_ux");
+        auto rho_uy = wkset->getSolutionField("rho_uy");
 
         auto By = wkset->getSolutionField("By");
 
@@ -243,10 +243,10 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = (By(elem, pt) * ux(elem, pt) - Bx(elem, pt) * uy(elem, pt)) / rho(elem, pt);
-                    Fx *= wts(elem, pt);
+                    AD Fx = (By(elem, pt) * rho_ux(elem, pt) - Bx(elem, pt) * rho_uy(elem, pt))/rho(elem, pt);
                     AD F = dBy_dt(elem, pt);
-                    F *= wts(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
@@ -259,7 +259,7 @@ void mhd1d::volumeResidual()
         auto basis = wkset->basis[Bz_basis];
         auto basis_grad = wkset->basis_grad[Bz_basis];
         auto rho = wkset->getSolutionField("rho");
-        auto ux = wkset->getSolutionField("ux");
+        auto rho_ux = wkset->getSolutionField("rho_ux");
         auto rho_uz = wkset->getSolutionField("rho_uz");
 
         auto Bz = wkset->getSolutionField("Bz");
@@ -274,10 +274,10 @@ void mhd1d::volumeResidual()
             KOKKOS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
-                    AD Fx = (Bz(elem, pt) * ux(elem, pt) - Bx(elem, pt) * rho_uz(elem, pt)) / rho(elem, pt);
-                    Fx *= wts(elem, pt);
+                    AD Fx = (Bz(elem, pt) * rho_ux(elem, pt) - Bx(elem, pt) * rho_uz(elem, pt)) / rho(elem, pt);
                     AD F = dBz_dt(elem, pt);
-                    F *= wts(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
@@ -294,8 +294,8 @@ void mhd1d::volumeResidual()
         auto basis = wkset->basis[E_basis];
         auto basis_grad = wkset->basis_grad[E_basis];
         auto rho = wkset->getSolutionField("rho");
-        auto ux = wkset->getSolutionField("ux");
-        auto uy = wkset->getSolutionField("uy");
+        auto rho_ux = wkset->getSolutionField("rho_ux");
+        auto rho_uy = wkset->getSolutionField("rho_uy");
         auto rho_uz = wkset->getSolutionField("rho_uz");
 
         auto By = wkset->getSolutionField("By");
@@ -311,14 +311,14 @@ void mhd1d::volumeResidual()
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     AD norm_B = Bx(elem, pt) * Bx(elem, pt) + By(elem, pt) * By(elem, pt) + Bz(elem, pt) * Bz(elem, pt);
-                    AD norm_rhou = ux(elem, pt) * ux(elem, pt) + uy(elem, pt) * uy(elem, pt) + rho_uz(elem, pt) * rho_uz(elem, pt);
+                    AD norm_rhou = rho_ux(elem, pt) * rho_ux(elem, pt) + rho_uy(elem, pt) * rho_uy(elem, pt) + rho_uz(elem, pt) * rho_uz(elem, pt);
                     AD pressure = (gamma(elem, pt) - 1) * (E(elem, pt) - norm_rhou / (rho(elem, pt) * 2) - norm_B / 2);
                     AD p_star = pressure + norm_B / 2;
-                    AD B_dot_rhou = Bx(elem, pt) * ux(elem, pt) + By(elem, pt) * uy(elem, pt) + Bz(elem, pt) * rho_uz(elem, pt);
-                    AD Fx = ((E(elem, pt) + p_star) * ux(elem, pt) - Bx(elem, pt) * B_dot_rhou) / rho(elem, pt);
-                    Fx *= wts(elem, pt);
+                    AD B_dot_rhou = Bx(elem, pt) * rho_ux(elem, pt) + By(elem, pt) * rho_uy(elem, pt) + Bz(elem, pt) * rho_uz(elem, pt);
+                    AD Fx = ((E(elem, pt) + p_star) * rho_ux(elem, pt) - Bx(elem, pt) * B_dot_rhou) / rho(elem, pt);
                     AD F = dE_dt(elem, pt);
-                    F *= wts(elem, pt);
+                    Fx *= -wts(elem, pt);
+                    F  *=  wts(elem, pt);
                     for (size_type dof = 0; dof < basis.extent(1); dof++)
                     {
                         res(elem, off(dof)) += Fx * basis_grad(elem, dof, pt, 0) + F * basis(elem, dof, pt, 0);
@@ -369,9 +369,9 @@ void mhd1d::setWorkset(Teuchos::RCP<workset> &wkset_)
     vector<string> varlist = wkset->varlist;
     for (size_t i = 0; i < varlist.size(); i++)
     {
-        if (varlist[i] == "ux")
+        if (varlist[i] == "rho_ux")
             rho_ux_num = i;
-        if (varlist[i] == "uy")
+        if (varlist[i] == "rho_uy")
             rho_uy_num = i;
         if (varlist[i] == "rho_uz")
             rho_uz_num = i;

@@ -4,8 +4,8 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 111
-  debug level: 111
+  verbosity: 1
+  debug level: 0
   Mesh:
     dimension: 1
     element type: interval
@@ -16,36 +16,35 @@ ANONYMOUS:
     modules: mhd1d
     assemble boundary terms: true
     Dirichlet conditions:
-      scalar data: true
       rho:
-        left: 1.0
-        right: 0.125
+        left: '1.0'
+        right: '0.125'
       rho_ux:
-        left: 0.0
-        right: 0.0
+        left: '0.0'
+        right: '0.0'
       rho_uy:
-        left: 0.0
-        right: 0.0
+        left: '0.0'
+        right: '0.0'
       rho_uz:
-        left: 0.0
-        right: 0.0
+        left: '0.0'
+        right: '0.0'
       By:
-        left: 1.
-        right: -1.
+        left: '1.'
+        right: '-1.'
       Bz:
-        left: 0.0
-        right: 0.0
+        left: '0.0'
+        right: '0.0'
       E:
-        left: 1.78125
-        right: 1.78125
+        left: '1.5'
+        right: '0.6'
     Initial conditions: # TODO
-      rho: '0.125 + (0.875*(x<0))'
+      rho: '1.0 - (0.875*(x>0))'
       rho_ux: 0.0
       rho_uy: 0.0
       rho_uz: 0.0
-      By: '-1.0 + (2*(x<0))'
+      By: '1.0 - (2*(x>0))'
       Bz: 0.0
-      E: '(0.1 + (0.9*(x<0)))/(gamma-1) + (Bx*Bx + By*By)/2'
+      E: '(gamma-1)*(1.0 - (0.9*(x>0))) + 0.5 - (x>0)'
     Active Variables:
       rho: HGRAD-DG
       rho_ux: HGRAD-DG
@@ -69,13 +68,14 @@ ANONYMOUS:
     workset size: 200
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-12
-    max nonlinear iters: 2
+    max nonlinear iters: 1
     max linear iters: 750
     final time: 0.2
-    delta t: 0.010625
+    delta t: 0.005
     use domain decomposition: true
     use preconditioner: true
     preconditioner reuse type: full
+    use strong DBCs: true
     Preconditioner Settings:
       verbosity: none
       number of equations: 7
@@ -85,8 +85,18 @@ ANONYMOUS:
   Functions:
 
   Postprocess:
-    write solution: true
-    output file: output
+    response type: pointwise
+    verification: compute errors
+    write solution: false
+    compute objective: false
+    compute responses: true
+    Objective functions:
+      objval:
+        type: sensors
+        sensor points file: sensor_points.dat
+        save sensor data: true
+        response: 'rho'
+        weight: 1.0
 
   Parameters:
     Bx: # First, background magnetic field. No induction in x dir, so magnet is static

@@ -63,7 +63,7 @@ namespace MrHyDE {
 
   private:
     
-    int pr_num, ux_num, uy_num, uz_num, By_num, Bz_num;
+    int rho_num, rho_ux_num, rho_uy_num, rho_uz_num, By_num, Bz_num, E_num;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::mhd1d::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::mhd1d::volumeResidual() - evaluation of residual");
