@@ -758,7 +758,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
         
         // Volumetric contribution
         assembler->updateWorkset(macrogrp, e, seedwhat, seedindex);
-        assembler->physics->volumeResidual(0,0);
+        assembler->physics->volumeResidual<AD>(0,0);
         
         //////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
@@ -823,7 +823,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
           //int seedwhat = 1;
           
           assembler->updateWorksetBoundary(macrogrp, e, seedwhat, seedindex);
-          assembler->physics->boundaryResidual(0,0);
+          assembler->physics->boundaryResidual<AD>(0,0);
           
           //////////////////////////////////////////////////////////////////////////
           // Scatter into global matrix/vector
@@ -1155,7 +1155,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       for (size_t elem=0; elem<assembler->groups[macrogrp].size(); elem++) {
         
         assembler->wkset[0]->localEID = elem;
-        assembler->updateGroupData(macrogrp, elem);
+        assembler->updateGroupData(assembler->wkset[0], macrogrp, elem);
         Kokkos::deep_copy(local_res, 0.0);
         
         assembler->computeJacRes(macrogrp, elem, time, isTransient, isAdjoint,
@@ -1229,7 +1229,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         Kokkos::deep_copy(local_J, 0.0);
         
         // TMW: this may not work properly with new version
-        assembler->updateGroupData(macrogrp, elem);
+        assembler->updateGroupData(assembler->wkset[0], macrogrp, elem);
         
         assembler->computeJacRes(macrogrp, elem, time, isTransient, isAdjoint,
                                                        true, false, num_active_params, false, true, false,
@@ -1268,7 +1268,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         // Compute the residual
         //-----------------------------------------------
         
-        assembler->physics->boundaryResidual(0,0);
+        assembler->physics->boundaryResidual<AD>(0,0);
         
         //-----------------------------------------------
         // Scatter to vectors

@@ -188,7 +188,9 @@ namespace MrHyDE {
     std::vector<std::string> paramnames;
     std::vector<std::vector<ScalarT> > paramvals;
     std::vector<Teuchos::RCP<std::vector<AD> > > paramvals_AD;
+    std::vector<Teuchos::RCP<std::vector<ScalarT> > > paramvals_Sc;
     Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
+    Kokkos::View<ScalarT**,AssemblyDevice> paramvals_KV;
     
     vector_RCP Psol, Psol_over;
     std::vector<vector_RCP> dynamic_Psol, dynamic_Psol_over;

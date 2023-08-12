@@ -103,7 +103,7 @@ namespace MrHyDE {
     
     void initialize(const int & dim0, const int & dim1) {
 #ifndef MrHyDE_NO_AD
-      data_ = View_AD2("solution field for " + expression_, dim0, dim1, maxDerivs);
+      data_ = View_AD2("solution field for " + expression_, dim0, dim1);
 #else
       data_ = View_AD2("solution field for " + expression_, dim0, dim1);
 #endif

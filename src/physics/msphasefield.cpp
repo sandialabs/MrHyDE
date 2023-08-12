@@ -28,6 +28,7 @@ msphasefield<EvalT>::msphasefield(Teuchos::ParameterList & settings, const int &
   Comm(Comm_)
 {
   
+  spaceDim = dimension_;
   numphases = settings.get<int>("number_phases",1);
   numdisks = settings.get<int>("numdisks",3);
   disksize = settings.get<ScalarT>("disksize",10.0);
@@ -258,7 +259,6 @@ void msphasefield<EvalT>::volumeResidual() {
         }
         sumphi +=  phi[j]*phi[j];
       }
-      
       
       EvalT Lnum = 0.0;
       EvalT Lden = 0.0;

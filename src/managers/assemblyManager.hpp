@@ -158,6 +158,48 @@ namespace MrHyDE {
                         const bool & is_final_time, const int & block,
                         const ScalarT & deltat);
     
+    void assembleJac(const size_t & set, vector_RCP & u, vector_RCP & phi,
+                        const bool & compute_jacobian, const bool & compute_sens,
+                        const bool & compute_disc_sens,
+                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                        const ScalarT & current_time, const bool & useadjoint,
+                        const bool & store_adjPrev,
+                        const int & num_active_params, vector_RCP & Psol,
+                        const bool & is_final_time,
+                        const ScalarT & deltat);
+    
+    
+    void assembleJac(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
+                        const bool & compute_disc_sens,
+                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                        const ScalarT & current_time, const bool & useadjoint,
+                        const bool & store_adjPrev,
+                        const int & num_active_params,
+                        const bool & is_final_time, const int & block,
+                        const ScalarT & deltat);
+    
+
+    void assembleRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
+                        const bool & compute_jacobian, const bool & compute_sens,
+                        const bool & compute_disc_sens,
+                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                        const ScalarT & current_time, const bool & useadjoint,
+                        const bool & store_adjPrev,
+                        const int & num_active_params, vector_RCP & Psol,
+                        const bool & is_final_time,
+                        const ScalarT & deltat);
+    
+    
+    void assembleRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
+                        const bool & compute_disc_sens,
+                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                        const ScalarT & current_time, const bool & useadjoint,
+                        const bool & store_adjPrev,
+                        const int & num_active_params,
+                        const bool & is_final_time, const int & block,
+                        const ScalarT & deltat);
+    
+  
     // ========================================================================================
     //
     // ========================================================================================
@@ -216,6 +258,11 @@ namespace MrHyDE {
                  const bool & compute_sens,
                  const bool & compute_disc_sens,
                  const bool & isAdjoint);
+    
+    template<class VecViewType, class LIDViewType>
+    void scatterRes(const size_t & set, VecViewType res_view,
+                 LIDViewType LIDs, 
+                 const int & block);
     
     // Computes y = M*x
     void applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y);
@@ -434,12 +481,53 @@ namespace MrHyDE {
                                                      const bool & compute_aux_sens, const bool & store_adjPrev,
                                                      View_Sc3 local_res, View_Sc3 local_J);
 
+    // Backwards compatible function call
+    // Calls fully templated version with AD
     void updateWorksetBoundary(const int & block, const size_t & grp, const int & seedwhat, 
                                const int & seedindex=0, const bool & override_transient=false);
 
+    // Partially templated version that pick the appropriate workset to use
+    // and calls fully templated version
+    template<class EvalT>
+    void updateWorksetBoundary(const int & block, const size_t & grp, const int & seedwhat,
+                               const int & seedindex=0, const bool & override_transient=false);
+
+    // Fully templated version
+    // Actually does the work
+    template<class EvalT>
+    void updateWorksetBoundary(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp,
+                               const int & seedwhat, const int & seedindex,
+                               const bool & override_transient);
+
+    void computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat);
+
+    // Backwards compatible function call
+    // Calls fully templated version with AD
     void updateDataBoundary(const int & block, const size_t & grp);
 
+    // Partially templated version that pick the appropriate workset to use
+    // and calls fully templated version
+    template<class EvalT>
+    void updateDataBoundary(const int & block, const size_t & grp);
+
+    // Fully templated version
+    // Actually does the work
+    template<class EvalT>
+    void updateDataBoundary(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
+
+    // Backwards compatible function call
+    // Calls fully templated version with AD
     void updateWorksetBasisBoundary(const int & block, const size_t & grp);
+
+    // Partially templated version that pick the appropriate workset to use
+    // and calls fully templated version
+    template<class EvalT>
+    void updateWorksetBasisBoundary(const int & block, const size_t & grp);
+
+    // Fully templated version
+    // Actually does the work
+    template<class EvalT>
+    void updateWorksetBasisBoundary(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
 
     void updateResBoundary(const int & block, const size_t & grp,
                            const bool & compute_sens, View_Sc3 local_res);
@@ -459,8 +547,23 @@ namespace MrHyDE {
     // Functionality moved from groups into here
     ////////////////////////////////////////////////////////////////////////////////
     
+    // Backwards compatible function call
+    // Calls fully templated version with AD
     void updateWorkset(const int & block, const size_t & grp, const int & seedwhat,
                        const int & seedindex, const bool & override_transient=false);
+
+    // Partially templated version that pick the appropriate workset to use
+    // and calls fully templated version
+    template<class EvalT>
+    void updateWorkset(const int & block, const size_t & grp, const int & seedwhat,
+                       const int & seedindex, const bool & override_transient=false);
+
+    // Fully templated version
+    // Actually does the work
+    template<class EvalT>
+    void updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp,
+                       const int & seedwhat, const int & seedindex,
+                       const bool & override_transient);
 
     void computeSolAvg(const int & block, const size_t & grp);
 
@@ -470,8 +573,19 @@ namespace MrHyDE {
     void computeParameterAverage(const int & block, const size_t & grp,
                                  const string & var, View_Sc2 sol);
 
+    // Backwards compatible function call
+    // Calls fully templated version with AD
     void updateWorksetFace(const int & block, const size_t & grp, const size_t & facenum);
 
+    // Partially templated version that pick the appropriate workset to use
+    // and calls fully templated version
+    template<class EvalT>
+    void updateWorksetFace(const int & block, const size_t & grp, const size_t & facenum);
+
+    // Fully templated version
+    // Actually does the work
+    template<class EvalT>
+    void updateWorksetFace(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp, const size_t & facenum);
 
     void computeJacRes(const int & block, const size_t & grp, 
                          const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
@@ -519,7 +633,8 @@ namespace MrHyDE {
 
     Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & block, const size_t & grp, const int & var);
 
-    void updateGroupData(const int & block, const size_t & grp);
+    template<class EvalT>
+    void updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -547,6 +662,7 @@ namespace MrHyDE {
     Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     std::vector<Teuchos::RCP<FunctionManager<AD> > > function_managers;
+    std::vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers_Sc;
 
     size_t globalParamUnknowns;
     int verbosity, debug_level;
@@ -571,6 +687,8 @@ namespace MrHyDE {
   private:
 
     Teuchos::RCP<Teuchos::Time> assembly_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - total assembly");
+    Teuchos::RCP<Teuchos::Time> assembly_res_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeRes() - residual assembly");
+    Teuchos::RCP<Teuchos::Time> assembly_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJac() - Jacobian assembly");
     Teuchos::RCP<Teuchos::Time> gather_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::gather()");
     Teuchos::RCP<Teuchos::Time> physics_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - physics evaluation");
     Teuchos::RCP<Teuchos::Time> boundary_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - boundary evaluation");

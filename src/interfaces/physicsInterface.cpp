@@ -98,9 +98,26 @@ settings(settings_), comm(comm_){
 // Add the functions to the function managers
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+template<>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> > > & function_managers_) {
 
   function_managers = function_managers_;
+  this->defineFunctions(function_managers, modules);
+    
+}
+    
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<ScalarT> > > & function_managers_) {
+    
+  function_managers_Sc = function_managers_;
+  this->defineFunctions(function_managers_Sc, modules_Sc);
+  
+}
+
+template<class EvalT>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & func_managers,
+                                       vector<vector<vector<Teuchos::RCP<PhysicsBase<EvalT> > > > > & mods) {
+
   
   for (size_t block=0; block<block_names.size(); ++block) {
     Teuchos::ParameterList fs;
@@ -111,9 +128,9 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
       fs = settings->sublist("Functions");
     }
     
-    for (size_t set=0; set<modules.size(); set++) {
-      for (size_t n=0; n<modules[set][block].size(); n++) {
-        modules[set][block][n]->defineFunctions(fs, function_managers[block]);
+    for (size_t set=0; set<mods.size(); set++) {
+      for (size_t n=0; n<mods[set][block].size(); n++) {
+        mods[set][block][n]->defineFunctions(fs, func_managers[block]);
       }
     }
   }
@@ -137,12 +154,12 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             else {
               expression = "0.0";
             }
-            function_managers[block]->addFunction("initial "+var,expression,"ip");
-            function_managers[block]->addFunction("initial "+var,expression,"point");
+            func_managers[block]->addFunction("initial "+var,expression,"ip");
+            func_managers[block]->addFunction("initial "+var,expression,"point");
             if (types[set][block][j] == "HFACE") {
               // we have found an HFACE variable and need to have side ip evaluations
               // TODO check aux, etc?
-              function_managers[block]->addFunction("initial "+var,expression,"side ip");
+              func_managers[block]->addFunction("initial "+var,expression,"side ip");
             }
           }
           else if (types[set][block][j].substr(0,5) == "HCURL" || types[set][block][j].substr(0,4) == "HDIV") {
@@ -157,8 +174,8 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             else {
               expressionx = "0.0";
             }
-            function_managers[block]->addFunction("initial "+var+"[x]",expressionx,"ip");
-            function_managers[block]->addFunction("initial "+var+"[x]",expressionx,"point");
+            func_managers[block]->addFunction("initial "+var+"[x]",expressionx,"ip");
+            func_managers[block]->addFunction("initial "+var+"[x]",expressionx,"point");
           
             if (initial_conds.isType<string>(var+"[y]")) {
               expressiony = initial_conds.get<string>(var+"[y]");
@@ -170,8 +187,8 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             else {
               expressiony = "0.0";
             }
-            function_managers[block]->addFunction("initial "+var+"[y]",expressiony,"ip");
-            function_managers[block]->addFunction("initial "+var+"[y]",expressiony,"point");
+            func_managers[block]->addFunction("initial "+var+"[y]",expressiony,"ip");
+            func_managers[block]->addFunction("initial "+var+"[y]",expressiony,"point");
           
             if (initial_conds.isType<string>(var+"[z]")) {
               expressionz = initial_conds.get<string>(var+"[z]");
@@ -183,8 +200,8 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             else {
               expressionz = "0.0";
             }
-            function_managers[block]->addFunction("initial "+var+"[z]",expressionz,"ip");
-            function_managers[block]->addFunction("initial "+var+"[z]",expressionz,"point");
+            func_managers[block]->addFunction("initial "+var+"[z]",expressionz,"ip");
+            func_managers[block]->addFunction("initial "+var+"[z]",expressionz,"point");
           
           }
           
@@ -205,7 +222,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
               string entry = dbcs.sublist(var).get<string>("all boundaries");
               for (size_t s=0; s<side_names.size(); s++) {
                 string label = "Dirichlet " + var + " " + side_names[s];
-                function_managers[block]->addFunction(label,entry,"side ip");
+                func_managers[block]->addFunction(label,entry,"side ip");
               }
             }
             else if (dbcs.sublist(var).isType<double>("all boundaries")) {
@@ -213,7 +230,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
               string entry = std::to_string(value);
               for (size_t s=0; s<side_names.size(); s++) {
                 string label = "Dirichlet " + var + " " + side_names[s];
-                function_managers[block]->addFunction(label,entry,"side ip");
+                func_managers[block]->addFunction(label,entry,"side ip");
               }
             }
             else {
@@ -223,13 +240,13 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
                 if (currdbcs.isType<string>(d_itr->first)) {
                   string entry = currdbcs.get<string>(d_itr->first);
                   string label = "Dirichlet " + var + " " + d_itr->first;
-                  function_managers[block]->addFunction(label,entry,"side ip");
+                  func_managers[block]->addFunction(label,entry,"side ip");
                 }
                 else if (currdbcs.isType<double>(d_itr->first)) {
                   double value = currdbcs.get<double>(d_itr->first);
                   string entry = std::to_string(value);
                   string label = "Dirichlet " + var + " " + d_itr->first;
-                  function_managers[block]->addFunction(label,entry,"side ip");
+                  func_managers[block]->addFunction(label,entry,"side ip");
                 }
                 d_itr++;
               }
@@ -251,7 +268,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             string entry = nbcs.sublist(var).get<string>("all boundaries");
             for (size_t s=0; s<side_names.size(); s++) {
               string label = "Neumann " + var + " " + side_names[s];
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
             }
           }
           else {
@@ -260,7 +277,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             while (n_itr != currnbcs.end()) {
               string entry = currnbcs.get<string>(n_itr->first);
               string label = "Neumann " + var + " " + n_itr->first;
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
               n_itr++;
             }
           }
@@ -280,7 +297,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             string entry = fbcs.sublist(var).get<string>("all boundaries");
             for (size_t s=0; s<side_names.size(); s++) {
               string label = "Far-field " + var + " " + side_names[s];
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
             }
           }
           else {
@@ -289,7 +306,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             while (f_itr != currfbcs.end()) {
               string entry = currfbcs.get<string>(f_itr->first);
               string label = "Far-field " + var + " " + f_itr->first;
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
               f_itr++;
             }
           }
@@ -309,7 +326,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             string entry = sbcs.sublist(var).get<string>("all boundaries");
             for (size_t s=0; s<side_names.size(); s++) {
               string label = "Slip " + var + " " + side_names[s];
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
             }
           }
           else {
@@ -318,7 +335,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             while (s_itr != currsbcs.end()) {
               string entry = currsbcs.get<string>(s_itr->first);
               string label = "Slip " + var + " " + s_itr->first;
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
               s_itr++;
             }
           }
@@ -338,7 +355,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             string entry = fbcs.sublist(var).get<string>("all boundaries");
             for (size_t s=0; s<side_names.size(); s++) {
               string label = "Flux " + var + " " + side_names[s];
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
             }
           }
           else {
@@ -347,7 +364,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
             while (f_itr != currfbcs.end()) {
               string entry = currfbcs.get<string>(f_itr->first);
               string label = "Flux " + var + " " + f_itr->first;
-              function_managers[block]->addFunction(label,entry,"side ip");
+              func_managers[block]->addFunction(label,entry,"side ip");
               f_itr++;
             }
           }
@@ -403,9 +420,9 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> >
     Teuchos::ParameterList::ConstIterator fnc_itr = functions.begin();
     while (fnc_itr != functions.end()) {
       string entry = functions.get<string>(fnc_itr->first);
-      function_managers[block]->addFunction(fnc_itr->first,entry,"ip");
-      function_managers[block]->addFunction(fnc_itr->first,entry,"side ip");
-      function_managers[block]->addFunction(fnc_itr->first,entry,"point");
+      func_managers[block]->addFunction(fnc_itr->first,entry,"ip");
+      func_managers[block]->addFunction(fnc_itr->first,entry,"side ip");
+      func_managers[block]->addFunction(fnc_itr->first,entry,"point");
       fnc_itr++;
     }
   }
@@ -436,6 +453,7 @@ void PhysicsInterface::importPhysics() {
     vector<vector<int> > set_var_owned;
     
     vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules;
+    vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > set_modules_Sc;
     vector<vector<bool> > set_use_subgrid, set_use_DG;
     
     for (size_t block=0; block<block_names.size(); ++block) { // element blocks
@@ -444,7 +462,6 @@ void PhysicsInterface::importPhysics() {
       vector<string> block_var_list;
       vector<int> block_var_owned;
       
-      vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules;
       vector<bool> block_use_subgrid, block_use_DG;
       
       std::string var;
@@ -453,14 +470,24 @@ void PhysicsInterface::importPhysics() {
       
       vector<string> enabled_modules = this->breakupList(module_list, ", ");
       
-      PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
       physics_settings[set][block].set<int>("verbosity",settings->get<int>("verbosity",0));
+      
+      vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules;
+      PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
       block_modules = physimp.import(enabled_modules, physics_settings[set][block],
                                      dimension, comm);
       
       set_modules.push_back(block_modules);
+
+      vector<Teuchos::RCP<PhysicsBase<ScalarT> > > block_modules_Sc;
+      PhysicsImporter<ScalarT> physimp_Sc = PhysicsImporter<ScalarT>();
+      block_modules_Sc = physimp_Sc.import(enabled_modules, physics_settings[set][block],
+                                     dimension, comm);
+      
+      set_modules_Sc.push_back(block_modules_Sc);
     }
     modules.push_back(set_modules);
+    modules_Sc.push_back(set_modules_Sc);
   }
   
   //-----------------------------------------------------------------
@@ -970,6 +997,20 @@ void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & par
   
 }
 
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<ScalarT> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_Sc.size(); set++) {
+    for (size_t block=0; block<modules_Sc[set].size(); ++block) {
+      for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
+        modules_Sc[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -990,32 +1031,59 @@ int PhysicsInterface::getUniqueIndex(const int & set, const int & block, const s
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
+
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Starting PhysicsInterface volume residual ..." << endl;
   }
-  for (size_t i=0; i<modules[set][block].size(); i++) {
-    modules[set][block][i]->volumeResidual();
+
+  if (std::is_same<EvalT, AD>::value) {
+    for (size_t i=0; i<modules[set][block].size(); i++) {
+      modules[set][block][i]->volumeResidual();
+    }
   }
+  else if (std::is_same<EvalT, ScalarT>::value) {
+    for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
+      modules_Sc[set][block][i]->volumeResidual();
+    }
+  }
+
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Finished PhysicsInterface volume residual" << endl;
   }
+
 }
 
+template void PhysicsInterface::volumeResidual<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<ScalarT>(const size_t & set, const size_t block);
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) {
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Starting PhysicsInterface boundary residual ..." << endl;
   }
-  for (size_t i=0; i<modules[set][block].size(); i++) {
-    modules[set][block][i]->boundaryResidual();
+  if (std::is_same<EvalT, AD>::value) {
+    for (size_t i=0; i<modules[set][block].size(); i++) {
+      modules[set][block][i]->boundaryResidual();
+    }
   }
+  else if (std::is_same<EvalT, ScalarT>::value) {
+    for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
+      modules_Sc[set][block][i]->boundaryResidual();
+    }
+  }
+  
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Finished PhysicsInterface boundary residual" << endl;
   }
 }
+
+template void PhysicsInterface::boundaryResidual<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<ScalarT>(const size_t & set, const size_t block);
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1048,14 +1116,38 @@ void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset) {
   }
 }
 
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<ScalarT> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_Sc.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
+          modules_Sc[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 void PhysicsInterface::faceResidual(const size_t & set, const size_t block) {
-  for (size_t i=0; i<modules[set][block].size(); i++) {
-    modules[set][block][i]->faceResidual();
+  if (std::is_same<EvalT, AD>::value) {
+    for (size_t i=0; i<modules[set][block].size(); i++) {
+      modules[set][block][i]->faceResidual();
+    }
+  }
+  else if (std::is_same<EvalT, ScalarT>::value) {
+    for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
+      modules_Sc[set][block][i]->faceResidual();
+    }
   }
 }
+
+template void PhysicsInterface::faceResidual<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<ScalarT>(const size_t & set, const size_t block);
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1073,35 +1165,68 @@ void PhysicsInterface::updateFlags(vector<bool> & newflags) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
-  for (size_t var=0; var<var_list[set][block].size(); ++var) {
-    int cside = function_managers[block]->wkset->currentside;
-    string bctype = function_managers[block]->wkset->var_bcs(var,cside);
-    if (bctype == "Flux") {
-      string varname = var_list[set][block][var];
-      string sidename = function_managers[block]->wkset->sidename;
-      string label = "Flux " + varname + " " + sidename;
-      auto fluxvals = function_managers[block]->evaluate(label,"side ip");
+  if (std::is_same<EvalT, AD>::value) {
+    for (size_t var=0; var<var_list[set][block].size(); ++var) {
+      int cside = function_managers[block]->wkset->currentside;
+      string bctype = function_managers[block]->wkset->var_bcs(var,cside);
+      if (bctype == "Flux") {
+        string varname = var_list[set][block][var];
+        string sidename = function_managers[block]->wkset->sidename;
+        string label = "Flux " + varname + " " + sidename;
+        auto fluxvals = function_managers[block]->evaluate(label,"side ip");
       
-      auto basis = function_managers[block]->wkset->getBasisSide(varname);
-      auto wts = function_managers[block]->wkset->wts_side;
-      auto res = function_managers[block]->wkset->res;
-      auto off = function_managers[block]->wkset->getOffsets(varname);
+        auto basis = function_managers[block]->wkset->getBasisSide(varname);
+        auto wts = function_managers[block]->wkset->wts_side;
+        auto res = function_managers[block]->wkset->res;
+        auto off = function_managers[block]->wkset->getOffsets(varname);
       
-      
-      parallel_for("physics flux condition",
-                   TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VectorSize),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
-          for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-            res(elem,off(dof)) += -fluxvals(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
+        parallel_for("physics flux condition",
+                     TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+            for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+              res(elem,off(dof)) += -fluxvals(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
+            }
           }
-        }
-      });
+        });
+      }
+    }
+  }
+  else if (std::is_same<EvalT, ScalarT>::value) {
+    for (size_t var=0; var<var_list[set][block].size(); ++var) {
+      int cside = function_managers_Sc[block]->wkset->currentside;
+      string bctype = function_managers_Sc[block]->wkset->var_bcs(var,cside);
+      if (bctype == "Flux") {
+        string varname = var_list[set][block][var];
+        string sidename = function_managers_Sc[block]->wkset->sidename;
+        string label = "Flux " + varname + " " + sidename;
+        auto fluxvals = function_managers_Sc[block]->evaluate(label,"side ip");
+      
+        auto basis = function_managers_Sc[block]->wkset->getBasisSide(varname);
+        auto wts = function_managers_Sc[block]->wkset->wts_side;
+        auto res = function_managers_Sc[block]->wkset->res;
+        auto off = function_managers_Sc[block]->wkset->getOffsets(varname);
+      
+        parallel_for("physics flux condition",
+                     TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VectorSize),
+                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
+            for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+              res(elem,off(dof)) += -fluxvals(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
+            }
+          }
+        });
+      }
     }
   }
 }
+
+template void PhysicsInterface::fluxConditions<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<ScalarT>(const size_t & set, const size_t block);
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////

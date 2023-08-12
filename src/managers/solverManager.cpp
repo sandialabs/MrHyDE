@@ -239,6 +239,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   this->finalizeWorkset();
   
   physics->setWorkset(assembler->wkset);
+  physics->setWorkset(assembler->wkset_Sc);
   params->setWorkset(assembler->wkset);
   
   if (store_vectors) {
@@ -725,6 +726,15 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
     assembler->wkset[block]->butcher_b = dev_butcher_b;
     assembler->wkset[block]->butcher_c = dev_butcher_c;
 
+    assembler->wkset_Sc[block]->set_butcher_A[set] = dev_butcher_A;//block_butcher_A;
+    assembler->wkset_Sc[block]->set_butcher_b[set] = dev_butcher_b;//block_butcher_b;
+    assembler->wkset_Sc[block]->set_butcher_c[set] = dev_butcher_c;//block_butcher_c;
+
+    // TODO dont like this... but should protect against 1 set errors
+    assembler->wkset_Sc[block]->butcher_A = dev_butcher_A;
+    assembler->wkset_Sc[block]->butcher_b = dev_butcher_b;
+    assembler->wkset_Sc[block]->butcher_c = dev_butcher_c;
+
   } // end for blocks
 }
 
@@ -811,10 +821,12 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
 
     dev_BDF_wts = Kokkos::View<ScalarT*,AssemblyDevice>("BDF weights on device",BDF_wts.extent(0));
     Kokkos::deep_copy(dev_BDF_wts, BDF_wts);
-    //block_BDF_wts.push_back(dev_BDF_wts);
-    assembler->wkset[block]->set_BDF_wts[set] = dev_BDF_wts; //block_BDF_wts;
-    // TODO don't like this... but should protect against one set errors ASK 
+    
+    assembler->wkset[block]->set_BDF_wts[set] = dev_BDF_wts;
     assembler->wkset[block]->BDF_wts = dev_BDF_wts;
+    
+    assembler->wkset_Sc[block]->set_BDF_wts[set] = dev_BDF_wts;
+    assembler->wkset_Sc[block]->BDF_wts = dev_BDF_wts;
 
   } // end loop blocks
 }
@@ -856,6 +868,11 @@ void SolverManager<Node>::finalizeWorkset() {
         if (set == 0) {
           assembler->wkset[block]->offsets = offsets_view;
         }
+
+        assembler->wkset_Sc[block]->set_offsets.push_back(offsets_view);
+        if (set == 0) {
+          assembler->wkset_Sc[block]->offsets = offsets_view;
+        }
       }
     }
   }
@@ -874,6 +891,11 @@ void SolverManager<Node>::finalizeWorkset() {
       assembler->wkset[block]->set_varlist = block_varlist;
       assembler->wkset[block]->usebasis = block_useBasis[0];
       assembler->wkset[block]->varlist = block_varlist[0];
+
+      assembler->wkset_Sc[block]->set_usebasis = block_useBasis;
+      assembler->wkset_Sc[block]->set_varlist = block_varlist;
+      assembler->wkset_Sc[block]->usebasis = block_useBasis[0];
+      assembler->wkset_Sc[block]->varlist = block_varlist[0];
     }
   }
   
@@ -887,6 +909,13 @@ void SolverManager<Node>::finalizeWorkset() {
       assembler->wkset[block]->BDF_wts = assembler->wkset[block]->set_BDF_wts[0];
       // update workset for first physics set
       assembler->wkset[block]->updatePhysicsSet(0);
+
+      assembler->wkset_Sc[block]->butcher_A = assembler->wkset_Sc[block]->set_butcher_A[0];
+      assembler->wkset_Sc[block]->butcher_b = assembler->wkset_Sc[block]->set_butcher_b[0];
+      assembler->wkset_Sc[block]->butcher_c = assembler->wkset_Sc[block]->set_butcher_c[0];
+      assembler->wkset_Sc[block]->BDF_wts = assembler->wkset_Sc[block]->set_BDF_wts[0];
+      // update workset for first physics set
+      assembler->wkset_Sc[block]->updatePhysicsSet(0);
     }
   }
   
@@ -911,12 +940,17 @@ void SolverManager<Node>::finalizeWorkset() {
       assembler->wkset[block]->paramusebasis = params->discretized_param_usebasis;
       assembler->wkset[block]->paramoffsets = poffsets_view;
       assembler->wkset[block]->param_varlist = params->discretized_param_names;
+
+      assembler->wkset_Sc[block]->paramusebasis = params->discretized_param_usebasis;
+      assembler->wkset_Sc[block]->paramoffsets = poffsets_view;
+      assembler->wkset_Sc[block]->param_varlist = params->discretized_param_names;
     }
   }
   
   for (size_t block=0; block<assembler->groups.size(); ++block) {
     if (assembler->wkset[block]->isInitialized) {
       assembler->wkset[block]->createSolutionFields();
+      assembler->wkset_Sc[block]->createSolutionFields();
     }
   }
   
@@ -937,6 +971,12 @@ void SolverManager<Node>::finalizeWorkset() {
       assembler->wkset[block]->params_AD = params->paramvals_KVAD;
       assembler->wkset[block]->paramnames = params->paramnames;
       assembler->wkset[block]->setTime(current_time);
+
+      //assembler->wkset_Sc[block]->params = params->paramvals_AD;
+      assembler->wkset_Sc[block]->params_AD = params->paramvals_KV;
+      assembler->wkset_Sc[block]->paramnames = params->paramnames;
+      assembler->wkset_Sc[block]->setTime(current_time);
+      
       if (assembler->boundary_groups.size() > block) { // avoid seg faults
         for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
           if (assembler->boundary_groups[block][grp]->numElem > 0) {
@@ -1591,9 +1631,20 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       store_adjPrev = true;
     }
 
-    assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
-                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                              params->num_active_params, params->Psol_over, is_final_time, deltat);
+    bool test = true;
+    if (is_adjoint || assembler->groupData[0]->multiscale) {
+      test = false;
+    }
+    if (!test) { // cannot just use ScalarT
+      assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+                                current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                params->num_active_params, params->Psol_over, is_final_time, deltat);
+    }
+    else {
+      assembler->assembleRes(set, u, phi, build_jacobian, false, false,
+                             current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                             params->num_active_params, params->Psol_over, is_final_time, deltat);
+    }
     
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
     
@@ -1674,6 +1725,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     
     if (solve) {
       
+      if (test) {
+        assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+                                  current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                  params->num_active_params, params->Psol_over, is_final_time, deltat);
+      }
+
       if (build_jacobian) {
         linalg->fillComplete(J_over);
         J->resumeFill();

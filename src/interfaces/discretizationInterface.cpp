@@ -2022,6 +2022,7 @@ void DiscretizationInterface::buildDOFManagers() {
 #ifndef MrHyDE_NO_AD
     for (size_t block=0; block<block_names.size(); ++block) {
       int numGIDs = setDOF->getElementBlockGIDCount(block_names[block]);
+      num_derivs_required.push_back(numGIDs);
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + block_names[block]);
     }
 #endif

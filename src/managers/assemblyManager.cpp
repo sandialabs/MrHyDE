@@ -862,16 +862,34 @@ void AssemblyManager<Node>::createWorkset() {
       wkset[block]->blockname = blocknames[block];
       wkset[block]->set_var_bcs = bcs;
       wkset[block]->var_bcs = bcs[0];
+
+      wkset_Sc.push_back(Teuchos::rcp( new Workset<ScalarT>(info,
+                                                numVars,
+                                                isTransient,
+                                                disc->basis_types[block],
+                                                disc->basis_pointers[block],
+                                                params->discretized_param_basis,
+                                                groupData[block]->cell_topo)));
+      //mesh->cellTopo[block]) ) );
+      wkset_Sc[block]->block = block;
+      wkset_Sc[block]->blockname = blocknames[block];
+      wkset_Sc[block]->set_var_bcs = bcs;
+      wkset_Sc[block]->var_bcs = bcs[0];
     }
     else {
       wkset.push_back(Teuchos::rcp( new Workset<AD>()));
       wkset[block]->isInitialized = false;
       wkset[block]->block = block;
+
+      wkset_Sc.push_back(Teuchos::rcp( new Workset<ScalarT>()));
+      wkset_Sc[block]->isInitialized = false;
+      wkset_Sc[block]->block = block;
     }
     // this needs to be done even for uninitialized worksets
     // initialize BDF_wts vector (empty views)
     vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpBDF_wts(physics->set_names.size());
     wkset[block]->set_BDF_wts = tmpBDF_wts;
+    wkset_Sc[block]->set_BDF_wts = tmpBDF_wts;
     // initialize Butcher tableau vectors (empty views);
     vector<Kokkos::View<ScalarT**,AssemblyDevice> > tmpbutcher_A(physics->set_names.size());
     vector<Kokkos::View<ScalarT*,AssemblyDevice> > tmpbutcher_b(physics->set_names.size());
@@ -879,6 +897,9 @@ void AssemblyManager<Node>::createWorkset() {
     wkset[block]->set_butcher_A = tmpbutcher_A;
     wkset[block]->set_butcher_b = tmpbutcher_b;
     wkset[block]->set_butcher_c = tmpbutcher_c;
+    wkset_Sc[block]->set_butcher_A = tmpbutcher_A;
+    wkset_Sc[block]->set_butcher_b = tmpbutcher_b;
+    wkset_Sc[block]->set_butcher_c = tmpbutcher_c;
   }
   
   if (debug_level > 0) {
@@ -1885,7 +1906,111 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
 }
 
 // ========================================================================================
+// Wrapper to the main assembly routine to assemble over all blocks (most common use case)
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::assembleJac(const size_t & set, vector_RCP & u, vector_RCP & phi,
+                                           const bool & compute_jacobian, const bool & compute_sens,
+                                           const bool & compute_disc_sens,
+                                           vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                           const ScalarT & current_time,
+                                           const bool & useadjoint, const bool & store_adjPrev,
+                                           const int & num_active_params,
+                                           vector_RCP & Psol, const bool & is_final_time,
+                                           const ScalarT & deltat) {
+  
+  if (debug_level > 1) {
+    if (comm->getRank() == 0) {
+      cout << "******** Starting AssemblyManager::assembleJacRes ..." << endl;
+    }
+  }
+  
+  {
+    Teuchos::TimeMonitor localtimer(*gather_timer);
+    
+    // Local gather of solutions
+    this->performGather(set, u, 0, 0);
+    if (params->num_discretized_params > 0) {
+      this->performGather(set, Psol, 4, 0);
+    }
+    if (useadjoint) {
+      this->performGather(set, phi, 2, 0);
+    }
+  }
+  
+  
+  for (size_t block=0; block<groups.size(); ++block) {
+    if (groups[block].size() > 0) {
+      this->assembleJac(set, compute_jacobian,
+                           compute_sens, compute_disc_sens, res, J, isTransient,
+                           current_time, useadjoint, store_adjPrev, num_active_params,
+                           is_final_time, block, deltat);
+    }
+  }
+  
+  if (debug_level > 1) {
+    if (comm->getRank() == 0) {
+      cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
+    }
+  }
+}
+
+// ========================================================================================
+// Wrapper to the main assembly routine to assemble over all blocks (most common use case)
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
+                                           const bool & compute_jacobian, const bool & compute_sens,
+                                           const bool & compute_disc_sens,
+                                           vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                           const ScalarT & current_time,
+                                           const bool & useadjoint, const bool & store_adjPrev,
+                                           const int & num_active_params,
+                                           vector_RCP & Psol, const bool & is_final_time,
+                                           const ScalarT & deltat) {
+  
+  if (debug_level > 1) {
+    if (comm->getRank() == 0) {
+      cout << "******** Starting AssemblyManager::assembleRes ..." << endl;
+    }
+  }
+  
+  {
+    Teuchos::TimeMonitor localtimer(*gather_timer);
+    
+    // Local gather of solutions
+    this->performGather(set, u, 0, 0);
+    if (params->num_discretized_params > 0) {
+      this->performGather(set, Psol, 4, 0);
+    }
+    if (useadjoint) {
+      this->performGather(set, phi, 2, 0);
+    }
+  }
+  
+  
+  for (size_t block=0; block<groups.size(); ++block) {
+    if (groups[block].size() > 0) {
+      this->assembleRes(set, compute_jacobian,
+                           compute_sens, compute_disc_sens, res, J, isTransient,
+                           current_time, useadjoint, store_adjPrev, num_active_params,
+                           is_final_time, block, deltat);
+    }
+  }
+  
+  if (debug_level > 1) {
+    if (comm->getRank() == 0) {
+      cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
+    }
+  }
+}
+
+// ========================================================================================
 // Main assembly routine ... only assembles on a given block (b)
+// This routine is the old version that does both Jacobian and residual
+// Will eventually be deprecated
 // ========================================================================================
 
 template<class Node>
@@ -2034,7 +2159,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         }
         else {
           this->updateWorkset(block, grp, seedwhat, 0);
-          physics->volumeResidual(set, block);
+          physics->volumeResidual<AD>(set, block);
         }
       }
       
@@ -2050,7 +2175,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           wkset[block]->isOnSide = true;
           for (size_t s=0; s<groupData[block]->num_sides; s++) {
             this->updateWorksetFace(block, grp, s);
-            physics->faceResidual(set,block);
+            physics->faceResidual<AD>(set,block);
           }
           wkset[block]->isOnSide =false;
         }
@@ -2176,11 +2301,11 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         
         if (!groupData[block]->multiscale) {
           Teuchos::TimeMonitor localtimer(*physics_timer);
-          physics->boundaryResidual(set,block);
+          physics->boundaryResidual<AD>(set,block);
         }
         
         {
-          physics->fluxConditions(set,block);
+          physics->fluxConditions<AD>(set,block);
         }
         ///////////////////////////////////////////////////////////////////////////
         // Scatter into global matrix/vector
@@ -2282,6 +2407,551 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   
 }
 
+
+// ========================================================================================
+// Main assembly routine ... just the Jacobian on a given block (b)
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::assembleJac(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
+                                           const bool & compute_disc_sens,
+                                           vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                           const ScalarT & current_time,
+                                           const bool & useadjoint, const bool & store_adjPrev,
+                                           const int & num_active_params,
+                                           const bool & is_final_time,
+                                           const int & block, const ScalarT & deltat) {
+  
+  Teuchos::TimeMonitor localassemblytimer(*assembly_jac_timer);
+  
+  // Kokkos::CRSMatrix and Kokkos::View for J and res
+  // Scatter needs to be on LA_device
+  typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_device_type local_matrix;
+  local_matrix J_kcrs;
+  if (compute_jacobian) {
+    J_kcrs = J->getLocalMatrixDevice();
+  }
+  
+  auto res_view = res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // LIDs are on AssemblyDevice.  If the AssemblyDevice memory is accessible, then these are fine.
+  // Copy of LIDs is stored on HostDevice.
+  bool use_host_LIDs = false;
+  if (!data_avail) {
+    if (Kokkos::SpaceAccessibility<LA_exec, HostDevice::memory_space>::accessible) {
+      use_host_LIDs = true;
+    }
+  }
+  
+  // Determine if we can use the reduced memory version of assembly
+  // This is the preferred approach, but not features are enabled yet
+  bool reduce_memory = true;
+  if (!data_avail || useadjoint || groupData[block]->multiscale || compute_disc_sens || compute_sens) {
+    reduce_memory = false;
+  }
+  
+  // Set the seeding flag for AD objects
+  int seedwhat = 0;
+  if (compute_jacobian) {
+    if (compute_disc_sens) {
+      seedwhat = 3;
+    }
+    else {
+      seedwhat = 1;
+    }
+  }
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Set up the worksets and allocate the local residual and Jacobians
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  if (isTransient) {
+    // TMW: tmp fix
+    auto butcher_c = Kokkos::create_mirror_view(wkset[block]->butcher_c);
+    Kokkos::deep_copy(butcher_c, wkset[block]->butcher_c);
+    ScalarT timeval = current_time + butcher_c(wkset[block]->current_stage)*deltat;
+    
+    wkset[block]->setTime(timeval);
+    wkset[block]->setDeltat(deltat);
+    wkset[block]->alpha = 1.0/deltat;
+  }
+  
+  wkset[block]->isTransient = isTransient;
+  wkset[block]->isAdjoint = useadjoint;
+  
+  int numElem = groupData[block]->num_elem;
+  int numDOF = groups[block][0]->LIDs[set].extent(1);
+  
+  int numParamDOF = 0;
+  if (compute_disc_sens) {
+    numParamDOF = groups[block][0]->paramLIDs.extent(1);
+  }
+  
+  // This data needs to be available on Host and Device
+  // Optimizing layout for AssemblyExec
+  Kokkos::View<ScalarT***,AssemblyDevice> local_res, local_J;
+  
+  if (!reduce_memory) {
+    if (compute_sens) {
+      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual on device",numElem,numDOF,num_active_params);
+    }
+    else {
+      local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual on device",numElem,numDOF,1);
+    }
+    
+    if (compute_disc_sens) {
+      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numParamDOF);
+    }
+    else { // note that this does increase memory as numElem increases
+      local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian on device",numElem,numDOF,numDOF);
+    }
+  }
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Volume contribution
+  /////////////////////////////////////////////////////////////////////////////
+  
+  // Note: Cannot parallelize over groups since data structures are re-used
+  
+  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    
+    wkset[block]->localEID = grp;
+    
+    if (isTransient && useadjoint && !groups[block][0]->group_data->multiscale) {
+      if (is_final_time) {
+        groups[block][grp]->resetAdjPrev(set,0.0);
+      }
+    }
+    
+    /////////////////////////////////////////////////////////////////////////////
+    // Compute the local residual and Jacobian on this group
+    /////////////////////////////////////////////////////////////////////////////
+    
+    bool fixJacDiag = false;
+    
+    {
+      Teuchos::TimeMonitor localtimer(*physics_timer);
+      
+      //////////////////////////////////////////////////////////////
+      // Compute res and J=dF/du
+      //////////////////////////////////////////////////////////////
+      
+      // Volumetric contribution
+      if (assemble_volume_terms[set][block]) {
+        if (groupData[block]->multiscale) {
+          
+          multiscale_manager->evaluateMacroMicroMacroMap(wkset[block], groups[block][grp], set, isTransient, useadjoint,
+                                                         compute_jacobian, compute_sens, num_active_params,
+                                                         compute_disc_sens, false,
+                                                         store_adjPrev);
+          
+          fixJacDiag = true;
+          
+        }
+        else {
+          this->updateWorkset(block, grp, seedwhat, 0);
+          physics->volumeResidual<AD>(set, block);
+        }
+      }
+      
+      ///////////////////////////////////////////////////////////////////////////
+      // Edge/face contribution
+      ///////////////////////////////////////////////////////////////////////////
+      
+      if (assemble_face_terms[set][block]) {
+        if (groupData[block]->multiscale) {
+          // do nothing
+        }
+        else {
+          wkset[block]->isOnSide = true;
+          for (size_t s=0; s<groupData[block]->num_sides; s++) {
+            this->updateWorksetFace(block, grp, s);
+            physics->faceResidual<AD>(set,block);
+          }
+          wkset[block]->isOnSide =false;
+        }
+      }
+      
+    }
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // Scatter into global matrix/vector
+    ///////////////////////////////////////////////////////////////////////////
+    
+    if (reduce_memory) { // skip local_res and local_J
+      this->scatter(set, J_kcrs, res_view,
+                    groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, block,
+                    compute_jacobian, compute_sens, compute_disc_sens, useadjoint);
+    }
+    else { // fill local_res and local_J and then scatter
+      
+      Teuchos::TimeMonitor localtimer(*scatter_timer);
+      
+      Kokkos::deep_copy(local_res,0.0);
+      Kokkos::deep_copy(local_J,0.0);
+      
+      // Use AD residual to update local Jacobian
+      if (compute_jacobian) {
+        if (compute_disc_sens) {
+          this->updateParamJac(block, grp, local_J);
+        }
+        else {
+          this->updateJac(block, grp, useadjoint, local_J);
+        }
+      }
+      
+      if (compute_jacobian && fixJacDiag) {
+        this->fixDiagJac(block, grp, local_J, local_res);
+      }
+      
+      // Update the local residual
+      
+      if (useadjoint) {
+        this->updateAdjointRes(block, grp, compute_jacobian, isTransient,
+                                             false, store_adjPrev,
+                                             local_J, local_res);
+      }
+      else {
+        this->updateRes(block, grp, compute_sens, local_res);
+      }
+      
+      // Now scatter from local_res and local_J
+      
+      if (data_avail) {
+        this->scatterRes(res_view, local_res, groups[block][grp]->LIDs[set]);
+        if (compute_jacobian) {
+          this->scatterJac(set, J_kcrs, local_J, groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, compute_disc_sens);
+        }
+      }
+      else {
+        auto local_res_ladev = create_mirror(LA_exec(),local_res);
+        auto local_J_ladev = create_mirror(LA_exec(),local_J);
+        
+        Kokkos::deep_copy(local_J_ladev,local_J);
+        Kokkos::deep_copy(local_res_ladev,local_res);
+        
+        if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
+          this->scatterRes(res_view, local_res_ladev, groups[block][grp]->LIDs_host[set]);
+          if (compute_jacobian) {
+            this->scatterJac(set, J_kcrs, local_J_ladev, groups[block][grp]->LIDs_host[set], groups[block][grp]->paramLIDs_host, compute_disc_sens);
+          }
+          
+        }
+        else { // LA_device = CUDA, AssemblyDevice = Host
+          // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
+          auto LIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->LIDs[set]);
+          auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->paramLIDs);
+          Kokkos::deep_copy(LIDs_dev,groups[block][grp]->LIDs[set]);
+          Kokkos::deep_copy(paramLIDs_dev,groups[block][grp]->paramLIDs);
+          
+          this->scatterRes(res_view, local_res_ladev, LIDs_dev);
+          if (compute_jacobian) {
+            this->scatterJac(set, J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev, compute_disc_sens);
+          }
+        }
+        
+      }
+    }
+    
+  } // group loop
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Boundary terms
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  if (assemble_boundary_terms[set][block]) {
+    
+    wkset[block]->isOnSide = true;
+    
+    if (!reduce_memory) {
+      if (compute_sens) {
+        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,num_active_params);
+      }
+      else {
+        local_res = Kokkos::View<ScalarT***,AssemblyDevice>("local residual",numElem,numDOF,1);
+      }
+      
+      if (compute_disc_sens) {
+        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numParamDOF);
+      }
+      else {
+        local_J = Kokkos::View<ScalarT***,AssemblyDevice>("local Jacobian",numElem,numDOF,numDOF);
+      }
+    }
+    
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      
+      if (boundary_groups[block][grp]->numElem > 0) {
+        
+        /////////////////////////////////////////////////////////////////////////////
+        // Compute the local residual and Jacobian on this boundary group
+        /////////////////////////////////////////////////////////////////////////////
+        wkset[block]->resetResidual();
+        //boundary_groups[block][grp]->updateWorkset(seedwhat);
+        this->updateWorksetBoundary(block, grp, seedwhat);
+        
+        if (!groupData[block]->multiscale) {
+          Teuchos::TimeMonitor localtimer(*physics_timer);
+          physics->boundaryResidual<AD>(set,block);
+        }
+        
+        {
+          physics->fluxConditions<AD>(set,block);
+        }
+        ///////////////////////////////////////////////////////////////////////////
+        // Scatter into global matrix/vector
+        ///////////////////////////////////////////////////////////////////////////
+        
+        if (reduce_memory) { // skip local_res and local_J
+          this->scatter(set, J_kcrs, res_view,
+                        boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs, block,
+                        compute_jacobian, compute_sens, compute_disc_sens, useadjoint);
+        }
+        else { // fill local_res and local_J and then scatter
+          
+          Teuchos::TimeMonitor localtimer(*scatter_timer);
+          
+          Kokkos::deep_copy(local_res,0.0);
+          Kokkos::deep_copy(local_J,0.0);
+          
+          // Use AD residual to update local Jacobian
+          if (compute_jacobian) {
+            if (compute_disc_sens) {
+              this->updateParamJacBoundary(block, grp, local_J);
+            }
+            else {
+              this->updateJacBoundary(block, grp, useadjoint, local_J);
+            }
+          }
+          
+          // Update the local residual (forward mode)
+          if (!useadjoint) {
+            this->updateResBoundary(block, grp, compute_sens, local_res);
+          }
+          
+          if (data_avail) {
+            this->scatterRes(res_view, local_res, boundary_groups[block][grp]->LIDs[set]);
+            if (compute_jacobian) {
+              this->scatterJac(set, J_kcrs, local_J, boundary_groups[block][grp]->LIDs[set], boundary_groups[block][grp]->paramLIDs, compute_disc_sens);
+            }
+          }
+          else {
+            auto local_res_ladev = create_mirror(LA_exec(),local_res);
+            auto local_J_ladev = create_mirror(LA_exec(),local_J);
+            
+            Kokkos::deep_copy(local_J_ladev,local_J);
+            Kokkos::deep_copy(local_res_ladev,local_res);
+            
+            if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
+              this->scatterRes(res_view, local_res_ladev, boundary_groups[block][grp]->LIDs_host[set]);
+              if (compute_jacobian) {
+                this->scatterJac(set, J_kcrs, local_J_ladev,
+                                 boundary_groups[block][grp]->LIDs_host[set], boundary_groups[block][grp]->paramLIDs_host,
+                                 compute_disc_sens);
+              }
+            }
+            else { // LA_device = CUDA, AssemblyDevice = Host
+              // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
+              auto LIDs_dev = Kokkos::create_mirror(LA_exec(), boundary_groups[block][grp]->LIDs[set]);
+              auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), boundary_groups[block][grp]->paramLIDs);
+              Kokkos::deep_copy(LIDs_dev,boundary_groups[block][grp]->LIDs[set]);
+              Kokkos::deep_copy(paramLIDs_dev,boundary_groups[block][grp]->paramLIDs);
+              
+              this->scatterRes(res_view, local_res_ladev, LIDs_dev);
+              if (compute_jacobian) {
+                this->scatterJac(set, J_kcrs, local_J_ladev, LIDs_dev, paramLIDs_dev, compute_disc_sens);
+              }
+            }
+            
+          }
+        }
+        
+      }
+    } // element loop
+    wkset[block]->isOnSide = false;
+  }
+  
+  // Apply constraints, e.g., strongly imposed Dirichlet
+  this->dofConstraints(set, J, res, current_time, compute_jacobian, compute_disc_sens);
+  
+  
+  if (fix_zero_rows) {
+    size_t numrows = J->getLocalNumRows();
+    
+    parallel_for("assembly insert Jac",
+                 RangePolicy<LA_exec>(0,numrows),
+                 KOKKOS_LAMBDA (const size_t row ) {
+      auto rowdata = J_kcrs.row(row);
+      ScalarT abssum = 0.0;
+      for (int col=0; col<rowdata.length; ++col ) {
+        abssum += abs(rowdata.value(col));
+      }
+      ScalarT val[1];
+      LO cols[1];
+      if (abssum<1.0e-14) { // needs to be generalized!
+        val[0] = 1.0;
+        cols[0] = row;
+        J_kcrs.replaceValues(row,cols,1,val,false,false);
+      }
+    });
+  }
+  
+}
+
+
+// ========================================================================================
+// Main assembly routine ... just the residual on a given block (b)
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
+                                           const bool & compute_disc_sens,
+                                           vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                           const ScalarT & current_time,
+                                           const bool & useadjoint, const bool & store_adjPrev,
+                                           const int & num_active_params,
+                                           const bool & is_final_time,
+                                           const int & block, const ScalarT & deltat) {
+  
+  Teuchos::TimeMonitor localassemblytimer(*assembly_res_timer);
+    
+  auto res_view = res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  
+  /*
+  typedef typename Node::execution_space LA_exec;
+  
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // LIDs are on AssemblyDevice.  If the AssemblyDevice memory is accessible, then these are fine.
+  // Copy of LIDs is stored on HostDevice.
+  bool use_host_LIDs = false;
+  if (!data_avail) {
+    if (Kokkos::SpaceAccessibility<LA_exec, HostDevice::memory_space>::accessible) {
+      use_host_LIDs = true;
+    }
+  }
+  */
+
+  // Set the seeding flag for AD objects
+  int seedwhat = 0;
+    
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Set up the worksets and allocate the local residual and Jacobians
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  if (isTransient) {
+    // TMW: tmp fix
+    auto butcher_c = Kokkos::create_mirror_view(wkset_Sc[block]->butcher_c);
+    Kokkos::deep_copy(butcher_c, wkset_Sc[block]->butcher_c);
+    ScalarT timeval = current_time + butcher_c(wkset_Sc[block]->current_stage)*deltat;
+    
+    wkset_Sc[block]->setTime(timeval);
+    wkset_Sc[block]->setDeltat(deltat);
+    wkset_Sc[block]->alpha = 1.0/deltat;
+  }
+    
+  wkset_Sc[block]->isTransient = isTransient;
+  wkset_Sc[block]->isAdjoint = false;
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Volume contribution
+  /////////////////////////////////////////////////////////////////////////////
+  
+  // Note: Cannot parallelize over groups since data structures are re-used
+  
+  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    
+    wkset_Sc[block]->localEID = grp;
+    
+    /////////////////////////////////////////////////////////////////////////////
+    // Compute the local residual and Jacobian on this group
+    /////////////////////////////////////////////////////////////////////////////
+    
+    {
+      Teuchos::TimeMonitor localtimer(*physics_timer);
+      
+      //////////////////////////////////////////////////////////////
+      // Compute res and J=dF/du
+      //////////////////////////////////////////////////////////////
+    
+      // Volumetric contribution
+      if (assemble_volume_terms[set][block]) {
+        this->updateWorkset<ScalarT>(block, grp, seedwhat, 0);
+        physics->volumeResidual<ScalarT>(set, block);
+      }
+      
+      ///////////////////////////////////////////////////////////////////////////
+      // Edge/face contribution
+      ///////////////////////////////////////////////////////////////////////////
+      
+      if (assemble_face_terms[set][block]) {
+        wkset_Sc[block]->isOnSide = true;
+        for (size_t s=0; s<groupData[block]->num_sides; s++) {
+          this->updateWorksetFace<ScalarT>(block, grp, s);
+          physics->faceResidual<ScalarT>(set,block);
+        }
+        wkset_Sc[block]->isOnSide = false;
+      }
+      
+    }
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // Scatter into global matrix/vector
+    ///////////////////////////////////////////////////////////////////////////
+    
+    this->scatterRes(set, res_view, groups[block][grp]->LIDs[set], block);
+    
+  } // group loop
+  
+  //////////////////////////////////////////////////////////////////////////////////////
+  // Boundary terms
+  //////////////////////////////////////////////////////////////////////////////////////
+  
+  
+  if (assemble_boundary_terms[set][block]) {
+    
+    wkset_Sc[block]->isOnSide = true;
+    
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      
+      if (boundary_groups[block][grp]->numElem > 0) {
+        
+        /////////////////////////////////////////////////////////////////////////////
+        // Compute the local residual and Jacobian on this boundary group
+        /////////////////////////////////////////////////////////////////////////////
+        wkset_Sc[block]->resetResidual();
+        this->updateWorksetBoundary<ScalarT>(block, grp, seedwhat);
+        physics->boundaryResidual<ScalarT>(set,block);
+        physics->fluxConditions<ScalarT>(set,block);
+        
+        ///////////////////////////////////////////////////////////////////////////
+        // Scatter into global matrix/vector
+        ///////////////////////////////////////////////////////////////////////////
+        
+        this->scatterRes(set, res_view, boundary_groups[block][grp]->LIDs[set], block);
+        
+      }
+    } // element loop
+    wkset_Sc[block]->isOnSide = false;
+  }
+  
+  // Apply constraints, e.g., strongly imposed Dirichlet
+  // No need to update residual since these entries are not scattered into
+  // this->dofConstraints(set, J, res, current_time, compute_jacobian, compute_disc_sens);
+  
+}
 
 // ========================================================================================
 // Enforce DOF constraints - includes strong Dirichlet
@@ -2388,6 +3058,17 @@ void AssemblyManager<Node>::updateStage(const int & stage, const ScalarT & curre
     wkset[block]->alpha = 1.0/deltat;
   }
   
+  for (size_t block=0; block<wkset_Sc.size(); ++block) {
+    wkset_Sc[block]->setStage(stage);
+    groupData[block]->current_stage = stage;
+    auto butcher_c = Kokkos::create_mirror_view(wkset_Sc[block]->butcher_c);
+    Kokkos::deep_copy(butcher_c, wkset_Sc[block]->butcher_c);
+    ScalarT timeval = current_time + butcher_c(stage)*deltat;
+    wkset_Sc[block]->setTime(timeval);
+    wkset_Sc[block]->setDeltat(deltat);
+    wkset_Sc[block]->alpha = 1.0/deltat;
+  }
+  
 }
 
 template<class Node>
@@ -2408,6 +3089,7 @@ template<class Node>
 void AssemblyManager<Node>::updateTimeStep(const int & timestep) {
   for (size_t block=0; block<wkset.size(); ++block) {
     wkset[block]->time_step = timestep;
+    wkset_Sc[block]->time_step = timestep;
   }
 }
     
@@ -2781,6 +3463,64 @@ void AssemblyManager<Node>::scatter(const size_t & set, MatType J_kcrs, VecViewT
   });
 }
 
+
+//==============================================================
+// Scatter both and use wkset->res
+//==============================================================
+
+template<class Node>
+template<class VecViewType, class LIDViewType>
+void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
+                                    LIDViewType LIDs,
+                                    const int & block) {
+  
+  Teuchos::TimeMonitor localtimer(*scatter_timer);
+  
+  typedef typename Node::execution_space LA_exec;
+  
+  /////////////////////////////////////
+  // This scatter needs to happen on the LA_device due to the use of J_kcrs->sumIntoValues()
+  // Could be changed to the AssemblyDevice, but would require a mirror view of this data and filling such a view is nontrivial
+  /////////////////////////////////////
+  
+  // Make sure the functor can access the necessary data
+  auto fixedDOF = isFixedDOF[set];
+  auto res = wkset_Sc[block]->res;
+  auto offsets = wkset_Sc[block]->offsets;
+  auto numDOF = groupData[block]->num_dof;
+  
+  bool use_atomics_ = false;
+  if (LA_exec::concurrency() > 1) {
+    use_atomics_ = true;
+  }
+  
+  parallel_for("assembly insert Jac",
+               RangePolicy<LA_exec>(0,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
+    
+    int row = 0;
+    LO rowIndex = 0;
+    
+    // Residual scatter
+    for (size_type n=0; n<numDOF.extent(0); ++n) {
+      for (int j=0; j<numDOF(n); j++) {
+        row = offsets(n,j);
+        rowIndex = LIDs(elem,row);
+        if (!fixedDOF(rowIndex)) {
+            ScalarT val = -res(elem,row);
+            if (use_atomics_) {
+              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+            }
+            else {
+              res_view(rowIndex,0) += val;
+            }
+          
+        }
+      }
+    }
+  });
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2789,6 +3529,7 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
   for (size_t block=0; block<blocknames.size(); ++block) {
     if (wkset[block]->isInitialized) {
       wkset[block]->updatePhysicsSet(set);
+      wkset_Sc[block]->updatePhysicsSet(set);
       groupData[block]->updatePhysicsSet(set);
     }
   }
@@ -3629,6 +4370,15 @@ void AssemblyManager<Node>::finalizeFunctions() {
       function_managers[block]->printFunctions();
     }
   }
+
+  for (size_t block=0; block<function_managers_Sc.size(); ++block) {
+    function_managers_Sc[block]->setupLists(params->paramnames);
+    function_managers_Sc[block]->wkset = wkset_Sc[block];
+    function_managers_Sc[block]->decomposeFunctions();
+    if (verbosity >= 20) {
+      function_managers_Sc[block]->printFunctions();
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3657,7 +4407,7 @@ void AssemblyManager<Node>::computeJacResBoundary(const int & block, const size_
     }
   }
   this->updateWorksetBoundary(block, grp, seedwhat);
-  groupData[block]->physics->boundaryResidual(wkset[block]->current_set, block);
+  physics->boundaryResidual<AD>(wkset[block]->current_set, block);
   
   if (compute_jacobian) {
     if (compute_disc_sens) {
@@ -3680,33 +4430,57 @@ void AssemblyManager<Node>::computeJacResBoundary(const int & block, const size_
 /////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void AssemblyManager<Node>::updateWorksetBoundary(const int & block, const size_t & grp, 
+void AssemblyManager<Node>::updateWorksetBoundary(const int & block, const size_t & grp,
+                                          const int & seedwhat, const int & seedindex,
+                                          const bool & override_transient) {
+  this->updateWorksetBoundary<AD>(block, grp, seedwhat, seedindex, override_transient);
+}
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorksetBoundary(const int & block, const size_t & grp,
+                                          const int & seedwhat, const int & seedindex,
+                                          const bool & override_transient) {
+
+  
+  if (std::is_same<EvalT, ScalarT>::value) {
+    this->updateWorksetBoundary(wkset_Sc[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (std::is_same<EvalT, AD>::value) {
+    this->updateWorksetBoundary(wkset[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorksetBoundary(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp, 
                                                   const int & seedwhat, const int & seedindex, const bool & override_transient) {
   
   ///////////////////////////////////////////////////////////
   // Reset the residual and data in the workset
   
-  wkset[block]->reset();
-  wkset[block]->sidename = boundary_groups[block][grp]->sidename;
-  wkset[block]->currentside = boundary_groups[block][grp]->sidenum;
-  wkset[block]->numElem = boundary_groups[block][grp]->numElem;
+  wset->reset();
+  wset->sidename = boundary_groups[block][grp]->sidename;
+  wset->currentside = boundary_groups[block][grp]->sidenum;
+  wset->numElem = boundary_groups[block][grp]->numElem;
 
   ///////////////////////////////////////////////////////////
   // Update the observational data stored in the workset
   // This is specific to cases with data-based parameters
 
-  this->updateDataBoundary(block, grp);
+  this->updateDataBoundary<EvalT>(block, grp);
   
   ///////////////////////////////////////////////////////////
   // Update the integration info and basis in workset
 
-  this->updateWorksetBasisBoundary(block, grp);
+  this->updateWorksetBasisBoundary<EvalT>(block, grp);
   
   ///////////////////////////////////////////////////////////
   // Map the gathered solution to seeded version in workset
   if (groupData[block]->requires_transient && !override_transient) {
     for (size_t set=0; set<groupData[block]->num_sets; ++set) {
-      wkset[block]->computeSolnTransientSeeded(set, boundary_groups[block][grp]->sol[set], 
+      wset->computeSolnTransientSeeded(set, boundary_groups[block][grp]->sol[set], 
                                         boundary_groups[block][grp]->sol_prev[set], 
                                         boundary_groups[block][grp]->sol_stage[set], 
                                         seedwhat, seedindex);
@@ -3714,57 +4488,64 @@ void AssemblyManager<Node>::updateWorksetBoundary(const int & block, const size_
   }
   else { // steady-state
     for (size_t set=0; set<groupData[block]->num_sets; ++set) {
-      wkset[block]->computeSolnSteadySeeded(set, boundary_groups[block][grp]->sol[set], seedwhat);
+      wset->computeSolnSteadySeeded(set, boundary_groups[block][grp]->sol[set], seedwhat);
     }
   }
-  if (wkset[block]->numParams > 0) {
-    wkset[block]->computeParamSteadySeeded(boundary_groups[block][grp]->param, seedwhat);
+  if (wset->numParams > 0) {
+    wset->computeParamSteadySeeded(boundary_groups[block][grp]->param, seedwhat);
   }
 
   // Aux solutions are still handled separately
   //this->computeSoln(seedwhat);
-  if (wkset[block]->numAux > 0) {
+  if (wset->numAux > 0 && std::is_same<EvalT,AD>::value) {
     
-    auto numAuxDOF = groupData[block]->num_aux_dof;
+    this->computeBoundaryAux(block, grp, seedwhat);
+
+  }
+}
+
+template<class Node>
+void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat) {
+
+  auto numAuxDOF = groupData[block]->num_aux_dof;
     
-    for (size_type var=0; var<numAuxDOF.extent(0); var++) {
-      auto abasis = boundary_groups[block][grp]->auxside_basis[boundary_groups[block][grp]->auxusebasis[var]];
-      auto off = subview(boundary_groups[block][grp]->auxoffsets,var,ALL());
-      string varname = wkset[block]->aux_varlist[var];
-      auto local_aux = wkset[block]->getSolutionField("aux "+varname,false);
-      Kokkos::deep_copy(local_aux,0.0);
-      auto localID = boundary_groups[block][grp]->localElemID;
-      auto varaux = subview(boundary_groups[block][grp]->aux, ALL(), var, ALL());
-      if (seedwhat == 4) {
-        parallel_for("bgroup aux 4",
-                     TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
-            for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+  for (size_type var=0; var<numAuxDOF.extent(0); var++) {
+    auto abasis = boundary_groups[block][grp]->auxside_basis[boundary_groups[block][grp]->auxusebasis[var]];
+    auto off = subview(boundary_groups[block][grp]->auxoffsets,var,ALL());
+    string varname = wkset[block]->aux_varlist[var];
+    auto local_aux = wkset[block]->getSolutionField("aux "+varname,false);
+    Kokkos::deep_copy(local_aux,0.0);
+    auto localID = boundary_groups[block][grp]->localElemID;
+    auto varaux = subview(boundary_groups[block][grp]->aux, ALL(), var, ALL());
+    if (seedwhat == 4) {
+      parallel_for("bgroup aux 4",
+                   TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
+                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
+          for (size_type dof=0; dof<abasis.extent(1); ++dof) {
 #ifndef MrHyDE_NO_AD
-              AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+            AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
 #else
-              AD auxval = varaux(localID(elem),dof);
+            ScalarT auxval = varaux(localID(elem),dof);
 #endif
-              local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
-            }
+            local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
           }
-        });
-      }
-      else {
-        parallel_for("bgroup aux 5",
-                     TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
-            for (size_type dof=0; dof<abasis.extent(1); ++dof) {
-              AD auxval = varaux(localID(elem),dof);
-              local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
-            }
+        }
+      });
+    }
+    else {
+      parallel_for("bgroup aux 5",
+                    TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
+                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
+          for (size_type dof=0; dof<abasis.extent(1); ++dof) {
+            ScalarT auxval = varaux(localID(elem),dof);
+            local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
           }
-        });
-      }
+        }
+      });
     }
   }
 }
@@ -3774,17 +4555,37 @@ void AssemblyManager<Node>::updateWorksetBoundary(const int & block, const size_
 
 template<class Node>
 void AssemblyManager<Node>::updateDataBoundary(const int & block, const size_t & grp) {
+  this->updateDataBoundary<AD>(block, grp);
+}
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateDataBoundary(const int & block, const size_t & grp) {
+
+  if (std::is_same<EvalT, ScalarT>::value) {
+    this->updateDataBoundary(wkset_Sc[block], block, grp);
+  }
+  else if (std::is_same<EvalT, AD>::value) {
+    this->updateDataBoundary(wkset[block], block, grp);
+  }
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateDataBoundary(Teuchos::RCP<Workset<EvalT> > & wset,
+                                               const int & block, const size_t & grp) {
 
   // hard coded for what I need it for right now
   if (groupData[block]->have_phi) {
-    wkset[block]->have_rotation_phi = true;
-    wkset[block]->rotation_phi = boundary_groups[block][grp]->data;
-    wkset[block]->allocateRotations();
+    wset->have_rotation_phi = true;
+    wset->rotation_phi = boundary_groups[block][grp]->data;
+    wset->allocateRotations();
   }
   else if (groupData[block]->have_rotation) {
-    wkset[block]->have_rotation = true;
-    wkset[block]->allocateRotations();
-    auto rot = wkset[block]->rotation;
+    wset->have_rotation = true;
+    wset->allocateRotations();
+    auto rot = wset->rotation;
     auto data = boundary_groups[block][grp]->data;
     parallel_for("update data",
                  RangePolicy<AssemblyExec>(0,data.extent(0)),
@@ -3802,9 +4603,9 @@ void AssemblyManager<Node>::updateDataBoundary(const int & block, const size_t &
   
   }
   else if (groupData[block]->have_extra_data) {
-    wkset[block]->extra_data = boundary_groups[block][grp]->data;
+    wset->extra_data = boundary_groups[block][grp]->data;
   }
-  wkset[block]->multidata = boundary_groups[block][grp]->multidata;
+  wset->multidata = boundary_groups[block][grp]->multidata;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -3812,27 +4613,48 @@ void AssemblyManager<Node>::updateDataBoundary(const int & block, const size_t &
 
 template<class Node>
 void AssemblyManager<Node>::updateWorksetBasisBoundary(const int & block, const size_t & grp) {
+  this->updateWorksetBasisBoundary<AD>(block, grp);
+}
 
-  wkset[block]->wts_side = boundary_groups[block][grp]->wts;
-  wkset[block]->h = boundary_groups[block][grp]->hsize;
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorksetBasisBoundary(const int & block, const size_t & grp) {
+
   
-  wkset[block]->setScalarField(boundary_groups[block][grp]->ip[0],"x");
-  wkset[block]->setScalarField(boundary_groups[block][grp]->normals[0],"n[x]");
-  wkset[block]->setScalarField(boundary_groups[block][grp]->tangents[0],"t[x]");
+  if (std::is_same<EvalT, ScalarT>::value) {
+    this->updateWorksetBasisBoundary(wkset_Sc[block], block, grp);
+  }
+  else if (std::is_same<EvalT, AD>::value) {
+    this->updateWorksetBasisBoundary(wkset[block], block, grp);
+  }
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorksetBasisBoundary(Teuchos::RCP<Workset<EvalT> > & wset,
+                                                       const int & block, const size_t & grp) {
+
+  wset->wts_side = boundary_groups[block][grp]->wts;
+  wset->h = boundary_groups[block][grp]->hsize;
+  
+  wset->setScalarField(boundary_groups[block][grp]->ip[0],"x");
+  wset->setScalarField(boundary_groups[block][grp]->normals[0],"n[x]");
+  wset->setScalarField(boundary_groups[block][grp]->tangents[0],"t[x]");
   if (boundary_groups[block][grp]->ip.size() > 1) {
-    wkset[block]->setScalarField(boundary_groups[block][grp]->ip[1],"y");
-    wkset[block]->setScalarField(boundary_groups[block][grp]->normals[1],"n[y]");
-    wkset[block]->setScalarField(boundary_groups[block][grp]->tangents[1],"t[y]");
+    wset->setScalarField(boundary_groups[block][grp]->ip[1],"y");
+    wset->setScalarField(boundary_groups[block][grp]->normals[1],"n[y]");
+    wset->setScalarField(boundary_groups[block][grp]->tangents[1],"t[y]");
   }
   if (boundary_groups[block][grp]->ip.size() > 2) {
-    wkset[block]->setScalarField(boundary_groups[block][grp]->ip[2],"z");
-    wkset[block]->setScalarField(boundary_groups[block][grp]->normals[2],"n[z]");
-    wkset[block]->setScalarField(boundary_groups[block][grp]->tangents[2],"t[z]");
+    wset->setScalarField(boundary_groups[block][grp]->ip[2],"z");
+    wset->setScalarField(boundary_groups[block][grp]->normals[2],"n[z]");
+    wset->setScalarField(boundary_groups[block][grp]->tangents[2],"t[z]");
   }
 
   if (boundary_groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
-    wkset[block]->basis_side = boundary_groups[block][grp]->basis;
-    wkset[block]->basis_grad_side = boundary_groups[block][grp]->basis_grad;
+    wset->basis_side = boundary_groups[block][grp]->basis;
+    wset->basis_grad_side = boundary_groups[block][grp]->basis_grad;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
@@ -3846,8 +4668,8 @@ void AssemblyManager<Node>::updateWorksetBasisBoundary(const int & block, const 
       tcbasis.push_back(CompressedView<View_Sc4>(tbasis[i]));
       tcbasis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
     }
-    wkset[block]->basis_side = tcbasis;
-    wkset[block]->basis_grad_side = tcbasis_grad;
+    wset->basis_side = tcbasis;
+    wset->basis_grad_side = tcbasis_grad;
   }
 }
 
@@ -4162,32 +4984,59 @@ template<class Node>
 void AssemblyManager<Node>::updateWorkset(const int & block, const size_t & grp,
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
+  this->updateWorkset<AD>(block, grp, seedwhat, seedindex, override_transient);
+}
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorkset(const int & block, const size_t & grp,
+                                          const int & seedwhat, const int & seedindex,
+                                          const bool & override_transient) {
+
+  
+  if (std::is_same<EvalT, ScalarT>::value) {
+    this->updateWorkset(wkset_Sc[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (std::is_same<EvalT, AD>::value) {
+    this->updateWorkset(wkset[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+}
+
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp,
+                                          const int & seedwhat, const int & seedindex,
+                                          const bool & override_transient) {
     
   //Teuchos::TimeMonitor localtimer(*computeSolnVolTimer);
   
   // Reset the residual and data in the workset
-  wkset[block]->reset();
+  //auto wset = wkset[block];
+  wset->reset();
   
-  wkset[block]->numElem = groups[block][grp]->numElem;
-  this->updateGroupData(block, grp);
+  wset->numElem = groups[block][grp]->numElem;
+  this->updateGroupData(wset, block, grp);
   
-  wkset[block]->wts = groups[block][grp]->wts;
-  wkset[block]->h = groups[block][grp]->hsize;
+  wset->wts = groups[block][grp]->wts;
+  wset->h = groups[block][grp]->hsize;
 
-  wkset[block]->setScalarField(groups[block][grp]->ip[0],"x");
+  wset->setScalarField(groups[block][grp]->ip[0],"x");
   if (groups[block][grp]->ip.size() > 1) {
-    wkset[block]->setScalarField(groups[block][grp]->ip[1],"y");
+    wset->setScalarField(groups[block][grp]->ip[1],"y");
   }
   if (groups[block][grp]->ip.size() > 2) {
-    wkset[block]->setScalarField(groups[block][grp]->ip[2],"z");
+    wset->setScalarField(groups[block][grp]->ip[2],"z");
   }
 
   // Update the integration info and basis in workset
   if (groups[block][grp]->storeAll || groups[block][grp]->group_data->use_basis_database) {
-    wkset[block]->basis = groups[block][grp]->basis;
-    wkset[block]->basis_grad = groups[block][grp]->basis_grad;
-    wkset[block]->basis_div = groups[block][grp]->basis_div;
-    wkset[block]->basis_curl = groups[block][grp]->basis_curl;
+    wset->basis = groups[block][grp]->basis;
+    wset->basis_grad = groups[block][grp]->basis_grad;
+    wset->basis_div = groups[block][grp]->basis_div;
+    wset->basis_curl = groups[block][grp]->basis_curl;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
@@ -4204,26 +5053,26 @@ void AssemblyManager<Node>::updateWorkset(const int & block, const size_t & grp,
       tcbasis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
       tcbasis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
     }
-    wkset[block]->basis = tcbasis;
-    wkset[block]->basis_grad = tcbasis_grad;
-    wkset[block]->basis_div = tcbasis_div;
-    wkset[block]->basis_curl = tcbasis_curl;
+    wset->basis = tcbasis;
+    wset->basis_grad = tcbasis_grad;
+    wset->basis_div = tcbasis_div;
+    wset->basis_curl = tcbasis_curl;
   }
   
   // Map the gathered solution to seeded version in workset
   if (groups[block][grp]->group_data->requires_transient && !override_transient) {
     for (size_t set=0; set<groups[block][grp]->group_data->num_sets; ++set) {
-      wkset[block]->computeSolnTransientSeeded(set, groups[block][grp]->sol[set], groups[block][grp]->sol_prev[set], 
+      wset->computeSolnTransientSeeded(set, groups[block][grp]->sol[set], groups[block][grp]->sol_prev[set], 
                                                groups[block][grp]->sol_stage[set], seedwhat, seedindex);
     }
   }
   else { // steady-state
     for (size_t set=0; set<groups[block][grp]->group_data->num_sets; ++set) {
-      wkset[block]->computeSolnSteadySeeded(set, groups[block][grp]->sol[set], seedwhat);
+      wset->computeSolnSteadySeeded(set, groups[block][grp]->sol[set], seedwhat);
     }
   }
-  if (wkset[block]->numParams > 0) {
-    wkset[block]->computeParamSteadySeeded(groups[block][grp]->param, seedwhat);
+  if (wset->numParams > 0) {
+    wset->computeParamSteadySeeded(groups[block][grp]->param, seedwhat);
   }
   
 }
@@ -4499,8 +5348,30 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
 // Map the AD degrees of freedom to integration points
 ///////////////////////////////////////////////////////////////////////////////////////
 
+
 template<class Node>
-void AssemblyManager<Node>::updateWorksetFace(const int & block, const size_t & grp, const size_t & facenum) {
+void AssemblyManager<Node>::updateWorksetFace(const int & block, const size_t & grp,
+                                          const size_t & facenum) {
+  this->updateWorksetFace<AD>(block, grp, facenum);
+}
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorksetFace(const int & block, const size_t & grp,
+                                          const size_t & facenum) {
+
+  if (std::is_same<EvalT, ScalarT>::value) {
+    this->updateWorksetFace(wkset_Sc[block], block, grp, facenum);
+  }
+  else if (std::is_same<EvalT, AD>::value) {
+    this->updateWorksetFace(wkset[block], block, grp, facenum);
+  }
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateWorksetFace(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp, const size_t & facenum) {
   
   // IMPORANT NOTE: This function assumes that face contributions are computing IMMEDIATELY after the
   // volumetric contributions, which implies that the seeded solution in the workset is already
@@ -4508,24 +5379,24 @@ void AssemblyManager<Node>::updateWorksetFace(const int & block, const size_t & 
   
   //Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
-  wkset[block]->wts_side = groups[block][grp]->wts_face[facenum];
-  wkset[block]->h = groups[block][grp]->hsize;
+  wset->wts_side = groups[block][grp]->wts_face[facenum];
+  wset->h = groups[block][grp]->hsize;
 
-  wkset[block]->setScalarField(groups[block][grp]->ip_face[facenum][0],"x");
-  wkset[block]->setScalarField(groups[block][grp]->normals_face[facenum][0],"n[x]");
+  wset->setScalarField(groups[block][grp]->ip_face[facenum][0],"x");
+  wset->setScalarField(groups[block][grp]->normals_face[facenum][0],"n[x]");
   if (groups[block][grp]->ip_face[facenum].size() > 1) {
-    wkset[block]->setScalarField(groups[block][grp]->ip_face[facenum][1],"y");
-    wkset[block]->setScalarField(groups[block][grp]->normals_face[facenum][1],"n[y]");
+    wset->setScalarField(groups[block][grp]->ip_face[facenum][1],"y");
+    wset->setScalarField(groups[block][grp]->normals_face[facenum][1],"n[y]");
   }
   if (groups[block][grp]->ip_face[facenum].size() > 2) {
-    wkset[block]->setScalarField(groups[block][grp]->ip_face[facenum][2],"z");
-    wkset[block]->setScalarField(groups[block][grp]->normals_face[facenum][2],"n[z]");
+    wset->setScalarField(groups[block][grp]->ip_face[facenum][2],"z");
+    wset->setScalarField(groups[block][grp]->normals_face[facenum][2],"n[z]");
   }
     
   // Update the face integration points and basis in workset
   if (groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
-    wkset[block]->basis_side = groups[block][grp]->basis_face[facenum];
-    wkset[block]->basis_grad_side = groups[block][grp]->basis_grad_face[facenum];
+    wset->basis_side = groups[block][grp]->basis_face[facenum];
+    wset->basis_grad_side = groups[block][grp]->basis_grad_face[facenum];
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad;
@@ -4537,11 +5408,11 @@ void AssemblyManager<Node>::updateWorksetFace(const int & block, const size_t & 
       tcbasis.push_back(CompressedView<View_Sc4>(tbasis[i]));
       tcbasis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
     }
-    wkset[block]->basis_side = tcbasis;
-    wkset[block]->basis_grad_side = tcbasis_grad;
+    wset->basis_side = tcbasis;
+    wset->basis_grad_side = tcbasis_grad;
   }
   
-  wkset[block]->resetSolutionFields();
+  wset->resetSolutionFields();
   
 }
 
@@ -4606,7 +5477,7 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
     }
     else {
       this->updateWorkset(block, grp, seedwhat, seedindex);
-      groupData[block]->physics->volumeResidual(wkset[block]->current_set,groupData[block]->my_block);
+      physics->volumeResidual<AD>(wkset[block]->current_set,groupData[block]->my_block);
     }
   }
   
@@ -4619,7 +5490,7 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
     else {
       for (size_t s=0; s<groupData[block]->num_sides; s++) {
         this->updateWorksetFace(block, grp, s);
-        groupData[block]->physics->faceResidual(wkset[block]->current_set,groupData[block]->my_block);
+        physics->faceResidual<AD>(wkset[block]->current_set,groupData[block]->my_block);
       }
     }
   }
@@ -4798,7 +5669,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
         int seedwhat = 2; // 2 for J wrt previous step solutions
         for (size_type step=0; step<groups[block][grp]->sol_prev[set].extent(3); step++) {
           this->updateWorkset(block, grp, seedwhat,step);
-          groupData[block]->physics->volumeResidual(set, groupData[block]->my_block);
+          physics->volumeResidual<AD>(set, groupData[block]->my_block);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));
           this->updateJac(block, grp, true, Jdot);
@@ -5402,18 +6273,19 @@ Kokkos::View<ScalarT***,AssemblyDevice> AssemblyManager<Node>::getSolutionAtNode
 ///////////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void AssemblyManager<Node>::updateGroupData(const int & block, const size_t & grp) {
+template<class EvalT>
+void AssemblyManager<Node>::updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp) {
   
   // hard coded for what I need it for right now
   if (groupData[block]->have_phi) {
-    wkset[block]->have_rotation_phi = true;
-    wkset[block]->rotation_phi = groups[block][grp]->data;
-    wkset[block]->allocateRotations();
+    wset->have_rotation_phi = true;
+    wset->rotation_phi = groups[block][grp]->data;
+    wset->allocateRotations();
   }
   else if (groupData[block]->have_rotation) {
-    wkset[block]->have_rotation = true;
-    wkset[block]->allocateRotations();
-    auto rot = wkset[block]->rotation;
+    wset->have_rotation = true;
+    wset->allocateRotations();
+    auto rot = wset->rotation;
     auto data = groups[block][grp]->data;
 
     parallel_for("Group update data",
@@ -5435,7 +6307,7 @@ void AssemblyManager<Node>::updateGroupData(const int & block, const size_t & gr
 
   }
   else if (groupData[block]->have_extra_data) {
-    wkset[block]->extra_data = groups[block][grp]->data;
+    wset->extra_data = groups[block][grp]->data;
   }
   
 }
@@ -5525,12 +6397,20 @@ void AssemblyManager<Node>::createFunctions() {
                                                                      disc->numip[block],
                                                                      disc->numip_side[block])));
   }
+
+  for (size_t block=0; block<blocknames.size(); ++block) {
+    function_managers_Sc.push_back(Teuchos::rcp(new FunctionManager<ScalarT>(blocknames[block],
+                                                                     groupData[block]->num_elem,
+                                                                     disc->numip[block],
+                                                                     disc->numip_side[block])));
+  }
     
   ////////////////////////////////////////////////////////////////////////////////
   // Define the functions on each block
   ////////////////////////////////////////////////////////////////////////////////
     
   physics->defineFunctions(function_managers);
+  physics->defineFunctions(function_managers_Sc);
 
 }
 
