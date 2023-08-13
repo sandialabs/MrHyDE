@@ -158,27 +158,6 @@ namespace MrHyDE {
                         const bool & is_final_time, const int & block,
                         const ScalarT & deltat);
     
-    void assembleJac(const size_t & set, vector_RCP & u, vector_RCP & phi,
-                        const bool & compute_jacobian, const bool & compute_sens,
-                        const bool & compute_disc_sens,
-                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                        const ScalarT & current_time, const bool & useadjoint,
-                        const bool & store_adjPrev,
-                        const int & num_active_params, vector_RCP & Psol,
-                        const bool & is_final_time,
-                        const ScalarT & deltat);
-    
-    
-    void assembleJac(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
-                        const bool & compute_disc_sens,
-                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                        const ScalarT & current_time, const bool & useadjoint,
-                        const bool & store_adjPrev,
-                        const int & num_active_params,
-                        const bool & is_final_time, const int & block,
-                        const ScalarT & deltat);
-    
-
     void assembleRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
                         const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,
@@ -188,7 +167,6 @@ namespace MrHyDE {
                         const int & num_active_params, vector_RCP & Psol,
                         const bool & is_final_time,
                         const ScalarT & deltat);
-    
     
     void assembleRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,

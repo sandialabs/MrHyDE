@@ -1840,10 +1840,18 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   current_res_over->putScalar(0.0);
   matrix_RCP J_over;
   
-  assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+  bool test = true;
+  if (test){
+    assembler->assembleRes(set, u, phi, build_jacobian, false, false,
                             current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                             params->num_active_params, params->Psol_over, is_final_time, deltat);
   
+  }
+  else {
+    assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                              params->num_active_params, params->Psol_over, is_final_time, deltat);
+  }
   
   linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
   
