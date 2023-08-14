@@ -530,6 +530,9 @@ namespace MrHyDE {
                             Kokkos::View<bool*,HostDevice> spts_found);
 
     void setNewExodusFile(string & newfile);
+
+    void saveObjectiveData(const DFAD& objVal);
+    void saveObjectiveGradientData(const MrHyDE_OptVector& gradient);
     
     Teuchos::Array<ScalarT> collectResponses();
 
@@ -571,7 +574,7 @@ namespace MrHyDE {
     size_t numBlocks;                                            // number of element blocks
     
     bool have_sensor_data, save_sensor_data, write_dakota_output, isTD, store_sensor_solution;
-    std::string sname, fileoutput;
+    std::string sname, fileoutput, objective_file, objective_grad_file;
     ScalarT stddev;
     size_type global_num_sensors;
     
