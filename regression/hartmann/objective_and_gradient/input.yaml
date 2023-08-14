@@ -1,0 +1,68 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 1
+  debug level: 0
+  Mesh:
+    dimension: 1
+    element type: interval
+    xmin: -1.0
+    xmax:  1.0
+    NX: 2000
+  Physics:
+    modules: hartmann
+    Dirichlet conditions:
+      scalar data: true
+      u:
+        left: 0.0
+        right: 0.0
+    Neumann conditions:
+      b:
+        left: '-resistivity*b'
+        right: '-resistivity*b'
+    Initial conditions:
+      u: '1.0'
+      b: '1.0'
+  Discretization:
+    order:
+      u: 1
+      b: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    workset size: 100
+    nonlinear TOL: 1.0e-10
+    linear TOL: 1.0e-10
+    max nonlinear iters: 1
+    max linear iters: 500
+    use direct solver: true
+  Analysis: 
+    analysis type: forward+adjoint
+  Postprocess:
+    response type: pointwise
+    verification: compute errors
+    write solution: false
+    compute objective: true
+    compute responses: false
+    objective output file: obj.out
+    objective gradient output file: obj_grad.out
+    Objective functions:
+      uval:
+        type: sensors
+        sensor points file: sensor_points.dat
+        sensor data file: sensor_data.dat
+        save sensor data: false
+        response: 'u'
+        weight: 1.0
+  Functions:
+    source u:'-exp(usource)'
+  Parameters:
+    resistivity:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    usource:
+      type: scalar
+      value: 0.5
+      usage: active
+...
