@@ -459,11 +459,9 @@ void helmholtz<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::helmholtz<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::helmholtz<AD>;
 
@@ -475,3 +473,4 @@ template class MrHyDE::helmholtz<AD16>;
 template class MrHyDE::helmholtz<AD18>;
 template class MrHyDE::helmholtz<AD24>;
 template class MrHyDE::helmholtz<AD32>;
+#endif

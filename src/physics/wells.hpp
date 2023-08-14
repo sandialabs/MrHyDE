@@ -143,10 +143,17 @@ namespace MrHyDE {
   
 }
 
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::wells<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 template class MrHyDE::wells<AD>;
+template class MrHyDE::wells<AD2>;
+template class MrHyDE::wells<AD4>;
+template class MrHyDE::wells<AD8>;
+template class MrHyDE::wells<AD16>;
+template class MrHyDE::wells<AD18>;
+template class MrHyDE::wells<AD24>;
+template class MrHyDE::wells<AD32>;
+#endif
 
 #endif

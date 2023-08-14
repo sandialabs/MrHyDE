@@ -124,7 +124,7 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
                                                                                              assembler->groups,
-                                                                                             assembler->function_managers) );
+                                                                                             assembler->function_managers_AD) );
     
     ///////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
@@ -132,7 +132,7 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<PostprocessManager<SolverNode> >
     postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh,
-                                                                disc, physics, assembler->function_managers, multiscale_manager,
+                                                                disc, physics, assembler->function_managers_AD, multiscale_manager,
                                                                 assembler, params) );
     
     ////////////////////////////////////////////////////////////////////////////////

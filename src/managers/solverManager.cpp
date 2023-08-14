@@ -238,9 +238,10 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   }
   this->finalizeWorkset();
   
+
+  physics->setWorkset(assembler->wkset_AD);
   physics->setWorkset(assembler->wkset);
-  physics->setWorkset(assembler->wkset_Sc);
-  params->setWorkset(assembler->wkset);
+  params->setWorkset(assembler->wkset_AD);
   
   if (store_vectors) {
     for (size_t set=0; set<numSets; ++set) {
@@ -726,14 +727,14 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
     assembler->wkset[block]->butcher_b = dev_butcher_b;
     assembler->wkset[block]->butcher_c = dev_butcher_c;
 
-    assembler->wkset_Sc[block]->set_butcher_A[set] = dev_butcher_A;//block_butcher_A;
-    assembler->wkset_Sc[block]->set_butcher_b[set] = dev_butcher_b;//block_butcher_b;
-    assembler->wkset_Sc[block]->set_butcher_c[set] = dev_butcher_c;//block_butcher_c;
+    assembler->wkset_AD[block]->set_butcher_A[set] = dev_butcher_A;//block_butcher_A;
+    assembler->wkset_AD[block]->set_butcher_b[set] = dev_butcher_b;//block_butcher_b;
+    assembler->wkset_AD[block]->set_butcher_c[set] = dev_butcher_c;//block_butcher_c;
 
     // TODO dont like this... but should protect against 1 set errors
-    assembler->wkset_Sc[block]->butcher_A = dev_butcher_A;
-    assembler->wkset_Sc[block]->butcher_b = dev_butcher_b;
-    assembler->wkset_Sc[block]->butcher_c = dev_butcher_c;
+    assembler->wkset_AD[block]->butcher_A = dev_butcher_A;
+    assembler->wkset_AD[block]->butcher_b = dev_butcher_b;
+    assembler->wkset_AD[block]->butcher_c = dev_butcher_c;
 
   } // end for blocks
 }
@@ -825,8 +826,8 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
     assembler->wkset[block]->set_BDF_wts[set] = dev_BDF_wts;
     assembler->wkset[block]->BDF_wts = dev_BDF_wts;
     
-    assembler->wkset_Sc[block]->set_BDF_wts[set] = dev_BDF_wts;
-    assembler->wkset_Sc[block]->BDF_wts = dev_BDF_wts;
+    assembler->wkset_AD[block]->set_BDF_wts[set] = dev_BDF_wts;
+    assembler->wkset_AD[block]->BDF_wts = dev_BDF_wts;
 
   } // end loop blocks
 }
@@ -869,9 +870,9 @@ void SolverManager<Node>::finalizeWorkset() {
           assembler->wkset[block]->offsets = offsets_view;
         }
 
-        assembler->wkset_Sc[block]->set_offsets.push_back(offsets_view);
+        assembler->wkset_AD[block]->set_offsets.push_back(offsets_view);
         if (set == 0) {
-          assembler->wkset_Sc[block]->offsets = offsets_view;
+          assembler->wkset_AD[block]->offsets = offsets_view;
         }
       }
     }
@@ -892,10 +893,10 @@ void SolverManager<Node>::finalizeWorkset() {
       assembler->wkset[block]->usebasis = block_useBasis[0];
       assembler->wkset[block]->varlist = block_varlist[0];
 
-      assembler->wkset_Sc[block]->set_usebasis = block_useBasis;
-      assembler->wkset_Sc[block]->set_varlist = block_varlist;
-      assembler->wkset_Sc[block]->usebasis = block_useBasis[0];
-      assembler->wkset_Sc[block]->varlist = block_varlist[0];
+      assembler->wkset_AD[block]->set_usebasis = block_useBasis;
+      assembler->wkset_AD[block]->set_varlist = block_varlist;
+      assembler->wkset_AD[block]->usebasis = block_useBasis[0];
+      assembler->wkset_AD[block]->varlist = block_varlist[0];
     }
   }
   
@@ -910,12 +911,12 @@ void SolverManager<Node>::finalizeWorkset() {
       // update workset for first physics set
       assembler->wkset[block]->updatePhysicsSet(0);
 
-      assembler->wkset_Sc[block]->butcher_A = assembler->wkset_Sc[block]->set_butcher_A[0];
-      assembler->wkset_Sc[block]->butcher_b = assembler->wkset_Sc[block]->set_butcher_b[0];
-      assembler->wkset_Sc[block]->butcher_c = assembler->wkset_Sc[block]->set_butcher_c[0];
-      assembler->wkset_Sc[block]->BDF_wts = assembler->wkset_Sc[block]->set_BDF_wts[0];
+      assembler->wkset_AD[block]->butcher_A = assembler->wkset_AD[block]->set_butcher_A[0];
+      assembler->wkset_AD[block]->butcher_b = assembler->wkset_AD[block]->set_butcher_b[0];
+      assembler->wkset_AD[block]->butcher_c = assembler->wkset_AD[block]->set_butcher_c[0];
+      assembler->wkset_AD[block]->BDF_wts = assembler->wkset_AD[block]->set_BDF_wts[0];
       // update workset for first physics set
-      assembler->wkset_Sc[block]->updatePhysicsSet(0);
+      assembler->wkset_AD[block]->updatePhysicsSet(0);
     }
   }
   
@@ -941,16 +942,16 @@ void SolverManager<Node>::finalizeWorkset() {
       assembler->wkset[block]->paramoffsets = poffsets_view;
       assembler->wkset[block]->param_varlist = params->discretized_param_names;
 
-      assembler->wkset_Sc[block]->paramusebasis = params->discretized_param_usebasis;
-      assembler->wkset_Sc[block]->paramoffsets = poffsets_view;
-      assembler->wkset_Sc[block]->param_varlist = params->discretized_param_names;
+      assembler->wkset_AD[block]->paramusebasis = params->discretized_param_usebasis;
+      assembler->wkset_AD[block]->paramoffsets = poffsets_view;
+      assembler->wkset_AD[block]->param_varlist = params->discretized_param_names;
     }
   }
   
   for (size_t block=0; block<assembler->groups.size(); ++block) {
     if (assembler->wkset[block]->isInitialized) {
       assembler->wkset[block]->createSolutionFields();
-      assembler->wkset_Sc[block]->createSolutionFields();
+      assembler->wkset_AD[block]->createSolutionFields();
     }
   }
   
@@ -967,15 +968,15 @@ void SolverManager<Node>::finalizeWorkset() {
         assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
       }
       
-      assembler->wkset[block]->params = params->paramvals_AD;
-      assembler->wkset[block]->params_AD = params->paramvals_KVAD;
+      assembler->wkset[block]->params = params->paramvals_Sc;
+      assembler->wkset[block]->params_AD = params->paramvals_KV;
       assembler->wkset[block]->paramnames = params->paramnames;
       assembler->wkset[block]->setTime(current_time);
 
-      //assembler->wkset_Sc[block]->params = params->paramvals_AD;
-      assembler->wkset_Sc[block]->params_AD = params->paramvals_KV;
-      assembler->wkset_Sc[block]->paramnames = params->paramnames;
-      assembler->wkset_Sc[block]->setTime(current_time);
+      assembler->wkset_AD[block]->params = params->paramvals_AD;
+      assembler->wkset_AD[block]->params_AD = params->paramvals_KVAD;
+      assembler->wkset_AD[block]->paramnames = params->paramnames;
+      assembler->wkset_AD[block]->setTime(current_time);
       
       if (assembler->boundary_groups.size() > block) { // avoid seg faults
         for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
@@ -1857,7 +1858,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   current_res->norm2(rnorm);
-  
+
   // *********************** SOLVE THE LINEAR SYSTEM **************************
   
   if (rnorm[0]>1.0e-100) {
@@ -2275,7 +2276,7 @@ void SolverManager<Node>::finalizeMultiscale() {
       multiscale_manager->subgridModels[k]->paramvals_KVAD = params->paramvals_KVAD;
     }
     
-    multiscale_manager->macro_wkset = assembler->wkset;
+    multiscale_manager->macro_wkset = assembler->wkset_AD;
     vector<Kokkos::View<int*,AssemblyDevice>> macro_numDOF;
     for (size_t block=0; block<assembler->groupData.size(); ++block) {
       macro_numDOF.push_back(assembler->groupData[block]->set_num_dof[0]);

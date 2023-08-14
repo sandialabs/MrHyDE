@@ -100,7 +100,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     View_Sc4 getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
-                        const bool & project, Teuchos::RCP<Workset<AD> > & wkset);
+                        const bool & project, Teuchos::RCP<Workset<ScalarT> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -118,7 +118,7 @@ namespace MrHyDE {
      */
     
     View_Sc3 getInitialFace(vector<View_Sc2> & pts, const int & set, const int & block,
-                            const bool & project, Teuchos::RCP<Workset<AD> > & wkset);
+                            const bool & project, Teuchos::RCP<Workset<ScalarT> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,8 +134,11 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames);
     void updateParameters(vector<Teuchos::RCP<vector<ScalarT> > > & params, const vector<string> & paramnames);
+    
+#ifndef MrHyDE_NO_AD
+    void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames);
+#endif
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -162,9 +165,12 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset);
     void setWorkset(vector<Teuchos::RCP<Workset<ScalarT> > > & wkset);
     
+#ifndef MrHyDE_NO_AD
+    void setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset);
+#endif
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -197,8 +203,10 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    vector<Teuchos::RCP<FunctionManager<AD> > > function_managers;
-    vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers_Sc;
+    
+    vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers;
+    vector<Teuchos::RCP<FunctionManager<AD> > > function_managers_AD;
+
     Teuchos::RCP<MpiComm> comm;
     
     int dimension, debug_level;
@@ -208,8 +216,8 @@ namespace MrHyDE {
     
     //-----------------------------------------------------
     // Data the depends on physics sets
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > > modules_Sc;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > > modules;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules_AD;
     
     vector<vector<Teuchos::ParameterList>> physics_settings, disc_settings, solver_settings; // [set][block]
     vector<vector<vector<bool> > > use_subgrid;

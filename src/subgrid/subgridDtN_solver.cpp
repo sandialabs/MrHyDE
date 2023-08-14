@@ -208,7 +208,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
   d_sol_prev_saved[0]->putScalar(0.0);
   
   // TMW: ToDo - why isn't this necessary?
-  Kokkos::deep_copy(assembler->wkset[0]->flux,0.0);
+  Kokkos::deep_copy(assembler->wkset_AD[0]->flux,0.0);
   
   ScalarT fluxwt = 1.0;
   bool compute_substep_norm = false;
@@ -232,8 +232,8 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         
         // set du/dt and \lambda
         ScalarT alpha = (ScalarT)time_steps/macro_deltat;
-        assembler->wkset[0]->alpha = alpha;
-        assembler->wkset[0]->setDeltat(1.0/alpha);
+        assembler->wkset_AD[0]->alpha = alpha;
+        assembler->wkset_AD[0]->setDeltat(1.0/alpha);
         
         Kokkos::View<ScalarT***,AssemblyDevice> currlambda = coarse_sol;
         
@@ -253,8 +253,8 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         sgtime = subsolvetimes[tindex];
         // set du/dt and \lambda
         ScalarT alpha = (ScalarT)time_steps/macro_deltat;
-        assembler->wkset[0]->alpha = alpha;
-        assembler->wkset[0]->setDeltat(1.0/alpha);
+        assembler->wkset_AD[0]->alpha = alpha;
+        assembler->wkset_AD[0]->setDeltat(1.0/alpha);
         
         Kokkos::View<ScalarT***,AssemblyDevice> currlambda = lambda;
         
@@ -276,7 +276,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
       if (isSynchronous) {
 
         // First, make sure this was set up properly
-        if (assembler->wkset[0]->butcher_b.extent(0) != macrowkset.butcher_b.extent(0)) {
+        if (assembler->wkset_AD[0]->butcher_b.extent(0) != macrowkset.butcher_b.extent(0)) {
           TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
                                      "Error: need to use the same Butcher tableau for subgrid models when using synchronous integration.");
         }
@@ -287,7 +287,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         //ScalarT sgtime = time - macro_deltat;
     
         int set = 0;
-        assembler->wkset[0]->setDeltat(macro_deltat);
+        assembler->wkset_AD[0]->setDeltat(macro_deltat);
         ScalarT alpha = 1.0/macro_deltat;
         ScalarT sgdeltat = macro_deltat;
         for (size_t stage=0; stage<d_sol_stage_saved.size(); ++stage) {
@@ -295,10 +295,10 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         }
 
         // Make sure the subgrid model uses the same integration rule as coarse scale
-        assembler->wkset[0]->butcher_A = macrowkset.butcher_A;
-        assembler->wkset[0]->butcher_b = macrowkset.butcher_b;
-        assembler->wkset[0]->butcher_c = macrowkset.butcher_c;
-        assembler->wkset[0]->BDF_wts = macrowkset.BDF_wts;
+        assembler->wkset_AD[0]->butcher_A = macrowkset.butcher_A;
+        assembler->wkset_AD[0]->butcher_b = macrowkset.butcher_b;
+        assembler->wkset_AD[0]->butcher_c = macrowkset.butcher_c;
+        assembler->wkset_AD[0]->BDF_wts = macrowkset.BDF_wts;
 
         // fluxwt is \partial lambda / \partial lambda_stage
         fluxwt = macrowkset.butcher_A(current_stage,current_stage)/macrowkset.butcher_b(current_stage);
@@ -311,7 +311,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         
         //assembler->updateStage(macrowkset.current_stage, sgtime, sgdeltat); 
         assembler->updateStage(macrowkset.current_stage, previous_time, sgdeltat); 
-        assembler->wkset[0]->setTime(time); // TMW: this shouldn't be necessary
+        assembler->wkset_AD[0]->setTime(time); // TMW: this shouldn't be necessary
 
         this->nonlinearSolver(stage_sol, curr_adj, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, 
@@ -408,7 +408,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
             ScalarT beta_n = 1.0;          
             this->lagrangeInterpolate(currlambda, lambda, coarse_prevsoln, 
                                       coarse_times, beta_n,
-                                      assembler->wkset[0]->time);
+                                      assembler->wkset_AD[0]->time);
           
             // lambda_scale = derivative of \lambda_interp w.r.t. \lambda_stage
             ScalarT lambda_scale = beta_n*macro_beta;
@@ -446,10 +446,10 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
           /////////////////////////////////////////////////////
           
           if (compute_substep_norm) {
-            assembler->wkset[0]->setTime(sgtime+macro_deltat/(ScalarT)time_steps);
-            auto tsol = assembler->physics->function_managers[0]->evaluate("true e","ip");
-            auto sol = assembler->wkset[0]->getSolutionField("e");
-            auto wts = assembler->wkset[0]->wts;
+            assembler->wkset_AD[0]->setTime(sgtime+macro_deltat/(ScalarT)time_steps);
+            auto tsol = assembler->physics->function_managers_AD[0]->evaluate("true e","ip");
+            auto sol = assembler->wkset_AD[0]->getSolutionField("e");
+            auto wts = assembler->wkset_AD[0]->wts;
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), 
                             KOKKOS_LAMBDA (const int elem, ScalarT& update) {
@@ -526,7 +526,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
   }
   else {
     
-    assembler->wkset[0]->setDeltat(1.0);
+    assembler->wkset_AD[0]->setDeltat(1.0);
     ScalarT alpha = 1.0;
 
     this->nonlinearSolver(curr_sol, curr_adj, disc_params, lambda,
@@ -740,8 +740,8 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
       // volume assembly
       ////////////////////////////////////////////////
       
-      auto res_AD = assembler->wkset[0]->res;
-      auto offsets = assembler->wkset[0]->offsets;
+      auto res_AD = assembler->wkset_AD[0]->res;
+      auto offsets = assembler->wkset_AD[0]->offsets;
       auto numDOF = assembler->groupData[0]->num_dof;
     
       for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
@@ -817,7 +817,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
       ////////////////////////////////////////////////
       
       for (size_t e=0; e<assembler->boundary_groups[macrogrp].size(); e++) {
-        assembler->wkset[0]->isOnSide = true;
+        assembler->wkset_AD[0]->isOnSide = true;
         if (assembler->boundary_groups[macrogrp][e]->numElem > 0) {
           
           //int seedwhat = 1;
@@ -877,7 +877,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
 #endif
           }
         }
-        assembler->wkset[0]->isOnSide = false;
+        assembler->wkset_AD[0]->isOnSide = false;
       }
        
       //////////////////////////////////////////////////////////////////////////
@@ -940,9 +940,9 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sol,
   int iter = 0;
   Kokkos::View<ScalarT**,AssemblyDevice> aPrev;
   
-  //assembler->wkset[0]->setTime(time);
-  assembler->wkset[0]->isTransient = isTransient;
-  assembler->wkset[0]->isAdjoint = isAdjoint;
+  //assembler->wkset_AD[0]->setTime(time);
+  assembler->wkset_AD[0]->isTransient = isTransient;
+  assembler->wkset_AD[0]->isAdjoint = isAdjoint;
     
   
   while (iter < sub_maxNLiter && resnorm_scaled[0] > sub_NLtol) {
@@ -1136,9 +1136,9 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
   
   auto dres_view = d_res_over->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
   
-  //assembler->wkset[0]->setTime(time);
-  assembler->wkset[0]->isTransient = isTransient;
-  assembler->wkset[0]->isAdjoint = isAdjoint;
+  //assembler->wkset_AD[0]->setTime(time);
+  assembler->wkset_AD[0]->isTransient = isTransient;
+  assembler->wkset_AD[0]->isAdjoint = isAdjoint;
   
   if (compute_sens) {
     
@@ -1154,8 +1154,8 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       
       for (size_t elem=0; elem<assembler->groups[macrogrp].size(); elem++) {
         
-        assembler->wkset[0]->localEID = elem;
-        assembler->updateGroupData(assembler->wkset[0], macrogrp, elem);
+        assembler->wkset_AD[0]->localEID = elem;
+        assembler->updateGroupData(assembler->wkset_AD[0], macrogrp, elem);
         Kokkos::deep_copy(local_res, 0.0);
         
         assembler->computeJacRes(macrogrp, elem, time, isTransient, isAdjoint,
@@ -1177,7 +1177,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       
       Kokkos::View<ScalarT***,AssemblyDevice> local_res("local residual",numElem,snumDOF,num_active_params);
       Kokkos::View<ScalarT***,AssemblyDevice> local_J("local Jacobian",numElem,snumDOF,snumDOF);
-      assembler->wkset[0]->isOnSide = true;
+      assembler->wkset_AD[0]->isOnSide = true;
       for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
         assembler->updateDataBoundary(macrogrp, elem);
@@ -1191,7 +1191,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
                             data_avail, use_host_LIDs, true);
           
       }
-      assembler->wkset[0]->isOnSide = false;
+      assembler->wkset_AD[0]->isOnSide = false;
     }
     
     auto adj_kv = adj_sol->getLocalView<SG_device>(Tpetra::Access::ReadWrite);
@@ -1223,13 +1223,13 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       
       for (size_t elem=0; elem<assembler->groups[macrogrp].size(); elem++) {
                 
-        assembler->wkset[0]->localEID = elem;
+        assembler->wkset_AD[0]->localEID = elem;
         
         Kokkos::deep_copy(local_res, 0.0);
         Kokkos::deep_copy(local_J, 0.0);
         
         // TMW: this may not work properly with new version
-        assembler->updateGroupData(assembler->wkset[0], macrogrp, elem);
+        assembler->updateGroupData(assembler->wkset_AD[0], macrogrp, elem);
         
         assembler->computeJacRes(macrogrp, elem, time, isTransient, isAdjoint,
                                                        true, false, num_active_params, false, true, false,
@@ -1248,13 +1248,13 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       //int snumDOF = assembler->boundary_groups[macrogrp][0]->LIDs.extent(1);
       //int anumDOF = assembler->boundary_groups[macrogrp][0]->auxLIDs.extent(1);
       
-      auto res_AD = assembler->wkset[0]->res;
-      auto offsets = assembler->wkset[0]->offsets;
+      auto res_AD = assembler->wkset_AD[0]->res;
+      auto offsets = assembler->wkset_AD[0]->offsets;
       auto numDOF = assembler->groupData[0]->num_dof;
       auto numAuxDOF = assembler->groupData[0]->num_aux_dof;
       auto aoffsets = assembler->boundary_groups[macrogrp][0]->auxoffsets;
       
-      assembler->wkset[0]->isOnSide = true;
+      assembler->wkset_AD[0]->isOnSide = true;
       for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
         //-----------------------------------------------
@@ -1297,7 +1297,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         });
 #endif
       }
-      assembler->wkset[0]->isOnSide = false;
+      assembler->wkset_AD[0]->isOnSide = false;
     }
     
     if (solver->Comm->getSize() > 1) {
@@ -1330,7 +1330,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
     //KokkosTools::print(J_alt);
 
     
-    for (int stage=0; stage<assembler->wkset[0]->current_stage; ++stage) {
+    for (int stage=0; stage<assembler->wkset_AD[0]->current_stage; ++stage) {
       // Compute Jacobian wrt previous stage solution
       int seedwhat = 3;
       this->assembleJacobianResidual(sol, adj_sol, param, coarse_sol, res_over, 
@@ -1384,7 +1384,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
     else {
       d_sol->update(1.0, *d_sol_over, 1.0);
       d_sol->update(-1.0, *d_sol_prev_saved[0], 1.0); 
-      int current_stage = assembler->wkset[0]->current_stage;
+      int current_stage = assembler->wkset_AD[0]->current_stage;
       d_sol_stage_saved[current_stage]->assign(*d_sol_over); 
     }
     
@@ -1560,7 +1560,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
   
   //macrowkset.resetResidual();
   macrowkset.reset();
-  assembler->wkset[0]->isOnSide = true;
+  assembler->wkset_AD[0]->isOnSide = true;
   for (size_t e=0; e<assembler->boundary_groups[macrogrp].size(); e++) {
 
     //if (assembler->boundary_groups[macrogrp][e]->sidename == "interior") {
@@ -1570,9 +1570,9 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
         assembler->updateWorksetBasisBoundary(macrogrp, e); // removed basis
       }
       
-      auto cwts = assembler->wkset[0]->wts_side;
+      auto cwts = assembler->wkset_AD[0]->wts_side;
       ScalarT h = 0.0;
-      //assembler->wkset[0]->sidename = "interior";
+      //assembler->wkset_AD[0]->sidename = "interior";
       {
         Teuchos::TimeMonitor localcelltimer(*sgfemFluxCellTimer);
         //assembler->boundary_groups[macrogrp][e]->computeFlux(u_kv, du_kv, dp_kv, lambda, time,
@@ -1590,7 +1590,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
         for (size_type n=0; n<macrowkset.offsets.extent(0); n++) {
           auto macrobasis_ip = assembler->boundary_groups[macrogrp][e]->auxside_basis[macrowkset.usebasis[n]];
           auto off = Kokkos::subview(macrowkset.offsets, n, Kokkos::ALL());
-          auto flux = Kokkos::subview(assembler->wkset[0]->flux, Kokkos::ALL(), n, Kokkos::ALL());
+          auto flux = Kokkos::subview(assembler->wkset_AD[0]->flux, Kokkos::ALL(), n, Kokkos::ALL());
           auto res = macrowkset.res;
           parallel_for("subgrid flux",
                        RangePolicy<AssemblyExec>(0,bMIDs.extent(0)),
@@ -1606,7 +1606,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
       }
     //}
   }
-  assembler->wkset[0]->isOnSide = false;
+  assembler->wkset_AD[0]->isOnSide = false;
 
   if (debug_level > 0) {
     if (solver->Comm->getRank() == 0) {
@@ -1819,8 +1819,8 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
     //CellTools::mapToReferenceFrame(refpt_buffer, cpt, cnodes, *(solver->mesh->cellTopo[0]));
     DRV refpt("refpt",1,dimpts);
     Kokkos::deep_copy(refpt,Kokkos::subdynrankview(refpt_buffer,0,Kokkos::ALL(),Kokkos::ALL()));
-    Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset[0]->offsets;
-    vector<int> usebasis = assembler->wkset[0]->usebasis;
+    Kokkos::View<int**,AssemblyDevice> offsets = assembler->wkset_AD[0]->offsets;
+    vector<int> usebasis = assembler->wkset_AD[0]->usebasis;
     DRV basisvals("basisvals",offsets.extent(0),numLIDs);
     for (size_t n=0; n<offsets.extent(0); n++) {
       DRV bvals = solver->disc->evaluateBasis(solver->disc->basis_pointers[0][usebasis[n]], refpt);
@@ -1935,9 +1935,9 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
 ////////////////////////////////////////////////////////////////////////////////
 
 void SubGridDtN_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
-  for (size_t block=0; block<assembler->wkset.size(); ++block) {
-    assembler->wkset[block]->params = params;
-    assembler->wkset[block]->paramnames = paramnames;
+  for (size_t block=0; block<assembler->wkset_AD.size(); ++block) {
+    assembler->wkset_AD[block]->params = params;
+    assembler->wkset_AD[block]->paramnames = paramnames;
   }
   solver->physics->updateParameters(params, paramnames);
   
@@ -1986,7 +1986,7 @@ void SubGridDtN_Solver::performGather(const size_t & block, ViewType vec_dev, co
         numDOF = assembler->groups[block][grp]->group_data->num_dof;
         data = assembler->groups[block][grp]->sol[0];
         LIDs = assembler->groups[block][grp]->LIDs[0];
-        offsets = assembler->wkset[0]->offsets;
+        offsets = assembler->wkset_AD[0]->offsets;
         break;
       case 1 : // deprecated (was udot)
         break;
@@ -1994,7 +1994,7 @@ void SubGridDtN_Solver::performGather(const size_t & block, ViewType vec_dev, co
         numDOF = assembler->groups[block][grp]->group_data->num_dof;
         data = assembler->groups[block][grp]->phi[0];
         LIDs = assembler->groups[block][grp]->LIDs[0];
-        offsets = assembler->wkset[0]->offsets;
+        offsets = assembler->wkset_AD[0]->offsets;
         break;
       case 3 : // deprecated (was phidot)
         break;
@@ -2002,7 +2002,7 @@ void SubGridDtN_Solver::performGather(const size_t & block, ViewType vec_dev, co
         numDOF = assembler->groups[block][grp]->group_data->num_param_dof;
         data = assembler->groups[block][grp]->param;
         LIDs = assembler->groups[block][grp]->paramLIDs;
-        offsets = assembler->wkset[0]->paramoffsets;
+        offsets = assembler->wkset_AD[0]->paramoffsets;
         break;
       case 5 :
         numDOF = assembler->groups[block][grp]->group_data->num_aux_dof;
@@ -2047,7 +2047,7 @@ void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec
             numDOF = assembler->boundary_groups[block][grp]->group_data->num_dof;
             data = assembler->boundary_groups[block][grp]->sol[0];
             LIDs = assembler->boundary_groups[block][grp]->LIDs[0];
-            offsets = assembler->wkset[0]->offsets;
+            offsets = assembler->wkset_AD[0]->offsets;
             break;
           case 1 : // deprecated (was udot)
             break;
@@ -2055,7 +2055,7 @@ void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec
             numDOF = assembler->boundary_groups[block][grp]->group_data->num_dof;
             data = assembler->boundary_groups[block][grp]->phi[0];
             LIDs = assembler->boundary_groups[block][grp]->LIDs[0];
-            offsets = assembler->wkset[0]->offsets;
+            offsets = assembler->wkset_AD[0]->offsets;
             break;
           case 3 : // deprecated (was phidot)
             break;
@@ -2063,7 +2063,7 @@ void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec
             numDOF = assembler->boundary_groups[block][grp]->group_data->num_param_dof;
             data = assembler->boundary_groups[block][grp]->param;
             LIDs = assembler->boundary_groups[block][grp]->paramLIDs;
-            offsets = assembler->wkset[0]->paramoffsets;
+            offsets = assembler->wkset_AD[0]->paramoffsets;
             break;
           case 5 :
             numDOF = assembler->boundary_groups[block][grp]->group_data->num_aux_dof;

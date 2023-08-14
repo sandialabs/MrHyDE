@@ -472,11 +472,9 @@ void porousMixedHybrid<EvalT>::updatePerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::porousMixedHybrid<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::porousMixedHybrid<AD>;
 
@@ -488,3 +486,4 @@ template class MrHyDE::porousMixedHybrid<AD16>;
 template class MrHyDE::porousMixedHybrid<AD18>;
 template class MrHyDE::porousMixedHybrid<AD24>;
 template class MrHyDE::porousMixedHybrid<AD32>;
+#endif

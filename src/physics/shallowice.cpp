@@ -143,11 +143,9 @@ void shallowice<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::shallowice<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::shallowice<AD>;
 
@@ -159,3 +157,4 @@ template class MrHyDE::shallowice<AD16>;
 template class MrHyDE::shallowice<AD18>;
 template class MrHyDE::shallowice<AD24>;
 template class MrHyDE::shallowice<AD32>;
+#endif

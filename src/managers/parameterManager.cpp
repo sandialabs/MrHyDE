@@ -219,14 +219,13 @@ void ParameterManager<Node>::setupParameters() {
       
       pl_itr++;
     }
-
+    
+#ifndef MrHyDE_NO_AD
     for (size_t block=0; block<blocknames.size(); ++block) {
       if (num_active_params>disc->num_derivs_required[block]) {
         disc->num_derivs_required[block] = num_active_params;
       } 
     }
-    
-#ifndef MrHyDE_NO_AD
     TEUCHOS_TEST_FOR_EXCEPTION(num_active_params > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameters.");
 #endif
     size_t maxcomp = 0;

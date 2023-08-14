@@ -175,7 +175,7 @@ namespace MrHyDE {
             #ifndef MrHyDE_NO_AD
               vista_.update(pval);
             #else
-              vista_.updateSc(pval);
+              vista_.update(pval);
             #endif
           }
           else {

@@ -114,11 +114,9 @@ namespace MrHyDE {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::llamas<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::llamas<AD>;
 
@@ -130,5 +128,6 @@ template class MrHyDE::llamas<AD16>;
 template class MrHyDE::llamas<AD18>;
 template class MrHyDE::llamas<AD24>;
 template class MrHyDE::llamas<AD32>;
+#endif
 
 #endif

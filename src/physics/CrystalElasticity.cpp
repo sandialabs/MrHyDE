@@ -461,11 +461,9 @@ void CrystalElastic<EvalT>::computeRotatedTensor(Teuchos::RCP<Workset<EvalT> > &
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::CrystalElastic<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::CrystalElastic<AD>;
 
@@ -477,3 +475,4 @@ template class MrHyDE::CrystalElastic<AD16>;
 template class MrHyDE::CrystalElastic<AD18>;
 template class MrHyDE::CrystalElastic<AD24>;
 template class MrHyDE::CrystalElastic<AD32>;
+#endif

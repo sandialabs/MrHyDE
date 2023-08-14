@@ -533,11 +533,9 @@ void msphasefield<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<Eval
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::msphasefield<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::msphasefield<AD>;
 
@@ -549,3 +547,4 @@ template class MrHyDE::msphasefield<AD16>;
 template class MrHyDE::msphasefield<AD18>;
 template class MrHyDE::msphasefield<AD24>;
 template class MrHyDE::msphasefield<AD32>;
+#endif

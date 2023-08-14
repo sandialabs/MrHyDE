@@ -1420,11 +1420,9 @@ KOKKOS_FUNCTION EvalT VDNS<EvalT>::computeTau(const EvalT & rhoDiffl, const Eval
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::VDNS<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::VDNS<AD>;
 
@@ -1436,3 +1434,4 @@ template class MrHyDE::VDNS<AD16>;
 template class MrHyDE::VDNS<AD18>;
 template class MrHyDE::VDNS<AD24>;
 template class MrHyDE::VDNS<AD32>;
+#endif

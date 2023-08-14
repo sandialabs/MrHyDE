@@ -1781,11 +1781,9 @@ void FunctionManager<EvalT>::printFunctions() {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::FunctionManager<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::FunctionManager<AD>;
 
@@ -1797,3 +1795,4 @@ template class MrHyDE::FunctionManager<AD16>;
 template class MrHyDE::FunctionManager<AD18>;
 template class MrHyDE::FunctionManager<AD24>;
 template class MrHyDE::FunctionManager<AD32>;
+#endif

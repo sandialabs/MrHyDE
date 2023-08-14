@@ -44,11 +44,12 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     ~Vista() {};
     
-#ifndef MrHyDE_NO_AD
+
     Vista(View_EvalT2 vdata);
-#endif
-    
+
+#ifndef MrHyDE_NO_AD    
     Vista(View_Sc2 vdata);
+#endif
 
 //#ifndef MrHyDE_NO_AD
 //    Vista(EvalT & data_);
@@ -57,17 +58,18 @@ namespace MrHyDE {
     
     Vista(ScalarT & data_);
 
-#ifndef MrHyDE_NO_AD
+
     void update(View_EvalT2 vdata);
-#endif
-    
+
+#ifndef MrHyDE_NO_AD    
     void update(View_Sc2 vdata);
-    
-#ifndef MrHyDE_NO_AD
+#endif    
+
     void update(EvalT & data_);
-#endif
-    
+
+//#ifndef MrHyDE_NO_AD    
     void updateSc(ScalarT & data_);
+//#endif
 
     //void updateParam(AD & pdata_);
     
@@ -78,13 +80,8 @@ namespace MrHyDE {
           return viewdata_(i0,i1);
         }
         else {
-          #ifndef MrHyDE_NO_AD
-            //viewdata_(i0,i1).val() = viewdata_Sc_(i0,i1);
-            viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
-            return viewdata_(i0,i1);
-          #else
-            return viewdata_Sc_(i0,i1);
-          #endif
+          viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
+          return viewdata_(i0,i1);
         }
       }
       else {

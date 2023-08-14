@@ -210,11 +210,9 @@ using namespace MrHyDE;
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::PhysicsBase<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::PhysicsBase<AD>;
 
@@ -226,3 +224,4 @@ template class MrHyDE::PhysicsBase<AD16>;
 template class MrHyDE::PhysicsBase<AD18>;
 template class MrHyDE::PhysicsBase<AD24>;
 template class MrHyDE::PhysicsBase<AD32>;
+#endif

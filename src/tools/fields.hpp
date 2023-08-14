@@ -28,7 +28,7 @@ namespace MrHyDE {
     //friend class Workset<EvalT>;
     //friend class FunctionManager;
 
-    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
   
   public:
     
@@ -102,11 +102,7 @@ namespace MrHyDE {
     // =================================================================
     
     void initialize(const int & dim0, const int & dim1) {
-#ifndef MrHyDE_NO_AD
-      data_ = View_AD2("solution field for " + expression_, dim0, dim1);
-#else
-      data_ = View_AD2("solution field for " + expression_, dim0, dim1);
-#endif
+      data_ = View_EvalT2("solution field for " + expression_, dim0, dim1);
       is_initialized_ = true;
     }
     
@@ -117,7 +113,7 @@ namespace MrHyDE {
     string expression_, variable_type_, basis_type_, derivative_type_;
     size_t set_index_, variable_index_, component_;
     bool is_updated_, is_initialized_;
-    View_AD2 data_;
+    View_EvalT2 data_;
     
   };
   

@@ -399,7 +399,7 @@ void SubGridDtN::setUpSubgridModels() {
   
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                          sub_disc, sub_physics,
-                                                                         sub_assembler->function_managers, sub_assembler) );
+                                                                         sub_assembler->function_managers_AD, sub_assembler) );
   
   
   sub_assembler->allocateGroupStorage();
@@ -411,15 +411,15 @@ void SubGridDtN::setUpSubgridModels() {
   {
     varlist = sub_physics->var_list[0][0];
     //functionManagers[0]->setupLists(macro_paramnames);
-    sub_assembler->wkset[0]->params_AD = paramvals_KVAD;
+    sub_assembler->wkset_AD[0]->params_AD = paramvals_KVAD;
     
-    //functionManagers[0]->wkset = sub_assembler->wkset[0];
+    //functionManagers[0]->wkset = sub_assembler->wkset_AD[0];
     
     //functionManagers[0]->validateFunctions();
     //functionManagers[0]->decomposeFunctions();
   }
   
-  wkset = sub_assembler->wkset;
+  wkset = sub_assembler->wkset_AD;
   
   wkset[0]->addAux(macro_varlist, macro_offsets);
   Kokkos::View<int*,HostDevice> macro_numDOF_host("aux DOF on host",macro_numDOF.extent(0));
@@ -891,7 +891,7 @@ void SubGridDtN::setUpSubgridModels() {
   sub_assembler->finalizeFunctions();
 
   for (size_t grp=1; grp<groups.size(); ++ grp) {
-    sub_assembler->wkset.push_back(sub_assembler->wkset[0]);
+    sub_assembler->wkset_AD.push_back(sub_assembler->wkset_AD[0]);
     sub_assembler->groupData.push_back(sub_assembler->groupData[0]);
     sub_assembler->function_managers.push_back(sub_assembler->function_managers[0]);
   }

@@ -1088,11 +1088,9 @@ KOKKOS_FUNCTION EvalT navierstokes<EvalT>::computeTau(const EvalT & localdiff, c
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::navierstokes<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::navierstokes<AD>;
 
@@ -1104,3 +1102,4 @@ template class MrHyDE::navierstokes<AD16>;
 template class MrHyDE::navierstokes<AD18>;
 template class MrHyDE::navierstokes<AD24>;
 template class MrHyDE::navierstokes<AD32>;
+#endif

@@ -15,15 +15,16 @@
 
 using namespace MrHyDE;
     
-#ifndef MrHyDE_NO_AD
+
 template<class EvalT>
 Vista<EvalT>::Vista(View_EvalT2 vdata) {
   viewdata_ = vdata;
   is_AD_ = true;
   is_view_ = true;
 }
-#endif
-    
+
+
+#ifndef MrHyDE_NO_AD    
 template<class EvalT>
 Vista<EvalT>::Vista(View_Sc2 vdata) {
   viewdata_Sc_ = vdata;
@@ -31,6 +32,7 @@ Vista<EvalT>::Vista(View_Sc2 vdata) {
   is_view_ = true;
   is_AD_ = false;
 }
+#endif
 
 //#ifndef MrHyDE_NO_AD
 //template<class EvalT>
@@ -50,124 +52,31 @@ Vista<EvalT>::Vista(ScalarT & data_) {
   is_AD_ = false;
 }
 
-#ifndef MrHyDE_NO_AD
+
 template<class EvalT>
 void Vista<EvalT>::update(View_EvalT2 vdata) {
   viewdata_ = vdata;
 }
-#endif
-    
+
+
+#ifndef MrHyDE_NO_AD    
 template<class EvalT>
 void Vista<EvalT>::update(View_Sc2 vdata) {
   viewdata_Sc_ = vdata;
 }
-    
-#ifndef MrHyDE_NO_AD
+#endif
+
+
 template<class EvalT>
 void Vista<EvalT>::update(EvalT & data_) {
   deep_copy(viewdata_,data_);
 }
-#endif
+
 
 template<class EvalT>   
 void Vista<EvalT>::updateSc(ScalarT & data_) {
   deep_copy(viewdata_,data_);
 }
-
-//template<class EvalT>   
-//void Vista<EvalT>::updateParam(AD & pdata_) {
-  // nothing for now
-//}
-
-//KOKKOS_INLINE_FUNCTION    
-//template<>
-//ScalarT Vista<ScalarT>::operator()(const size_type & i0, const size_type & i1) const {
-//  if (is_view_) {
-//    if (is_AD_) {
-//      return viewdata_(i0,i1);
-//    }
-//    else {
-//#ifndef MrHyDE_NO_AD
-//      viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
-//      return viewdata_(i0,i1);
-//#else
-//      return viewdata_Sc_(i0,i1);
-//#endif
- //   }
-//  }
-//  else {
-//    return viewdata_(0,0);
-//  }/
-//}
-    
-/*
-template<class EvalT>
-KOKKOS_INLINE_FUNCTION 
-typename Kokkos::View<EvalT**,ContLayout,AssemblyDevice>::reference_type Vista<EvalT>::operator()(const size_type & i0, const size_type & i1) const {
-  if (is_view_) {
-    if (is_AD_) {
-      return viewdata_(i0,i1);
-    }
-    else {
-#ifndef MrHyDE_NO_AD
-      //viewdata_(i0,i1).val() = viewdata_Sc_(i0,i1);
-      viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
-      return viewdata_(i0,i1);
-#else
-      return viewdata_Sc_(i0,i1);
-#endif
-    }
-  }
-  else {
-    return viewdata_(0,0);
-  }
-}
-*/
-/*
-template<>
-KOKKOS_INLINE_FUNCTION 
-Kokkos::View<AD**,ContLayout,AssemblyDevice>::reference_type Vista<EvalT>::operator()(const size_type & i0, const size_type & i1) const {
-  if (is_view_) {
-    if (is_AD_) {
-      return viewdata_(i0,i1);
-    }
-    else {
-#ifndef MrHyDE_NO_AD
-      //viewdata_(i0,i1).val() = viewdata_Sc_(i0,i1);
-      viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
-      return viewdata_(i0,i1);
-#else
-      return viewdata_Sc_(i0,i1);
-#endif
-    }
-  }
-  else {
-    return viewdata_(0,0);
-  }
-}
-*/
-/*
-template<>
-KOKKOS_INLINE_FUNCTION 
-Kokkos::View<AD**,ContLayout,AssemblyDevice>::reference_type Vista<EvalT>::operator()(const size_type & i0, const size_type & i1) const {
-  if (is_view_) {
-    if (is_AD_) {
-      return viewdata_(i0,i1);
-    }
-    else {
-#ifndef MrHyDE_NO_AD
-      //viewdata_(i0,i1).val() = viewdata_Sc_(i0,i1);
-      viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
-      return viewdata_(i0,i1);
-#else
-      return viewdata_Sc_(i0,i1);
-#endif
-    }
-  }
-  else {
-    return viewdata_(0,0);
-  }
-}*/
 
 template<class EvalT>
 bool Vista<EvalT>::isView() {
@@ -201,11 +110,9 @@ void Vista<EvalT>::print() {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::Vista<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::Vista<AD>;
 
@@ -217,3 +124,4 @@ template class MrHyDE::Vista<AD16>;
 template class MrHyDE::Vista<AD18>;
 template class MrHyDE::Vista<AD24>;
 template class MrHyDE::Vista<AD32>;
+#endif

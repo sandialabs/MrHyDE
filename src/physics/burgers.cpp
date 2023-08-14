@@ -213,11 +213,9 @@ void Burgers<EvalT>::boundaryResidual() {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::Burgers<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::Burgers<AD>;
 
@@ -229,3 +227,4 @@ template class MrHyDE::Burgers<AD16>;
 template class MrHyDE::Burgers<AD18>;
 template class MrHyDE::Burgers<AD24>;
 template class MrHyDE::Burgers<AD32>;
+#endif

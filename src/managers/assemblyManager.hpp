@@ -295,31 +295,31 @@ namespace MrHyDE {
       //#endif
       int wkblock = 0;
 
-      wkset[wkblock]->setTime(time);
-      wkset[wkblock]->sidename = boundary_groups[block][grp]->sidename;
-      wkset[wkblock]->currentside = boundary_groups[block][grp]->sidenum;
-      wkset[wkblock]->numElem = boundary_groups[block][grp]->numElem;
+      wkset_AD[wkblock]->setTime(time);
+      wkset_AD[wkblock]->sidename = boundary_groups[block][grp]->sidename;
+      wkset_AD[wkblock]->currentside = boundary_groups[block][grp]->sidenum;
+      wkset_AD[wkblock]->numElem = boundary_groups[block][grp]->numElem;
       
       // Currently hard coded to one physics sets
       int set = 0;
 
-      vector<View_AD2> sol_vals = wkset[wkblock]->sol_vals;
-      //auto param_AD = wkset->pvals;
+      vector<View_AD2> sol_vals = wkset_AD[wkblock]->sol_vals;
+      //auto param_AD = wkset_AD->pvals;
       auto ulocal = boundary_groups[block][grp]->sol[set];
       auto currLIDs = boundary_groups[block][grp]->LIDs[set];
 
       if (useTransientSol) { 
-        int stage = wkset[wkblock]->current_stage;
-        auto b_A = wkset[wkblock]->butcher_A;
-        auto b_b = wkset[wkblock]->butcher_b;
-        auto BDF = wkset[wkblock]->BDF_wts;
+        int stage = wkset_AD[wkblock]->current_stage;
+        auto b_A = wkset_AD[wkblock]->butcher_A;
+        auto b_b = wkset_AD[wkblock]->butcher_b;
+        auto BDF = wkset_AD[wkblock]->BDF_wts;
 
         ScalarT one = 1.0;
         
         for (size_type var=0; var<ulocal.extent(1); var++ ) {
-          size_t uindex = wkset[wkblock]->sol_vals_index[set][var];
+          size_t uindex = wkset_AD[wkblock]->sol_vals_index[set][var];
           auto u_AD = sol_vals[uindex];
-          auto off = subview(wkset[wkblock]->set_offsets[set],var,ALL());
+          auto off = subview(wkset_AD[wkblock]->set_offsets[set],var,ALL());
           auto cu = subview(ulocal,ALL(),var,ALL());
           auto cu_prev = subview(boundary_groups[block][grp]->sol_prev[set],ALL(),var,ALL(),ALL());
           auto cu_stage = subview(boundary_groups[block][grp]->sol_stage[set],ALL(),var,ALL(),ALL());
@@ -370,7 +370,7 @@ namespace MrHyDE {
         if (compute_sens) {
           for (size_t var=0; var<ulocal.extent(1); var++) {
             auto u_AD = sol_vals[var];
-            auto offsets = subview(wkset[wkblock]->offsets,var,ALL());
+            auto offsets = subview(wkset_AD[wkblock]->offsets,var,ALL());
             parallel_for("flux gather",
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
@@ -383,7 +383,7 @@ namespace MrHyDE {
         else {
           for (size_t var=0; var<ulocal.extent(1); var++) {
             auto u_AD = sol_vals[var];
-            auto offsets = subview(wkset[wkblock]->offsets,var,ALL());
+            auto offsets = subview(wkset_AD[wkblock]->offsets,var,ALL());
             parallel_for("flux gather",
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
@@ -404,10 +404,10 @@ namespace MrHyDE {
       
       {
         //Teuchos::TimeMonitor localtimer(*fluxWksetTimer);
-        wkset[wkblock]->computeSolnSideIP(boundary_groups[block][grp]->sidenum);//, u_AD, param_AD);
+        wkset_AD[wkblock]->computeSolnSideIP(boundary_groups[block][grp]->sidenum);//, u_AD, param_AD);
       }
       
-      if (wkset[wkblock]->numAux > 0) {
+      if (wkset_AD[wkblock]->numAux > 0) {
         
        // Teuchos::TimeMonitor localtimer(*fluxAuxTimer);
       
@@ -416,10 +416,10 @@ namespace MrHyDE {
         for (size_type var=0; var<numAuxDOF.extent(0); var++) {
           auto abasis = boundary_groups[block][grp]->auxside_basis[boundary_groups[block][grp]->auxusebasis[var]];
           auto off = subview(boundary_groups[block][grp]->auxoffsets,var,ALL());
-          string varname = wkset[wkblock]->aux_varlist[var];
-          auto local_aux = wkset[wkblock]->getSolutionField("aux "+varname,false);
+          string varname = wkset_AD[wkblock]->aux_varlist[var];
+          auto local_aux = wkset_AD[wkblock]->getSolutionField("aux "+varname,false);
           Kokkos::deep_copy(local_aux,0.0);
-          //auto local_aux = Kokkos::subview(wkset->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
+          //auto local_aux = Kokkos::subview(wkset_AD->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
           auto localID = boundary_groups[block][grp]->localElemID;
           auto varaux = subview(lambda,ALL(),var,ALL());
           parallel_for("flux aux",
@@ -445,7 +445,7 @@ namespace MrHyDE {
         //Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
         groupData[block]->physics->computeFlux(0,groupData[block]->my_block);
       }
-      //wkset->isOnSide = false;
+      //wkset_AD->isOnSide = false;
     }
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -639,8 +639,9 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
-    std::vector<Teuchos::RCP<FunctionManager<AD> > > function_managers;
-    std::vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers_Sc;
+
+    std::vector<Teuchos::RCP<FunctionManager<AD> > > function_managers_AD;
+    std::vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers;
 
     size_t globalParamUnknowns;
     int verbosity, debug_level;
@@ -649,9 +650,9 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<GroupMetaData> > groupData;
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
     std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;
-    std::vector<Teuchos::RCP<Workset<AD> > > wkset;
+    std::vector<Teuchos::RCP<Workset<AD> > > wkset_AD;
     std::vector<Teuchos::RCP<Workset<AD4> > > wkset_AD4;
-    std::vector<Teuchos::RCP<Workset<ScalarT> > > wkset_Sc;
+    std::vector<Teuchos::RCP<Workset<ScalarT> > > wkset;
     
     bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free;
     

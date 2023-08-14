@@ -235,11 +235,9 @@ void physicsTest<EvalT>::updatePerm(View_EvalT2 perm) {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::physicsTest<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::physicsTest<AD>;
 
@@ -251,3 +249,4 @@ template class MrHyDE::physicsTest<AD16>;
 template class MrHyDE::physicsTest<AD18>;
 template class MrHyDE::physicsTest<AD24>;
 template class MrHyDE::physicsTest<AD32>;
+#endif

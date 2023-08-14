@@ -97,20 +97,21 @@ settings(settings_), comm(comm_){
 /////////////////////////////////////////////////////////////////////////////////////////////
 // Add the functions to the function managers
 /////////////////////////////////////////////////////////////////////////////////////////////
-
+#ifndef MrHyDE_NO_AD
 template<>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> > > & function_managers_) {
 
-  function_managers = function_managers_;
-  this->defineFunctions(function_managers, modules);
+  function_managers_AD = function_managers_;
+  this->defineFunctions(function_managers_AD, modules_AD);
     
 }
-    
+#endif
+
 template<>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<ScalarT> > > & function_managers_) {
     
-  function_managers_Sc = function_managers_;
-  this->defineFunctions(function_managers_Sc, modules_Sc);
+  function_managers = function_managers_;
+  this->defineFunctions(function_managers, modules);
   
 }
 
@@ -452,8 +453,8 @@ void PhysicsInterface::importPhysics() {
     vector<vector<string> > set_var_list;
     vector<vector<int> > set_var_owned;
     
-    vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules;
-    vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > set_modules_Sc;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules_AD;
+    vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > set_modules;
     vector<vector<bool> > set_use_subgrid, set_use_DG;
     
     for (size_t block=0; block<block_names.size(); ++block) { // element blocks
@@ -472,22 +473,25 @@ void PhysicsInterface::importPhysics() {
       
       physics_settings[set][block].set<int>("verbosity",settings->get<int>("verbosity",0));
       
-      vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules;
-      PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
-      block_modules = physimp.import(enabled_modules, physics_settings[set][block],
-                                     dimension, comm);
+      {
+        vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules_AD;
+        PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
       
-      set_modules.push_back(block_modules);
-
-      vector<Teuchos::RCP<PhysicsBase<ScalarT> > > block_modules_Sc;
-      PhysicsImporter<ScalarT> physimp_Sc = PhysicsImporter<ScalarT>();
-      block_modules_Sc = physimp_Sc.import(enabled_modules, physics_settings[set][block],
-                                     dimension, comm);
+        set_modules_AD.push_back(block_modules_AD);
+      }
+      {
+        vector<Teuchos::RCP<PhysicsBase<ScalarT> > > block_modules;
+        PhysicsImporter<ScalarT> physimp = PhysicsImporter<ScalarT>();
+        block_modules = physimp.import(enabled_modules, physics_settings[set][block],
+                                       dimension, comm);
       
-      set_modules_Sc.push_back(block_modules_Sc);
+        set_modules.push_back(block_modules);
+      }
     }
+    modules_AD.push_back(set_modules_AD);
     modules.push_back(set_modules);
-    modules_Sc.push_back(set_modules_Sc);
   }
   
   //-----------------------------------------------------------------
@@ -719,7 +723,7 @@ AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, con
   //wkset->setTime(t);
   
   // evaluate the response
-  auto ddata = function_managers[block]->evaluate("Dirichlet " + var + " " + gside,"point");
+  auto ddata = function_managers_AD[block]->evaluate("Dirichlet " + var + " " + gside,"point");
   
   return ddata(0,0);
   
@@ -764,7 +768,7 @@ bool PhysicsInterface::checkFace(const size_t & set, const size_t & block){
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
-                                      const bool & project, Teuchos::RCP<Workset<AD> > & wkset) {
+                                      const bool & project, Teuchos::RCP<Workset<ScalarT> > & wkset) {
   
   
   size_t currnum_vars = var_list[set][block].size();
@@ -778,65 +782,49 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
     // ip in wkset are set in cell::getInitial
     for (size_t n=0; n<var_list[set][block].size(); n++) {
       if (types[set][block][n].substr(0,5) == "HGRAD" || types[set][block][n].substr(0,4) == "HVOL") {
-        auto ivals_AD = function_managers[block]->evaluate("initial " + var_list[set][block][n],"ip");
+        auto tivals = function_managers[block]->evaluate("initial " + var_list[set][block][n],"ip");
         auto cvals = subview( ivals, ALL(), n, ALL(), 0);
         //copy
         parallel_for("physics fill initial values",
                      RangePolicy<AssemblyExec>(0,cvals.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_t i=0; i<cvals.extent(1); i++) {
-#ifndef MrHyDE_NO_AD
-            cvals(e,i) = ivals_AD(e,i).val();
-#else
-            cvals(e,i) = ivals_AD(e,i);
-#endif
+            cvals(e,i) = tivals(e,i);
           }
         });
       }
       else if (types[set][block][n].substr(0,5) == "HCURL" || types[set][block][n].substr(0,4) == "HDIV") {
-        auto ivals_AD = function_managers[block]->evaluate("initial " + var_list[set][block][n] + "[x]","ip");
+        auto tivals = function_managers[block]->evaluate("initial " + var_list[set][block][n] + "[x]","ip");
         auto cvals = subview( ivals, ALL(), n, ALL(), 0);
         //copy
         parallel_for("physics fill initial values",
                      RangePolicy<AssemblyExec>(0,cvals.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
           for (size_t i=0; i<cvals.extent(1); i++) {
-#ifndef MrHyDE_NO_AD
-            cvals(e,i) = ivals_AD(e,i).val();
-#else
-            cvals(e,i) = ivals_AD(e,i);
-#endif
+            cvals(e,i) = tivals(e,i);
           }
         });
         if (dimension > 1) {
-          auto ivals_AD = function_managers[block]->evaluate("initial " + var_list[set][block][n] + "[y]","ip");
+          auto tivals = function_managers[block]->evaluate("initial " + var_list[set][block][n] + "[y]","ip");
           auto cvals = subview( ivals, ALL(), n, ALL(), 1);
           //copy
           parallel_for("physics fill initial values",
                        RangePolicy<AssemblyExec>(0,cvals.extent(0)),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_t i=0; i<cvals.extent(1); i++) {
-#ifndef MrHyDE_NO_AD
-              cvals(e,i) = ivals_AD(e,i).val();
-#else
-              cvals(e,i) = ivals_AD(e,i);
-#endif
+              cvals(e,i) = tivals(e,i);
             }
           });
         }
         if (dimension>2) {
-          auto ivals_AD = function_managers[block]->evaluate("initial " + var_list[set][block][n] + "[z]","ip");
+          auto tivals = function_managers[block]->evaluate("initial " + var_list[set][block][n] + "[z]","ip");
           auto cvals = subview( ivals, ALL(), n, ALL(), 2);
           //copy
           parallel_for("physics fill initial values",
                        RangePolicy<AssemblyExec>(0,cvals.extent(0)),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_t i=0; i<cvals.extent(1); i++) {
-#ifndef MrHyDE_NO_AD
-              cvals(e,i) = ivals_AD(e,i).val();
-#else
-              cvals(e,i) = ivals_AD(e,i);
-#endif
+              cvals(e,i) = tivals(e,i);
             }
           });
         }
@@ -887,17 +875,13 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
         
         for (size_t n=0; n<var_list[set][block].size(); n++) {
           // evaluate
-          auto ivals_AD = function_managers[block]->evaluate("initial " + var_list[set][block][n],"point");
+          auto tivals = function_managers[block]->evaluate("initial " + var_list[set][block][n],"point");
         
           // Also might be ok (terribly inefficient though)
           parallel_for("physics initial set point",
                        RangePolicy<AssemblyExec>(0,1),
                        KOKKOS_LAMBDA (const int s ) {
-#ifndef MrHyDE_NO_AD
-            ivals(e,n,i,0) = ivals_AD(0,0).val();
-#else
-            ivals(e,n,i,0) = ivals_AD(0,0);
-#endif
+            ivals(e,n,i,0) = tivals(0,0);
           });
           
         }
@@ -914,7 +898,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & set,
-                                          const int & block, const bool & project, Teuchos::RCP<Workset<AD> > & wkset) {
+                                          const int & block, const bool & project, Teuchos::RCP<Workset<ScalarT> > & wkset) {
   
   size_t currnum_vars = var_list[set][block].size();
   
@@ -927,18 +911,14 @@ View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & se
     // ip in wkset are set in cell::getInitial
     for (size_t n=0; n<var_list[set][block].size(); n++) {
 
-      auto ivals_AD = function_managers[block]->evaluate("initial " + var_list[set][block][n],"side ip");
+      auto tivals = function_managers[block]->evaluate("initial " + var_list[set][block][n],"side ip");
       auto cvals = subview( ivals, ALL(), n, ALL());
       //copy
       parallel_for("physics fill initial values",
                    RangePolicy<AssemblyExec>(0,cvals.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t i=0; i<cvals.extent(1); i++) {
-#ifndef MrHyDE_NO_AD
-          cvals(e,i) = ivals_AD(e,i).val();
-#else
-          cvals(e,i) = ivals_AD(e,i);
-#endif
+          cvals(e,i) = tivals(e,i);
         }
       });
     }
@@ -961,9 +941,8 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
   
   // evaluate
   
-  auto dvals_AD = function_managers[block]->evaluate("Dirichlet " + var_list[set][block][var] + " " + sidename,"side ip");
+  auto tdvals = function_managers[block]->evaluate("Dirichlet " + var_list[set][block][var] + " " + sidename,"side ip");
   
-  //View_Sc2 dvals("temp dnvals", dvals_AD.extent(0), dvals_AD.extent(1));
   View_Sc2 dvals("temp dnvals", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
   
   // copy values
@@ -971,11 +950,7 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
                RangePolicy<AssemblyExec>(0,dvals.extent(0)),
                KOKKOS_LAMBDA (const int e ) {
     for (size_t i=0; i<dvals.extent(1); i++) {
-#ifndef MrHyDE_NO_AD
-      dvals(e,i) = dvals_AD(e,i).val();
-#else
-      dvals(e,i) = dvals_AD(e,i);
-#endif
+      dvals(e,i) = tdvals(e,i);
     }
   });
   return dvals;
@@ -984,9 +959,10 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
+// These really cannot be templated (unfortunately)
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<ScalarT> > > & params,
                                         const vector<string> & paramnames) {
-  
   for (size_t set=0; set<modules.size(); set++) {
     for (size_t block=0; block<modules[set].size(); ++block) {
       for (size_t i=0; i<modules[set][block].size(); i++) {
@@ -997,19 +973,20 @@ void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & par
   
 }
 
-void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<ScalarT> > > & params,
+#ifndef MrHyDE_NO_AD
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params,
                                         const vector<string> & paramnames) {
   
-  for (size_t set=0; set<modules_Sc.size(); set++) {
-    for (size_t block=0; block<modules_Sc[set].size(); ++block) {
-      for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
-        modules_Sc[set][block][i]->updateParameters(params, paramnames);
+  for (size_t set=0; set<modules_AD.size(); set++) {
+    for (size_t block=0; block<modules_AD[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+        modules_AD[set][block][i]->updateParameters(params, paramnames);
       }
     }
   }
   
 }
-
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1038,14 +1015,14 @@ void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
     cout << "**** Starting PhysicsInterface volume residual ..." << endl;
   }
 
-  if (std::is_same<EvalT, AD>::value) {
+  if (std::is_same<EvalT, ScalarT>::value) {
     for (size_t i=0; i<modules[set][block].size(); i++) {
       modules[set][block][i]->volumeResidual();
     }
   }
-  else if (std::is_same<EvalT, ScalarT>::value) {
-    for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
-      modules_Sc[set][block][i]->volumeResidual();
+  else if (std::is_same<EvalT, AD>::value) {
+    for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+      modules_AD[set][block][i]->volumeResidual();
     }
   }
 
@@ -1055,8 +1032,10 @@ void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
 
 }
 
-template void PhysicsInterface::volumeResidual<AD>(const size_t & set, const size_t block);
 template void PhysicsInterface::volumeResidual<ScalarT>(const size_t & set, const size_t block);
+#ifndef MrHyDE_NO_AD
+template void PhysicsInterface::volumeResidual<AD>(const size_t & set, const size_t block);
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1066,14 +1045,14 @@ void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) 
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Starting PhysicsInterface boundary residual ..." << endl;
   }
-  if (std::is_same<EvalT, AD>::value) {
+  if (std::is_same<EvalT, ScalarT>::value) {
     for (size_t i=0; i<modules[set][block].size(); i++) {
       modules[set][block][i]->boundaryResidual();
     }
   }
-  else if (std::is_same<EvalT, ScalarT>::value) {
-    for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
-      modules_Sc[set][block][i]->boundaryResidual();
+  else if (std::is_same<EvalT, AD>::value) {
+    for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+      modules_AD[set][block][i]->boundaryResidual();
     }
   }
   
@@ -1082,8 +1061,10 @@ void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) 
   }
 }
 
-template void PhysicsInterface::boundaryResidual<AD>(const size_t & set, const size_t block);
 template void PhysicsInterface::boundaryResidual<ScalarT>(const size_t & set, const size_t block);
+#ifndef MrHyDE_NO_AD
+template void PhysicsInterface::boundaryResidual<AD>(const size_t & set, const size_t block);
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1092,8 +1073,8 @@ void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Starting PhysicsInterface compute flux ..." << endl;
   }
-  for (size_t i=0; i<modules[set][block].size(); i++) {
-    modules[set][block][i]->computeFlux();
+  for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+    modules_AD[set][block][i]->computeFlux();
   }
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Finished PhysicsInterface compute flux" << endl;
@@ -1103,7 +1084,9 @@ void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset) {
+// These cannot be templated (unfortunately)
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<ScalarT> > > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++) {
     if (wkset[block]->isInitialized) {
       for (size_t set=0; set<modules.size(); set++) {
@@ -1116,38 +1099,42 @@ void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset) {
   }
 }
 
-void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<ScalarT> > > & wkset) {
+#ifndef MrHyDE_NO_AD
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++) {
     if (wkset[block]->isInitialized) {
-      for (size_t set=0; set<modules_Sc.size(); set++) {
+      for (size_t set=0; set<modules_AD.size(); set++) {
         wkset[block]->updatePhysicsSet(set);
-        for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
-          modules_Sc[set][block][i]->setWorkset(wkset[block]);
+        for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+          modules_AD[set][block][i]->setWorkset(wkset[block]);
         }
       }
     }
   }
 }
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 template<class EvalT>
 void PhysicsInterface::faceResidual(const size_t & set, const size_t block) {
-  if (std::is_same<EvalT, AD>::value) {
+  if (std::is_same<EvalT, ScalarT>::value) {
     for (size_t i=0; i<modules[set][block].size(); i++) {
       modules[set][block][i]->faceResidual();
     }
   }
-  else if (std::is_same<EvalT, ScalarT>::value) {
-    for (size_t i=0; i<modules_Sc[set][block].size(); i++) {
-      modules_Sc[set][block][i]->faceResidual();
+  else if (std::is_same<EvalT, AD>::value) {
+    for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+      modules_AD[set][block][i]->faceResidual();
     }
   }
 }
 
-template void PhysicsInterface::faceResidual<AD>(const size_t & set, const size_t block);
 template void PhysicsInterface::faceResidual<ScalarT>(const size_t & set, const size_t block);
+#ifndef MrHyDE_NO_AD
+template void PhysicsInterface::faceResidual<AD>(const size_t & set, const size_t block);
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1160,6 +1147,13 @@ void PhysicsInterface::updateFlags(vector<bool> & newflags) {
       }
     }
   }
+  for (size_t set=0; set<modules_AD.size(); set++) {
+    for (size_t block=0; block<modules_AD[set].size(); block++) {
+      for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+        modules_AD[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
 }
     
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1167,7 +1161,7 @@ void PhysicsInterface::updateFlags(vector<bool> & newflags) {
 
 template<class EvalT>
 void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
-  if (std::is_same<EvalT, AD>::value) {
+  if (std::is_same<EvalT, ScalarT>::value) {
     for (size_t var=0; var<var_list[set][block].size(); ++var) {
       int cside = function_managers[block]->wkset->currentside;
       string bctype = function_managers[block]->wkset->var_bcs(var,cside);
@@ -1195,20 +1189,20 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
       }
     }
   }
-  else if (std::is_same<EvalT, ScalarT>::value) {
+  else if (std::is_same<EvalT, AD>::value) {
     for (size_t var=0; var<var_list[set][block].size(); ++var) {
-      int cside = function_managers_Sc[block]->wkset->currentside;
-      string bctype = function_managers_Sc[block]->wkset->var_bcs(var,cside);
+      int cside = function_managers_AD[block]->wkset->currentside;
+      string bctype = function_managers_AD[block]->wkset->var_bcs(var,cside);
       if (bctype == "Flux") {
         string varname = var_list[set][block][var];
-        string sidename = function_managers_Sc[block]->wkset->sidename;
+        string sidename = function_managers_AD[block]->wkset->sidename;
         string label = "Flux " + varname + " " + sidename;
-        auto fluxvals = function_managers_Sc[block]->evaluate(label,"side ip");
+        auto fluxvals = function_managers_AD[block]->evaluate(label,"side ip");
       
-        auto basis = function_managers_Sc[block]->wkset->getBasisSide(varname);
-        auto wts = function_managers_Sc[block]->wkset->wts_side;
-        auto res = function_managers_Sc[block]->wkset->res;
-        auto off = function_managers_Sc[block]->wkset->getOffsets(varname);
+        auto basis = function_managers_AD[block]->wkset->getBasisSide(varname);
+        auto wts = function_managers_AD[block]->wkset->wts_side;
+        auto res = function_managers_AD[block]->wkset->res;
+        auto off = function_managers_AD[block]->wkset->getOffsets(varname);
       
         parallel_for("physics flux condition",
                      TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VectorSize),
@@ -1225,8 +1219,10 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
   }
 }
 
-template void PhysicsInterface::fluxConditions<AD>(const size_t & set, const size_t block);
 template void PhysicsInterface::fluxConditions<ScalarT>(const size_t & set, const size_t block);
+#ifndef MrHyDE_NO_AD
+template void PhysicsInterface::fluxConditions<AD>(const size_t & set, const size_t block);
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////

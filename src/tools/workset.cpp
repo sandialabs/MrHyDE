@@ -2678,11 +2678,9 @@ void Workset<EvalT>::allocateRotations() {
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-// Avoid redefining since ScalarT=AD if no AD
-#ifndef MrHyDE_NO_AD
 template class MrHyDE::Workset<ScalarT>;
-#endif
 
+#ifndef MrHyDE_NO_AD
 // Custom AD type
 template class MrHyDE::Workset<AD>;
 
@@ -2694,3 +2692,4 @@ template class MrHyDE::Workset<AD16>;
 template class MrHyDE::Workset<AD18>;
 template class MrHyDE::Workset<AD24>;
 template class MrHyDE::Workset<AD32>;
+#endif
