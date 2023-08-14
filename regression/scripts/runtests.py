@@ -115,12 +115,12 @@ class Test:
       hostname = hostname.rstrip('1234567890')
 
       if not os.path.exists(self.fullpath):
-        print('%s does not exist!') %(self.fullpath)
+        print('%s does not exist!' %(self.fullpath))
         self.status = 1
         self.statusStr = '!exist'
         self.skipped = 1
       elif not os.access(self.fullpath, os.X_OK):
-        print('%s not executable!') %(self.fullpath)
+        print('%s not executable!' %(self.fullpath))
         self.status = 1
         self.statusStr = '!exec'
         self.skipped = 1
