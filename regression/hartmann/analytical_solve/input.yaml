@@ -1,0 +1,64 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 1
+  debug level: 0
+  Mesh:
+    dimension: 1
+    element type: interval
+    xmin: -1.0
+    xmax:  1.0
+    NX: 2000
+  Physics:
+    modules: hartmann
+    Dirichlet conditions:
+      scalar data: true
+      u:
+        left: 0.0
+        right: 0.0
+    Neumann conditions:
+      b:
+        left: '-resistivity*b'
+        right: '-resistivity*b'
+    Initial conditions:
+      u: '1.0'
+      b: '1.0'
+  Discretization:
+    order:
+      u: 1
+      b: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    workset size: 100
+    nonlinear TOL: 1.0e-10
+    linear TOL: 1.0e-10
+    max nonlinear iters: 1
+    max linear iters: 500
+    use direct solver: true
+  Analysis: 
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    compute errors: true
+    # output file: output
+
+    True solutions:
+      u: 'uhat*(1-cosh_xHa/cosh_Ha)'
+      b: '-x/hartmannNum+uhat*sinh_xHa/cosh_Ha'
+  Functions:
+    uhat: '(resistivity+1)/(hartmannNum*(hartmannNum+resistivity*sinh_Ha/cosh_Ha))'
+    cosh_Ha:  'cosh(hartmannNum)'
+    sinh_Ha:  'sinh(hartmannNum)'
+    cosh_xHa: 'cosh(x*hartmannNum)'
+    sinh_xHa: 'sinh(x*hartmannNum)'
+  Parameters:
+    resistivity:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    hartmannNum:
+      type: scalar
+      value: 1.0
+      usage: inactive
+...

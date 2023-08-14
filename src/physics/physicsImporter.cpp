@@ -38,6 +38,7 @@
 #include "shallowwaterHybridized.hpp"
 #include "incompressibleSaturation.hpp"
 #include "shallowice.hpp"
+#include "hartmann.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -125,6 +126,10 @@ vector<Teuchos::RCP<physicsbase> > physicsImporter::import(vector<string> & modu
     // Navier Stokes
     if (modname == "navier stokes" || modname == "Navier Stokes") {
       modules.push_back(Teuchos::rcp(new navierstokes(settings, dimension) ) );
+    }
+    // Hartmann
+    if (modname == "hartmann") {
+      modules.push_back(Teuchos::rcp(new hartmann(settings, dimension) ) );
     }
     
     // Linear Elasticity
