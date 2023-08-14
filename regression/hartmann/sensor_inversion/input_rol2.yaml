@@ -5,7 +5,7 @@ ANONYMOUS:
     analysis type: ROL
     have sensor points: true
     have sensor data: true
-    save sensor data: true
+    save sensor data: false
     move sensors to IP: false
     use line search: false
     write output: false

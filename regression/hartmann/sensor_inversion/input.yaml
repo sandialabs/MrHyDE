@@ -34,7 +34,7 @@ ANONYMOUS:
     max linear iters: 500
     use direct solver: true
     compute sensitivities: true
-  Analysis input file: /ascldap/users/dgsharp/git-repos/MrHyDE/regression/hartmann/sensor_inv/input_rol2.yaml
+  Analysis input file: input_rol2.yaml
   # Analysis:
   #   analysis type: forward
   Postprocess: 
@@ -46,9 +46,9 @@ ANONYMOUS:
     Objective functions:
       uval:
         type: sensors
-        sensor points file: /ascldap/users/dgsharp/git-repos/MrHyDE/regression/hartmann/sensor_inv/sensor_points.dat
-        sensor data file: /ascldap/users/dgsharp/git-repos/MrHyDE/regression/hartmann/sensor_inv/sensor_data.dat
-        save sensor data: true
+        sensor points file: sensor_points.dat
+        sensor data file: sensor_data.dat
+        save sensor data: false
         response: 'u'
         weight: 1.0
   Functions:
@@ -62,6 +62,6 @@ ANONYMOUS:
       usage: inactive
     usource:
       type: scalar
-      value: 1.0
+      value: 0.5
       usage: active
 ...
