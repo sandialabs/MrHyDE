@@ -137,6 +137,9 @@ namespace MrHyDE {
     void computeObjective(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                           DFAD & objectiveval);
 
+    void computeObjectiveGradParam(vector<vector_RCP> & current_soln, const ScalarT & current_time,
+                                   DFAD & objectiveval);
+
     void computeObjectiveGradState(const size_t & set, vector_RCP & current_soln, const ScalarT & current_time,
                                    const ScalarT & deltat, vector_RCP & grad);
 
