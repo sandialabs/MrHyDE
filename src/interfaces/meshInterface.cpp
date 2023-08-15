@@ -1389,7 +1389,7 @@ void MeshInterface::readExodusData() {
   // open exodus file
   int CPU_word_size, IO_word_size, exoid, exo_error;
   int num_dim, num_nods, num_el, num_el_blk, num_ns, num_ss;
-  char title[MAX_STR_LENGTH+1];
+  char title[MAX_LINE_LENGTH+1];
   float exo_version;
   CPU_word_size = sizeof(ScalarT);
   IO_word_size = 0;
