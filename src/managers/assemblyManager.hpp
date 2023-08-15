@@ -90,6 +90,12 @@ namespace MrHyDE {
     
     void createWorkset();
     
+    void addFunction(const int & block, const string & name, const string & expression, const string & location);
+
+    View_Sc2 evaluateFunction(const int & block, const string & name, const string & location);
+
+    View_Sc3 evaluateFunctionWithSens(const int & block, const string & name, const string & location);
+
     // ========================================================================================
     // ========================================================================================
     
@@ -443,7 +449,7 @@ namespace MrHyDE {
       
       {
         //Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
-        groupData[block]->physics->computeFlux(0,groupData[block]->my_block);
+        physics->computeFlux<AD>(0,groupData[block]->my_block);
       }
       //wkset_AD->isOnSide = false;
     }
@@ -459,9 +465,12 @@ namespace MrHyDE {
                                                      const bool & compute_aux_sens, const bool & store_adjPrev,
                                                      View_Sc3 local_res, View_Sc3 local_J);
 
-    // Backwards compatible function call
-    // Calls fully templated version with AD
+    // Calls fully templated version with ScalarT
     void updateWorksetBoundary(const int & block, const size_t & grp, const int & seedwhat, 
+                               const int & seedindex=0, const bool & override_transient=false);
+
+    // Calls fully templated version with AD
+    void updateWorksetBoundaryAD(const int & block, const size_t & grp, const int & seedwhat, 
                                const int & seedindex=0, const bool & override_transient=false);
 
     // Partially templated version that pick the appropriate workset to use
@@ -482,6 +491,7 @@ namespace MrHyDE {
     // Backwards compatible function call
     // Calls fully templated version with AD
     void updateDataBoundary(const int & block, const size_t & grp);
+    void updateDataBoundaryAD(const int & block, const size_t & grp);
 
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version
@@ -493,9 +503,11 @@ namespace MrHyDE {
     template<class EvalT>
     void updateDataBoundary(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
 
-    // Backwards compatible function call
-    // Calls fully templated version with AD
+    // Calls fully templated version with ScalarT
     void updateWorksetBasisBoundary(const int & block, const size_t & grp);
+
+    // Calls fully templated version with AD
+    void updateWorksetBasisBoundaryAD(const int & block, const size_t & grp);
 
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version
@@ -525,9 +537,12 @@ namespace MrHyDE {
     // Functionality moved from groups into here
     ////////////////////////////////////////////////////////////////////////////////
     
-    // Backwards compatible function call
-    // Calls fully templated version with AD
+    // Calls fully templated version with ScalarT
     void updateWorkset(const int & block, const size_t & grp, const int & seedwhat,
+                       const int & seedindex, const bool & override_transient=false);
+
+    // Calls fully templated version with AD
+    void updateWorksetAD(const int & block, const size_t & grp, const int & seedwhat,
                        const int & seedindex, const bool & override_transient=false);
 
     // Partially templated version that pick the appropriate workset to use
@@ -551,9 +566,11 @@ namespace MrHyDE {
     void computeParameterAverage(const int & block, const size_t & grp,
                                  const string & var, View_Sc2 sol);
 
-    // Backwards compatible function call
-    // Calls fully templated version with AD
+    // Calls fully templated version with ScalarT
     void updateWorksetFace(const int & block, const size_t & grp, const size_t & facenum);
+
+    // Calls fully templated version with ScalarT
+    void updateWorksetFaceAD(const int & block, const size_t & grp, const size_t & facenum);
 
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version

@@ -26,10 +26,9 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_
                                              Teuchos::RCP<MeshInterface> & mesh_,
                                              Teuchos::RCP<DiscretizationInterface> & disc_,
                                              Teuchos::RCP<PhysicsInterface> & phys_,
-                                             vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
-assembler(assembler_), functionManagers(functionManagers_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
+assembler(assembler_) { 
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PostprocessManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
@@ -46,12 +45,11 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_
                                              Teuchos::RCP<MeshInterface> & mesh_,
                                              Teuchos::RCP<DiscretizationInterface> & disc_,
                                              Teuchos::RCP<PhysicsInterface> & phys_,
-                                             vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers_,
                                              Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                                              Teuchos::RCP<ParameterManager<Node> > & params_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
-assembler(assembler_), params(params_), functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
+assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_) { 
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PostprocessManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
@@ -109,7 +107,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
  
   compute_weighted_norm = settings->sublist("Postprocess").get<bool>("compute weighted norm",false);
   
-  setnames = phys->set_names;
+  setnames = physics->set_names;
   
   for (size_t set=0; set<setnames.size(); ++set) {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
@@ -137,7 +135,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   if (verbosity > 0 && Comm->getRank() == 0) {
     if (write_solution && !write_HFACE_variables) {
       bool have_HFACE_vars = false;
-      vector<vector<vector<string> > > types = phys->types;
+      vector<vector<vector<string> > > types = physics->types;
       for (size_t set=0; set<types.size(); set++) {
         for (size_t block=0; block<types[set].size(); ++block) {
           for (size_t var=0; var<types[set][block].size(); var++) {
@@ -173,11 +171,11 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   
   //mesh->stk_mesh->getElementBlockNames(blocknames);
   //mesh->stk_mesh->getSidesetNames(sideSets);
-  blocknames = phys->block_names;
-  sideSets = phys->side_names;
+  blocknames = physics->block_names;
+  sideSets = physics->side_names;
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
-  dimension = phys->dimension;//mesh->stk_mesh->getDimension();
+  dimension = physics->dimension;//mesh->stk_mesh->getDimension();
     
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
@@ -187,7 +185,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
   write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
   
-  varlist = phys->var_list;
+  varlist = physics->var_list;
   
   for (size_t block=0; block<blocknames.size(); ++block) {
         
@@ -196,7 +194,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
       Teuchos::ParameterList::ConstIterator rsp_itr = resps.begin();
       while (rsp_itr != resps.end()) {
         string entry = resps.get<string>(rsp_itr->first);
-        functionManagers[block]->addFunction(rsp_itr->first,entry,"ip");
+        assembler->addFunction(block, rsp_itr->first, entry, "ip");
         rsp_itr++;
       }
     }
@@ -205,7 +203,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
       Teuchos::ParameterList::ConstIterator wts_itr = wts.begin();
       while (wts_itr != wts.end()) {
         string entry = wts.get<string>(wts_itr->first);
-        functionManagers[block]->addFunction(wts_itr->first,entry,"ip");
+        assembler->addFunction(block, wts_itr->first, entry, "ip");
         wts_itr++;
       }
     }
@@ -214,7 +212,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
       Teuchos::ParameterList::ConstIterator tgt_itr = tgts.begin();
       while (tgt_itr != tgts.end()) {
         string entry = tgts.get<string>(tgt_itr->first);
-        functionManagers[block]->addFunction(tgt_itr->first,entry,"ip");
+        assembler->addFunction(block, tgt_itr->first, entry, "ip");
         tgt_itr++;
       }
     }
@@ -226,7 +224,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     else { // default
       blockPpSettings = settings->sublist("Postprocess");
     }
-    vector<vector<vector<string> > > types = phys->types;
+    vector<vector<vector<string> > > types = physics->types;
     
     // Add true solutions to the function manager for verification studies
     Teuchos::ParameterList true_solns = blockPpSettings.sublist("True solutions");
@@ -241,8 +239,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     while (ef_itr != efields.end()) {
       string entry = efields.get<string>(ef_itr->first);
       block_ef.push_back(ef_itr->first);
-      functionManagers[block]->addFunction(ef_itr->first,entry,"ip");
-      functionManagers[block]->addFunction(ef_itr->first,entry,"point");
+      assembler->addFunction(block, ef_itr->first, entry, "ip");
+      assembler->addFunction(block, ef_itr->first, entry, "point");
       ef_itr++;
     }
     extrafields_list.push_back(block_ef);
@@ -254,16 +252,16 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     while (ecf_itr != ecfields.end()) {
       string entry = ecfields.get<string>(ecf_itr->first);
       block_ecf.push_back(ecf_itr->first);
-      functionManagers[block]->addFunction(ecf_itr->first,entry,"ip");
+      assembler->addFunction(block, ecf_itr->first, entry, "ip");
       ecf_itr++;
     }
     extracellfields_list.push_back(block_ecf);
     
     // Add derived quantities from physics modules
     vector<string> block_dq;
-    for (size_t set=0; set<phys->modules.size(); ++set) {
-      for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
-        vector<string> dqnames = phys->modules[set][block][m]->getDerivedNames();
+    for (size_t set=0; set<physics->modules.size(); ++set) {
+      for (size_t m=0; m<physics->modules[set][block].size(); ++m) {
+        vector<string> dqnames = physics->modules[set][block][m]->getDerivedNames();
         for (size_t k=0; k<dqnames.size(); ++k) {
           block_dq.push_back(dqnames[k]);
         }
@@ -283,10 +281,10 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     // This needs to happen before we read in integrated quantities from the input file
     // to ensure proper ordering of the QoI 
     vector<integratedQuantity> block_IQs;
-    for (size_t set=0; set<phys->modules.size(); ++set) {
-      for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
+    for (size_t set=0; set<physics->modules.size(); ++set) {
+      for (size_t m=0; m<physics->modules[set][block].size(); ++m) {
         vector< vector<string> > integrandsNamesAndTypes =
-        phys->modules[set][block][m]->setupIntegratedQuantities(dimension);
+        physics->modules[set][block][m]->setupIntegratedQuantities(dimension);
         vector<integratedQuantity> phys_IQs =
         this->addIntegratedQuantities(integrandsNamesAndTypes, block);
         // add the IQs from this physics to the "running total"
@@ -349,7 +347,7 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           std::pair<string,string> newerr(vars[j],"L2");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>(vars[j],"0.0");
-          functionManagers[block]->addFunction("true "+vars[j],expression,"ip");
+          assembler->addFunction(block, "true "+vars[j], expression, "ip");
         }
       }
       if (true_solns.isParameter("grad("+vars[j]+")[x]") || true_solns.isParameter("grad("+vars[j]+")[y]") || true_solns.isParameter("grad("+vars[j]+")[z]")) { // GRAD of the solution at volumetric ip
@@ -358,14 +356,14 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           block_error_list.push_back(newerr);
           
           string expression = true_solns.get<string>("grad("+vars[j]+")[x]","0.0");
-          functionManagers[block]->addFunction("true grad("+vars[j]+")[x]",expression,"ip");
+          assembler->addFunction(block, "true grad("+vars[j]+")[x]", expression, "ip");
           if (dimension>1) {
             expression = true_solns.get<string>("grad("+vars[j]+")[y]","0.0");
-            functionManagers[block]->addFunction("true grad("+vars[j]+")[y]",expression,"ip");
+            assembler->addFunction(block, "true grad("+vars[j]+")[y]", expression, "ip");
           }
           if (dimension>2) {
             expression = true_solns.get<string>("grad("+vars[j]+")[z]","0.0");
-            functionManagers[block]->addFunction("true grad("+vars[j]+")[z]",expression,"ip");
+            assembler->addFunction(block, "true grad("+vars[j]+")[z]", expression, "ip");
           }
         }
       }
@@ -374,7 +372,7 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           std::pair<string,string> newerr(vars[j],"L2 FACE");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>(vars[j]+" face","0.0");
-          functionManagers[block]->addFunction("true "+vars[j],expression,"side ip");
+          assembler->addFunction(block, "true "+vars[j], expression, "side ip");
           
         }
       }
@@ -384,15 +382,15 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           block_error_list.push_back(newerr);
           
           string expression = true_solns.get<string>(vars[j]+"[x]","0.0");
-          functionManagers[block]->addFunction("true "+vars[j]+"[x]",expression,"ip");
+          assembler->addFunction(block, "true "+vars[j]+"[x]", expression, "ip");
           
           if (dimension>1) {
             expression = true_solns.get<string>(vars[j]+"[y]","0.0");
-            functionManagers[block]->addFunction("true "+vars[j]+"[y]",expression,"ip");
+            assembler->addFunction(block, "true "+vars[j]+"[y]", expression, "ip");
           }
           if (dimension>2) {
             expression = true_solns.get<string>(vars[j]+"[z]","0.0");
-            functionManagers[block]->addFunction("true "+vars[j]+"[z]",expression,"ip");
+            assembler->addFunction(block, "true "+vars[j]+"[z]", expression, "ip");
           }
         }
       }
@@ -401,7 +399,7 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           std::pair<string,string> newerr(vars[j],"DIV");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>("div("+vars[j]+")","0.0");
-          functionManagers[block]->addFunction("true div("+vars[j]+")",expression,"ip");
+          assembler->addFunction(block, "true div("+vars[j]+")", expression, "ip");
           
         }
       }
@@ -411,15 +409,15 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           block_error_list.push_back(newerr);
           
           string expression = true_solns.get<string>("curl("+vars[j]+")[x]","0.0");
-          functionManagers[block]->addFunction("true curl("+vars[j]+")[x]",expression,"ip");
+          assembler->addFunction(block, "true curl("+vars[j]+")[x]", expression, "ip");
           
           if (dimension>1) {
             expression = true_solns.get<string>("curl("+vars[j]+")[y]","0.0");
-            functionManagers[block]->addFunction("true curl("+vars[j]+")[y]",expression,"ip");
+            assembler->addFunction(block, "true curl("+vars[j]+")[y]", expression, "ip");
           }
           if (dimension>2) {
             expression = true_solns.get<string>("curl("+vars[j]+")[z]","0.0");
-            functionManagers[block]->addFunction("true curl("+vars[j]+")[z]",expression,"ip");
+            assembler->addFunction(block, "true curl("+vars[j]+")[z]", expression, "ip");
           }
         }
       }
@@ -446,8 +444,30 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
       }
     }
     if (addobj) {
-      objective newobj(objsettings,obj_itr->first,block,functionManagers[block]);
+      objective newobj(objsettings,obj_itr->first,block);
       objectives.push_back(newobj);
+
+      if (newobj.type == "sensors") {
+        assembler->addFunction(block, newobj.name+" response", newobj.response,"point");
+      }
+      else if (newobj.type == "integrated response") {
+        assembler->addFunction(block, newobj.name+" response", newobj.response,"ip");
+      }
+      else if (newobj.type == "integrated control") {
+        assembler->addFunction(block, newobj.name, newobj.function, "ip");
+      }
+
+      // regularizations
+      for (size_t r=0; r<newobj.regularizations.size(); ++r) {
+        if (newobj.regularizations[r].type == "integrated") {
+          if (newobj.regularizations[r].location == "volume") {
+            assembler->addFunction(block, newobj.regularizations[r].name, newobj.regularizations[r].function, "ip");
+          }
+          else if (newobj.regularizations[r].location == "boundary") {
+            assembler->addFunction(block, newobj.regularizations[r].name, newobj.regularizations[r].function, "side ip");
+          }
+        }
+      }
     }
     obj_itr++;
   }
@@ -463,8 +483,9 @@ void PostprocessManager<Node>::addFluxResponses(Teuchos::ParameterList & flux_re
   Teuchos::ParameterList::ConstIterator fluxr_itr = flux_resp.begin();
   while (fluxr_itr != flux_resp.end()) {
     Teuchos::ParameterList frsettings = flux_resp.sublist(fluxr_itr->first);
-    fluxResponse newflux(frsettings,fluxr_itr->first,block,functionManagers[block]);
+    fluxResponse newflux(frsettings,fluxr_itr->first,block);
     fluxes.push_back(newflux);
+    assembler->addFunction(block, "flux weight "+newflux.name, newflux.weight, "side ip");
     fluxr_itr++;
   }
   
@@ -480,8 +501,15 @@ vector<integratedQuantity> PostprocessManager<Node>::addIntegratedQuantities(Teu
   Teuchos::ParameterList::ConstIterator iqs_itr = iqs.begin();
   while (iqs_itr != iqs.end()) {
     Teuchos::ParameterList iqsettings = iqs.sublist(iqs_itr->first);
-    integratedQuantity newIQ(iqsettings,iqs_itr->first,block,functionManagers[block]);
+    integratedQuantity newIQ(iqsettings,iqs_itr->first,block);
     IQs.push_back(newIQ);
+    if (newIQ.location == "volume") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "ip"); 
+    } 
+    else if (newIQ.location == "boundary") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "side ip");
+    }
+
     iqs_itr++;
   }
   
@@ -504,8 +532,15 @@ PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & int
     integratedQuantity newIQ(integrandsNamesAndTypes[iIQ][0],
                              integrandsNamesAndTypes[iIQ][1],
                              integrandsNamesAndTypes[iIQ][2],
-                             block,functionManagers[block]);
+                             block);
     IQs.push_back(newIQ);
+    if (newIQ.location == "volume") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "ip"); 
+    } 
+    else if (newIQ.location == "boundary") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "side ip");
+    }
+
   }
   
   return IQs;
@@ -1111,7 +1146,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
   for (size_t block=0; block<assembler->groups.size(); block++) {// loop over blocks
     
     int altblock; // Needed for subgrid error calculations
-    if (assembler->wkset_AD.size()>block && error_list.size()>block) {
+    if (assembler->wkset.size()>block && error_list.size()>block) {
       altblock = block;
     }
     else {
@@ -1124,11 +1159,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
     
     if (assembler->groups[block].size() > 0) {
       
-      assembler->wkset_AD[altblock]->setTime(currenttime);
+      assembler->wkset[altblock]->setTime(currenttime);
       
       // Need to use time step solution instead of stage solution
-      bool isTransient = assembler->wkset_AD[altblock]->isTransient;
-      assembler->wkset_AD[altblock]->isTransient = false;
+      bool isTransient = assembler->wkset[altblock]->isTransient;
+      assembler->wkset[altblock]->isTransient = false;
       assembler->groupData[altblock]->requires_transient = false;
       
       // Determine what needs to be updated in the workset
@@ -1146,27 +1181,29 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       for (size_t grp=0; grp<assembler->groups[block].size(); grp++) {
         if (assembler->groups[block][grp]->active) {
         if (have_vol_errs) {
-          assembler->updateWorkset(block, grp, seedwhat,true);
+          assembler->updateWorkset(assembler->wkset[altblock],block, grp, seedwhat,0, true);
+          //assembler->updateWorkset(altblock, grp, seedwhat,true);
         }
-        auto wts = assembler->wkset_AD[block]->wts;
+        //auto wts = assembler->wkset[block]->wts;
+        auto wts = assembler->wkset[altblock]->wts;
         
         for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
           string varname = error_list[altblock][etype].first;
           
           if (error_list[altblock][etype].second == "L2") {
             // compute the true solution
-            string expression = varname;
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol = assembler->wkset_AD[altblock]->getSolutionField(expression);
+            string name = varname;
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol = assembler->wkset[altblock]->getSolutionField(name);
             
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
+//#else
                 ScalarT diff = sol(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1174,18 +1211,18 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "GRAD") {
             // compute the true x-component of grad
-            string expression = "grad(" + varname + ")[x]";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_x = assembler->wkset_AD[altblock]->getSolutionField(expression);
+            string name = "grad(" + varname + ")[x]";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_x = assembler->wkset[altblock]->getSolutionField(name);
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
+//#else
                 ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1193,19 +1230,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             
             if (dimension > 1) {
               // compute the true y-component of grad
-              string expression = "grad(" + varname + ")[y]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_y = assembler->wkset_AD[altblock]->getSolutionField(expression);
+              string name = "grad(" + varname + ")[y]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_y = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
+//#else
                   ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1214,19 +1251,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             
             if (dimension > 2) {
               // compute the true z-component of grad
-              string expression = "grad(" + varname + ")[z]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_z = assembler->wkset_AD[altblock]->getSolutionField(expression);
+              string name = "grad(" + varname + ")[z]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_z = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
+//#else
                   ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1235,19 +1272,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "DIV") {
             // compute the true divergence
-            string expression = "div(" + varname + ")";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_div = assembler->wkset_AD[altblock]->getSolutionField(expression);
+            string name = "div(" + varname + ")";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_div = assembler->wkset[altblock]->getSolutionField(name);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_div(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                ScalarT diff = sol_div(elem,pt).val() - tsol(elem,pt).val();
+//#else
                 ScalarT diff = sol_div(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1255,19 +1292,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "CURL") {
             // compute the true x-component of grad
-            string expression = "curl(" + varname + ")[x]";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_curl_x = assembler->wkset_AD[altblock]->getSolutionField(expression);
+            string name = "curl(" + varname + ")[x]";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_curl_x = assembler->wkset[altblock]->getSolutionField(name);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_curl_x(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                ScalarT diff = sol_curl_x(elem,pt).val() - tsol(elem,pt).val();
+//#else
                 ScalarT diff = sol_curl_x(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1275,19 +1312,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             
             if (dimension > 1) {
               // compute the true y-component of grad
-              string expression = "curl(" + varname + ")[y]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_curl_y = assembler->wkset_AD[altblock]->getSolutionField(expression);
+              string name = "curl(" + varname + ")[y]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_curl_y = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_curl_y(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                  ScalarT diff = sol_curl_y(elem,pt).val() - tsol(elem,pt).val();
+//#else
                   ScalarT diff = sol_curl_y(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1296,19 +1333,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             
             if (dimension >2) {
               // compute the true z-component of grad
-              string expression = "curl(" + varname + ")[z]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_curl_z = assembler->wkset_AD[altblock]->getSolutionField(expression);
+              string name = "curl(" + varname + ")[z]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_curl_z = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_curl_z(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                  ScalarT diff = sol_curl_z(elem,pt).val() - tsol(elem,pt).val();
+//#else
                   ScalarT diff = sol_curl_z(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1317,19 +1354,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "L2 VECTOR") {
             // compute the true x-component of grad
-            string expression = varname + "[x]";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_x = assembler->wkset_AD[altblock]->getSolutionField(expression);
+            string name = varname + "[x]";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_x = assembler->wkset[altblock]->getSolutionField(name);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
+//#else
                 ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1337,19 +1374,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             
             if (dimension > 1) {
               // compute the true y-component of grad
-              string expression = varname + "[y]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_y = assembler->wkset_AD[altblock]->getSolutionField(expression);
+              string name = varname + "[y]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_y = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
+//#else
                   ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1358,19 +1395,19 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             
             if (dimension > 2) {
               // compute the true z-component of grad
-              string expression = varname + "[z]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_z = assembler->wkset_AD[altblock]->getSolutionField(expression);
+              string name = varname + "[z]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_z = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
+//#else
                   ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1380,22 +1417,23 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         }
         }
         if (have_face_errs) {
-          assembler->wkset_AD[altblock]->isOnSide = true;
+          assembler->wkset[altblock]->isOnSide = true;
           for (size_t face=0; face<assembler->groups[block][grp]->group_data->num_sides; face++) {
             // TMW - hard coded for now
             for (size_t set=0; set<assembler->wkset_AD[altblock]->numSets; ++set) {
-              assembler->wkset_AD[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->sol[set], seedwhat);
+              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->sol[set], seedwhat);
             }
             assembler->updateWorksetFace(block, grp, face);
-            assembler->wkset_AD[altblock]->resetSolutionFields();
+            assembler->wkset[altblock]->resetSolutionFields();
             for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
               string varname = error_list[altblock][etype].first;
               if (error_list[altblock][etype].second == "L2 FACE") {
                 // compute the true z-component of grad
-                string expression = varname;
-                auto tsol = functionManagers[altblock]->evaluate("true "+expression,"side ip");
-                auto sol = assembler->wkset_AD[altblock]->getSolutionField(expression);
-                auto wts = assembler->wkset_AD[block]->wts_side;
+                string name = varname;
+                View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "side ip");
+                
+                auto sol = assembler->wkset[altblock]->getSolutionField(name);
+                auto wts = assembler->wkset[block]->wts_side;
                 
                 // add in the L2 difference at the volumetric ip
                 ScalarT error = 0.0;
@@ -1407,11 +1445,11 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                   }
                   
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                    ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                    ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
+//#else
                     ScalarT diff = sol(elem,pt) - tsol(elem,pt);
-#endif
+//#endif
                     update += 0.5/facemeasure*diff*diff*wts(elem,pt);  // TODO - BWR what is this? why .5?
                   }
                 }, error);
@@ -1419,10 +1457,10 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               }
             }
           }
-          assembler->wkset_AD[altblock]->isOnSide = false;
+          assembler->wkset[altblock]->isOnSide = false;
         }
       }
-      assembler->wkset_AD[altblock]->isTransient = isTransient;
+      assembler->wkset[altblock]->isTransient = isTransient;
       assembler->groupData[altblock]->requires_transient = isTransient;
     }
     currerror.push_back(blockerrors);
@@ -1546,12 +1584,12 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
       assembler->updateWorksetBoundary(block, grp, 0, 0, true);
       
       // compute the flux
-      assembler->wkset_AD[block]->flux = View_AD3("flux",assembler->wkset_AD[block]->maxElem,
-                                               assembler->wkset_AD[block]->numVars[0], // hard coded
-                                               assembler->wkset_AD[block]->numsideip);
+      assembler->wkset[block]->flux = View_Sc3("flux",assembler->wkset[block]->maxElem,
+                                               assembler->wkset[block]->numVars[0], // hard coded
+                                               assembler->wkset[block]->numsideip);
       
-      assembler->groupData[block]->physics->computeFlux(0,block); // hard coded
-      auto cflux = assembler->wkset_AD[block]->flux; // View_AD3
+      physics->computeFlux<ScalarT>(0,block); // hard coded
+      auto cflux = assembler->wkset[block]->flux; // View_AD3
       
       for (size_t f=0; f<fluxes.size(); ++f) {
         
@@ -1561,8 +1599,8 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
           
           if (found!=std::string::npos) {
             
-            auto wts = functionManagers[block]->evaluate("flux weight "+fluxes[f].name,"side ip");
-            auto iwts = assembler->wkset_AD[block]->wts_side;
+            View_Sc2 wts = assembler->evaluateFunction(block, "flux weight "+fluxes[f].name,"side ip");
+            auto iwts = assembler->wkset[block]->wts_side;
             
             for (size_type v=0; v<fluxes[f].vals.extent(0); ++v) {
               ScalarT value = 0.0;
@@ -1570,11 +1608,7 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
               parallel_reduce(RangePolicy<AssemblyExec>(0,iwts.extent(0)),
                               KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<iwts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT up = vflux(elem,pt).val()*wts(elem,pt).val()*iwts(elem,pt);
-#else
                   ScalarT up = vflux(elem,pt)*wts(elem,pt)*iwts(elem,pt);
-#endif
                   update += up;
                 }
               }, value);
@@ -1615,7 +1649,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
     vector<ScalarT> allsums; // For the final results after summing over MPI processes
 
     // the first n IQs are needed by the workset for residual calculations
-    size_t nIQsForResidual = assembler->wkset_AD[globalBlock]->integrated_quantities.extent(0);
+    size_t nIQsForResidual = assembler->wkset[globalBlock]->integrated_quantities.extent(0);
 
     // MPI sums happen on the host and later we pass to the device (where residual is formed)
     auto hostsums = Kokkos::View<ScalarT*,HostDevice>("host IQs",nIQsForResidual);
@@ -1634,21 +1668,20 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           // setup the workset for this grp
           assembler->updateWorkset(globalBlock, grp, 0,0,true);
           // get integration weights
-          auto wts = assembler->wkset_AD[globalBlock]->wts;
+          auto wts = assembler->wkset[globalBlock]->wts;
           // evaluate the integrand at integration points
-          auto integrand = functionManagers[globalBlock]->evaluate(
-                integratedQuantities[iLocal][iIQ].name+" integrand","ip");
-
+          //auto integrand = functionManagers[globalBlock]->evaluate(integratedQuantities[iLocal][iIQ].name+" integrand","ip");
+          View_Sc2 integrand = assembler->evaluateFunction(globalBlock, integratedQuantities[iLocal][iIQ].name+" integrand","ip");
           // expand this for integral integrands, etc.?
           
           parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                           KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                             for (size_t pt=0; pt<wts.extent(1); pt++) {
-#ifndef MrHyDE_NO_AD
-                              ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                              ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
+//#else
                               ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
-#endif
+//#endif
                               update += Idx;
                             }
                           },localContribution); //// TODO :: may be illegal
@@ -1661,7 +1694,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
 
       } else if (integratedQuantities[iLocal][iIQ].location == "boundary") {
 
-        assembler->wkset_AD[globalBlock]->isOnSide = true;
+        assembler->wkset[globalBlock]->isOnSide = true;
 
         for (size_t grp=0; grp<assembler->boundary_groups[globalBlock].size(); ++grp) {
 
@@ -1677,19 +1710,18 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
             // setup the workset for this grp
             assembler->updateWorksetBoundary(globalBlock, grp, 0, 0, true); 
             // get integration weights
-            auto wts = assembler->wkset_AD[globalBlock]->wts_side;
+            auto wts = assembler->wkset[globalBlock]->wts_side;
             // evaluate the integrand at integration points
-            auto integrand = functionManagers[globalBlock]->evaluate(
-                  integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
-            
+            //auto integrand = functionManagers[globalBlock]->evaluate(integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
+            View_Sc2 integrand = assembler->evaluateFunction(globalBlock, integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                             KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                               for (size_t pt=0; pt<wts.extent(1); pt++) {
-#ifndef MrHyDE_NO_AD
-                                ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//                                ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
+//#else
                                 ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
-#endif
+//#endif
                                 update += Idx;
                               }
                             },localContribution); //// TODO :: may be illegal, problematic ABOVE TOO
@@ -1699,7 +1731,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           integral += localContribution;
         } // end loop over boundary groups
         
-        assembler->wkset_AD[globalBlock]->isOnSide = false;
+        assembler->wkset[globalBlock]->isOnSide = false;
         
       } // end if volume or boundary
       // finalize the integral
@@ -1722,11 +1754,11 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
     
     // TODO CHECK THIS WITH TIM... am I dev/loc correctly?
     if (nIQsForResidual > 0) {
-      Kokkos::deep_copy(assembler->wkset_AD[globalBlock]->integrated_quantities,hostsums);
-      for (size_t set=0; set<phys->modules.size(); ++set) {
-        for (size_t m=0; m<phys->modules[set][globalBlock].size(); ++m) {
+      Kokkos::deep_copy(assembler->wkset[globalBlock]->integrated_quantities,hostsums);
+      for (size_t set=0; set<physics->modules.size(); ++set) {
+        for (size_t m=0; m<physics->modules[set][globalBlock].size(); ++m) {
           // BWR -- called for all physics defined on the block regards of if they need IQs
-          phys->modules[set][globalBlock][m]->updateIntegratedQuantitiesDependents();
+          physics->modules[set][globalBlock][m]->updateIntegratedQuantitiesDependents();
         }
       }
     } // end if physics module needs IQs
@@ -1836,11 +1868,14 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
       
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         
+        View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
+        //assembler->computeObjectiveGrad(block, grp, objectives[r].name, objsum_dev);
+        
         auto wts = assembler->groups[block][grp]->wts;
         
-        assembler->updateWorkset(block, grp, 0,0,true);
+        assembler->updateWorksetAD(block, grp, 0,0,true);
         
-        auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
+        auto obj_dev = assembler->function_managers_AD[block]->evaluate(objectives[r].name,"ip");
         
         Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
         parallel_for("grp objective",
@@ -1852,8 +1887,6 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           }
           Kokkos::atomic_add(&(objsum(0)),tmpval);
         });
-        
-        View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
         
         parallel_for("grp objective",
                      RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
@@ -1899,9 +1932,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           
           auto wts = assembler->groups[block][grp]->wts;
           
-          assembler->updateWorkset(block, grp, 3,0,true);
+          assembler->updateWorksetAD(block, grp, 3,0,true);
           
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
+          auto obj_dev = assembler->function_managers_AD[block]->evaluate(objectives[r].name,"ip");
           
           Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
           parallel_for("grp objective",
@@ -1995,9 +2028,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
           auto wts = assembler->groups[block][grp]->wts;
             
-          assembler->updateWorkset(block, grp, 0,0,true);
+          assembler->updateWorksetAD(block, grp, 0,0,true);
         
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
+          auto obj_dev = assembler->function_managers_AD[block]->evaluate(objectives[r].name+" response","ip");
         
           Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
           parallel_for("grp objective",
@@ -2067,9 +2100,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           
           auto wts = assembler->groups[block][grp]->wts;
           
-          assembler->updateWorkset(block, grp, 3,0,true);
+          assembler->updateWorksetAD(block, grp, 3,0,true);
         
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
+          auto obj_dev = assembler->function_managers_AD[block]->evaluate(objectives[r].name+" response","ip");
           
           Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
           parallel_for("grp objective",
@@ -2258,7 +2291,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             }
             
             // Evaluate the response
-            auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
+            auto rdata = assembler->function_managers_AD[block]->evaluate(objectives[r].name+" response","point");
             
             if (compute_response) {
   #ifndef MrHyDE_NO_AD
@@ -2336,7 +2369,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                 assembler->wkset_AD[block]->setParamGradPoint(pgrad_ip);
                 
                 // Evaluate the response
-                auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
+                auto rdata = assembler->function_managers_AD[block]->evaluate(objectives[r].name+" response","point");
                 AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
                 AD sdiff = objectives[r].weight*diff*diff;
                 
@@ -2380,9 +2413,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             
             auto wts = assembler->groups[block][grp]->wts;
             
-            assembler->updateWorkset(block, grp, 3,0,true);
+            assembler->updateWorksetAD(block, grp, 3,0,true);
             
-            auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
+            auto regvals_tmp = assembler->function_managers_AD[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
             View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
             
             parallel_for("grp objective",
@@ -2445,9 +2478,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               auto wts = assembler->boundary_groups[block][grp]->wts;
               
-              assembler->updateWorksetBoundary(block, grp, 3, 0, true);
+              assembler->updateWorksetBoundaryAD(block, grp, 3, 0, true);
               
-              auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
+              auto regvals_tmp = assembler->function_managers_AD[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
               View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
               
               parallel_for("grp objective",
@@ -2496,7 +2529,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                   }
                 }
               }
-              
+  
               /*
               auto obj_dev = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
               
@@ -2543,6 +2576,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                   }
                 }
               }*/
+  
             }
           }
           
@@ -2583,6 +2617,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   }
   
   objectiveval += fullobj;
+  
 
 }
 
@@ -2694,6 +2729,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          const ScalarT & deltat,
                                                          vector_RCP & grad) {
   
+  
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting PostprocessManager::computeObjectiveGradState ..." << std::endl;
@@ -2756,7 +2792,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->updateWorkset(block, grp, 1,0,true);
+            assembler->updateWorksetAD(block, grp, 1,0,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -2873,7 +2909,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           }
           
           // Evaluate the objective
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
+          auto obj_dev = assembler->function_managers_AD[block]->evaluate(objectives[r].name,"ip");
           
           // Weight using volumetric integration weights
           auto wts = assembler->groups[block][grp]->wts;
@@ -3014,7 +3050,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->updateWorkset(block, grp, 1,0,true);
+            assembler->updateWorksetAD(block, grp, 1,0,true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
@@ -3118,7 +3154,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           }
           
           // Evaluate the objective
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
+          auto obj_dev = assembler->function_managers_AD[block]->evaluate(objectives[r].name+" response","ip");
           
           // Weight using volumetric integration weights
           auto wts = assembler->groups[block][grp]->wts;
@@ -3422,7 +3458,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               
             }
 
-            auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
+            auto rdata = assembler->function_managers_AD[block]->evaluate(objectives[r].name+" response","point");
             AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
             AD totaldiff = objectives[r].weight*diff*diff;
             
@@ -3751,9 +3787,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
     
         assembler->updatePhysicsSet(set);
       
-        vector<string> vartypes = phys->types[set][block];
-        vector<int> varorders = phys->orders[set][block];
-        int numVars = phys->num_vars[set][block]; // probably redundant
+        vector<string> vartypes = physics->types[set][block];
+        vector<int> varorders = physics->orders[set][block];
+        int numVars = physics->num_vars[set][block]; // probably redundant
         
         for (int n = 0; n<numVars; n++) {
           
@@ -4225,7 +4261,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
   for (size_t fnum=0; fnum<extracellfields_list[block].size(); ++fnum) {
     
     auto cfield = subview(fields, ALL(), fnum);
-    auto ecf = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
+    View_Sc2 ecf = assembler->evaluateFunction(block, extracellfields_list[block][fnum], "ip");
     
     if (cellfield_reduction == "mean") { // default
       parallel_for("physics get extra grp fields",
@@ -4236,11 +4272,11 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
           grpmeas += wts(e,pt);
         }
         for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-          ScalarT val = ecf(e,j).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//          ScalarT val = ecf(e,j).val();
+//#else
           ScalarT val = ecf(e,j);
-#endif
+//#endif
           cfield(e) += val*wts(e,j)/grpmeas;
         }
       });
@@ -4250,11 +4286,11 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-          ScalarT val = ecf(e,j).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//          ScalarT val = ecf(e,j).val();
+//#else
           ScalarT val = ecf(e,j);
-#endif
+//#endif
           if (val>cfield(e)) {
             cfield(e) = val;
           }
@@ -4266,11 +4302,11 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-          ScalarT val = ecf(e,j).val();
-#else
+//#ifndef MrHyDE_NO_AD
+//          ScalarT val = ecf(e,j).val();
+//#else
           ScalarT val = ecf(e,j);
-#endif
+//#endif
           if (val<cfield(e)) {
             cfield(e) = val;
           }
@@ -4293,11 +4329,11 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
   
   int prog = 0;
   
-  for (size_t set=0; set<phys->modules.size(); ++set) {
-    for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
+  for (size_t set=0; set<physics->modules.size(); ++set) {
+    for (size_t m=0; m<physics->modules[set][block].size(); ++m) {
       
-      //vector<View_AD2> dqvals = phys->modules[set][block][m]->getDerivedValues();
-      auto dqvals = phys->modules[set][block][m]->getDerivedValues();
+      //vector<View_AD2> dqvals = physics->modules[set][block][m]->getDerivedValues();
+      auto dqvals = physics->modules[set][block][m]->getDerivedValues();
       for (size_t k=0; k<dqvals.size(); k++) {
         auto cfield = subview(fields, ALL(), prog);
         auto cdq = dqvals[k];
@@ -4360,8 +4396,8 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
     std::string blockID = blocknames[block];
     //vector<vector<int> > curroffsets = disc->offsets[block];
     vector<size_t> myElements = disc->my_elements[block];
-    //vector<string> vartypes = phys->types[block];
-    //vector<int> varorders = phys->orders[block];
+    //vector<string> vartypes = physics->types[block];
+    //vector<int> varorders = physics->orders[block];
     
     if (myElements.size() > 0) {
       

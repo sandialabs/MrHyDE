@@ -1069,17 +1069,30 @@ template void PhysicsInterface::boundaryResidual<AD>(const size_t & set, const s
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+template<class EvalT>
 void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Starting PhysicsInterface compute flux ..." << endl;
   }
-  for (size_t i=0; i<modules_AD[set][block].size(); i++) {
-    modules_AD[set][block][i]->computeFlux();
+  if (std::is_same<EvalT, ScalarT>::value) {
+    for (size_t i=0; i<modules[set][block].size(); i++) {
+      modules[set][block][i]->computeFlux();
+    }
+  }
+  if (std::is_same<EvalT, AD>::value) {
+    for (size_t i=0; i<modules_AD[set][block].size(); i++) {
+      modules_AD[set][block][i]->computeFlux();
+    }
   }
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Finished PhysicsInterface compute flux" << endl;
   }
 }
+
+template void PhysicsInterface::computeFlux<ScalarT>(const size_t & set, const size_t block);
+#ifndef MrHyDE_NO_AD
+template void PhysicsInterface::computeFlux<AD>(const size_t & set, const size_t block);
+#endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////

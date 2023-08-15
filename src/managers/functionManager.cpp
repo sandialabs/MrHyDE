@@ -50,7 +50,7 @@ num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(bloc
 //////////////////////////////////////////////////////////////////////////////////////
 
 template<class EvalT>
-int FunctionManager<EvalT>::addFunction(const string & fname, string & expression, const string & location) {
+int FunctionManager<EvalT>::addFunction(const string & fname, const string & expression, const string & location) {
   bool found = false;
   int findex = 0;
   

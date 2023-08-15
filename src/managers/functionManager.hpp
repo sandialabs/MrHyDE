@@ -51,7 +51,7 @@ namespace MrHyDE {
     // Add a user defined function
     //////////////////////////////////////////////////////////////////////////////////////
     
-    int addFunction(const std::string & fname, std::string & expression, const std::string & location);
+    int addFunction(const std::string & fname, const std::string & expression, const std::string & location);
     
     int addFunction(const string & fname, ScalarT & value, const string & location);
 

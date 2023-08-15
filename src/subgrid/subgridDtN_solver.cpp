@@ -757,7 +757,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
         //////////////////////////////////////////////////////////////
         
         // Volumetric contribution
-        assembler->updateWorkset(macrogrp, e, seedwhat, seedindex);
+        assembler->updateWorksetAD(macrogrp, e, seedwhat, seedindex);
         assembler->physics->volumeResidual<AD>(0,0);
         
         //////////////////////////////////////////////////////////////////////////
@@ -822,7 +822,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
           
           //int seedwhat = 1;
           
-          assembler->updateWorksetBoundary(macrogrp, e, seedwhat, seedindex);
+          assembler->updateWorksetBoundaryAD(macrogrp, e, seedwhat, seedindex);
           assembler->physics->boundaryResidual<AD>(0,0);
           
           //////////////////////////////////////////////////////////////////////////
@@ -1180,7 +1180,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       assembler->wkset_AD[0]->isOnSide = true;
       for (size_t elem=0; elem<assembler->boundary_groups[macrogrp].size(); elem++) {
         
-        assembler->updateDataBoundary(macrogrp, elem);
+        assembler->updateDataBoundaryAD(macrogrp, elem);
         Kokkos::deep_copy(local_res, 0.0);
         
         assembler->computeJacResBoundary(macrogrp, elem, time, isTransient, isAdjoint,
@@ -1262,7 +1262,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         //-----------------------------------------------
         
         int seedwhat = 4;
-        assembler->updateWorksetBoundary(macrogrp, elem, seedwhat);
+        assembler->updateWorksetBoundaryAD(macrogrp, elem, seedwhat);
           
         //-----------------------------------------------
         // Compute the residual
@@ -1566,8 +1566,8 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
     //if (assembler->boundary_groups[macrogrp][e]->sidename == "interior") {
       {
         Teuchos::TimeMonitor localwktimer(*sgfemFluxWksetTimer);
-        assembler->updateDataBoundary(macrogrp, e);
-        assembler->updateWorksetBasisBoundary(macrogrp, e); // removed basis
+        assembler->updateDataBoundaryAD(macrogrp, e);
+        assembler->updateWorksetBasisBoundaryAD(macrogrp, e); // removed basis
       }
       
       auto cwts = assembler->wkset_AD[0]->wts_side;

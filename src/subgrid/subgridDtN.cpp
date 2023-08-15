@@ -399,7 +399,8 @@ void SubGridDtN::setUpSubgridModels() {
   
   sub_postproc = Teuchos::rcp( new PostprocessManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                          sub_disc, sub_physics,
-                                                                         sub_assembler->function_managers_AD, sub_assembler) );
+                                                                         //sub_assembler->function_managers_AD, 
+                                                                         sub_assembler) );
   
   
   sub_assembler->allocateGroupStorage();
@@ -1702,7 +1703,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
       for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
     
         //groups[macrogrp][grp]->updateWorkset(0,true);
-        sub_assembler->updateWorkset(macrogrp, grp, 0, true);
+        sub_assembler->updateWorksetAD(macrogrp, grp, 0, true);
         wkset[0]->time = time;
                
         auto cfields = sub_postproc->getExtraCellFields(0, groups[macrogrp][grp]->wts);
@@ -1738,7 +1739,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
       for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
     
         //groups[macrogrp][grp]->updateWorkset(0,true);
-        sub_assembler->updateWorkset(macrogrp, grp, 0, true);
+        sub_assembler->updateWorksetAD(macrogrp, grp, 0, true);
         wkset[0]->time = time;
                
         auto cfields = sub_postproc->getDerivedQuantities(0, groups[macrogrp][grp]->wts);

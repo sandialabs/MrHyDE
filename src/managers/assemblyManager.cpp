@@ -913,6 +913,48 @@ void AssemblyManager<Node>::createWorkset() {
 // ========================================================================================
 // ========================================================================================
 
+template<class Node>
+void AssemblyManager<Node>::addFunction(const int & block, const string & name, const string & expression, const string & location) {
+  function_managers[block]->addFunction(name, expression, location);
+  function_managers_AD[block]->addFunction(name, expression, location);
+}
+
+template<class Node>
+View_Sc2 AssemblyManager<Node>::evaluateFunction(const int & block, const string & name, const string & location) {
+
+  typedef typename Node::execution_space LA_exec;
+
+  auto data = function_managers[block]->evaluate(name, location);
+  size_type num_elem = function_managers[block]->num_elem_;
+  size_type num_pts = 0;
+  if (location == "ip") {
+    num_pts = function_managers[block]->num_ip_;
+  }
+  else if (location == "side ip") {
+    num_pts = function_managers[block]->num_ip_side_;
+  }
+  else if (location == "point") {
+    num_pts = 1;
+  }
+
+  View_Sc2 outdata("data from function evaluation", num_elem, num_pts);
+
+  parallel_for("assembly eval func",
+                 RangePolicy<LA_exec>(0,num_elem),
+                 KOKKOS_LAMBDA (const int elem ) {
+    for (size_type pt=0; pt<num_pts; ++pt) {
+      outdata(elem,pt) = data(elem,pt);
+    }
+  });
+
+  return outdata;
+}
+    
+
+
+// ========================================================================================
+// ========================================================================================
+
 // TMW: this might be deprecated
 template<class Node>
 void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J, const vector<vector<GO> > & dofs,
@@ -2107,7 +2149,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           
         }
         else {
-          this->updateWorkset(block, grp, seedwhat, 0);
+          this->updateWorkset<AD>(block, grp, seedwhat, 0);
           physics->volumeResidual<AD>(set, block);
         }
       }
@@ -2123,7 +2165,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         else {
           wkset_AD[block]->isOnSide = true;
           for (size_t s=0; s<groupData[block]->num_sides; s++) {
-            this->updateWorksetFace(block, grp, s);
+            this->updateWorksetFace<AD>(block, grp, s);
             physics->faceResidual<AD>(set,block);
           }
           wkset_AD[block]->isOnSide =false;
@@ -2245,8 +2287,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         // Compute the local residual and Jacobian on this boundary group
         /////////////////////////////////////////////////////////////////////////////
         wkset_AD[block]->resetResidual();
-        //boundary_groups[block][grp]->updateWorkset(seedwhat);
-        this->updateWorksetBoundary(block, grp, seedwhat);
+        this->updateWorksetBoundary<AD>(block, grp, seedwhat);
         
         if (!groupData[block]->multiscale) {
           Teuchos::TimeMonitor localtimer(*physics_timer);
@@ -3933,7 +3974,7 @@ void AssemblyManager<Node>::computeJacResBoundary(const int & block, const size_
       seedwhat = 1;
     }
   }
-  this->updateWorksetBoundary(block, grp, seedwhat);
+  this->updateWorksetBoundary<AD>(block, grp, seedwhat);
   physics->boundaryResidual<AD>(wkset_AD[block]->current_set, block);
   
   if (compute_jacobian) {
@@ -3960,9 +4001,16 @@ template<class Node>
 void AssemblyManager<Node>::updateWorksetBoundary(const int & block, const size_t & grp,
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
-  this->updateWorksetBoundary<AD>(block, grp, seedwhat, seedindex, override_transient);
+  this->updateWorksetBoundary<ScalarT>(block, grp, seedwhat, seedindex, override_transient);
 }
 
+
+template<class Node>
+void AssemblyManager<Node>::updateWorksetBoundaryAD(const int & block, const size_t & grp,
+                                          const int & seedwhat, const int & seedindex,
+                                          const bool & override_transient) {
+  this->updateWorksetBoundary<AD>(block, grp, seedwhat, seedindex, override_transient);
+}
 
 template<class Node>
 template<class EvalT>
@@ -4081,10 +4129,14 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
 ///////////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
-void AssemblyManager<Node>::updateDataBoundary(const int & block, const size_t & grp) {
+void AssemblyManager<Node>::updateDataBoundaryAD(const int & block, const size_t & grp) {
   this->updateDataBoundary<AD>(block, grp);
 }
 
+template<class Node>
+void AssemblyManager<Node>::updateDataBoundary(const int & block, const size_t & grp) {
+  this->updateDataBoundary<ScalarT>(block, grp);
+}
 
 template<class Node>
 template<class EvalT>
@@ -4140,9 +4192,13 @@ void AssemblyManager<Node>::updateDataBoundary(Teuchos::RCP<Workset<EvalT> > & w
 
 template<class Node>
 void AssemblyManager<Node>::updateWorksetBasisBoundary(const int & block, const size_t & grp) {
-  this->updateWorksetBasisBoundary<AD>(block, grp);
+  this->updateWorksetBasisBoundary<ScalarT>(block, grp);
 }
 
+template<class Node>
+void AssemblyManager<Node>::updateWorksetBasisBoundaryAD(const int & block, const size_t & grp) {
+  this->updateWorksetBasisBoundary<AD>(block, grp);
+}
 
 template<class Node>
 template<class EvalT>
@@ -4511,9 +4567,15 @@ template<class Node>
 void AssemblyManager<Node>::updateWorkset(const int & block, const size_t & grp,
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
-  this->updateWorkset<AD>(block, grp, seedwhat, seedindex, override_transient);
+  this->updateWorkset<ScalarT>(block, grp, seedwhat, seedindex, override_transient);
 }
 
+template<class Node>
+void AssemblyManager<Node>::updateWorksetAD(const int & block, const size_t & grp,
+                                          const int & seedwhat, const int & seedindex,
+                                          const bool & override_transient) {
+  this->updateWorkset<AD>(block, grp, seedwhat, seedindex, override_transient);
+}
 
 template<class Node>
 template<class EvalT>
@@ -4863,9 +4925,14 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
 template<class Node>
 void AssemblyManager<Node>::updateWorksetFace(const int & block, const size_t & grp,
                                           const size_t & facenum) {
-  this->updateWorksetFace<AD>(block, grp, facenum);
+  this->updateWorksetFace<ScalarT>(block, grp, facenum);
 }
 
+template<class Node>
+void AssemblyManager<Node>::updateWorksetFaceAD(const int & block, const size_t & grp,
+                                          const size_t & facenum) {
+  this->updateWorksetFace<AD>(block, grp, facenum);
+}
 
 template<class Node>
 template<class EvalT>
@@ -4977,7 +5044,7 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
   if (assemble_volume_terms) {
     //Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (groupData[block]->multiscale) {
-      this->updateWorkset(block, grp, seedwhat, seedindex);
+      this->updateWorkset<AD>(block, grp, seedwhat, seedindex);
       groups[block][grp]->subgridModels[groups[block][grp]->subgrid_model_index]->subgridSolver(groups[block][grp]->sol[0], groups[block][grp]->sol_prev[0], 
                                             groups[block][grp]->phi[0], wkset_AD[block]->time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens, num_active_params,
@@ -4987,7 +5054,7 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
       fixJacDiag = true;
     }
     else {
-      this->updateWorkset(block, grp, seedwhat, seedindex);
+      this->updateWorkset<AD>(block, grp, seedwhat, seedindex);
       physics->volumeResidual<AD>(wkset_AD[block]->current_set,groupData[block]->my_block);
     }
   }
@@ -5000,7 +5067,7 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
     }
     else {
       for (size_t s=0; s<groupData[block]->num_sides; s++) {
-        this->updateWorksetFace(block, grp, s);
+        this->updateWorksetFace<AD>(block, grp, s);
         physics->faceResidual<AD>(wkset_AD[block]->current_set,groupData[block]->my_block);
       }
     }
@@ -5179,7 +5246,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
         // Sum new contributions into vectors
         int seedwhat = 2; // 2 for J wrt previous step solutions
         for (size_type step=0; step<groups[block][grp]->sol_prev[set].extent(3); step++) {
-          this->updateWorkset(block, grp, seedwhat,step);
+          this->updateWorkset<AD>(block, grp, seedwhat,step);
           physics->volumeResidual<AD>(set, groupData[block]->my_block);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));
@@ -5716,7 +5783,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getMassFace(const int & block, c
   // loop over faces of the reference element
   for (size_t face=0; face<groupData[block]->num_sides; face++) {
 
-    this->updateWorksetFace(block, grp, face);
+    this->updateWorksetFace<ScalarT>(block, grp, face);
     auto cwts = wkset[block]->wts_side; // face weights get put into wts_side after update
     for (size_type n=0; n<numDOF.extent(0); n++) {
       
@@ -5841,7 +5908,7 @@ vector<vector<int> > AssemblyManager<Node>::identifySubgridModels() {
     if (uses_subgrid) {
       for (size_t grp=0; grp<groups[block].size(); ++grp) {
         
-        this->updateWorkset(block, grp, 0, 0);
+        this->updateWorkset<AD>(block, grp, 0, 0);
         
         vector<int> sgvotes(multiscale_manager->subgridModels.size(),0);
         
