@@ -1,0 +1,45 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters:
+    J1_k0r0:
+      type: scalar
+      value: 0.44005058574493351
+      usage: inactive
+    J0_k0r0:
+      type: scalar
+      value: 0.76519768655796655
+      usage: inactive
+    r0:
+      type: scalar
+      value: 0.2
+      usage: inactive
+    B0:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    density:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    permeability:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    Re:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    Re_m:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    viscosity:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    resistivity:
+      type: scalar
+      value: 1.0
+      usage: inactive
+...

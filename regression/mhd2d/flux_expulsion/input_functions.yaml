@@ -1,0 +1,18 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Functions:
+    Az_initial: 'B0*y'
+    Az_outside: 'B0*fr_border*sin(angle)'
+    fr_outside: 'radius + C/radius'
+    C: 'r0*(2*J1_k0r0/(k0*J0_k0r0) - r0)'
+    k0: 'sqrt(Re_m)/r0'
+    cylinder_rotation: 'Re_m*resistivity/(r0*r0)'    
+    radius: 'sqrt(x*x+y*y)'
+    angle: '(1-2*(y<0))*angle_flip_x'
+    angle_flip_x: '(x<0)*pi - (1-2*(x<0))*angle_reflect'
+    angle_reflect: '(abs(y)>abs(x))*pi/2 - (1-2*(abs(y)>abs(x)))*angle_r'
+    angle_r: ((-0.0464964749 * angle_s + 0.15931422) * angle_s - 0.327622764) * angle_s * angle_a + angle_a
+    angle_a_sq: 'angle_a*angle_a'
+    angle_a: 'min(abs(x),abs(y))/max(abs(x),abs(y))' # Remez algorithm
+...
