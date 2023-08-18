@@ -1993,6 +1993,8 @@ void DiscretizationInterface::buildDOFManagers() {
   
   Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
   
+  num_derivs_required = vector<int>(block_names.size(),0);
+  
   // DOF manager for the primary variables
   for (size_t set=0; set<physics->set_names.size(); ++set) {
     Teuchos::RCP<panzer::DOFManager> setDOF = Teuchos::rcp(new panzer::DOFManager());
@@ -2022,7 +2024,9 @@ void DiscretizationInterface::buildDOFManagers() {
 #ifndef MrHyDE_NO_AD
     for (size_t block=0; block<block_names.size(); ++block) {
       int numGIDs = setDOF->getElementBlockGIDCount(block_names[block]);
-      num_derivs_required.push_back(numGIDs);
+      if (numGIDs > num_derivs_required[block]) {
+        num_derivs_required[block] = numGIDs;
+      }
       TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + block_names[block]);
     }
 #endif

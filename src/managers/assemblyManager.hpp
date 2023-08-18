@@ -154,7 +154,7 @@ namespace MrHyDE {
                         const bool & is_final_time,
                         const ScalarT & deltat);
     
-    
+    template<class EvalT>
     void assembleJacRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
@@ -183,7 +183,38 @@ namespace MrHyDE {
                         const bool & is_final_time, const int & block,
                         const ScalarT & deltat);
     
-  
+    
+    // ========================================================================================
+    // Functions to update all of the initialized worksets
+    // ========================================================================================
+
+    void updateWorksetTime(const size_t & block, const bool & isTransient, const ScalarT & current_time, const ScalarT & deltat);
+
+    template<class EvalT>
+    void updateWorksetTime(Teuchos::RCP<Workset<EvalT> > & wset, const bool & isTransient,
+                           const ScalarT & current_time, const ScalarT & deltat);
+
+
+    void updateWorksetAdjoint(const size_t & block, const bool & isAdjoint);
+
+    template<class EvalT>
+    void updateWorksetAdjoint(Teuchos::RCP<Workset<EvalT> > & wset, const bool & isAdjoint);
+
+    void updateWorksetEID(const size_t & block, const size_t & eid);
+
+    template<class EvalT>
+    void updateWorksetEID(Teuchos::RCP<Workset<EvalT> > & wset, const size_t & eid);
+
+    void updateWorksetOnSide(const size_t & block, const bool & on_side);
+
+    template<class EvalT>
+    void updateWorksetOnSide(Teuchos::RCP<Workset<EvalT> > & wset, const bool & on_side);
+
+    void updateWorksetResidual(const size_t & block);
+
+    template<class EvalT>
+    void updateWorksetResidual(Teuchos::RCP<Workset<EvalT> > & wset);
+
     // ========================================================================================
     //
     // ========================================================================================
@@ -203,12 +234,35 @@ namespace MrHyDE {
     
     void updateStage(const int & stage, const ScalarT & current_time, const ScalarT & deltat);
     
+    template<class EvalT>
+    void updateStage(Teuchos::RCP<Workset<EvalT> > & wset, const int & stage, const ScalarT & current_time,
+                     const ScalarT & deltat);
+
+    
     void updateStageSoln(const size_t & set);
     
     void updatePhysicsSet(const size_t & set);
     
     void updateTimeStep(const int & timestep);
     
+    void setWorksetButcher(const size_t & set, const size_t & block, 
+                                        Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, 
+                                        Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, 
+                                        Kokkos::View<ScalarT*,AssemblyDevice> butcher_c);
+
+    template<class EvalT>
+    void setWorksetButcher(const size_t & set, Teuchos::RCP<Workset<EvalT> > & wset, 
+                                        Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, 
+                                        Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, 
+                                        Kokkos::View<ScalarT*,AssemblyDevice> butcher_c);
+
+    void setWorksetBDF(const size_t & set, const size_t & block,  
+                                        Kokkos::View<ScalarT*,AssemblyDevice> BDF_wts);
+
+    template<class EvalT>
+    void setWorksetBDF(const size_t & set, Teuchos::RCP<Workset<EvalT> > & wset, 
+                                        Kokkos::View<ScalarT*,AssemblyDevice> BDF_wts);
+
     // ========================================================================================
     // Gather 
     // ========================================================================================
@@ -234,8 +288,17 @@ namespace MrHyDE {
     void scatterRes(VecViewType res_view,
                     LocalViewType local_res, LIDViewType LIDs);
 
-    template<class MatType, class VecViewType, class LIDViewType>
+    template<class MatType, class VecViewType, class LIDViewType, class EvalT>
     void scatter(const size_t & set,MatType J_kcrs, VecViewType res_view,
+                 LIDViewType LIDs, LIDViewType paramLIDs,
+                 const int & block,
+                 const bool & compute_jacobian,
+                 const bool & compute_sens,
+                 const bool & compute_disc_sens,
+                 const bool & isAdjoint, EvalT & dummyval);
+    
+    template<class MatType, class VecViewType, class LIDViewType, class EvalT>
+    void scatter(Teuchos::RCP<Workset<EvalT> > & wset, const size_t & set, MatType J_kcrs, VecViewType res_view,
                  LIDViewType LIDs, LIDViewType paramLIDs,
                  const int & block,
                  const bool & compute_jacobian,
@@ -269,6 +332,9 @@ namespace MrHyDE {
     
     void finalizeFunctions();
 
+    template<class EvalT>
+    void finalizeFunctions(Teuchos::RCP<FunctionManager<EvalT> > & fman, Teuchos::RCP<Workset<EvalT> > & wset);
+
     ///////////////////////////////////////////////////////////////////////////////////////
     // Compute flux and sensitivity wrt params
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -292,8 +358,7 @@ namespace MrHyDE {
                           const ScalarT & time, const int & side, const ScalarT & coarse_h,
                           const bool & compute_sens, const ScalarT & fluxwt,
                           bool & useTransientSol) {
-
-
+#ifndef MrHyDE_NO_AD
       //#ifndef MrHyDE_NO_AD
         typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
       //#else
@@ -342,14 +407,10 @@ namespace MrHyDE {
             for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             
               // Seed the stage solution
-#ifndef MrHyDE_NO_AD
               AD stageval = AD(maxDerivs,0,cu(elem,dof));
               for( size_t p=0; p<du_kv.extent(1); p++ ) {
                 stageval.fastAccessDx(p) = fluxwt*du_kv(currLIDs(elem,off(dof)),p);
               }
-#else
-              AD stageval = cu(elem,dof);
-#endif
               // Compute the evaluating solution
               beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
               for (int s=0; s<stage; s++) {
@@ -394,14 +455,10 @@ namespace MrHyDE {
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
-#ifndef MrHyDE_NO_AD
                 u_AD(elem,dof) = AD(maxDerivs, 0, u_kv(currLIDs(elem,offsets(dof)),0));
                 for( size_t p=0; p<du_kv.extent(1); p++ ) {
                   u_AD(elem,dof).fastAccessDx(p) = du_kv(currLIDs(elem,offsets(dof)),p);
                 }
-#else
-                u_AD(elem,dof) = u_kv(currLIDs(elem,offsets(dof)),0);
-#endif
               }
             });
           }
@@ -432,12 +489,8 @@ namespace MrHyDE {
                        RangePolicy<AssemblyExec>(0,localID.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<abasis.extent(1); ++dof) {
-#ifndef MrHyDE_NO_AD
               AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
               auxval.fastAccessDx(off(dof)) *= fluxwt;
-#else
-              AD auxval = varaux(localID(elem),dof);
-#endif
               for (size_type pt=0; pt<abasis.extent(2); ++pt) {
                 local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
               }
@@ -451,6 +504,7 @@ namespace MrHyDE {
         //Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
         physics->computeFlux<AD>(0,groupData[block]->my_block);
       }
+#endif
       //wkset_AD->isOnSide = false;
     }
     
@@ -657,8 +711,17 @@ namespace MrHyDE {
     Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
 
-    std::vector<Teuchos::RCP<FunctionManager<AD> > > function_managers_AD;
     std::vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers;
+#ifndef MrHyDE_NO_AD
+    std::vector<Teuchos::RCP<FunctionManager<AD> > > function_managers_AD;
+    std::vector<Teuchos::RCP<FunctionManager<AD2> > > function_managers_AD2;
+    std::vector<Teuchos::RCP<FunctionManager<AD4> > > function_managers_AD4;
+    std::vector<Teuchos::RCP<FunctionManager<AD8> > > function_managers_AD8;
+    std::vector<Teuchos::RCP<FunctionManager<AD16> > > function_managers_AD16;
+    std::vector<Teuchos::RCP<FunctionManager<AD18> > > function_managers_AD18;
+    std::vector<Teuchos::RCP<FunctionManager<AD24> > > function_managers_AD24;
+    std::vector<Teuchos::RCP<FunctionManager<AD32> > > function_managers_AD32;
+#endif
 
     size_t globalParamUnknowns;
     int verbosity, debug_level;
@@ -667,11 +730,20 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<GroupMetaData> > groupData;
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
     std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;
-    std::vector<Teuchos::RCP<Workset<AD> > > wkset_AD;
-    std::vector<Teuchos::RCP<Workset<AD4> > > wkset_AD4;
-    std::vector<Teuchos::RCP<Workset<ScalarT> > > wkset;
     
-    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free;
+    std::vector<Teuchos::RCP<Workset<ScalarT> > > wkset;
+#ifndef MrHyDE_NO_AD
+    std::vector<Teuchos::RCP<Workset<AD> > > wkset_AD;
+    std::vector<Teuchos::RCP<Workset<AD2> > > wkset_AD2;
+    std::vector<Teuchos::RCP<Workset<AD4> > > wkset_AD4;
+    std::vector<Teuchos::RCP<Workset<AD8> > > wkset_AD8;
+    std::vector<Teuchos::RCP<Workset<AD16> > > wkset_AD16;
+    std::vector<Teuchos::RCP<Workset<AD18> > > wkset_AD18;
+    std::vector<Teuchos::RCP<Workset<AD24> > > wkset_AD24;
+    std::vector<Teuchos::RCP<Workset<AD32> > > wkset_AD32;
+#endif
+
+    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free, allow_autotune;
     
     std::string assembly_partitioning;
     std::vector<std::vector<bool> > assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly [block][set]
@@ -680,6 +752,7 @@ namespace MrHyDE {
     std::vector<vector<vector<Kokkos::View<LO*,LA_device> > > > fixedDOF; // [set][block][var]
     Teuchos::RCP<ParameterManager<Node> > params;
       
+    vector<int> num_derivs_required;
   private:
 
     Teuchos::RCP<Teuchos::Time> assembly_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - total assembly");

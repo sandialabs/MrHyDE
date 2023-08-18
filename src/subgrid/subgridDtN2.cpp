@@ -282,12 +282,16 @@ void SubGridDtN2::setUpSubgridModels() {
   //{
   varlist = sub_physics->var_list[0][0];
   //  functionManagers[0]->setupLists(macro_paramnames);
+#ifndef MrHyDE_NO_AD
   sub_assembler->wkset_AD[0]->params_AD = paramvals_KVAD;
+#endif
   //  functionManagers[0]->wkset = sub_assembler->wkset_AD[0];
   //  functionManagers[0]->decomposeFunctions();
   //}
   
+#ifndef MrHyDE_NO_AD
   wkset = sub_assembler->wkset_AD;
+#endif
   wkset[0]->addAux(macro_varlist, macro_offsets);
   sub_physics->setWorkset(wkset);
   sub_assembler->finalizeFunctions();
@@ -357,7 +361,9 @@ void SubGridDtN2::setUpSubgridModels() {
   sub_assembler->boundary_groups = boundary_groups;
     
   for (size_t grp=1; grp<groups.size(); ++ grp) {
+#ifndef MrHyDE_NO_AD
     sub_assembler->wkset_AD.push_back(sub_assembler->wkset_AD[0]);
+#endif
     sub_assembler->groupData.push_back(sub_assembler->groupData[0]);
     sub_assembler->function_managers.push_back(sub_assembler->function_managers[0]);
   }

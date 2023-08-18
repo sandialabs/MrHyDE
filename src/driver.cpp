@@ -124,7 +124,11 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
                                                                                              assembler->groups,
+                                                                                             #ifndef MrHyDE_NO_AD
                                                                                              assembler->function_managers_AD) );
+                                                                                             #else
+                                                                                             assembler->function_managers) );
+                                                                                             #endif
     
     ///////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object

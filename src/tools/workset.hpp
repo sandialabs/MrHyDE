@@ -47,7 +47,19 @@ namespace MrHyDE {
             const vector<string> & basis_types_,
             const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
             const topo_RCP & topo);
-            
+
+    Workset(const size_t & block_, const size_t & num_sets ) {
+      block = block_;
+      numSets = num_sets;
+      isInitialized = false;
+
+      set_BDF_wts = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+      set_butcher_A = vector<Kokkos::View<ScalarT**,AssemblyDevice> >(numSets);
+      set_butcher_b = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+      set_butcher_c = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+  
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////
     // Public functions
     ////////////////////////////////////////////////////////////////////////////////////

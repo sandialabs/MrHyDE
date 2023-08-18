@@ -1199,11 +1199,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
-//#else
                 ScalarT diff = sol(elem,pt) - tsol(elem,pt);
-//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1218,11 +1214,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
-//#else
                 ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
-//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1238,11 +1230,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
-//#else
                   ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
-//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1259,11 +1247,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
-//#else
                   ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
-//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1280,11 +1264,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                ScalarT diff = sol_div(elem,pt).val() - tsol(elem,pt).val();
-//#else
                 ScalarT diff = sol_div(elem,pt) - tsol(elem,pt);
-//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1300,11 +1280,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                ScalarT diff = sol_curl_x(elem,pt).val() - tsol(elem,pt).val();
-//#else
                 ScalarT diff = sol_curl_x(elem,pt) - tsol(elem,pt);
-//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1320,11 +1296,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                  ScalarT diff = sol_curl_y(elem,pt).val() - tsol(elem,pt).val();
-//#else
                   ScalarT diff = sol_curl_y(elem,pt) - tsol(elem,pt);
-//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1341,11 +1313,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                  ScalarT diff = sol_curl_z(elem,pt).val() - tsol(elem,pt).val();
-//#else
                   ScalarT diff = sol_curl_z(elem,pt) - tsol(elem,pt);
-//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1362,11 +1330,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
-//#else
                 ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
-//#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1382,11 +1346,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
-//#else
                   ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
-//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1403,11 +1363,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
-//#else
                   ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
-//#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1420,7 +1376,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           assembler->wkset[altblock]->isOnSide = true;
           for (size_t face=0; face<assembler->groups[block][grp]->group_data->num_sides; face++) {
             // TMW - hard coded for now
-            for (size_t set=0; set<assembler->wkset_AD[altblock]->numSets; ++set) {
+            for (size_t set=0; set<assembler->wkset[altblock]->numSets; ++set) {
               assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->sol[set], seedwhat);
             }
             assembler->updateWorksetFace(block, grp, face);
@@ -1445,11 +1401,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                   }
                   
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-//#ifndef MrHyDE_NO_AD
-//                    ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
-//#else
                     ScalarT diff = sol(elem,pt) - tsol(elem,pt);
-//#endif
                     update += 0.5/facemeasure*diff*diff*wts(elem,pt);  // TODO - BWR what is this? why .5?
                   }
                 }, error);
@@ -1677,11 +1629,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                           KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                             for (size_t pt=0; pt<wts.extent(1); pt++) {
-//#ifndef MrHyDE_NO_AD
-//                              ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
-//#else
                               ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
-//#endif
                               update += Idx;
                             }
                           },localContribution); //// TODO :: may be illegal
@@ -1717,11 +1665,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                             KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                               for (size_t pt=0; pt<wts.extent(1); pt++) {
-//#ifndef MrHyDE_NO_AD
-//                                ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
-//#else
                                 ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
-//#endif
                                 update += Idx;
                               }
                             },localContribution); //// TODO :: may be illegal, problematic ABOVE TOO
@@ -2258,7 +2202,9 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
   if (debug_level > 1 && Comm->getRank() == 0) {
     std::cout << "******** Starting PostprocessManager::computeObjectiveGradParam ..." << std::endl;
   }
-  
+
+#ifndef MrHyDE_NO_AD
+
   // Objective function values
   vector<ScalarT> totaldiff(objectives.size(), 0.0);
   
@@ -2303,22 +2249,12 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
         parallel_for("grp objective",
                      RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                      KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
           size_t numder = static_cast<size_t>(objsum(0).size());
-#else
-          size_t numder = 0;
-#endif
           if (p==0) {
-#ifndef MrHyDE_NO_AD
             objsum_dev(p) = objsum(0).val();
-#else
-            objsum_dev(p) = objsum(0);
-#endif
           }
           else if (p <= numder) {
-#ifndef MrHyDE_NO_AD
             objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-#endif
           }
         });
         
@@ -2364,22 +2300,12 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
           parallel_for("grp objective",
                        RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                        KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
             size_t numder = static_cast<size_t>(objsum(0).size());
-#else
-            size_t numder = 0;
-#endif
             if (p==0) {
-#ifndef MrHyDE_NO_AD
               objsum_dev(p) = objsum(0).val();
-#else
-              objsum_dev(p) = objsum(0);
-#endif
             }
             else if (p <= numder) {
-#ifndef MrHyDE_NO_AD
               objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-#endif
             }
           });
           
@@ -2460,7 +2386,6 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
           parallel_for("grp objective",
                        RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                        KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
             size_t numder = static_cast<size_t>(objsum(0).size());
             if (p==0) {
               objsum_dev(p) = objsum(0).val();
@@ -2468,11 +2393,6 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
             else if (p <= numder) {
               objsum_dev(p) = objsum(0).fastAccessDx(p-1);
             }
-#else
-            if (p==0) {
-              objsum_dev(p) = objsum(0);
-            }
-#endif
           });
         
           auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
@@ -2532,7 +2452,6 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
           parallel_for("grp objective",
                        RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                        KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
             size_t numder = static_cast<size_t>(objsum(0).size());
             if (p==0) {
               objsum_dev(p) = objsum(0).val();
@@ -2540,11 +2459,6 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
             else if (p <= numder) {
               objsum_dev(p) = objsum(0).fastAccessDx(p-1);
             }
-#else
-            if (p==0) {
-              objsum_dev(p) = objsum(0);
-            }
-#endif
           });
           
           auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
@@ -2706,11 +2620,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
             auto rdata = assembler->function_managers_AD[block]->evaluate(objectives[r].name+" response","point");
             
             if (compute_response) {
-  #ifndef MrHyDE_NO_AD
               sensordat(pt) = rdata(0,0).val();
-  #else
-              sensordat(pt) = rdata(0,0);
-  #endif
             }
             
             if (compute_objective) {
@@ -2718,18 +2628,12 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
               // Update the value of the objective
               AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
               AD sdiff = objectives[r].weight*diff*diff;
-  #ifndef MrHyDE_NO_AD
               totaldiff[r] += sdiff.val();
-  #else
-              totaldiff[r] += sdiff;
-  #endif
               
               // Update the gradient w.r.t scalar active parameters
-  #ifndef MrHyDE_NO_AD
               for (size_t p=0; p<params->num_active_params; p++) {
                 gradients[r][p] += sdiff.fastAccessDx(p);
               }
-  #endif
               
               // Discretized parameters
               if (params->globalParamUnknowns > 0) {
@@ -2746,16 +2650,11 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                             KOKKOS_LAMBDA (const size_type n ) {
                   for (size_type n=0; n<numParamDOF.extent(0); n++) {
                     for( int i=0; i<numParamDOF(n); i++ ) {
-  #ifndef MrHyDE_NO_AD
                       p_dof(n,i) = AD(maxDerivs,poff(n,i),cp(n,i));
-  #else
-                      p_dof(n,i) = cp(n,i);
-  #endif
                     }
                   }
                 });
                 
-  #ifndef MrHyDE_NO_AD
                 View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
                 View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
                 
@@ -2797,7 +2696,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                     gradients[r][rowIndex] += sdiff.fastAccessDx(poffset);
                   }
                 }
-  #endif
+
               }
               
             }
@@ -2844,14 +2743,10 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
               for (size_type pt=0; pt<wts.extent(1); ++pt) {
-#ifndef MrHyDE_NO_AD
                 regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                 for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                   regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
                 }
-#else
-                regvals_sc(elem,pt,0) = regvals(elem,pt);
-#endif
               }
             });
             
@@ -2908,14 +2803,10 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
                 for (size_type pt=0; pt<wts.extent(1); ++pt) {
-#ifndef MrHyDE_NO_AD
                   regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                   for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                     regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
                   }
-#else
-                  regvals_sc(elem,pt,0) = regvals(elem,pt);
-#endif
                 }
                 
               });
@@ -3024,11 +2915,14 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
   
   params->sacadoizeParams(false);
   
+  objectiveval += fullobj;
+
+#endif
+
   if (debug_level > 1 && Comm->getRank() == 0) {
     std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam ..." << std::endl;
   }
   
-  objectiveval += fullobj;
   
 
 }
@@ -3072,7 +2966,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
             //KokkosTools::print(assembler->groups[block][grp_owner]->u[set]);
             deep_copy(cu_host,cu);
             for (size_type var=0; var<numDOF.extent(0); var++) {
-              auto cbasis = objectives[r].sensor_basis[assembler->wkset_AD[block]->set_usebasis[set][var]];
+              auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->set_usebasis[set][var]];
               for (size_type dof=0; dof<cbasis.extent(1); ++dof) {
                 for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
                   //sensordat(pt,solprog,dim) += cu_host(solprog,dof)*cbasis(pt,dof,0,dim);
@@ -4314,34 +4208,34 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_faceavg = Kokkos::create_mirror_view(soln_faceavg_dev);
             
             Kokkos::View<ScalarT*,AssemblyDevice> face_measure_dev("face measure",myElements.size());
-            assembler->wkset_AD[block]->isOnSide = true;
+            assembler->wkset[block]->isOnSide = true;
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               for (size_t face=0; face<assembler->groupData[block]->num_sides; face++) {
                 int seedwhat = 0;
-                for (size_t iset=0; iset<assembler->wkset_AD[block]->numSets; ++iset) {
-                  assembler->wkset_AD[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->sol[iset], seedwhat);
+                for (size_t iset=0; iset<assembler->wkset[block]->numSets; ++iset) {
+                  assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->sol[iset], seedwhat);
                 }
                 //assembler->groups[block][grp]->computeSolnFaceIP(face);
                 assembler->updateWorksetFace(block, grp, face);
-                auto wts = assembler->wkset_AD[block]->wts_side;
-                auto sol = assembler->wkset_AD[block]->getSolutionField(varlist[set][block][n]);
+                auto wts = assembler->wkset[block]->wts_side;
+                auto sol = assembler->wkset[block]->getSolutionField(varlist[set][block][n]);
                 parallel_for("postproc plot HFACE",
                              RangePolicy<AssemblyExec>(0,eID.extent(0)),
                              KOKKOS_LAMBDA (const int elem ) {
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     face_measure_dev(eID(elem)) += wts(elem,pt);
-#ifndef MrHyDE_NO_AD
-                    soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
-#else
+//#ifndef MrHyDE_NO_AD
+//                    soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
+//#else
                     soln_faceavg_dev(eID(elem)) += sol(elem,pt)*wts(elem,pt);
-#endif
+//#endif
                   }
                 });
               }
             }
             
-            assembler->wkset_AD[block]->isOnSide = false;
+            assembler->wkset[block]->isOnSide = false;
             parallel_for("postproc plot HFACE 2",
                          RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
@@ -4499,7 +4393,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
           assembler->updateWorkset(block, grp, 0,0,true);
-          assembler->wkset_AD[block]->setTime(currenttime);
+          assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getExtraCellFields(block, assembler->groups[block][grp]->wts);
           
@@ -4531,7 +4425,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
           assembler->updateWorkset(block, grp, 0,0,true);
-          assembler->wkset_AD[block]->setTime(currenttime);
+          assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getDerivedQuantities(block, assembler->groups[block][grp]->wts);
           
@@ -4684,11 +4578,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
           grpmeas += wts(e,pt);
         }
         for (size_t j=0; j<wts.extent(1); j++) {
-//#ifndef MrHyDE_NO_AD
-//          ScalarT val = ecf(e,j).val();
-//#else
           ScalarT val = ecf(e,j);
-//#endif
           cfield(e) += val*wts(e,j)/grpmeas;
         }
       });
@@ -4698,11 +4588,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
-//#ifndef MrHyDE_NO_AD
-//          ScalarT val = ecf(e,j).val();
-//#else
           ScalarT val = ecf(e,j);
-//#endif
           if (val>cfield(e)) {
             cfield(e) = val;
           }
@@ -4714,11 +4600,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
-//#ifndef MrHyDE_NO_AD
-//          ScalarT val = ecf(e,j).val();
-//#else
           ScalarT val = ecf(e,j);
-//#endif
           if (val<cfield(e)) {
             cfield(e) = val;
           }

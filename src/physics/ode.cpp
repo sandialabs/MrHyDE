@@ -56,13 +56,13 @@ void ODE<EvalT>::volumeResidual() {
   }
     
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
-    
+  
   auto basis = wkset->getBasis("q");
   auto res = wkset->getResidual();
   auto off = wkset->getOffsets("q");
   auto dqdt = wkset->getSolutionField("q_t");
   auto wts = wkset->wts;
-  
+
   // Simply solves q_dot = f(q,t)
   parallel_for("ODE volume resid",
                RangePolicy<AssemblyExec>(0,wkset->numElem),

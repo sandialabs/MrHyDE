@@ -138,6 +138,13 @@ namespace MrHyDE {
     
 #ifndef MrHyDE_NO_AD
     void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD2> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD4> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD8> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD16> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD24> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD32> > > & params, const vector<string> & paramnames);
 #endif
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,6 +177,13 @@ namespace MrHyDE {
     
 #ifndef MrHyDE_NO_AD
     void setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD2> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD4> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD8> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD16> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD18> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD24> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD32> > > & wkset);
 #endif
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,22 +218,37 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    
-    vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers;
-    vector<Teuchos::RCP<FunctionManager<AD> > > function_managers_AD;
-
-    Teuchos::RCP<MpiComm> comm;
-    
+    Teuchos::RCP<MpiComm> comm;    
     int dimension, debug_level;
     vector<string> set_names, block_names, side_names;
     
     vector<vector<size_t> > num_vars; // [set][block]
+    vector<int> num_derivs_required;
     
-    //-----------------------------------------------------
-    // Data the depends on physics sets
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > > modules;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules_AD;
-    
+    vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers; // always defined
+#ifndef MrHyDE_NO_AD
+    vector<Teuchos::RCP<FunctionManager<AD> > > function_managers_AD; // always defined for now for BW-compat
+    vector<Teuchos::RCP<FunctionManager<AD2> > > function_managers_AD2;
+    vector<Teuchos::RCP<FunctionManager<AD4> > > function_managers_AD4;
+    vector<Teuchos::RCP<FunctionManager<AD8> > > function_managers_AD8;
+    vector<Teuchos::RCP<FunctionManager<AD16> > > function_managers_AD16;
+    vector<Teuchos::RCP<FunctionManager<AD18> > > function_managers_AD18;
+    vector<Teuchos::RCP<FunctionManager<AD24> > > function_managers_AD24;
+    vector<Teuchos::RCP<FunctionManager<AD32> > > function_managers_AD32;
+#endif
+
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > > modules; // always defined
+#ifndef MrHyDE_NO_AD
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules_AD; // always defined for now for BW-compat
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD2> > > > > modules_AD2;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD4> > > > > modules_AD4;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD8> > > > > modules_AD8;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD16> > > > > modules_AD16;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD18> > > > > modules_AD18;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD24> > > > > modules_AD24;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD32> > > > > modules_AD32;
+#endif
+
     vector<vector<Teuchos::ParameterList>> physics_settings, disc_settings, solver_settings; // [set][block]
     vector<vector<vector<bool> > > use_subgrid;
     vector<vector<vector<bool> > > use_DG;

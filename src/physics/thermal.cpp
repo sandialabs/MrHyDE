@@ -166,7 +166,7 @@ void thermal<EvalT>::volumeResidual() {
       }
     }
   });
-  
+
 }
 
 

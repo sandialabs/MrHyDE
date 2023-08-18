@@ -164,11 +164,6 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset);
-    
-    // ========================================================================================
-    // ========================================================================================
-    
     void purgeMemory();
     
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -187,10 +182,30 @@ namespace MrHyDE {
     
     std::vector<std::string> paramnames;
     std::vector<std::vector<ScalarT> > paramvals;
-    std::vector<Teuchos::RCP<std::vector<AD> > > paramvals_AD;
+
     std::vector<Teuchos::RCP<std::vector<ScalarT> > > paramvals_Sc;
-    Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
+#ifndef MrHyDE_NO_AD
+    std::vector<Teuchos::RCP<std::vector<AD> > > paramvals_AD;
+    std::vector<Teuchos::RCP<std::vector<AD2> > > paramvals_AD2;
+    std::vector<Teuchos::RCP<std::vector<AD4> > > paramvals_AD4;
+    std::vector<Teuchos::RCP<std::vector<AD8> > > paramvals_AD8;
+    std::vector<Teuchos::RCP<std::vector<AD16> > > paramvals_AD16;
+    std::vector<Teuchos::RCP<std::vector<AD18> > > paramvals_AD18;
+    std::vector<Teuchos::RCP<std::vector<AD24> > > paramvals_AD24;
+    std::vector<Teuchos::RCP<std::vector<AD32> > > paramvals_AD32;
+#endif
+    
     Kokkos::View<ScalarT**,AssemblyDevice> paramvals_KV;
+#ifndef MrHyDE_NO_AD
+    Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
+    Kokkos::View<AD2**,AssemblyDevice> paramvals_KVAD2;
+    Kokkos::View<AD4**,AssemblyDevice> paramvals_KVAD4;
+    Kokkos::View<AD8**,AssemblyDevice> paramvals_KVAD8;
+    Kokkos::View<AD16**,AssemblyDevice> paramvals_KVAD16;
+    Kokkos::View<AD18**,AssemblyDevice> paramvals_KVAD18;
+    Kokkos::View<AD24**,AssemblyDevice> paramvals_KVAD24;
+    Kokkos::View<AD32**,AssemblyDevice> paramvals_KVAD32;
+#endif
     
     vector_RCP Psol, Psol_over;
     std::vector<vector_RCP> dynamic_Psol, dynamic_Psol_over;
@@ -235,8 +250,6 @@ namespace MrHyDE {
     
     std::vector<std::string> stochastic_distribution, discparam_distribution;
     std::vector<ScalarT> stochastic_mean, stochastic_variance, stochastic_min, stochastic_max;
-    
-    std::vector<Teuchos::RCP<Workset<AD> > > wkset;
     
     int batchID;
     

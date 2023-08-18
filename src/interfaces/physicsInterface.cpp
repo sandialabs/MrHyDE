@@ -96,24 +96,82 @@ settings(settings_), comm(comm_){
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 // Add the functions to the function managers
+// Function managers are set up in the assmelby manager
 /////////////////////////////////////////////////////////////////////////////////////////////
+
+// Externally called functions that need to be specialized for each evaluation type
+// In other words, templating only saves space in the header
+
+///////////////////////////////////////////////////
+// ScalarT and AD are (almost) always defined
+///////////////////////////////////////////////////
+
+// Avoid duplication when AD=ScalarT
 #ifndef MrHyDE_NO_AD
 template<>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD> > > & function_managers_) {
-
   function_managers_AD = function_managers_;
   this->defineFunctions(function_managers_AD, modules_AD);
-    
 }
 #endif
 
 template<>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<ScalarT> > > & function_managers_) {
-    
   function_managers = function_managers_;
   this->defineFunctions(function_managers, modules);
-  
 }
+
+///////////////////////////////////////////////////
+// The rest are used if needed
+///////////////////////////////////////////////////
+
+#ifndef MrHyDE_NO_AD
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD2> > > & function_managers_) {
+  function_managers_AD2 = function_managers_;
+  this->defineFunctions(function_managers_AD2, modules_AD2);
+}
+
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD4> > > & function_managers_) {
+  function_managers_AD4 = function_managers_;
+  this->defineFunctions(function_managers_AD4, modules_AD4);
+}
+
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD8> > > & function_managers_) {
+  function_managers_AD8 = function_managers_;
+  this->defineFunctions(function_managers_AD8, modules_AD8);
+}
+
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD16> > > & function_managers_) {
+  function_managers_AD16 = function_managers_;
+  this->defineFunctions(function_managers_AD16, modules_AD16);
+}
+
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD18> > > & function_managers_) {
+  function_managers_AD18 = function_managers_;
+  this->defineFunctions(function_managers_AD18, modules_AD18);
+}
+
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD24> > > & function_managers_) {
+  function_managers_AD24 = function_managers_;
+  this->defineFunctions(function_managers_AD24, modules_AD24);
+}
+
+template<>
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD32> > > & function_managers_) {
+  function_managers_AD32 = function_managers_;
+  this->defineFunctions(function_managers_AD32, modules_AD32);
+}
+#endif
+
+///////////////////////////////////////////////////
+// Main define functions routine that actually does work
+///////////////////////////////////////////////////
 
 template<class EvalT>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & func_managers,
@@ -453,8 +511,18 @@ void PhysicsInterface::importPhysics() {
     vector<vector<string> > set_var_list;
     vector<vector<int> > set_var_owned;
     
-    vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules_AD;
     vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > set_modules;
+#ifndef MrHyDE_NO_AD
+    vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules_AD;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD2> > > > set_modules_AD2;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD4> > > > set_modules_AD4;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD8> > > > set_modules_AD8;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD16> > > > set_modules_AD16;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD18> > > > set_modules_AD18;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD24> > > > set_modules_AD24;
+    vector<vector<Teuchos::RCP<PhysicsBase<AD32> > > > set_modules_AD32;
+#endif
+
     vector<vector<bool> > set_use_subgrid, set_use_DG;
     
     for (size_t block=0; block<block_names.size(); ++block) { // element blocks
@@ -473,7 +541,16 @@ void PhysicsInterface::importPhysics() {
       
       physics_settings[set][block].set<int>("verbosity",settings->get<int>("verbosity",0));
       
-      {
+      { 
+        vector<Teuchos::RCP<PhysicsBase<ScalarT> > > block_modules;
+        PhysicsImporter<ScalarT> physimp = PhysicsImporter<ScalarT>();
+        block_modules = physimp.import(enabled_modules, physics_settings[set][block],
+                                       dimension, comm);
+      
+        set_modules.push_back(block_modules);
+      }
+#ifndef MrHyDE_NO_AD
+      { 
         vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules_AD;
         PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
         block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
@@ -482,16 +559,74 @@ void PhysicsInterface::importPhysics() {
         set_modules_AD.push_back(block_modules_AD);
       }
       {
-        vector<Teuchos::RCP<PhysicsBase<ScalarT> > > block_modules;
-        PhysicsImporter<ScalarT> physimp = PhysicsImporter<ScalarT>();
-        block_modules = physimp.import(enabled_modules, physics_settings[set][block],
-                                       dimension, comm);
+        vector<Teuchos::RCP<PhysicsBase<AD2> > > block_modules_AD2;
+        PhysicsImporter<AD2> physimp = PhysicsImporter<AD2>();
+        block_modules_AD2 = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
       
-        set_modules.push_back(block_modules);
+        set_modules_AD2.push_back(block_modules_AD2);
       }
+      {
+        vector<Teuchos::RCP<PhysicsBase<AD4> > > block_modules_AD4;
+        PhysicsImporter<AD4> physimp = PhysicsImporter<AD4>();
+        block_modules_AD4 = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+      
+        set_modules_AD4.push_back(block_modules_AD4);
+      }
+      {
+        vector<Teuchos::RCP<PhysicsBase<AD8> > > block_modules_AD8;
+        PhysicsImporter<AD8> physimp = PhysicsImporter<AD8>();
+        block_modules_AD8 = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+      
+        set_modules_AD8.push_back(block_modules_AD8);
+      }
+      {
+        vector<Teuchos::RCP<PhysicsBase<AD16> > > block_modules_AD16;
+        PhysicsImporter<AD16> physimp = PhysicsImporter<AD16>();
+        block_modules_AD16 = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+      
+        set_modules_AD16.push_back(block_modules_AD16);
+      }
+      {
+        vector<Teuchos::RCP<PhysicsBase<AD18> > > block_modules_AD18;
+        PhysicsImporter<AD18> physimp = PhysicsImporter<AD18>();
+        block_modules_AD18 = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+      
+        set_modules_AD18.push_back(block_modules_AD18);
+      }
+      {
+        vector<Teuchos::RCP<PhysicsBase<AD24> > > block_modules_AD24;
+        PhysicsImporter<AD24> physimp = PhysicsImporter<AD24>();
+        block_modules_AD24 = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+      
+        set_modules_AD24.push_back(block_modules_AD24);
+      }
+      {
+        vector<Teuchos::RCP<PhysicsBase<AD32> > > block_modules_AD32;
+        PhysicsImporter<AD32> physimp = PhysicsImporter<AD32>();
+        block_modules_AD32 = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+      
+        set_modules_AD32.push_back(block_modules_AD32);
+      }
+#endif
     }
-    modules_AD.push_back(set_modules_AD);
     modules.push_back(set_modules);
+#ifndef MrHyDE_NO_AD
+    modules_AD.push_back(set_modules_AD);
+    modules_AD2.push_back(set_modules_AD2);
+    modules_AD4.push_back(set_modules_AD4);
+    modules_AD8.push_back(set_modules_AD8);
+    modules_AD16.push_back(set_modules_AD16);
+    modules_AD18.push_back(set_modules_AD18);
+    modules_AD24.push_back(set_modules_AD24);
+    modules_AD32.push_back(set_modules_AD32);
+#endif
   }
   
   //-----------------------------------------------------------------
@@ -723,10 +858,13 @@ AD PhysicsInterface::getDirichletValue(const int & block, const ScalarT & x, con
   //wkset->setTime(t);
   
   // evaluate the response
+#ifndef MrHyDE_NO_AD
   auto ddata = function_managers_AD[block]->evaluate("Dirichlet " + var + " " + gside,"point");
-  
   return ddata(0,0);
-  
+#else
+  return 0.0;
+#endif
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -986,6 +1124,97 @@ void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD> > > & par
   }
   
 }
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD2> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD2.size(); set++) {
+    for (size_t block=0; block<modules_AD2[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD2[set][block].size(); i++) {
+        modules_AD2[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD4> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD4.size(); set++) {
+    for (size_t block=0; block<modules_AD4[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD4[set][block].size(); i++) {
+        modules_AD4[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD8> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD8.size(); set++) {
+    for (size_t block=0; block<modules_AD8[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD8[set][block].size(); i++) {
+        modules_AD8[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD16> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD16.size(); set++) {
+    for (size_t block=0; block<modules_AD16[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD16[set][block].size(); i++) {
+        modules_AD16[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD18.size(); set++) {
+    for (size_t block=0; block<modules_AD18[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+        modules_AD18[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD24> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD24.size(); set++) {
+    for (size_t block=0; block<modules_AD24[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD24[set][block].size(); i++) {
+        modules_AD24[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
+
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD32> > > & params,
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD32.size(); set++) {
+    for (size_t block=0; block<modules_AD32[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD32[set][block].size(); i++) {
+        modules_AD32[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1020,12 +1249,48 @@ void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
       modules[set][block][i]->volumeResidual();
     }
   }
+#ifndef MrHyDE_NO_AD
   else if (std::is_same<EvalT, AD>::value) {
     for (size_t i=0; i<modules_AD[set][block].size(); i++) {
       modules_AD[set][block][i]->volumeResidual();
     }
   }
-
+  else if (std::is_same<EvalT, AD2>::value) {
+    for (size_t i=0; i<modules_AD2[set][block].size(); i++) {
+      modules_AD2[set][block][i]->volumeResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD4>::value) {
+    for (size_t i=0; i<modules_AD4[set][block].size(); i++) {
+      modules_AD4[set][block][i]->volumeResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD8>::value) {
+    for (size_t i=0; i<modules_AD8[set][block].size(); i++) {
+      modules_AD8[set][block][i]->volumeResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD16>::value) {
+    for (size_t i=0; i<modules_AD16[set][block].size(); i++) {
+      modules_AD16[set][block][i]->volumeResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD18>::value) {
+    for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+      modules_AD18[set][block][i]->volumeResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD24>::value) {
+    for (size_t i=0; i<modules_AD24[set][block].size(); i++) {
+      modules_AD24[set][block][i]->volumeResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD32>::value) {
+    for (size_t i=0; i<modules_AD32[set][block].size(); i++) {
+      modules_AD32[set][block][i]->volumeResidual();
+    }
+  }
+#endif
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Finished PhysicsInterface volume residual" << endl;
   }
@@ -1035,6 +1300,13 @@ void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
 template void PhysicsInterface::volumeResidual<ScalarT>(const size_t & set, const size_t block);
 #ifndef MrHyDE_NO_AD
 template void PhysicsInterface::volumeResidual<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<AD2>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<AD4>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<AD8>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<AD16>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<AD18>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<AD24>(const size_t & set, const size_t block);
+template void PhysicsInterface::volumeResidual<AD32>(const size_t & set, const size_t block);
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1050,12 +1322,48 @@ void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) 
       modules[set][block][i]->boundaryResidual();
     }
   }
+#ifndef MrHyDE_NO_AD
   else if (std::is_same<EvalT, AD>::value) {
     for (size_t i=0; i<modules_AD[set][block].size(); i++) {
       modules_AD[set][block][i]->boundaryResidual();
     }
   }
-  
+  else if (std::is_same<EvalT, AD2>::value) {
+    for (size_t i=0; i<modules_AD2[set][block].size(); i++) {
+      modules_AD2[set][block][i]->boundaryResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD4>::value) {
+    for (size_t i=0; i<modules_AD4[set][block].size(); i++) {
+      modules_AD4[set][block][i]->boundaryResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD8>::value) {
+    for (size_t i=0; i<modules_AD8[set][block].size(); i++) {
+      modules_AD8[set][block][i]->boundaryResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD16>::value) {
+    for (size_t i=0; i<modules_AD16[set][block].size(); i++) {
+      modules_AD16[set][block][i]->boundaryResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD18>::value) {
+    for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+      modules_AD18[set][block][i]->boundaryResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD24>::value) {
+    for (size_t i=0; i<modules_AD24[set][block].size(); i++) {
+      modules_AD24[set][block][i]->boundaryResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD32>::value) {
+    for (size_t i=0; i<modules_AD32[set][block].size(); i++) {
+      modules_AD32[set][block][i]->boundaryResidual();
+    }
+  }
+#endif
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Finished PhysicsInterface boundary residual" << endl;
   }
@@ -1064,6 +1372,13 @@ void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) 
 template void PhysicsInterface::boundaryResidual<ScalarT>(const size_t & set, const size_t block);
 #ifndef MrHyDE_NO_AD
 template void PhysicsInterface::boundaryResidual<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<AD2>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<AD4>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<AD8>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<AD16>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<AD18>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<AD24>(const size_t & set, const size_t block);
+template void PhysicsInterface::boundaryResidual<AD32>(const size_t & set, const size_t block);
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1079,11 +1394,48 @@ void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
       modules[set][block][i]->computeFlux();
     }
   }
-  if (std::is_same<EvalT, AD>::value) {
+#ifndef MrHyDE_NO_AD
+  else if (std::is_same<EvalT, AD>::value) {
     for (size_t i=0; i<modules_AD[set][block].size(); i++) {
       modules_AD[set][block][i]->computeFlux();
     }
   }
+  else if (std::is_same<EvalT, AD2>::value) {
+    for (size_t i=0; i<modules_AD2[set][block].size(); i++) {
+      modules_AD2[set][block][i]->computeFlux();
+    }
+  }
+  else if (std::is_same<EvalT, AD4>::value) {
+    for (size_t i=0; i<modules_AD4[set][block].size(); i++) {
+      modules_AD4[set][block][i]->computeFlux();
+    }
+  }
+  else if (std::is_same<EvalT, AD8>::value) {
+    for (size_t i=0; i<modules_AD8[set][block].size(); i++) {
+      modules_AD8[set][block][i]->computeFlux();
+    }
+  }
+  else if (std::is_same<EvalT, AD16>::value) {
+    for (size_t i=0; i<modules_AD16[set][block].size(); i++) {
+      modules_AD16[set][block][i]->computeFlux();
+    }
+  }
+  else if (std::is_same<EvalT, AD18>::value) {
+    for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+      modules_AD18[set][block][i]->computeFlux();
+    }
+  }
+  else if (std::is_same<EvalT, AD24>::value) {
+    for (size_t i=0; i<modules_AD24[set][block].size(); i++) {
+      modules_AD24[set][block][i]->computeFlux();
+    }
+  }
+  else if (std::is_same<EvalT, AD32>::value) {
+    for (size_t i=0; i<modules_AD32[set][block].size(); i++) {
+      modules_AD32[set][block][i]->computeFlux();
+    }
+  }
+#endif
   if (debug_level > 1 && comm->getRank() == 0) {
     cout << "**** Finished PhysicsInterface compute flux" << endl;
   }
@@ -1092,6 +1444,13 @@ void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
 template void PhysicsInterface::computeFlux<ScalarT>(const size_t & set, const size_t block);
 #ifndef MrHyDE_NO_AD
 template void PhysicsInterface::computeFlux<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::computeFlux<AD2>(const size_t & set, const size_t block);
+template void PhysicsInterface::computeFlux<AD4>(const size_t & set, const size_t block);
+template void PhysicsInterface::computeFlux<AD8>(const size_t & set, const size_t block);
+template void PhysicsInterface::computeFlux<AD16>(const size_t & set, const size_t block);
+template void PhysicsInterface::computeFlux<AD18>(const size_t & set, const size_t block);
+template void PhysicsInterface::computeFlux<AD24>(const size_t & set, const size_t block);
+template void PhysicsInterface::computeFlux<AD32>(const size_t & set, const size_t block);
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1125,6 +1484,97 @@ void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset) {
     }
   }
 }
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD2> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD2.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD2[set][block].size(); i++) {
+          modules_AD2[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD4> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD4.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD4[set][block].size(); i++) {
+          modules_AD4[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD8> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD8.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD8[set][block].size(); i++) {
+          modules_AD8[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD16> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD16.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD16[set][block].size(); i++) {
+          modules_AD16[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD18> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD18.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+          modules_AD18[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD24> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD24.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD24[set][block].size(); i++) {
+          modules_AD24[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
+
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD32> > > & wkset) {
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD32.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD32[set][block].size(); i++) {
+          modules_AD32[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1137,16 +1587,60 @@ void PhysicsInterface::faceResidual(const size_t & set, const size_t block) {
       modules[set][block][i]->faceResidual();
     }
   }
+#ifndef MrHyDE_NO_AD
   else if (std::is_same<EvalT, AD>::value) {
     for (size_t i=0; i<modules_AD[set][block].size(); i++) {
       modules_AD[set][block][i]->faceResidual();
     }
   }
+  else if (std::is_same<EvalT, AD2>::value) {
+    for (size_t i=0; i<modules_AD2[set][block].size(); i++) {
+      modules_AD2[set][block][i]->faceResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD4>::value) {
+    for (size_t i=0; i<modules_AD4[set][block].size(); i++) {
+      modules_AD4[set][block][i]->faceResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD8>::value) {
+    for (size_t i=0; i<modules_AD8[set][block].size(); i++) {
+      modules_AD8[set][block][i]->faceResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD16>::value) {
+    for (size_t i=0; i<modules_AD16[set][block].size(); i++) {
+      modules_AD16[set][block][i]->faceResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD18>::value) {
+    for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+      modules_AD18[set][block][i]->faceResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD24>::value) {
+    for (size_t i=0; i<modules_AD24[set][block].size(); i++) {
+      modules_AD24[set][block][i]->faceResidual();
+    }
+  }
+  else if (std::is_same<EvalT, AD32>::value) {
+    for (size_t i=0; i<modules_AD32[set][block].size(); i++) {
+      modules_AD32[set][block][i]->faceResidual();
+    }
+  }
+#endif
 }
 
 template void PhysicsInterface::faceResidual<ScalarT>(const size_t & set, const size_t block);
 #ifndef MrHyDE_NO_AD
 template void PhysicsInterface::faceResidual<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<AD2>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<AD4>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<AD8>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<AD16>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<AD18>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<AD24>(const size_t & set, const size_t block);
+template void PhysicsInterface::faceResidual<AD32>(const size_t & set, const size_t block);
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1160,6 +1654,7 @@ void PhysicsInterface::updateFlags(vector<bool> & newflags) {
       }
     }
   }
+#ifndef MrHyDE_NO_AD
   for (size_t set=0; set<modules_AD.size(); set++) {
     for (size_t block=0; block<modules_AD[set].size(); block++) {
       for (size_t i=0; i<modules_AD[set][block].size(); i++) {
@@ -1167,6 +1662,56 @@ void PhysicsInterface::updateFlags(vector<bool> & newflags) {
       }
     }
   }
+  for (size_t set=0; set<modules_AD2.size(); set++) {
+    for (size_t block=0; block<modules_AD2[set].size(); block++) {
+      for (size_t i=0; i<modules_AD2[set][block].size(); i++) {
+        modules_AD2[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+  for (size_t set=0; set<modules_AD4.size(); set++) {
+    for (size_t block=0; block<modules_AD4[set].size(); block++) {
+      for (size_t i=0; i<modules_AD4[set][block].size(); i++) {
+        modules_AD4[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+  for (size_t set=0; set<modules_AD8.size(); set++) {
+    for (size_t block=0; block<modules_AD8[set].size(); block++) {
+      for (size_t i=0; i<modules_AD8[set][block].size(); i++) {
+        modules_AD8[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+  for (size_t set=0; set<modules_AD16.size(); set++) {
+    for (size_t block=0; block<modules_AD16[set].size(); block++) {
+      for (size_t i=0; i<modules_AD16[set][block].size(); i++) {
+        modules_AD16[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+  for (size_t set=0; set<modules_AD18.size(); set++) {
+    for (size_t block=0; block<modules_AD18[set].size(); block++) {
+      for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+        modules_AD18[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+  for (size_t set=0; set<modules_AD24.size(); set++) {
+    for (size_t block=0; block<modules_AD24[set].size(); block++) {
+      for (size_t i=0; i<modules_AD24[set][block].size(); i++) {
+        modules_AD24[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+  for (size_t set=0; set<modules_AD32.size(); set++) {
+    for (size_t block=0; block<modules_AD32[set].size(); block++) {
+      for (size_t i=0; i<modules_AD32[set][block].size(); i++) {
+        modules_AD32[set][block][i]->updateFlags(newflags);
+      }
+    }
+  }
+#endif
 }
     
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -1202,6 +1747,7 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
       }
     }
   }
+#ifndef MrHyDE_NO_AD
   else if (std::is_same<EvalT, AD>::value) {
     for (size_t var=0; var<var_list[set][block].size(); ++var) {
       int cside = function_managers_AD[block]->wkset->currentside;
@@ -1230,11 +1776,19 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
       }
     }
   }
+#endif
 }
 
 template void PhysicsInterface::fluxConditions<ScalarT>(const size_t & set, const size_t block);
 #ifndef MrHyDE_NO_AD
 template void PhysicsInterface::fluxConditions<AD>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<AD2>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<AD4>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<AD8>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<AD16>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<AD18>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<AD24>(const size_t & set, const size_t block);
+template void PhysicsInterface::fluxConditions<AD32>(const size_t & set, const size_t block);
 #endif
 
 /////////////////////////////////////////////////////////////////////////////////////////////

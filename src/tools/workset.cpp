@@ -98,6 +98,11 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   basis_grad_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
   basis_curl_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
   
+  set_BDF_wts = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+  set_butcher_A = vector<Kokkos::View<ScalarT**,AssemblyDevice> >(numSets);
+  set_butcher_b = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+  set_butcher_c = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+    
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   maxTeamSize = 256 / VectorSize;
 #else
@@ -584,7 +589,6 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
         auto cu = subview(u,ALL(),var,ALL());
         auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
         auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-
         parallel_for("wkset transient sol seedwhat 1",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -594,7 +598,6 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
           ScalarT timewt = one/dt/b_b(stage);
           ScalarT alpha_t = BDF(0)*timewt;
           EvalT dummyval = 0.0;
-
           for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             
             // Seed the stage solution
@@ -605,6 +608,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
 #endif
             // Compute the evaluating solution
             beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+            
             for (int s=0; s<stage; s++) {
               beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
             }

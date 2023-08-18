@@ -82,6 +82,7 @@ typedef ScalarT AD;
 typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
 #endif
 
+#ifndef MrHyDE_NO_AD
 // Commonly used AD types
 typedef Sacado::Fad::SFad<ScalarT,2> AD2;
 typedef Sacado::Fad::SFad<ScalarT,4> AD4;
@@ -96,6 +97,7 @@ typedef Sacado::Fad::SFad<ScalarT,128> AD128;
 typedef Sacado::Fad::SFad<ScalarT,256> AD256;
 typedef Sacado::Fad::SFad<ScalarT,512> AD512;
 typedef Sacado::Fad::SFad<ScalarT,1024> AD1024;
+#endif
 
 // Host Execution Space
 #if defined(MrHyDE_HOSTEXEC_OPENMP)
