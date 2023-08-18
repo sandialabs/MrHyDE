@@ -248,7 +248,7 @@ void ParameterManager<Node>::setupParameters() {
         disc->num_derivs_required[block] = num_active_params;
       } 
     }
-    TEUCHOS_TEST_FOR_EXCEPTION(num_active_params > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of parameters.");
+    TEUCHOS_TEST_FOR_EXCEPTION(num_active_params > MAXDERIVS,std::runtime_error,"Error: MAXDERIVS is not large enough to support the number of parameters.");
 #endif
     size_t maxcomp = 0;
     for (size_t k=0; k<paramvals.size(); k++) {
@@ -343,8 +343,8 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
         disc->num_derivs_required[block] = numGIDs;
       } 
     
-      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,
-                                 "Error: maxDerivs is not large enough to support the number of discretized parameter degrees of freedom per element on block: " + blocknames[block]);
+      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > MAXDERIVS,std::runtime_error,
+                                 "Error: MAXDERIVS is not large enough to support the number of discretized parameter degrees of freedom per element on block: " + blocknames[block]);
     }
 #endif
     paramDOF->getOwnedIndices(paramOwned);
@@ -791,7 +791,7 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
         if (paramtypes[i] == 1) { // active parameters
           for (size_t j=0; j<paramvals[i].size(); j++) {
 #ifndef MrHyDE_NO_AD
-            currparams_AD.push_back(AD(maxDerivs,pprog,paramvals[i][j]));
+            currparams_AD.push_back(AD(MAXDERIVS,pprog,paramvals[i][j]));
             currparams_AD2.push_back(AD2(2,pprog,paramvals[i][j]));
             currparams_AD4.push_back(AD4(4,pprog,paramvals[i][j]));
             currparams_AD8.push_back(AD8(8,pprog,paramvals[i][j]));
@@ -847,7 +847,7 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
         if (ptypes(i) == 1) { // active params
           for (size_t j=0; j<plengths(i); j++) {
 #ifndef MrHyDE_NO_AD
-            paramvals_KVAD(i,j) = AD(maxDerivs, pseed(i,j), pvals(i,j));
+            paramvals_KVAD(i,j) = AD(MAXDERIVS, pseed(i,j), pvals(i,j));
             paramvals_KVAD2(i,j) = AD2(2, pseed(i,j), pvals(i,j));
             paramvals_KVAD4(i,j) = AD4(4, pseed(i,j), pvals(i,j));
             paramvals_KVAD8(i,j) = AD8(8, pseed(i,j), pvals(i,j));

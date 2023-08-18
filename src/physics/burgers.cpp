@@ -195,7 +195,7 @@ void Burgers<EvalT>::boundaryResidual() {
     auto ny = wkset->getScalarField("n[y]");
     
     parallel_for("Thermal bndry resid part 1",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {

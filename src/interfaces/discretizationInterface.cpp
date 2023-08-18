@@ -1143,7 +1143,7 @@ void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupM
     // scale the normal vector (we need unit normal...)
     
     parallel_for("wkset transient sol seedwhat 1",
-                 TeamPolicy<AssemblyExec>(snormals.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(snormals.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type pt=team.team_rank(); pt<snormals.extent(1); pt+=team.team_size() ) {
@@ -2027,7 +2027,7 @@ void DiscretizationInterface::buildDOFManagers() {
       if (numGIDs > num_derivs_required[block]) {
         num_derivs_required[block] = numGIDs;
       }
-      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > maxDerivs,std::runtime_error,"Error: maxDerivs is not large enough to support the number of degrees of freedom per element on block: " + block_names[block]);
+      TEUCHOS_TEST_FOR_EXCEPTION(numGIDs > MAXDERIVS,std::runtime_error,"Error: MAXDERIVS is not large enough to support the number of degrees of freedom per element on block: " + block_names[block]);
     }
 #endif
     if (verbosity>1) {

@@ -2650,7 +2650,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                             KOKKOS_LAMBDA (const size_type n ) {
                   for (size_type n=0; n<numParamDOF.extent(0); n++) {
                     for( int i=0; i<numParamDOF(n); i++ ) {
-                      p_dof(n,i) = AD(maxDerivs,poff(n,i),cp(n,i));
+                      p_dof(n,i) = AD(MAXDERIVS,poff(n,i),cp(n,i));
                     }
                   }
                 });
@@ -2738,7 +2738,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
             });
             
             
-            View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),maxDerivs+1);
+            View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),MAXDERIVS+1);
             parallel_for("grp objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
@@ -2798,7 +2798,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                 }
               });
               
-              View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),maxDerivs+1);
+              View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),MAXDERIVS+1);
               parallel_for("grp objective",
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
@@ -3109,7 +3109,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                          KOKKOS_LAMBDA (const size_type e ) {
               for (size_type n=0; n<numDOF.extent(0); n++) { // numDOF is on device
                 for( int i=0; i<numDOF(n); i++ ) {
-                  u_dof(e,n,i) = AD(maxDerivs,offsets(n,i),u(e,n,i)); // offsets is on device
+                  u_dof(e,n,i) = AD(MAXDERIVS,offsets(n,i),u(e,n,i)); // offsets is on device
                 }
               }
             });
@@ -3367,7 +3367,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                          KOKKOS_LAMBDA (const size_type e ) {
               for (size_type n=0; n<numDOF.extent(0); n++) { // numDOF is on device
                 for( int i=0; i<numDOF(n); i++ ) {
-                  u_dof(e,n,i) = AD(maxDerivs,offsets(n,i),u(e,n,i)); // offsets is on device
+                  u_dof(e,n,i) = AD(MAXDERIVS,offsets(n,i),u(e,n,i)); // offsets is on device
                 }
               }
             });
@@ -3648,7 +3648,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                        KOKKOS_LAMBDA (const size_type n ) {
             for (size_type n=0; n<numDOF.extent(0); n++) {
               for( int i=0; i<numDOF(n); i++ ) {
-                u_dof(n,i) = AD(maxDerivs,offsets(n,i),cu(n,i));
+                u_dof(n,i) = AD(MAXDERIVS,offsets(n,i),cu(n,i));
               }
             }
           });

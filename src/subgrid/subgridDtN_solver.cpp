@@ -789,8 +789,8 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
                        RangePolicy<SG_exec>(0,LIDs.extent(0)),
                        KOKKOS_LAMBDA (const int elem ) {
             const size_type numVals = LIDs.extent(1);
-            LO cols[maxDerivs];
-            ScalarT vals[maxDerivs];
+            LO cols[MAXDERIVS];
+            ScalarT vals[MAXDERIVS];
             for (size_type n=0; n<numDOF.extent(0); ++n) {
               for (int j=0; j<numDOF(n); j++) {
                 int row = offsets(n,j);
@@ -850,8 +850,8 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
                          RangePolicy<SG_exec>(0,LIDs.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               const size_type numVals = LIDs.extent(1);
-              LO cols[maxDerivs];
-              ScalarT vals[maxDerivs];
+              LO cols[MAXDERIVS];
+              ScalarT vals[MAXDERIVS];
               for (size_type n=0; n<numDOF.extent(0); ++n) {
                 for (int j=0; j<numDOF(n); j++) {
                   int row = offsets(n,j);
@@ -1717,8 +1717,8 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
     auto localmass = assembler->getMass(macrogrp, e);
     
     size_type numVals = LIDs.extent(1);
-    LO cols[maxDerivs];
-    ScalarT vals[maxDerivs];
+    LO cols[MAXDERIVS];
+    ScalarT vals[MAXDERIVS];
     for (size_type i=0; i<LIDs.extent(0); i++) { // this should be changed to a Kokkos::parallel_for on host
       for( size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(i,row);

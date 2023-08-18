@@ -1735,7 +1735,7 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
         auto off = function_managers[block]->wkset->getOffsets(varname);
       
         parallel_for("physics flux condition",
-                     TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VectorSize),
+                     TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VECTORSIZE),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
@@ -1764,7 +1764,7 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
         auto off = function_managers_AD[block]->wkset->getOffsets(varname);
       
         parallel_for("physics flux condition",
-                     TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VectorSize),
+                     TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VECTORSIZE),
                      KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {

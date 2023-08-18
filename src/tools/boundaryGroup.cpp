@@ -266,7 +266,7 @@ void BoundaryGroup::resetPrevSoln(const size_t & set) {
     // shift previous step solns
     if (csol_prev.extent(3)>1) {
       parallel_for("Group reset prev soln 1",
-                   TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
@@ -281,7 +281,7 @@ void BoundaryGroup::resetPrevSoln(const size_t & set) {
     
     // copy current u into first step
     parallel_for("Group reset prev soln 2",
-                 TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
@@ -306,7 +306,7 @@ void BoundaryGroup::revertSoln(const size_t & set) {
     
     // copy current u into first step
     parallel_for("Group reset prev soln 2",
-                 TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
@@ -330,7 +330,7 @@ void BoundaryGroup::resetStageSoln(const size_t & set) {
     auto csol_stage = sol_stage[set];
     
     parallel_for("Group reset stage 1",
-                 TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type i=team.team_rank(); i<csol_stage.extent(1); i+=team.team_size() ) {
@@ -357,7 +357,7 @@ void BoundaryGroup::updateStageSoln(const size_t & set) {
     auto stage = group_data->current_stage;
     if (stage < csol_stage.extent_int(3)) {
       parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type i=team.team_rank(); i<csol_stage.extent(1); i+=team.team_size() ) {

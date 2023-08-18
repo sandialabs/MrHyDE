@@ -1219,8 +1219,8 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
       
       const size_type numVals = LIDs.extent(1);
       int col = 0;
-      LO cols[maxDerivs];
-      ScalarT vals[maxDerivs];
+      LO cols[MAXDERIVS];
+      ScalarT vals[MAXDERIVS];
       for (size_type n=0; n<numDOF.extent(0); ++n) {
         for (int j=0; j<numDOF(n); j++) {
           row = offsets(n,j);
@@ -1882,8 +1882,8 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
               localMatrix.sumIntoValues(rowIndex, cols, 1, vals, true, false);
             }
             else {
-              LO cols[maxDerivs];
-              ScalarT vals[maxDerivs];
+              LO cols[MAXDERIVS];
+              ScalarT vals[MAXDERIVS];
               for( size_t col=0; col<LIDs.extent(1); col++ ) {
                 cols[col] = LIDs(c,col);
                 vals[col] = host_mass(c,row,col);
@@ -1980,8 +1980,8 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
             localMatrix.sumIntoValues(rowIndex, cols, 1, vals, true, false);
           }
           else {
-            LO cols[maxDerivs];
-            ScalarT vals[maxDerivs];
+            LO cols[MAXDERIVS];
+            ScalarT vals[MAXDERIVS];
             for( size_t col=0; col<LIDs.extent(1); col++ ) {
               cols[col] = LIDs(c,col);
               vals[col] = host_mass(c,row,col);
@@ -2079,7 +2079,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
       }
       else {
         int ndr = num_derivs_required[block];
-        if (ndr == maxDerivs) {
+        if (ndr == MAXDERIVS) {
           this->assembleJacRes<AD>(set, compute_jacobian,
                              compute_sens, compute_disc_sens, res, J, isTransient,
                              current_time, useadjoint, store_adjPrev, num_active_params,
@@ -3430,8 +3430,8 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
                  KOKKOS_LAMBDA (const int elem ) {
       const size_type numVals = LIDs.extent(1);
-      LO cols[maxDerivs];
-      ScalarT vals[maxDerivs];
+      LO cols[MAXDERIVS];
+      ScalarT vals[MAXDERIVS];
       for (size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         if (!fixedDOF(rowIndex)) {
@@ -3624,8 +3624,8 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
     if (compute_jacobian_) {
       const size_type numVals = LIDs.extent(1);
       int col = 0;
-      LO cols[maxDerivs];
-      ScalarT vals[maxDerivs];
+      LO cols[MAXDERIVS];
+      ScalarT vals[MAXDERIVS];
       for (size_type n=0; n<numDOF.extent(0); ++n) {
         for (int j=0; j<numDOF(n); j++) {
           row = offsets(n,j);
@@ -4815,12 +4815,12 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
     auto varaux = subview(boundary_groups[block][grp]->aux, ALL(), var, ALL());
     if (seedwhat == 4) {
       parallel_for("bgroup aux 4",
-                   TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
+                   TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
           for (size_type dof=0; dof<abasis.extent(1); ++dof) {
-            AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+            AD auxval = AD(MAXDERIVS,off(dof), varaux(localID(elem),dof));
             local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
           }
         }
@@ -4828,7 +4828,7 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
     }
     else {
       parallel_for("bgroup aux 5",
-                    TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VectorSize),
+                    TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VECTORSIZE),
                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
@@ -5036,7 +5036,7 @@ void AssemblyManager<Node>::updateResBoundary(const int & block, const size_t & 
   if (compute_sens) {
     
     parallel_for("bgroup update res sens",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -5050,7 +5050,7 @@ void AssemblyManager<Node>::updateResBoundary(const int & block, const size_t & 
   }
   else {
     parallel_for("bgroup update res",
-                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(local_res.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -5078,7 +5078,7 @@ void AssemblyManager<Node>::updateJacBoundary(const int & block, const size_t & 
   
   if (useadjoint) {
     parallel_for("bgroup update jac sens",
-                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -5094,7 +5094,7 @@ void AssemblyManager<Node>::updateJacBoundary(const int & block, const size_t & 
   }
   else {
     parallel_for("bgroup update jac",
-                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -5126,7 +5126,7 @@ void AssemblyManager<Node>::updateParamJacBoundary(const int & block, const size
   auto numParamDOF = groupData[block]->num_param_dof;
   
   parallel_for("bgroup update param jac",
-               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
+               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VECTORSIZE),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {
@@ -5156,7 +5156,7 @@ void AssemblyManager<Node>::updateAuxJacBoundary(const int & block, const size_t
   auto numAuxDOF = groupData[block]->num_aux_dof;
   
   parallel_for("bgroup update aux jac",
-               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VectorSize),
+               TeamPolicy<AssemblyExec>(local_J.extent(0), Kokkos::AUTO, VECTORSIZE),
                KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type n=team.team_rank(); n<numDOF.extent(0); n+=team.team_size() ) {

@@ -777,7 +777,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   
   if (op == "") {
     parallel_for("funcman evaluate equals",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -788,7 +788,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "plus") {
     parallel_for("funcman evaluate plus",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -799,7 +799,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "minus") {
     parallel_for("funcman evaluate minus",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -810,7 +810,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "times") {
     parallel_for("funcman evaluate times",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -821,7 +821,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "divide") {
     parallel_for("funcman evaluate divide",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -832,7 +832,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "power") {
     parallel_for("funcman evaluate power",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -843,7 +843,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "sin") {
     parallel_for("funcman evaluate sin",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -854,7 +854,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "cos") {
     parallel_for("funcman evaluate cos",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -865,7 +865,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "tan") {
     parallel_for("funcman evaluate tan",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -876,7 +876,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "exp") {
     parallel_for("funcman evaluate exp",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -887,7 +887,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "log") {
     parallel_for("funcman evaluate log",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -898,7 +898,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "abs") {
     parallel_for("funcman evaluate abs",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -995,7 +995,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "lt") {
     parallel_for("funcman evaluate lt",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -1011,7 +1011,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "lte") {
     parallel_for("funcman evaluate lte",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -1027,7 +1027,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "gt") {
     parallel_for("funcman evaluate gt",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -1043,7 +1043,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "gte") {
     parallel_for("funcman evaluate gte",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -1059,7 +1059,7 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
   }
   else if (op == "sqrt") {
     parallel_for("funcman evaluate sqrt",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = min(data.extent(1),tdata.extent(1));
@@ -1090,7 +1090,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   
   if (op == "") {
     parallel_for("funcman evaluate equals",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1101,7 +1101,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "plus") {
     parallel_for("funcman evaluate plus",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1112,7 +1112,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "minus") {
     parallel_for("funcman evaluate minus",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1123,7 +1123,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "times") {
     parallel_for("funcman evaluate times",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1134,7 +1134,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "divide") {
     parallel_for("funcman evaluate divide",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1145,7 +1145,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "power") {
     parallel_for("funcman evaluate power",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1156,7 +1156,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "sin") {
     parallel_for("funcman evaluate sin",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1167,7 +1167,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "cos") {
     parallel_for("funcman evaluate cos",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1178,7 +1178,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "tan") {
     parallel_for("funcman evaluate tan",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1189,7 +1189,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "exp") {
     parallel_for("funcman evaluate exp",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1200,7 +1200,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "log") {
     parallel_for("funcman evaluate log",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1211,7 +1211,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "abs") {
     parallel_for("funcman evaluate abs",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1294,7 +1294,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "lt") {
     parallel_for("funcman evaluate lt",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1310,7 +1310,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "lte") {
     parallel_for("funcman evaluate lte",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1326,7 +1326,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "gt") {
     parallel_for("funcman evaluate gt",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1342,7 +1342,7 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
   }
   else if (op == "gte") {
     parallel_for("funcman evaluate gte",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1373,7 +1373,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   
   if (op == "") {
     parallel_for("funcman evaluate equals",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1384,7 +1384,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "plus") {
     parallel_for("funcman evaluate plus",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1395,7 +1395,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "minus") {
     parallel_for("funcman evaluate minus",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1406,7 +1406,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "times") {
     parallel_for("funcman evaluate times",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1417,7 +1417,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "divide") {
     parallel_for("funcman evaluate divide",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1428,7 +1428,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "power") {
     parallel_for("funcman evaluate power",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1439,7 +1439,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "sin") {
     parallel_for("funcman evaluate sin",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1450,7 +1450,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "cos") {
     parallel_for("funcman evaluate cos",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1461,7 +1461,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "tan") {
     parallel_for("funcman evaluate tan",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1472,7 +1472,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "exp") {
     parallel_for("funcman evaluate exp",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1483,7 +1483,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "log") {
     parallel_for("funcman evaluate log",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1494,7 +1494,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "abs") {
     parallel_for("funcman evaluate abs",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1576,7 +1576,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "lt") {
     parallel_for("funcman evaluate lt",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1592,7 +1592,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "lte") {
     parallel_for("funcman evaluate lte",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1608,7 +1608,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "gt") {
     parallel_for("funcman evaluate gt",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);
@@ -1624,7 +1624,7 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
   }
   else if (op == "gte") {
     parallel_for("funcman evaluate gte",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       size_t dim1 = data.extent(1);

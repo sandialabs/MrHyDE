@@ -396,7 +396,7 @@ namespace MrHyDE {
           auto cu_stage = subview(boundary_groups[block][grp]->sol_stage[set],ALL(),var,ALL(),ALL());
 
           parallel_for("wkset transient sol seedwhat 1",
-                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VectorSize),
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
                        KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
             int elem = team.league_rank();
             ScalarT beta_u;//, beta_t;
@@ -407,7 +407,7 @@ namespace MrHyDE {
             for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
             
               // Seed the stage solution
-              AD stageval = AD(maxDerivs,0,cu(elem,dof));
+              AD stageval = AD(MAXDERIVS,0,cu(elem,dof));
               for( size_t p=0; p<du_kv.extent(1); p++ ) {
                 stageval.fastAccessDx(p) = fluxwt*du_kv(currLIDs(elem,off(dof)),p);
               }
@@ -455,7 +455,7 @@ namespace MrHyDE {
                          RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
-                u_AD(elem,dof) = AD(maxDerivs, 0, u_kv(currLIDs(elem,offsets(dof)),0));
+                u_AD(elem,dof) = AD(MAXDERIVS, 0, u_kv(currLIDs(elem,offsets(dof)),0));
                 for( size_t p=0; p<du_kv.extent(1); p++ ) {
                   u_AD(elem,dof).fastAccessDx(p) = du_kv(currLIDs(elem,offsets(dof)),p);
                 }
@@ -489,7 +489,7 @@ namespace MrHyDE {
                        RangePolicy<AssemblyExec>(0,localID.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<abasis.extent(1); ++dof) {
-              AD auxval = AD(maxDerivs,off(dof), varaux(localID(elem),dof));
+              AD auxval = AD(MAXDERIVS,off(dof), varaux(localID(elem),dof));
               auxval.fastAccessDx(off(dof)) *= fluxwt;
               for (size_type pt=0; pt<abasis.extent(2); ++pt) {
                 local_aux(elem,pt) += auxval*abasis(elem,dof,pt);

@@ -50,16 +50,16 @@ typedef panzer::GlobalOrdinal GO;
 
 // Number of derivatives in SFAD objects
 #ifdef MrHyDE_SET_MAX_DERIVS
-  #define maxDerivs MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
+  #define MAXDERIVS MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
 #else
-  #define maxDerivs 64 // adjust this to improve performance
+  #define MAXDERIVS 64 // adjust this to improve performance
 #endif
 
 // Size of vectors for hierarchical parallel policies
 #ifdef MrHyDE_SET_VECTOR_SIZE
-  #define VectorSize MrHyDE_SET_VECTOR_SIZE // allow us to set this at configure-time with the MrHyDE_VECTOR_SIZE flag
+  #define VECTORSIZE MrHyDE_SET_VECTOR_SIZE // allow us to set this at configure-time with the MrHyDE_VECTOR_SIZE flag
 #else
-  #define VectorSize maxDerivs
+  #define VECTORSIZE MAXDERIVS
 #endif
 
 // Sets default behavior for evaluating solution fields using basis functions
@@ -79,7 +79,7 @@ typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
 #ifdef MrHyDE_NO_AD
 typedef ScalarT AD;
 #else
-typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
+typedef Sacado::Fad::SFad<ScalarT,MAXDERIVS> AD;
 #endif
 
 #ifndef MrHyDE_NO_AD

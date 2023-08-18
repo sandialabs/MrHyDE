@@ -186,7 +186,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
       
       parallel_for("LE ux volume resid 3D",
-                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VectorSize),
+                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
@@ -207,7 +207,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
       
       parallel_for("LE uy volume resid 3D",
-                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VectorSize),
+                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
@@ -228,7 +228,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
       
       parallel_for("LE uz volume resid 3D",
-                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VectorSize),
+                   TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
