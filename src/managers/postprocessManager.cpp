@@ -90,6 +90,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
   write_optimization_solution = settings->sublist("Postprocess").get("create optimization movie",false);
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
+  objective_file = settings->sublist("Postprocess").get("objective output file", "");
+  objective_grad_file = settings->sublist("Postprocess").get("objective gradient output file", "");
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra grp field reduction","mean");
   write_database_id = settings->sublist("Solver").get<bool>("use basis database",false);
@@ -1780,6 +1782,28 @@ void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_
 // ========================================================================================
 // ========================================================================================
 
+// Helper function to save data
+template<class Node>
+void PostprocessManager<Node>::saveObjectiveData(const DFAD& obj) {
+  if(Comm->getRank() != 0) return;
+  if(objective_file.length() > 0) {
+    std::ofstream obj_out {objective_file};
+    TEUCHOS_TEST_FOR_EXCEPTION(!obj_out.is_open(), std::runtime_error, "Could not open file to print objective value");
+    obj_out << obj.val();
+  }
+}
+
+// Helper function to save data
+template<class Node>
+void PostprocessManager<Node>::saveObjectiveGradientData(const MrHyDE_OptVector& gradient) {
+  if(Comm->getRank() != 0) return;
+  if(objective_grad_file.length() > 0) {
+    std::ofstream obj_grad_out {objective_grad_file};
+    TEUCHOS_TEST_FOR_EXCEPTION(!obj_grad_out.is_open(), std::runtime_error, "Could not open file to print objective gradient value");
+    gradient.print(obj_grad_out);
+  }
+}
+
 template<class Node>
 void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_soln,
                                                 const ScalarT & current_time,
@@ -2916,6 +2940,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
   params->sacadoizeParams(false);
   
   objectiveval += fullobj;
+  saveObjectiveData(objectiveval);
 
 #endif
 
@@ -2923,8 +2948,6 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
     std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam ..." << std::endl;
   }
   
-  
-
 }
 
 // ========================================================================================
@@ -3962,7 +3985,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     curr_grad->update(1.0, *sens, 1.0);
     
   }
-  
+  saveObjectiveGradientData(gradient);
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Finished PostprocessManager::computeSensitivities ..." << std::endl;

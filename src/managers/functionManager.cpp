@@ -24,7 +24,7 @@ FunctionManager<EvalT>::FunctionManager() {
   num_ip_side_ = 1;
   
   known_vars_ = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt", "sinh", "cosh"};
   
   interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
   
@@ -35,10 +35,10 @@ FunctionManager<EvalT>::FunctionManager(const string & blockname, const int & nu
                                  const int & num_ip, const int & num_ip_side) :
 num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(blockname) {
   
-  known_vars_ = {"x","y","z","t","nx","ny","nz","pi","h"};
-  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt"};
-  
   interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
+
+  known_vars_ = {"x","y","z","t","nx","ny","nz","pi","h"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt","sinh","cosh"};
   
   forests_.push_back(Forest<EvalT>("ip",num_elem_,num_ip_));
   forests_.push_back(Forest<EvalT>("side ip",num_elem_,num_ip_side_));
@@ -1073,6 +1073,28 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
       }
     });
   }
+  else if (op == "sinh") {
+    parallel_for("funcman evaluate sinh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = sinh(tdata(elem,pt));
+      }
+    });
+  }
+  else if (op == "cosh") {
+    parallel_for("funcman evaluate cosh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = cosh(tdata(elem,pt));
+      }
+    });
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1176,6 +1198,28 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
       }
     });
   }
+  else if (op == "sinh") {
+    parallel_for("funcman evaluate sinh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = sinh(tdata(pIndex));
+      }
+    });
+  }
+  else if (op == "cosh") {
+    parallel_for("funcman evaluate cosh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = cosh(tdata(pIndex));
+      }
+    });
+  }
   else if (op == "tan") {
     parallel_for("funcman evaluate tan",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
@@ -1206,6 +1250,21 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
       size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
         data(elem,pt) = log(tdata(pIndex));
+      }
+    });
+  }
+  else if (op == "sqrt") {
+    parallel_for("funcman evaluate sqrt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if(tdata(pIndex) <= 0.) {
+          data(elem,pt) = 0.;
+        } else {
+          data(elem,pt) = sqrt(tdata(pIndex));
+        }
       }
     });
   }
@@ -1470,6 +1529,28 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
       }
     });
   }
+  else if (op == "sinh") {
+    parallel_for("funcman evaluate sinh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = sinh(tdata);
+      }
+    });
+  }
+  else if (op == "cosh") {
+    parallel_for("funcman evaluate cosh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = cosh(tdata);
+      }
+    });
+  }
   else if (op == "exp") {
     parallel_for("funcman evaluate exp",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
@@ -1489,6 +1570,21 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
       size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
         data(elem,pt) = log(tdata);
+      }
+    });
+  }
+  else if (op == "sqrt") {
+    parallel_for("funcman evaluate sqrt",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        if(tdata < 0) {
+          data(elem,pt) = 0.0;
+        } else {
+          data(elem,pt) = sqrt(tdata);
+        }
       }
     });
   }
@@ -1678,11 +1774,25 @@ void FunctionManager<EvalT>::evaluateOpSToS(T1 & data, T2 & tdata, const string 
   else if (op == "tan") {
     data = tan(tdata);
   }
+  else if (op == "sinh") {
+    data = sinh(tdata);
+  }
+  else if (op == "cosh") {
+    data = cosh(tdata);
+  }
   else if (op == "exp") {
     data = exp(tdata);
   }
   else if (op == "log") {
     data = log(tdata);
+  }
+  else if (op == "sqrt") {
+    if (tdata <= 0.0) {
+      data = 0.0;
+    }
+    else {
+      data = sqrt(tdata);
+    }
   }
   else if (op == "abs") {
     if (tdata < 0.0) {
