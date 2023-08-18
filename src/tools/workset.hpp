@@ -394,7 +394,6 @@ namespace MrHyDE {
     View_Sc1 integrated_quantities;
         
     int sidetype;
-    //Kokkos::View<int****,AssemblyDevice> sideinfo;
     string sidename, blockname;//, var;
     int currentside, time_step;
     
@@ -402,34 +401,13 @@ namespace MrHyDE {
     View_Sc3 rotation;
     View_Sc2 rotation_phi, extra_data;
     View_Sc3 multidata;
-
-    //Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     // Profile timers
-    Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update - integration data");
-    Teuchos::RCP<Teuchos::Time> worksetUpdateBasisMMTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update::multiplyMeasure");
-    Teuchos::RCP<Teuchos::Time> worksetUpdateBasisHGTGTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update::HGRADTransformGrad");
-    Teuchos::RCP<Teuchos::Time> worksetAddSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::addSide");
-    Teuchos::RCP<Teuchos::Time> worksetSideUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateSide - integration data");
-    Teuchos::RCP<Teuchos::Time> worksetSideUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateSide - basis data");
-    Teuchos::RCP<Teuchos::Time> worksetFaceUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateFace - integration data");
-    Teuchos::RCP<Teuchos::Time> worksetFaceUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateFace - basis data");
     Teuchos::RCP<Teuchos::Time> worksetResetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::reset*");
-    Teuchos::RCP<Teuchos::Time> worksetComputeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeSolnVolIP - compute seeded sol at ip");
     Teuchos::RCP<Teuchos::Time> worksetComputeSolnSeededTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeSolnVolIP - allocate/compute seeded");
     Teuchos::RCP<Teuchos::Time> worksetComputeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeSolnSideIP");
-    Teuchos::RCP<Teuchos::Time> worksetComputeParamVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeParamVolIP");
-    Teuchos::RCP<Teuchos::Time> worksetComputeParamSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeParamSideIP");
-    Teuchos::RCP<Teuchos::Time> worksetgetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::get()");
     Teuchos::RCP<Teuchos::Time> worksetgetDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getData");
     Teuchos::RCP<Teuchos::Time> worksetgetDataScTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getDataSc");
-    Teuchos::RCP<Teuchos::Time> worksetgetDataScIndexTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getDataScIndex");
-    Teuchos::RCP<Teuchos::Time> worksetgetBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getBasis*");
-    Teuchos::RCP<Teuchos::Time> worksetcopyDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::copyData");
-    
-    Teuchos::RCP<Teuchos::Time> worksetDebugTimer0 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug0");
-    Teuchos::RCP<Teuchos::Time> worksetDebugTimer1 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug1");
-    Teuchos::RCP<Teuchos::Time> worksetDebugTimer2 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug2");
     
   };
   

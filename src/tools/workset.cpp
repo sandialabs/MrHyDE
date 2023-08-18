@@ -1813,8 +1813,6 @@ View_Sc2 Workset<EvalT>::getSideWeights() {
 template<class EvalT>
 CompressedView<View_Sc4> Workset<EvalT>::getBasis(const string & var) {
 
-  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
-  
   CompressedView<View_Sc4> dataout;
   int basisindex;
   
@@ -1840,8 +1838,6 @@ CompressedView<View_Sc4> Workset<EvalT>::getBasis(const int & index) {
 
 template<class EvalT>
 CompressedView<View_Sc4> Workset<EvalT>::getBasisGrad(const string & var) {
-
-  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   CompressedView<View_Sc4> dataout;
   int basisindex;
@@ -1868,8 +1864,6 @@ CompressedView<View_Sc4> Workset<EvalT>::getBasisGrad(const int & index) {
 
 template<class EvalT>
 CompressedView<View_Sc3> Workset<EvalT>::getBasisDiv(const string & var) {
-
-  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   CompressedView<View_Sc3> dataout;
   int basisindex;
@@ -1896,8 +1890,6 @@ CompressedView<View_Sc3> Workset<EvalT>::getBasisDiv(const int & index) {
 
 template<class EvalT>
 CompressedView<View_Sc4> Workset<EvalT>::getBasisCurl(const string & var) {
-
-  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   CompressedView<View_Sc4> dataout;
   int basisindex;
@@ -1924,8 +1916,6 @@ CompressedView<View_Sc4> Workset<EvalT>::getBasisCurl(const int & index) {
 
 template<class EvalT>
 CompressedView<View_Sc4> Workset<EvalT>::getBasisSide(const string & var) {
-
-  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   CompressedView<View_Sc4> dataout;
   int basisindex;
@@ -1952,8 +1942,6 @@ CompressedView<View_Sc4> Workset<EvalT>::getBasisSide(const int & index) {
 
 template<class EvalT>
 CompressedView<View_Sc4> Workset<EvalT>::getBasisGradSide(const string & var) {
-
-  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   CompressedView<View_Sc4> dataout;
   int basisindex;
@@ -1980,8 +1968,6 @@ CompressedView<View_Sc4> Workset<EvalT>::getBasisGradSide(const int & index) {
 
 template<class EvalT>
 CompressedView<View_Sc4> Workset<EvalT>::getBasisCurlSide(const string & var) {
-
-  //Teuchos::TimeMonitor basistimer(*worksetgetBasisTimer);
   
   CompressedView<View_Sc4> dataout;
   int basisindex;
@@ -2039,8 +2025,6 @@ Kokkos::View<int*,Kokkos::LayoutStride,AssemblyDevice> Workset<EvalT>::getOffset
 template<class EvalT>
 template<class V1, class V2>
 void Workset<EvalT>::copyData(V1 view1, V2 view2) {
-  
-  //Teuchos::TimeMonitor functimer(*worksetcopyDataTimer);
   
   // Copy data from view2 into view1
   // Both are rank-2 and second dimensions are the same
