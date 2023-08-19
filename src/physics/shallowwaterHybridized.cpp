@@ -843,7 +843,7 @@ template class MrHyDE::shallowwaterHybridized<AD2>;
 template class MrHyDE::shallowwaterHybridized<AD4>;
 template class MrHyDE::shallowwaterHybridized<AD8>;
 template class MrHyDE::shallowwaterHybridized<AD16>;
-//template class MrHyDE::shallowwaterHybridized<AD18>; // AquiEEP_merge
+template class MrHyDE::shallowwaterHybridized<AD18>; // AquiEEP_merge
 template class MrHyDE::shallowwaterHybridized<AD24>;
 template class MrHyDE::shallowwaterHybridized<AD32>;
 #endif

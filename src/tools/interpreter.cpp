@@ -544,7 +544,7 @@ template class MrHyDE::Interpreter<AD2>;
 template class MrHyDE::Interpreter<AD4>;
 template class MrHyDE::Interpreter<AD8>;
 template class MrHyDE::Interpreter<AD16>;
-//template class MrHyDE::Interpreter<AD18>; // AquiEEP_merge
+template class MrHyDE::Interpreter<AD18>; // AquiEEP_merge
 template class MrHyDE::Interpreter<AD24>;
 template class MrHyDE::Interpreter<AD32>;
 #endif

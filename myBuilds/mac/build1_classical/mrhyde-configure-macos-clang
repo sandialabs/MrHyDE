@@ -11,6 +11,8 @@ MRHYDE_HOME='/Users/eeprude/work/mrhyde/MrHyDE'
 
 MRHYDE_INSTALL='/Users/eeprude/install/MrHyDE1_classical'
 
+
+
 cmake \
 -D Trilinos_SRC_DIR=${TRILINOS_HOME} \
 -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \

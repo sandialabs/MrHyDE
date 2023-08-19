@@ -432,7 +432,7 @@ template class MrHyDE::porous<AD2>;
 template class MrHyDE::porous<AD4>;
 template class MrHyDE::porous<AD8>;
 template class MrHyDE::porous<AD16>;
-//template class MrHyDE::porous<AD18>; // AquiEEP_merge
+template class MrHyDE::porous<AD18>; // AquiEEP_merge
 template class MrHyDE::porous<AD24>;
 template class MrHyDE::porous<AD32>;
 #endif

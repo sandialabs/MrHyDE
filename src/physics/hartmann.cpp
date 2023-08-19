@@ -208,7 +208,7 @@ template class MrHyDE::hartmann<AD2>;
 template class MrHyDE::hartmann<AD4>;
 template class MrHyDE::hartmann<AD8>;
 template class MrHyDE::hartmann<AD16>;
-//template class MrHyDE::hartmann<AD18>; // AquiEEP_merge
+template class MrHyDE::hartmann<AD18>; // AquiEEP_merge
 template class MrHyDE::hartmann<AD24>;
 template class MrHyDE::hartmann<AD32>;
 #endif

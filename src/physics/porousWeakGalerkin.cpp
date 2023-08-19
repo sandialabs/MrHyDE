@@ -629,7 +629,7 @@ template class MrHyDE::porousWeakGalerkin<AD2>;
 template class MrHyDE::porousWeakGalerkin<AD4>;
 template class MrHyDE::porousWeakGalerkin<AD8>;
 template class MrHyDE::porousWeakGalerkin<AD16>;
-//template class MrHyDE::porousWeakGalerkin<AD18>; // AquiEEP_merge
+template class MrHyDE::porousWeakGalerkin<AD18>; // AquiEEP_merge
 template class MrHyDE::porousWeakGalerkin<AD24>;
 template class MrHyDE::porousWeakGalerkin<AD32>;
 #endif

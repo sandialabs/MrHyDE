@@ -1380,7 +1380,7 @@ template class MrHyDE::linearelasticity<AD2>;
 template class MrHyDE::linearelasticity<AD4>;
 template class MrHyDE::linearelasticity<AD8>;
 template class MrHyDE::linearelasticity<AD16>;
-//template class MrHyDE::linearelasticity<AD18>; // AquiEEP_merge
+template class MrHyDE::linearelasticity<AD18>; // AquiEEP_merge
 template class MrHyDE::linearelasticity<AD24>;
 template class MrHyDE::linearelasticity<AD32>;
 #endif

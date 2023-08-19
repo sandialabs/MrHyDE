@@ -150,11 +150,11 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD16>
   this->defineFunctions(function_managers_AD16, modules_AD16);
 }
 
-//template<> // AquiEEP_merge
-//void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD18> > > & function_managers_) {
-// function_managers_AD18 = function_managers_;
-//  this->defineFunctions(function_managers_AD18, modules_AD18);
-//}
+template<> // AquiEEP_merge
+void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD18> > > & function_managers_) {
+  function_managers_AD18 = function_managers_;
+  this->defineFunctions(function_managers_AD18, modules_AD18);
+}
 
 template<>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<AD24> > > & function_managers_) {
@@ -1177,18 +1177,18 @@ void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD16> > > & p
   
 }
 
-//void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params, // AquiEEP_merge
-//                                        const vector<string> & paramnames) {
-//  
-//  for (size_t set=0; set<modules_AD18.size(); set++) {
-//    for (size_t block=0; block<modules_AD18[set].size(); ++block) {
-//      for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
-//        modules_AD18[set][block][i]->updateParameters(params, paramnames);
-//      }
-//    }
-//  }
-//  
-//}
+void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params, // AquiEEP_merge
+                                        const vector<string> & paramnames) {
+  
+  for (size_t set=0; set<modules_AD18.size(); set++) {
+    for (size_t block=0; block<modules_AD18[set].size(); ++block) {
+      for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+        modules_AD18[set][block][i]->updateParameters(params, paramnames);
+      }
+    }
+  }
+  
+}
 
 void PhysicsInterface::updateParameters(vector<Teuchos::RCP<vector<AD24> > > & params,
                                         const vector<string> & paramnames) {
@@ -1304,7 +1304,7 @@ template void PhysicsInterface::volumeResidual<AD2>(const size_t & set, const si
 template void PhysicsInterface::volumeResidual<AD4>(const size_t & set, const size_t block);
 template void PhysicsInterface::volumeResidual<AD8>(const size_t & set, const size_t block);
 template void PhysicsInterface::volumeResidual<AD16>(const size_t & set, const size_t block);
-//template void PhysicsInterface::volumeResidual<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
+template void PhysicsInterface::volumeResidual<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
 template void PhysicsInterface::volumeResidual<AD24>(const size_t & set, const size_t block);
 template void PhysicsInterface::volumeResidual<AD32>(const size_t & set, const size_t block);
 #endif
@@ -1376,7 +1376,7 @@ template void PhysicsInterface::boundaryResidual<AD2>(const size_t & set, const 
 template void PhysicsInterface::boundaryResidual<AD4>(const size_t & set, const size_t block);
 template void PhysicsInterface::boundaryResidual<AD8>(const size_t & set, const size_t block);
 template void PhysicsInterface::boundaryResidual<AD16>(const size_t & set, const size_t block);
-//template void PhysicsInterface::boundaryResidual<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
+template void PhysicsInterface::boundaryResidual<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
 template void PhysicsInterface::boundaryResidual<AD24>(const size_t & set, const size_t block);
 template void PhysicsInterface::boundaryResidual<AD32>(const size_t & set, const size_t block);
 #endif
@@ -1448,7 +1448,7 @@ template void PhysicsInterface::computeFlux<AD2>(const size_t & set, const size_
 template void PhysicsInterface::computeFlux<AD4>(const size_t & set, const size_t block);
 template void PhysicsInterface::computeFlux<AD8>(const size_t & set, const size_t block);
 template void PhysicsInterface::computeFlux<AD16>(const size_t & set, const size_t block);
-//template void PhysicsInterface::computeFlux<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
+template void PhysicsInterface::computeFlux<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
 template void PhysicsInterface::computeFlux<AD24>(const size_t & set, const size_t block);
 template void PhysicsInterface::computeFlux<AD32>(const size_t & set, const size_t block);
 #endif
@@ -1537,18 +1537,18 @@ void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD16> > > & wkset)
   }
 }
 
-//void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD18> > > & wkset) { // AquiEEP_merge
-//  for (size_t block = 0; block<wkset.size(); block++) {
-//    if (wkset[block]->isInitialized) {
-//      for (size_t set=0; set<modules_AD18.size(); set++) {
-//        wkset[block]->updatePhysicsSet(set);
-//        for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
-//          modules_AD18[set][block][i]->setWorkset(wkset[block]);
-//        }
-//      }
-//   }
-//  }
-//}
+void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD18> > > & wkset) { // AquiEEP_merge
+  for (size_t block = 0; block<wkset.size(); block++) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<modules_AD18.size(); set++) {
+        wkset[block]->updatePhysicsSet(set);
+        for (size_t i=0; i<modules_AD18[set][block].size(); i++) {
+          modules_AD18[set][block][i]->setWorkset(wkset[block]);
+        }
+      }
+    }
+  }
+}
 
 void PhysicsInterface::setWorkset(vector<Teuchos::RCP<Workset<AD24> > > & wkset) {
   for (size_t block = 0; block<wkset.size(); block++) {
@@ -1638,7 +1638,7 @@ template void PhysicsInterface::faceResidual<AD2>(const size_t & set, const size
 template void PhysicsInterface::faceResidual<AD4>(const size_t & set, const size_t block);
 template void PhysicsInterface::faceResidual<AD8>(const size_t & set, const size_t block);
 template void PhysicsInterface::faceResidual<AD16>(const size_t & set, const size_t block);
-//template void PhysicsInterface::faceResidual<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
+template void PhysicsInterface::faceResidual<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
 template void PhysicsInterface::faceResidual<AD24>(const size_t & set, const size_t block);
 template void PhysicsInterface::faceResidual<AD32>(const size_t & set, const size_t block);
 #endif
@@ -1786,7 +1786,7 @@ template void PhysicsInterface::fluxConditions<AD2>(const size_t & set, const si
 template void PhysicsInterface::fluxConditions<AD4>(const size_t & set, const size_t block);
 template void PhysicsInterface::fluxConditions<AD8>(const size_t & set, const size_t block);
 template void PhysicsInterface::fluxConditions<AD16>(const size_t & set, const size_t block);
-//template void PhysicsInterface::fluxConditions<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
+template void PhysicsInterface::fluxConditions<AD18>(const size_t & set, const size_t block); // AquiEEP_merge
 template void PhysicsInterface::fluxConditions<AD24>(const size_t & set, const size_t block);
 template void PhysicsInterface::fluxConditions<AD32>(const size_t & set, const size_t block);
 #endif

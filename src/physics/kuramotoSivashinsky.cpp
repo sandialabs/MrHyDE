@@ -219,7 +219,7 @@ template class MrHyDE::KuramotoSivashinsky<AD2>;
 template class MrHyDE::KuramotoSivashinsky<AD4>;
 template class MrHyDE::KuramotoSivashinsky<AD8>;
 template class MrHyDE::KuramotoSivashinsky<AD16>;
-//template class MrHyDE::KuramotoSivashinsky<AD18>; // AquiEEP_merge
+template class MrHyDE::KuramotoSivashinsky<AD18>; // AquiEEP_merge
 template class MrHyDE::KuramotoSivashinsky<AD24>;
 template class MrHyDE::KuramotoSivashinsky<AD32>;
 #endif

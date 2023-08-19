@@ -1100,7 +1100,7 @@ template class MrHyDE::maxwells_fp<AD2>;
 template class MrHyDE::maxwells_fp<AD4>;
 template class MrHyDE::maxwells_fp<AD8>;
 template class MrHyDE::maxwells_fp<AD16>;
-//template class MrHyDE::maxwells_fp<AD18>; // AquiEEP_merge
+template class MrHyDE::maxwells_fp<AD18>; // AquiEEP_merge
 template class MrHyDE::maxwells_fp<AD24>;
 template class MrHyDE::maxwells_fp<AD32>;
 #endif

@@ -142,7 +142,7 @@ namespace MrHyDE {
     void updateParameters(vector<Teuchos::RCP<vector<AD4> > > & params, const vector<string> & paramnames);
     void updateParameters(vector<Teuchos::RCP<vector<AD8> > > & params, const vector<string> & paramnames);
     void updateParameters(vector<Teuchos::RCP<vector<AD16> > > & params, const vector<string> & paramnames);
-  //void updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params, const vector<string> & paramnames); // AquiEEP_merge
+    void updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params, const vector<string> & paramnames); // AquiEEP_merge
     void updateParameters(vector<Teuchos::RCP<vector<AD24> > > & params, const vector<string> & paramnames);
     void updateParameters(vector<Teuchos::RCP<vector<AD32> > > & params, const vector<string> & paramnames);
 #endif
@@ -181,7 +181,7 @@ namespace MrHyDE {
     void setWorkset(vector<Teuchos::RCP<Workset<AD4> > > & wkset);
     void setWorkset(vector<Teuchos::RCP<Workset<AD8> > > & wkset);
     void setWorkset(vector<Teuchos::RCP<Workset<AD16> > > & wkset);
-  //void setWorkset(vector<Teuchos::RCP<Workset<AD18> > > & wkset); // AquiEEP_merge
+    void setWorkset(vector<Teuchos::RCP<Workset<AD18> > > & wkset); // AquiEEP_merge
     void setWorkset(vector<Teuchos::RCP<Workset<AD24> > > & wkset);
     void setWorkset(vector<Teuchos::RCP<Workset<AD32> > > & wkset);
 #endif

@@ -247,7 +247,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   physics->setWorkset(assembler->wkset_AD4);
   physics->setWorkset(assembler->wkset_AD8);
   physics->setWorkset(assembler->wkset_AD16);
-  physics->setWorkset(assembler->wkset_AD18);
+  physics->setWorkset(assembler->wkset_AD18); // AquiEEP_merge
   physics->setWorkset(assembler->wkset_AD24);
   physics->setWorkset(assembler->wkset_AD32);
 #endif

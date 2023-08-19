@@ -312,7 +312,7 @@ template class MrHyDE::shallowwater<AD2>;
 template class MrHyDE::shallowwater<AD4>;
 template class MrHyDE::shallowwater<AD8>;
 template class MrHyDE::shallowwater<AD16>;
-//template class MrHyDE::shallowwater<AD18>; // AquiEEP_merge
+template class MrHyDE::shallowwater<AD18>; // AquiEEP_merge
 template class MrHyDE::shallowwater<AD24>;
 template class MrHyDE::shallowwater<AD32>;
 #endif

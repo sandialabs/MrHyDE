@@ -294,7 +294,7 @@ template class MrHyDE::incompressibleSaturation<AD2>;
 template class MrHyDE::incompressibleSaturation<AD4>;
 template class MrHyDE::incompressibleSaturation<AD8>;
 template class MrHyDE::incompressibleSaturation<AD16>;
-//template class MrHyDE::incompressibleSaturation<AD18>; // AquiEEP_merge
+template class MrHyDE::incompressibleSaturation<AD18>; // AquiEEP_merge
 template class MrHyDE::incompressibleSaturation<AD24>;
 template class MrHyDE::incompressibleSaturation<AD32>;
 #endif

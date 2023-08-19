@@ -416,7 +416,7 @@ template class MrHyDE::maxwell<AD2>;
 template class MrHyDE::maxwell<AD4>;
 template class MrHyDE::maxwell<AD8>;
 template class MrHyDE::maxwell<AD16>;
-//template class MrHyDE::maxwell<AD18>; // AquiEEP_merge
+template class MrHyDE::maxwell<AD18>; // AquiEEP_merge
 template class MrHyDE::maxwell<AD24>;
 template class MrHyDE::maxwell<AD32>;
 #endif

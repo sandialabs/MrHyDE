@@ -221,7 +221,7 @@ template class MrHyDE::PhysicsBase<AD2>;
 template class MrHyDE::PhysicsBase<AD4>;
 template class MrHyDE::PhysicsBase<AD8>;
 template class MrHyDE::PhysicsBase<AD16>;
-//template class MrHyDE::PhysicsBase<AD18>; // AquiEEP_merge
+template class MrHyDE::PhysicsBase<AD18>; // AquiEEP_merge
 template class MrHyDE::PhysicsBase<AD24>;
 template class MrHyDE::PhysicsBase<AD32>;
 #endif
