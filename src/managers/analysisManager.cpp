@@ -20,7 +20,7 @@
 #include "ROL_Algorithm.hpp"
 #include "ROL_Bounds.hpp"
 #include "ROL_TrustRegionStep.hpp"
-#include "ROL_solver.hpp"
+#include "ROL_Solver.hpp"
 
 using namespace MrHyDE;
 
