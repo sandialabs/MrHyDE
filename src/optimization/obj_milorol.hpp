@@ -73,8 +73,8 @@ namespace ROL {
       return val.val();
     }
     
-    //! Compute gradient of objective function with respect to parameters
-    void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){
+    //! Compute gradient of objective function with respect to parameters // AquiROL
+    void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){ // AquiROL
 
       bool newparams = this->checkNewParams(Params);
 
@@ -91,7 +91,7 @@ namespace ROL {
       Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(g));
       sens.zero();
       
-      solver->adjointModel(sens);
+      solver->adjointModel(sens); // AquiROL
 
     }
     

@@ -32,11 +32,11 @@ using namespace MrHyDE;
 
 AnalysisManager::AnalysisManager(const Teuchos::RCP<MpiComm> & Comm_,
                                  Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                                 Teuchos::RCP<SolverManager<SolverNode> > & solver_,
+                                 Teuchos::RCP<SolverManager<SolverNode> > & solver_, // AquiROL2
                                  Teuchos::RCP<PostprocessManager<SolverNode> > & postproc_,
-                                 Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
-Comm(Comm_), settings(settings_), solve(solver_),
-postproc(postproc_), params(params_) {
+                                 Teuchos::RCP<ParameterManager<SolverNode> > & params_) : // AquiROL2
+Comm(Comm_), settings(settings_), solve(solver_), // AquiROL2
+postproc(postproc_), params(params_) { // AquiROL2
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AnalysisManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -149,7 +149,7 @@ void AnalysisManager::run() {
     
     Teuchos::RCP<ROL::StatusTest<RealT> > status = Teuchos::rcp( new ROL::StatusTest<RealT> (gtol, stol, maxit) );
     
-    ROL::Algorithm<RealT> algo(step,status,false);
+    ROL::Algorithm<RealT> algo(step,status,false); // AquiROL
     
     MrHyDE_OptVector xtmp = params->getCurrentVector();
 
@@ -256,7 +256,7 @@ void AnalysisManager::run() {
       output = algo.run(*x, *obj, *con, (Comm->getRank() == 0 )); //only processor of rank 0 print outs
     }
     else {
-      output = algo.run(*x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out
+      output = algo.run(*x, *obj, (Comm->getRank() == 0)); //only processor of rank 0 prints out // AquiROL
     }
 
     
@@ -351,11 +351,11 @@ void AnalysisManager::run() {
     }
 
     // Generate data and get objective
-    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params));
+    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params)); // AquiROL2
 
-    MrHyDE_OptVector xtmp = params->getCurrentVector();
+    MrHyDE_OptVector xtmp = params->getCurrentVector(); // AquiROL2
 
-    Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
+    Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone(); // AquiROL2
     x->set(xtmp);
 
     //bound constraint
@@ -458,7 +458,7 @@ void AnalysisManager::run() {
     }
 
     // Construct ROL solver.
-    ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings);
+    ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings); // AquiROL2
 
     Comm->barrier();
     if (Comm->getRank() == 0) {
@@ -467,7 +467,7 @@ void AnalysisManager::run() {
     Comm->barrier();
 
     // Run algorithm.
-    rolSolver.solve(*outStream);
+    rolSolver.solve(*outStream); // AquiROL2
 
     Comm->barrier();
     if (Comm->getRank() == 0) {
