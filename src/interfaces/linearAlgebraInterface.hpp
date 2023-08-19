@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 /** \file   linearAlgebraInterface.hpp
@@ -64,31 +62,33 @@ namespace MrHyDE {
     ~SolverOptions() {};
     
     SolverOptions(Teuchos::ParameterList & settings) {
-      amesosType = settings.get<string>("Amesos solver","KLU2");
-      belosType = settings.get<string>("Belos solver","Block GMRES");
-      belosSublist = settings.get<string>("Belos settings","Belos Settings");
-      precSublist = settings.get<string>("Preconditioner settings","Preconditioner Settings");
+      amesos_type = settings.get<string>("Amesos solver","KLU2");
+      belos_type = settings.get<string>("Belos solver","Block GMRES");
+      belos_sublist = settings.get<string>("Belos settings","Belos Settings");
+      prec_sublist = settings.get<string>("Preconditioner settings","Preconditioner Settings");
       
-      useDirect = settings.get<bool>("use direct solver",false);
-      precType = settings.get<string>("preconditioner type","AMG");
-      usePreconditioner = settings.get<bool>("use preconditioner",true);
-      reusePreconditioner = settings.get<bool>("reuse preconditioner",true);
-      rightPreconditioner = settings.get<bool>("right preconditioner",false);
-      reuseJacobian = settings.get<bool>("reuse Jacobian",false);
+      use_direct = settings.get<bool>("use direct solver",false);
+      prec_type = settings.get<string>("preconditioner type","AMG");
+      use_preconditioner = settings.get<bool>("use preconditioner",true);
+      reuse_preconditioner = settings.get<bool>("reuse preconditioner",true);
+      right_preconditioner = settings.get<bool>("right preconditioner",false);
+      reuse_jacobian = settings.get<bool>("reuse Jacobian",false);
       
-      havePreconditioner = false;
-      haveSymbFactor = false;
-      haveJacobian = false;
+      have_preconditioner = false;
+      have_symb_factor = false;
+      have_jacobian = false;
     }
     
-    string amesosType, belosType, precType;
-    string belosSublist, precSublist;
-    bool useDirect, usePreconditioner, rightPreconditioner, reusePreconditioner, reuseJacobian;
-    bool haveJacobian, havePreconditioner, haveSymbFactor;
-    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > AmesosSolver;
-    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > M; // AMG preconditioner for Jacobians
-    Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > M_dd; // domain decomposition preconditioner for Jacobians
-    matrix_RCP J; // Jacobian
+    // This is basically a struct storing data, so all data members are public
+    
+    string amesos_type, belos_type, prec_type;
+    string belos_sublist, prec_sublist;
+    bool use_direct, use_preconditioner, right_preconditioner, reuse_preconditioner, reuse_jacobian;
+    bool have_jacobian, have_preconditioner, have_symb_factor;
+    Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > amesos_solver;
+    Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec; // AMG preconditioner for Jacobians
+    Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > prec_dd; // domain decomposition preconditioner for Jacobians
+    matrix_RCP jac; // Jacobian
     
   };
   
@@ -151,18 +151,18 @@ namespace MrHyDE {
     matrix_RCP getNewMatrix(const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
       matrix_RCP newmat;
-      if (options[set]->reuseJacobian) {
-        if (options[set]->haveJacobian) {
-          newmat = options[set]->J;
+      if (options[set]->reuse_jacobian) {
+        if (options[set]->have_jacobian) {
+          newmat = options[set]->jac;
         }
         else {
-          newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxEntries));
-          options[set]->J = newmat;
-          options[set]->haveJacobian = true;
+          newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], max_entries));
+          options[set]->jac = newmat;
+          options[set]->have_jacobian = true;
         }
       }
       else {
-        newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxEntries));
+        newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], max_entries));
       }
       
       return newmat;
@@ -170,14 +170,14 @@ namespace MrHyDE {
     
     bool getJacobianReuse(const size_t & set) {
       bool reuse = false;
-      if (options[set]->reuseJacobian && options[set]->haveJacobian) {
+      if (options[set]->reuse_jacobian && options[set]->have_jacobian) {
         reuse = true;
       }
       return reuse;
     }
     
     void resetJacobian(const size_t & set) {
-      options[set]->haveJacobian = false;
+      options[set]->have_jacobian = false;
     }
     
     matrix_RCP getNewOverlappedMatrix(const size_t & set) {
@@ -216,7 +216,7 @@ namespace MrHyDE {
     
     matrix_RCP getNewParamMatrix() {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, maxEntries));
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, max_entries));
       return newmat;
       //return matrix;
     }
@@ -234,7 +234,7 @@ namespace MrHyDE {
     
     void exportVectorFromOverlapped(const size_t & set, vector_RCP & vec, vector_RCP & vec_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
-      if (Comm->getSize() > 1) {
+      if (comm->getSize() > 1) {
         vec->putScalar(0.0);
         vec->doExport(*vec_over, *(exporter[set]), Tpetra::ADD);
       }
@@ -369,7 +369,17 @@ namespace MrHyDE {
     // Public data members
     ///////////////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<MpiComm> Comm;
+    vector<Teuchos::RCP<const LA_Map> > owned_map, overlapped_map;
+    vector<Teuchos::RCP<LA_CrsGraph> > overlapped_graph; // owned graphs are never used
+    vector<Teuchos::RCP<LA_Export> > exporter;
+    vector<Teuchos::RCP<LA_Import> > importer;
+    
+    vector<Teuchos::RCP<SolverOptions<Node> > > options, options_L2, options_BndryL2;
+    Teuchos::RCP<SolverOptions<Node> > options_param, options_param_L2, options_param_BndryL2;
+    
+  private:
+
+    Teuchos::RCP<MpiComm> comm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<ParameterManager<Node> > params;
@@ -379,11 +389,7 @@ namespace MrHyDE {
     bool do_dump_jacobian, do_dump_residual, do_dump_solution;
     
     // Maps, graphs, importers and exporters
-    size_t maxEntries;
-    vector<Teuchos::RCP<const LA_Map> > owned_map, overlapped_map;
-    vector<Teuchos::RCP<LA_CrsGraph> > overlapped_graph; // owned graphs are never used
-    vector<Teuchos::RCP<LA_Export> > exporter;
-    vector<Teuchos::RCP<LA_Import> > importer;
+    size_t max_entries;
     
     Teuchos::RCP<const LA_Map> param_owned_map, param_overlapped_map;
     Teuchos::RCP<LA_CrsGraph> param_overlapped_graph;
@@ -396,9 +402,6 @@ namespace MrHyDE {
     int maxLinearIters, maxKrylovVectors;
     string belos_residual_scaling;
     ScalarT linearTOL;
-    
-    vector<Teuchos::RCP<SolverOptions<Node> > > options, options_L2, options_BndryL2;
-    Teuchos::RCP<SolverOptions<Node> > options_param, options_param_L2, options_param_BndryL2;
     
     Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
     Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Vector()");

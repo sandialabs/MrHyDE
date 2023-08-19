@@ -34,8 +34,19 @@ namespace MrHyDE {
    *   - "source pr" is the source pr.
    *   - "source uy" is the source uy.
    */
-  class navierstokes : public physicsbase {
+
+  template<class EvalT>
+  class navierstokes : public PhysicsBase<EvalT> {
   public:
+
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     navierstokes() {} ;
     
@@ -51,7 +62,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -74,7 +85,7 @@ namespace MrHyDE {
     
     //void setVars(std::vector<string> & varlist_);
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
     
     // ========================================================================================
     // return the value of the stabilization parameter 
@@ -95,7 +106,7 @@ namespace MrHyDE {
      *
      */
 
-    KOKKOS_FUNCTION AD computeTau(const AD & localdiff, const AD & xvl, const AD & yvl, const AD & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const;
+    KOKKOS_FUNCTION EvalT computeTau(const EvalT & localdiff, const EvalT & xvl, const EvalT & yvl, const EvalT & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const;
     
   private:
     

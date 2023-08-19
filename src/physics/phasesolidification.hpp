@@ -21,8 +21,18 @@
 
 namespace MrHyDE {
   
-  class phasesolidification : public physicsbase {
+  template<class EvalT>
+  class phasesolidification : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     phasesolidification() {} ;
     

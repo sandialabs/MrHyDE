@@ -15,8 +15,9 @@
 
 using namespace MrHyDE;
 
-porousWeakGalerkin::porousWeakGalerkin(Teuchos::ParameterList & settings, const int & dimension_)
-: physicsbase(settings, dimension_)
+template<class EvalT>
+porousWeakGalerkin<EvalT>::porousWeakGalerkin(Teuchos::ParameterList & settings, const int & dimension_)
+: PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "porousWeakGalerkin";
@@ -70,8 +71,9 @@ porousWeakGalerkin::porousWeakGalerkin(Teuchos::ParameterList & settings, const 
 // ========================================================================================
 // ========================================================================================
 
-void porousWeakGalerkin::defineFunctions(Teuchos::ParameterList & fs,
-                                         Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void porousWeakGalerkin<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -93,14 +95,15 @@ void porousWeakGalerkin::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void porousWeakGalerkin::volumeResidual() {
+template<class EvalT>
+void porousWeakGalerkin<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int pint_basis = wkset->usebasis[pintnum];
   int u_basis = wkset->usebasis[unum];
   int t_basis = wkset->usebasis[tnum];
   
-  Vista source, perm;
+  Vista<EvalT> source, perm;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -108,9 +111,9 @@ void porousWeakGalerkin::volumeResidual() {
     //perm = functionManager->evaluate("perm","ip");
     if (usePermData) {
       auto wts = wkset->wts;
-      View_AD2 viewperm("permeability",wts.extent(0),wts.extent(1));
+      View_EvalT2 viewperm("permeability",wts.extent(0),wts.extent(1));
       this->updatePerm(viewperm);
-      perm = Vista(viewperm);
+      perm = Vista<EvalT>(viewperm);
     }
     else {
       perm = functionManager->evaluate("perm","ip");
@@ -143,8 +146,8 @@ void porousWeakGalerkin::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD pint = pintsol(elem,pt)*wts(elem,pt);
-          AD uxw = ux(elem,pt)*wts(elem,pt);
+          EvalT pint = pintsol(elem,pt)*wts(elem,pt);
+          EvalT uxw = ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT divv = basis_div(elem,dof,pt);
@@ -160,9 +163,9 @@ void porousWeakGalerkin::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD pint = pintsol(elem,pt)*wts(elem,pt);
-          AD uxw = ux(elem,pt)*wts(elem,pt);
-          AD uyw = uy(elem,pt)*wts(elem,pt);
+          EvalT pint = pintsol(elem,pt)*wts(elem,pt);
+          EvalT uxw = ux(elem,pt)*wts(elem,pt);
+          EvalT uyw = uy(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT vy = basis(elem,dof,pt,1);
@@ -180,10 +183,10 @@ void porousWeakGalerkin::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD pint = pintsol(elem,pt)*wts(elem,pt);
-          AD uxw = ux(elem,pt)*wts(elem,pt);
-          AD uyw = uy(elem,pt)*wts(elem,pt);
-          AD uzw = uz(elem,pt)*wts(elem,pt);
+          EvalT pint = pintsol(elem,pt)*wts(elem,pt);
+          EvalT uxw = ux(elem,pt)*wts(elem,pt);
+          EvalT uyw = uy(elem,pt)*wts(elem,pt);
+          EvalT uzw = uz(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT vy = basis(elem,dof,pt,1);
@@ -212,10 +215,10 @@ void porousWeakGalerkin::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
-          AD txw = tx(elem,pt)*wts(elem,pt);
+          EvalT Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT txw = tx(elem,pt)*wts(elem,pt);
           
-          AD dx = Kux + txw;
+          EvalT dx = Kux + txw;
           
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT sx = basis(elem,dof,pt,0);
@@ -234,13 +237,13 @@ void porousWeakGalerkin::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
-          AD txw = tx(elem,pt)*wts(elem,pt);
-          AD Kuy = perm(elem,pt)*uy(elem,pt)*wts(elem,pt);
-          AD tyw = ty(elem,pt)*wts(elem,pt);
+          EvalT Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT txw = tx(elem,pt)*wts(elem,pt);
+          EvalT Kuy = perm(elem,pt)*uy(elem,pt)*wts(elem,pt);
+          EvalT tyw = ty(elem,pt)*wts(elem,pt);
           
-          AD dx = Kux + txw;
-          AD dy = Kuy + tyw;
+          EvalT dx = Kux + txw;
+          EvalT dy = Kuy + tyw;
           
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT sx = basis(elem,dof,pt,0);
@@ -262,16 +265,16 @@ void porousWeakGalerkin::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
-          AD txw = tx(elem,pt)*wts(elem,pt);
-          AD Kuy = perm(elem,pt)*uy(elem,pt)*wts(elem,pt);
-          AD tyw = ty(elem,pt)*wts(elem,pt);
-          AD Kuz = perm(elem,pt)*uz(elem,pt)*wts(elem,pt);
-          AD tzw = tz(elem,pt)*wts(elem,pt);
+          EvalT Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT txw = tx(elem,pt)*wts(elem,pt);
+          EvalT Kuy = perm(elem,pt)*uy(elem,pt)*wts(elem,pt);
+          EvalT tyw = ty(elem,pt)*wts(elem,pt);
+          EvalT Kuz = perm(elem,pt)*uz(elem,pt)*wts(elem,pt);
+          EvalT tzw = tz(elem,pt)*wts(elem,pt);
           
-          AD dx = Kux + txw;
-          AD dy = Kuy + tyw;
-          AD dz = Kuz + tzw;
+          EvalT dx = Kux + txw;
+          EvalT dy = Kuy + tyw;
+          EvalT dz = Kuz + tzw;
           
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             
@@ -311,9 +314,9 @@ void porousWeakGalerkin::volumeResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD divt = tdiv(elem,pt)*wts(elem,pt);
-        AD S = source(elem,pt)*wts(elem,pt);
-        AD tdiff = divt-S;
+        EvalT divt = tdiv(elem,pt)*wts(elem,pt);
+        EvalT S = source(elem,pt)*wts(elem,pt);
+        EvalT tdiff = divt-S;
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT qint = basis(elem,dof,pt,0);
           res(elem,off(dof)) += tdiff*qint;
@@ -328,7 +331,8 @@ void porousWeakGalerkin::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void porousWeakGalerkin::boundaryResidual() {
+template<class EvalT>
+void porousWeakGalerkin<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -341,7 +345,7 @@ void porousWeakGalerkin::boundaryResidual() {
   
   auto basis = wkset->basis_side[u_basis];
   
-  Vista bsource;
+  Vista<EvalT> bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -355,7 +359,7 @@ void porousWeakGalerkin::boundaryResidual() {
   auto wts = wkset->wts_side;
   auto res = wkset->res;
   View_Sc2 nx, ny, nz;
-  View_AD2 ux, uy, uz;
+  View_EvalT2 ux, uy, uz;
   nx = wkset->getScalarField("n[x]");
   ux = wkset->getSolutionField("u[x]");
   if (spaceDim > 1) {
@@ -377,7 +381,7 @@ void porousWeakGalerkin::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD S = bsource(elem,pt)*wts(elem,pt);
+        EvalT S = bsource(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -399,7 +403,7 @@ void porousWeakGalerkin::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD lam = lambda(elem,pt)*wts(elem,pt);
+        EvalT lam = lambda(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -421,7 +425,8 @@ void porousWeakGalerkin::boundaryResidual() {
 // The edge (2D) and face (3D) contributions to the residual
 // ========================================================================================
 
-void porousWeakGalerkin::faceResidual() {
+template<class EvalT>
+void porousWeakGalerkin<EvalT>::faceResidual() {
   
   int spaceDim = wkset->dimension;
   int pbndry_basis = wkset->usebasis[pbndrynum];
@@ -429,7 +434,7 @@ void porousWeakGalerkin::faceResidual() {
   
   // Since normals get recomputed often, this needs to be reset
   View_Sc2 nx, ny, nz;
-  View_AD2 tx, ty, tz;
+  View_EvalT2 tx, ty, tz;
   nx = wkset->getScalarField("n[x]");
   tx = wkset->getSolutionField("t[x]");
   if (spaceDim > 1) {
@@ -457,7 +462,7 @@ void porousWeakGalerkin::faceResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD p = pbndry(elem,pt)*wts(elem,pt);
+        EvalT p = pbndry(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -486,7 +491,7 @@ void porousWeakGalerkin::faceResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = ubasis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD tdotn = tx(elem,pt)*nx(elem,pt);
+        EvalT tdotn = tx(elem,pt)*nx(elem,pt);
         if (dim > 1) {
           tdotn += ty(elem,pt)*ny(elem,pt);
         }
@@ -508,12 +513,13 @@ void porousWeakGalerkin::faceResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void porousWeakGalerkin::computeFlux() {
+template<class EvalT>
+void porousWeakGalerkin<EvalT>::computeFlux() {
   
   int spaceDim = wkset->dimension;
   
   View_Sc2 nx, ny, nz;
-  View_AD2 tx, ty, tz;
+  View_EvalT2 tx, ty, tz;
   nx = wkset->getScalarField("n[x]");
   tx = wkset->getSolutionField("t[x]");
   if (spaceDim > 1) {
@@ -538,7 +544,7 @@ void porousWeakGalerkin::computeFlux() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<mflux.extent(1); pt++) {
-        AD tdotn = tx(elem,pt)*nx(elem,pt);
+        EvalT tdotn = tx(elem,pt)*nx(elem,pt);
         if (dim > 1) {
           tdotn += ty(elem,pt)*ny(elem,pt);
         }
@@ -555,7 +561,8 @@ void porousWeakGalerkin::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousWeakGalerkin::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void porousWeakGalerkin<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   
   wkset = wkset_;
   
@@ -595,7 +602,8 @@ void porousWeakGalerkin::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // ========================================================================================
 // ========================================================================================
 
-void porousWeakGalerkin::updatePerm(View_AD2 perm) {
+template<class EvalT>
+void porousWeakGalerkin<EvalT>::updatePerm(View_EvalT2 perm) {
   
   View_Sc2 data = wkset->extra_data;
   parallel_for("porous WG update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {
@@ -605,3 +613,23 @@ void porousWeakGalerkin::updatePerm(View_AD2 perm) {
   });
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::porousWeakGalerkin<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::porousWeakGalerkin<AD>;
+
+// Standard built-in types
+template class MrHyDE::porousWeakGalerkin<AD2>;
+template class MrHyDE::porousWeakGalerkin<AD4>;
+template class MrHyDE::porousWeakGalerkin<AD8>;
+template class MrHyDE::porousWeakGalerkin<AD16>;
+template class MrHyDE::porousWeakGalerkin<AD18>;
+template class MrHyDE::porousWeakGalerkin<AD24>;
+template class MrHyDE::porousWeakGalerkin<AD32>;
+#endif

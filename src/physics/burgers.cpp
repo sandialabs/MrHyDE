@@ -18,8 +18,9 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-Burgers::Burgers(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+Burgers<EvalT>::Burgers(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "Burgers";
@@ -33,8 +34,9 @@ Burgers::Burgers(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void Burgers::defineFunctions(Teuchos::ParameterList & fs,
-                              Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void Burgers<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                              Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   functionManager->addFunction("Burgers source",fs.get<string>("Burgers source","0.0"),"ip");
@@ -51,7 +53,8 @@ void Burgers::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void Burgers::volumeResidual() {
+template<class EvalT>
+void Burgers<EvalT>::volumeResidual() {
   
   using namespace std;
   
@@ -76,9 +79,9 @@ void Burgers::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD usq = 0.5*u(elem,pt)*u(elem,pt);
-        AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = (eps(elem,pt)*dudx(elem,pt) - vx(elem,pt)*usq)*wts(elem,pt);
+        EvalT usq = 0.5*u(elem,pt)*u(elem,pt);
+        EvalT f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = (eps(elem,pt)*dudx(elem,pt) - vx(elem,pt)*usq)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
         }
@@ -89,7 +92,7 @@ void Burgers::volumeResidual() {
     auto dudx = wkset->getSolutionField("grad(u)[x]");
     auto dudy = wkset->getSolutionField("grad(u)[y]");
     auto vy = functionManager->evaluate("yvel","ip");
-    Vista C1, C2, supg_C, supg_C1, supg_C2;
+    Vista<EvalT> C1, C2, supg_C, supg_C1, supg_C2;
     if (use_evisc) {
       C1 = functionManager->evaluate("C1","ip");
       C2 = functionManager->evaluate("C2","ip");
@@ -105,20 +108,20 @@ void Burgers::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD evisc = 0.0;
+        EvalT evisc = 0.0;
         if (use_evisc) {  
-          AD entres = u(elem,pt)*(dudt(elem,pt) + u(elem,pt)*dudx(elem,pt) + u(elem,pt)*dudy(elem,pt));
+          EvalT entres = u(elem,pt)*(dudt(elem,pt) + u(elem,pt)*dudx(elem,pt) + u(elem,pt)*dudy(elem,pt));
           evisc = C1(elem,pt)*h(elem)*h(elem)*abs(1.0e-12 + entres)/C2(elem,pt);
         }
         if (evisc > 0.1) {
           evisc = 0.1;
         }
-        AD usq = 0.5*u(elem,pt)*u(elem,pt);
-        AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = ((eps(elem,pt)+evisc)*dudx(elem,pt) - vx(elem,pt)*usq)*wts(elem,pt);
-        AD Fy = ((eps(elem,pt)+evisc)*dudy(elem,pt) - vy(elem,pt)*usq)*wts(elem,pt);
+        EvalT usq = 0.5*u(elem,pt)*u(elem,pt);
+        EvalT f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = ((eps(elem,pt)+evisc)*dudx(elem,pt) - vx(elem,pt)*usq)*wts(elem,pt);
+        EvalT Fy = ((eps(elem,pt)+evisc)*dudy(elem,pt) - vy(elem,pt)*usq)*wts(elem,pt);
         if (use_SUPG) {
-          AD nvel, tau;
+          EvalT nvel, tau;
           nvel = vx(elem,pt)*vx(elem,pt) + vy(elem,pt)*vy(elem,pt);
     
           if (nvel > 1E-12) {
@@ -126,7 +129,7 @@ void Burgers::volumeResidual() {
           }
           tau = supg_C(elem,pt)/(supg_C1(elem,pt)/(dt) + supg_C2(elem,pt)*(nvel)/h(elem));
           
-          AD sres = tau*(dudt(elem,pt) + vx(elem,pt)*u(elem,pt)*dudx(elem,pt) + vy(elem,pt)*u(elem,pt)*dudy(elem,pt) - source(elem,pt))*wts(elem,pt);
+          EvalT sres = tau*(dudt(elem,pt) + vx(elem,pt)*u(elem,pt)*dudx(elem,pt) + vy(elem,pt)*u(elem,pt)*dudy(elem,pt) - source(elem,pt))*wts(elem,pt);
           Fx += sres*u(elem,pt)*vx(elem,pt);
           Fy += sres*u(elem,pt)*vy(elem,pt);
         }
@@ -147,11 +150,11 @@ void Burgers::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD usq = 0.5*u(elem,pt)*u(elem,pt);
-        AD f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = (eps(elem,pt)*dudx(elem,pt) - vx(elem,pt)*usq)*wts(elem,pt);
-        AD Fy = (eps(elem,pt)*dudy(elem,pt) - vy(elem,pt)*usq)*wts(elem,pt);
-        AD Fz = (eps(elem,pt)*dudz(elem,pt) - vz(elem,pt)*usq)*wts(elem,pt);
+        EvalT usq = 0.5*u(elem,pt)*u(elem,pt);
+        EvalT f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = (eps(elem,pt)*dudx(elem,pt) - vx(elem,pt)*usq)*wts(elem,pt);
+        EvalT Fy = (eps(elem,pt)*dudy(elem,pt) - vy(elem,pt)*usq)*wts(elem,pt);
+        EvalT Fz = (eps(elem,pt)*dudz(elem,pt) - vz(elem,pt)*usq)*wts(elem,pt);
         
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
@@ -165,7 +168,8 @@ void Burgers::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void Burgers::boundaryResidual() {
+template<class EvalT>
+void Burgers<EvalT>::boundaryResidual() {
   
   auto bcs = wkset->var_bcs;
   int cside = wkset->currentside;
@@ -191,7 +195,7 @@ void Burgers::boundaryResidual() {
     auto ny = wkset->getScalarField("n[y]");
     
     parallel_for("Thermal bndry resid part 1",
-                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VectorSize),
+                 TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
@@ -204,3 +208,23 @@ void Burgers::boundaryResidual() {
   
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::Burgers<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::Burgers<AD>;
+
+// Standard built-in types
+template class MrHyDE::Burgers<AD2>;
+template class MrHyDE::Burgers<AD4>;
+template class MrHyDE::Burgers<AD8>;
+template class MrHyDE::Burgers<AD16>;
+template class MrHyDE::Burgers<AD18>;
+template class MrHyDE::Burgers<AD24>;
+template class MrHyDE::Burgers<AD32>;
+#endif

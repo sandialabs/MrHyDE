@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #ifndef MRHYDE_SUBGRIDTOOLS_H
@@ -30,10 +28,10 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    SubGridTools(const Teuchos::RCP<MpiComm> & LocalComm_, const string & shape_,
-                 const string & subshape_, const DRV nodes_,
-                 Kokkos::View<int****,HostDevice> sideinfo_,
-                 std::string & mesh_type_, std::string & mesh_file_);
+    SubGridTools(const Teuchos::RCP<MpiComm> & local_comm, const string & shape,
+                 const string & subshape, const DRV nodes,
+                 Kokkos::View<int****,HostDevice> sideinfo,
+                 std::string & mesh_type, std::string & mesh_file);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Given the coarse grid nodes and shape, define the subgrid nodes, connectivity, and sideinfo
@@ -92,17 +90,24 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    int dimension;
-    Teuchos::RCP<MpiComm> LocalComm;
-    string shape, subshape, mesh_type, mesh_file;
-    Kokkos::View<ScalarT**,HostDevice> nodes;
-    Kokkos::View<int****,HostDevice> sideinfo;
-    vector<vector<ScalarT> > subnodes;
-    DRV subnodes_list;
-    vector<Kokkos::View<int**,HostDevice> > subsidemap;
-    vector<vector<GO> > subconnectivity;
+    size_t getNumRefNodes();
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<panzer_stk::STK_Interface> ref_mesh; // used for Exodus and panzer meshes
+  private:
+
+    int dimension_;
+    Teuchos::RCP<MpiComm> local_comm_;
+    string shape_, subshape_, mesh_type_, mesh_file_;
+    Kokkos::View<ScalarT**,HostDevice> nodes_;
+    Kokkos::View<int****,HostDevice> sideinfo_;
+    vector<vector<ScalarT> > subnodes_;
+    DRV subnodes_list_;
+    vector<Kokkos::View<int**,HostDevice> > subsidemap_;
+    vector<vector<GO> > subconnectivity_;
+    
+    Teuchos::RCP<panzer_stk::STK_Interface> ref_mesh_; // used for Exodus and panzer meshes
     
   };
 }

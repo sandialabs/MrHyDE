@@ -28,6 +28,7 @@
 namespace MrHyDE {
   
   class Group {
+
   public:
     
     Group() {} ;
@@ -37,7 +38,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    Group(const Teuchos::RCP<GroupMetaData> & groupData_,
+    Group(const Teuchos::RCP<GroupMetaData> & group_data_,
           const DRV nodes_,
           const Kokkos::View<LO*,AssemblyDevice> localID_,
           Teuchos::RCP<DiscretizationInterface> & disc_,
@@ -72,11 +73,6 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setIP();
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -136,25 +132,6 @@ namespace MrHyDE {
     void setAuxUseBasis(vector<int> & ausebasis_);
     
     ///////////////////////////////////////////////////////////////////////////////////////
-    // Update the workset
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateWorkset(const int & seedwhat, const int & seedindex,
-                       const bool & override_transient=false);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Update the workset
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateWorksetFace(const size_t & facenum);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Map the solution to the face integration points
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeAuxSolnFaceIP(const size_t & facenum);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
     // Reset the data stored in the previous step/stage solutions
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -165,92 +142,7 @@ namespace MrHyDE {
     void resetStageSoln(const size_t & set);
     
     void updateStageSoln(const size_t & set);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Compute the contribution from this group to the global res, J, Jdot
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeJacRes(const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
-                       const bool & compute_jacobian, const bool & compute_sens,
-                       const int & num_active_params, const bool & compute_disc_sens,
-                       const bool & compute_aux_sens, const bool & store_adjPrev,
-                       View_Sc3 res,
-                       View_Sc3 local_J,
-                       const bool & assemble_volume_terms,
-                       const bool & assemble_face_terms);
         
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Use the AD res to update the scalarT res
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateRes(const bool & compute_sens, View_Sc3 local_res);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Update the adjoint res
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateAdjointRes(const bool & compute_jacobian, const bool & isTransient,
-                          const bool & compute_aux_sens, const bool & store_adjPrev,
-                          View_Sc3 local_J,
-                          View_Sc3 local_res);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Use the AD res to update the scalarT J
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateJac(const bool & useadjoint, View_Sc3 local_J);
-    
-    void fixDiagJac(View_Sc3 local_J,
-                    View_Sc3 local_res);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Use the AD res to update the scalarT Jparam
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateParamJac(View_Sc3 local_J);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Use the AD res to update the scalarT Jaux
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateAuxJac(View_Sc3 local_J);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Get the initial condition
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    View_Sc2 getInitial(const bool & project, const bool & isAdjoint);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Get the initial condition on the faces
-    ///////////////////////////////////////////////////////////////////////////////////////
-
-    /* @brief Project the initial condition on the faces
-     *
-     * @param[in] project  Flag for L2 projection
-     *
-     * @returns View_Sc2 of projected data
-     *
-     * @warning BWR -- under development, can only project, etc. 
-     */
-    
-    View_Sc2 getInitialFace(const bool & project);
-
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Get the mass matrix
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    CompressedView<View_Sc3> getMass();
-    
-    CompressedView<View_Sc3> getWeightedMass(vector<ScalarT> & masswts);
-
-    /* @brief Assemble the local mass matrix on faces
-     *
-     * @warning BWR -- under development. Will (and should) only work for HFACE vars
-     */
-
-    CompressedView<View_Sc3> getMassFace();
-    
     ///////////////////////////////////////////////////////////////////////////////////////
     // Subgrid Plotting
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -276,7 +168,7 @@ namespace MrHyDE {
      */
     
     void setUpAdjointPrev(const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
-      if (groupData->requiresTransient && groupData->requiresAdjoint) {
+      if (group_data->requires_transient && group_data->requires_adjoint) {
         for (size_t set=0; set<LIDs.size(); ++set) {
           View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),maxnumsteps[set]);
           adj_prev.push_back(newaprev);
@@ -290,7 +182,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpSubGradient(const int & numParams) {
-      if (groupData->requiresAdjoint) {
+      if (group_data->requires_adjoint) {
         subgradient = View_Sc2("subgrid gradient",numElem,numParams);
       }
     }
@@ -300,13 +192,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void updateSubgridModel(vector<Teuchos::RCP<SubGridModel> > & models);
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    // Pass cell data to wkset
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void updateData();
-    
+        
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -315,14 +201,6 @@ namespace MrHyDE {
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void computeSolAvg();
-    
-    void computeSolutionAverage(const string & var, View_Sc2 sol);
-    
-    void computeParameterAverage(const string & var, View_Sc2 sol);
-    
-    Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & var);
     
     size_t getVolumetricStorage();
     
@@ -341,8 +219,8 @@ namespace MrHyDE {
     vector<LIDView_host> LIDs_host;
     LIDView_host paramLIDs_host;
     
-    Teuchos::RCP<GroupMetaData> groupData;
-    Teuchos::RCP<workset> wkset;
+    Teuchos::RCP<GroupMetaData> group_data;
+    
     vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Kokkos::View<LO*,AssemblyDevice> localElemID;
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
@@ -363,11 +241,11 @@ namespace MrHyDE {
     Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
-    vector<View_Sc3> u, phi;
+    vector<View_Sc3> sol, phi;
     View_Sc3 param, aux; // (elem,var,numdof)
-    vector<View_Sc3> u_avg, u_alt;
+    vector<View_Sc3> sol_avg, sol_alt;
     View_Sc3 param_avg, aux_avg; // (elem,var,dim)
-    vector<View_Sc4> u_prev, phi_prev, aux_prev, u_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
+    vector<View_Sc4> sol_prev, phi_prev, aux_prev, sol_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
     // basis information
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_nodes;
@@ -390,27 +268,6 @@ namespace MrHyDE {
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
     vector<ScalarT> data_distance;
-    
-    // Profile timers
-    Teuchos::RCP<Teuchos::Time> computeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolnVolIP()");
-    Teuchos::RCP<Teuchos::Time> computeSolnFaceTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolnFaceIP()");
-    Teuchos::RCP<Teuchos::Time> volumeResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - volume residual");
-    Teuchos::RCP<Teuchos::Time> boundaryResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - boundary residual");
-    Teuchos::RCP<Teuchos::Time> faceResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - edge/face residual");
-    Teuchos::RCP<Teuchos::Time> jacobianFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - fill local Jacobian");
-    Teuchos::RCP<Teuchos::Time> residualFillTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - fill local residual");
-    Teuchos::RCP<Teuchos::Time> transientResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - transient residual");
-    Teuchos::RCP<Teuchos::Time> adjointResidualTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeJacRes() - adjoint residual");
-    Teuchos::RCP<Teuchos::Time> groupFluxGatherTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - gather solution");
-    Teuchos::RCP<Teuchos::Time> groupFluxWksetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - update wkset");
-    Teuchos::RCP<Teuchos::Time> groupFluxAuxTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - compute aux solution");
-    Teuchos::RCP<Teuchos::Time> groupFluxEvalTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeFlux - physics evaluation");
-    Teuchos::RCP<Teuchos::Time> computeSolAvgTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::computeSolAvg()");
-    Teuchos::RCP<Teuchos::Time> computeNodeSolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::getSolutionAtNodes()");
-    Teuchos::RCP<Teuchos::Time> buildBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::constructor - build basis");
-    Teuchos::RCP<Teuchos::Time> buildFaceBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::constructor - build face basis");
-    Teuchos::RCP<Teuchos::Time> objectiveTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::objective");
-    Teuchos::RCP<Teuchos::Time> responseTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Group::response");
     
   };
   

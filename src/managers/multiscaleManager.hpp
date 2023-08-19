@@ -31,6 +31,12 @@ namespace MrHyDE {
     typedef Teuchos::RCP<SGLA_MultiVector> vector_RCP;
     typedef Teuchos::RCP<SGLA_CrsMatrix>   matrix_RCP;
     
+    #ifndef MrHyDE_NO_AD
+      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+    #else
+      typedef View_Sc2 View_AD2;
+    #endif
+
   public:
     
     // ========================================================================================
@@ -63,7 +69,7 @@ namespace MrHyDE {
                       Teuchos::RCP<MeshInterface> & mesh_,
                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
                       std::vector<std::vector<Teuchos::RCP<Group> > > & groups_,
-                      std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers_);
+                      std::vector<Teuchos::RCP<FunctionManager<AD> > > macro_functionManagers_);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Set the information from the macro-scale that does not depend on the specific group
@@ -82,9 +88,9 @@ namespace MrHyDE {
     // Initial assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
     
-    ScalarT initialize();
+    ScalarT initialize(vector<vector<int> > & sgmodels);
     
-    void evaluateMacroMicroMacroMap(Teuchos::RCP<workset> & wkset, Teuchos::RCP<Group> & group,
+    void evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & wkset, Teuchos::RCP<Group> & group,
                                     const int & set, 
                                     const bool & isTransient, const bool & isAdjoint,
                                     const bool & compute_jacobian, const bool & compute_sens,
@@ -96,7 +102,7 @@ namespace MrHyDE {
     // Re-assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
     
-    void update();
+    void update(vector<vector<int> > & sgmodels);
     
     void reset();
     
@@ -128,6 +134,13 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    size_t getNumberSubgridModels();
+
+    void writeSolution(const ScalarT & time, string & append);
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
     bool subgrid_static, ml_training, have_ml_models;
     int debug_level, verbosity, subgrid_model_selection;
 
@@ -137,14 +150,16 @@ namespace MrHyDE {
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
-    std::vector<Teuchos::RCP<workset> > macro_wkset;
+    std::vector<Teuchos::RCP<Workset<AD> > > macro_wkset;
     std::vector<std::vector<Teuchos::RCP<SGLA_CrsMatrix> > > subgrid_projection_maps;
     std::vector<Teuchos::RCP<Amesos2::Solver<SGLA_CrsMatrix,SGLA_MultiVector> > > subgrid_projection_solvers;
-    std::vector<Teuchos::RCP<FunctionManager> > macro_functionManagers;
+    std::vector<Teuchos::RCP<FunctionManager<AD> > > macro_functionManagers;
     
     vector<vector<vector<ScalarT> > > ml_model_inputs; // [model][datapt][data]
     vector<vector<ScalarT> > ml_model_outputs, ml_model_extradata; // [model][datapt] 
 
+  private:
+  
     Teuchos::RCP<Teuchos::Time> resettimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::reset()");
     Teuchos::RCP<Teuchos::Time> initializetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::initialize()");
     Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager::update()");

@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #include "linearAlgebraInterface.hpp"
@@ -33,11 +31,11 @@ using namespace MrHyDE;
 // ========================================================================================
 
 template<class Node>
-LinearAlgebraInterface<Node>::LinearAlgebraInterface(const Teuchos::RCP<MpiComm> & Comm_,
+LinearAlgebraInterface<Node>::LinearAlgebraInterface(const Teuchos::RCP<MpiComm> & comm_,
                                                      Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                                      Teuchos::RCP<DiscretizationInterface> & disc_,
                                                      Teuchos::RCP<ParameterManager<Node> > & params_) :
-Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
+comm(comm_), settings(settings_), disc(disc_), params(params_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -45,14 +43,14 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   debug_level = settings->get<int>("debug level",0);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting linear algebra interface constructor ..." << endl;
     }
   }
   
   verbosity = settings->get<int>("verbosity",0);
   
-  setnames = disc->phys->setnames;
+  setnames = disc->physics->set_names;
   
   // Generic Belos Settings - can be overridden by defining Belos sublists
   linearTOL = settings->sublist("Solver").get<double>("linear TOL",1.0E-7);
@@ -143,7 +141,7 @@ Comm(Comm_), settings(settings_), disc(disc_), params(params_) {
   this->setupLinearAlgebra();
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished linear algebra interface constructor" << endl;
     }
   }
@@ -161,32 +159,32 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   Teuchos::TimeMonitor localtimer(*setupLAtimer);
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Starting solver::setupLinearAlgebraInterface..." << endl;
     }
   }
   
-  std::vector<string> blocknames = disc->blocknames;
+  std::vector<string> blocknames = disc->block_names;
   
   // --------------------------------------------------
   // primary variable LA objects
   // --------------------------------------------------
-  maxEntries = 0;
+  max_entries = 0;
   
   for (size_t set=0; set<setnames.size(); ++set) {
     vector<GO> owned, ownedAndShared;
-    owned = disc->DOF_owned[set];
-    ownedAndShared = disc->DOF_ownedAndShared[set];
+    owned = disc->dof_owned[set];
+    ownedAndShared = disc->dof_owned_and_shared[set];
     //disc->DOF[set]->getOwnedIndices(owned);
     LO numUnknowns = (LO)owned.size();
     //disc->DOF[set]->getOwnedAndGhostedIndices(ownedAndShared);
     GO localNumUnknowns = numUnknowns;
     
     GO globalNumUnknowns = 0;
-    Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
+    Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
     
-    owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, Comm)));
-    overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, ownedAndShared, 0, Comm)));
+    owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, comm)));
+    overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, ownedAndShared, 0, comm)));
     
     exporter.push_back(Teuchos::rcp(new LA_Export(overlapped_map[set], owned_map[set])));
     importer.push_back(Teuchos::rcp(new LA_Import(owned_map[set], overlapped_map[set])));
@@ -197,34 +195,34 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
     
     if (allocate_matrices) {
-      vector<size_t> maxEntriesPerRow(overlapped_map[set]->getLocalNumElements(), 0);
+      vector<size_t> max_entriesPerRow(overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->myElements[b];
+        vector<size_t> EIDs = disc->my_elements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
           size_t elemID = EIDs[e];
           vector<GO> gids = disc->getGIDs(set,b,elemID); //
           //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             LO ind1 = overlapped_map[set]->getLocalElement(gids[i]);
-            maxEntriesPerRow[ind1] += gids.size();
+            max_entriesPerRow[ind1] += gids.size();
           }
         }
       }
       
-      size_t curr_maxEntries = 0;
-      for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
-        curr_maxEntries = std::max(curr_maxEntries, maxEntriesPerRow[m]);
+      size_t curr_max_entries = 0;
+      for (size_t m=0; m<max_entriesPerRow.size(); ++m) {
+        curr_max_entries = std::max(curr_max_entries, max_entriesPerRow[m]);
       }
       
-      //curr_maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
-      //                                                                      static_cast<int>(curr_maxEntries)));
-      maxEntries = std::max(maxEntries,curr_maxEntries);
+      //curr_max_entries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
+      //                                                                      static_cast<int>(curr_max_entries)));
+      max_entries = std::max(max_entries,curr_max_entries);
       
       overlapped_graph.push_back(Teuchos::rcp(new LA_CrsGraph(overlapped_map[set],
-                                                              curr_maxEntries)));
+                                                              curr_max_entries)));
     
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->myElements[b];
+        vector<size_t> EIDs = disc->my_elements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
           size_t elemID = EIDs[e];
           vector<GO> gids = disc->getGIDs(set,b,elemID);
@@ -238,7 +236,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       
       overlapped_graph[set]->fillComplete();
       
-      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], curr_maxEntries)));
+      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], curr_max_entries)));
       
       overlapped_matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(overlapped_graph[set])));
       
@@ -262,17 +260,17 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       GO localNumUnknowns = numUnknowns;
       
       GO globalNumUnknowns = 0;
-      Teuchos::reduceAll<LO,GO>(*Comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
+      Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
       
-      param_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_owned, 0, Comm));
-      param_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_ownedAndShared, 0, Comm));
+      param_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_owned, 0, comm));
+      param_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_ownedAndShared, 0, comm));
       
       param_exporter = Teuchos::rcp(new LA_Export(param_overlapped_map, param_owned_map));
       param_importer = Teuchos::rcp(new LA_Import(param_owned_map, param_overlapped_map));
       
-      vector<size_t> maxEntriesPerRow(param_overlapped_map->getLocalNumElements(), 0);
+      vector<size_t> max_entriesPerRow(param_overlapped_map->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->myElements[b];
+        vector<size_t> EIDs = disc->my_elements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
           size_t elemID = EIDs[e];
           vector<GO> gids;
@@ -281,18 +279,18 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
           //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             LO ind1 = param_overlapped_map->getLocalElement(gids[i]);
-            maxEntriesPerRow[ind1] += stategids.size();
+            max_entriesPerRow[ind1] += stategids.size();
           }
         }
       }
       
-      for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
-        maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
+      for (size_t m=0; m<max_entriesPerRow.size(); ++m) {
+        max_entries = std::max(max_entries, max_entriesPerRow[m]);
       }
 
-      param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(param_overlapped_map, overlapped_map[0], maxEntries));
+      param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(param_overlapped_map, overlapped_map[0], max_entries));
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->myElements[b];
+        vector<size_t> EIDs = disc->my_elements[b];
         for (size_t e=0; e<EIDs.size(); e++) {
           vector<GO> gids;
           size_t elemID = EIDs[e];
@@ -314,7 +312,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   }
   
   if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
+    if (comm->getRank() == 0) {
       cout << "**** Finished solver::setupLinearAlgebraInterface" << endl;
     }
   }
@@ -344,8 +342,8 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
     belosList->set("Output Frequency",0);
   }
   int numEqns = 1;
-  if (disc->blocknames.size() == 1) {
-    numEqns = disc->phys->numVars[0][0];
+  if (disc->block_names.size() == 1) {
+    numEqns = disc->physics->num_vars[0][0];
   }
   belosList->set("number of equations", numEqns);
   
@@ -381,40 +379,40 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
 
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
   
-  if (opt->useDirect) {
-    if (!opt->haveSymbFactor) {
-      opt->AmesosSolver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>(opt->amesosType, J, r, soln);
-      opt->AmesosSolver->symbolicFactorization();
-      opt->haveSymbFactor = true;
+  if (opt->use_direct) {
+    if (!opt->have_symb_factor) {
+      opt->amesos_solver = Amesos2::create<LA_CrsMatrix,LA_MultiVector>(opt->amesos_type, J, r, soln);
+      opt->amesos_solver->symbolicFactorization();
+      opt->have_symb_factor = true;
     }
-    opt->AmesosSolver->setA(J, Amesos2::SYMBFACT);
-    opt->AmesosSolver->setX(soln);
-    opt->AmesosSolver->setB(r);
-    opt->AmesosSolver->numericFactorization().solve();
+    opt->amesos_solver->setA(J, Amesos2::SYMBFACT);
+    opt->amesos_solver->setX(soln);
+    opt->amesos_solver->setB(r);
+    opt->amesos_solver->numericFactorization().solve();
   }
   else {
     Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
-    if (opt->usePreconditioner) {
-      if (opt->precType == "domain decomposition") {
-        if (!opt->reusePreconditioner || !opt->havePreconditioner) {
+    if (opt->use_preconditioner) {
+      if (opt->prec_type == "domain decomposition") {
+        if (!opt->reuse_preconditioner || !opt->have_preconditioner) {
           Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist("Ifpack2");
           ifpackList.set("schwarz: subdomain solver","garbage");
-          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
-          opt->M_dd->setParameters(ifpackList);
-          opt->M_dd->initialize();
-          opt->M_dd->compute();
-          opt->havePreconditioner = true;
+          opt->prec_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("SCHWARZ", J);
+          opt->prec_dd->setParameters(ifpackList);
+          opt->prec_dd->initialize();
+          opt->prec_dd->compute();
+          opt->have_preconditioner = true;
         }
-        if (opt->rightPreconditioner) {
-          Problem->setRightPrec(opt->M_dd);
+        if (opt->right_preconditioner) {
+          Problem->setRightPrec(opt->prec_dd);
         }
         else {
-          Problem->setLeftPrec(opt->M_dd);
+          Problem->setLeftPrec(opt->prec_dd);
         }
       }
-      else if (opt->precType == "Ifpack2") {
-        if (!opt->reusePreconditioner || !opt->havePreconditioner) {
-          Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist(opt->precSublist);
+      else if (opt->prec_type == "Ifpack2") {
+        if (!opt->reuse_preconditioner || !opt->have_preconditioner) {
+          Teuchos::ParameterList & ifpackList = settings->sublist("Solver").sublist(opt->prec_sublist);
           string method = settings->sublist("Solver").get("preconditioner variant","RELAXATION");
           // TMW: keeping these here for reference, but these can be set from input file
           //ifpackList.set("relaxation: type","Symmetric Gauss-Seidel");
@@ -428,77 +426,77 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
           //ifpackList.set("fact: relative threshold",1.0);
           //ifpackList.set("fact: relax value",0.0);
           //opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > ("RILUK", J);
-          opt->M_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > (method, J);
-          opt->M_dd->setParameters(ifpackList);
-          opt->M_dd->initialize();
-          opt->M_dd->compute();
-          opt->havePreconditioner = true;
+          opt->prec_dd = Ifpack2::Factory::create<Tpetra::RowMatrix<ScalarT,LO,GO,Node> > (method, J);
+          opt->prec_dd->setParameters(ifpackList);
+          opt->prec_dd->initialize();
+          opt->prec_dd->compute();
+          opt->have_preconditioner = true;
         }
         
-        if (opt->rightPreconditioner) {
-          Problem->setRightPrec(opt->M_dd);
+        if (opt->right_preconditioner) {
+          Problem->setRightPrec(opt->prec_dd);
         }
         else {
-          Problem->setLeftPrec(opt->M_dd);
+          Problem->setLeftPrec(opt->prec_dd);
         }
       }
       else { // default - AMG preconditioner
-        if (!opt->reusePreconditioner || !opt->havePreconditioner) {
-          opt->M = this->buildPreconditioner(J,opt->precSublist);
-          opt->havePreconditioner = true;
+        if (!opt->reuse_preconditioner || !opt->have_preconditioner) {
+          opt->prec = this->buildPreconditioner(J,opt->prec_sublist);
+          opt->have_preconditioner = true;
         }
         else {
-          MueLu::ReuseTpetraPreconditioner(J,*(opt->M));
+          MueLu::ReuseTpetraPreconditioner(J,*(opt->prec));
         }
-        if (opt->rightPreconditioner) {
-          Problem->setRightPrec(opt->M);
+        if (opt->right_preconditioner) {
+          Problem->setRightPrec(opt->prec);
         }
         else {
-          Problem->setLeftPrec(opt->M);
+          Problem->setLeftPrec(opt->prec);
         }
       }
     }
     
     Problem->setProblem();
     
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList(opt->belosSublist);
+    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList(opt->belos_sublist);
     Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver;
-    if (opt->belosType == "Block GMRES" || opt->belosType == "Block Gmres") {
+    if (opt->belos_type == "Block GMRES" || opt->belos_type == "Block Gmres") {
       solver = Teuchos::rcp(new Belos::BlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "Block CG") {
+    else if (opt->belos_type == "Block CG") {
       solver = Teuchos::rcp(new Belos::BlockCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "BiCGStab") {
+    else if (opt->belos_type == "BiCGStab") {
       // Requires right preconditioning
       solver = Teuchos::rcp(new Belos::BiCGStabSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "GCRODR") {
+    else if (opt->belos_type == "GCRODR") {
       solver = Teuchos::rcp(new Belos::GCRODRSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "PCPG") {
+    else if (opt->belos_type == "PCPG") {
       solver = Teuchos::rcp(new Belos::PCPGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "Pseudo Block CG") {
+    else if (opt->belos_type == "Pseudo Block CG") {
       solver = Teuchos::rcp(new Belos::PseudoBlockCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "Pseudo Block Gmres" || opt->belosType == "Pseudo Block GMRES") {
+    else if (opt->belos_type == "Pseudo Block Gmres" || opt->belos_type == "Pseudo Block GMRES") {
       solver = Teuchos::rcp(new Belos::PseudoBlockGmresSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "Pseudo Block Stochastic CG") {
+    else if (opt->belos_type == "Pseudo Block Stochastic CG") {
       solver = Teuchos::rcp(new Belos::PseudoBlockStochasticCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "Pseudo Block TFQMR") {
+    else if (opt->belos_type == "Pseudo Block TFQMR") {
       solver = Teuchos::rcp(new Belos::PseudoBlockTFQMRSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "RCG") {
+    else if (opt->belos_type == "RCG") {
       solver = Teuchos::rcp(new Belos::RCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
-    else if (opt->belosType == "TFQMR") {
+    else if (opt->belos_type == "TFQMR") {
       solver = Teuchos::rcp(new Belos::TFQMRSolMgr<ScalarT,LA_MultiVector,LA_Operator>(Problem, belosList));
     }
     else {
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized Belos solver: " + opt->belosType);
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized Belos solver: " + opt->belos_type);
     }
     // Minres and LSQR fail a simple test
     
@@ -627,5 +625,5 @@ template class MrHyDE::LinearAlgebraInterface<SolverNode>;
 template class MrHyDE::SolverOptions<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
 template class MrHyDE::LinearAlgebraInterface<SubgridSolverNode>;
-template class MrHyDE::SolverOptions<SubgridSolverNode>;
+template class MrHyDE::SolverOptions<SubgridSolverNode>; 
 #endif

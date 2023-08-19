@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 /** \file   meshInterface.hpp
@@ -178,17 +176,17 @@ namespace MrHyDE {
     
     // Public data members
     Teuchos::RCP<Teuchos::ParameterList>  settings; ///< RCP to the main MrHyDE parameter list
-    Teuchos::RCP<MpiComm> Commptr; ///< RCP to the MPIComm
+    Teuchos::RCP<MpiComm> comm; ///< RCP to the MPIComm
     Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory; ///< RCP to the Panzer STK Mesh Factory
     Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh; ///< RCP to the Panzer STK Mesh
     Teuchos::RCP<panzer_stk::STK_Interface> stk_optimization_mesh; ///< RCP to the Panzer STK Mesh used to visualize an optmization history.
     
     bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
-    int spaceDim, verbosity, debug_level;
-    int numNodesPerElem, sideDim, numSides, numFaces, numSeeds;
-    vector<int> randomSeeds;
-    vector<topo_RCP> cellTopo, sideTopo;
+    int dimension, verbosity, debug_level;
+    int num_nodes_per_elem, side_dim, num_sides, num_faces, num_seeds;
+    vector<int> random_seeds;
+    vector<topo_RCP> cell_topo, side_topo;
     int meshmod_xvar, meshmod_yvar, meshmod_zvar;
     bool meshmod_usesmoother;
     ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;

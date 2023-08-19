@@ -49,8 +49,22 @@ namespace MrHyDE {
    *   - "source rhoE" is the source rhoE.
    */
   
-  class euler : public physicsbase {
+  template<class EvalT>
+  class euler : public PhysicsBase<EvalT> {
   public:
+
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
+    
 
     euler() {} ;
     
@@ -66,7 +80,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -87,7 +101,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     /* @brief Update the inviscid fluxes for the residual calculation.
      *
@@ -143,8 +157,8 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-        const AD & rhoux, const AD & rho, const AD & a_sound, const ScalarT & gamma);
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+        const EvalT & rhoux, const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma);
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
      * This is the 2-D version.
@@ -163,9 +177,9 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-        const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny,
-        const AD & a_sound, const ScalarT & gamma);
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+        const EvalT & rhoux, const EvalT & rhouy, const EvalT & rho, const ScalarT & nx, const ScalarT & ny,
+        const EvalT & a_sound, const ScalarT & gamma);
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
      * This is the 3-D version.
@@ -186,10 +200,10 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-        const AD & rhoux, const AD & rhouy, const AD & rhouz, const AD & rho, 
+    KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+        const EvalT & rhoux, const EvalT & rhouy, const EvalT & rhouz, const EvalT & rho, 
         const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
-        const AD & a_sound, const ScalarT & gamma);
+        const EvalT & a_sound, const ScalarT & gamma);
 
     /* @brief Computes the local normal flux Jacobian for the boundary term.
      * This is the 1-D version.
@@ -203,8 +217,8 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 dFdn, const AD & rhoux,
-        const AD & rho, const AD & a_sound, const ScalarT & gamma);
+    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 dFdn, const EvalT & rhoux,
+        const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma);
 
     /* @brief Computes the local normal flux Jacobian for the boundary term.
      * This is the 2-D version.
@@ -221,9 +235,9 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 dFdn, const AD & rhoux,
-        const AD & rhouy, const AD & rho, const AD & nx, const AD & ny, 
-        const AD & a_sound, const ScalarT & gamma);
+    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 dFdn, const EvalT & rhoux,
+        const EvalT & rhouy, const EvalT & rho, const EvalT & nx, const EvalT & ny, 
+        const EvalT & a_sound, const ScalarT & gamma);
 
     /* @brief Computes the local normal flux Jacobian for the boundary term.
      * This is the 3-D version.
@@ -242,10 +256,10 @@ namespace MrHyDE {
      * @details Should be called using the trace variables \f$\hat{S}\f$.
      */
 
-    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 dFdn, const AD & rhoux,
-        const AD & rhouy, const AD & rhouz, const AD & rho, 
-        const AD & nx, const AD & ny, const AD & nz,
-        const AD & a_sound, const ScalarT & gamma);
+    KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 dFdn, const EvalT & rhoux,
+        const EvalT & rhouy, const EvalT & rhouz, const EvalT & rho, 
+        const EvalT & nx, const EvalT & ny, const EvalT & nz,
+        const EvalT & a_sound, const ScalarT & gamma);
 
     /* @brief Computes y = Ax
      *
@@ -273,9 +287,9 @@ namespace MrHyDE {
 #ifndef MrHyDE_UNITTEST_HIDE_PRIVATE_VARS
   private:
 #endif
-    View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
-    View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
-    View_AD3 props_vol, props_side; // Storage for the thermodynamic properties
+    View_EvalT4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
+    View_EvalT3 stab_bound_side; // Storage for the stabilization term/boundary term
+    View_EvalT3 props_vol, props_side; // Storage for the thermodynamic properties
 
     int spaceDim;
     
@@ -299,9 +313,9 @@ namespace MrHyDE {
 
     bool maxEVstab,roestab; // Options for stabilization
 
-    //View_AD4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
-    //View_AD3 stab_bound_side; // Storage for the stabilization term/boundary term
-    //View_AD3 props_vol, props_side; // Storage for the thermodynamic properties
+    //View_EvalT4 fluxes_vol, fluxes_side; // Storage for the inviscid fluxes
+    //View_EvalT3 stab_bound_side; // Storage for the stabilization term/boundary term
+    //View_EvalT3 props_vol, props_side; // Storage for the thermodynamic properties
 
     Kokkos::View<ScalarT*,AssemblyDevice> modelparams;
     

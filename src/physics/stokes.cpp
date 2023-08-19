@@ -19,8 +19,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-stokes::stokes(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+stokes<EvalT>::stokes(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "stokes";
@@ -53,8 +54,9 @@ stokes::stokes(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void stokes::defineFunctions(Teuchos::ParameterList & fs,
-                             Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void stokes<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                             Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -69,10 +71,11 @@ void stokes::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void stokes::volumeResidual() {
+template<class EvalT>
+void stokes<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  Vista visc, source_ux, source_pr, source_uy, source_uz;
+  Vista<EvalT> visc, source_ux, source_pr, source_uy, source_uz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -107,9 +110,9 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
+          EvalT Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD g = -source_ux(elem,pt)*wts(elem,pt);
+          EvalT g = -source_ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + g*basis(elem,dof,pt,0);
           }
@@ -127,7 +130,7 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = dux_dx(elem,pt);
+          EvalT divu = dux_dx(elem,pt);
           divu *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
@@ -145,9 +148,9 @@ void stokes::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-            AD stabres = dpr_dx(elem,pt) + source_ux(elem,pt);
-            AD Sx = tau*stabres*wts(elem,pt);
+            EvalT tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            EvalT stabres = dpr_dx(elem,pt) + source_ux(elem,pt);
+            EvalT Sx = tau*stabres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
             }
@@ -165,9 +168,9 @@ void stokes::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-            AD stabres = dux_dx(elem,pt);
-            AD S = tau*stabres*wts(elem,pt);
+            EvalT tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            EvalT stabres = dux_dx(elem,pt);
+            EvalT S = tau*stabres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += S*basis_grad(elem,dof,pt,0);
             }
@@ -192,11 +195,11 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
+          EvalT Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*dux_dy(elem,pt);
+          EvalT Fy = visc(elem,pt)*dux_dy(elem,pt);
           Fy *= wts(elem,pt);
-          AD g = -source_ux(elem,pt)*wts(elem,pt);
+          EvalT g = -source_ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt,0);
           }
@@ -213,11 +216,11 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*duy_dx(elem,pt);
+          EvalT Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*duy_dy(elem,pt) - Pr(elem,pt);
+          EvalT Fy = visc(elem,pt)*duy_dy(elem,pt) - Pr(elem,pt);
           Fy *= wts(elem,pt);
-          AD g = -source_uy(elem,pt)*wts(elem,pt);
+          EvalT g = -source_uy(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + g*basis(elem,dof,pt,0);
           }
@@ -235,7 +238,7 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = dux_dx(elem,pt) + duy_dy(elem,pt);
+          EvalT divu = dux_dx(elem,pt) + duy_dy(elem,pt);
           divu *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
@@ -254,11 +257,11 @@ void stokes::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            //AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-            AD tau = alpha*h(elem)/(2.*visc(elem,pt));
-            AD Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
+            //EvalT tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            EvalT tau = alpha*h(elem)/(2.*visc(elem,pt));
+            EvalT Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
             Sx *= tau*wts(elem,pt);
-            AD Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
+            EvalT Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
             Sy *= tau*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
@@ -278,9 +281,9 @@ void stokes::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
           ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-            AD stabres = dux_dx(elem,pt) + duy_dy(elem,pt);
-            AD S = tau*stabres*wts(elem,pt);
+            EvalT tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+            EvalT stabres = dux_dx(elem,pt) + duy_dy(elem,pt);
+            EvalT S = tau*stabres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += S*(basis_grad(elem,dof,pt,0) + basis_grad(elem,dof,pt,1));
             }
@@ -311,13 +314,13 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
+          EvalT Fx = visc(elem,pt)*dux_dx(elem,pt) - Pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*dux_dy(elem,pt);
+          EvalT Fy = visc(elem,pt)*dux_dy(elem,pt);
           Fy *= wts(elem,pt);
-          AD Fz = visc(elem,pt)*dux_dz(elem,pt);
+          EvalT Fz = visc(elem,pt)*dux_dz(elem,pt);
           Fz *= wts(elem,pt);
-          AD g = -source_ux(elem,pt)*wts(elem,pt);
+          EvalT g = -source_ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt,0);
           }
@@ -334,13 +337,13 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*duy_dx(elem,pt);
+          EvalT Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*duy_dy(elem,pt) - Pr(elem,pt);
+          EvalT Fy = visc(elem,pt)*duy_dy(elem,pt) - Pr(elem,pt);
           Fy *= wts(elem,pt);
-          AD Fz = visc(elem,pt)*duy_dz(elem,pt);
+          EvalT Fz = visc(elem,pt)*duy_dz(elem,pt);
           Fz *= wts(elem,pt);
-          AD g = -source_uy(elem,pt)*wts(elem,pt);
+          EvalT g = -source_uy(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt,0);
           }
@@ -357,13 +360,13 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = visc(elem,pt)*duz_dx(elem,pt);
+          EvalT Fx = visc(elem,pt)*duz_dx(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = visc(elem,pt)*duz_dy(elem,pt);
+          EvalT Fy = visc(elem,pt)*duz_dy(elem,pt);
           Fy *= wts(elem,pt);
-          AD Fz = visc(elem,pt)*duz_dz(elem,pt) - Pr(elem,pt);
+          EvalT Fz = visc(elem,pt)*duz_dz(elem,pt) - Pr(elem,pt);
           Fz *= wts(elem,pt);
-          AD g = -source_uz(elem,pt)*wts(elem,pt);
+          EvalT g = -source_uz(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + g*basis(elem,dof,pt,0);
           }
@@ -381,7 +384,7 @@ void stokes::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for( size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt);
+          EvalT divu = dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt);
           divu *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
@@ -401,12 +404,12 @@ void stokes::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
 	  ScalarT alpha = 1.0;
 	  for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-	    AD Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
+	    EvalT tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    EvalT Sx = dpr_dx(elem,pt) + source_ux(elem,pt);
 	    Sx *= tau*wts(elem,pt);
-	    AD Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
+	    EvalT Sy = dpr_dy(elem,pt) + source_uy(elem,pt);
 	    Sy *= tau*wts(elem,pt);
-	    AD Sz = dpr_dz(elem,pt) + source_uz(elem,pt);
+	    EvalT Sz = dpr_dz(elem,pt) + source_uz(elem,pt);
 	    Sz *= tau*wts(elem,pt);
 	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
 	      res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
@@ -427,9 +430,9 @@ void stokes::volumeResidual() {
                      KOKKOS_LAMBDA (const int elem ) {
         ScalarT alpha = 1.0;
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-	    AD tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
-	    AD stabres = dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt);
-	    AD S = tau*stabres*wts(elem,pt);
+	    EvalT tau = alpha*h(elem)*h(elem)/(2.*visc(elem,pt));
+	    EvalT stabres = dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt);
+	    EvalT S = tau*stabres*wts(elem,pt);
 	    for( size_type dof=0; dof<basis.extent(1); dof++ ) {
 	      res(elem,off(dof)) += S*(basis_grad(elem,dof,pt,0) + basis_grad(elem,dof,pt,1) + basis_grad(elem,dof,pt,2));
 	    }
@@ -443,7 +446,8 @@ void stokes::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void stokes::boundaryResidual() {
+template<class EvalT>
+void stokes<EvalT>::boundaryResidual() {
   
 }
 
@@ -451,14 +455,16 @@ void stokes::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void stokes::computeFlux() {
+template<class EvalT>
+void stokes<EvalT>::computeFlux() {
   
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void stokes::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void stokes<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
@@ -475,3 +481,24 @@ void stokes::setWorkset(Teuchos::RCP<workset> & wkset_) {
   }
   
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::stokes<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::stokes<AD>;
+
+// Standard built-in types
+template class MrHyDE::stokes<AD2>;
+template class MrHyDE::stokes<AD4>;
+template class MrHyDE::stokes<AD8>;
+template class MrHyDE::stokes<AD16>;
+template class MrHyDE::stokes<AD18>;
+template class MrHyDE::stokes<AD24>;
+template class MrHyDE::stokes<AD32>;
+#endif

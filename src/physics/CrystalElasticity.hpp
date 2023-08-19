@@ -30,7 +30,16 @@ namespace MrHyDE {
    * Where the unknown ___ is the ___.
    * The following functions may be specified in the input.yaml file:
    */
+
+  template<class EvalT>
   class CrystalElastic {
+
+    typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
+    typedef Kokkos::View<EvalT*****,ContLayout,AssemblyDevice> View_EvalT5;
+    
   public:
     
     CrystalElastic() {} ;
@@ -45,24 +54,25 @@ namespace MrHyDE {
 
     //----------------------------------------------------------------------------
 
-    void updateParams(Teuchos::RCP<workset> & wkset);
+    void updateParams(Teuchos::RCP<Workset<EvalT> > & wkset);
     
     //----------------------------------------------------------------------------
     
-    void computeStress(Teuchos::RCP<workset> & wkset, vector<int> & indices,
-                       const bool & onside, View_AD4 stress);
+    void computeStress(Teuchos::RCP<Workset<EvalT> > & wkset, vector<int> & indices,
+                       const bool & onside, View_EvalT4 stress);
     
     //----------------------------------------------------------------------------
     
-    void computeRotatedTensor(Teuchos::RCP<workset> & wkset);
+    void computeRotatedTensor(Teuchos::RCP<Workset<EvalT> > & wkset);
     
-    // Public Data
+  private:
+  
     int dimension;
     bool allow_rotations;
-    ScalarT c11_,c22_,c33_,c44_,c55_,c66_,c12_,c13_,c23_,c15_,c25_,c35_,c46_;
-    View_Sc4 C; // lattice stiffness tensor (does not depend on elements)
-    View_Sc5 Cr; // rotated stiffness tensor
-    ScalarT lambda, mu, e_ref, alpha_T;
+    EvalT c11_,c22_,c33_,c44_,c55_,c66_,c12_,c13_,c23_,c15_,c25_,c35_,c46_;
+    View_EvalT4 C; // lattice stiffness tensor (does not depend on elements)
+    View_EvalT5 Cr; // rotated stiffness tensor
+    EvalT lambda, mu, e_ref, alpha_T;
     
     Teuchos::RCP<Teuchos::Time> computeRotatedTensorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::CrystalElasticity::computeRotatedTensor");
     Teuchos::RCP<Teuchos::Time> computeStressTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::CrystalElasticity::computeStress");

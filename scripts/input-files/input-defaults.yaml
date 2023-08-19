@@ -150,6 +150,8 @@ ANONYMOUS: # Comments
     compute aux sensitivities: false
     compute flux: false
     compute errors: true
+    objective output file: # Writes the objective output if nonempty, if using forward solve. Requires compute_objective
+    objective gradient output file: # Writes the gradient (w.r.t. parameters) of objective, if using adjoint solve. Requires compute_objective
     True solutions: # sublist
     Extra fields: # sublist
     Extra cell fields: # sublist

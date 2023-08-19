@@ -19,7 +19,7 @@ using namespace MrHyDE;
 
 GroupMetaData::GroupMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settings,
                              const topo_RCP & cellTopo_,
-                             const Teuchos::RCP<PhysicsInterface> & physics_RCP_,
+                             const Teuchos::RCP<PhysicsInterface> & physics_,
                              const size_t & myBlock_,
                              const size_t & myLevel_, const int & numElem_,
                              const bool & build_face_terms_,
@@ -27,16 +27,16 @@ GroupMetaData::GroupMetaData(const Teuchos::RCP<Teuchos::ParameterList> & settin
                              const vector<string> & sidenames_,
                              const size_t & num_params) :
 assemble_face_terms(assemble_face_terms_), build_face_terms(build_face_terms_),
-myBlock(myBlock_), myLevel(myLevel_), numElem(numElem_),
-physics_RCP(physics_RCP_), sidenames(sidenames_), numDiscParams(num_params),
-cellTopo(cellTopo_) {
+my_block(myBlock_), my_level(myLevel_), num_elem(numElem_),
+physics(physics_), side_names(sidenames_), num_disc_params(num_params),
+cell_topo(cellTopo_) {
 
-  Teuchos::TimeMonitor localtimer(*grptimer);
+  Teuchos::TimeMonitor localtimer(*grp_timer);
   
   compute_diff = settings->sublist("Postprocess").get<bool>("Compute Difference in Objective", true);
-  useFineScale = settings->sublist("Postprocess").get<bool>("Use fine scale sensors",true);
-  loadSensorFiles = settings->sublist("Analysis").get<bool>("Load Sensor Files",false);
-  writeSensorFiles = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
+  use_fine_scale = settings->sublist("Postprocess").get<bool>("Use fine scale sensors",true);
+  load_sensor_files = settings->sublist("Analysis").get<bool>("Load Sensor Files",false);
+  write_sensor_files = settings->sublist("Analysis").get<bool>("Write Sensor Files",false);
   mortar_objective = settings->sublist("Solver").get<bool>("Use Mortar Objective",false);
   //storeAll = false;//settings->sublist("Solver").get<bool>("store all cell data",true);
   matrix_free = settings->sublist("Solver").get<bool>("matrix free",false);
@@ -45,14 +45,14 @@ cellTopo(cellTopo_) {
   store_mass = settings->sublist("Solver").get<bool>("store mass",true);
   use_sparse_mass = false;
 
-  requiresTransient = true;
+  requires_transient = true;
   if (settings->sublist("Solver").get<string>("solver","steady-state") == "steady-state") {
-    requiresTransient = false;
+    requires_transient = false;
   }
   
-  requiresAdjoint = true;
+  requires_adjoint = true;
   if (settings->sublist("Analysis").get<string>("analysis type","forward") == "forward") {
-    requiresAdjoint = false;
+    requires_adjoint = false;
   }
   
   compute_sol_avg = true;
@@ -61,17 +61,17 @@ cellTopo(cellTopo_) {
   }
   
   multiscale = false;
-  numnodes = cellTopo->getNodeCount();
-  dimension = cellTopo->getDimension();
+  num_nodes = cell_topo->getNodeCount();
+  dimension = cell_topo->getDimension();
   
   if (dimension == 1) {
-    numSides = 2;
+    num_sides = 2;
   }
   else if (dimension == 2) {
-    numSides = cellTopo->getSideCount();
+    num_sides = cell_topo->getSideCount();
   }
   else if (dimension == 3) {
-    numSides = cellTopo->getFaceCount();
+    num_sides = cell_topo->getFaceCount();
   }
   //response_type = "global";
   response_type = settings->sublist("Postprocess").get("response type", "pointwise");
@@ -82,16 +82,16 @@ cellTopo(cellTopo_) {
   if (settings->sublist("Solver").get("have multidata", false)) {
     have_multidata = true;
   }
-  numSets = physics_RCP->setnames.size();
+  num_sets = physics->set_names.size();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void GroupMetaData::updatePhysicsSet(const size_t & set) {
-  if (numSets> 1) {
-    numDOF = set_numDOF[set];
-    numDOF_host = set_numDOF_host[set];
+  if (num_sets> 1) {
+    num_dof = set_num_dof[set];
+    num_dof_host = set_num_dof_host[set];
   }
 }
 

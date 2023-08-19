@@ -33,21 +33,25 @@ namespace MrHyDE {
    complex functions without modifying the code.
    */
   
+  template<class EvalT>
   class FunctionManager {
+
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT;
+    
   public:
     
     FunctionManager();
     
     ~FunctionManager() {};
     
-    FunctionManager(const std::string & blockname, const int & numElem_,
-                    const int & numip_, const int & numip_side_);
+    FunctionManager(const std::string & blockname, const int & num_elem,
+                    const int & num_ip, const int & num_ip_side);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Add a user defined function
     //////////////////////////////////////////////////////////////////////////////////////
     
-    int addFunction(const std::string & fname, std::string & expression, const std::string & location);
+    int addFunction(const std::string & fname, const std::string & expression, const std::string & location);
     
     int addFunction(const string & fname, ScalarT & value, const string & location);
 
@@ -55,8 +59,7 @@ namespace MrHyDE {
     // Set the lists of variables, parameters and discretized parameters
     //////////////////////////////////////////////////////////////////////////////////////
     
-    void setupLists(const std::vector<std::string> & parameters_,
-                    const std::vector<std::string> & disc_parameters_);
+    void setupLists(const std::vector<std::string> & parameters);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Decompose the functions into terms and set the evaluation tree
@@ -78,9 +81,7 @@ namespace MrHyDE {
     // Evaluate a function (probably will be deprecated)
     //////////////////////////////////////////////////////////////////////////////////////
     
-    //View_AD2 evaluate(const std::string & fname, const std::string & location);
-    
-    Vista evaluate(const std::string & fname, const std::string & location);
+    Vista<EvalT> evaluate(const std::string & fname, const std::string & location);
     
     //////////////////////////////////////////////////////////////////////////////////////
     // Evaluate a function
@@ -110,24 +111,22 @@ namespace MrHyDE {
     
     void printFunctions();
     
+    //void setWorkset(Teuchos::RCP<workset> & wkset);
+
     //////////////////////////////////////////////////////////////////////////////////////
     // Public data members
     //////////////////////////////////////////////////////////////////////////////////////
     
-    std::string blockname;
-    int numElem, numip, numip_side;
+    int num_elem_, num_ip_, num_ip_side_;
+    Teuchos::RCP<Workset<EvalT> > wkset;
     
-    std::vector<Forest> forests;
-    
-    std::vector<std::string> parameters, disc_parameters;
-    std::vector<std::string> known_vars, known_ops;
-    Teuchos::RCP<workset> wkset;
-    Teuchos::RCP<Interpreter> interpreter;
-    Teuchos::RCP<Teuchos::Time> decomposeTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::decompose");
-    Teuchos::RCP<Teuchos::Time> evaluateExtTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - external call");
-    Teuchos::RCP<Teuchos::Time> evaluateIntTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - internal call");
-    Teuchos::RCP<Teuchos::Time> evaluateOpTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluateOp");
-    Teuchos::RCP<Teuchos::Time> evaluateCopyTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::FunctionManager::evaluate - copy data");
+  private:
+
+    std::string blockname_;
+    std::vector<Forest<EvalT> > forests_;
+    std::vector<std::string> parameters_, disc_parameters_;
+    std::vector<std::string> known_vars_, known_ops_;
+    Teuchos::RCP<Interpreter<EvalT> > interpreter_;
   };
   
 }

@@ -58,9 +58,8 @@ class Compressor {
     Compressor(const Teuchos::RCP<MpiComm> & Comm_,
                Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
                Teuchos::RCP<panzer::DOFManager> DOF_ ) :
-      Comm(Comm_), mesh(mesh_), DOF(DOF_),
-      ignore_orientations(false), compute_scaling(false), compute_rotation(false),
-      database_TOL(1.0e-12) {
+      database_TOL(1.0e-12), ignore_orientations(false), compute_scaling(false), compute_rotation(false),
+      Comm(Comm_), mesh(mesh_), DOF(DOF_) {
 
       mesh->getElementBlockNames(blocknames);
       dimension = mesh->getDimension();

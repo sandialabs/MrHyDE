@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
 ************************************************************************/
 
 #ifndef MRHYDE_PREFERENCES_H
@@ -52,16 +50,16 @@ typedef panzer::GlobalOrdinal GO;
 
 // Number of derivatives in SFAD objects
 #ifdef MrHyDE_SET_MAX_DERIVS
-  #define maxDerivs MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
+  #define MAXDERIVS MrHyDE_SET_MAX_DERIVS // allow us to set this at configure-time with the MrHyDE_MAX_DERIVS flag
 #else
-  #define maxDerivs 64 // adjust this to improve performance
+  #define MAXDERIVS 64 // adjust this to improve performance
 #endif
 
 // Size of vectors for hierarchical parallel policies
 #ifdef MrHyDE_SET_VECTOR_SIZE
-  #define VectorSize MrHyDE_SET_VECTOR_SIZE // allow us to set this at configure-time with the MrHyDE_VECTOR_SIZE flag
+  #define VECTORSIZE MrHyDE_SET_VECTOR_SIZE // allow us to set this at configure-time with the MrHyDE_VECTOR_SIZE flag
 #else
-  #define VectorSize maxDerivs
+  #define VECTORSIZE MAXDERIVS
 #endif
 
 // Sets default behavior for evaluating solution fields using basis functions
@@ -81,7 +79,24 @@ typedef Sacado::Fad::DFad<ScalarT> DFAD; // used only when absolutely necessary
 #ifdef MrHyDE_NO_AD
 typedef ScalarT AD;
 #else
-typedef Sacado::Fad::SFad<ScalarT,maxDerivs> AD;
+typedef Sacado::Fad::SFad<ScalarT,MAXDERIVS> AD;
+#endif
+
+#ifndef MrHyDE_NO_AD
+// Commonly used AD types
+typedef Sacado::Fad::SFad<ScalarT,2> AD2;
+typedef Sacado::Fad::SFad<ScalarT,4> AD4;
+typedef Sacado::Fad::SFad<ScalarT,8> AD8;
+typedef Sacado::Fad::SFad<ScalarT,16> AD16;
+typedef Sacado::Fad::SFad<ScalarT,18> AD18;
+typedef Sacado::Fad::SFad<ScalarT,24> AD24;
+typedef Sacado::Fad::SFad<ScalarT,32> AD32;
+
+// Rarely used
+typedef Sacado::Fad::SFad<ScalarT,128> AD128;
+typedef Sacado::Fad::SFad<ScalarT,256> AD256;
+typedef Sacado::Fad::SFad<ScalarT,512> AD512;
+typedef Sacado::Fad::SFad<ScalarT,1024> AD1024;
 #endif
 
 // Host Execution Space
@@ -167,24 +182,14 @@ typedef Kokkos::View<LO**,HostDevice> LIDView_host;
 typedef Kokkos::View<ScalarT*>::size_type size_type;
 
 // Use ContLayout for faster hierarchical parallelism
-typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
+//typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout,VectorSize> ContLayout;
+typedef Kokkos::LayoutContiguous<AssemblyExec::array_layout> ContLayout;
 
 typedef Kokkos::View<ScalarT*,AssemblyDevice> View_Sc1;
 typedef Kokkos::View<ScalarT**,AssemblyDevice> View_Sc2;
 typedef Kokkos::View<ScalarT***,AssemblyDevice> View_Sc3;
 typedef Kokkos::View<ScalarT****,AssemblyDevice> View_Sc4;
 typedef Kokkos::View<ScalarT*****,AssemblyDevice> View_Sc5;
-#ifndef MrHyDE_NO_AD
-typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
-typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
-typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
-typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
-#else
-typedef View_Sc1 View_AD1;
-typedef View_Sc2 View_AD2;
-typedef View_Sc3 View_AD3;
-typedef View_Sc4 View_AD4;
-#endif
 
 // Intrepid and shards typedefs
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;

@@ -15,56 +15,77 @@
 
 using namespace MrHyDE;
 
-CrystalElastic::CrystalElastic(Teuchos::ParameterList & settings,
-                               const int & dimension_)
+template<class EvalT>
+CrystalElastic<EvalT>::CrystalElastic(Teuchos::ParameterList & settings,
+                                      const int & dimension_)
 {
   
   dimension = dimension_;
    
   Teuchos::ParameterList cesettings = settings.sublist("Crystal elastic parameters");
-  e_ref = cesettings.get<ScalarT>("T_ambient",0.0);
-  alpha_T = cesettings.get<ScalarT>("alpha_T",1.0e-6);
+
+  ScalarT te_ref, talpha_T, tlambda, tmu;
+  ScalarT tc11_, tc22_, tc33_, tc44_, tc55_, tc66_, tc12_, tc13_, tc23_, tc15_, tc25_, tc35_, tc46_;
+  te_ref = cesettings.get<ScalarT>("T_ambient",0.0);
+  talpha_T = cesettings.get<ScalarT>("alpha_T",1.0e-6);
   
   allow_rotations = cesettings.get<bool>("allow rotations",true);
   
   ScalarT E = cesettings.get<ScalarT>("E",1.0);
   ScalarT nu = cesettings.get<ScalarT>("nu",0.4);
   
-  lambda = (E*nu)/((1.0+nu)*(1.0-2.0*nu));
-  mu = E/(2.0*(1.0+nu));
+  tlambda = (E*nu)/((1.0+nu)*(1.0-2.0*nu));
+  tmu = E/(2.0*(1.0+nu));
   
   // Gas constant: TMW: Need to make this a parameter
   // ScalarT R_ = esettings.get<ScalarT>("R",0.0);
   
   // Elastic tensor in lattice frame
-  C = View_Sc4("CE-C",3,3,3,3);
+  C = View_EvalT4("CE-C",3,3,3,3);
   
   // default to cubic symmetry
-  c11_ = cesettings.get<ScalarT>("C11",2.0*mu+lambda);
-  c22_ = cesettings.get<ScalarT>("C22",c11_);
-  c33_ = cesettings.get<ScalarT>("C33",c11_);
-  c44_ = cesettings.get<ScalarT>("C44",2.0*mu);
-  c55_ = cesettings.get<ScalarT>("C55",c44_);
-  c66_ = cesettings.get<ScalarT>("C66",c44_);
-  c12_ = cesettings.get<ScalarT>("C12",lambda);
-  c13_ = cesettings.get<ScalarT>("C13",c12_);
-  c23_ = cesettings.get<ScalarT>("C23",c12_);
-  c15_ = cesettings.get<ScalarT>("C15",0.0);
-  c25_ = cesettings.get<ScalarT>("C25",0.0);
-  c35_ = cesettings.get<ScalarT>("C35",0.0);
-  c46_ = cesettings.get<ScalarT>("C46",0.0);
+  tc11_ = cesettings.get<ScalarT>("C11",2.0*tmu+tlambda);
+  tc22_ = cesettings.get<ScalarT>("C22",tc11_);
+  tc33_ = cesettings.get<ScalarT>("C33",tc11_);
+  tc44_ = cesettings.get<ScalarT>("C44",2.0*tmu);
+  tc55_ = cesettings.get<ScalarT>("C55",tc44_);
+  tc66_ = cesettings.get<ScalarT>("C66",tc44_);
+  tc12_ = cesettings.get<ScalarT>("C12",tlambda);
+  tc13_ = cesettings.get<ScalarT>("C13",tc12_);
+  tc23_ = cesettings.get<ScalarT>("C23",tc12_);
+  tc15_ = cesettings.get<ScalarT>("C15",0.0);
+  tc25_ = cesettings.get<ScalarT>("C25",0.0);
+  tc35_ = cesettings.get<ScalarT>("C35",0.0);
+  tc46_ = cesettings.get<ScalarT>("C46",0.0);
   
   // update, just in case they changed
-  lambda = c12_;
-  mu = c44_/2.0;
-  
+  lambda = tc12_;
+  mu = tc44_/2.0;
+  e_ref = te_ref;
+  alpha_T = talpha_T;
+
+  c11_ = tc11_;
+  c22_ = tc22_;
+  c33_ = tc33_;
+  c44_ = tc44_;
+  c55_ = tc55_;
+  c66_ = tc66_;
+  c12_ = tc12_;
+  c13_ = tc13_;
+  c23_ = tc23_;
+  c15_ = tc15_;
+  c25_ = tc25_;
+  c35_ = tc35_;
+  c46_ = tc46_;
+
   this->computeLatticeTensor();
   
 }
 
 //=====================================================
 
-void CrystalElastic::computeLatticeTensor() {
+template<class EvalT>
+void CrystalElastic<EvalT>::computeLatticeTensor() {
   
   auto C_host = create_mirror_view(C);
   
@@ -117,53 +138,38 @@ void CrystalElastic::computeLatticeTensor() {
 
 //----------------------------------------------------------------------------
 
-void CrystalElastic::updateParams(Teuchos::RCP<workset> & wkset) {
+template<class EvalT>
+void CrystalElastic<EvalT>::updateParams(Teuchos::RCP<Workset<EvalT> > & wkset) {
   
-  ScalarT c11 = c11_;
-  ScalarT c12 = c12_;
-  ScalarT c44 = c44_;
+  EvalT c11 = c11_;
+  EvalT c12 = c12_;
+  EvalT c44 = c44_;
   
   bool foundlam = false;
-  vector<AD> lvals = wkset->getParam("lambda", foundlam);
+  vector<EvalT> lvals = wkset->getParam("lambda", foundlam);
   if (foundlam) {
-#ifndef MrHyDE_NO_AD
-    lambda = lvals[0].val();
-#else
     lambda = lvals[0];
-#endif
   }
   
   bool foundmu = false;
-  vector<AD> muvals = wkset->getParam("mu", foundmu);
+  vector<EvalT> muvals = wkset->getParam("mu", foundmu);
   if (foundmu) {
-#ifndef MrHyDE_NO_AD
-    mu = muvals[0].val();
-#else
     mu = muvals[0];
-#endif
   }
   
   if (!foundlam || !foundmu) {
-    ScalarT E = 0.0;
+    EvalT E = 0.0;
     bool foundym = false;
-    vector<AD> ymvals = wkset->getParam("youngs_mod", foundym);
+    vector<EvalT> ymvals = wkset->getParam("youngs_mod", foundym);
     if (foundym) {
-#ifndef MrHyDE_NO_AD
-      E = ymvals[0].val();
-#else
       E = ymvals[0];
-#endif
     }
     
-    ScalarT nu = 0.0;
+    EvalT nu = 0.0;
     bool foundpr = false;
-    vector<AD> prvals = wkset->getParam("poisson_ratio", foundpr);
+    vector<EvalT> prvals = wkset->getParam("poisson_ratio", foundpr);
     if (foundpr) {
-#ifndef MrHyDE_NO_AD
-      nu = prvals[0].val();
-#else
       nu = prvals[0];
-#endif
     }
     
     if (foundym && foundpr) {
@@ -226,8 +232,9 @@ void CrystalElastic::updateParams(Teuchos::RCP<workset> & wkset) {
 
 //----------------------------------------------------------------------------
 
-void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & indices,
-                                   const bool & onside, View_AD4 stress)
+template<class EvalT>
+void CrystalElastic<EvalT>::computeStress(Teuchos::RCP<Workset<EvalT> > & wkset, vector<int> & indices,
+                                   const bool & onside, View_EvalT4 stress)
 {
   
   Teuchos::TimeMonitor stimer(*computeStressTimer);
@@ -252,7 +259,7 @@ void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & 
   //printf("time 1:   %e \n", time1);
   //timer.reset();
   
-  View_AD4 E("CE-E",wkset->numElem,numip,dimension,dimension);
+  View_EvalT4 E("CE-E",wkset->numElem,numip,dimension,dimension);
   
   //double time2 = timer.seconds();
   //printf("time 2:   %e \n", time2);
@@ -352,7 +359,8 @@ void CrystalElastic::computeStress(Teuchos::RCP<workset> & wkset, vector<int> & 
 }
 //----------------------------------------------------------------------------
 
-void CrystalElastic::computeRotatedTensor(Teuchos::RCP<workset> & wkset) {
+template<class EvalT>
+void CrystalElastic<EvalT>::computeRotatedTensor(Teuchos::RCP<Workset<EvalT> > & wkset) {
   
   Teuchos::TimeMonitor rtimer(*computeRotatedTensorTimer);
   
@@ -369,7 +377,7 @@ void CrystalElastic::computeRotatedTensor(Teuchos::RCP<workset> & wkset) {
   
   // Elastic tensor in rotated frame
   if (wkset->numElem > (int)Cr.extent(0)) {
-    Cr = View_Sc5("CE-Cr",wkset->numElem,3,3,3,3);
+    Cr = View_EvalT5("CE-Cr",wkset->numElem,3,3,3,3);
   }
   
   auto C_ = C;
@@ -448,3 +456,23 @@ void CrystalElastic::computeRotatedTensor(Teuchos::RCP<workset> & wkset) {
   
 }
 
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::CrystalElastic<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::CrystalElastic<AD>;
+
+// Standard built-in types
+template class MrHyDE::CrystalElastic<AD2>;
+template class MrHyDE::CrystalElastic<AD4>;
+template class MrHyDE::CrystalElastic<AD8>;
+template class MrHyDE::CrystalElastic<AD16>;
+template class MrHyDE::CrystalElastic<AD18>;
+template class MrHyDE::CrystalElastic<AD24>;
+template class MrHyDE::CrystalElastic<AD32>;
+#endif

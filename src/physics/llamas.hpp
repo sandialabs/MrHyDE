@@ -18,8 +18,19 @@
 
 namespace MrHyDE {
   
-  class llamas : public physicsbase {
+  template<class EvalT>
+  class llamas : public PhysicsBase<EvalT> {
   public:
+
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    
     
     llamas() {} ;
     
@@ -42,7 +53,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_) {
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
       
       functionManager = functionManager_;
       
@@ -97,5 +108,26 @@ namespace MrHyDE {
   };
   
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::llamas<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::llamas<AD>;
+
+// Standard built-in types
+template class MrHyDE::llamas<AD2>;
+template class MrHyDE::llamas<AD4>;
+template class MrHyDE::llamas<AD8>;
+template class MrHyDE::llamas<AD16>;
+template class MrHyDE::llamas<AD18>;
+template class MrHyDE::llamas<AD24>;
+template class MrHyDE::llamas<AD32>;
+#endif
 
 #endif

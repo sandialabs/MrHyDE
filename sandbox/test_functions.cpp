@@ -3,7 +3,6 @@
 #include "preferences.hpp"
 #include "functionManager.hpp"
 #include "workset.hpp"
-//#include "discretizationInterface.hpp"
 
 #include <Kokkos_Random.hpp>
 
@@ -12,6 +11,14 @@ using namespace MrHyDE;
 
 int main(int argc, char * argv[]) {
   
+  #ifndef MrHyDE_NO_AD
+    typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+    typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+  #else
+    typedef View_Sc2 View_AD2;
+    typedef View_Sc4 View_AD4;
+  #endif
+    
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
   MpiComm Comm(MPI_COMM_WORLD);
   
@@ -23,11 +30,11 @@ int main(int argc, char * argv[]) {
     //----------------------------------------------------------------------
     
     // Set up a dummy workset just to test interplay between function manager and workset
-    Teuchos::RCP<workset> wkset = Teuchos::rcp( new workset() );
+    Teuchos::RCP<Workset<AD> > wkset = Teuchos::rcp( new Workset<AD>() );
     
     // Define some parameters
     int numElem = 10;
-    vector<string> variables = {"a","b","c","d","p"};
+    vector<string> variables = {"a","b","c","d","p","Ha"};
     vector<string> scalars = {"x","y","z"};
     int numip = 4;
     vector<string> btypes = {"HGRAD"};
@@ -42,7 +49,7 @@ int main(int argc, char * argv[]) {
     wkset->addScalarFields(scalars);
 
     // Create a function manager
-    Teuchos::RCP<FunctionManager> functionManager = Teuchos::rcp(new FunctionManager("eblock",numElem,numip,numip));
+    Teuchos::RCP<FunctionManager<AD> > functionManager = Teuchos::rcp(new FunctionManager<AD>("eblock",numElem,numip,numip));
     functionManager->wkset = wkset;
     
     //----------------------------------------------------------------------
@@ -51,7 +58,7 @@ int main(int argc, char * argv[]) {
     
     // Set the solution fields in the workset
     View_AD4 sol("sol", numElem, variables.size(), numip, 1);
-    vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2};
+    vector<AD> solvals = {1.0, 2.5, 3.3, -1.2, 13.2, 1.0};
     
     // This won't actually work on a GPU
     parallel_for("sol vals",
@@ -411,19 +418,30 @@ int main(int argc, char * argv[]) {
 
     }
 
+    {
+      string name = "test sinh";
+      string test = "(1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = (1.0+exp(-2))/(2*exp(-1));
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+
     //----------------------------------------------------------------------
     // Make sure everything is defined properly and setup decompositions
     //----------------------------------------------------------------------
     
     functionManager->decomposeFunctions();
     functionManager->printFunctions();
-    
-    for (size_t f=0; f<functionManager->forests[0].trees.size(); ++f) {
-      functionManager->forests[0].trees[f].branches[0].print();
-      if (functionManager->forests[0].trees[f].branches[0].isConstant) {
-        cout << functionManager->forests[0].trees[f].branches[0].data_Sc << endl;
-      }
-    }
     
     //----------------------------------------------------------------------
     // Evaluate the functions and check against ref solutions

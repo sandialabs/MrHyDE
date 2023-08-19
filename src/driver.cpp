@@ -78,13 +78,13 @@ int main(int argc,char * argv[]) {
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<PhysicsInterface> phys = Teuchos::rcp( new PhysicsInterface(settings, Comm, mesh->stk_mesh) );
+    Teuchos::RCP<PhysicsInterface> physics = Teuchos::rcp( new PhysicsInterface(settings, Comm, mesh->stk_mesh) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Mesh only needs the variable names and types to finalize
     ////////////////////////////////////////////////////////////////////////////////
     
-    mesh->finalize(phys);
+    mesh->finalize(physics);
     
     ////////////////////////////////////////////////////////////////////////////////
     // Define the discretization(s)
@@ -92,17 +92,17 @@ int main(int argc,char * argv[]) {
         
     Teuchos::RCP<DiscretizationInterface> disc = Teuchos::rcp( new DiscretizationInterface(settings, Comm,
                                                                                            mesh->stk_mesh,
-                                                                                           phys) );
+                                                                                           physics) );
             
     ////////////////////////////////////////////////////////////////////////////////
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
-                                                                                                        mesh->stk_mesh, phys, disc));
+                                                                                                        mesh->stk_mesh, physics, disc));
     
     Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh,
-                                                                                                         disc, phys, params));
+                                                                                                         disc, physics, params));
     
     mesh->setMeshData(assembler->groups,
                       assembler->boundary_groups);
@@ -119,30 +119,16 @@ int main(int argc,char * argv[]) {
     }
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Create the function managers
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    std::vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    for (size_t block=0; block<mesh->block_names.size(); ++block) {
-      functionManagers.push_back(Teuchos::rcp(new FunctionManager(mesh->block_names[block],
-                                                                  assembler->groupData[block]->numElem,
-                                                                  disc->numip[block],
-                                                                  disc->numip_side[block])));
-    }
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // Define the functions on each block
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    phys->defineFunctions(functionManagers);
-    
-    ////////////////////////////////////////////////////////////////////////////////
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
                                                                                              assembler->groups,
-                                                                                             functionManagers) );
+                                                                                             #ifndef MrHyDE_NO_AD
+                                                                                             assembler->function_managers_AD) );
+                                                                                             #else
+                                                                                             assembler->function_managers) );
+                                                                                             #endif
     
     ///////////////////////////////////////////////////////////////////////////////
     // Create the postprocessing object
@@ -150,7 +136,8 @@ int main(int argc,char * argv[]) {
     
     Teuchos::RCP<PostprocessManager<SolverNode> >
     postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh,
-                                                                disc, phys, functionManagers, multiscale_manager,
+                                                                disc, physics, //assembler->function_managers_AD, 
+                                                                multiscale_manager,
                                                                 assembler, params) );
     
     ////////////////////////////////////////////////////////////////////////////////
@@ -158,9 +145,10 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<SolverManager<SolverNode> > solve = Teuchos::rcp( new SolverManager<SolverNode>(Comm, settings, mesh,
-                                                                                                 disc, phys, assembler, params) );
+                                                                                                 disc, physics, assembler, params) );
     
     solve->multiscale_manager = multiscale_manager;
+    assembler->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
     postproc->linalg = solve->linalg;
     
@@ -176,7 +164,7 @@ int main(int argc,char * argv[]) {
       mesh->purgeMemory();
       assembler->purgeMemory();
       params->purgeMemory();
-      phys->purgeMemory();
+      physics->purgeMemory();
 
       if (debug_level > 0 && Comm->getRank() == 0) {
         std::cout << "******** Finished driver memory purge ..." << std::endl;
@@ -189,18 +177,11 @@ int main(int argc,char * argv[]) {
     solve->completeSetup();
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Finalize the functions
+    // Finalize the function and multiscale managers
     ////////////////////////////////////////////////////////////////////////////////
     
-    for (size_t block=0; block<functionManagers.size(); ++block) {
-      functionManagers[block]->setupLists(params->paramnames, params->discretized_param_names);
-      functionManagers[block]->wkset = assembler->wkset[block];
-      functionManagers[block]->decomposeFunctions();
-      if (verbosity >= 20) {
-        functionManagers[block]->printFunctions();
-      }
-    }
-    
+    assembler->finalizeFunctions();
+
     solve->finalizeMultiscale();
 
     ////////////////////////////////////////////////////////////////////////////////

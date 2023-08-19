@@ -22,7 +22,14 @@ namespace MrHyDE {
   // =================================================================
   // =================================================================
   
+  template<class EvalT>
   class SolutionField {
+    
+    //friend class Workset<EvalT>;
+    //friend class FunctionManager;
+
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+  
   public:
     
     SolutionField() {};
@@ -32,79 +39,60 @@ namespace MrHyDE {
     // =================================================================
     // =================================================================
     
-    SolutionField(const string & expression_,
-                  const size_t & set_index_,
-                  const string & vartype_,
-                  const size_t & varindex_) {
+    SolutionField(const string & expression,
+                  const size_t & set_index,
+                  const string & vartype,
+                  const size_t & varindex) {
                   
-      expression = expression_;
-      variable_type = vartype_; // solution, aux, param
-      set_index = set_index_;
-      variable_index = varindex_;
+      expression_ = expression;
+      variable_type_ = vartype; // solution, aux, param
+      set_index_ = set_index;
+      variable_index_ = varindex;
       
       // defaults
-      derivative_type = ""; // grad, curl, div, time
-      component = 0; //component_; // x, y, z
-      //isOnSide = false;
-      //isPoint = false;
-      isUpdated = false;
-      isInitialized = false;
+      derivative_type_ = ""; // grad, curl, div, time
+      component_ = 0; //component_; // x, y, z
+      is_updated_ = false;
+      is_initialized_ = false;
       
-      // Check if the field is on a side
-      /*
-      {
-        size_t found = expression.find("side");
-        if (found!=std::string::npos) {
-          isOnSide = true;
-        }
-      }
-      
-      // Check if the field is point-wise
-      {
-        size_t found = expression.find("point");
-        if (found!=std::string::npos) {
-          isPoint = true;
-        }
-      }
-      */
       // Check if the field is a component of a vector
       {
-        size_t xfound = expression.find("[x]");
+        size_t xfound = expression_.find("[x]");
         if (xfound!=std::string::npos) {
-          component = 0;
+          component_ = 0;
         }
         
-        size_t yfound = expression.find("[y]");
+        size_t yfound = expression_.find("[y]");
         if (yfound!=std::string::npos) {
-          component = 1;
+          component_ = 1;
         }
         
-        size_t zfound = expression.find("[z]");
+        size_t zfound = expression_.find("[z]");
         if (zfound!=std::string::npos) {
-          component = 2;
+          component_ = 2;
         }
       }
     
       // Check if the field is a derivative
       {
-        size_t gfound = expression.find("grad");
+        size_t gfound = expression_.find("grad");
         if (gfound!=std::string::npos) {
-          derivative_type = "grad";
+          derivative_type_ = "grad";
         }
         
-        size_t dfound = expression.find("div");
+        size_t dfound = expression_.find("div");
         if (dfound!=std::string::npos) {
-          derivative_type = "div";
+          derivative_type_ = "div";
         }
         
-        size_t cfound = expression.find("curl");
+        size_t cfound = expression_.find("curl");
         if (cfound!=std::string::npos) {
-          derivative_type = "curl";
+          derivative_type_ = "curl";
         }
         
-        size_t tfound = expression.find("_t");
+        size_t tfound = expression_.find("_t");
         if (tfound!=std::string::npos) {
-          derivative_type = "time";
+          derivative_type_ = "time";
         }
       }
       
@@ -114,21 +102,18 @@ namespace MrHyDE {
     // =================================================================
     
     void initialize(const int & dim0, const int & dim1) {
-#ifndef MrHyDE_NO_AD
-      data = View_AD2("solution field for " + expression, dim0, dim1, maxDerivs);
-#else
-      data = View_AD2("solution field for " + expression, dim0, dim1);
-#endif
-      isInitialized = true;
+      data_ = View_EvalT2("solution field for " + expression_, dim0, dim1);
+      is_initialized_ = true;
     }
     
     // =================================================================
     // =================================================================
     
-    string expression, variable_type, basis_type, derivative_type;
-    size_t set_index, variable_index, component;
-    bool isUpdated, isInitialized; //isOnSide, isPoint;
-    View_AD2 data;
+  //private:
+    string expression_, variable_type_, basis_type_, derivative_type_;
+    size_t set_index_, variable_index_, component_;
+    bool is_updated_, is_initialized_;
+    View_EvalT2 data_;
     
   };
   
@@ -136,6 +121,8 @@ namespace MrHyDE {
   // =================================================================
   
   class ScalarField {
+    //friend class Workset;
+    //friend class FunctionManager;
   public:
     
     ScalarField() {};
@@ -145,31 +132,12 @@ namespace MrHyDE {
     // =================================================================
     // =================================================================
     
-    ScalarField(const string & expression_) {
+    ScalarField(const string & expression) {
                 
-      expression = expression_;
-      //isOnSide = false;
-      //isPoint = false;
-      isUpdated = false;
-      isInitialized = false;
+      expression_ = expression;
+      is_updated_ = false;
+      is_initialized_ = false;
       
-      /*
-      // Check if the field is on a side
-      {
-        size_t found = expression.find("side");
-        if (found!=std::string::npos) {
-          isOnSide = true;
-        }
-      }
-      
-      // Check if the field is point-wise
-      {
-        size_t found = expression.find("point");
-        if (found!=std::string::npos) {
-          isPoint = true;
-        }
-      }
-      */
     }
     
 
@@ -177,16 +145,16 @@ namespace MrHyDE {
     // =================================================================
     
     void initialize(const int & dim0, const int & dim1) {
-      data = View_Sc2("scalar field for " + expression, dim0, dim1);
-      isInitialized = true;
+      data_ = View_Sc2("scalar field for " + expression_, dim0, dim1);
+      is_initialized_ = true;
     }
     
     // =================================================================
     // =================================================================
     
-    string expression;
-    bool isUpdated,  isInitialized; //isOnSide, isPoint,
-    View_Sc2 data;
+    string expression_;
+    bool is_updated_, is_initialized_;
+    View_Sc2 data_;
     
   };
   

@@ -17,8 +17,9 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-shallowice::shallowice(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+shallowice<EvalT>::shallowice(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "shallowice";
@@ -33,8 +34,9 @@ shallowice::shallowice(Teuchos::ParameterList & settings, const int & dimension_
 // ========================================================================================
 // ========================================================================================
 
-void shallowice::defineFunctions(Teuchos::ParameterList & fs,
-                                 Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void shallowice<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                 Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -49,7 +51,8 @@ void shallowice::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void shallowice::volumeResidual() {
+template<class EvalT>
+void shallowice<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int s_basis_num = wkset->usebasis[snum];
@@ -57,7 +60,7 @@ void shallowice::volumeResidual() {
   auto basis_grad = wkset->basis_grad[s_basis_num];
   auto wts = wkset->wts;
   
-  Vista source, diff;
+  Vista<EvalT> source, diff;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
@@ -72,7 +75,7 @@ void shallowice::volumeResidual() {
 
 
 
-  View_AD2 dS_dx, dS_dy, dS_dz;
+  View_EvalT2 dS_dx, dS_dy, dS_dz;
   dS_dx = wkset->getSolutionField("grad(s)[x]");
   if (spaceDim > 1) {
     dS_dy = wkset->getSolutionField("grad(s)[y]");
@@ -85,8 +88,8 @@ void shallowice::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
+        EvalT f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
         }
@@ -98,9 +101,9 @@ void shallowice::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
-        AD Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
-        AD Fy = diff(elem,pt)*dS_dy(elem,pt)*wts(elem,pt);
+        EvalT f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
+        EvalT Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
+        EvalT Fy = diff(elem,pt)*dS_dy(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += f*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
         }
@@ -114,14 +117,16 @@ void shallowice::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowice::boundaryResidual() {
+template<class EvalT>
+void shallowice<EvalT>::boundaryResidual() {
   // not re-implemented yet
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void shallowice::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void shallowice<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
 
@@ -132,3 +137,24 @@ void shallowice::setWorkset(Teuchos::RCP<workset> & wkset_) {
     }
   }
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::shallowice<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::shallowice<AD>;
+
+// Standard built-in types
+template class MrHyDE::shallowice<AD2>;
+template class MrHyDE::shallowice<AD4>;
+template class MrHyDE::shallowice<AD8>;
+template class MrHyDE::shallowice<AD16>;
+template class MrHyDE::shallowice<AD18>;
+template class MrHyDE::shallowice<AD24>;
+template class MrHyDE::shallowice<AD32>;
+#endif

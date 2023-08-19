@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #ifndef MRHYDE_SUBGRIDDTN_SOLVER_H
@@ -38,6 +36,17 @@ namespace MrHyDE {
     typedef Teuchos::RCP<SG_CrsMatrix>                           matrix_RCP;
     typedef Belos::LinearProblem<ScalarT, SG_MultiVector, SG_Operator> SG_LinearProblem;
 
+    #ifndef MrHyDE_NO_AD
+      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
+      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
+      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+    #else
+      typedef View_Sc1 View_AD1;
+      typedef View_Sc2 View_AD2;
+      typedef View_Sc3 View_AD3;
+      typedef View_Sc4 View_AD4;
+    #endif
     
   public:
     
@@ -73,7 +82,7 @@ namespace MrHyDE {
                const bool & compute_jacobian, const bool & compute_sens,
                const int & num_active_params,
                const bool & compute_disc_sens, const bool & compute_aux_sens,
-               workset & macrowkset,
+               Workset<AD> & macrowkset,
                const int & macrogrp, const int & macroelemindex,
                Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
 
@@ -157,7 +166,7 @@ namespace MrHyDE {
                     View_Sc3 lambda,
                     const Teuchos::RCP<SG_MultiVector> & disc_params,
                     const bool & compute_sens, const int macroelemindex,
-                    const ScalarT & time, workset & macrowkset,
+                    const ScalarT & time, Workset<AD> & macrowkset,
                     const int & macrogrp,
                     const ScalarT & fluxwt);
     
@@ -168,7 +177,7 @@ namespace MrHyDE {
                     View_Sc3 lambda,
                     ViewType dp_kv,
                     const bool & compute_sens, const int macroelemindex,
-                    const ScalarT & time, workset & macrowkset,
+                    const ScalarT & time, Workset<AD> & macrowkset,
                     const int & macrogrp,
                     const ScalarT & fluxwt);
 

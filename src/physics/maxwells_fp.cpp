@@ -18,8 +18,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-maxwells_fp::maxwells_fp(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+maxwells_fp<EvalT>::maxwells_fp(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   //potential approach to frequency-domain Maxwell's (see Boyse et al (1992)); uses -iwt convention
@@ -62,8 +63,9 @@ maxwells_fp::maxwells_fp(Teuchos::ParameterList & settings, const int & dimensio
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::defineFunctions(Teuchos::ParameterList & fs,
-                                  Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void maxwells_fp<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                  Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
 
@@ -72,7 +74,8 @@ void maxwells_fp::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::volumeResidual() {
+template<class EvalT>
+void maxwells_fp<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int resindex;
@@ -88,22 +91,22 @@ void maxwells_fp::volumeResidual() {
   vi = 0.0, dvidx = 0.0, dvidy = 0.0, dvidz = 0.0;
   
   //states and their gradients
-  AD Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0,
+  EvalT Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0,
   Axi = 0.0, dAxidx = 0.0, dAxidy = 0.0, dAxidz = 0.0;
-  AD Ayr = 0.0, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0,
+  EvalT Ayr = 0.0, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0,
   Ayi = 0.0, dAyidx = 0.0, dAyidy = 0.0, dAyidz = 0.0;
-  AD Azr = 0.0, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0,
+  EvalT Azr = 0.0, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0,
   Azi = 0.0, dAzidx = 0.0, dAzidy = 0.0, dAzidz = 0.0;
-  AD phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0,
+  EvalT phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0,
   phii = 0.0, dphiidx = 0.0, dphiidy = 0.0, dphiidz = 0.0;
-  AD Axrdot = 0.0, Axidot = 0.0, Ayrdot = 0.0, Ayidot = 0.0,
+  EvalT Axrdot = 0.0, Axidot = 0.0, Ayrdot = 0.0, Ayidot = 0.0,
   Azrdot = 0.0, Azidot = 0.0, phirdot = 0.0, phiidot = 0.0;
   
   //parameters
-  AD omega = 0.0;
-  AD Jxr = 0.0, Jyr = 0.0, Jzr = 0.0,
+  EvalT omega = 0.0;
+  EvalT Jxr = 0.0, Jyr = 0.0, Jzr = 0.0,
   Jxi = 0.0, Jyi = 0.0, Jzi = 0.0;
-  AD rhor = 0.0, mur = 0.0, invmur = 0.0, epsr = 0.0,
+  EvalT rhor = 0.0, mur = 0.0, invmur = 0.0, epsr = 0.0,
   rhoi = 0.0, mui = 0.0, invmui = 0.0, epsi = 0.0;
   
   //    for( size_t e=0; e<numCC; e++ ) {
@@ -119,26 +122,26 @@ void maxwells_fp::volumeResidual() {
   auto res = wkset->res;
   auto offsets = wkset->offsets;
   
-  View_AD2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
+  View_EvalT2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
   Ax_r = wkset->getSolutionField("Arx");
   Ax_i = wkset->getSolutionField("Aix");
   phi_r = wkset->getSolutionField("phir");
   phi_i = wkset->getSolutionField("phii");
   
-  View_AD2 dAxr_dt, dAxi_dt, dphir_dt, dphii_dt, dAyr_dt, dAyi_dt, dAzr_dt, dAzi_dt;
+  View_EvalT2 dAxr_dt, dAxi_dt, dphir_dt, dphii_dt, dAyr_dt, dAyi_dt, dAzr_dt, dAzi_dt;
   dAxr_dt = wkset->getSolutionField("Arx_t");
   dAxi_dt = wkset->getSolutionField("Aix_t");
   dphir_dt = wkset->getSolutionField("phir_t");
   dphii_dt = wkset->getSolutionField("phii_t");
   
-  View_AD2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
+  View_EvalT2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
   dAxr_dx = wkset->getSolutionField("grad(Arx)[x]");
   dAxi_dx = wkset->getSolutionField("grad(Aix)[x]");
   dphir_dx = wkset->getSolutionField("grad(phir)[x]");
   dphii_dx = wkset->getSolutionField("grad(phii)[x]");
   
-  View_AD2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
-  View_AD2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
+  View_EvalT2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
+  View_EvalT2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
   
   if (spaceDim > 1) {
     Ay_r = wkset->getSolutionField("Ary");
@@ -260,13 +263,13 @@ void maxwells_fp::volumeResidual() {
         dvidx = phii_basis_grad(e,i,k,0);
         
         omega = getFreq(x, y, z, current_time);
-        vector<AD> permit = getPermittivity(x, y, z, current_time);
+        vector<EvalT> permit = getPermittivity(x, y, z, current_time);
         epsr = permit[0]; epsi = permit[1];
-        vector<AD> permea = getPermeability(x, y, z, current_time);
+        vector<EvalT> permea = getPermeability(x, y, z, current_time);
         mur = permea[0]; mui = permea[1];
-        vector<AD> invperm = getInvPermeability(x, y, z, current_time);
+        vector<EvalT> invperm = getInvPermeability(x, y, z, current_time);
         invmur = invperm[0]; invmui = invperm[1];
-        vector<vector<AD> > source_current = getInteriorCurrent(x, y, z, current_time);
+        vector<vector<EvalT> > source_current = getInteriorCurrent(x, y, z, current_time);
         Jxr = source_current[0][0];
         Jxi = source_current[1][0];
         if(spaceDim > 1){
@@ -282,7 +285,7 @@ void maxwells_fp::volumeResidual() {
           dvidz = phii_basis_grad(e,i,k,2);
         }
         
-        vector<AD> source_charge = getInteriorCharge(x, y, z, current_time);
+        vector<EvalT> source_charge = getInteriorCharge(x, y, z, current_time);
         rhor = source_charge[0]; rhoi = source_charge[1];
         
         // TMW: this will fail if running with other physics enabled
@@ -440,7 +443,8 @@ void maxwells_fp::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::boundaryResidual() {
+template<class EvalT>
+void maxwells_fp<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   int resindex;
@@ -468,25 +472,25 @@ void maxwells_fp::boundaryResidual() {
   ScalarT vr = 0.0, vi = 0.0;
   
   //boundary sources
-  AD Jsxr = 0.0, Jsyr = 0.0, Jszr = 0.0,
+  EvalT Jsxr = 0.0, Jsyr = 0.0, Jszr = 0.0,
   Jsxi = 0.0, Jsyi = 0.0, Jszi = 0.0; //electric current J_s
-  AD Msxr = 0.0, Msyr = 0.0, Mszr = 0.0,
+  EvalT Msxr = 0.0, Msyr = 0.0, Mszr = 0.0,
   Msxi = 0.0, Msyi = 0.0, Mszi = 0.0; //magnetic current M_s
-  AD rhosr = 0.0, rhosi = 0.0; //electric charge (i*omega*rho_s = surface divergence of J_s
+  EvalT rhosr = 0.0, rhosi = 0.0; //electric charge (i*omega*rho_s = surface divergence of J_s
   
-  AD omega = 0.0; //frequency
-  AD invmur = 0.0, invmui = 0.0; //inverse permeability
-  AD epsr = 0.0, epsi = 0.0; //permittivity
+  EvalT omega = 0.0; //frequency
+  EvalT invmur = 0.0, invmui = 0.0; //inverse permeability
+  EvalT epsr = 0.0, epsi = 0.0; //permittivity
   
   //states and their gradients
-  AD Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0;
-  AD Axi = 0.0, dAxidx = 0.0, dAxidy = 0.0, dAxidz = 0.0;
-  AD Ayr = 0.0, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0;
-  AD Ayi = 0.0, dAyidx = 0.0, dAyidy = 0.0, dAyidz = 0.0;
-  AD Azr = 0.0, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0;
-  AD Azi = 0.0, dAzidx = 0.0, dAzidy = 0.0, dAzidz = 0.0;
-  AD phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0;
-  AD phii = 0.0, dphiidx = 0.0, dphiidy = 0.0, dphiidz = 0.0;
+  EvalT Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0;
+  EvalT Axi = 0.0, dAxidx = 0.0, dAxidy = 0.0, dAxidz = 0.0;
+  EvalT Ayr = 0.0, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0;
+  EvalT Ayi = 0.0, dAyidx = 0.0, dAyidy = 0.0, dAyidz = 0.0;
+  EvalT Azr = 0.0, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0;
+  EvalT Azi = 0.0, dAzidx = 0.0, dAzidy = 0.0, dAzidz = 0.0;
+  EvalT phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0;
+  EvalT phii = 0.0, dphiidx = 0.0, dphiidy = 0.0, dphiidz = 0.0;
   
   ScalarT nx = 0.0, ny = 0.0, nz = 0.0; //components of normal
   
@@ -515,20 +519,20 @@ void maxwells_fp::boundaryResidual() {
   weakEssScale = essScale/1.0;  //bvbw replace
   //    for( int i=0; i<numBasis; i++ ) {
   
-  View_AD2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
+  View_EvalT2 Ax_r, Ax_i, phi_r, phi_i, Ay_r, Ay_i, Az_r, Az_i;
   Ax_r = wkset->getSolutionField("Arx");
   Ax_i = wkset->getSolutionField("Aix");
   phi_r = wkset->getSolutionField("phir");
   phi_i = wkset->getSolutionField("phii");
   
-  View_AD2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
+  View_EvalT2 dAxr_dx, dAxi_dx, dphir_dx, dphii_dx, dAyr_dx, dAyi_dx, dAzr_dx, dAzi_dx;
   dAxr_dx = wkset->getSolutionField("grad(Arx)[x]");
   dAxi_dx = wkset->getSolutionField("grad(Aix)[x]");
   dphir_dx = wkset->getSolutionField("grad(phir)[x]");
   dphii_dx = wkset->getSolutionField("grad(phii)[x]");
   
-  View_AD2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
-  View_AD2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
+  View_EvalT2 dAxr_dy, dAxi_dy, dphir_dy, dphii_dy, dAyr_dy, dAyi_dy, dAzr_dy, dAzi_dy;
+  View_EvalT2 dAxr_dz, dAxi_dz, dphir_dz, dphii_dz, dAyr_dz, dAyi_dz, dAzr_dz, dAzi_dz;
   
   if (spaceDim > 1) {
     Ay_r = wkset->getSolutionField("Ary");
@@ -638,14 +642,14 @@ void maxwells_fp::boundaryResidual() {
         vr = phir_basis(e,i,k,0);
         vi = phii_basis(e,i,k,0);  //bvbw check to make sure first index  = 0
         
-        vector<vector<AD> > bound_current = getBoundaryCurrent(x, y, z, current_time, wkset->sidename, boundary_type);
-        vector<AD> bound_charge = getBoundaryCharge(x, y, z, current_time);
+        vector<vector<EvalT> > bound_current = getBoundaryCurrent(x, y, z, current_time, wkset->sidename, boundary_type);
+        vector<EvalT> bound_charge = getBoundaryCharge(x, y, z, current_time);
         rhosr = bound_charge[0]; rhosi = bound_charge[1];
         
         omega = getFreq(x, y, z, current_time);
-        vector<AD> permit = getPermittivity(x, y, z, current_time);
+        vector<EvalT> permit = getPermittivity(x, y, z, current_time);
         epsr = permit[0]; epsi = permit[1];
-        vector<AD> invperm = getInvPermeability(x, y, z, current_time);
+        vector<EvalT> invperm = getInvPermeability(x, y, z, current_time);
         invmur = invperm[0]; invmui = invperm[1];
         
         if(boundary_type == 1){
@@ -782,7 +786,8 @@ void maxwells_fp::boundaryResidual() {
 // true solution for error calculation
 // ========================================================================================
 
-void maxwells_fp::edgeResidual() {
+template<class EvalT>
+void maxwells_fp<EvalT>::edgeResidual() {
   
 }
 
@@ -790,7 +795,8 @@ void maxwells_fp::edgeResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void maxwells_fp::computeFlux() {
+template<class EvalT>
+void maxwells_fp<EvalT>::computeFlux() {
   
 }
 
@@ -798,8 +804,9 @@ void maxwells_fp::computeFlux() {
 // return frequency
 // ======================================================================================
 
-AD maxwells_fp::getFreq(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
-  AD omega = freq_params[0];
+template<class EvalT>
+EvalT maxwells_fp<EvalT>::getFreq(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
+  EvalT omega = freq_params[0];
   
   return omega;
 }
@@ -808,9 +815,10 @@ AD maxwells_fp::getFreq(const ScalarT & x, const ScalarT & y, const ScalarT & z,
 // return magnetic permeability
 // ========================================================================================
 
-vector<AD> maxwells_fp::getPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
+template<class EvalT>
+vector<EvalT> maxwells_fp<EvalT>::getPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
   
-  vector<AD> mu;
+  vector<EvalT> mu;
   if(test == 1){
     mu.push_back(2.0);
     mu.push_back(1.0);
@@ -833,9 +841,10 @@ vector<AD> maxwells_fp::getPermeability(const ScalarT & x, const ScalarT & y, co
 // return inverse of magnetic permeability
 // ========================================================================================
 
-vector<AD> maxwells_fp::getInvPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
+template<class EvalT>
+vector<EvalT> maxwells_fp<EvalT>::getInvPermeability(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const {
   
-  vector<AD> invmu;
+  vector<EvalT> invmu;
   if(test == 1){
     invmu.push_back(0.4);
     invmu.push_back(-0.2);
@@ -858,9 +867,10 @@ vector<AD> maxwells_fp::getInvPermeability(const ScalarT & x, const ScalarT & y,
 // return electric permittivity
 // ========================================================================================
 
-vector<AD> maxwells_fp::getPermittivity(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
+template<class EvalT>
+vector<EvalT> maxwells_fp<EvalT>::getPermittivity(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
   
-  vector<AD> permit;
+  vector<EvalT> permit;
   if(test == 1){
     permit.push_back(1.0);
     permit.push_back(1.0);
@@ -891,9 +901,10 @@ vector<AD> maxwells_fp::getPermittivity(const ScalarT & x, const ScalarT & y, co
 // return current density in interior of domain
 // ========================================================================================
 
-vector<vector<AD> > maxwells_fp::getInteriorCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
+template<class EvalT>
+vector<vector<EvalT> > maxwells_fp<EvalT>::getInteriorCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
   
-  vector<vector<AD> > J(2,vector<AD>(3,0.0));
+  vector<vector<EvalT> > J(2,vector<EvalT>(3,0.0));
   
   if(test == 1){
     J[0][0] = (1.8*PI*PI)*sin(PI*x)*sin(PI*y)*sin(PI*z);
@@ -946,9 +957,10 @@ vector<vector<AD> > maxwells_fp::getInteriorCurrent(const ScalarT & x, const Sca
 // return charge density in interior of domain
 // ========================================================================================
 
-vector<AD> maxwells_fp::getInteriorCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
+template<class EvalT>
+vector<EvalT> maxwells_fp<EvalT>::getInteriorCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
   
-  vector<AD> rho(2,0.0);
+  vector<EvalT> rho(2,0.0);
   
   if(test == 1){
     rho[0] = 6.0*sin(PI*x)*sin(PI*y)*sin(PI*z);
@@ -972,10 +984,11 @@ vector<AD> maxwells_fp::getInteriorCharge(const ScalarT & x, const ScalarT & y, 
 // return electric current on boundary of domain
 // =======================================================================================
 
-vector<vector<AD> > maxwells_fp::getBoundaryCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time,
+template<class EvalT>
+vector<vector<EvalT> > maxwells_fp<EvalT>::getBoundaryCurrent(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time,
                                                     const string & side_name, const int & boundary_type) const{
   
-  vector<vector<AD> > Js(2,vector<AD>(3,0.0));
+  vector<vector<EvalT> > Js(2,vector<EvalT>(3,0.0));
   if(test == 3 && boundary_type == 1){
     if(side_name == "right"){
       Js[1][0] = 0.0;
@@ -1017,15 +1030,17 @@ vector<vector<AD> > maxwells_fp::getBoundaryCurrent(const ScalarT & x, const Sca
 // return charge density on boundary of domain (should be surface divergence of boundary current divided by i*omega
 // ========================================================================================
 
-vector<AD> maxwells_fp::getBoundaryCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
-  vector<AD> rhos(2,0.0);
+template<class EvalT>
+vector<EvalT> maxwells_fp<EvalT>::getBoundaryCharge(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
+  vector<EvalT> rhos(2,0.0);
   return rhos;
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void maxwells_fp::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void maxwells_fp<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
@@ -1053,7 +1068,8 @@ void maxwells_fp::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // TMW: this needs to be deprecated
 // ========================================================================================
 
-void maxwells_fp::updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params, const std::vector<string> & paramnames) {
+template<class EvalT>
+void maxwells_fp<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params, const std::vector<string> & paramnames) {
   for (size_t p=0; p<paramnames.size(); p++) {
     if (paramnames[p] == "maxwells_fp_mu")
       mu_params = *(params[p]);
@@ -1067,3 +1083,24 @@ void maxwells_fp::updateParameters(const vector<Teuchos::RCP<vector<AD> > > & pa
       boundary_params = *(params[p]);
   }
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::maxwells_fp<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::maxwells_fp<AD>;
+
+// Standard built-in types
+template class MrHyDE::maxwells_fp<AD2>;
+template class MrHyDE::maxwells_fp<AD4>;
+template class MrHyDE::maxwells_fp<AD8>;
+template class MrHyDE::maxwells_fp<AD16>;
+template class MrHyDE::maxwells_fp<AD18>;
+template class MrHyDE::maxwells_fp<AD24>;
+template class MrHyDE::maxwells_fp<AD32>;
+#endif

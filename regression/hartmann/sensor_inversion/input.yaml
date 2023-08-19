@@ -1,0 +1,67 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 1
+    element type: interval
+    xmin: -1.0
+    xmax:  1.0
+    NX: 500
+  Physics:
+    modules: hartmann
+    Dirichlet conditions:
+      scalar data: true
+      u:
+        left: 0.0
+        right: 0.0
+    Neumann conditions:
+      b:
+        left: '-resistivity*b'
+        right: '-resistivity*b'
+  Discretization:
+    order:
+      u: 1
+      b: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    workset size: 100
+    nonlinear TOL: 1.0e-10
+    linear TOL: 1.0e-10
+    max nonlinear iters: 1
+    max linear iters: 500
+    use direct solver: true
+    compute sensitivities: true
+  Analysis input file: /ascldap/users/dgsharp/git-repos/MrHyDE/regression/hartmann/sensor_inv/input_rol2.yaml
+  # Analysis:
+  #   analysis type: forward
+  Postprocess: 
+    response type: pointwise
+    verification: compute errors
+    write solution: false
+    compute objective: true
+    compute responses: false
+    Objective functions:
+      uval:
+        type: sensors
+        sensor points file: /ascldap/users/dgsharp/git-repos/MrHyDE/regression/hartmann/sensor_inv/sensor_points.dat
+        sensor data file: /ascldap/users/dgsharp/git-repos/MrHyDE/regression/hartmann/sensor_inv/sensor_data.dat
+        save sensor data: true
+        response: 'u'
+        weight: 1.0
+  Functions:
+    Ha: '1.0'
+    eta: 'resistivity'
+    source u: '-exp(usource)'
+  Parameters:
+    resistivity:
+      type: scalar
+      value: 1.0
+      usage: inactive
+    usource:
+      type: scalar
+      value: 1.0
+      usage: active
+...

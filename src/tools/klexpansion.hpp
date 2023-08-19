@@ -28,11 +28,11 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////
     klexpansion() {};
     
-    klexpansion(const size_t & N_, const ScalarT & L_,
-                const ScalarT & sigma_, const ScalarT & eta_) :
-    N(N_), L(L_), sigma(sigma_), eta(eta_) {
+    klexpansion(const size_t & N, const ScalarT & L,
+                const ScalarT & sigma, const ScalarT & eta) :
+    N_(N), L_(L), sigma_(sigma), eta_(eta) {
       
-      omega = View_Sc1("storage of KL omega",N);
+      omega_ = View_Sc1("storage of KL omega",N_);
       this->computeRoots();
       
     }
@@ -51,7 +51,7 @@ namespace MrHyDE {
       ScalarT f, df, fprev;
       fprev = this->chareqn(om);
       std::vector<ScalarT> tmp_omega;
-      while (tmp_omega.size() < N && iter < maxiter) {
+      while (tmp_omega.size() < N_ && iter < maxiter) {
         iter++;
         ig += step;
         om = ig;
@@ -83,11 +83,11 @@ namespace MrHyDE {
           }
         }
       }
-      auto host_omega = create_mirror_view(omega);
+      auto host_omega = create_mirror_view(omega_);
       for (size_t k=0; k<tmp_omega.size(); ++k) {
         host_omega(k) = tmp_omega[k];
       }
-      deep_copy(omega,host_omega);
+      deep_copy(omega_,host_omega);
       
     }
     
@@ -97,7 +97,7 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     ScalarT chareqn(const ScalarT & om) {
       using namespace std;
-      ScalarT f = (eta*eta*om*om - 1.0)*sin(om*L) - 2.0*eta*om*cos(om*L);
+      ScalarT f = (eta_*eta_*om*om - 1.0)*sin(om*L_) - 2.0*eta_*om*cos(om*L_);
       return f;
     }
     
@@ -107,7 +107,7 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     ScalarT dchareqn(const ScalarT & om) {
       using namespace std;
-      ScalarT df = 2.0*om*eta*eta*sin(om*L)+(eta*eta*om*om - 1.0)*L*cos(om*L) - 2.0*eta*cos(om*L) + 2.0*eta*om*L*sin(om*L);
+      ScalarT df = 2.0*om*eta_*eta_*sin(om*L_)+(eta_*eta_*om*om - 1.0)*L_*cos(om*L_) - 2.0*eta_*cos(om*L_) + 2.0*eta_*om*L_*sin(om*L_);
       return df;
     }
     
@@ -117,7 +117,7 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     ScalarT getEval(const int & i) const {
       using namespace std;
-      ScalarT lam = (2.0*eta*sigma*sigma) / (eta*eta*omega(i)*omega(i)+1.0);
+      ScalarT lam = (2.0*eta_*sigma_*sigma_) / (eta_*eta_*omega_(i)*omega_(i)+1.0);
       return lam;
     }
     
@@ -127,18 +127,23 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     ScalarT getEvec(const int & i, const ScalarT & x) const {
       using namespace std;
-      ScalarT f = 1.0/(sqrt((eta*eta*omega(i)*omega(i)+1.0)*L/2.0 + eta))*(eta*omega[i]*cos(omega(i)*x) + sin(omega(i)*x));
+      ScalarT f = 1.0/(sqrt((eta_*eta_*omega_(i)*omega_(i)+1.0)*L_/2.0 + eta_))*(eta_*omega_(i)*cos(omega_(i)*x) + sin(omega_(i)*x));
       return f;
+    }
+    
+    size_t getNumTerms() {
+      return N_;
     }
     
     /////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////
     
-    size_t N;
-    ScalarT L, sigma, eta;
+  private:
+
+    size_t N_;
+    ScalarT L_, sigma_, eta_;
     
-    //std::vector<ScalarT> omega;
-    View_Sc1 omega;
+    View_Sc1 omega_;
   };
   
 }

@@ -44,8 +44,19 @@ namespace MrHyDE {
    *   - "supg C1" is a supg coefficient.
    *   - "supg C2" is a supg coefficient.
    */
-  class Burgers : public physicsbase {
+
+  template<class EvalT>
+  class Burgers : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     Burgers() {} ;
     
@@ -60,7 +71,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -68,7 +79,9 @@ namespace MrHyDE {
     void volumeResidual();
     
     void boundaryResidual();
-
+  
+  private:
+  
     bool use_evisc, use_SUPG;
 
   };

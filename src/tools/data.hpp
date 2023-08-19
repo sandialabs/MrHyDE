@@ -130,7 +130,7 @@ namespace MrHyDE {
     
     Kokkos::View<ScalarT**,HostDevice> getPoints();
     
-  protected:
+  private:
     
     bool is_spatialdep;
     bool is_timedep;
