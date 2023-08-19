@@ -224,7 +224,7 @@ template class MrHyDE::Burgers<AD2>;
 template class MrHyDE::Burgers<AD4>;
 template class MrHyDE::Burgers<AD8>;
 template class MrHyDE::Burgers<AD16>;
-template class MrHyDE::Burgers<AD18>;
+//template class MrHyDE::Burgers<AD18>; // AquiEEP_merge
 template class MrHyDE::Burgers<AD24>;
 template class MrHyDE::Burgers<AD32>;
 #endif

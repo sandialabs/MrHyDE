@@ -1798,12 +1798,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       test = false;
     }
     if (!test) { // cannot just use ScalarT
-      assembler->assembleJacRes(set, u, phi, build_jacobian, false, false, // Aqui important
+      assembler->assembleJacRes(set, u_io, phi_io, build_jacobian, false, false, // Aqui important
                                 current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                 params->num_active_params, params->Psol_over, is_final_time, deltat);
     }
     else {
-      assembler->assembleRes(set, u, phi, build_jacobian, false, false,
+      assembler->assembleRes(set, u_io, phi_io, build_jacobian, false, false,
                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                              params->num_active_params, params->Psol_over, is_final_time, deltat);
     }
@@ -1924,7 +1924,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     if (solve) {
       
       if (test) {
-        assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+        assembler->assembleJacRes(set, u_io, phi_io, build_jacobian, false, false,
                                   current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                   params->num_active_params, params->Psol_over, is_final_time, deltat);
       }

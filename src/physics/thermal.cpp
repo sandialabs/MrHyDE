@@ -466,7 +466,7 @@ template class MrHyDE::thermal<AD2>;
 template class MrHyDE::thermal<AD4>;
 template class MrHyDE::thermal<AD8>;
 template class MrHyDE::thermal<AD16>;
-template class MrHyDE::thermal<AD18>;
+//template class MrHyDE::thermal<AD18>; // AquiEEP_merge
 template class MrHyDE::thermal<AD24>;
 template class MrHyDE::thermal<AD32>;
 #endif

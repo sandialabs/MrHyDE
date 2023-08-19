@@ -315,11 +315,11 @@ void AnalysisManager::run() {
     }
   } // ROL
   else if (analysis_type == "ROL2") {
-    Comm->barrier();
-    if (Comm->getRank() == 0) {
+    comm_->barrier();
+    if (comm_->getRank() == 0) {
       std::cout << "EEP In AnalysisManager::run(): treating case 'ROL2'" << std::endl;
     }
-    Comm->barrier();
+    comm_->barrier();
     typedef ScalarT RealT;
 
     Teuchos::RCP< ROL::Objective_MILO<RealT> > obj;
@@ -448,20 +448,20 @@ void AnalysisManager::run() {
     // Construct ROL solver.
     ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings); // AquiROL2
 
-    Comm->barrier();
-    if (Comm->getRank() == 0) {
+    comm_->barrier();
+    if (comm_->getRank() == 0) {
       std::cout << "EEP In AnalysisManager::run(): calling rolSolver.solve()..." << std::endl;
     }
-    Comm->barrier();
+    comm_->barrier();
 
     // Run algorithm.
     rolSolver.solve(*outStream); // AquiROL2
 
-    Comm->barrier();
-    if (Comm->getRank() == 0) {
+    comm_->barrier();
+    if (comm_->getRank() == 0) {
       std::cout << "EEP In AnalysisManager::run(): returned from rolSolver.solve()..." << std::endl;
     }
-    Comm->barrier();
+    comm_->barrier();
 
     //ScalarT optTime = timer.stop();
 

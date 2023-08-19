@@ -366,14 +366,14 @@ template<class Node>
 void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node> > & opt,
                                                 matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
 
-  if (EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE && (Comm->getRank() == 0)) {
+  if (EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE && (comm->getRank() == 0)) {
     std::cout << "Entering LinearAlgebraInterface<Node>::linearSolver()"
-              << ": opt->useDirect = "           << opt->useDirect
-              << ", opt->usePreconditioner = "   << opt->usePreconditioner
-              << ", opt->precType = "            << opt->precType
-              << ", opt->reusePreconditioner = " << opt->reusePreconditioner
-              << ", opt->havePreconditioner = "  << opt->havePreconditioner
-              << ", opt->rightPreconditioner = " << opt->rightPreconditioner
+              << ": opt->use_direct = "           << opt->use_direct
+              << ", opt->use_preconditioner = "   << opt->use_preconditioner
+              << ", opt->prec_type = "            << opt->prec_type
+              << ", opt->reus_ePreconditioner = " << opt->reuse_preconditioner
+              << ", opt->have_Preconditioner = "  << opt->have_preconditioner
+              << ", opt->right_Preconditioner = " << opt->right_preconditioner
               << std::endl;
   }
 
@@ -504,7 +504,7 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node>
     
   }
   
-  if (EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE && (Comm->getRank() == 0)) {
+  if (EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE && (comm->getRank() == 0)) {
     std::cout << "Leaving LinearAlgebraInterface<Node>::linearSolver()"
               << std::endl;
   }

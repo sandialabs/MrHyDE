@@ -1672,7 +1672,7 @@ template class MrHyDE::euler<AD2>;
 template class MrHyDE::euler<AD4>;
 template class MrHyDE::euler<AD8>;
 template class MrHyDE::euler<AD16>;
-template class MrHyDE::euler<AD18>;
+//template class MrHyDE::euler<AD18>; // AquiEEP_merge
 template class MrHyDE::euler<AD24>;
 template class MrHyDE::euler<AD32>;
 #endif

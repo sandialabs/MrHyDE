@@ -483,7 +483,7 @@ template class MrHyDE::porousMixedHybrid<AD2>;
 template class MrHyDE::porousMixedHybrid<AD4>;
 template class MrHyDE::porousMixedHybrid<AD8>;
 template class MrHyDE::porousMixedHybrid<AD16>;
-template class MrHyDE::porousMixedHybrid<AD18>;
+//template class MrHyDE::porousMixedHybrid<AD18>; // AquiEEP_merge
 template class MrHyDE::porousMixedHybrid<AD24>;
 template class MrHyDE::porousMixedHybrid<AD32>;
 #endif

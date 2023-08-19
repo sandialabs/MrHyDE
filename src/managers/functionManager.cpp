@@ -1902,7 +1902,7 @@ template class MrHyDE::FunctionManager<AD2>;
 template class MrHyDE::FunctionManager<AD4>;
 template class MrHyDE::FunctionManager<AD8>;
 template class MrHyDE::FunctionManager<AD16>;
-template class MrHyDE::FunctionManager<AD18>;
+//template class MrHyDE::FunctionManager<AD18>; // AquiEEP_merge
 template class MrHyDE::FunctionManager<AD24>;
 template class MrHyDE::FunctionManager<AD32>;
 #endif

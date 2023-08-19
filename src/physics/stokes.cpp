@@ -498,7 +498,7 @@ template class MrHyDE::stokes<AD2>;
 template class MrHyDE::stokes<AD4>;
 template class MrHyDE::stokes<AD8>;
 template class MrHyDE::stokes<AD16>;
-template class MrHyDE::stokes<AD18>;
+//template class MrHyDE::stokes<AD18>; // AquiEEP_merge
 template class MrHyDE::stokes<AD24>;
 template class MrHyDE::stokes<AD32>;
 #endif

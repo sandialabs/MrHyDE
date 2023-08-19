@@ -839,7 +839,7 @@ template class MrHyDE::porousMixed<AD2>;
 template class MrHyDE::porousMixed<AD4>;
 template class MrHyDE::porousMixed<AD8>;
 template class MrHyDE::porousMixed<AD16>;
-template class MrHyDE::porousMixed<AD18>;
+//template class MrHyDE::porousMixed<AD18>; // AquiEEP_merge
 template class MrHyDE::porousMixed<AD24>;
 template class MrHyDE::porousMixed<AD32>;
 #endif

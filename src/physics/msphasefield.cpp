@@ -544,7 +544,7 @@ template class MrHyDE::msphasefield<AD2>;
 template class MrHyDE::msphasefield<AD4>;
 template class MrHyDE::msphasefield<AD8>;
 template class MrHyDE::msphasefield<AD16>;
-template class MrHyDE::msphasefield<AD18>;
+//template class MrHyDE::msphasefield<AD18>; // AquiEEP_merge
 template class MrHyDE::msphasefield<AD24>;
 template class MrHyDE::msphasefield<AD32>;
 #endif

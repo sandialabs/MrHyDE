@@ -472,7 +472,7 @@ template class MrHyDE::CrystalElastic<AD2>;
 template class MrHyDE::CrystalElastic<AD4>;
 template class MrHyDE::CrystalElastic<AD8>;
 template class MrHyDE::CrystalElastic<AD16>;
-template class MrHyDE::CrystalElastic<AD18>;
+//template class MrHyDE::CrystalElastic<AD18>; // AquiEEP_merge
 template class MrHyDE::CrystalElastic<AD24>;
 template class MrHyDE::CrystalElastic<AD32>;
 #endif

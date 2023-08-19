@@ -125,7 +125,7 @@ template class MrHyDE::llamas<AD2>;
 template class MrHyDE::llamas<AD4>;
 template class MrHyDE::llamas<AD8>;
 template class MrHyDE::llamas<AD16>;
-template class MrHyDE::llamas<AD18>;
+//template class MrHyDE::llamas<AD18>; // AquiEEP_merge
 template class MrHyDE::llamas<AD24>;
 template class MrHyDE::llamas<AD32>;
 #endif

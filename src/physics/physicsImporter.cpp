@@ -218,7 +218,7 @@ template class MrHyDE::PhysicsImporter<AD2>;
 template class MrHyDE::PhysicsImporter<AD4>;
 template class MrHyDE::PhysicsImporter<AD8>;
 template class MrHyDE::PhysicsImporter<AD16>;
-template class MrHyDE::PhysicsImporter<AD18>;
+//template class MrHyDE::PhysicsImporter<AD18>; // AquiEEP_merge
 template class MrHyDE::PhysicsImporter<AD24>;
 template class MrHyDE::PhysicsImporter<AD32>;
 #endif

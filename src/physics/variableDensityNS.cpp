@@ -1431,7 +1431,7 @@ template class MrHyDE::VDNS<AD2>;
 template class MrHyDE::VDNS<AD4>;
 template class MrHyDE::VDNS<AD8>;
 template class MrHyDE::VDNS<AD16>;
-template class MrHyDE::VDNS<AD18>;
+//template class MrHyDE::VDNS<AD18>; // AquiEEP_merge
 template class MrHyDE::VDNS<AD24>;
 template class MrHyDE::VDNS<AD32>;
 #endif

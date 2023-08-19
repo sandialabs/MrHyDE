@@ -1099,7 +1099,7 @@ template class MrHyDE::navierstokes<AD2>;
 template class MrHyDE::navierstokes<AD4>;
 template class MrHyDE::navierstokes<AD8>;
 template class MrHyDE::navierstokes<AD16>;
-template class MrHyDE::navierstokes<AD18>;
+//template class MrHyDE::navierstokes<AD18>; // AquiEEP_merge
 template class MrHyDE::navierstokes<AD24>;
 template class MrHyDE::navierstokes<AD32>;
 #endif

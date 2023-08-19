@@ -89,7 +89,7 @@ template class MrHyDE::ODE<AD2>;
 template class MrHyDE::ODE<AD4>;
 template class MrHyDE::ODE<AD8>;
 template class MrHyDE::ODE<AD16>;
-template class MrHyDE::ODE<AD18>;
+//template class MrHyDE::ODE<AD18>; // AquiEEP_merge
 template class MrHyDE::ODE<AD24>;
 template class MrHyDE::ODE<AD32>;
 #endif

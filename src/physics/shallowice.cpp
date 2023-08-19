@@ -154,7 +154,7 @@ template class MrHyDE::shallowice<AD2>;
 template class MrHyDE::shallowice<AD4>;
 template class MrHyDE::shallowice<AD8>;
 template class MrHyDE::shallowice<AD16>;
-template class MrHyDE::shallowice<AD18>;
+//template class MrHyDE::shallowice<AD18>; // AquiEEP_merge
 template class MrHyDE::shallowice<AD24>;
 template class MrHyDE::shallowice<AD32>;
 #endif

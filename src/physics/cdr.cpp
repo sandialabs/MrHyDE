@@ -227,7 +227,7 @@ template class MrHyDE::cdr<AD2>;
 template class MrHyDE::cdr<AD4>;
 template class MrHyDE::cdr<AD8>;
 template class MrHyDE::cdr<AD16>;
-template class MrHyDE::cdr<AD18>;
+//template class MrHyDE::cdr<AD18>; // AquiEEP_merge
 template class MrHyDE::cdr<AD24>;
 template class MrHyDE::cdr<AD32>;
 #endif

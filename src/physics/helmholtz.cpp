@@ -470,7 +470,7 @@ template class MrHyDE::helmholtz<AD2>;
 template class MrHyDE::helmholtz<AD4>;
 template class MrHyDE::helmholtz<AD8>;
 template class MrHyDE::helmholtz<AD16>;
-template class MrHyDE::helmholtz<AD18>;
+//template class MrHyDE::helmholtz<AD18>; // AquiEEP_merge
 template class MrHyDE::helmholtz<AD24>;
 template class MrHyDE::helmholtz<AD32>;
 #endif
