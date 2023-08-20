@@ -3121,7 +3121,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->updateWorksetAD(block, grp, 1,0,true);
+            assembler->updateWorksetAD(block, grp, 1,0, true);
           }
           else {
             View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),

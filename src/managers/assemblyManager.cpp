@@ -856,158 +856,164 @@ void AssemblyManager<Node>::createWorkset() {
       }
 
       // ScalarT workset, always active unless no elements on proc
-      wkset.push_back(Teuchos::rcp( new Workset<ScalarT>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+      wkset.push_back(Teuchos::rcp( new Workset<ScalarT>(info, numVars, isTransient,
+                                                         disc->basis_types[block],
+                                                         disc->basis_pointers[block],
+                                                         params->discretized_param_basis,
+                                                         groupData[block]->cell_topo)));
       wkset[block]->block = block;
       wkset[block]->blockname = blocknames[block];
       wkset[block]->set_var_bcs = bcs;
       wkset[block]->var_bcs = bcs[0];
+
 #ifndef MrHyDE_NO_AD
-      // AD workset, always active unless no elements on proc
-      wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
-      wkset_AD[block]->block = block;
-      wkset_AD[block]->blockname = blocknames[block];
-      wkset_AD[block]->set_var_bcs = bcs;
-      wkset_AD[block]->var_bcs = bcs[0];
+      bool fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
+      string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
+      bool requires_AD = true;
+      if (fully_explicit && analysis_type == "forward") {
+        requires_AD = false;
+      }
 
       
+      bool found = false;
+      
       int ndr = num_derivs_required[block];
-      if (ndr>0 && ndr <= 2 ) {
+  
+      if (requires_AD && !found && ndr>0 && ndr <= 2 ) {
         // AD2 workset
-        wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(info, numVars, isTransient,
+                                                           disc->basis_types[block],
+                                                           disc->basis_pointers[block],
+                                                           params->discretized_param_basis,
+                                                           groupData[block]->cell_topo)));
         wkset_AD2[block]->block = block;
         wkset_AD2[block]->blockname = blocknames[block];
         wkset_AD2[block]->set_var_bcs = bcs;
         wkset_AD2[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(block, physics->set_names.size())));  
       }
 
-      if (ndr>2 && ndr <= 4 ) {
+      if (requires_AD && !found && ndr>2 && ndr <= 4 ) {
         // AD4 workset
-        wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(info, numVars, isTransient,
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             groupData[block]->cell_topo)));
         wkset_AD4[block]->block = block;
         wkset_AD4[block]->blockname = blocknames[block];
         wkset_AD4[block]->set_var_bcs = bcs;
         wkset_AD4[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(block, physics->set_names.size())));  
       }
 
-      if (ndr>4 && ndr <= 8 ) {
+      if (requires_AD && !found && ndr>4 && ndr <= 8 ) {
         // AD8 workset
-        wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(info, numVars, isTransient,
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             groupData[block]->cell_topo)));
         wkset_AD8[block]->block = block;
         wkset_AD8[block]->blockname = blocknames[block];
         wkset_AD8[block]->set_var_bcs = bcs;
         wkset_AD8[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(block, physics->set_names.size())));  
       }
 
-      if (ndr>8 && ndr <= 16 ) {
+      if (requires_AD && !found && ndr>8 && ndr <= 16 ) {
         // AD16 workset
-        wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(info, numVars, isTransient,
+                                                               disc->basis_types[block],
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD16[block]->block = block;
         wkset_AD16[block]->blockname = blocknames[block];
         wkset_AD16[block]->set_var_bcs = bcs;
         wkset_AD16[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(block, physics->set_names.size())));  
       }
 
-      if (ndr>16 && ndr <= 18 ) {
+      if (requires_AD && !found && ndr>16 && ndr <= 18 ) {
         // AD18 workset
-        wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(info, numVars, isTransient,
+                                                               disc->basis_types[block],
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD18[block]->block = block;
         wkset_AD18[block]->blockname = blocknames[block];
         wkset_AD18[block]->set_var_bcs = bcs;
         wkset_AD18[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(block, physics->set_names.size())));  
       }
 
-      if (ndr>18 && ndr <= 24 ) {
+      if (requires_AD && !found && ndr>18 && ndr <= 24 ) {
         // AD24 workset
-        wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(info, numVars, isTransient,
+                                                               disc->basis_types[block], 
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD24[block]->block = block;
         wkset_AD24[block]->blockname = blocknames[block];
         wkset_AD24[block]->set_var_bcs = bcs;
         wkset_AD24[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(block, physics->set_names.size())));  
       }
 
-      if (ndr>24 && ndr <= 32 ) {
+      if (requires_AD && !found && ndr>24 && ndr <= 32 ) {
         // AD32 workset
-        wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(info, numVars, isTransient,
+                                                               disc->basis_types[block],
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD32[block]->block = block;
         wkset_AD32[block]->blockname = blocknames[block];
         wkset_AD32[block]->set_var_bcs = bcs;
         wkset_AD32[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(block, physics->set_names.size())));  
       }
+
+      if (requires_AD) {
+        // AD workset
+        wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(info, numVars, isTransient,
+                                                         disc->basis_types[block],
+                                                         disc->basis_pointers[block],
+                                                         params->discretized_param_basis,
+                                                         groupData[block]->cell_topo)));
+        wkset_AD[block]->block = block;
+        wkset_AD[block]->blockname = blocknames[block];
+        wkset_AD[block]->set_var_bcs = bcs;
+        wkset_AD[block]->var_bcs = bcs[0];
+      }
+      else {
+        wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(block, physics->set_names.size())));  
+      }
+     
 #endif
     }
     else {
