@@ -236,6 +236,7 @@ void SubGridDtN::setUpSubgridModels() {
                                                                        sub_disc, sub_physics, sub_params));
   
   sub_assembler->allocateGroupStorage();
+  sub_assembler->allow_autotune = false;
   
   groups = sub_assembler->groups;
   

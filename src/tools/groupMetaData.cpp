@@ -59,8 +59,11 @@ cell_topo(cellTopo_) {
   if (!(settings->sublist("Postprocess").get<bool>("write solution", false))) {
     compute_sol_avg = false;
   }
-  
   multiscale = false;
+  if (settings->isSublist("Subgrid")) {
+    multiscale = true;
+  }
+  
   num_nodes = cell_topo->getNodeCount();
   dimension = cell_topo->getDimension();
   
