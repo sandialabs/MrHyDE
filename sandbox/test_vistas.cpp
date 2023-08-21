@@ -7,6 +7,12 @@ using namespace std;
 
 int main(int argc, char * argv[]) {
   
+  #ifndef MrHyDE_NO_AD
+    typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+  #else
+    typedef View_Sc2 View_AD2;
+  #endif
+    
   Teuchos::GlobalMPISession mpiSession(&argc, &argv,0);
   MpiComm Comm(MPI_COMM_WORLD);
   
@@ -33,17 +39,17 @@ int main(int argc, char * argv[]) {
     Kokkos::Timer timer;
  
     ScalarT val = 1.2;
-    AD vad = 5.6;
+    ScalarT vad = 5.6;
     View_Sc2 valview("view of vals",numElem, numip);
     deep_copy(valview,val);
     
     View_AD2 vadview("view of vads",numElem, numip);
     deep_copy(vadview,vad);
     
-    auto v1 = Vista(val);
-    Vista v2 = Vista(vad);
-    Vista v3 = Vista(valview);
-    Vista v4 = Vista(vadview);
+    auto v1 = Vista<AD>(val);
+    Vista v2 = Vista<AD>(vad);
+    Vista v3 = Vista<AD>(valview);
+    Vista v4 = Vista<AD>(vadview);
     
     View_AD2 tstview("view of vads",numElem, numip);
     

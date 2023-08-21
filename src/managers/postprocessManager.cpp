@@ -26,10 +26,9 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_
                                              Teuchos::RCP<MeshInterface> & mesh_,
                                              Teuchos::RCP<DiscretizationInterface> & disc_,
                                              Teuchos::RCP<PhysicsInterface> & phys_,
-                                             vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
-assembler(assembler_), functionManagers(functionManagers_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
+assembler(assembler_) { 
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PostprocessManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
@@ -46,12 +45,11 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_
                                              Teuchos::RCP<MeshInterface> & mesh_,
                                              Teuchos::RCP<DiscretizationInterface> & disc_,
                                              Teuchos::RCP<PhysicsInterface> & phys_,
-                                             vector<Teuchos::RCP<FunctionManager> > & functionManagers_,
                                              Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
                                              Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                                              Teuchos::RCP<ParameterManager<Node> > & params_) :
-Comm(Comm_), mesh(mesh_), disc(disc_), phys(phys_),
-assembler(assembler_), params(params_), functionManagers(functionManagers_), multiscale_manager(multiscale_manager_) {
+Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
+assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_) { 
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PostprocessManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
@@ -92,6 +90,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   exodus_filename = settings->sublist("Postprocess").get<string>("output file","output")+".exo";
   write_optimization_solution = settings->sublist("Postprocess").get("create optimization movie",false);
   compute_objective = settings->sublist("Postprocess").get("compute objective",false);
+  objective_file = settings->sublist("Postprocess").get("objective output file", "");
+  objective_grad_file = settings->sublist("Postprocess").get("objective gradient output file", "");
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective",1.0);
   cellfield_reduction = settings->sublist("Postprocess").get<string>("extra grp field reduction","mean");
   write_database_id = settings->sublist("Solver").get<bool>("use basis database",false);
@@ -109,7 +109,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
  
   compute_weighted_norm = settings->sublist("Postprocess").get<bool>("compute weighted norm",false);
   
-  setnames = phys->setnames;
+  setnames = physics->set_names;
   
   for (size_t set=0; set<setnames.size(); ++set) {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
@@ -137,7 +137,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   if (verbosity > 0 && Comm->getRank() == 0) {
     if (write_solution && !write_HFACE_variables) {
       bool have_HFACE_vars = false;
-      vector<vector<vector<string> > > types = phys->types;
+      vector<vector<vector<string> > > types = physics->types;
       for (size_t set=0; set<types.size(); set++) {
         for (size_t block=0; block<types[set].size(); ++block) {
           for (size_t var=0; var<types[set][block].size(); var++) {
@@ -173,11 +173,11 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   
   //mesh->stk_mesh->getElementBlockNames(blocknames);
   //mesh->stk_mesh->getSidesetNames(sideSets);
-  blocknames = phys->blocknames;
-  sideSets = phys->sidenames;
+  blocknames = physics->block_names;
+  sideSets = physics->side_names;
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
-  spaceDim = phys->spaceDim;//mesh->stk_mesh->getDimension();
+  dimension = physics->dimension;//mesh->stk_mesh->getDimension();
     
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
@@ -187,7 +187,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
   write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
   
-  varlist = phys->varlist;
+  varlist = physics->var_list;
   
   for (size_t block=0; block<blocknames.size(); ++block) {
         
@@ -196,7 +196,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
       Teuchos::ParameterList::ConstIterator rsp_itr = resps.begin();
       while (rsp_itr != resps.end()) {
         string entry = resps.get<string>(rsp_itr->first);
-        functionManagers[block]->addFunction(rsp_itr->first,entry,"ip");
+        assembler->addFunction(block, rsp_itr->first, entry, "ip");
         rsp_itr++;
       }
     }
@@ -205,7 +205,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
       Teuchos::ParameterList::ConstIterator wts_itr = wts.begin();
       while (wts_itr != wts.end()) {
         string entry = wts.get<string>(wts_itr->first);
-        functionManagers[block]->addFunction(wts_itr->first,entry,"ip");
+        assembler->addFunction(block, wts_itr->first, entry, "ip");
         wts_itr++;
       }
     }
@@ -214,7 +214,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
       Teuchos::ParameterList::ConstIterator tgt_itr = tgts.begin();
       while (tgt_itr != tgts.end()) {
         string entry = tgts.get<string>(tgt_itr->first);
-        functionManagers[block]->addFunction(tgt_itr->first,entry,"ip");
+        assembler->addFunction(block, tgt_itr->first, entry, "ip");
         tgt_itr++;
       }
     }
@@ -226,7 +226,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     else { // default
       blockPpSettings = settings->sublist("Postprocess");
     }
-    vector<vector<vector<string> > > types = phys->types;
+    vector<vector<vector<string> > > types = physics->types;
     
     // Add true solutions to the function manager for verification studies
     Teuchos::ParameterList true_solns = blockPpSettings.sublist("True solutions");
@@ -241,8 +241,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     while (ef_itr != efields.end()) {
       string entry = efields.get<string>(ef_itr->first);
       block_ef.push_back(ef_itr->first);
-      functionManagers[block]->addFunction(ef_itr->first,entry,"ip");
-      functionManagers[block]->addFunction(ef_itr->first,entry,"point");
+      assembler->addFunction(block, ef_itr->first, entry, "ip");
+      assembler->addFunction(block, ef_itr->first, entry, "point");
       ef_itr++;
     }
     extrafields_list.push_back(block_ef);
@@ -254,16 +254,16 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     while (ecf_itr != ecfields.end()) {
       string entry = ecfields.get<string>(ecf_itr->first);
       block_ecf.push_back(ecf_itr->first);
-      functionManagers[block]->addFunction(ecf_itr->first,entry,"ip");
+      assembler->addFunction(block, ecf_itr->first, entry, "ip");
       ecf_itr++;
     }
     extracellfields_list.push_back(block_ecf);
     
     // Add derived quantities from physics modules
     vector<string> block_dq;
-    for (size_t set=0; set<phys->modules.size(); ++set) {
-      for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
-        vector<string> dqnames = phys->modules[set][block][m]->getDerivedNames();
+    for (size_t set=0; set<physics->modules.size(); ++set) {
+      for (size_t m=0; m<physics->modules[set][block].size(); ++m) {
+        vector<string> dqnames = physics->modules[set][block][m]->getDerivedNames();
         for (size_t k=0; k<dqnames.size(); ++k) {
           block_dq.push_back(dqnames[k]);
         }
@@ -283,10 +283,10 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     // This needs to happen before we read in integrated quantities from the input file
     // to ensure proper ordering of the QoI 
     vector<integratedQuantity> block_IQs;
-    for (size_t set=0; set<phys->modules.size(); ++set) {
-      for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
+    for (size_t set=0; set<physics->modules.size(); ++set) {
+      for (size_t m=0; m<physics->modules[set][block].size(); ++m) {
         vector< vector<string> > integrandsNamesAndTypes =
-        phys->modules[set][block][m]->setupIntegratedQuantities(spaceDim);
+        physics->modules[set][block][m]->setupIntegratedQuantities(dimension);
         vector<integratedQuantity> phys_IQs =
         this->addIntegratedQuantities(integrandsNamesAndTypes, block);
         // add the IQs from this physics to the "running total"
@@ -349,7 +349,7 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           std::pair<string,string> newerr(vars[j],"L2");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>(vars[j],"0.0");
-          functionManagers[block]->addFunction("true "+vars[j],expression,"ip");
+          assembler->addFunction(block, "true "+vars[j], expression, "ip");
         }
       }
       if (true_solns.isParameter("grad("+vars[j]+")[x]") || true_solns.isParameter("grad("+vars[j]+")[y]") || true_solns.isParameter("grad("+vars[j]+")[z]")) { // GRAD of the solution at volumetric ip
@@ -358,14 +358,14 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           block_error_list.push_back(newerr);
           
           string expression = true_solns.get<string>("grad("+vars[j]+")[x]","0.0");
-          functionManagers[block]->addFunction("true grad("+vars[j]+")[x]",expression,"ip");
-          if (spaceDim>1) {
+          assembler->addFunction(block, "true grad("+vars[j]+")[x]", expression, "ip");
+          if (dimension>1) {
             expression = true_solns.get<string>("grad("+vars[j]+")[y]","0.0");
-            functionManagers[block]->addFunction("true grad("+vars[j]+")[y]",expression,"ip");
+            assembler->addFunction(block, "true grad("+vars[j]+")[y]", expression, "ip");
           }
-          if (spaceDim>2) {
+          if (dimension>2) {
             expression = true_solns.get<string>("grad("+vars[j]+")[z]","0.0");
-            functionManagers[block]->addFunction("true grad("+vars[j]+")[z]",expression,"ip");
+            assembler->addFunction(block, "true grad("+vars[j]+")[z]", expression, "ip");
           }
         }
       }
@@ -374,7 +374,7 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           std::pair<string,string> newerr(vars[j],"L2 FACE");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>(vars[j]+" face","0.0");
-          functionManagers[block]->addFunction("true "+vars[j],expression,"side ip");
+          assembler->addFunction(block, "true "+vars[j], expression, "side ip");
           
         }
       }
@@ -384,15 +384,15 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           block_error_list.push_back(newerr);
           
           string expression = true_solns.get<string>(vars[j]+"[x]","0.0");
-          functionManagers[block]->addFunction("true "+vars[j]+"[x]",expression,"ip");
+          assembler->addFunction(block, "true "+vars[j]+"[x]", expression, "ip");
           
-          if (spaceDim>1) {
+          if (dimension>1) {
             expression = true_solns.get<string>(vars[j]+"[y]","0.0");
-            functionManagers[block]->addFunction("true "+vars[j]+"[y]",expression,"ip");
+            assembler->addFunction(block, "true "+vars[j]+"[y]", expression, "ip");
           }
-          if (spaceDim>2) {
+          if (dimension>2) {
             expression = true_solns.get<string>(vars[j]+"[z]","0.0");
-            functionManagers[block]->addFunction("true "+vars[j]+"[z]",expression,"ip");
+            assembler->addFunction(block, "true "+vars[j]+"[z]", expression, "ip");
           }
         }
       }
@@ -401,7 +401,7 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           std::pair<string,string> newerr(vars[j],"DIV");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>("div("+vars[j]+")","0.0");
-          functionManagers[block]->addFunction("true div("+vars[j]+")",expression,"ip");
+          assembler->addFunction(block, "true div("+vars[j]+")", expression, "ip");
           
         }
       }
@@ -411,15 +411,15 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
           block_error_list.push_back(newerr);
           
           string expression = true_solns.get<string>("curl("+vars[j]+")[x]","0.0");
-          functionManagers[block]->addFunction("true curl("+vars[j]+")[x]",expression,"ip");
+          assembler->addFunction(block, "true curl("+vars[j]+")[x]", expression, "ip");
           
-          if (spaceDim>1) {
+          if (dimension>1) {
             expression = true_solns.get<string>("curl("+vars[j]+")[y]","0.0");
-            functionManagers[block]->addFunction("true curl("+vars[j]+")[y]",expression,"ip");
+            assembler->addFunction(block, "true curl("+vars[j]+")[y]", expression, "ip");
           }
-          if (spaceDim>2) {
+          if (dimension>2) {
             expression = true_solns.get<string>("curl("+vars[j]+")[z]","0.0");
-            functionManagers[block]->addFunction("true curl("+vars[j]+")[z]",expression,"ip");
+            assembler->addFunction(block, "true curl("+vars[j]+")[z]", expression, "ip");
           }
         }
       }
@@ -446,8 +446,30 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
       }
     }
     if (addobj) {
-      objective newobj(objsettings,obj_itr->first,block,functionManagers[block]);
+      objective newobj(objsettings,obj_itr->first,block);
       objectives.push_back(newobj);
+
+      if (newobj.type == "sensors") {
+        assembler->addFunction(block, newobj.name+" response", newobj.response,"point");
+      }
+      else if (newobj.type == "integrated response") {
+        assembler->addFunction(block, newobj.name+" response", newobj.response,"ip");
+      }
+      else if (newobj.type == "integrated control") {
+        assembler->addFunction(block, newobj.name, newobj.function, "ip");
+      }
+
+      // regularizations
+      for (size_t r=0; r<newobj.regularizations.size(); ++r) {
+        if (newobj.regularizations[r].type == "integrated") {
+          if (newobj.regularizations[r].location == "volume") {
+            assembler->addFunction(block, newobj.regularizations[r].name, newobj.regularizations[r].function, "ip");
+          }
+          else if (newobj.regularizations[r].location == "boundary") {
+            assembler->addFunction(block, newobj.regularizations[r].name, newobj.regularizations[r].function, "side ip");
+          }
+        }
+      }
     }
     obj_itr++;
   }
@@ -463,8 +485,9 @@ void PostprocessManager<Node>::addFluxResponses(Teuchos::ParameterList & flux_re
   Teuchos::ParameterList::ConstIterator fluxr_itr = flux_resp.begin();
   while (fluxr_itr != flux_resp.end()) {
     Teuchos::ParameterList frsettings = flux_resp.sublist(fluxr_itr->first);
-    fluxResponse newflux(frsettings,fluxr_itr->first,block,functionManagers[block]);
+    fluxResponse newflux(frsettings,fluxr_itr->first,block);
     fluxes.push_back(newflux);
+    assembler->addFunction(block, "flux weight "+newflux.name, newflux.weight, "side ip");
     fluxr_itr++;
   }
   
@@ -480,8 +503,15 @@ vector<integratedQuantity> PostprocessManager<Node>::addIntegratedQuantities(Teu
   Teuchos::ParameterList::ConstIterator iqs_itr = iqs.begin();
   while (iqs_itr != iqs.end()) {
     Teuchos::ParameterList iqsettings = iqs.sublist(iqs_itr->first);
-    integratedQuantity newIQ(iqsettings,iqs_itr->first,block,functionManagers[block]);
+    integratedQuantity newIQ(iqsettings,iqs_itr->first,block);
     IQs.push_back(newIQ);
+    if (newIQ.location == "volume") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "ip"); 
+    } 
+    else if (newIQ.location == "boundary") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "side ip");
+    }
+
     iqs_itr++;
   }
   
@@ -504,8 +534,15 @@ PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & int
     integratedQuantity newIQ(integrandsNamesAndTypes[iIQ][0],
                              integrandsNamesAndTypes[iIQ][1],
                              integrandsNamesAndTypes[iIQ][2],
-                             block,functionManagers[block]);
+                             block);
     IQs.push_back(newIQ);
+    if (newIQ.location == "volume") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "ip"); 
+    } 
+    else if (newIQ.location == "boundary") {
+      assembler->addFunction(block, newIQ.name+" integrand", newIQ.integrand, "side ip");
+    }
+
   }
   
   return IQs;
@@ -676,16 +713,16 @@ void PostprocessManager<Node>::report() {
                   attempts++;
                 }
                 respOUT.precision(8);
-                Teuchos::Array<ScalarT> time_data(max_numtimes+spaceDim,0.0);
-                for (size_t dim=0; dim<spaceDim; ++dim) {
+                Teuchos::Array<ScalarT> time_data(max_numtimes+dimension,0.0);
+                for (size_t dim=0; dim<dimension; ++dim) {
                   time_data[dim] = 0.0;
                 }
 
                 for (size_t tt=0; tt<max_numtimes; ++tt) {
-                  time_data[tt+spaceDim] = objectives[obj].response_times[tt];
+                  time_data[tt+dimension] = objectives[obj].response_times[tt];
                 }
               
-                for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
+                for (size_t tt=0; tt<max_numtimes+dimension; ++tt) {
                   respOUT << time_data[tt] << "  ";
                 }
                 respOUT << endl;
@@ -693,8 +730,8 @@ void PostprocessManager<Node>::report() {
               
               auto spts = objectives[obj].sensor_points;
               for (size_t ss=0; ss<objectives[obj].sensor_found.size(); ++ss) {
-                Teuchos::Array<ScalarT> series_data(max_numtimes+spaceDim,0.0);
-                Teuchos::Array<ScalarT> gseries_data(max_numtimes+spaceDim,0.0);
+                Teuchos::Array<ScalarT> series_data(max_numtimes+dimension,0.0);
+                Teuchos::Array<ScalarT> gseries_data(max_numtimes+dimension,0.0);
                 if (objectives[obj].sensor_found[ss]) {
                   size_t sindex = 0;
                   for (size_t j=0; j<ss; ++j) {
@@ -702,21 +739,21 @@ void PostprocessManager<Node>::report() {
                       sindex++;
                     }
                   }
-                  for (size_t dim=0; dim<spaceDim; ++dim) {
+                  for (size_t dim=0; dim<dimension; ++dim) {
                     series_data[dim] = spts(sindex,dim);  
                   }
                   
                   for (size_t tt=0; tt<max_numtimes; ++tt) {
-                    series_data[tt+spaceDim] = sensor_data(sindex,field,tt);
+                    series_data[tt+dimension] = sensor_data(sindex,field,tt);
                   }
                 }
                 
-                const int numentries = max_numtimes+spaceDim;
+                const int numentries = max_numtimes+dimension;
                 Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,numentries,&series_data[0],&gseries_data[0]);
                 
                 if (Comm->getRank() == 0) {
                   //respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
-                  for (size_t tt=0; tt<max_numtimes+spaceDim; ++tt) {
+                  for (size_t tt=0; tt<max_numtimes+dimension; ++tt) {
                     respOUT << gseries_data[tt] << "  ";
                   }
                   respOUT << endl;
@@ -1010,9 +1047,9 @@ void PostprocessManager<Node>::report() {
     
     // Error in subgrid models
     if (!(Teuchos::is_null(multiscale_manager))) {
-      if (multiscale_manager->subgridModels.size() > 0) {
+      if (multiscale_manager->getNumberSubgridModels() > 0) {
         
-        for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+        for (size_t m=0; m<multiscale_manager->getNumberSubgridModels(); m++) {
           vector<string> sgvars = multiscale_manager->subgridModels[m]->varlist;
           vector<std::pair<string,string> > sg_error_list;
           // A given processor may not have any elements that use this subgrid model
@@ -1111,7 +1148,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
   for (size_t block=0; block<assembler->groups.size(); block++) {// loop over blocks
     
     int altblock; // Needed for subgrid error calculations
-    if (assembler->wkset.size()>block) {
+    if (assembler->wkset.size()>block && error_list.size()>block) {
       altblock = block;
     }
     else {
@@ -1129,7 +1166,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       // Need to use time step solution instead of stage solution
       bool isTransient = assembler->wkset[altblock]->isTransient;
       assembler->wkset[altblock]->isTransient = false;
-      assembler->groupData[altblock]->requiresTransient = false;
+      assembler->groupData[altblock]->requires_transient = false;
       
       // Determine what needs to be updated in the workset
       bool have_vol_errs = false, have_face_errs = false;
@@ -1146,27 +1183,25 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       for (size_t grp=0; grp<assembler->groups[block].size(); grp++) {
         if (assembler->groups[block][grp]->active) {
         if (have_vol_errs) {
-          assembler->groups[block][grp]->updateWorkset(seedwhat,true);
+          assembler->updateWorkset(assembler->wkset[altblock],block, grp, seedwhat,0, true);
+          //assembler->updateWorkset(altblock, grp, seedwhat,true);
         }
-        auto wts = assembler->groups[block][grp]->wkset->wts;
+        //auto wts = assembler->wkset[block]->wts;
+        auto wts = assembler->wkset[altblock]->wts;
         
         for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
           string varname = error_list[altblock][etype].first;
           
           if (error_list[altblock][etype].second == "L2") {
             // compute the true solution
-            string expression = varname;
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol = assembler->wkset[altblock]->getSolutionField(expression);
+            string name = varname;
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol = assembler->wkset[altblock]->getSolutionField(name);
             
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
-#else
                 ScalarT diff = sol(elem,pt) - tsol(elem,pt);
-#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1174,59 +1209,47 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "GRAD") {
             // compute the true x-component of grad
-            string expression = "grad(" + varname + ")[x]";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_x = assembler->wkset[altblock]->getSolutionField(expression);
+            string name = "grad(" + varname + ")[x]";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_x = assembler->wkset[altblock]->getSolutionField(name);
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
-#else
                 ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
-#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
             blockerrors(etype) += error;
             
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               // compute the true y-component of grad
-              string expression = "grad(" + varname + ")[y]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_y = assembler->wkset[altblock]->getSolutionField(expression);
+              string name = "grad(" + varname + ")[y]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_y = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
-#else
                   ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
-#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
               blockerrors(etype) += error;
             }
             
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               // compute the true z-component of grad
-              string expression = "grad(" + varname + ")[z]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_z = assembler->wkset[altblock]->getSolutionField(expression);
+              string name = "grad(" + varname + ")[z]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_z = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
-#else
                   ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
-#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1235,19 +1258,15 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "DIV") {
             // compute the true divergence
-            string expression = "div(" + varname + ")";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_div = assembler->wkset[altblock]->getSolutionField(expression);
+            string name = "div(" + varname + ")";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_div = assembler->wkset[altblock]->getSolutionField(name);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_div(elem,pt).val() - tsol(elem,pt).val();
-#else
                 ScalarT diff = sol_div(elem,pt) - tsol(elem,pt);
-#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
@@ -1255,60 +1274,48 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "CURL") {
             // compute the true x-component of grad
-            string expression = "curl(" + varname + ")[x]";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_curl_x = assembler->wkset[altblock]->getSolutionField(expression);
+            string name = "curl(" + varname + ")[x]";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_curl_x = assembler->wkset[altblock]->getSolutionField(name);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_curl_x(elem,pt).val() - tsol(elem,pt).val();
-#else
                 ScalarT diff = sol_curl_x(elem,pt) - tsol(elem,pt);
-#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
             blockerrors(etype) += error;
             
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               // compute the true y-component of grad
-              string expression = "curl(" + varname + ")[y]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_curl_y = assembler->wkset[altblock]->getSolutionField(expression);
+              string name = "curl(" + varname + ")[y]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_curl_y = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_curl_y(elem,pt).val() - tsol(elem,pt).val();
-#else
                   ScalarT diff = sol_curl_y(elem,pt) - tsol(elem,pt);
-#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
               blockerrors(etype) += error;
             }
             
-            if (spaceDim >2) {
+            if (dimension >2) {
               // compute the true z-component of grad
-              string expression = "curl(" + varname + ")[z]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_curl_z = assembler->wkset[altblock]->getSolutionField(expression);
+              string name = "curl(" + varname + ")[z]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_curl_z = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_curl_z(elem,pt).val() - tsol(elem,pt).val();
-#else
                   ScalarT diff = sol_curl_z(elem,pt) - tsol(elem,pt);
-#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1317,60 +1324,48 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           }
           else if (error_list[altblock][etype].second == "L2 VECTOR") {
             // compute the true x-component of grad
-            string expression = varname + "[x]";
-            auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-            auto sol_x = assembler->wkset[altblock]->getSolutionField(expression);
+            string name = varname + "[x]";
+            View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+            auto sol_x = assembler->wkset[altblock]->getSolutionField(name);
             
             // add in the L2 difference at the volumetric ip
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                ScalarT diff = sol_x(elem,pt).val() - tsol(elem,pt).val();
-#else
                 ScalarT diff = sol_x(elem,pt) - tsol(elem,pt);
-#endif
                 update += diff*diff*wts(elem,pt);
               }
             }, error);
             blockerrors(etype) += error;
             
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               // compute the true y-component of grad
-              string expression = varname + "[y]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_y = assembler->wkset[altblock]->getSolutionField(expression);
+              string name = varname + "[y]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_y = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_y(elem,pt).val() - tsol(elem,pt).val();
-#else
                   ScalarT diff = sol_y(elem,pt) - tsol(elem,pt);
-#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
               blockerrors(etype) += error;
             }
             
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               // compute the true z-component of grad
-              string expression = varname + "[z]";
-              auto tsol = functionManagers[altblock]->evaluate("true "+expression,"ip");
-              auto sol_z = assembler->wkset[altblock]->getSolutionField(expression);
+              string name = varname + "[z]";
+              View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "ip");
+              auto sol_z = assembler->wkset[altblock]->getSolutionField(name);
               
               // add in the L2 difference at the volumetric ip
               ScalarT error = 0.0;
               parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT diff = sol_z(elem,pt).val() - tsol(elem,pt).val();
-#else
                   ScalarT diff = sol_z(elem,pt) - tsol(elem,pt);
-#endif
                   update += diff*diff*wts(elem,pt);
                 }
               }, error);
@@ -1381,21 +1376,22 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         }
         if (have_face_errs) {
           assembler->wkset[altblock]->isOnSide = true;
-          for (size_t face=0; face<assembler->groups[block][grp]->groupData->numSides; face++) {
+          for (size_t face=0; face<assembler->groups[block][grp]->group_data->num_sides; face++) {
             // TMW - hard coded for now
             for (size_t set=0; set<assembler->wkset[altblock]->numSets; ++set) {
-              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->u[set], seedwhat);
+              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->sol[set], seedwhat);
             }
-            assembler->groups[block][grp]->updateWorksetFace(face);
+            assembler->updateWorksetFace(block, grp, face);
             assembler->wkset[altblock]->resetSolutionFields();
             for (size_t etype=0; etype<error_list[altblock].size(); etype++) {
               string varname = error_list[altblock][etype].first;
               if (error_list[altblock][etype].second == "L2 FACE") {
                 // compute the true z-component of grad
-                string expression = varname;
-                auto tsol = functionManagers[altblock]->evaluate("true "+expression,"side ip");
-                auto sol = assembler->wkset[altblock]->getSolutionField(expression);
-                auto wts = assembler->groups[block][grp]->wkset->wts_side;
+                string name = varname;
+                View_Sc2 tsol = assembler->evaluateFunction(altblock, "true "+name, "side ip");
+                
+                auto sol = assembler->wkset[altblock]->getSolutionField(name);
+                auto wts = assembler->wkset[block]->wts_side;
                 
                 // add in the L2 difference at the volumetric ip
                 ScalarT error = 0.0;
@@ -1407,11 +1403,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
                   }
                   
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                    ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
-#else
                     ScalarT diff = sol(elem,pt) - tsol(elem,pt);
-#endif
                     update += 0.5/facemeasure*diff*diff*wts(elem,pt);  // TODO - BWR what is this? why .5?
                   }
                 }, error);
@@ -1423,7 +1415,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
         }
       }
       assembler->wkset[altblock]->isTransient = isTransient;
-      assembler->groupData[altblock]->requiresTransient = isTransient;
+      assembler->groupData[altblock]->requires_transient = isTransient;
     }
     currerror.push_back(blockerrors);
   } // end block loop
@@ -1439,14 +1431,14 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
   errors.push_back(host_error);
   
   if (!(Teuchos::is_null(multiscale_manager))) {
-    if (multiscale_manager->subgridModels.size() > 0) {
+    if (multiscale_manager->getNumberSubgridModels() > 0) {
       // Collect all of the errors for each subgrid model
       vector<vector<Kokkos::View<ScalarT*,HostDevice> > > blocksgerrs;
       
       for (size_t block=0; block<assembler->groups.size(); block++) {// loop over blocks
         
         vector<Kokkos::View<ScalarT*,HostDevice> > sgerrs;
-        for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
+        for (size_t m=0; m<multiscale_manager->getNumberSubgridModels(); m++) {
           Kokkos::View<ScalarT*,HostDevice> err = multiscale_manager->subgridModels[m]->computeError(currenttime);
           sgerrs.push_back(err);
         }
@@ -1543,14 +1535,14 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
     for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
       // setup workset for this bgrp
       
-      assembler->boundary_groups[block][grp]->updateWorkset(0,0,true);
+      assembler->updateWorksetBoundary(block, grp, 0, 0, true);
       
       // compute the flux
-      assembler->wkset[block]->flux = View_AD3("flux",assembler->wkset[block]->maxElem,
+      assembler->wkset[block]->flux = View_Sc3("flux",assembler->wkset[block]->maxElem,
                                                assembler->wkset[block]->numVars[0], // hard coded
                                                assembler->wkset[block]->numsideip);
       
-      assembler->groupData[block]->physics_RCP->computeFlux(0,block); // hard coded
+      physics->computeFlux<ScalarT>(0,block); // hard coded
       auto cflux = assembler->wkset[block]->flux; // View_AD3
       
       for (size_t f=0; f<fluxes.size(); ++f) {
@@ -1561,7 +1553,7 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
           
           if (found!=std::string::npos) {
             
-            auto wts = functionManagers[block]->evaluate("flux weight "+fluxes[f].name,"side ip");
+            View_Sc2 wts = assembler->evaluateFunction(block, "flux weight "+fluxes[f].name,"side ip");
             auto iwts = assembler->wkset[block]->wts_side;
             
             for (size_type v=0; v<fluxes[f].vals.extent(0); ++v) {
@@ -1570,11 +1562,7 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
               parallel_reduce(RangePolicy<AssemblyExec>(0,iwts.extent(0)),
                               KOKKOS_LAMBDA (const int elem, ScalarT& update) {
                 for( size_t pt=0; pt<iwts.extent(1); pt++ ) {
-#ifndef MrHyDE_NO_AD
-                  ScalarT up = vflux(elem,pt).val()*wts(elem,pt).val()*iwts(elem,pt);
-#else
                   ScalarT up = vflux(elem,pt)*wts(elem,pt)*iwts(elem,pt);
-#endif
                   update += up;
                 }
               }, value);
@@ -1632,23 +1620,18 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           localContribution = 0.; // zero out this grp's contribution JIC here but needed below
 
           // setup the workset for this grp
-          assembler->groups[globalBlock][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(globalBlock, grp, 0,0,true);
           // get integration weights
           auto wts = assembler->wkset[globalBlock]->wts;
           // evaluate the integrand at integration points
-          auto integrand = functionManagers[globalBlock]->evaluate(
-                integratedQuantities[iLocal][iIQ].name+" integrand","ip");
-
+          //auto integrand = functionManagers[globalBlock]->evaluate(integratedQuantities[iLocal][iIQ].name+" integrand","ip");
+          View_Sc2 integrand = assembler->evaluateFunction(globalBlock, integratedQuantities[iLocal][iIQ].name+" integrand","ip");
           // expand this for integral integrands, etc.?
           
           parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                           KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                             for (size_t pt=0; pt<wts.extent(1); pt++) {
-#ifndef MrHyDE_NO_AD
-                              ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
-#else
                               ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
-#endif
                               update += Idx;
                             }
                           },localContribution); //// TODO :: may be illegal
@@ -1675,21 +1658,16 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
                (integratedQuantities[iLocal][iIQ].boundarynames == "all") ) {
 
             // setup the workset for this grp
-            assembler->boundary_groups[globalBlock][grp]->updateWorkset(0,0,true); 
+            assembler->updateWorksetBoundary(globalBlock, grp, 0, 0, true); 
             // get integration weights
             auto wts = assembler->wkset[globalBlock]->wts_side;
             // evaluate the integrand at integration points
-            auto integrand = functionManagers[globalBlock]->evaluate(
-                  integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
-            
+            //auto integrand = functionManagers[globalBlock]->evaluate(integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
+            View_Sc2 integrand = assembler->evaluateFunction(globalBlock, integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)),
                             KOKKOS_LAMBDA (const int elem, ScalarT & update) {
                               for (size_t pt=0; pt<wts.extent(1); pt++) {
-#ifndef MrHyDE_NO_AD
-                                ScalarT Idx = wts(elem,pt)*integrand(elem,pt).val();
-#else
                                 ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
-#endif
                                 update += Idx;
                               }
                             },localContribution); //// TODO :: may be illegal, problematic ABOVE TOO
@@ -1723,10 +1701,10 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
     // TODO CHECK THIS WITH TIM... am I dev/loc correctly?
     if (nIQsForResidual > 0) {
       Kokkos::deep_copy(assembler->wkset[globalBlock]->integrated_quantities,hostsums);
-      for (size_t set=0; set<phys->modules.size(); ++set) {
-        for (size_t m=0; m<phys->modules[set][globalBlock].size(); ++m) {
+      for (size_t set=0; set<physics->modules.size(); ++set) {
+        for (size_t m=0; m<physics->modules[set][globalBlock].size(); ++m) {
           // BWR -- called for all physics defined on the block regards of if they need IQs
-          phys->modules[set][globalBlock][m]->updateIntegratedQuantitiesDependents();
+          physics->modules[set][globalBlock][m]->updateIntegratedQuantitiesDependents();
         }
       }
     } // end if physics module needs IQs
@@ -1804,6 +1782,28 @@ void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_
 // ========================================================================================
 // ========================================================================================
 
+// Helper function to save data
+template<class Node>
+void PostprocessManager<Node>::saveObjectiveData(const DFAD& obj) {
+  if(Comm->getRank() != 0) return;
+  if(objective_file.length() > 0) {
+    std::ofstream obj_out {objective_file};
+    TEUCHOS_TEST_FOR_EXCEPTION(!obj_out.is_open(), std::runtime_error, "Could not open file to print objective value");
+    obj_out << obj.val();
+  }
+}
+
+// Helper function to save data
+template<class Node>
+void PostprocessManager<Node>::saveObjectiveGradientData(const MrHyDE_OptVector& gradient) {
+  if(Comm->getRank() != 0) return;
+  if(objective_grad_file.length() > 0) {
+    std::ofstream obj_grad_out {objective_grad_file};
+    TEUCHOS_TEST_FOR_EXCEPTION(!obj_grad_out.is_open(), std::runtime_error, "Could not open file to print objective gradient value");
+    gradient.print(obj_grad_out);
+  }
+}
+
 template<class Node>
 void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_soln,
                                                 const ScalarT & current_time,
@@ -1815,65 +1815,43 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
     std::cout << "******** Starting PostprocessManager::computeObjective ..." << std::endl;
   }
   
+  int numParams = params->num_active_params + params->globalParamUnknowns;
+  
   // Objective function values
   vector<ScalarT> totaldiff(objectives.size(), 0.0);
   
-  int numParams = params->num_active_params + params->globalParamUnknowns;
-  
-  // Objective function gradients w.r.t params
-  vector<vector<ScalarT> > gradients;
-  for (size_t r=0; r<objectives.size(); ++r) {
-    vector<ScalarT> rgrad(numParams,0.0);
-    gradients.push_back(rgrad);
-  }
   
   for (size_t r=0; r<objectives.size(); ++r) {
     if (objectives[r].type == "integrated control"){
       
-      // First, compute objective value and deriv. w.r.t scalar params
-      params->sacadoizeParams(true);
       size_t block = objectives[r].block;
       
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         
+        View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
+        
         auto wts = assembler->groups[block][grp]->wts;
         
-        assembler->groups[block][grp]->updateWorkset(0,0,true);
+        assembler->updateWorkset(block, grp, 0,0,true);
         
-        auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
+        auto obj_dev = assembler->function_managers[block]->evaluate(objectives[r].name,"ip");
         
-        Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
+        Kokkos::View<ScalarT[1],AssemblyDevice> objsum("sum of objective");
         parallel_for("grp objective",
                      RangePolicy<AssemblyExec>(0,wts.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
-          AD tmpval = 0.0;
+          ScalarT tmpval = 0.0;
           for (size_type pt=0; pt<wts.extent(1); pt++) {
             tmpval += obj_dev(elem,pt)*wts(elem,pt);
           }
           Kokkos::atomic_add(&(objsum(0)),tmpval);
         });
         
-        View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
-        
         parallel_for("grp objective",
                      RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                      KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
-          size_t numder = static_cast<size_t>(objsum(0).size());
-#else
-          size_t numder = 0;
-#endif
           if (p==0) {
-#ifndef MrHyDE_NO_AD
-            objsum_dev(p) = objsum(0).val();
-#else
             objsum_dev(p) = objsum(0);
-#endif
-          }
-          else if (p <= numder) {
-#ifndef MrHyDE_NO_AD
-            objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-#endif
           }
         });
         
@@ -1883,81 +1861,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         // Update the objective function value
         totaldiff[r] += objectives[r].weight*objsum_host(0);
         
-        // Update the gradients w.r.t scalar active parameters
-        for (size_t p=0; p<params->num_active_params; p++) {
-          gradients[r][p] += objectives[r].weight*objsum_host(p+1);
-        }
       }
       
       
-      // Next, deriv w.r.t discretized params
-      if (params->globalParamUnknowns > 0) {
-        
-        params->sacadoizeParams(false);
-        
-        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          
-          auto wts = assembler->groups[block][grp]->wts;
-          
-          assembler->groups[block][grp]->updateWorkset(3,0,true);
-          
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
-          
-          Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
-          parallel_for("grp objective",
-                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            AD tmpval = 0.0;
-            for (size_type pt=0; pt<wts.extent(1); pt++) {
-              tmpval += obj_dev(elem,pt)*wts(elem,pt);
-            }
-            Kokkos::atomic_add(&(objsum(0)),tmpval);
-          });
-          
-          View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
-          
-          parallel_for("grp objective",
-                       RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
-                       KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
-            size_t numder = static_cast<size_t>(objsum(0).size());
-#else
-            size_t numder = 0;
-#endif
-            if (p==0) {
-#ifndef MrHyDE_NO_AD
-              objsum_dev(p) = objsum(0).val();
-#else
-              objsum_dev(p) = objsum(0);
-#endif
-            }
-            else if (p <= numder) {
-#ifndef MrHyDE_NO_AD
-              objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-#endif
-            }
-          });
-          
-          auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
-          Kokkos::deep_copy(objsum_host,objsum_dev);
-          auto poffs = params->paramoffsets;
-          
-          for (size_t c=0; c<assembler->groups[block][grp]->numElem; c++) {
-            vector<GO> paramGIDs;
-            params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[c],
-                                             paramGIDs, blocknames[block]);
-            
-            for (size_t pp=0; pp<poffs.size(); ++pp) {
-              for (size_t row=0; row<poffs[pp].size(); row++) {
-                GO rowIndex = paramGIDs[poffs[pp][row]];
-                int poffset = 1+poffs[pp][row];
-                gradients[r][rowIndex+params->num_active_params] += objectives[r].weight*objsum_host(poffset);
-              }
-            }
-          }
-        }
-        
-      }
     }
     else if (objectives[r].type == "discrete control") {
       for (size_t set=0; set<current_soln.size(); ++set) {
@@ -1987,23 +1893,20 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
       
       size_t block = objectives[r].block;
       
-      // First, compute objective value and deriv. w.r.t scalar params
-      //if (params->num_active_params > 0) {
-        params->sacadoizeParams(true); // seed active
-        
+      
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         
           auto wts = assembler->groups[block][grp]->wts;
             
-          assembler->groups[block][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(block, grp, 0,0,true);
         
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
+          auto obj_dev = assembler->function_managers[block]->evaluate(objectives[r].name+" response","ip");
         
-          Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
+          Kokkos::View<ScalarT[1],AssemblyDevice> objsum("sum of objective");
           parallel_for("grp objective",
                        RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
-            AD tmpval = 0.0;
+            ScalarT tmpval = 0.0;
             for (size_type pt=0; pt<wts.extent(1); pt++) {
               tmpval += obj_dev(elem,pt)*wts(elem,pt);
             }
@@ -2015,19 +1918,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           parallel_for("grp objective",
                        RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
                        KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
-            size_t numder = static_cast<size_t>(objsum(0).size());
-            if (p==0) {
-              objsum_dev(p) = objsum(0).val();
-            }
-            else if (p <= numder) {
-              objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-            }
-#else
             if (p==0) {
               objsum_dev(p) = objsum(0);
             }
-#endif
           });
         
           auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
@@ -2036,10 +1929,6 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           // Update the objective function value
           totaldiff[r] += objsum_host(0);
         
-          // Update the gradients w.r.t scalar active parameters
-          for (size_t p=0; p<params->num_active_params; p++) {
-            gradients[r][p] += objsum_host(p+1);
-          }
         }
       
         if (compute_response) {
@@ -2058,72 +1947,6 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         }
       //}
 
-      // Next, deriv w.r.t discretized params
-      if (params->globalParamUnknowns > 0) {
-        
-        params->sacadoizeParams(false);
-        
-        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          
-          auto wts = assembler->groups[block][grp]->wts;
-          
-          assembler->groups[block][grp]->updateWorkset(3,0,true);
-        
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
-          
-          Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
-          parallel_for("grp objective",
-                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            AD tmpval = 0.0;
-            for (size_type pt=0; pt<wts.extent(1); pt++) {
-              tmpval += obj_dev(elem,pt)*wts(elem,pt);
-            }
-            Kokkos::atomic_add(&(objsum(0)),tmpval);
-          });
-          
-          View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
-          
-          parallel_for("grp objective",
-                       RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
-                       KOKKOS_LAMBDA (const size_type p ) {
-#ifndef MrHyDE_NO_AD
-            size_t numder = static_cast<size_t>(objsum(0).size());
-            if (p==0) {
-              objsum_dev(p) = objsum(0).val();
-            }
-            else if (p <= numder) {
-              objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-            }
-#else
-            if (p==0) {
-              objsum_dev(p) = objsum(0);
-            }
-#endif
-          });
-          
-          auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
-          Kokkos::deep_copy(objsum_host,objsum_dev);
-          auto poffs = params->paramoffsets;
-          
-          for (size_t c=0; c<assembler->groups[block][grp]->numElem; c++) {
-            vector<GO> paramGIDs;
-            params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[c],
-                                             paramGIDs, blocknames[block]);
-            
-            for (size_t pp=0; pp<poffs.size(); ++pp) {
-              for (size_t row=0; row<poffs[pp].size(); row++) {
-                GO rowIndex = paramGIDs[poffs[pp][row]];
-                int poffset = 1+poffs[pp][row];
-                //gradients[r][rowIndex+params->num_active_params] += objectives[r].weight*objsum_host(poffset);
-                gradients[r][rowIndex+params->num_active_params] += objsum_host(poffset);
-              }
-            }
-          }
-        }
-        
-      }
-      
       // Right now, totaldiff = response
       //             gradient = dresponse / dp
       // We want    totaldiff = wt*(response-target)^2
@@ -2131,10 +1954,6 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
       
       ScalarT diff = totaldiff[r] - objectives[r].target;
       totaldiff[r] = objectives[r].weight*diff*diff;
-      for (size_t g=0; g<gradients[r].size(); ++g) {
-        gradients[r][g] = 2.0*objectives[r].weight*diff*gradients[r][g];
-      }
-      
       
     }
     else if (objectives[r].type == "sensors" || objectives[r].type == "sensor response" || objectives[r].type == "pointwise response") {
@@ -2160,27 +1979,24 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           
           if (compute_response || foundtime) {
           
-            // First compute objective and derivative w.r.t scalar params
-            params->sacadoizeParams(true);
-            
             size_t block = objectives[r].block;
             size_t grp = objectives[r].sensor_owners(pt,0);
             size_t elem = objectives[r].sensor_owners(pt,1);
             assembler->wkset[block]->isOnPoint = true;
             auto x = assembler->wkset[block]->getScalarField("x");
             x(0,0) = objectives[r].sensor_points(pt,0);
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               auto y = assembler->wkset[block]->getScalarField("y");
               y(0,0) = objectives[r].sensor_points(pt,1);
             }
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               auto z = assembler->wkset[block]->getScalarField("z");
               z(0,0) = objectives[r].sensor_points(pt,2);
             }
             
-            auto numDOF = assembler->groupData[block]->numDOF;
-            View_AD2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
-            auto cu = subview(assembler->groups[block][grp]->u[0],elem,ALL(),ALL()); // hard coded
+            auto numDOF = assembler->groupData[block]->num_dof;
+            View_Sc2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
+            auto cu = subview(assembler->groups[block][grp]->sol[0],elem,ALL(),ALL()); // hard coded
             parallel_for("grp response get u",
                         RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                         KOKKOS_LAMBDA (const size_type n ) {
@@ -2192,8 +2008,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             });
             
             // Map the local solution to the solution and gradient at ip
-            View_AD2 u_ip("u_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
-            View_AD2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
+            View_Sc2 u_ip("u_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
+            View_Sc2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
             
             for (size_type var=0; var<numDOF.extent(0); var++) {
               auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
@@ -2217,9 +2033,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             
             // Map the local discretized params to param and grad at ip
             if (params->globalParamUnknowns > 0) {
-              auto numParamDOF = assembler->groupData[block]->numParamDOF;
+              auto numParamDOF = assembler->groupData[block]->num_param_dof;
               
-              View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
+              View_Sc2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
               auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
               parallel_for("grp response get u",
                           RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
@@ -2231,8 +2047,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                 }
               });
               
-              View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
-              View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+              View_Sc2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+              View_Sc2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
               
               for (size_type var=0; var<numParamDOF.extent(0); var++) {
                 int bnum = assembler->wkset[block]->paramusebasis[var];
@@ -2258,102 +2074,18 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             }
             
             // Evaluate the response
-            auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
+            auto rdata = assembler->function_managers[block]->evaluate(objectives[r].name+" response","point");
             
             if (compute_response) {
-  #ifndef MrHyDE_NO_AD
-              sensordat(pt) = rdata(0,0).val();
-  #else
               sensordat(pt) = rdata(0,0);
-  #endif
             }
             
             if (compute_objective) {
               
               // Update the value of the objective
-              AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
-              AD sdiff = objectives[r].weight*diff*diff;
-  #ifndef MrHyDE_NO_AD
-              totaldiff[r] += sdiff.val();
-  #else
+              ScalarT diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
+              ScalarT sdiff = objectives[r].weight*diff*diff;
               totaldiff[r] += sdiff;
-  #endif
-              
-              // Update the gradient w.r.t scalar active parameters
-  #ifndef MrHyDE_NO_AD
-              for (size_t p=0; p<params->num_active_params; p++) {
-                gradients[r][p] += sdiff.fastAccessDx(p);
-              }
-  #endif
-              
-              // Discretized parameters
-              if (params->globalParamUnknowns > 0) {
-                
-                // Need to compute derivative w.r.t discretized params
-                params->sacadoizeParams(false);
-                
-                auto numParamDOF = assembler->groupData[block]->numParamDOF;
-                auto poff = assembler->wkset[block]->paramoffsets;
-                View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
-                auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
-                parallel_for("grp response get u",
-                            RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
-                            KOKKOS_LAMBDA (const size_type n ) {
-                  for (size_type n=0; n<numParamDOF.extent(0); n++) {
-                    for( int i=0; i<numParamDOF(n); i++ ) {
-  #ifndef MrHyDE_NO_AD
-                      p_dof(n,i) = AD(maxDerivs,poff(n,i),cp(n,i));
-  #else
-                      p_dof(n,i) = cp(n,i);
-  #endif
-                    }
-                  }
-                });
-                
-  #ifndef MrHyDE_NO_AD
-                View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
-                View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
-                
-                for (size_type var=0; var<numParamDOF.extent(0); var++) {
-                  int bnum = assembler->wkset[block]->paramusebasis[var];
-                  auto cbasis = objectives[r].sensor_basis[bnum];
-                  auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
-                  auto p_sv = subview(p_ip, var, ALL());
-                  auto p_dof_sv = subview(p_dof, var, ALL());
-                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
-                  
-                  parallel_for("grp response sensor uip",
-                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
-                              KOKKOS_LAMBDA (const int dof ) {
-                    p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                    }
-                  });
-                }
-                
-                assembler->wkset[block]->setParamPoint(p_ip);
-                assembler->wkset[block]->setParamGradPoint(pgrad_ip);
-                
-                // Evaluate the response
-                auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
-                AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
-                AD sdiff = objectives[r].weight*diff*diff;
-                
-                auto poffs = params->paramoffsets;
-                vector<GO> paramGIDs;
-                params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[elem],
-                                                paramGIDs, blocknames[block]);
-                
-                for (size_t pp=0; pp<poffs.size(); ++pp) {
-                  for (size_t row=0; row<poffs[pp].size(); row++) {
-                    GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
-                    int poffset = poffs[pp][row];
-                    gradients[r][rowIndex] += sdiff.fastAccessDx(poffset);
-                  }
-                }
-  #endif
-              }
               
             }
             assembler->wkset[block]->isOnPoint = false;
@@ -2373,17 +2105,16 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
     for (size_t reg=0; reg<objectives[r].regularizations.size(); ++reg) {
       if (objectives[r].regularizations[reg].type == "integrated") {
         if (objectives[r].regularizations[reg].location == "volume") {
-          params->sacadoizeParams(false);
           ScalarT regwt = objectives[r].regularizations[reg].weight;
           size_t block = objectives[r].block;
           for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
             
             auto wts = assembler->groups[block][grp]->wts;
             
-            assembler->groups[block][grp]->updateWorkset(3,0,true);
+            assembler->updateWorkset(block, grp, 3,0,true);
             
-            auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
-            View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
+            auto regvals_tmp = assembler->function_managers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
+            View_Sc2 regvals("regvals",wts.extent(0),wts.extent(1));
             
             parallel_for("grp objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
@@ -2394,19 +2125,718 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             });
             
             
-            View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),maxDerivs+1);
+            auto regvals_sc_host = create_mirror_view(regvals);
+            deep_copy(regvals_sc_host,regvals);
+            
+            auto poffs = params->paramoffsets;
+            for (size_t elem=0; elem<assembler->groups[block][grp]->numElem; ++elem) {
+                            
+              vector<GO> paramGIDs;
+              params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID(elem),
+                                               paramGIDs, blocknames[block]);
+              
+              for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
+                totaldiff[r] += regwt*regvals_sc_host(elem,pt);
+              }
+            }
+          }
+          
+        }
+        else if (objectives[r].regularizations[reg].location == "boundary") {
+          string bname = objectives[r].regularizations[reg].boundary_name;
+          ScalarT regwt = objectives[r].regularizations[reg].weight;
+          size_t block = objectives[r].block;
+          assembler->wkset[block]->isOnSide = true;
+          for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
+            if (assembler->boundary_groups[block][grp]->sidename == bname) {
+              
+              auto wts = assembler->boundary_groups[block][grp]->wts;
+              
+              assembler->updateWorksetBoundary(block, grp, 3, 0, true);
+              
+              auto regvals_tmp = assembler->function_managers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
+              View_Sc2 regvals("regvals",wts.extent(0),wts.extent(1));
+              
+              parallel_for("grp objective",
+                           RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                           KOKKOS_LAMBDA (const size_type elem ) {
+                for (size_type pt=0; pt<wts.extent(1); ++pt) {
+                  regvals(elem,pt) = wts(elem,pt)*regvals_tmp(elem,pt);
+                }
+              });
+              
+              
+              auto regvals_sc_host = create_mirror_view(regvals);
+              deep_copy(regvals_sc_host,regvals);
+              
+              auto poffs = params->paramoffsets;
+              for (size_t elem=0; elem<assembler->boundary_groups[block][grp]->numElem; ++elem) {
+                              
+                vector<GO> paramGIDs;
+                params->paramDOF->getElementGIDs(assembler->boundary_groups[block][grp]->localElemID(elem),
+                                                 paramGIDs, blocknames[block]);
+                
+                for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
+                  totaldiff[r] += regwt*regvals_sc_host(elem,pt);
+                }
+              }
+  
+            }
+          }
+          
+          assembler->wkset[block]->isOnSide = false;
+        }
+        
+      }
+    }
+  }
+  
+  
+  // For now, we scalarize the objective functions by summing them
+  ScalarT totalobj = 0.0;
+  for (size_t r=0; r<totaldiff.size(); ++r) {
+    totalobj += totaldiff[r];
+  }
+  
+  //to gather contributions across processors
+  ScalarT meep = 0.0;
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totalobj,&meep);
+  
+  DFAD fullobj(numParams,meep);
+  
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Finished PostprocessManager::computeObjective ..." << std::endl;
+  }
+  
+  objectiveval += fullobj;
+  
+
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & current_soln,
+                                                         const ScalarT & current_time,
+                                                         DFAD & objectiveval) {
+  
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Starting PostprocessManager::computeObjectiveGradParam ..." << std::endl;
+  }
+
+#ifndef MrHyDE_NO_AD
+  for (size_t r=0; r<objectives.size(); ++r) {
+    DFAD newobj = 0.0;
+    size_t block = objectives[r].block;
+    if (assembler->wkset_AD[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD[block],
+                                               assembler->function_managers_AD[block]);
+    }
+    else if (assembler->wkset_AD2[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD2[block],
+                                               assembler->function_managers_AD2[block]);
+    }
+    else if (assembler->wkset_AD4[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD4[block],
+                                               assembler->function_managers_AD4[block]);
+    }
+    else if (assembler->wkset_AD8[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD8[block],
+                                               assembler->function_managers_AD8[block]);
+    }
+    else if (assembler->wkset_AD16[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD16[block],
+                                               assembler->function_managers_AD16[block]);
+    }
+    else if (assembler->wkset_AD18[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD18[block],
+                                               assembler->function_managers_AD18[block]);
+    }
+    else if (assembler->wkset_AD24[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD24[block],
+                                               assembler->function_managers_AD24[block]);
+    }
+    else if (assembler->wkset_AD32[block]->isInitialized) {
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+                                               assembler->wkset_AD32[block],
+                                               assembler->function_managers_AD32[block]);
+    }
+    
+    objectiveval += newobj;
+  }
+
+  saveObjectiveData(objectiveval);
+#endif
+
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam ..." << std::endl;
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+template<class EvalT>
+DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vector<vector_RCP> & current_soln,
+                                                         const ScalarT & current_time,
+                                                         Teuchos::RCP<Workset<EvalT> > & wset,
+                                                         Teuchos::RCP<FunctionManager<EvalT> > & fman) {
+
+  Teuchos::TimeMonitor localtimer(*objectiveTimer);
+  
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Starting PostprocessManager::computeObjectiveGradParam<EvalT> ..." << std::endl;
+  }
+  
+  DFAD fullobj = 0.0;
+  
+#ifndef MrHyDE_NO_AD
+
+  typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+  
+  // Objective function values
+  ScalarT objval = 0.0;
+  
+  int numParams = params->num_active_params + params->globalParamUnknowns;
+  size_t block = objectives[obj].block;
+
+  // Objective function gradients w.r.t params
+  vector<ScalarT> gradient(numParams, 0.0);
+  
+  //for (size_t r=0; r<objectives.size(); ++r) {
+    if (objectives[obj].type == "integrated control"){
+      
+      // First, compute objective value and deriv. w.r.t scalar params
+      params->sacadoizeParams(true);
+      
+      for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+        
+        View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
+        //assembler->computeObjectiveGrad(block, grp, objectives[r].name, objsum_dev);
+        
+        auto wts = assembler->groups[block][grp]->wts;
+        
+        assembler->updateWorksetAD(block, grp, 0, 0, true);
+        
+        auto obj_dev = fman->evaluate(objectives[obj].name,"ip");
+        
+        Kokkos::View<EvalT[1],AssemblyDevice> objsum("sum of objective");
+        parallel_for("grp objective",
+                     RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                     KOKKOS_LAMBDA (const size_type elem ) {
+          EvalT tmpval = 0.0;
+          for (size_type pt=0; pt<wts.extent(1); pt++) {
+            tmpval += obj_dev(elem,pt)*wts(elem,pt);
+          }
+          Kokkos::atomic_add(&(objsum(0)),tmpval);
+        });
+        
+        parallel_for("grp objective",
+                     RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
+                     KOKKOS_LAMBDA (const size_type p ) {
+          size_t numder = static_cast<size_t>(objsum(0).size());
+          if (p==0) {
+            objsum_dev(p) = objsum(0).val();
+          }
+          else if (p <= numder) {
+            objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+          }
+        });
+        
+        auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
+        Kokkos::deep_copy(objsum_host,objsum_dev);
+        
+        // Update the objective function value
+        objval += objectives[obj].weight*objsum_host(0);
+        
+        // Update the gradients w.r.t scalar active parameters
+        for (size_t p=0; p<params->num_active_params; p++) {
+          gradient[p] += objectives[obj].weight*objsum_host(p+1);
+        }
+      }
+      
+      
+      // Next, deriv w.r.t discretized params
+      if (params->globalParamUnknowns > 0) {
+        
+        params->sacadoizeParams(false);
+        
+        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+          
+          auto wts = assembler->groups[block][grp]->wts;
+          
+          assembler->updateWorksetAD(block, grp, 3, 0, true);
+          
+          auto obj_dev = fman->evaluate(objectives[obj].name,"ip");
+          
+          Kokkos::View<EvalT[1],AssemblyDevice> objsum("sum of objective");
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            EvalT tmpval = 0.0;
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
+              tmpval += obj_dev(elem,pt)*wts(elem,pt);
+            }
+            Kokkos::atomic_add(&(objsum(0)),tmpval);
+          });
+          
+          View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
+          
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
+                       KOKKOS_LAMBDA (const size_type p ) {
+            size_t numder = static_cast<size_t>(objsum(0).size());
+            if (p==0) {
+              objsum_dev(p) = objsum(0).val();
+            }
+            else if (p <= numder) {
+              objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+            }
+          });
+          
+          auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
+          Kokkos::deep_copy(objsum_host,objsum_dev);
+          auto poffs = params->paramoffsets;
+          
+          for (size_t c=0; c<assembler->groups[block][grp]->numElem; c++) {
+            vector<GO> paramGIDs;
+            params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[c],
+                                             paramGIDs, blocknames[block]);
+            
+            for (size_t pp=0; pp<poffs.size(); ++pp) {
+              for (size_t row=0; row<poffs[pp].size(); row++) {
+                GO rowIndex = paramGIDs[poffs[pp][row]];
+                int poffset = 1+poffs[pp][row];
+                gradient[rowIndex+params->num_active_params] += objectives[obj].weight*objsum_host(poffset);
+              }
+            }
+          }
+        }
+        
+      }
+    }
+    else if (objectives[obj].type == "discrete control") {
+      for (size_t set=0; set<current_soln.size(); ++set) {
+        vector_RCP D_soln;
+        bool fnd = datagen_soln[set]->extract(D_soln, 0, current_time);
+        if (fnd) {
+          vector_RCP diff = linalg->getNewVector(set);
+          vector_RCP F_no = linalg->getNewVector(set);
+          vector_RCP D_no = linalg->getNewVector(set);
+          F_no->doExport(*(current_soln[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
+          D_no->doExport(*D_soln, *(linalg->exporter[set]), Tpetra::REPLACE);
+          
+          diff->update(1.0, *F_no, 0.0);
+          diff->update(-1.0, *D_no, 1.0);
+          Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> objn(1);
+          diff->norm2(objn);
+          if (Comm->getRank() == 0) {
+            objval += objectives[obj].weight*objn[0]*objn[0];
+          }
+        }
+        else {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: did not find a data-generating solution");
+        }
+      }
+    }
+    else if (objectives[obj].type == "integrated response") {
+      
+      // First, compute objective value and deriv. w.r.t scalar params
+      //if (params->num_active_params > 0) {
+        params->sacadoizeParams(true); // seed active
+        
+        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+        
+          auto wts = assembler->groups[block][grp]->wts;
+            
+          assembler->updateWorkset(block, grp, 0, 0, true);
+        
+          auto obj_dev = fman->evaluate(objectives[obj].name+" response","ip");
+        
+          Kokkos::View<EvalT[1],AssemblyDevice> objsum("sum of objective");
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            EvalT tmpval = 0.0;
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
+              tmpval += obj_dev(elem,pt)*wts(elem,pt);
+            }
+            Kokkos::atomic_add(&(objsum(0)),tmpval);
+          });
+        
+          View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
+        
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
+                       KOKKOS_LAMBDA (const size_type p ) {
+            size_t numder = static_cast<size_t>(objsum(0).size());
+            if (p==0) {
+              objsum_dev(p) = objsum(0).val();
+            }
+            else if (p <= numder) {
+              objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+            }
+          });
+        
+          auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
+          Kokkos::deep_copy(objsum_host,objsum_dev);
+        
+          // Update the objective function value
+          objval += objsum_host(0);
+        
+          // Update the gradients w.r.t scalar active parameters
+          for (size_t p=0; p<params->num_active_params; p++) {
+            gradient[p] += objsum_host(p+1);
+          }
+        }
+      
+        if (compute_response) {
+          if (objectives[obj].save_data) {
+            objectives[obj].response_times.push_back(current_time);
+            objectives[obj].scalar_response_data.push_back(objval);
+            if (verbosity >= 10) {
+              double localval = objval;
+              double globalval = 0.0;
+              Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
+              if (Comm->getRank() == 0) {
+                cout << objectives[obj].name << " on block " << blocknames[block] << ": " << globalval << endl;
+              }
+            }
+          }
+        }
+      //}
+
+      // Next, deriv w.r.t discretized params
+      if (params->globalParamUnknowns > 0) {
+        
+        params->sacadoizeParams(false);
+        
+        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+          
+          auto wts = assembler->groups[block][grp]->wts;
+          
+          assembler->updateWorksetAD(block, grp, 3,0,true);
+        
+          auto obj_dev = fman->evaluate(objectives[obj].name+" response","ip");
+          
+          Kokkos::View<EvalT[1],AssemblyDevice> objsum("sum of objective");
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                       KOKKOS_LAMBDA (const size_type elem ) {
+            EvalT tmpval = 0.0;
+            for (size_type pt=0; pt<wts.extent(1); pt++) {
+              tmpval += obj_dev(elem,pt)*wts(elem,pt);
+            }
+            Kokkos::atomic_add(&(objsum(0)),tmpval);
+          });
+          
+          View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
+          
+          parallel_for("grp objective",
+                       RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
+                       KOKKOS_LAMBDA (const size_type p ) {
+            size_t numder = static_cast<size_t>(objsum(0).size());
+            if (p==0) {
+              objsum_dev(p) = objsum(0).val();
+            }
+            else if (p <= numder) {
+              objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+            }
+          });
+          
+          auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
+          Kokkos::deep_copy(objsum_host,objsum_dev);
+          auto poffs = params->paramoffsets;
+          
+          for (size_t c=0; c<assembler->groups[block][grp]->numElem; c++) {
+            vector<GO> paramGIDs;
+            params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[c],
+                                             paramGIDs, blocknames[block]);
+            
+            for (size_t pp=0; pp<poffs.size(); ++pp) {
+              for (size_t row=0; row<poffs[pp].size(); row++) {
+                GO rowIndex = paramGIDs[poffs[pp][row]];
+                int poffset = 1+poffs[pp][row];
+                //gradients[r][rowIndex+params->num_active_params] += objectives[r].weight*objsum_host(poffset);
+                gradient[rowIndex+params->num_active_params] += objsum_host(poffset);
+              }
+            }
+          }
+        }
+        
+      }
+      
+      // Right now, totaldiff = response
+      //             gradient = dresponse / dp
+      // We want    totaldiff = wt*(response-target)^2
+      //             gradient = 2*wt*(response-target)*dresponse/dp
+      
+      ScalarT diff = objval - objectives[obj].target;
+      objval = objectives[obj].weight*diff*diff;
+      for (size_t g=0; g<gradient.size(); ++g) {
+        gradient[g] = 2.0*objectives[obj].weight*diff*gradient[g];
+      }
+      
+      
+    }
+    else if (objectives[obj].type == "sensors" || objectives[obj].type == "sensor response" || objectives[obj].type == "pointwise response") {
+      if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
+        // don't do anything for this use case
+      }
+      else {
+        Kokkos::View<ScalarT*,HostDevice> sensordat;
+        if (compute_response) {
+          sensordat = Kokkos::View<ScalarT*,HostDevice>("sensor data to save",objectives[obj].numSensors);
+          objectives[obj].response_times.push_back(current_time);
+        }
+      
+        for (size_t pt=0; pt<objectives[obj].numSensors; ++pt) {
+          size_t tindex = 0;
+          bool foundtime = false;
+          for (size_type t=0; t<objectives[obj].sensor_times.extent(0); ++t) {
+            if (std::abs(current_time - objectives[obj].sensor_times(t)) < 1.0e-12) {
+              foundtime = true;
+              tindex = t;
+            }
+          }
+          
+          if (compute_response || foundtime) {
+          
+            // First compute objective and derivative w.r.t scalar params
+            params->sacadoizeParams(true);
+            
+            size_t grp = objectives[obj].sensor_owners(pt,0);
+            size_t elem = objectives[obj].sensor_owners(pt,1);
+            wset->isOnPoint = true;
+            auto x = wset->getScalarField("x");
+            x(0,0) = objectives[obj].sensor_points(pt,0);
+            if (dimension > 1) {
+              auto y = wset->getScalarField("y");
+              y(0,0) = objectives[obj].sensor_points(pt,1);
+            }
+            if (dimension > 2) {
+              auto z = wset->getScalarField("z");
+              z(0,0) = objectives[obj].sensor_points(pt,2);
+            }
+            
+            auto numDOF = assembler->groupData[block]->num_dof;
+            View_EvalT2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
+            auto cu = subview(assembler->groups[block][grp]->sol[0],elem,ALL(),ALL()); // hard coded
+            parallel_for("grp response get u",
+                        RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
+                        KOKKOS_LAMBDA (const size_type n ) {
+              for (size_type n=0; n<numDOF.extent(0); n++) {
+                for( int i=0; i<numDOF(n); i++ ) {
+                  u_dof(n,i) = cu(n,i);
+                }
+              }
+            });
+            
+            // Map the local solution to the solution and gradient at ip
+            View_EvalT2 u_ip("u_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
+            View_EvalT2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
+            
+            for (size_type var=0; var<numDOF.extent(0); var++) {
+              auto cbasis = objectives[obj].sensor_basis[wset->usebasis[var]];
+              auto cbasis_grad = objectives[obj].sensor_basis_grad[wset->usebasis[var]];
+              auto u_sv = subview(u_ip, var, ALL());
+              auto u_dof_sv = subview(u_dof, var, ALL());
+              auto ugrad_sv = subview(ugrad_ip, var, ALL());
+              
+              parallel_for("grp response sensor uip",
+                          RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                          KOKKOS_LAMBDA (const int dof ) {
+                u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
+                for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                  ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                }
+              });
+            }
+            
+            wset->setSolutionPoint(u_ip);
+            wset->setSolutionGradPoint(ugrad_ip);
+            
+            // Map the local discretized params to param and grad at ip
+            if (params->globalParamUnknowns > 0) {
+              auto numParamDOF = assembler->groupData[block]->num_param_dof;
+              
+              View_EvalT2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
+              auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
+              parallel_for("grp response get u",
+                          RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
+                          KOKKOS_LAMBDA (const size_type n ) {
+                for (size_type n=0; n<numParamDOF.extent(0); n++) {
+                  for( int i=0; i<numParamDOF(n); i++ ) {
+                    p_dof(n,i) = cp(n,i);
+                  }
+                }
+              });
+              
+              View_EvalT2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+              View_EvalT2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+              
+              for (size_type var=0; var<numParamDOF.extent(0); var++) {
+                int bnum = wset->paramusebasis[var];
+                auto cbasis = objectives[obj].sensor_basis[bnum];
+                auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                auto p_sv = subview(p_ip, var, ALL());
+                auto p_dof_sv = subview(p_dof, var, ALL());
+                auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                
+                parallel_for("grp response sensor uip",
+                            RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                            KOKKOS_LAMBDA (const int dof ) {
+                  p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
+                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                  }
+                });
+              }
+              
+              wset->setParamPoint(p_ip);
+              
+              wset->setParamGradPoint(pgrad_ip);
+            }
+            
+            // Evaluate the response
+            auto rdata = fman->evaluate(objectives[obj].name+" response","point");
+            
+            if (compute_response) {
+              sensordat(pt) = rdata(0,0).val();
+            }
+            
+            if (compute_objective) {
+              
+              // Update the value of the objective
+              AD diff = rdata(0,0) - objectives[obj].sensor_data(pt,tindex);
+              AD sdiff = objectives[obj].weight*diff*diff;
+              objval += sdiff.val();
+              
+              // Update the gradient w.r.t scalar active parameters
+              for (size_t p=0; p<params->num_active_params; p++) {
+                gradient[p] += sdiff.fastAccessDx(p);
+              }
+              
+              // Discretized parameters
+              if (params->globalParamUnknowns > 0) {
+                
+                // Need to compute derivative w.r.t discretized params
+                params->sacadoizeParams(false);
+                
+                auto numParamDOF = assembler->groupData[block]->num_param_dof;
+                auto poff = wset->paramoffsets;
+                View_EvalT2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
+                auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
+                parallel_for("grp response get u",
+                            RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
+                            KOKKOS_LAMBDA (const size_type n ) {
+                  for (size_type n=0; n<numParamDOF.extent(0); n++) {
+                    for( int i=0; i<numParamDOF(n); i++ ) {
+                      p_dof(n,i) = AD(MAXDERIVS,poff(n,i),cp(n,i));
+                    }
+                  }
+                });
+                
+                View_EvalT2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+                View_EvalT2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+                
+                for (size_type var=0; var<numParamDOF.extent(0); var++) {
+                  int bnum = wset->paramusebasis[var];
+                  auto cbasis = objectives[obj].sensor_basis[bnum];
+                  auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                  auto p_sv = subview(p_ip, var, ALL());
+                  auto p_dof_sv = subview(p_dof, var, ALL());
+                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                  
+                  parallel_for("grp response sensor uip",
+                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                              KOKKOS_LAMBDA (const int dof ) {
+                    p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    }
+                  });
+                }
+                
+                wset->setParamPoint(p_ip);
+                wset->setParamGradPoint(pgrad_ip);
+                
+                // Evaluate the response
+                auto rdata = fman->evaluate(objectives[obj].name+" response","point");
+                EvalT diff = rdata(0,0) - objectives[obj].sensor_data(pt,tindex);
+                EvalT sdiff = objectives[obj].weight*diff*diff;
+                
+                auto poffs = params->paramoffsets;
+                vector<GO> paramGIDs;
+                params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[elem],
+                                                paramGIDs, blocknames[block]);
+                
+                for (size_t pp=0; pp<poffs.size(); ++pp) {
+                  for (size_t row=0; row<poffs[pp].size(); row++) {
+                    GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
+                    int poffset = poffs[pp][row];
+                    gradient[rowIndex] += sdiff.fastAccessDx(poffset);
+                  }
+                }
+
+              }
+              
+            }
+            wset->isOnPoint = false;
+
+          } // found time
+        } // sensor points
+        
+        if (compute_response) {
+          objectives[obj].response_data.push_back(sensordat);
+        }
+      } // objectives
+    }
+    // ========================================================================================
+    // Add regularizations (reg funcs are tied to objectives and objectives can have more than one reg)
+    // ========================================================================================
+
+    for (size_t reg=0; reg<objectives[obj].regularizations.size(); ++reg) {
+      if (objectives[obj].regularizations[reg].type == "integrated") {
+        if (objectives[obj].regularizations[reg].location == "volume") {
+          params->sacadoizeParams(false);
+          ScalarT regwt = objectives[obj].regularizations[reg].weight;
+          for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
+            
+            auto wts = assembler->groups[block][grp]->wts;
+            
+            assembler->updateWorksetAD(block, grp, 3, 0, true);
+            
+            auto regvals_tmp = fman->evaluate(objectives[obj].regularizations[reg].name,"ip");
+            View_EvalT2 regvals("regvals",wts.extent(0),wts.extent(1));
+            
             parallel_for("grp objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
               for (size_type pt=0; pt<wts.extent(1); ++pt) {
-#ifndef MrHyDE_NO_AD
+                regvals(elem,pt) = wts(elem,pt)*regvals_tmp(elem,pt);
+              }
+            });
+            
+            
+            View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),MAXDERIVS+1);
+            parallel_for("grp objective",
+                         RangePolicy<AssemblyExec>(0,wts.extent(0)),
+                         KOKKOS_LAMBDA (const size_type elem ) {
+              for (size_type pt=0; pt<wts.extent(1); ++pt) {
                 regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                 for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                   regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
                 }
-#else
-                regvals_sc(elem,pt,0) = regvals(elem,pt);
-#endif
               }
             });
             
@@ -2421,12 +2851,12 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                                                paramGIDs, blocknames[block]);
               
               for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
-                totaldiff[r] += regwt*regvals_sc_host(elem,pt,0);
+                objval += regwt*regvals_sc_host(elem,pt,0);
                 for (size_t pp=0; pp<poffs.size(); ++pp) {
                   for (size_t row=0; row<poffs[pp].size(); row++) {
                     GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
                     int poffset = poffs[pp][row];
-                    gradients[r][rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
+                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
                   }
                 }
               }
@@ -2434,21 +2864,20 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           }
           
         }
-        else if (objectives[r].regularizations[reg].location == "boundary") {
-          string bname = objectives[r].regularizations[reg].boundary_name;
+        else if (objectives[obj].regularizations[reg].location == "boundary") {
+          string bname = objectives[obj].regularizations[reg].boundary_name;
           params->sacadoizeParams(false);
-          ScalarT regwt = objectives[r].regularizations[reg].weight;
-          size_t block = objectives[r].block;
-          assembler->wkset[block]->isOnSide = true;
+          ScalarT regwt = objectives[obj].regularizations[reg].weight;
+          wset->isOnSide = true;
           for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
             if (assembler->boundary_groups[block][grp]->sidename == bname) {
               
               auto wts = assembler->boundary_groups[block][grp]->wts;
               
-              assembler->boundary_groups[block][grp]->updateWorkset(3,0,true);
+              assembler->updateWorksetBoundaryAD(block, grp, 3, 0, true);
               
-              auto regvals_tmp = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
-              View_AD2 regvals("regvals",wts.extent(0),wts.extent(1));
+              auto regvals_tmp = fman->evaluate(objectives[obj].regularizations[reg].name,"side ip");
+              View_EvalT2 regvals("regvals",wts.extent(0),wts.extent(1));
               
               parallel_for("grp objective",
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
@@ -2458,19 +2887,15 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                 }
               });
               
-              View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),maxDerivs+1);
+              View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),MAXDERIVS+1);
               parallel_for("grp objective",
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
                 for (size_type pt=0; pt<wts.extent(1); ++pt) {
-#ifndef MrHyDE_NO_AD
                   regvals_sc(elem,pt,0) = regvals(elem,pt).val();
                   for (size_type d=0; d<regvals_sc.extent(2)-1; ++d) {
                     regvals_sc(elem,pt,d+1) = regvals(elem,pt).fastAccessDx(d);
                   }
-#else
-                  regvals_sc(elem,pt,0) = regvals(elem,pt);
-#endif
                 }
                 
               });
@@ -2486,17 +2911,17 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                                                  paramGIDs, blocknames[block]);
                 
                 for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
-                  totaldiff[r] += regwt*regvals_sc_host(elem,pt,0);
+                  objval += regwt*regvals_sc_host(elem,pt,0);
                   for (size_t pp=0; pp<poffs.size(); ++pp) {
                     for (size_t row=0; row<poffs[pp].size(); row++) {
                       GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
                       int poffset = poffs[pp][row];
-                      gradients[r][rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
+                      gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
                     }
                   }
                 }
               }
-              
+  
               /*
               auto obj_dev = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
               
@@ -2543,46 +2968,42 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
                   }
                 }
               }*/
+  
             }
           }
           
-          assembler->wkset[block]->isOnSide = false;
+          wset->isOnSide = false;
         }
         
       }
     }
-  }
-  
-  
-  // For now, we scalarize the objective functions by summing them
-  ScalarT totalobj = 0.0;
-  for (size_t r=0; r<totaldiff.size(); ++r) {
-    totalobj += totaldiff[r];
-  }
+  //}
   
   //to gather contributions across processors
   ScalarT meep = 0.0;
-  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&totalobj,&meep);
+  Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&objval,&meep);
   
-  DFAD fullobj(numParams,meep);
+  fullobj = DFAD(numParams,meep);
   
   for (int j=0; j<numParams; j++) {
     ScalarT dval = 0.0;
-    ScalarT ldval = 0.0;
-    for (size_t r=0; r<gradients.size(); ++r) {
-      ldval += gradients[r][j];
-    }
+    ScalarT ldval = gradient[j];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
     fullobj.fastAccessDx(j) = dval;
   }
   
   params->sacadoizeParams(false);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeObjective ..." << std::endl;
-  }
+  //objectiveval += fullobj;
   
-  objectiveval += fullobj;
+  
+
+#endif
+
+  if (debug_level > 1 && Comm->getRank() == 0) {
+    std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam<EvalT> ..." << std::endl;
+  }
+  return fullobj;
 
 }
 
@@ -2610,7 +3031,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
         for (size_t set=0; set<varlist.size(); ++set) {
           numSols += varlist[set][block].size();
         }
-        Kokkos::View<ScalarT***,HostDevice> sensordat("sensor solution", objectives[r].numSensors, numSols, spaceDim);
+        Kokkos::View<ScalarT***,HostDevice> sensordat("sensor solution", objectives[r].numSensors, numSols, dimension);
         objectives[r].response_times.push_back(current_time); // might store this somewhere else
         
         for (size_t pt=0; pt<objectives[r].numSensors; ++pt) {
@@ -2619,8 +3040,8 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
           int grp_owner = objectives[r].sensor_owners(pt,0);
           int elem_owner = objectives[r].sensor_owners(pt,1);
           for (size_t set=0; set<varlist.size(); ++set) {  
-            auto numDOF = assembler->groupData[block]->set_numDOF_host[set];
-            auto cu = subview(assembler->groups[block][grp_owner]->u[set],elem_owner,ALL(),ALL());
+            auto numDOF = assembler->groupData[block]->set_num_dof_host[set];
+            auto cu = subview(assembler->groups[block][grp_owner]->sol[set],elem_owner,ALL(),ALL());
             auto cu_host = create_mirror_view(cu);
             //KokkosTools::print(assembler->groups[block][grp_owner]->u[set]);
             deep_copy(cu_host,cu);
@@ -2694,13 +3115,94 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          const ScalarT & deltat,
                                                          vector_RCP & grad) {
   
+  
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting PostprocessManager::computeObjectiveGradState ..." << std::endl;
     }
   }
+
+#ifndef MrHyDE_NO_AD
+  for (size_t r=0; r<objectives.size(); ++r) {
+    size_t block = objectives[r].block;
+    if (assembler->wkset_AD[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD[block],
+                                      assembler->function_managers_AD[block]);
+    }
+    else if (assembler->wkset_AD2[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD2[block],
+                                      assembler->function_managers_AD2[block]);
+    }
+    else if (assembler->wkset_AD4[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD4[block],
+                                      assembler->function_managers_AD4[block]);
+    }
+    else if (assembler->wkset_AD8[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD8[block],
+                                      assembler->function_managers_AD8[block]);
+    }
+    else if (assembler->wkset_AD16[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD16[block],
+                                      assembler->function_managers_AD16[block]);
+    }
+    else if (assembler->wkset_AD18[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD18[block],
+                                      assembler->function_managers_AD18[block]);
+    }
+    else if (assembler->wkset_AD24[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD24[block],
+                                      assembler->function_managers_AD24[block]);
+    }
+    else if (assembler->wkset_AD32[block]->isInitialized) {
+      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                      assembler->wkset_AD32[block],
+                                      assembler->function_managers_AD32[block]);
+    }
+  }
+#endif
+
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      std::cout << "******** Finished PostprocessManager::computeObjectiveGradState ..." << std::endl;
+    }
+  }
+
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+template<class EvalT>
+void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
+                                                         const size_t & obj,
+                                                         vector_RCP & current_soln,
+                                                         const ScalarT & current_time,
+                                                         const ScalarT & deltat,
+                                                         vector_RCP & grad,
+                                                         Teuchos::RCP<Workset<EvalT> > & wset,
+                                                         Teuchos::RCP<FunctionManager<EvalT> > & fman) {
+  
+  
+  if (debug_level > 1) {
+    if (Comm->getRank() == 0) {
+      std::cout << "******** Starting PostprocessManager::computeObjectiveGradState<EvalT> ..." << std::endl;
+    }
+  }
   
 #ifndef MrHyDE_NO_AD
+
+  typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+  typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+  typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
+  
   DFAD totaldiff = 0.0;
   //AD regDomain = 0.0;
   //AD regBoundary = 0.0;
@@ -2708,7 +3210,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   params->sacadoizeParams(false);
   
   int numParams = params->num_active_params + params->globalParamUnknowns;
-  
+  size_t block = objectives[obj].block;
   
   vector<ScalarT> regGradient(numParams);
   vector<ScalarT> dmGradient(numParams);
@@ -2730,20 +3232,19 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     }
   }
     
-  for (size_t r=0; r<objectives.size(); ++r) {
-    if (objectives[r].type == "integrated control"){
+  
+    if (objectives[obj].type == "integrated control"){
       auto grad_over = linalg->getNewOverlappedVector(set);
       auto grad_tmp = linalg->getNewVector(set);
       auto grad_view = grad_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-      size_t block = objectives[r].block;
       
-      auto offsets = assembler->wkset[block]->offsets;
-      auto numDOF = assembler->groupData[block]->numDOF;
+      auto offsets = wset->offsets;
+      auto numDOF = assembler->groupData[block]->num_dof;
       
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         
         size_t numElem = assembler->groups[block][grp]->numElem;
-        size_t numip = assembler->wkset[block]->numip;
+        size_t numip = wset->numip;
         
         View_Sc3 local_grad("local contrib to dobj/dstate",
                             assembler->groups[block][grp]->numElem,
@@ -2751,36 +3252,37 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         
         auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
         
-        //for (int w=0; w<spaceDim+1; ++w) {
+        //for (int w=0; w<dimension+1; ++w) {
         for (int w=0; w<1; ++w) {
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->groups[block][grp]->updateWorkset(1,0,true);
+            assembler->updateWorksetAD(block, grp, 1,0, true);
           }
           else {
-            View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
+            View_EvalT3 u_dof("u_dof",numElem,numDOF.extent(0),
                            assembler->groups[block][grp]->LIDs[set].extent(1)); //(numElem, numVars, numDOF)
-            auto u = assembler->groups[block][grp]->u[set];
+            auto u = assembler->groups[block][grp]->sol[set];
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
+              EvalT dummyval = 0.0;
               for (size_type n=0; n<numDOF.extent(0); n++) { // numDOF is on device
                 for( int i=0; i<numDOF(n); i++ ) {
-                  u_dof(e,n,i) = AD(maxDerivs,offsets(n,i),u(e,n,i)); // offsets is on device
+                  u_dof(e,n,i) = EvalT(dummyval.size(),offsets(n,i),u(e,n,i)); // offsets is on device
                 }
               }
             });
             
-            View_AD4 u_ip("u_ip",numElem,numDOF.extent(0),numip,spaceDim);
-            View_AD4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,spaceDim);
+            View_EvalT4 u_ip("u_ip",numElem,numDOF.extent(0),numip,dimension);
+            View_EvalT4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,dimension);
             
             for (size_type var=0; var<numDOF.extent(0); var++) {
-              int bnum = assembler->wkset[block]->usebasis[var];
-              std::string btype = assembler->wkset[block]->basis_types[bnum];
+              int bnum = wset->usebasis[var];
+              std::string btype = wset->basis_types[bnum];
               if (btype == "HCURL" || btype == "HDIV") {
                 // TMW: this does not work yet
-                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto cbasis = assembler->wkset_AD[block]->basis[bnum];
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), ALL());
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 parallel_for("grp response uip",
@@ -2796,7 +3298,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                 });
               }
               else {
-                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto cbasis = wset->basis[bnum];
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), 0);
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 parallel_for("grp response uip",
@@ -2811,7 +3313,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
               
               if (btype == "HGRAD") {
-                auto cbasis_grad = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis_grad = wset->basis_grad[bnum];
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 auto ugrad_sv = subview(ugrad_ip, ALL(), var, ALL(), ALL());
                 parallel_for("grp response HGRAD",
@@ -2828,7 +3330,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             }
             
-            for (int s=0; s<spaceDim; s++) {
+            for (int s=0; s<dimension; s++) {
               auto ugrad_sv = subview(ugrad_ip, ALL(), ALL(), ALL(), s);
               if ((w-1) == s) {
                 parallel_for("grp response seed grad 0",
@@ -2867,13 +3369,13 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                 }
               }
             });
-            assembler->wkset[block]->setSolution(u_ip);
-            assembler->wkset[block]->setSolutionGrad(ugrad_ip);
+            wset->setSolution(u_ip);
+            wset->setSolutionGrad(ugrad_ip);
             
           }
           
           // Evaluate the objective
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name,"ip");
+          auto obj_dev = fman->evaluate(objectives[obj].name,"ip");
           
           // Weight using volumetric integration weights
           auto wts = assembler->groups[block][grp]->wts;
@@ -2882,16 +3384,16 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                        RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
             for (size_type pt=0; pt<wts.extent(1); pt++) {
-              obj_dev(elem,pt) *= objectives[r].weight*wts(elem,pt);
+              obj_dev(elem,pt) *= objectives[obj].weight*wts(elem,pt);
             }
           });
           
           for (size_type n=0; n<numDOF.extent(0); n++) {
-            int bnum = assembler->wkset[block]->usebasis[n];
-            std::string btype = assembler->wkset[block]->basis_types[bnum];
+            int bnum = wset->usebasis[n];
+            std::string btype = wset->basis_types[bnum];
             
             if (w == 0) {
-              auto cbasis = assembler->wkset[block]->basis[bnum];
+              auto cbasis = wset->basis[bnum];
               
               if (btype == "HDIV" || btype == "HCURL") {
 
@@ -2941,7 +3443,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             else {
               
               if (btype == "HGRAD") {
-                auto cbasis = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis = wset->basis_grad[bnum];
                 //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
@@ -2988,20 +3490,19 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       grad->update(1.0, *grad_tmp, 1.0);
         
     }
-    else if (objectives[r].type == "integrated response") {
+    else if (objectives[obj].type == "integrated response") {
       auto grad_over = linalg->getNewOverlappedVector(set);
       auto grad_tmp = linalg->getNewVector(set);
       auto grad_view = grad_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-      size_t block = objectives[r].block;
       
-      auto offsets = assembler->wkset[block]->offsets;
-      auto numDOF = assembler->groupData[block]->numDOF;
+      auto offsets = wset->offsets;
+      auto numDOF = assembler->groupData[block]->num_dof;
       
       ScalarT intresp = 0.0;
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         
         size_t numElem = assembler->groups[block][grp]->numElem;
-        size_t numip = assembler->wkset[block]->numip;
+        size_t numip = wset->numip;
         
         View_Sc3 local_grad("local contrib to dobj/dstate",
                             assembler->groups[block][grp]->numElem,
@@ -3009,38 +3510,39 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         
         auto local_grad_ladev = create_mirror(LA_exec(),local_grad);
                 
-        for (int w=0; w<spaceDim+1; ++w) {
+        for (int w=0; w<dimension+1; ++w) {
         //for (int w=0; w<1; ++w) {
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
-            assembler->groups[block][grp]->updateWorkset(1,0,true);
+            assembler->updateWorksetAD(block, grp, 1 ,0, true);
           }
           else {
-            View_AD3 u_dof("u_dof",numElem,numDOF.extent(0),
+            View_EvalT3 u_dof("u_dof",numElem,numDOF.extent(0),
                            assembler->groups[block][grp]->LIDs[set].extent(1)); //(numElem, numVars, numDOF)
-            auto u = assembler->groups[block][grp]->u[set];
+            auto u = assembler->groups[block][grp]->sol[set];
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
+              EvalT dummyval = 0.0;
               for (size_type n=0; n<numDOF.extent(0); n++) { // numDOF is on device
                 for( int i=0; i<numDOF(n); i++ ) {
-                  u_dof(e,n,i) = AD(maxDerivs,offsets(n,i),u(e,n,i)); // offsets is on device
+                  u_dof(e,n,i) = EvalT(dummyval.size(),offsets(n,i),u(e,n,i)); // offsets is on device
                 }
               }
             });
             
-            View_AD4 u_ip("u_ip",numElem,numDOF.extent(0),numip,spaceDim);
-            View_AD4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,spaceDim);
+            View_EvalT4 u_ip("u_ip",numElem,numDOF.extent(0),numip,dimension);
+            View_EvalT4 ugrad_ip("ugrad_ip",numElem,numDOF.extent(0),numip,dimension);
             
             for (size_type var=0; var<numDOF.extent(0); var++) {
-              int bnum = assembler->wkset[block]->usebasis[var];
-              std::string btype = assembler->wkset[block]->basis_types[bnum];
+              int bnum = wset->usebasis[var];
+              std::string btype = wset->basis_types[bnum];
               if (btype == "HCURL" || btype == "HDIV") {
                 // TMW: this does not work yet
               }
               else {
-                auto cbasis = assembler->wkset[block]->basis[bnum];
+                auto cbasis = wset->basis[bnum];
                 
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), 0);
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
@@ -3056,7 +3558,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
               
               if (btype == "HGRAD") {
-                auto cbasis_grad = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis_grad = wset->basis_grad[bnum];
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 auto ugrad_sv = subview(ugrad_ip, ALL(), var, ALL(), ALL());
                 parallel_for("grp response HGRAD",
@@ -3073,7 +3575,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             }
             
-            for (int s=0; s<spaceDim; s++) {
+            for (int s=0; s<dimension; s++) {
               auto ugrad_sv = subview(ugrad_ip, ALL(), ALL(), ALL(), s);
               if ((w-1) == s) {
                 parallel_for("grp response seed grad 0",
@@ -3112,13 +3614,13 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                 }
               }
             });
-            assembler->wkset[block]->setSolution(u_ip);
-            assembler->wkset[block]->setSolutionGrad(ugrad_ip);
+            wset->setSolution(u_ip);
+            wset->setSolutionGrad(ugrad_ip);
             
           }
           
           // Evaluate the objective
-          auto obj_dev = functionManagers[block]->evaluate(objectives[r].name+" response","ip");
+          auto obj_dev = fman->evaluate(objectives[obj].name+" response","ip");
           
           // Weight using volumetric integration weights
           auto wts = assembler->groups[block][grp]->wts;
@@ -3149,11 +3651,11 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           }
 
           for (size_type n=0; n<numDOF.extent(0); n++) {
-            int bnum = assembler->wkset[block]->usebasis[n];
-            std::string btype = assembler->wkset[block]->basis_types[bnum];
+            int bnum = wset->usebasis[n];
+            std::string btype = wset->basis_types[bnum];
             
             if (w == 0) {
-              auto cbasis = assembler->wkset[block]->basis[bnum];
+              auto cbasis = wset->basis[bnum];
               
               if (btype == "HDIV" || btype == "HCURL") {
                 parallel_for("grp adjust adjoint res",
@@ -3189,7 +3691,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             else {
               
               if (btype == "HGRAD") {
-                auto cbasis = assembler->wkset[block]->basis_grad[bnum];
+                auto cbasis = wset->basis_grad[bnum];
                 //auto cbasis_sv = subview(cbasis, ALL(), ALL(), ALL(), w-1);
                 parallel_for("grp adjust adjoint res",
                              RangePolicy<AssemblyExec>(0,local_grad.extent(0)),
@@ -3233,13 +3735,13 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       
       // Right now grad_over = dresponse/du
       // We want   grad_over = 2.0*wt*(response - target)*dresponse/du
-      grad_over->scale(2.0*objectives[r].weight*(intresp - objectives[r].target));
+      grad_over->scale(2.0*objectives[obj].weight*(intresp - objectives[obj].target));
       
       linalg->exportVectorFromOverlapped(set, grad_tmp, grad_over);
       grad->update(1.0, *grad_tmp, 1.0);
       
     }
-    else if (objectives[r].type == "discrete control") {
+    else if (objectives[obj].type == "discrete control") {
       //for (size_t set=0; set<current_soln.size(); ++set) {
         vector_RCP D_soln;
         bool fnd = datagen_soln[set]->extract(D_soln, 0, current_time);
@@ -3253,24 +3755,24 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           diff->update(1.0, *u_no, 0.0);
           diff->update(-1.0, *D_no, 1.0);
           //grad->update(-2.0*objectives[r].weight,*diff,1.0);
-          grad->update(-2.0*objectives[r].weight,*diff,1.0);
+          grad->update(-2.0*objectives[obj].weight,*diff,1.0);
         }
         else {
           TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: did not find a data-generating solution");
         }
       //}
     }
-    else if (objectives[r].type == "sensors") {
+    else if (objectives[obj].type == "sensors") {
       
       auto grad_over = linalg->getNewOverlappedVector(set);
       auto grad_tmp = linalg->getNewVector(set);
       auto grad_view = grad_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       
-      for (size_t pt=0; pt<objectives[r].numSensors; ++pt) {
+      for (size_t pt=0; pt<objectives[obj].numSensors; ++pt) {
         size_t tindex = 0;
         bool foundtime = false;
-        for (size_type t=0; t<objectives[r].sensor_times.extent(0); ++t) {
-          if (std::abs(current_time - objectives[r].sensor_times(t)) < 1.0e-12) {
+        for (size_type t=0; t<objectives[obj].sensor_times.extent(0); ++t) {
+          if (std::abs(current_time - objectives[obj].sensor_times(t)) < 1.0e-12) {
             foundtime = true;
             tindex = t;
           }
@@ -3278,46 +3780,46 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
         
         if (foundtime) {
         
-          size_t block = objectives[r].block;
-          size_t grp = objectives[r].sensor_owners(pt,0);
-          size_t elem = objectives[r].sensor_owners(pt,1);
+          size_t grp = objectives[obj].sensor_owners(pt,0);
+          size_t elem = objectives[obj].sensor_owners(pt,1);
           
-          assembler->wkset[block]->isOnSide = true;
+          wset->isOnSide = true;
 
-          auto x = assembler->wkset[block]->getScalarField("x");
-          x(0,0) = objectives[r].sensor_points(pt,0);
-          if (spaceDim > 1) {
-            auto y = assembler->wkset[block]->getScalarField("y");
-            y(0,0) = objectives[r].sensor_points(pt,1);
+          auto x = wset->getScalarField("x");
+          x(0,0) = objectives[obj].sensor_points(pt,0);
+          if (dimension > 1) {
+            auto y = wset->getScalarField("y");
+            y(0,0) = objectives[obj].sensor_points(pt,1);
           }
-          if (spaceDim > 2) {
-            auto z = assembler->wkset[block]->getScalarField("z");
-            z(0,0) = objectives[r].sensor_points(pt,2);
+          if (dimension > 2) {
+            auto z = wset->getScalarField("z");
+            z(0,0) = objectives[obj].sensor_points(pt,2);
           }
           
-          auto numDOF = assembler->groupData[block]->numDOF;
-          auto offsets = assembler->wkset[block]->offsets;
+          auto numDOF = assembler->groupData[block]->num_dof;
+          auto offsets = wset->offsets;
           
           
-          View_AD2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[set].extent(1));
-          auto cu = subview(assembler->groups[block][grp]->u[set],elem,ALL(),ALL());
+          View_EvalT2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[set].extent(1));
+          auto cu = subview(assembler->groups[block][grp]->sol[set],elem,ALL(),ALL());
           parallel_for("grp response get u",
                        RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                        KOKKOS_LAMBDA (const size_type n ) {
+            EvalT dummyval = 0.0;
             for (size_type n=0; n<numDOF.extent(0); n++) {
               for( int i=0; i<numDOF(n); i++ ) {
-                u_dof(n,i) = AD(maxDerivs,offsets(n,i),cu(n,i));
+                u_dof(n,i) = EvalT(dummyval.size(),offsets(n,i),cu(n,i));
               }
             }
           });
           
           // Map the local solution to the solution and gradient at ip
-          View_AD2 u_ip("u_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
-          View_AD2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
+          View_EvalT2 u_ip("u_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
+          View_EvalT2 ugrad_ip("ugrad_ip",numDOF.extent(0),assembler->groupData[block]->dimension);
           
           for (size_type var=0; var<numDOF.extent(0); var++) {
-            auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
-            auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
+            auto cbasis = objectives[obj].sensor_basis[wset->usebasis[var]];
+            auto cbasis_grad = objectives[obj].sensor_basis_grad[wset->usebasis[var]];
             auto u_sv = subview(u_ip, var, ALL());
             auto u_dof_sv = subview(u_dof, var, ALL());
             auto ugrad_sv = subview(ugrad_ip, var, ALL());
@@ -3334,9 +3836,9 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Map the local discretized params to param and grad at ip
           if (params->globalParamUnknowns > 0) {
-            auto numParamDOF = assembler->groupData[block]->numParamDOF;
+            auto numParamDOF = assembler->groupData[block]->num_param_dof;
             
-            View_AD2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
+            View_EvalT2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
             auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
@@ -3348,13 +3850,13 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             });
             
-            View_AD2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
-            View_AD2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+            View_EvalT2 p_ip("p_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
+            View_EvalT2 pgrad_ip("pgrad_ip",numParamDOF.extent(0),assembler->groupData[block]->dimension);
             
             for (size_type var=0; var<numParamDOF.extent(0); var++) {
-              int bnum = assembler->wkset[block]->paramusebasis[var];
-              auto cbasis = objectives[r].sensor_basis[bnum];
-              auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
+              int bnum = wset->paramusebasis[var];
+              auto cbasis = objectives[obj].sensor_basis[bnum];
+              auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
               auto p_sv = subview(p_ip, var, ALL());
               auto p_dof_sv = subview(p_dof, var, ALL());
               auto pgrad_sv = subview(pgrad_ip, var, ALL());
@@ -3369,8 +3871,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               });
             }
             
-            assembler->wkset[block]->setParamPoint(p_ip);
-            assembler->wkset[block]->setParamGradPoint(pgrad_ip);
+            wset->setParamPoint(p_ip);
+            wset->setParamGradPoint(pgrad_ip);
           }
           
           
@@ -3378,18 +3880,18 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                               assembler->groups[block][grp]->numElem,
                               assembler->groups[block][grp]->LIDs[set].extent(1),1);
           
-          for (int w=0; w<spaceDim+1; ++w) {
+          for (int w=0; w<dimension+1; ++w) {
             if (w==0) {
-              assembler->wkset[block]->setSolutionPoint(u_ip);
-              assembler->wkset[block]->setSolutionGradPoint(ugrad_ip);
+              wset->setSolutionPoint(u_ip);
+              wset->setSolutionGradPoint(ugrad_ip);
             }
             else {
-              View_AD2 u_tmp("u_tmp",numDOF.extent(0),assembler->groupData[block]->dimension);
-              View_AD2 ugrad_tmp("ugrad_tmp",numDOF.extent(0),assembler->groupData[block]->dimension);
+              View_EvalT2 u_tmp("u_tmp",numDOF.extent(0),assembler->groupData[block]->dimension);
+              View_EvalT2 ugrad_tmp("ugrad_tmp",numDOF.extent(0),assembler->groupData[block]->dimension);
               deep_copy(u_tmp,u_ip);
               deep_copy(ugrad_tmp,ugrad_ip);
               
-              for (int s=0; s<spaceDim; s++) {
+              for (int s=0; s<dimension; s++) {
                 auto ugrad_sv = subview(ugrad_tmp, ALL(), s);
                 if ((w-1) == s) {
                   parallel_for("grp response seed grad 0",
@@ -3417,23 +3919,23 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                 }
               });
               
-              assembler->wkset[block]->setSolutionPoint(u_tmp);
-              assembler->wkset[block]->setSolutionGradPoint(ugrad_tmp);
+              wset->setSolutionPoint(u_tmp);
+              wset->setSolutionGradPoint(ugrad_tmp);
               
             }
 
-            auto rdata = functionManagers[block]->evaluate(objectives[r].name+" response","point");
-            AD diff = rdata(0,0) - objectives[r].sensor_data(pt,tindex);
-            AD totaldiff = objectives[r].weight*diff*diff;
+            auto rdata = fman->evaluate(objectives[obj].name+" response","point");
+            EvalT diff = rdata(0,0) - objectives[obj].sensor_data(pt,tindex);
+            EvalT totaldiff = objectives[obj].weight*diff*diff;
             
 
             for (size_type n=0; n<numDOF.extent(0); n++) {
-              int bnum = assembler->wkset[block]->usebasis[n];
+              int bnum = wset->usebasis[n];
               
-              std::string btype = assembler->wkset[block]->basis_types[bnum];
+              std::string btype = wset->basis_types[bnum];
               if (btype == "HDIV" || btype == "HCURL") {
                 if (w==0) {
-                  auto cbasis = objectives[r].sensor_basis[bnum];
+                  auto cbasis = objectives[obj].sensor_basis[bnum];
                   int nn = n; // TMW - temp
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
@@ -3448,7 +3950,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
               else {
                 if (w==0) {
-                  auto cbasis = objectives[r].sensor_basis[bnum];
+                  auto cbasis = objectives[obj].sensor_basis[bnum];
                   int nn = n; //TMW - temp
                   for (int j=0; j<numDOF(nn); j++) {
                     for (int i=0; i<numDOF(nn); i++) {
@@ -3459,7 +3961,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                   }
                 }
                 else {
-                  auto cbasis = objectives[r].sensor_basis_grad[bnum];
+                  auto cbasis = objectives[obj].sensor_basis_grad[bnum];
                   auto cbasis_sv = subview(cbasis,ALL(),ALL(),ALL(),w-1);
                   int nn = n; //TMW - temp
                   for (int j=0; j<numDOF(nn); j++) {
@@ -3476,7 +3978,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set]);
           
-          assembler->wkset[block]->isOnSide = false;
+          wset->isOnSide = false;
         }
       }
       
@@ -3484,7 +3986,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       grad->update(1.0, *grad_tmp, 1.0);
       
     }
-  }
+  
   
 #endif
   
@@ -3519,7 +4021,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   }
   DFAD obj_sens = 0.0;
   if (response_type != "discrete") {
-    this->computeObjective(u, current_time, obj_sens);
+    this->computeObjectiveGradParam(u, current_time, obj_sens);
   }
   
   size_t set = 0; // hard coded for now
@@ -3552,7 +4054,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
     for (size_t paramiter=0; paramiter<params->num_active_params; paramiter++) {
       // fine-scale
-      if (assembler->groups[0][0]->groupData->multiscale) {
+      if (assembler->groups[0][0]->group_data->multiscale) {
         ScalarT subsens = 0.0;
         for (size_t block=0; block<assembler->groups.size(); ++block) {
           for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
@@ -3620,7 +4122,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     curr_grad->update(1.0, *sens, 1.0);
     
   }
-  
+  saveObjectiveGradientData(gradient);
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Finished PostprocessManager::computeSensitivities ..." << std::endl;
@@ -3743,7 +4245,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
   
   for (size_t block=0; block<blocknames.size(); ++block) {
     std::string blockID = blocknames[block];
-    vector<size_t> myElements = disc->myElements[block];
+    vector<size_t> myElements = disc->my_elements[block];
     
     if (myElements.size() > 0) {
         
@@ -3751,21 +4253,21 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
     
         assembler->updatePhysicsSet(set);
       
-        vector<string> vartypes = phys->types[set][block];
-        vector<int> varorders = phys->orders[set][block];
-        int numVars = phys->numVars[set][block]; // probably redundant
+        vector<string> vartypes = physics->types[set][block];
+        vector<int> varorders = physics->orders[set][block];
+        int numVars = physics->num_vars[set][block]; // probably redundant
         
         for (int n = 0; n<numVars; n++) {
           
           if (vartypes[n] == "HGRAD") {
-            if(assembler->groups[block][0]->groupData->requireBasisAtNodes) {
+            if(assembler->groups[block][0]->group_data->require_basis_at_nodes) {
               std::string var = varlist[set][block][n];
               Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
                                                                                                        numNodesPerElem);
               auto soln_computed = Kokkos::create_mirror_view(soln_dev);
               for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
                 auto eID = assembler->groups[block][grp]->localElemID;
-                auto sol = Kokkos::subview(assembler->groups[block][grp]->getSolutionAtNodes(n), Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
+                auto sol = Kokkos::subview(assembler->getSolutionAtNodes(block, grp, n), Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
                 parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                   for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                     soln_dev(eID(elem),i) = sol(elem,i);
@@ -3780,7 +4282,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               std::string var = varlist[set][block][n];
               for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
                 auto eID = assembler->groups[block][grp]->localElemID;
-                auto sol = Kokkos::subview(assembler->groups[block][grp]->u[set], Kokkos::ALL(), n, Kokkos::ALL());
+                auto sol = Kokkos::subview(assembler->groups[block][grp]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
                 parallel_for("postproc plot HGRAD",
                             RangePolicy<AssemblyExec>(0,eID.extent(0)),
                             KOKKOS_LAMBDA (const int elem ) {
@@ -3812,7 +4314,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             std::string var = varlist[set][block][n];
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->u[set], Kokkos::ALL(), n, Kokkos::ALL());
+              auto sol = Kokkos::subview(assembler->groups[block][grp]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HVOL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -3830,13 +4332,12 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
             std::string var = varlist[set][block][n];
-            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,spaceDim);
+            View_Sc2 sol("average solution",assembler->groupData[block]->num_elem,dimension);
             
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               
-              assembler->groups[block][grp]->computeSolutionAverage(var,sol);
-              //auto sol = Kokkos::subview(assembler->groups[block][grp]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
+              assembler->computeSolutionAverage(block, grp, var,sol);
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -3853,10 +4354,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             Kokkos::deep_copy(soln_y, soln_y_dev);
             Kokkos::deep_copy(soln_z, soln_z_dev);
             mesh->stk_mesh->setCellFieldData(var+append+"x", blockID, myElements, soln_x);
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               mesh->stk_mesh->setCellFieldData(var+append+"y", blockID, myElements, soln_y);
             }
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               mesh->stk_mesh->setCellFieldData(var+append+"z", blockID, myElements, soln_z);
             }
             
@@ -3870,13 +4371,13 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             assembler->wkset[block]->isOnSide = true;
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              for (size_t face=0; face<assembler->groupData[block]->numSides; face++) {
+              for (size_t face=0; face<assembler->groupData[block]->num_sides; face++) {
                 int seedwhat = 0;
                 for (size_t iset=0; iset<assembler->wkset[block]->numSets; ++iset) {
-                  assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->u[iset], seedwhat);
+                  assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->sol[iset], seedwhat);
                 }
                 //assembler->groups[block][grp]->computeSolnFaceIP(face);
-                assembler->groups[block][grp]->updateWorksetFace(face);
+                assembler->updateWorksetFace(block, grp, face);
                 auto wts = assembler->wkset[block]->wts_side;
                 auto sol = assembler->wkset[block]->getSolutionField(varlist[set][block][n]);
                 parallel_for("postproc plot HFACE",
@@ -3884,11 +4385,11 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
                              KOKKOS_LAMBDA (const int elem ) {
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     face_measure_dev(eID(elem)) += wts(elem,pt);
-#ifndef MrHyDE_NO_AD
-                    soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
-#else
+//#ifndef MrHyDE_NO_AD
+//                    soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
+//#else
                     soln_faceavg_dev(eID(elem)) += sol(elem,pt)*wts(elem,pt);
-#endif
+//#endif
                   }
                 });
               }
@@ -3954,12 +4455,12 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
-            View_Sc2 sol("average solution",assembler->groupData[block]->numElem,spaceDim);
+            View_Sc2 sol("average solution",assembler->groupData[block]->num_elem,dimension);
             
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               
-              assembler->groups[block][grp]->computeParameterAverage(dpnames[n],sol);
+              assembler->computeParameterAverage(block, grp, dpnames[n],sol);
               //auto sol = Kokkos::subview(assembler->groups[block][grp]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
@@ -3977,10 +4478,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             Kokkos::deep_copy(soln_y, soln_y_dev);
             Kokkos::deep_copy(soln_z, soln_z_dev);
             mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"x", blockID, myElements, soln_x);
-            if (spaceDim > 1) {
+            if (dimension > 1) {
               mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"y", blockID, myElements, soln_y);
             }
-            if (spaceDim > 2) {
+            if (dimension > 2) {
               mesh->stk_mesh->setCellFieldData(dpnames[n]+append+"z", blockID, myElements, soln_z);
             }
             // TMW: this is not actually implemented yet ... not hard to do though
@@ -4027,7 +4528,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
           auto host_eID = Kokkos::create_mirror_view(eID);
           Kokkos::deep_copy(host_eID,eID);
           
-          auto cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset[block]);
+          auto cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset_AD[block]);
           auto host_cfields = Kokkos::create_mirror_view(cfields);
           Kokkos::deep_copy(host_cfields,cfields);
           for (size_type p=0; p<host_eID.extent(0); p++) {
@@ -4051,7 +4552,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
-          assembler->groups[block][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(block, grp, 0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getExtraCellFields(block, assembler->groups[block][grp]->wts);
@@ -4083,7 +4584,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
           
-          assembler->groups[block][grp]->updateWorkset(0,0,true);
+          assembler->updateWorkset(block, grp, 0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getDerivedQuantities(block, assembler->groups[block][grp]->wts);
@@ -4109,9 +4610,9 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
       ////////////////////////////////////////////////////////////////
       // TMW This is slightly inefficient, but leaving until grp_data_seed is stored differently
       
-      if (assembler->groups[block][0]->groupData->have_phi ||
-          assembler->groups[block][0]->groupData->have_rotation ||
-          assembler->groups[block][0]->groupData->have_extra_data) {
+      if (assembler->groups[block][0]->group_data->have_phi ||
+          assembler->groups[block][0]->group_data->have_rotation ||
+          assembler->groups[block][0]->group_data->have_extra_data) {
         
         Kokkos::View<ScalarT*,HostDevice> cdata("data",myElements.size());
         Kokkos::View<ScalarT*,HostDevice> cseed("data seed",myElements.size());
@@ -4203,10 +4704,8 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
     mesh->stk_mesh->writeToExodus(exodus_filename);
   }
   
-  if (write_subgrid_solution && multiscale_manager->subgridModels.size() > 0) {
-    for (size_t m=0; m<multiscale_manager->subgridModels.size(); m++) {
-      multiscale_manager->subgridModels[m]->writeSolution(currenttime, append);
-    }
+  if (write_subgrid_solution && multiscale_manager->getNumberSubgridModels() > 0) {
+    multiscale_manager->writeSolution(currenttime, append);
   }
 
   if (debug_level > 1) {
@@ -4228,7 +4727,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
   for (size_t fnum=0; fnum<extracellfields_list[block].size(); ++fnum) {
     
     auto cfield = subview(fields, ALL(), fnum);
-    auto ecf = functionManagers[block]->evaluate(extracellfields_list[block][fnum],"ip");
+    View_Sc2 ecf = assembler->evaluateFunction(block, extracellfields_list[block][fnum], "ip");
     
     if (cellfield_reduction == "mean") { // default
       parallel_for("physics get extra grp fields",
@@ -4239,11 +4738,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
           grpmeas += wts(e,pt);
         }
         for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-          ScalarT val = ecf(e,j).val();
-#else
           ScalarT val = ecf(e,j);
-#endif
           cfield(e) += val*wts(e,j)/grpmeas;
         }
       });
@@ -4253,11 +4748,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-          ScalarT val = ecf(e,j).val();
-#else
           ScalarT val = ecf(e,j);
-#endif
           if (val>cfield(e)) {
             cfield(e) = val;
           }
@@ -4269,11 +4760,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
                    RangePolicy<AssemblyExec>(0,wts.extent(0)),
                    KOKKOS_LAMBDA (const int e ) {
         for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-          ScalarT val = ecf(e,j).val();
-#else
           ScalarT val = ecf(e,j);
-#endif
           if (val<cfield(e)) {
             cfield(e) = val;
           }
@@ -4296,10 +4783,11 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
   
   int prog = 0;
   
-  for (size_t set=0; set<phys->modules.size(); ++set) {
-    for (size_t m=0; m<phys->modules[set][block].size(); ++m) {
+  for (size_t set=0; set<physics->modules.size(); ++set) {
+    for (size_t m=0; m<physics->modules[set][block].size(); ++m) {
       
-      vector<View_AD2> dqvals = phys->modules[set][block][m]->getDerivedValues();
+      //vector<View_AD2> dqvals = physics->modules[set][block][m]->getDerivedValues();
+      auto dqvals = physics->modules[set][block][m]->getDerivedValues();
       for (size_t k=0; k<dqvals.size(); k++) {
         auto cfield = subview(fields, ALL(), prog);
         auto cdq = dqvals[k];
@@ -4313,11 +4801,7 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
               grpmeas += wts(e,pt);
             }
             for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-              ScalarT val = cdq(e,j).val();
-#else
               ScalarT val = cdq(e,j);
-#endif
               cfield(e) += val*wts(e,j)/grpmeas;
             }
           });
@@ -4327,11 +4811,7 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
                        RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-              ScalarT val = cdq(e,j).val();
-#else
               ScalarT val = cdq(e,j);
-#endif
               if (val>cfield(e)) {
                 cfield(e) = val;
               }
@@ -4343,11 +4823,7 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_
                        RangePolicy<AssemblyExec>(0,wts.extent(0)),
                        KOKKOS_LAMBDA (const int e ) {
             for (size_t j=0; j<wts.extent(1); j++) {
-#ifndef MrHyDE_NO_AD
-              ScalarT val = cdq(e,j).val();
-#else
               ScalarT val = cdq(e,j);
-#endif
               if (val<cfield(e)) {
                 cfield(e) = val;
               }
@@ -4373,9 +4849,9 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
   for (size_t block=0; block<assembler->groups.size(); ++block) {
     std::string blockID = blocknames[block];
     //vector<vector<int> > curroffsets = disc->offsets[block];
-    vector<size_t> myElements = disc->myElements[block];
-    //vector<string> vartypes = phys->types[block];
-    //vector<int> varorders = phys->orders[block];
+    vector<size_t> myElements = disc->my_elements[block];
+    //vector<string> vartypes = physics->types[block];
+    //vector<int> varorders = physics->orders[block];
     
     if (myElements.size() > 0) {
       
@@ -4540,7 +5016,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
   
   if (numFound > 0) {
     
-    Kokkos::View<ScalarT**,HostDevice> spts_host("exodus sensors on host",numFound,spaceDim);
+    Kokkos::View<ScalarT**,HostDevice> spts_host("exodus sensors on host",numFound,dimension);
     Kokkos::View<int*[2],HostDevice> spts_owners("exodus sensor owners",numFound);
     
     // TMW: as far as I can tell, this is limited to steady-state data
@@ -4563,13 +5039,13 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
                                              std::find(mesh->efield_names.begin(), mesh->efield_names.end(), fieldLocx));
           spts_host(sprog,0) = mesh->efield_vals[ind_Locx][i];
           
-          if (spaceDim > 1) {
+          if (dimension > 1) {
             string fieldLocy = "sensor_" + sensorNum + "_Loc_y";
             ptrdiff_t ind_Locy = std::distance(mesh->efield_names.begin(),
                                                std::find(mesh->efield_names.begin(), mesh->efield_names.end(), fieldLocy));
             spts_host(sprog,1) = mesh->efield_vals[ind_Locy][i];
           }
-          if (spaceDim > 2) {
+          if (dimension > 2) {
             string fieldLocz = "sensor_" + sensorNum + "_Loc_z";
             ptrdiff_t ind_Locz = std::distance(mesh->efield_names.begin(),
                                                std::find(mesh->efield_names.begin(), mesh->efield_names.end(), fieldLocz));
@@ -4592,7 +5068,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
     // Create and store more compact Views based on number of sensors on this proc
     // ========================================
     
-    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
+    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, dimension);
     Kokkos::View<ScalarT*,AssemblyDevice> stime("sensor times", stime_host.extent(0));
     Kokkos::View<ScalarT**,AssemblyDevice> sdat("sensor data", numFound, stime_host.extent(0));
     Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
@@ -4642,7 +5118,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       if (basis_type == "HGRAD") {
         Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
         csensorBasis.push_back(cbasis);
-        Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, spaceDim);
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, dimension);
         csensorBasisGrad.push_back(cbasisgrad);
       }
       else if (basis_type == "HVOL") {
@@ -4650,18 +5126,18 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
         csensorBasis.push_back(cbasis);
       }
       else if (basis_type == "HDIV") {
-        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
         csensorBasis.push_back(cbasis);
       }
       else if (basis_type == "HCURL") {
-        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+        Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
         csensorBasis.push_back(cbasis);
       }
     }
 
     for (size_type pt=0; pt<spts.extent(0); ++pt) {
       
-      DRV cpt("point",1,1,spaceDim);
+      DRV cpt("point",1,1,dimension);
       auto cpt_sub = subview(cpt,0,0,ALL());
       auto pp_sub = subview(spts,pt,ALL());
       Kokkos::deep_copy(cpt_sub,pp_sub);
@@ -4672,10 +5148,10 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
       deep_copy(cnodes_sv,nodes_sv);
 
-      DRV refpt("refsenspts",1,spaceDim);
+      DRV refpt("refsenspts",1,dimension);
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
-      DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
+      DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cell_topo);
       
       for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
         refpt(0,d) = refpt_tmp(0,0,d);
@@ -4687,7 +5163,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
         auto basis_ptr = assembler->disc->basis_pointers[block][k];
         string basis_type = assembler->disc->basis_types[block][k];
-        auto cellTopo = assembler->groupData[block]->cellTopo;
+        auto cellTopo = assembler->groupData[block]->cell_topo;
         
         Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
         DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
@@ -4727,7 +5203,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
   }
   
   if (debug_level > 0) {
-    if (assembler->Comm->getRank() == 0) {
+    if (Comm->getRank() == 0) {
       cout << "**** Finished SensorManager::importSensorsFromExodus() ..." << endl;
     }
   }
@@ -4756,11 +5232,11 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   bool have_data = false;
   
   if (objectives[objID].sensor_data_file == "") {
-    sdata = Data("Sensor Measurements", spaceDim,
+    sdata = Data("Sensor Measurements", dimension,
                  objectives[objID].sensor_points_file);
   }
   else {
-    sdata = Data("Sensor Measurements", spaceDim,
+    sdata = Data("Sensor Measurements", dimension,
                  objectives[objID].sensor_points_file,
                  objectives[objID].sensor_data_file, false);
     have_data = true;
@@ -4777,7 +5253,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
   }
   
   // Check that the data matches the expected format
-  if (spts_host.extent(1) != static_cast<size_type>(spaceDim)) {
+  if (spts_host.extent(1) != static_cast<size_type>(dimension)) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
                                "Error: sensor points dimension does not match simulation dimension");
   }
@@ -4843,7 +5319,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     // Create and store more compact Views based on number of sensors on this proc
     // ========================================
     
-    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
+    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, dimension);
     Kokkos::View<ScalarT*,AssemblyDevice> stime;
     Kokkos::View<ScalarT**,AssemblyDevice> sdat;
     Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
@@ -4920,7 +5396,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
   }
   
   // Check that the data matches the expected format
-  if (spaceDim != 3) {
+  if (dimension != 3) {
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,
                                "Error: defining a grid of sensor points is only implemented in 3-dimensions");
   }
@@ -4968,7 +5444,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     zval += dz;
   }
   
-  Kokkos::View<ScalarT**,HostDevice> spts_host("sensor locations",Nx*Ny*Nz,spaceDim);
+  Kokkos::View<ScalarT**,HostDevice> spts_host("sensor locations",Nx*Ny*Nz,dimension);
   
   size_t prog = 0;
   for (int i=0; i<Nx; i++) {
@@ -5012,7 +5488,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     // Create and store more compact Views based on number of sensors on this proc
     // ========================================
     
-    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, spaceDim);
+    Kokkos::View<ScalarT**,AssemblyDevice> spts("sensor point", numFound, dimension);
     Kokkos::View<ScalarT*,AssemblyDevice> stime;
     Kokkos::View<ScalarT**,AssemblyDevice> sdat;
     Kokkos::View<int*[2],HostDevice> sowners("sensor owners", numFound);
@@ -5071,7 +5547,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     if (basis_type == "HGRAD") {
       Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, 1);
       csensorBasis.push_back(cbasis);
-      Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, spaceDim);
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasisgrad("sensor basis grad",spts.extent(0), bnum, 1, dimension);
       csensorBasisGrad.push_back(cbasisgrad);
     }
     else if (basis_type == "HVOL") {
@@ -5079,11 +5555,11 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
       csensorBasis.push_back(cbasis);
     }
     else if (basis_type == "HDIV") {
-      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
       csensorBasis.push_back(cbasis);
     }
     else if (basis_type == "HCURL") {
-      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, spaceDim);
+      Kokkos::View<ScalarT****,AssemblyDevice> cbasis("sensor basis",spts.extent(0), bnum, 1, dimension);
       csensorBasis.push_back(cbasis);
     }
   }
@@ -5091,7 +5567,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
      
   for (size_type pt=0; pt<spts.extent(0); ++pt) {
       
-    DRV cpt("point",1,1,spaceDim);
+    DRV cpt("point",1,1,dimension);
     auto cpt_sub = subview(cpt,0,0,ALL());
     auto pp_sub = subview(spts,pt,ALL());
     Kokkos::deep_copy(cpt_sub,pp_sub);
@@ -5102,10 +5578,10 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
     deep_copy(cnodes_sv,nodes_sv);
 
-    DRV refpt("refsenspts",1,spaceDim);
+    DRV refpt("refsenspts",1,dimension);
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
-    DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cellTopo);
+    DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cell_topo);
 
     for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
       refpt(0,d) = refpt_tmp(0,0,d);
@@ -5118,7 +5594,7 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
       auto basis_ptr = assembler->disc->basis_pointers[block][k];
       string basis_type = assembler->disc->basis_types[block][k];
-      auto cellTopo = assembler->groupData[block]->cellTopo;
+      auto cellTopo = assembler->groupData[block]->cell_topo;
         
       Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
       DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
@@ -5175,7 +5651,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
     // Create a bounding box for the element
     // This serves as a preprocessing check to avoid unnecessary inclusion checks
     // If a sensor point is not in the box, then it is not in the element
-    Kokkos::View<double**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),spaceDim);
+    Kokkos::View<double**[2],HostDevice> nodebox("bounding box",nodes_host.extent(0),dimension);
     for (size_type p=0; p<nodes_host.extent(0); ++p) {
       for (size_type dim=0; dim<nodes_host.extent(2); ++dim) {
         double dmin = 1.0e300;
@@ -5199,12 +5675,12 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
           if (spts_host(pt,0)<nodebox(p,0,0)-xbuff || spts_host(pt,0)>nodebox(p,0,1)+xbuff) {
             proceed = false;
           }
-          if (proceed && spaceDim > 1) {
+          if (proceed && dimension > 1) {
             if (spts_host(pt,1)<nodebox(p,1,0)-ybuff || spts_host(pt,1)>nodebox(p,1,1)+ybuff) {
               proceed = false;
             }
           }
-          if (proceed && spaceDim > 2) {
+          if (proceed && dimension > 2) {
             if (spts_host(pt,2)<nodebox(p,2,0)-zbuff || spts_host(pt,2)>nodebox(p,2,1)+zbuff) {
               proceed = false;
             }
@@ -5214,7 +5690,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
             checksPerformed++;
             // Need to use DRV, which are on AssemblyDevice
             // We have less control here
-            DRV phys_pt("phys_pt",1,1,spaceDim);
+            DRV phys_pt("phys_pt",1,1,dimension);
             auto phys_pt_host = create_mirror_view(phys_pt);
             for (size_type d=0; d<spts_host.extent(1); ++d) {
               phys_pt_host(0,0,d) = spts_host(pt,d);
@@ -5226,7 +5702,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
             Kokkos::deep_copy(cn_sub,n_sub);
             
             auto inRefgrp = assembler->disc->checkInclusionPhysicalData(phys_pt,cnodes,
-                                                                         assembler->groupData[block]->cellTopo,
+                                                                         assembler->groupData[block]->cell_topo,
                                                                          1.0e-14);
             auto inRef_host = create_mirror_view(inRefgrp);
             deep_copy(inRef_host,inRefgrp);

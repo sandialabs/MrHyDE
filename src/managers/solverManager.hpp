@@ -109,6 +109,10 @@ namespace MrHyDE {
     
     void finalizeWorkset();
     
+    template<class EvalT>
+    void finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > > & wkset, Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV,
+                         std::vector<Teuchos::RCP<std::vector<EvalT> > > & paramvals);
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -195,14 +199,14 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MeshInterface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
-    Teuchos::RCP<PhysicsInterface> phys;
+    Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<LinearAlgebraInterface<Node> > linalg;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     
-    int verbosity, batchID, spaceDim, gNLiter, debug_level, maxNLiter, subcycles;
+    int verbosity, batchID, dimension, gNLiter, debug_level, maxNLiter, subcycles;
     
     // numsteps of BDF scheme
     // numstages of RK
@@ -238,6 +242,8 @@ namespace MrHyDE {
     Kokkos::View<ScalarT**,HostDevice> butcher_A; 
     Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
     
+  private:
+
     Teuchos::RCP<Teuchos::Time> transientsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver()");
     Teuchos::RCP<Teuchos::Time> nonlinearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver()");
     Teuchos::RCP<Teuchos::Time> explicitsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::explicitSolver()");

@@ -24,10 +24,10 @@ SolverManager<Node>::SolverManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                    Teuchos::RCP<MeshInterface> & mesh_,
                                    Teuchos::RCP<DiscretizationInterface> & disc_,
-                                   Teuchos::RCP<PhysicsInterface> & phys_,
+                                   Teuchos::RCP<PhysicsInterface> & physics_,
                                    Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                                    Teuchos::RCP<ParameterManager<Node> > & params_) :
-Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembler(assembler_), params(params_) {
+Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), assembler(assembler_), params(params_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -41,13 +41,13 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   
   numEvaluations = 0;
-  setnames = phys->setnames;
+  setnames = physics->set_names;
   store_vectors = true;
   if (setnames.size() > 1) {
     store_vectors = false;
   }
   // Get the required information from the settings
-  spaceDim = phys->spaceDim;//mesh->stk_mesh->getDimension();
+  dimension = physics->dimension;
   isInitial = false;
   initial_time = settings->sublist("Solver").get<double>("initial time",0.0);
   current_time = initial_time;
@@ -89,22 +89,18 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   if (!isTransient) {
     deltat = 1.0;
   }
-  // TODO should this also be an option?
-  fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
   
-  if (fully_explicit && Comm->getRank() == 0) {
-    cout << "WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods" << endl;
-  }
+  // Explicit integration mode - may disable some features
+  fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
   
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   
   // needed information from the mesh
-  blocknames = phys->blocknames;
-  //mesh->stk_mesh->getElementBlockNames(blocknames);
+  blocknames = physics->block_names;
   
   // needed information from the physics interface
-  numVars = phys->numVars; //
-  vector<vector<vector<string> > > phys_varlist = phys->varlist;
+  numVars = physics->num_vars; //
+  vector<vector<vector<string> > > phys_varlist = physics->var_list;
   size_t numSets = setnames.size();
   
   // needed information from the disc interface
@@ -126,7 +122,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       int block_maxBasis = 0;
       for (size_t j=0; j<numVars[set][block]; j++) {
         string var = phys_varlist[set][block][j];
-        int vub = phys->getUniqueIndex(set,block,var);
+        int vub = physics->getUniqueIndex(set,block,var);
         block_varlist[j] = var;
         block_useBasis[j] = vub;
         block_numBasis[j] = cards[block][vub];
@@ -166,7 +162,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
 
     // TODO allow to vary by block...
     // Check if there are settings unique to each set
-    auto setSolverSettings = phys->setSolverSettings[set][0]; // [set][block]
+    auto setSolverSettings = physics->solver_settings[set][0]; // [set][block]
 
     myButcherTab = 
       setSolverSettings.get<string>("transient Butcher tableau",myButcherTab);
@@ -239,8 +235,17 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   }
   this->finalizeWorkset();
   
-  phys->setWorkset(assembler->wkset);
-  params->wkset = assembler->wkset;
+  physics->setWorkset(assembler->wkset);
+#ifndef MrHyDE_NO_AD
+  physics->setWorkset(assembler->wkset_AD);
+  physics->setWorkset(assembler->wkset_AD2);
+  physics->setWorkset(assembler->wkset_AD4);
+  physics->setWorkset(assembler->wkset_AD8);
+  physics->setWorkset(assembler->wkset_AD16);
+  physics->setWorkset(assembler->wkset_AD18);
+  physics->setWorkset(assembler->wkset_AD24);
+  physics->setWorkset(assembler->wkset_AD32);
+#endif
   
   if (store_vectors) {
     for (size_t set=0; set<numSets; ++set) {
@@ -268,9 +273,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
   for (size_t set=0; set<numSets; ++set) {
     have_initial_conditions[set] = false;
     for (size_t block=0; block<blocknames.size(); ++block) {
-      if (phys->setPhysSettings[set][block].isSublist("Initial conditions")) {
+      if (physics->physics_settings[set][block].isSublist("Initial conditions")) {
         have_initial_conditions[set] = true;
-        scalarInitialData[set] = phys->setPhysSettings[set][block].sublist("Initial conditions").get<bool>("scalar data", false);
+        scalarInitialData[set] = physics->physics_settings[set][block].sublist("Initial conditions").get<bool>("scalar data", false);
       }
     }
   
@@ -279,7 +284,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), phys(phys_), assembl
       for (size_t block=0; block<blocknames.size(); ++block) {
         
         std::string blockID = blocknames[block];
-        Teuchos::ParameterList init_settings = phys->setPhysSettings[set][block].sublist("Initial conditions");
+        Teuchos::ParameterList init_settings = physics->physics_settings[set][block].sublist("Initial conditions");
         
         vector<ScalarT> blockInitialValues;
         
@@ -352,7 +357,7 @@ void SolverManager<Node>::setupExplicitMass() {
         auto offsets_host = create_mirror_view(offsets);
         deep_copy(offsets_host,offsets);
 
-        auto numDOF_host = assembler->groupData[block]->numDOF_host;
+        auto numDOF_host = assembler->groupData[block]->num_dof_host;
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto LIDs_host = assembler->groups[block][grp]->LIDs_host[set];
           
@@ -381,7 +386,7 @@ void SolverManager<Node>::setupExplicitMass() {
       
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
-        auto numDOF = assembler->groupData[block]->numDOF;
+        auto numDOF = assembler->groupData[block]->num_dof;
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto LIDs = assembler->groups[block][grp]->LIDs_host[set];
           
@@ -408,7 +413,7 @@ void SolverManager<Node>::setupExplicitMass() {
       
       vector<GO> owned;
       //disc->DOF[set]->getOwnedIndices(owned);
-      disc->DOF_owned[set];//->getOwnedIndices(owned);
+      disc->dof_owned[set];//->getOwnedIndices(owned);
       vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getLocalNumElements(), 0);
       for (size_t i=0; i<owned.size(); ++i) {
         LO ind1 = linalg->overlapped_map[set]->getLocalElement(owned[i]);
@@ -717,14 +722,7 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
     maxnumstages[set] = std::max(numstages[set],newnumstages);
     numstages[set] = newnumstages;
   
-    assembler->wkset[block]->set_butcher_A[set] = dev_butcher_A;//block_butcher_A;
-    assembler->wkset[block]->set_butcher_b[set] = dev_butcher_b;//block_butcher_b;
-    assembler->wkset[block]->set_butcher_c[set] = dev_butcher_c;//block_butcher_c;
-
-    // TODO dont like this... but should protect against 1 set errors
-    assembler->wkset[block]->butcher_A = dev_butcher_A;
-    assembler->wkset[block]->butcher_b = dev_butcher_b;
-    assembler->wkset[block]->butcher_c = dev_butcher_c;
+    assembler->setWorksetButcher(set, block, dev_butcher_A, dev_butcher_b, dev_butcher_c);
 
   } // end for blocks
 }
@@ -812,11 +810,8 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
 
     dev_BDF_wts = Kokkos::View<ScalarT*,AssemblyDevice>("BDF weights on device",BDF_wts.extent(0));
     Kokkos::deep_copy(dev_BDF_wts, BDF_wts);
-    //block_BDF_wts.push_back(dev_BDF_wts);
-    assembler->wkset[block]->set_BDF_wts[set] = dev_BDF_wts; //block_BDF_wts;
-    // TODO don't like this... but should protect against one set errors ASK 
-    assembler->wkset[block]->BDF_wts = dev_BDF_wts;
-
+    
+    assembler->setWorksetBDF(set, block, dev_BDF_wts);
   } // end loop blocks
 }
 
@@ -833,10 +828,35 @@ void SolverManager<Node>::finalizeWorkset() {
     }
   }
   
+  this->finalizeWorkset(assembler->wkset, params->paramvals_KV, params->paramvals_Sc);
+#ifndef MrHyDE_NO_AD
+  this->finalizeWorkset(assembler->wkset_AD, params->paramvals_KVAD, params->paramvals_AD);
+  this->finalizeWorkset(assembler->wkset_AD2, params->paramvals_KVAD2, params->paramvals_AD2);
+  this->finalizeWorkset(assembler->wkset_AD4, params->paramvals_KVAD4, params->paramvals_AD4);
+  this->finalizeWorkset(assembler->wkset_AD8, params->paramvals_KVAD8, params->paramvals_AD8);
+  this->finalizeWorkset(assembler->wkset_AD16, params->paramvals_KVAD16, params->paramvals_AD16);
+  this->finalizeWorkset(assembler->wkset_AD18, params->paramvals_KVAD18, params->paramvals_AD18);
+  this->finalizeWorkset(assembler->wkset_AD24, params->paramvals_KVAD24, params->paramvals_AD24);
+  this->finalizeWorkset(assembler->wkset_AD32, params->paramvals_KVAD32, params->paramvals_AD32);
+#endif
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished SolverManager::finalizeWorkset" << endl;
+    }
+  }
+  
+}
+
+template<class Node>
+template<class EvalT>
+void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > > & wkset,
+                                          Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV,
+                                          std::vector<Teuchos::RCP<std::vector<EvalT> > > & paramvals) {
+
   // Determine the offsets for each set as a Kokkos View
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-    if (assembler->wkset[block]->isInitialized) {
-      for (size_t set=0; set<phys->setnames.size(); set++) {
+  for (size_t block=0; block<wkset.size(); ++block) {
+    if (wkset[block]->isInitialized) {
+      for (size_t set=0; set<physics->set_names.size(); set++) {
         vector<vector<int> > voffsets = disc->offsets[set][block];
         size_t maxoff = 0;
         for (size_t i=0; i<voffsets.size(); i++) {
@@ -853,16 +873,17 @@ void SolverManager<Node>::finalizeWorkset() {
           }
         }
         Kokkos::deep_copy(offsets_view,host_offsets);
-        assembler->wkset[block]->set_offsets.push_back(offsets_view);
+        wkset[block]->set_offsets.push_back(offsets_view);
         if (set == 0) {
-          assembler->wkset[block]->offsets = offsets_view;
+          wkset[block]->offsets = offsets_view;
         }
+
       }
     }
   }
   
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-    if (assembler->wkset[block]->isInitialized) {
+  for (size_t block=0; block<wkset.size(); ++block) {
+    if (wkset[block]->isInitialized) {
       
       vector<vector<int> > block_useBasis;
       vector<vector<string> > block_varlist;
@@ -871,29 +892,31 @@ void SolverManager<Node>::finalizeWorkset() {
         block_useBasis.push_back(useBasis[set][block]);
         block_varlist.push_back(varlist[set][block]);
       }
-      assembler->wkset[block]->set_usebasis = block_useBasis;
-      assembler->wkset[block]->set_varlist = block_varlist;
-      assembler->wkset[block]->usebasis = block_useBasis[0];
-      assembler->wkset[block]->varlist = block_varlist[0];
+      wkset[block]->set_usebasis = block_useBasis;
+      wkset[block]->set_varlist = block_varlist;
+      wkset[block]->usebasis = block_useBasis[0];
+      wkset[block]->varlist = block_varlist[0];
+      
     }
   }
   
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-    if (assembler->wkset[block]->isInitialized) {
+  for (size_t block=0; block<wkset.size(); ++block) {
+    if (wkset[block]->isInitialized) {
       // set defaults for time integration params since these
       // won't get set if the total number of sets is 1
-      assembler->wkset[block]->butcher_A = assembler->wkset[block]->set_butcher_A[0];
-      assembler->wkset[block]->butcher_b = assembler->wkset[block]->set_butcher_b[0];
-      assembler->wkset[block]->butcher_c = assembler->wkset[block]->set_butcher_c[0];
-      assembler->wkset[block]->BDF_wts = assembler->wkset[block]->set_BDF_wts[0];
+      wkset[block]->butcher_A = wkset[block]->set_butcher_A[0];
+      wkset[block]->butcher_b = wkset[block]->set_butcher_b[0];
+      wkset[block]->butcher_c = wkset[block]->set_butcher_c[0];
+      wkset[block]->BDF_wts = wkset[block]->set_BDF_wts[0];
       // update workset for first physics set
-      assembler->wkset[block]->updatePhysicsSet(0);
+      wkset[block]->updatePhysicsSet(0);
+
     }
   }
   
   // Parameters do not depend on physics sets
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-    if (assembler->wkset[block]->isInitialized) {
+  for (size_t block=0; block<wkset.size(); ++block) {
+    if (wkset[block]->isInitialized) {
       size_t maxpoff = 0;
       for (size_t i=0; i<params->paramoffsets.size(); i++) {
         if (params->paramoffsets[i].size() > maxpoff) {
@@ -909,39 +932,40 @@ void SolverManager<Node>::finalizeWorkset() {
         }
       }
       Kokkos::deep_copy(poffsets_view,host_poffsets);
-      assembler->wkset[block]->paramusebasis = params->discretized_param_usebasis;
-      assembler->wkset[block]->paramoffsets = poffsets_view;
-      assembler->wkset[block]->param_varlist = params->discretized_param_names;
+      wkset[block]->paramusebasis = params->discretized_param_usebasis;
+      wkset[block]->paramoffsets = poffsets_view;
+      wkset[block]->param_varlist = params->discretized_param_names;
+
     }
   }
   
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-    if (assembler->wkset[block]->isInitialized) {
-      assembler->wkset[block]->createSolutionFields();
+  for (size_t block=0; block<wkset.size(); ++block) {
+    if (wkset[block]->isInitialized) {
+      wkset[block]->createSolutionFields();
     }
   }
   
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-    if (assembler->wkset[block]->isInitialized) {
+  for (size_t block=0; block<wkset.size(); ++block) {
+    if (wkset[block]->isInitialized) {
       vector<vector<int> > block_useBasis;
       for (size_t set=0; set<useBasis.size(); ++set) {
         block_useBasis.push_back(useBasis[set][block]);
       }
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-        assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
+        //assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
         assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
         assembler->groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
         assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
       }
       
-      assembler->wkset[block]->params = params->paramvals_AD;
-      assembler->wkset[block]->params_AD = params->paramvals_KVAD;
-      assembler->wkset[block]->paramnames = params->paramnames;
-      assembler->wkset[block]->setTime(current_time);
+      wkset[block]->params = paramvals;
+      wkset[block]->params_AD = paramvals_KV;
+      wkset[block]->paramnames = params->paramnames;
+      wkset[block]->setTime(current_time);
+
       if (assembler->boundary_groups.size() > block) { // avoid seg faults
         for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
           if (assembler->boundary_groups[block][grp]->numElem > 0) {
-            assembler->boundary_groups[block][grp]->setWorkset(assembler->wkset[block]);
             assembler->boundary_groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
           }
         }
@@ -949,11 +973,6 @@ void SolverManager<Node>::finalizeWorkset() {
     }
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::finalizeWorkset" << endl;
-    }
-  }
   
 }
 
@@ -972,11 +991,11 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
     }
   }
   
-  if (!disc->haveDirichlet) {
+  if (!disc->have_dirichlet) {
     usestrongDBCs = false;
   }
   
-  size_t numSets = phys->setnames.size();
+  size_t numSets = physics->set_names.size();
   
   scalarDirichletData = vector<bool>(numSets,false);
   staticDirichletData = vector<bool>(numSets,true);
@@ -1002,7 +1021,7 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
         for (size_t block=0; block<blocknames.size(); ++block) {
           
           std::string blockID = blocknames[block];
-          Teuchos::ParameterList dbc_settings = phys->setPhysSettings[set][block].sublist("Dirichlet conditions");
+          Teuchos::ParameterList dbc_settings = physics->physics_settings[set][block].sublist("Dirichlet conditions");
           vector<ScalarT> blockDirichletValues;
           
           for (size_t var=0; var<varlist[set][block].size(); var++ ) {
@@ -1338,7 +1357,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           // Allow the groups to change subgrid model
           ////////////////////////////////////////////////////////////////////////
           
-          multiscale_manager->update();
+          vector<vector<int> > sgmodels = assembler->identifySubgridModels();
+          multiscale_manager->update(sgmodels);
           vector_RCP u_stage = linalg->getNewOverlappedVector(set);
 
           u_prev[set]->assign(*(u[set]));
@@ -1421,7 +1441,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     size_t set = 0;
     // Just getting the number of times from first physics set should be fine
     // TODO will this be affected by having physics sets with different timesteppers?
-    size_t numFwdSteps = postproc->soln[set]->times[0].size()-1;
+    int store_index = 0;
+    size_t numFwdSteps = postproc->soln[set]->getTotalTimes(store_index)-1; 
     
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       size_t cindex = numFwdSteps-timeiter;
@@ -1450,7 +1471,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       assembler->performGather(set,u_prev[set],0,0);
       assembler->resetPrevSoln(set);
       
-      current_time = postproc->soln[set]->times[0][cindex-1];
+      int stime_index = cindex-1;
+      current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
       
       // if multistage, recover forward solution at each stage
       if (numstages[set] == 1) { // No need to re-solve in this case
@@ -1589,9 +1611,20 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       store_adjPrev = true;
     }
 
-    assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
-                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                              params->num_active_params, params->Psol_over, is_final_time, deltat);
+    bool test = true;
+    if (is_adjoint || assembler->groupData[0]->multiscale) {
+      test = false;
+    }
+    if (!test) { // cannot just use ScalarT
+      assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+                                current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                params->num_active_params, params->Psol_over, is_final_time, deltat);
+    }
+    else {
+      assembler->assembleRes(set, u, phi, build_jacobian, false, false,
+                             current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                             params->num_active_params, params->Psol_over, is_final_time, deltat);
+    }
     
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
     
@@ -1672,6 +1705,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     
     if (solve) {
       
+      if (test) {
+        assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+                                  current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                  params->num_active_params, params->Psol_over, is_final_time, deltat);
+      }
+
       if (build_jacobian) {
         linalg->fillComplete(J_over);
         J->resumeFill();
@@ -1781,16 +1820,24 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   current_res_over->putScalar(0.0);
   matrix_RCP J_over;
   
-  assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+  bool test = true;
+  if (test){
+    assembler->assembleRes(set, u, phi, build_jacobian, false, false,
                             current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                             params->num_active_params, params->Psol_over, is_final_time, deltat);
   
+  }
+  else {
+    assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                              params->num_active_params, params->Psol_over, is_final_time, deltat);
+  }
   
   linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
   
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   current_res->norm2(rnorm);
-  
+
   // *********************** SOLVE THE LINEAR SYSTEM **************************
   
   if (rnorm[0]>1.0e-100) {
@@ -2019,7 +2066,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
           
           assembler->updatePhysicsSet(set);
           
-          if (assembler->groupData[block]->numElem > 0) {
+          if (assembler->groupData[block]->num_elem > 0) {
             
             Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[set][block].size());
             auto idata_host = Kokkos::create_mirror_view(idata);
@@ -2030,7 +2077,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             
             if (samedevice) {
               auto offsets = assembler->wkset[block]->offsets;
-              auto numDOF = assembler->groupData[block]->numDOF;
+              auto numDOF = assembler->groupData[block]->num_dof;
               for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
                 auto LIDs = assembler->groups[block][cell]->LIDs[set];
                 parallel_for("solver initial scalar",
@@ -2048,7 +2095,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
               auto offsets = assembler->wkset[block]->offsets;
               auto host_offsets = Kokkos::create_mirror_view(offsets);
               Kokkos::deep_copy(host_offsets,offsets);
-              auto numDOF = assembler->groupData[block]->numDOF_host;
+              auto numDOF = assembler->groupData[block]->num_dof_host;
               for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
                 auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
                 parallel_for("solver initial scalar",
@@ -2104,12 +2151,12 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
           // With HFACE we ensure the preconditioner is not
           // used for this projection (mass matrix is nearly the identity
           // and can cause issues)
-          auto origPreconFlag = linalg->options_L2[set]->usePreconditioner;
-          linalg->options_L2[set]->usePreconditioner = false;
+          auto origPreconFlag = linalg->options_L2[set]->use_preconditioner;
+          linalg->options_L2[set]->use_preconditioner = false;
           // do the solve
           linalg->linearSolverL2(set, glmass, glrhs, glinitial);
           // set back to original
-          linalg->options_L2[set]->usePreconditioner = origPreconFlag;
+          linalg->options_L2[set]->use_preconditioner = origPreconFlag;
           
           linalg->importVectorToOverlapped(set, initial, glinitial);
           linalg->resetJacobian(set); // TODO not sure of this
@@ -2203,22 +2250,24 @@ void SolverManager<Node>::finalizeParams() {
 
 template<class Node>
 void SolverManager<Node>::finalizeMultiscale() {
+#ifndef MrHyDE_NO_AD
   if (multiscale_manager->subgridModels.size() > 0 ) {
     for (size_t k=0; k<multiscale_manager->subgridModels.size(); k++) {
       multiscale_manager->subgridModels[k]->paramvals_KVAD = params->paramvals_KVAD;
     }
     
-    multiscale_manager->macro_wkset = assembler->wkset;
+    multiscale_manager->macro_wkset = assembler->wkset_AD;
     vector<Kokkos::View<int*,AssemblyDevice>> macro_numDOF;
     for (size_t block=0; block<assembler->groupData.size(); ++block) {
-      macro_numDOF.push_back(assembler->groupData[block]->set_numDOF[0]);
+      macro_numDOF.push_back(assembler->groupData[block]->set_num_dof[0]);
     }
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
-                                     phys->varlist[0], useBasis[0], disc->offsets[0],
+                                     physics->var_list[0], useBasis[0], disc->offsets[0],
                                      macro_numDOF,
                                      params->paramnames, params->discretized_param_names);
     
-    ScalarT my_cost = multiscale_manager->initialize();
+    vector<vector<int> > sgmodels = assembler->identifySubgridModels();
+    ScalarT my_cost = multiscale_manager->initialize(sgmodels);
     ScalarT gmin = 0.0;
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&my_cost,&gmin);
     ScalarT gmax = 0.0;
@@ -2230,7 +2279,7 @@ void SolverManager<Node>::finalizeMultiscale() {
     }
     
   }
-  
+#endif  
 }
 
 

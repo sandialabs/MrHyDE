@@ -37,8 +37,20 @@ namespace MrHyDE {
    *   - "compressibility" is the compressibility \f$c\f$.
    *   - "gravity" is gravity \f$g\f$.
    */
-  class porous : public physicsbase {
+
+  template<class EvalT>
+  class porous : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    using PhysicsBase<EvalT>::adjrhs;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     // ========================================================================================
     /* Constructor to set up the problem */
@@ -54,7 +66,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -81,14 +93,14 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     //void setVars(std::vector<string> & varlist_);
     
     // ========================================================================================
     // ========================================================================================
     
-    void updatePerm(View_AD2 perm);
+    void updatePerm(View_EvalT2 perm);
     
     
   private:

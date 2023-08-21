@@ -18,8 +18,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-incompressibleSaturation::incompressibleSaturation(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+incompressibleSaturation<EvalT>::incompressibleSaturation(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "incompressibleSaturation";
@@ -42,15 +43,16 @@ incompressibleSaturation::incompressibleSaturation(Teuchos::ParameterList & sett
   phi = settings.get<ScalarT>("porosity",.5);
 
   useWells = settings.get<bool>("use well source",false);
-  if (useWells) myWells = wells(settings);
+  if (useWells) myWells = wells<EvalT>(settings);
 
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void incompressibleSaturation::defineFunctions(Teuchos::ParameterList & fs,
-                            Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void incompressibleSaturation<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                            Teuchos::RCP<FunctionManager<EvalT>> & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -68,17 +70,18 @@ void incompressibleSaturation::defineFunctions(Teuchos::ParameterList & fs,
 
   // Storage for the flux vectors
 
-  fluxes_vol  = View_AD4("flux", functionManager->numElem,
-                         functionManager->numip, 1, spaceDim); // neqn = 1
+  fluxes_vol  = View_EvalT4("flux", functionManager->num_elem_,
+                         functionManager->num_ip_, 1, spaceDim); // neqn = 1
 
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void incompressibleSaturation::volumeResidual() {
+template<class EvalT>
+void incompressibleSaturation<EvalT>::volumeResidual() {
   
-  vector<Vista> sourceterms;
+  vector<Vista<EvalT> > sourceterms;
 
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -170,7 +173,8 @@ void incompressibleSaturation::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void incompressibleSaturation::boundaryResidual() {
+template<class EvalT>
+void incompressibleSaturation<EvalT>::boundaryResidual() {
   
   // Nothing for now...
 
@@ -180,7 +184,8 @@ void incompressibleSaturation::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void incompressibleSaturation::computeFlux() {
+template<class EvalT>
+void incompressibleSaturation<EvalT>::computeFlux() {
 
   // Nothing for now...
 
@@ -191,7 +196,8 @@ void incompressibleSaturation::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void incompressibleSaturation::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void incompressibleSaturation<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
 
@@ -207,7 +213,8 @@ void incompressibleSaturation::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // compute the fluxes
 // ========================================================================================
 
-void incompressibleSaturation::computeFluxVector() {
+template<class EvalT>
+void incompressibleSaturation<EvalT>::computeFluxVector() {
 
   Teuchos::TimeMonitor localtime(*fluxVectorFill);
 
@@ -270,3 +277,24 @@ void incompressibleSaturation::computeFluxVector() {
     });
   }
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::incompressibleSaturation<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::incompressibleSaturation<AD>;
+
+// Standard built-in types
+template class MrHyDE::incompressibleSaturation<AD2>;
+template class MrHyDE::incompressibleSaturation<AD4>;
+template class MrHyDE::incompressibleSaturation<AD8>;
+template class MrHyDE::incompressibleSaturation<AD16>;
+template class MrHyDE::incompressibleSaturation<AD18>;
+template class MrHyDE::incompressibleSaturation<AD24>;
+template class MrHyDE::incompressibleSaturation<AD32>;
+#endif

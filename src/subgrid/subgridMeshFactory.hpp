@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #ifndef MRHYDE_subgridMesh 
@@ -27,20 +25,20 @@ namespace panzer_stk {
   public:
     //! Constructor
     
-    SubGridMeshFactory(const std::string & shape_) {
-      shape = shape_;
+    SubGridMeshFactory(const std::string & shape) {
+      shape_ = shape;
     }
     
-    SubGridMeshFactory(const std::string & shape_,
-                       Kokkos::View<ScalarT**,HostDevice> nodes_,
-                       std::vector<std::vector<GO> > & conn_,
-                       std::string & blockname_)
+    SubGridMeshFactory(const std::string & shape,
+                       Kokkos::View<ScalarT**,HostDevice> nodes,
+                       std::vector<std::vector<GO> > & conn,
+                       std::string & blockname)
     {
-      shape = shape_;
-      blockname = blockname_;
-      nodes.push_back(nodes_);
-      conn.push_back(conn_);
-      dimension = nodes_.extent(1);
+      shape_ = shape;
+      blockname_ = blockname;
+      nodes_.push_back(nodes);
+      conn_.push_back(conn);
+      dimension_ = nodes.extent(1);
     }
     
     
@@ -65,13 +63,13 @@ namespace panzer_stk {
     //! From ParameterListAcceptor
     Teuchos::RCP<const Teuchos::ParameterList> getValidParameters() const;
         
-  protected:
+  private:
     
-    std::string shape;
-    std::string blockname;
-    std::vector<Kokkos::View<ScalarT**,HostDevice> > nodes;
-    std::vector<std::vector<std::vector<GO> > > conn;
-    int dimension;
+    std::string shape_;
+    std::string blockname_;
+    std::vector<Kokkos::View<ScalarT**,HostDevice> > nodes_;
+    std::vector<std::vector<std::vector<GO> > > conn_;
+    int dimension_;
     
   };
   

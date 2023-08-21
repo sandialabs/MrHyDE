@@ -31,8 +31,19 @@ namespace MrHyDE {
    * Where the unknown ___ is the ___.
    * The following functions may be specified in the input.yaml file:
    */
-  class msphasefield : public physicsbase {
+
+  template<class EvalT>
+  class msphasefield : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     msphasefield() {} ;
     
@@ -49,7 +60,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -75,14 +86,14 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     // ========================================================================================
     /* return the source term (to be multiplied by test_function) */
     // ========================================================================================
     
-    AD SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
-                  const std::vector<AD > & tsource) const;
+    EvalT SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                  const std::vector<EvalT> & tsource) const;
     
     // ========================================================================================
     /* return the source term (to be multiplied by test_function) */
@@ -95,7 +106,7 @@ namespace MrHyDE {
     /* return the diffusivity coefficient */
     // ========================================================================================
     
-    AD DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const;
+    EvalT DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const;
     
     // ========================================================================================
     /* return the source term (to be multiplied by test_function) */
@@ -108,7 +119,7 @@ namespace MrHyDE {
     // TMW: this is deprecated
     // ========================================================================================
     
-    void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
+    void updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
                           const vector<string> & paramnames);
     
     // ========================================================================================
@@ -117,7 +128,7 @@ namespace MrHyDE {
   private:
     
     Teuchos::RCP<MpiComm> Comm;      
-    std::vector<AD> diff_FAD, L, A;   
+    std::vector<EvalT> diff_FAD, L, A;   
     int spaceDim, numphases, numdisks;
     vector<string> varlist;
     std::vector<int> phi_num;

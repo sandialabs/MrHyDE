@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 /** \file   physicsInterface.hpp
@@ -35,6 +33,19 @@ namespace MrHyDE {
    */
   
   class PhysicsInterface {
+
+    #ifndef MrHyDE_NO_AD
+      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
+      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
+      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
+      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
+    #else
+      typedef View_Sc1 View_AD1;
+      typedef View_Sc2 View_AD2;
+      typedef View_Sc3 View_AD3;
+      typedef View_Sc4 View_AD4;
+    #endif
+
   public:
     
     // ========================================================================================
@@ -60,8 +71,13 @@ namespace MrHyDE {
     // Add the functions to the function managers
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void defineFunctions(vector<Teuchos::RCP<FunctionManager> > & functionManagers_);
+    template<class EvalT>
+    void defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & functionManagers_);
     
+    template<class EvalT>
+    void defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & func_managers,
+                         vector<vector<vector<Teuchos::RCP<PhysicsBase<EvalT> > > > > & mods);
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -72,7 +88,7 @@ namespace MrHyDE {
     
     AD getDirichletValue(const int & block, const ScalarT & x, const ScalarT & y, const ScalarT & z,
                          const ScalarT & t, const string & var, const string & gside,
-                         const bool & useadjoint, Teuchos::RCP<workset> & wkset);
+                         const bool & useadjoint, Teuchos::RCP<Workset<AD> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -83,8 +99,8 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    View_Sc3 getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
-                        const bool & project, Teuchos::RCP<workset> & wkset);
+    View_Sc4 getInitial(vector<View_Sc2> & pts, const int & set, const int & block,
+                        const bool & project, Teuchos::RCP<Workset<ScalarT> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +118,7 @@ namespace MrHyDE {
      */
     
     View_Sc3 getInitialFace(vector<View_Sc2> & pts, const int & set, const int & block,
-                            const bool & project, Teuchos::RCP<workset> & wkset);
+                            const bool & project, Teuchos::RCP<Workset<ScalarT> > & wkset);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -118,8 +134,19 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<ScalarT> > > & params, const vector<string> & paramnames);
     
+#ifndef MrHyDE_NO_AD
+    void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD2> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD4> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD8> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD16> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD24> > > & params, const vector<string> & paramnames);
+    void updateParameters(vector<Teuchos::RCP<vector<AD32> > > & params, const vector<string> & paramnames);
+#endif
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -128,23 +155,37 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    template<class EvalT>
     void volumeResidual(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    template<class EvalT>
     void boundaryResidual(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    template<class EvalT>
     void computeFlux(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void setWorkset(vector<Teuchos::RCP<workset> > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<ScalarT> > > & wkset);
     
+#ifndef MrHyDE_NO_AD
+    void setWorkset(vector<Teuchos::RCP<Workset<AD> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD2> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD4> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD8> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD16> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD18> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD24> > > & wkset);
+    void setWorkset(vector<Teuchos::RCP<Workset<AD32> > > & wkset);
+#endif
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
@@ -153,11 +194,13 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    template<class EvalT>
     void faceResidual(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    template<class EvalT>
     void fluxConditions(const size_t & set, const size_t block);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -175,25 +218,44 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
-    vector<Teuchos::RCP<FunctionManager> > functionManagers;
-    Teuchos::RCP<MpiComm> Commptr;
+    Teuchos::RCP<MpiComm> comm;    
+    int dimension, debug_level;
+    vector<string> set_names, block_names, side_names;
     
-    int spaceDim, debug_level;
-    vector<string> setnames, blocknames, sidenames;
+    vector<vector<size_t> > num_vars; // [set][block]
+    vector<int> num_derivs_required;
     
-    vector<vector<size_t> > numVars; // [set][block]
+    vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers; // always defined
+#ifndef MrHyDE_NO_AD
+    vector<Teuchos::RCP<FunctionManager<AD> > > function_managers_AD; // always defined for now for BW-compat
+    vector<Teuchos::RCP<FunctionManager<AD2> > > function_managers_AD2;
+    vector<Teuchos::RCP<FunctionManager<AD4> > > function_managers_AD4;
+    vector<Teuchos::RCP<FunctionManager<AD8> > > function_managers_AD8;
+    vector<Teuchos::RCP<FunctionManager<AD16> > > function_managers_AD16;
+    vector<Teuchos::RCP<FunctionManager<AD18> > > function_managers_AD18;
+    vector<Teuchos::RCP<FunctionManager<AD24> > > function_managers_AD24;
+    vector<Teuchos::RCP<FunctionManager<AD32> > > function_managers_AD32;
+#endif
+
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > > modules; // always defined
+#ifndef MrHyDE_NO_AD
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules_AD; // always defined for now for BW-compat
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD2> > > > > modules_AD2;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD4> > > > > modules_AD4;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD8> > > > > modules_AD8;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD16> > > > > modules_AD16;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD18> > > > > modules_AD18;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD24> > > > > modules_AD24;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD32> > > > > modules_AD32;
+#endif
+
+    vector<vector<Teuchos::ParameterList>> physics_settings, disc_settings, solver_settings; // [set][block]
+    vector<vector<vector<bool> > > use_subgrid;
+    vector<vector<vector<bool> > > use_DG;
+    vector<vector<vector<ScalarT> > > mass_wts, norm_wts;
     
-    //-----------------------------------------------------
-    // Data the depends on physics sets
-    vector<vector<vector<Teuchos::RCP<physicsbase> > > > modules;
-    
-    vector<vector<Teuchos::ParameterList>> setPhysSettings, setDiscSettings, setSolverSettings; // [set][block]
-    vector<vector<vector<bool> > > useSubgrid;
-    vector<vector<vector<bool> > > useDG;
-    vector<vector<vector<ScalarT> > > masswts, normwts;
-    
-    vector<vector<vector<string> > > varlist; // [set][block][var]
-    vector<vector<vector<int> > > varowned; // [set][block][var]
+    vector<vector<vector<string> > > var_list; // [set][block][var]
+    vector<vector<vector<int> > > var_owned; // [set][block][var]
     vector<vector<vector<int> > > orders; // [set][block][var]
     vector<vector<vector<string> > > types; // [set][block][var]
     //-----------------------------------------------------
@@ -204,13 +266,14 @@ namespace MrHyDE {
     
     string initial_type;
     
-    vector<vector<string> > extrafields_list, extracellfields_list, response_list, target_list, weight_list;
+    vector<vector<string> > extra_fields_list, extra_cell_fields_list, response_list, target_list, weight_list;
     
-    Teuchos::RCP<Teuchos::Time> bctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
-    Teuchos::RCP<Teuchos::Time> dbctimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
-    Teuchos::RCP<Teuchos::Time> sideinfotimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");
-    Teuchos::RCP<Teuchos::Time> responsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface:computeResponse()");
-    Teuchos::RCP<Teuchos::Time> pointreponsetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::computePointResponse()");
+  private:
+    Teuchos::RCP<Teuchos::Time> bc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
+    Teuchos::RCP<Teuchos::Time> dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
+    Teuchos::RCP<Teuchos::Time> side_info_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");
+    Teuchos::RCP<Teuchos::Time> response_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface:computeResponse()");
+    Teuchos::RCP<Teuchos::Time> point_reponse_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::computePointResponse()");
     
   };
   

@@ -19,8 +19,9 @@ using namespace MrHyDE;
 // ========================================================================================
 // ========================================================================================
 
-ODE::ODE(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+ODE<EvalT>::ODE(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "ode";
@@ -32,8 +33,9 @@ ODE::ODE(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void ODE::defineFunctions(Teuchos::ParameterList & fs,
-                          Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void ODE<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                          Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   functionManager->addFunction("ODE source",fs.get<string>("ODE source","0.0"),"ip");
@@ -43,9 +45,10 @@ void ODE::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void ODE::volumeResidual() {
+template<class EvalT>
+void ODE<EvalT>::volumeResidual() {
   
-  Vista source;
+  Vista<EvalT> source;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -53,13 +56,13 @@ void ODE::volumeResidual() {
   }
     
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
-    
+  
   auto basis = wkset->getBasis("q");
   auto res = wkset->getResidual();
   auto off = wkset->getOffsets("q");
   auto dqdt = wkset->getSolutionField("q_t");
   auto wts = wkset->wts;
-  
+
   // Simply solves q_dot = f(q,t)
   parallel_for("ODE volume resid",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -69,3 +72,24 @@ void ODE::volumeResidual() {
     }
   });
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::ODE<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::ODE<AD>;
+
+// Standard built-in types
+template class MrHyDE::ODE<AD2>;
+template class MrHyDE::ODE<AD4>;
+template class MrHyDE::ODE<AD8>;
+template class MrHyDE::ODE<AD16>;
+template class MrHyDE::ODE<AD18>;
+template class MrHyDE::ODE<AD24>;
+template class MrHyDE::ODE<AD32>;
+#endif

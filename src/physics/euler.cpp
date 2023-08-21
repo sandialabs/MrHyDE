@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #include "euler.hpp"
@@ -18,8 +16,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-euler::euler(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+euler<EvalT>::euler(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "euler";
@@ -103,8 +102,9 @@ euler::euler(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void euler::defineFunctions(Teuchos::ParameterList & fs,
-                            Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void euler<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                            Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -121,10 +121,10 @@ void euler::defineFunctions(Teuchos::ParameterList & fs,
 
   // Storage for the inviscid flux vectors
 
-  fluxes_vol  = View_AD4("inviscid flux", functionManager->numElem,
-                         functionManager->numip, spaceDim + 2, spaceDim); // neqn = spaceDim + 2
-  fluxes_side = View_AD4("inviscid flux", functionManager->numElem,
-                         functionManager->numip_side, spaceDim + 2, spaceDim); // see above 
+  fluxes_vol  = View_EvalT4("inviscid flux", functionManager->num_elem_,
+                         functionManager->num_ip_, spaceDim + 2, spaceDim); // neqn = spaceDim + 2
+  fluxes_side = View_EvalT4("inviscid flux", functionManager->num_elem_,
+                         functionManager->num_ip_side_, spaceDim + 2, spaceDim); // see above 
 
   // Storage for stabilization term/boundary flux
 
@@ -135,25 +135,26 @@ void euler::defineFunctions(Teuchos::ParameterList & fs,
   // Additionally, this storage is used for the boundary flux B(\hat{S}).
   // This is needed by the computeFlux routine (see for more details).
 
-  stab_bound_side = View_AD3("stab/boundary term", functionManager->numElem,
-                             functionManager->numip_side, spaceDim + 2); // see above 
+  stab_bound_side = View_EvalT3("stab/boundary term", functionManager->num_elem_,
+                             functionManager->num_ip_side_, spaceDim + 2); // see above 
 
   // Storage for the thermodynamic properties
   // TODO I don't think T is technically needed... 
   
-  props_vol  = View_AD3("thermo props", functionManager->numElem,
-                       functionManager->numip, 3);
-  props_side = View_AD3("thermo props", functionManager->numElem,
-                       functionManager->numip_side, 3);
+  props_vol  = View_EvalT3("thermo props", functionManager->num_elem_,
+                       functionManager->num_ip_, 3);
+  props_side = View_EvalT3("thermo props", functionManager->num_elem_,
+                       functionManager->num_ip_side_, 3);
 
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void euler::volumeResidual() {
+template<class EvalT>
+void euler<EvalT>::volumeResidual() {
   
-  Vista source_rho, source_rhoux, source_rhouy, source_rhouz, source_rhoE;
+  Vista<EvalT> source_rho, source_rhoux, source_rhouy, source_rhouz, source_rhoE;
 
   // TODO not currently using source terms
   {
@@ -470,13 +471,14 @@ void euler::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void euler::boundaryResidual() {
+template<class EvalT>
+void euler<EvalT>::boundaryResidual() {
   
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
 
-  Vista source_rho, source_rhoux, source_rhoE, source_rhouy, source_rhouz;
+  Vista<EvalT> source_rho, source_rhoux, source_rhoE, source_rhouy, source_rhouz;
 
   string rho_sidetype = bcs(rho_num,cside);
   string rhoux_sidetype = bcs(rhoux_num,cside);
@@ -590,7 +592,8 @@ void euler::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void euler::computeFlux() {
+template<class EvalT>
+void euler<EvalT>::computeFlux() {
 
   // see Peraire 2011 AIAA for the details of the implementation
   // they take fluxes on the interfaces to be F(\hat{S}) \cdot n + Stab(S,\hat{S}) ( S - \hat{S} )
@@ -711,7 +714,8 @@ void euler::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void euler::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void euler<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
 
@@ -751,7 +755,8 @@ void euler::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // compute the inviscid fluxes
 // ========================================================================================
 
-void euler::computeInviscidFluxes(const bool & on_side) {
+template<class EvalT>
+void euler<EvalT>::computeInviscidFluxes(const bool & on_side) {
 
   Teuchos::TimeMonitor localtime(*invFluxesFill);
 
@@ -895,7 +900,8 @@ void euler::computeInviscidFluxes(const bool & on_side) {
 // compute the thermodynamic properties
 // ========================================================================================
 
-void euler::computeThermoProps(const bool & on_side)
+template<class EvalT>
+void euler<EvalT>::computeThermoProps(const bool & on_side)
 {
 
   // TODO :: getSolutionField("blah",false) for testing?
@@ -911,7 +917,7 @@ void euler::computeThermoProps(const bool & on_side)
   auto rhoE = on_side ? wkset->getSolutionField("aux rhoE") : 
                         wkset->getSolutionField("rhoE");
 
-  View_AD2 rhouy, rhouz; // TODO not sure this is the best way
+  View_EvalT2 rhouy, rhouz; // TODO not sure this is the best way
 
   if ( spaceDim > 1 ) {
     rhouy = on_side ? wkset->getSolutionField("aux rhouy") : 
@@ -962,7 +968,8 @@ void euler::computeThermoProps(const bool & on_side)
 // compute the stabilization term
 // ========================================================================================
 
-void euler::computeStabilizationTerm() {
+template<class EvalT>
+void euler<EvalT>::computeStabilizationTerm() {
 
   // The two proposed stabilization matrices in Peraire 2011 are based off of eigendecompositions
   // of the flux Jacobians
@@ -990,7 +997,7 @@ void euler::computeStabilizationTerm() {
   auto stabterm = stab_bound_side;
   auto nx = wkset->getScalarField("n[x]");
 
-  View_AD2 rhouy, rhouy_hat, rhouz, rhouz_hat; // only assign if necessary
+  View_EvalT2 rhouy, rhouy_hat, rhouz, rhouz_hat; // only assign if necessary
   View_Sc2 ny, nz;
 
   if (spaceDim > 1) {
@@ -1008,20 +1015,20 @@ void euler::computeStabilizationTerm() {
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
 
-    View_AD2 leftEV,rightEV; // Local eigendecomposition
-    View_AD1 Lambda; // diagonal matrix
-    View_AD1 deltaS; // S - \hat{S} vector
-    View_AD1 tmp; // temporary vector
+    View_EvalT2 leftEV,rightEV; // Local eigendecomposition
+    View_EvalT1 Lambda; // diagonal matrix
+    View_EvalT1 deltaS; // S - \hat{S} vector
+    View_EvalT1 tmp; // temporary vector
 
     ScalarT gamma = modelparams(gamma_mp_num); 
 
-    deltaS = View_AD1("delta S", spaceDim + 2);
+    deltaS = View_EvalT1("delta S", spaceDim + 2);
 
     if (roestab) {
-      Lambda = View_AD1("Lambda", spaceDim + 2); 
-      leftEV = View_AD2("left EV", spaceDim + 2, spaceDim + 2); 
-      rightEV = View_AD2("right EV", spaceDim + 2, spaceDim + 2); 
-      tmp = View_AD1("tmp", spaceDim + 2);
+      Lambda = View_EvalT1("Lambda", spaceDim + 2); 
+      leftEV = View_EvalT2("left EV", spaceDim + 2, spaceDim + 2); 
+      rightEV = View_EvalT2("right EV", spaceDim + 2, spaceDim + 2); 
+      tmp = View_EvalT1("tmp", spaceDim + 2);
     }
     
     for (size_type pt=0; pt<stabterm.extent(1); ++pt) {
@@ -1066,11 +1073,11 @@ void euler::computeStabilizationTerm() {
 
       } else {
         // the stabilization is just the max abs EV times delta S
-        AD vn = nx(elem,pt)*rhoux_hat(elem,pt)/rho_hat(elem,pt);
+        EvalT vn = nx(elem,pt)*rhoux_hat(elem,pt)/rho_hat(elem,pt);
         if (spaceDim > 1) vn += ny(elem,pt)*rhouy_hat(elem,pt)/rho_hat(elem,pt);
         if (spaceDim > 2) vn += nz(elem,pt)*rhouz_hat(elem,pt)/rho_hat(elem,pt);
         // max of | vn + a |, | vn - a |
-        AD lambdaMax = max(abs(vn + props(elem,pt,a_num)),abs(vn - props(elem,pt,a_num)));
+        EvalT lambdaMax = max(abs(vn + props(elem,pt,a_num)),abs(vn - props(elem,pt,a_num)));
 
         for (int i=0; i<spaceDim+2; ++i) {
           stab_sub(i) = deltaS(i) * lambdaMax;
@@ -1084,7 +1091,8 @@ void euler::computeStabilizationTerm() {
 // compute the boundary flux
 // ========================================================================================
 
-void euler::computeBoundaryTerm() {
+template<class EvalT>
+void euler<EvalT>::computeBoundaryTerm() {
 
   // The two BC types in Peraire 2011 are inflow/outflow and slip.
   //
@@ -1124,7 +1132,7 @@ void euler::computeBoundaryTerm() {
   auto boundterm = stab_bound_side;
   auto nx = wkset->getScalarField("n[x]");
 
-  View_AD2 rhouy, rhouy_hat, rhouz, rhouz_hat; // and only assign if necessary?
+  View_EvalT2 rhouy, rhouy_hat, rhouz, rhouz_hat; // and only assign if necessary?
   View_Sc2 ny, nz;
 
   if (spaceDim > 1) {
@@ -1139,7 +1147,7 @@ void euler::computeBoundaryTerm() {
   }
 
   // Get the freestream info if needed
-  Vista source_rho, source_rhoux, source_rhoE, source_rhouy, source_rhouz;
+  Vista<EvalT> source_rho, source_rhoux, source_rhoE, source_rhouy, source_rhouz;
 
   if (sidetype == "Far-field") { 
     source_rho = functionManager->evaluate("Far-field rho " + wkset->sidename,"side ip");
@@ -1157,27 +1165,27 @@ void euler::computeBoundaryTerm() {
                RangePolicy<AssemblyExec>(0,wkset->numElem),
                KOKKOS_LAMBDA (const int elem ) {
 
-    View_AD2 leftEV,rightEV; // Local eigendecomposition
-    View_AD1 Lambda; // diagonal matrix
-    View_AD1 deltaS; // S - \hat{S} vector
-    View_AD1 tmp; // temporary vector
+    View_EvalT2 leftEV,rightEV; // Local eigendecomposition
+    View_EvalT1 Lambda; // diagonal matrix
+    View_EvalT1 deltaS; // S - \hat{S} vector
+    View_EvalT1 tmp; // temporary vector
 
     ScalarT gamma = modelparams(gamma_mp_num); 
 
     if (sidetype == "Far-field") {
 
       // allocate storage
-      deltaS = View_AD1("delta S", spaceDim + 2);
-      Lambda = View_AD1("Lambda", spaceDim + 2); 
-      leftEV = View_AD2("left EV", spaceDim + 2, spaceDim + 2); 
-      rightEV = View_AD2("right EV", spaceDim + 2, spaceDim + 2); 
-      tmp = View_AD1("tmp", spaceDim + 2);
+      deltaS = View_EvalT1("delta S", spaceDim + 2);
+      Lambda = View_EvalT1("Lambda", spaceDim + 2); 
+      leftEV = View_EvalT2("left EV", spaceDim + 2, spaceDim + 2); 
+      rightEV = View_EvalT2("right EV", spaceDim + 2, spaceDim + 2); 
+      tmp = View_EvalT1("tmp", spaceDim + 2);
     }
     
     for (size_type pt=0; pt<boundterm.extent(1); ++pt) {
 
       // get the appropriate portion of the boundary term
-      // TODO Not sure about FORCING this to be view_ad1 here (and above)
+      // TODO Not sure about FORCING this to be View_EvalT1 here (and above)
       auto bound_sub = Kokkos::subview( boundterm, elem, pt, Kokkos::ALL());
       
       if (sidetype == "Far-field") {
@@ -1250,7 +1258,7 @@ void euler::computeBoundaryTerm() {
 
       } else {
         // Apply the slip condition
-        AD vn = nx(elem,pt)*rhoux(elem,pt)/rho(elem,pt);
+        EvalT vn = nx(elem,pt)*rhoux(elem,pt)/rho(elem,pt);
         if (spaceDim > 1) vn += ny(elem,pt)*rhouy(elem,pt)/rho(elem,pt);
         if (spaceDim > 2) vn += nz(elem,pt)*rhouz(elem,pt)/rho(elem,pt);
 
@@ -1282,8 +1290,9 @@ void euler::computeBoundaryTerm() {
 // Fill in the local eigendecomposition matrices
 // ========================================================================================
 
-KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-        const AD & rhoux, const AD & rho, const AD & a_sound, const ScalarT & gamma) {
+template<class EvalT>
+KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+        const EvalT & rhoux, const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma) {
 
   // In 1D, the eigenvalues are ux - a, ux, and ux + a
   // The right eigenvectors are 
@@ -1324,14 +1333,15 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 La
   
 }
 
-KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-    const AD & rhoux, const AD & rhouy, const AD & rho, const ScalarT & nx, const ScalarT & ny,
-    const AD & a_sound, const ScalarT & gamma) {
+template<class EvalT>
+KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+    const EvalT & rhoux, const EvalT & rhouy, const EvalT & rho, const ScalarT & nx, const ScalarT & ny,
+    const EvalT & a_sound, const ScalarT & gamma) {
 
   // This follows Rohde 2001 (AIAA)
 
-  AD vn = rhoux/rho*nx + rhouy/rho*ny;
-  AD ek_m = .5 * (rhoux*rhoux + rhouy*rhouy)/(rho*rho);
+  EvalT vn = rhoux/rho*nx + rhouy/rho*ny;
+  EvalT ek_m = .5 * (rhoux*rhoux + rhouy*rhouy)/(rho*rho);
   ScalarT gm1 = gamma - 1.;
 
   // TODO CHECK BELOW 
@@ -1381,17 +1391,18 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 La
 
 }
 
-KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 Lambda, View_AD2 rightEV, 
-    const AD & rhoux, const AD & rhouy, const AD & rhouz, const AD & rho, 
+template<class EvalT>
+KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
+    const EvalT & rhoux, const EvalT & rhouy, const EvalT & rhouz, const EvalT & rho, 
     const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
-    const AD & a_sound, const ScalarT & gamma) {
+    const EvalT & a_sound, const ScalarT & gamma) {
 
   // This follows Rohde 2001 (AIAA)
 
   using namespace std;
 
-  AD vn = rhoux/rho*nx + rhouy/rho*ny + rhouz/rho*nz;
-  AD ek_m = .5 * (rhoux*rhoux + rhouy*rhouy + rhouz*rhouz)/(rho*rho);
+  EvalT vn = rhoux/rho*nx + rhouy/rho*ny + rhouz/rho*nz;
+  EvalT ek_m = .5 * (rhoux*rhoux + rhouy*rhouy + rhouz*rhouz)/(rho*rho);
   ScalarT gm1 = gamma - 1.;
 
   // Rohde gives three sets of right/left EV pairs.
@@ -1546,8 +1557,8 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 La
 // Fill in the local normal flux Jacobian
 // ========================================================================================
 
-//KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
-//    const AD & rho, const & AD a_sound, const & ScalarT gamma) {
+//KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 & dFdn, const EvalT & rhoux,
+//    const EvalT & rho, const & EvalT a_sound, const & ScalarT gamma) {
 //
 //  const ScalarT gm1 = gamma - 1.;
 //
@@ -1569,14 +1580,14 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 La
 //
 //}
 //
-//KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
-//    const & AD rhouy, const AD & rho, const AD & nx, const AD & ny, 
-//    const & AD a_sound, const & ScalarT gamma) {
+//KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 & dFdn, const EvalT & rhoux,
+//    const & EvalT rhouy, const EvalT & rho, const EvalT & nx, const EvalT & ny, 
+//    const & EvalT a_sound, const & ScalarT gamma) {
 //
 //  // This follows Rohde 2001 (AIAA)
 //
-//  AD vn = rhoux/rho*nx + rhouy/rho*ny;
-//  AD ek_m = .5 * (rhoux*rhoux + rhouy*rhouy)/(rho*rho);
+//  EvalT vn = rhoux/rho*nx + rhouy/rho*ny;
+//  EvalT ek_m = .5 * (rhoux*rhoux + rhouy*rhouy)/(rho*rho);
 //  ScalarT gm1 = gamma - 1.;
 //
 //  // In 2-D, the flux Jacobian matrix is 
@@ -1601,17 +1612,17 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 La
 //
 //}
 //
-//KOKKOS_FUNCTION void updateNormalFluxJacobian(View_AD2 & dFdn, const AD & rhoux,
-//    const & AD rhouy, const & AD rhouz const AD & rho, 
-//    const AD & nx, const AD & ny, const AD & nz,
-//    const & AD a_sound, const & ScalarT gamma) {
+//KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 & dFdn, const EvalT & rhoux,
+//    const & EvalT rhouy, const & EvalT rhouz const EvalT & rho, 
+//    const EvalT & nx, const EvalT & ny, const EvalT & nz,
+//    const & EvalT a_sound, const & ScalarT gamma) {
 //
 //  // TODO NOT NEEDED?
 //
 //  // This follows Rohde 2001 (AIAA)
 //
-//  AD vn = rhoux/rho*nx + rhouy/rho*ny + rhouz/rho*nz;
-//  AD ek_m = .5 * (rhoux*rhoux + rhouy*rhouy + rhouz*rhouz)/(rho*rho);
+//  EvalT vn = rhoux/rho*nx + rhouy/rho*ny + rhouz/rho*nz;
+//  EvalT ek_m = .5 * (rhoux*rhoux + rhouy*rhouy + rhouz*rhouz)/(rho*rho);
 //  ScalarT gm1 = gamma - 1.;
 //
 //  // In 3-D, the flux Jacobian matrix is 
@@ -1644,3 +1655,24 @@ KOKKOS_FUNCTION void euler::eigendecompFluxJacobian(View_AD2 leftEV, View_AD1 La
 //  dFdn(4,4) = gamma*vn;
 //
 //}
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::euler<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::euler<AD>;
+
+// Standard built-in types
+template class MrHyDE::euler<AD2>;
+template class MrHyDE::euler<AD4>;
+template class MrHyDE::euler<AD8>;
+template class MrHyDE::euler<AD16>;
+template class MrHyDE::euler<AD18>;
+template class MrHyDE::euler<AD24>;
+template class MrHyDE::euler<AD32>;
+#endif

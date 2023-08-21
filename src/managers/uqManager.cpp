@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #include "uqManager.hpp"
@@ -20,32 +18,31 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-UQManager::UQManager(const Teuchos::RCP<MpiComm> Comm_, const Teuchos::ParameterList & uqsettings_,
-                     const std::vector<string> & param_types_,
-                     const std::vector<ScalarT> & param_means_, const std::vector<ScalarT> & param_variances_,
-                     const std::vector<ScalarT> & param_mins_, const std::vector<ScalarT> & param_maxs_) :
-Comm(Comm_), uqsettings(uqsettings_), param_types(param_types_), param_means(param_means_),
-param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_maxs_) {
+UQManager::UQManager(const Teuchos::RCP<MpiComm> comm, const Teuchos::ParameterList & uqsettings,
+                     const std::vector<string> & param_types,
+                     const std::vector<ScalarT> & param_means, const std::vector<ScalarT> & param_variances,
+                     const std::vector<ScalarT> & param_mins, const std::vector<ScalarT> & param_maxs) :
+comm_(comm), uqsettings_(uqsettings), param_types_(param_types), param_means_(param_means),
+param_variances_(param_variances), param_mins_(param_mins), param_maxs_(param_maxs) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::UQManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
-  numstochparams = param_types.size();
-  surrogate = uqsettings.get<std::string>("surrogate model","regression");
-  evalprog = 0;
+  numstochparams_ = param_types_.size();
+  surrogate_ = uqsettings_.get<std::string>("surrogate_ model","regression");
   
-  use_user_defined = uqsettings.get<bool>("use user defined",false);
-  if (use_user_defined) {
-    Data sdata("Sample Points", numstochparams, uqsettings.get("source","samples.dat"));
-    samples = sdata.getPoints();
+  use_user_defined_ = uqsettings_.get<bool>("use user defined",false);
+  if (use_user_defined_) {
+    Data sdata("Sample Points", numstochparams_, uqsettings_.get("source","samples.dat"));
+    samples_ = sdata.getPoints();
   }
   
-  if (surrogate == "regression") {
+  if (surrogate_ == "regression") {
     
   }
-  else if (surrogate == "sparse grid") {
+  else if (surrogate_ == "sparse grid") {
   }
-  else if (surrogate == "voronoi") {
+  else if (surrogate_ == "voronoi") {
   }
   else {
     // complain
@@ -58,33 +55,33 @@ param_variances(param_variances_), param_mins(param_mins_), param_maxs(param_max
 
 Kokkos::View<ScalarT**,HostDevice> UQManager::generateSamples(const int & numsamples, int & seed) {
 
-  if (!use_user_defined) {
+  if (!use_user_defined_) {
     if (seed == -1) {
       srand(time(NULL));
       seed = rand();
     }
 
-    samples = Kokkos::View<ScalarT**,HostDevice>("samples",numsamples, numstochparams);
+    samples_ = Kokkos::View<ScalarT**,HostDevice>("samples",numsamples, numstochparams_);
     std::default_random_engine generator(seed);
-    for (int j=0; j<numstochparams; j++) {
-      if (param_types[j] == "uniform") {
-        std::uniform_real_distribution<ScalarT> distribution(param_mins[j],param_maxs[j]);
+    for (int j=0; j<numstochparams_; j++) {
+      if (param_types_[j] == "uniform") {
+        std::uniform_real_distribution<ScalarT> distribution(param_mins_[j],param_maxs_[j]);
         for (int k=0; k<numsamples; k++) {
           ScalarT number = distribution(generator);
-          samples(k,j) = number;
+          samples_(k,j) = number;
         }
       }
-      else if (param_types[j] == "Gaussian") {
-        std::normal_distribution<ScalarT> distribution(param_means[j],param_variances[j]);
+      else if (param_types_[j] == "Gaussian") {
+        std::normal_distribution<ScalarT> distribution(param_means_[j],param_variances_[j]);
         for (int k=0; k<numsamples; k++) {
           ScalarT number = distribution(generator);
-          samples(k,j) = number;
+          samples_(k,j) = number;
         }
       }
     }
   }
   
-  return samples;
+  return samples_;
 }
 
 // ========================================================================================
@@ -112,7 +109,7 @@ Kokkos::View<int*,HostDevice> UQManager::generateIntegerSamples(const int & nums
 void UQManager::generateSamples(const int & numsamples, int & seed,
                                 Kokkos::View<ScalarT**,HostDevice> samplepts,
                                 Kokkos::View<ScalarT*,HostDevice> samplewts) {
-  Kokkos::resize(samplepts,numsamples, numstochparams);
+  Kokkos::resize(samplepts,numsamples, numstochparams_);
   Kokkos::resize(samplewts, numsamples);
 
   if (seed == -1) {
@@ -121,17 +118,17 @@ void UQManager::generateSamples(const int & numsamples, int & seed,
   }
   
   std::default_random_engine generator(seed);
-  for (int j=0; j<numstochparams; j++) {
-    if (param_types[j] == "uniform") {
-      std::uniform_real_distribution<ScalarT> distribution(param_mins[j],param_maxs[j]);
+  for (int j=0; j<numstochparams_; j++) {
+    if (param_types_[j] == "uniform") {
+      std::uniform_real_distribution<ScalarT> distribution(param_mins_[j],param_maxs_[j]);
       for (int k=0; k<numsamples; k++) {
         ScalarT number = distribution(generator);
         samplepts(k,j) = number;
         samplewts(k) = 1.0/(ScalarT)numsamples;
       }
     }
-    else if (param_types[j] == "Gaussian") {
-      std::normal_distribution<ScalarT> distribution(param_means[j],param_variances[j]);
+    else if (param_types_[j] == "Gaussian") {
+      std::normal_distribution<ScalarT> distribution(param_means_[j],param_variances_[j]);
       for (int k=0; k<numsamples; k++) {
         ScalarT number = distribution(generator);
         samplepts(k,j) = number;
@@ -146,16 +143,16 @@ void UQManager::generateSamples(const int & numsamples, int & seed,
 
 void UQManager::computeStatistics(const std::vector<ScalarT> & values) {
   int numvals = values.size();
-  if (uqsettings.get<bool>("compute mean",true)) {
+  if (uqsettings_.get<bool>("compute mean",true)) {
     ScalarT meanval = 0.0;
     for (int j=0; j<numvals; j++) {
       meanval += values[j];
     }
     meanval = meanval / numvals;
-    if (Comm->getRank() == 0 )
+    if (comm_->getRank() == 0 )
     cout << "Mean value of the response: " << meanval << endl;
   }
-  if (uqsettings.get<bool>("compute variance",true)) {
+  if (uqsettings_.get<bool>("compute variance",true)) {
     ScalarT meanval = 0.0;
     for (int j=0; j<numvals; j++) {
       meanval += values[j];
@@ -166,11 +163,11 @@ void UQManager::computeStatistics(const std::vector<ScalarT> & values) {
       variance += (values[j]-meanval)*(values[j]-meanval);
     }
     variance = variance / numvals;
-    if (Comm->getRank() == 0 )
+    if (comm_->getRank() == 0 )
     cout << "Variance of the response: " << variance << endl;
   }
-  if (uqsettings.isSublist("Probability levels")) {
-    Teuchos::ParameterList plevels = uqsettings.sublist("Probability levels");
+  if (uqsettings_.isSublist("Probability levels")) {
+    Teuchos::ParameterList plevels = uqsettings_.sublist("Probability levels");
     Teuchos::ParameterList::ConstIterator pl_itr = plevels.begin();
     while (pl_itr != plevels.end()) {
       ScalarT currplevel = plevels.get<ScalarT>(pl_itr->first);
@@ -180,7 +177,7 @@ void UQManager::computeStatistics(const std::vector<ScalarT> & values) {
         count += 1;
       }
       ScalarT currprob = (ScalarT)count / (ScalarT)numvals;
-      if (Comm->getRank() == 0 )
+      if (comm_->getRank() == 0 )
       cout << "Probability the response is less than " << currplevel << " = " << currprob << endl;
       pl_itr++;
     }
@@ -199,7 +196,7 @@ void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
   int dim1 = values[0].extent(1);
   int dim2 = values[0].extent(2);
   
-  if (uqsettings.get<bool>("compute mean",true)) {
+  if (uqsettings_.get<bool>("compute mean",true)) {
     
     Kokkos::View<ScalarT***,HostDevice> meanval("mean values",dim0,dim1,dim2);
     for (int j=0; j<numvals; j++) {
@@ -211,11 +208,11 @@ void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
         }
       }
     }
-    if (Comm->getRank() == 0 )
+    if (comm_->getRank() == 0 )
     cout << "Mean value of the response: " << endl;
-    // KokkosTools::print(meanval); // GH: commenting this out for now; it can't tell DRV from DRVint
+    // KokkosTools::print(meanval); // GH: comm_enting this out for now; it can't tell DRV from DRVint
   }
-  /*if (uqsettings.get<bool>("Compute variance",true)) {
+  /*if (uqsettings_.get<bool>("Compute variance",true)) {
    ScalarT meanval = 0.0;
    for (int j=0; j<numvals; j++) {
    meanval += values[j];
@@ -226,11 +223,11 @@ void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
    variance += (values[j]-meanval)*(values[j]-meanval);
    }
    variance = variance / numvals;
-   if (Comm.getRank() == 0 )
+   if (comm_.getRank() == 0 )
    cout << "Variance of the response: " << variance << endl;
    }
-   if (uqsettings.isSublist("Probability levels")) {
-   Teuchos::ParameterList plevels = uqsettings.sublist("Probability levels");
+   if (uqsettings_.isSublist("Probability levels")) {
+   Teuchos::ParameterList plevels = uqsettings_.sublist("Probability levels");
    Teuchos::ParameterList::ConstIterator pl_itr = plevels.begin();
    while (pl_itr != plevels.end()) {
    ScalarT currplevel = plevels.get<ScalarT>(pl_itr->first);
@@ -240,7 +237,7 @@ void UQManager::computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevic
    count += 1;
    }
    ScalarT currprob = (ScalarT)count / (ScalarT)numvals;
-   if (Comm.getRank() == 0 )
+   if (comm_.getRank() == 0 )
    cout << "Probability the response is less than " << currplevel << " = " << currprob << endl;
    pl_itr++;
    }

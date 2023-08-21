@@ -23,25 +23,43 @@ namespace MrHyDE {
   
   // =================================================================
   // =================================================================
-  
-  class workset {
+  template<class EvalT>
+  class Workset {
+
   public:
+
+      typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
+      typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+      typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+      typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Constructors
     ////////////////////////////////////////////////////////////////////////////////////
     
-    workset() {};
+    Workset() {};
     
-    ~workset() {};
+    ~Workset() {};
     
-    workset(const vector<int> & cellinfo,
+    Workset(const vector<int> & cellinfo,
             const vector<size_t> & numVars_, 
             const bool & isTransient_,
             const vector<string> & basis_types_,
             const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
             const topo_RCP & topo);
-            
+
+    Workset(const size_t & block_, const size_t & num_sets ) {
+      block = block_;
+      numSets = num_sets;
+      isInitialized = false;
+
+      set_BDF_wts = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+      set_butcher_A = vector<Kokkos::View<ScalarT**,AssemblyDevice> >(numSets);
+      set_butcher_b = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+      set_butcher_c = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
+  
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////
     // Public functions
     ////////////////////////////////////////////////////////////////////////////////////
@@ -110,13 +128,13 @@ namespace MrHyDE {
     // Get a pointer to vector of parameters
     //////////////////////////////////////////////////////////////
     
-    vector<AD> getParam(const string & name, bool & found);
+    vector<EvalT> getParam(const string & name, bool & found);
     
     //////////////////////////////////////////////////////////////
     // Get a subview associated with a vector of parameters
     //////////////////////////////////////////////////////////////
 
-    Kokkos::View<AD*,Kokkos::LayoutStride,AssemblyDevice> getParameter(const string & name, bool & found);
+    Kokkos::View<EvalT*,Kokkos::LayoutStride,AssemblyDevice> getParameter(const string & name, bool & found);
       
     //////////////////////////////////////////////////////////////
     // Set the time
@@ -140,7 +158,7 @@ namespace MrHyDE {
     // Data extraction methods
     //////////////////////////////////////////////////////////////
     
-    View_AD2 getResidual();
+    View_EvalT2 getResidual();
     
     View_Sc2 getWeights();
     
@@ -158,7 +176,7 @@ namespace MrHyDE {
     
     void printScalarFields();
     
-    View_AD2 getSolutionField(const string & label, const bool & evaluate = SOL_FIELD_EVAL,
+    View_EvalT2 getSolutionField(const string & label, const bool & evaluate = SOL_FIELD_EVAL,
                               const bool & markUpdated = false);
     
     View_Sc2 getScalarField(const string & label);
@@ -249,29 +267,29 @@ namespace MrHyDE {
     // Functions to set solution data (these are not all implemented and will be deprecated eventually)
     //////////////////////////////////////////////////////////////
     
-    void setSolution(View_AD4 newsol, const string & pfix = "");
+    void setSolution(View_EvalT4 newsol, const string & pfix = "");
     
-    void setSolutionGrad(View_AD4 newsolgrad, const string & pfix = "");
+    void setSolutionGrad(View_EvalT4 newsolgrad, const string & pfix = "");
     
-    void setSolutionDiv(View_AD3 newsoldiv, const string & pfix = "");
+    void setSolutionDiv(View_EvalT3 newsoldiv, const string & pfix = "");
     
-    void setSolutionCurl(View_AD4 newsolcurl, const string & pfix = "");
+    void setSolutionCurl(View_EvalT4 newsolcurl, const string & pfix = "");
     
-    void setSolutionPoint(View_AD2 newsol);
+    void setSolutionPoint(View_EvalT2 newsol);
     
-    void setSolutionGradPoint(View_AD2 newsol);
+    void setSolutionGradPoint(View_EvalT2 newsol);
       
-    void setParam(View_AD4 newsol, const string & pfix = "");
+    void setParam(View_EvalT4 newsol, const string & pfix = "");
     
-    void setParamGrad(View_AD4 newsolgrad, const string & pfix = "");
+    void setParamGrad(View_EvalT4 newsolgrad, const string & pfix = "");
     
-    void setParamDiv(View_AD3 newsoldiv, const string & pfix = "");
+    void setParamDiv(View_EvalT3 newsoldiv, const string & pfix = "");
     
-    void setParamCurl(View_AD4 newsolcurl, const string & pfix = "");
+    void setParamCurl(View_EvalT4 newsolcurl, const string & pfix = "");
     
-    void setParamPoint(View_AD2 newsol);
+    void setParamPoint(View_EvalT2 newsol);
     
-    void setParamGradPoint(View_AD2 newsol);
+    void setParamGradPoint(View_EvalT2 newsol);
 
     string getParamBasisType(string & name);
 
@@ -284,15 +302,15 @@ namespace MrHyDE {
      * @param[in] pfix  Optional suffix to the variable string
      */ 
     
-    void setAux(View_AD4 newsol, const string & pfix = "");
+    void setAux(View_EvalT4 newsol, const string & pfix = "");
     
-    void setAuxGrad(View_AD4 newsolgrad, const string & pfix = "");
+    void setAuxGrad(View_EvalT4 newsolgrad, const string & pfix = "");
     
-    void setAuxDiv(View_AD3 newsoldiv, const string & pfix = "");
+    void setAuxDiv(View_EvalT3 newsoldiv, const string & pfix = "");
     
-    void setAuxCurl(View_AD4 newsolcurl, const string & pfix = "");
+    void setAuxCurl(View_EvalT4 newsolcurl, const string & pfix = "");
     
-    void setAuxPoint(View_AD2 newsol);
+    void setAuxPoint(View_EvalT2 newsol);
     
     //////////////////////////////////////////////////////////////
     // Function to change the current physics set
@@ -309,7 +327,7 @@ namespace MrHyDE {
     // Should be the only view stored on Host
     // Used by physics modules to determine the proper contribution to the boundary residual
     
-    bool isAdjoint, onlyTransient, isTransient;
+    bool isAdjoint, onlyTransient, isTransient, only_scalar=false;
     bool isInitialized, usebcs, isOnSide, isOnPoint;
     topo_RCP celltopo;
     size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set, numSets;
@@ -320,15 +338,15 @@ namespace MrHyDE {
     vector<int> numbasis;
     vector<basis_RCP> basis_pointers;
     
-    vector<Teuchos::RCP<vector<AD> > > params;
-    Kokkos::View<AD**,AssemblyDevice> params_AD;
+    vector<Teuchos::RCP<vector<EvalT> > > params;
+    Kokkos::View<EvalT**,AssemblyDevice> params_AD;
     vector<string> paramnames;
     
     ScalarT time, alpha, deltat;
     
     size_t block, localEID, globalEID;
     
-    vector<SolutionField> soln_fields, side_soln_fields, point_soln_fields;
+    vector<SolutionField<EvalT> > soln_fields, side_soln_fields, point_soln_fields;
     vector<ScalarField> scalar_fields, side_scalar_fields, point_scalar_fields;
     
     View_Sc1 h;
@@ -336,10 +354,10 @@ namespace MrHyDE {
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<CompressedView<View_Sc3>> basis_div;
     
-    View_AD2 res, adjrhs;
-    View_AD3 flux;
+    View_EvalT2 res, adjrhs;
+    View_EvalT3 flux;
     Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
-    vector<View_AD2> pvals;
+    vector<View_EvalT2> pvals;
     vector<string> param_varlist;
     vector<int> paramusebasis;
     vector<int> paramvars_HGRAD, paramvars_HVOL, paramvars_HDIV, paramvars_HCURL, paramvars_HFACE;
@@ -349,9 +367,9 @@ namespace MrHyDE {
     
     // Editing for multi-set
     vector<size_t> numVars;
-    //vector<vector<View_AD2> > uvals, u_dotvals;
-    vector<View_AD2> uvals, u_dotvals;
-    vector<vector<size_t>> uvals_index; // [set][var]
+    //vector<vector<View_EvalT2> > uvals, u_dotvals;
+    vector<View_EvalT2> sol_vals, sol_dot_vals;
+    vector<vector<size_t>> sol_vals_index; // [set][var]
 
     Kokkos::View<string**,HostDevice> var_bcs;
     vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
@@ -376,7 +394,6 @@ namespace MrHyDE {
     View_Sc1 integrated_quantities;
         
     int sidetype;
-    //Kokkos::View<int****,AssemblyDevice> sideinfo;
     string sidename, blockname;//, var;
     int currentside, time_step;
     
@@ -384,34 +401,13 @@ namespace MrHyDE {
     View_Sc3 rotation;
     View_Sc2 rotation_phi, extra_data;
     View_Sc3 multidata;
-
-    //Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     // Profile timers
-    Teuchos::RCP<Teuchos::Time> worksetUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update - integration data");
-    Teuchos::RCP<Teuchos::Time> worksetUpdateBasisMMTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update::multiplyMeasure");
-    Teuchos::RCP<Teuchos::Time> worksetUpdateBasisHGTGTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::update::HGRADTransformGrad");
-    Teuchos::RCP<Teuchos::Time> worksetAddSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::addSide");
-    Teuchos::RCP<Teuchos::Time> worksetSideUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateSide - integration data");
-    Teuchos::RCP<Teuchos::Time> worksetSideUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateSide - basis data");
-    Teuchos::RCP<Teuchos::Time> worksetFaceUpdateIPTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateFace - integration data");
-    Teuchos::RCP<Teuchos::Time> worksetFaceUpdateBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::updateFace - basis data");
     Teuchos::RCP<Teuchos::Time> worksetResetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::reset*");
-    Teuchos::RCP<Teuchos::Time> worksetComputeSolnVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeSolnVolIP - compute seeded sol at ip");
     Teuchos::RCP<Teuchos::Time> worksetComputeSolnSeededTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeSolnVolIP - allocate/compute seeded");
     Teuchos::RCP<Teuchos::Time> worksetComputeSolnSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeSolnSideIP");
-    Teuchos::RCP<Teuchos::Time> worksetComputeParamVolTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeParamVolIP");
-    Teuchos::RCP<Teuchos::Time> worksetComputeParamSideTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::computeParamSideIP");
-    Teuchos::RCP<Teuchos::Time> worksetgetTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::get()");
     Teuchos::RCP<Teuchos::Time> worksetgetDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getData");
     Teuchos::RCP<Teuchos::Time> worksetgetDataScTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getDataSc");
-    Teuchos::RCP<Teuchos::Time> worksetgetDataScIndexTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getDataScIndex");
-    Teuchos::RCP<Teuchos::Time> worksetgetBasisTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::getBasis*");
-    Teuchos::RCP<Teuchos::Time> worksetcopyDataTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::copyData");
-    
-    Teuchos::RCP<Teuchos::Time> worksetDebugTimer0 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug0");
-    Teuchos::RCP<Teuchos::Time> worksetDebugTimer1 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug1");
-    Teuchos::RCP<Teuchos::Time> worksetDebugTimer2 = Teuchos::TimeMonitor::getNewCounter("MrHyDE::workset::debug2");
     
   };
   

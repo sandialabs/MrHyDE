@@ -37,9 +37,9 @@ namespace MrHyDE {
     SolutionStorage(const Teuchos::RCP<Teuchos::ParameterList> & settings) {
       
       // Maximum number of vectors to store (not used right now)
-      maxStorage = settings->sublist("Solver").get<LO>("maximum storage", 100);
+      max_storage_ = settings->sublist("Solver").get<LO>("maximum storage", 100);
       // Relative tolerance for storing/extraction solution at given time
-      timeRelTOL = settings->sublist("Solver").get<ScalarT>("storage time tol", 1.0e-10);
+      time_rel_TOL_ = settings->sublist("Solver").get<ScalarT>("storage time tol", 1.0e-10);
       
     }
     
@@ -49,11 +49,11 @@ namespace MrHyDE {
     bool extract(Teuchos::RCP<V> & vec, const size_t & timeindex) {
       // defaults to index = 0
       // most common use case
-      Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
-      if (data.size()>0) {
-        if (data[0].size()>timeindex) {
-          vec = data[0][timeindex];
+      if (data_.size()>0) {
+        if (data_[0].size()>timeindex) {
+          vec = data_[0][timeindex];
           found = true;
         }
       }
@@ -66,11 +66,11 @@ namespace MrHyDE {
     bool extract(Teuchos::RCP<V> & vec, const size_t & timeindex, const size_t & index) {
       // defaults to index = 0
       // most common use case
-      Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
-      if (data.size()>index) {
-        if (data[index].size()>timeindex) {
-          vec = data[index][timeindex];
+      if (data_.size()>index) {
+        if (data_[index].size()>timeindex) {
+          vec = data_[index][timeindex];
           found = true;
         }
       }
@@ -81,20 +81,20 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime) {
-      Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
       if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
-        for (size_t j=0; j<times[index].size(); j++) {
-          if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
-            vec = data[index][j];
+        for (size_t j=0; j<times_[index].size(); j++) {
+          if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
+            vec = data_[index][j];
             found = true;
           }
         }
       }
       else { // use as absolute tolerance
-        for (size_t j=0; j<times[index].size(); j++) {
-          if (std::abs(times[index][j] - currtime) < timeRelTOL) {
-            vec = data[index][j];
+        for (size_t j=0; j<times_[index].size(); j++) {
+          if (std::abs(times_[index][j] - currtime) < time_rel_TOL_) {
+            vec = data_[index][j];
             found = true;
           }
         }
@@ -106,22 +106,22 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime, int & timeindex) {
-      Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
       
       if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
-        for (size_t j=0; j<times[index].size(); j++) {
-          if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
-            vec = data[index][j];
+        for (size_t j=0; j<times_[index].size(); j++) {
+          if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
+            vec = data_[index][j];
             timeindex = j;
             found = true;
           }
         }
       }
       else {
-        for (size_t j=0; j<times[index].size(); j++) {
-          if (std::abs(times[index][j] - currtime) < timeRelTOL) {
-            vec = data[index][j];
+        for (size_t j=0; j<times_[index].size(); j++) {
+          if (std::abs(times_[index][j] - currtime) < time_rel_TOL_) {
+            vec = data_[index][j];
             timeindex = j;
             found = true;
           }
@@ -134,18 +134,18 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     bool extractPrevious(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime, ScalarT & prevtime) {
-      Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
-      for (size_t j=0; j<times[index].size(); j++) {
-        if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+      for (size_t j=0; j<times_[index].size(); j++) {
+        if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
           found = true;
           if (j>0) {
-            vec = data[index][j-1];
-            prevtime = times[index][j-1];
+            vec = data_[index][j-1];
+            prevtime = times_[index][j-1];
           }
           else {
-            vec = data[index][j];
-            prevtime = times[index][j];
+            vec = data_[index][j];
+            prevtime = times_[index][j];
           }
         }
       }
@@ -156,18 +156,18 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     bool extractNext(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime, ScalarT & nexttime) {
-      Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
-      for (size_t j=0; j<times[index].size(); j++) {
-        if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+      for (size_t j=0; j<times_[index].size(); j++) {
+        if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
           found = true;
-          if (j<(times[index].size()-1)) {
-            vec = data[index][j+1];
-            nexttime = times[index][j+1];
+          if (j<(times_[index].size()-1)) {
+            vec = data_[index][j+1];
+            nexttime = times_[index][j+1];
           }
           else {
-            vec = data[index][j];
-            nexttime = times[index][j];
+            vec = data_[index][j];
+            nexttime = times_[index][j];
           }
         }
       }
@@ -178,10 +178,10 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     bool extractLast(Teuchos::RCP<V> & vec, const size_t & index, ScalarT & lasttime) {
-      Teuchos::TimeMonitor localtimer(*solnStorageExtractTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = true;
-      vec = data[index][times[index].size()-1];
-      lasttime = times[index][times[index].size()-1];
+      vec = data_[index][times_[index].size()-1];
+      lasttime = times_[index][times_[index].size()-1];
       return found;
     }
     
@@ -189,14 +189,22 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     vector<vector<Teuchos::RCP<V> > > extractAllData() {
-      return data;
+      return data_;
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
     vector<vector<ScalarT> > extractAllTimes() {
-      return times;
+      return times_;
+    }
+
+    size_t getTotalTimes(const int & index) {
+      return times_[index].size();
+    }
+
+    ScalarT getSpecificTime(const int & index, const int & time_index) {
+      return times_[index][time_index];
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -204,41 +212,41 @@ namespace MrHyDE {
     
     void store(Teuchos::RCP<V> & newvec, const ScalarT & currtime, const size_t & index) {
       
-      Teuchos::TimeMonitor localtimer(*solnStorageStoreTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_store_timer_);
       
       // Deep copy of data
       Teuchos::RCP<V> vecstore = copyData(newvec);
       
       
-      if (times.size() <= index) {
+      if (times_.size() <= index) {
         vector<ScalarT> newtime = {currtime};
         vector<Teuchos::RCP<V> > newdata = {vecstore};
-        times.push_back(newtime);
-        data.push_back(newdata);
+        times_.push_back(newtime);
+        data_.push_back(newdata);
       }
       else {
         size_t timeindex;
         bool foundtime = false;
-        for (size_t j=0; j<times[index].size(); j++) {
+        for (size_t j=0; j<times_[index].size(); j++) {
           if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
-            if (std::abs(times[index][j] - currtime)/currtime < timeRelTOL) {
+            if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
               foundtime = true;
               timeindex = j;
             }
           }
           else { // use as absolute tolerance
-            if (std::abs(times[index][j] - currtime) < timeRelTOL) {
+            if (std::abs(times_[index][j] - currtime) < time_rel_TOL_) {
               foundtime = true;
               timeindex = j;
             }
           }
         }
         if (foundtime) {
-          data[index][timeindex] = vecstore;
+          data_[index][timeindex] = vecstore;
         }
         else {
-          data[index].push_back(vecstore);
-          times[index].push_back(currtime);
+          data_[index].push_back(vecstore);
+          times_[index].push_back(currtime);
         }
       }
       
@@ -264,7 +272,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void trainDNN() {
-      Teuchos::TimeMonitor localtimer(*solnStorageTrainDNNTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_train_DNN_timer_);
       
     }
     
@@ -272,30 +280,32 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     void useDNN() {
-      Teuchos::TimeMonitor localtimer(*solnStorageUseDNNTimer);
+      Teuchos::TimeMonitor localtimer(*soln_storage_use_DNN_timer_);
       
     }
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    LO maxStorage;
-    ScalarT timeRelTOL;
+  private: 
+
+    LO max_storage_;
+    ScalarT time_rel_TOL_;
     
-    vector<vector<ScalarT> > times;
-    vector<vector<Teuchos::RCP<V> > > data;
+    vector<vector<ScalarT> > times_;
+    vector<vector<Teuchos::RCP<V> > > data_;
     
     // Additional data needed for ML
-    vector<vector<Kokkos::View<ScalarT*,V_device> > > inputs;
-    vector<vector<Kokkos::View<AD*,V_device> > > outputs;
+    vector<vector<Kokkos::View<ScalarT*,V_device> > > inputs_;
+    vector<vector<Kokkos::View<AD*,V_device> > > outputs_;
     
     // Add data structures for PyTorch
     
     // Timers
-    Teuchos::RCP<Teuchos::Time> solnStorageStoreTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::store");
-    Teuchos::RCP<Teuchos::Time> solnStorageExtractTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::extract");
-    Teuchos::RCP<Teuchos::Time> solnStorageTrainDNNTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::trainDNN");
-    Teuchos::RCP<Teuchos::Time> solnStorageUseDNNTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::useDNN");
+    Teuchos::RCP<Teuchos::Time> soln_storage_store_timer_ = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::store");
+    Teuchos::RCP<Teuchos::Time> soln_storage_extract_timer_ = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::extract");
+    Teuchos::RCP<Teuchos::Time> soln_storage_train_DNN_timer_ = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::trainDNN");
+    Teuchos::RCP<Teuchos::Time> soln_storage_use_DNN_timer_ = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolutionStorage::useDNN");
     
     
     

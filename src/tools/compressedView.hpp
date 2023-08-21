@@ -26,11 +26,12 @@ namespace MrHyDE {
   template <class ViewType>
   class CompressedView {
 
-  public:
+  private:
     ViewType view_;
     Kokkos::View<LO*,AssemblyDevice> key_;
     bool have_key_;
 
+  public:
     CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key)
     : view_(view),
       key_(key)

@@ -23,111 +23,81 @@ namespace MrHyDE {
   // New data structure to wrap views and other data
   // =================================================================
   
+  template<class EvalT>
   class Vista {
-  public:
+
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
-    bool isView, isAD;
+  //private:
+    
+    bool is_view_, is_AD_;
     
     // Various data storage types
     // Only one of these will get used
-    View_AD2 viewdata;
-    View_Sc2 viewdata_Sc;
+    View_EvalT2 viewdata_;
+    View_Sc2 viewdata_Sc_;
     
+  public:
     KOKKOS_INLINE_FUNCTION    
     Vista() {};
     
     KOKKOS_INLINE_FUNCTION
     ~Vista() {};
     
-#ifndef MrHyDE_NO_AD
-    Vista(View_AD2 vdata) {
-      viewdata = vdata;
-      isAD = true;
-      isView = true;
-    }
-#endif
-    
-    Vista(View_Sc2 vdata) {
-      viewdata_Sc = vdata;
-      viewdata = View_AD2("2D view",vdata.extent(0),vdata.extent(1));
-      isView = true;
-      isAD = false;
-    }
 
-#ifndef MrHyDE_NO_AD
-    Vista(AD & data_) {
-      viewdata = View_AD2("2D view",1,1);
-      deep_copy(viewdata,data_);
-      isView = false;
-      isAD = true;
-    }
-#endif
-    
-    Vista(ScalarT & data_) {
-      viewdata = View_AD2("2D view",1,1);
-      deep_copy(viewdata,data_);
-      isView = false;
-      isAD = false;
-    }
+    Vista(View_EvalT2 vdata);
 
-#ifndef MrHyDE_NO_AD
-    void update(View_AD2 vdata) {
-      viewdata = vdata;
-    }
+#ifndef MrHyDE_NO_AD    
+    Vista(View_Sc2 vdata);
 #endif
+
+//#ifndef MrHyDE_NO_AD
+//    Vista(EvalT & data_);
+//#endif
     
-    void update(View_Sc2 vdata) {
-      viewdata_Sc = vdata;
-    }
     
-#ifndef MrHyDE_NO_AD
-    void update(AD & data_) {
-      deep_copy(viewdata,data_);
-    }
-#endif
-    
-    void update(ScalarT & data_) {
-      deep_copy(viewdata,data_);
-    }
+    Vista(ScalarT & data_);
+
+
+    void update(View_EvalT2 vdata);
+
+#ifndef MrHyDE_NO_AD    
+    void update(View_Sc2 vdata);
+#endif    
+
+    void update(EvalT & data_);
+
+//#ifndef MrHyDE_NO_AD    
+    void updateSc(ScalarT & data_);
+//#endif
+
+    //void updateParam(AD & pdata_);
     
     KOKKOS_INLINE_FUNCTION
-    View_AD2::reference_type operator()(const size_type & i0, const size_type & i1) const {
-      if (isView) {
-        if (isAD) {
-          return viewdata(i0,i1);
+    typename Kokkos::View<EvalT**,ContLayout,AssemblyDevice>::reference_type operator()(const size_type & i0, const size_type & i1) const {
+      if (is_view_) {
+        if (is_AD_) {
+          return viewdata_(i0,i1);
         }
         else {
-#ifndef MrHyDE_NO_AD
-          viewdata(i0,i1).val() = viewdata_Sc(i0,i1);
-          return viewdata(i0,i1);
-#else
-          return viewdata_Sc(i0,i1);
-#endif
+          viewdata_(i0,i1) = viewdata_Sc_(i0,i1);
+          return viewdata_(i0,i1);
         }
       }
       else {
-        return viewdata(0,0);
+        return viewdata_(0,0);
       }
     }
     
-    /*
-    KOKKOS_INLINE_FUNCTION
-    size_type extent(const size_type & dim) const {
-      if (isView) {
-        return viewdata.extent(dim);
-      }
-      else {
-        return 1;
-      }
-    }
-    */
+    bool isView();
+
+    bool isAD();
     
-    void print() {
-      std::cout << "Printing Vista -------" <<std::endl;
-      std::cout << "  Is View: " << isView << std::endl;
-      std::cout << "  Is AD: " << isAD << std::endl;
-      
-    }
+    View_EvalT2 getData();
+
+    View_Sc2 getDataSc();
+    
+    void print();
   };
   
 }

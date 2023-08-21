@@ -32,8 +32,20 @@ namespace MrHyDE {
    *   - "Kinv_zz" is the Kinv_zz.
    *   - "Kinv_yy" is the Kinv_yy.
    */
-  class porousMixedHybrid : public physicsbase {
+
+  template<class EvalT>
+  class porousMixedHybrid : public PhysicsBase<EvalT> {
   public:
+    
+    // These are necessary due to the combination of templating and inheritance
+    using PhysicsBase<EvalT>::functionManager;
+    using PhysicsBase<EvalT>::wkset;
+    using PhysicsBase<EvalT>::label;
+    using PhysicsBase<EvalT>::myvars;
+    using PhysicsBase<EvalT>::mybasistypes;
+    using PhysicsBase<EvalT>::include_face;
+    
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
     
     // ========================================================================================
     /* Constructor to set up the problem */
@@ -49,7 +61,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_);
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     // ========================================================================================
     // ========================================================================================
@@ -76,7 +88,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setWorkset(Teuchos::RCP<workset> & wkset_);
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
     //void setVars(std::vector<string> & varlist_);
     
@@ -88,7 +100,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_zz);
+    void updatePerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_yy, View_EvalT2 Kinv_zz);
     
   private:
     

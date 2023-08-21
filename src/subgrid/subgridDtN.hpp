@@ -1,14 +1,12 @@
 /***********************************************************************
  This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ Differential Equations (MrHyDE)
  
  Copyright 2018 National Technology & Engineering Solutions of Sandia,
  LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
  U.S. Government retains certain rights in this software.”
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
  ************************************************************************/
 
 #ifndef MRHYDE_SUBGRIDDTN_H
@@ -92,7 +90,7 @@ namespace MrHyDE {
                        const bool & compute_jacobian, const bool & compute_sens,
                        const int & num_active_params,
                        const bool & compute_disc_sens, const bool & compute_aux_sens,
-                       workset & macrowkset,
+                       Workset<AD> & macrowkset,
                        const int & macrogrp, const int & macroelemindex,
                        Kokkos::View<ScalarT**,AssemblyDevice> subgradient, const bool & store_adjPrev);
     

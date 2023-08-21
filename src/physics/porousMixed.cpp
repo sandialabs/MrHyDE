@@ -14,8 +14,11 @@
 #include "porousMixed.hpp"
 using namespace MrHyDE;
 
-porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_EvalT2;
+    
+template<class EvalT>
+porousMixed<EvalT>::porousMixed(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "porousMixed";
@@ -47,7 +50,7 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
   
   usePermData = settings.get<bool>("use permeability data",false);
   useWells = settings.get<bool>("use well source",false);
-  if (useWells) myWells = wells(settings);
+  if (useWells) myWells = wells<EvalT>(settings);
   dxnum = 0;
   dynum = 0;
   dznum = 0;
@@ -60,20 +63,20 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
                             KLlist.sublist("x-direction").get<double>("L"),
                             KLlist.sublist("x-direction").get<double>("sigma"),
                             KLlist.sublist("x-direction").get<double>("eta"));
-      int numindices = permKLx.N;
+      int numindices = permKLx.getNumTerms();
       if (spaceDim > 1) {
         permKLy = klexpansion(KLlist.sublist("y-direction").get<int>("N"),
                               KLlist.sublist("y-direction").get<double>("L"),
                               KLlist.sublist("y-direction").get<double>("sigma"),
                               KLlist.sublist("y-direction").get<double>("eta"));
-        numindices *= permKLy.N;
+        numindices *= permKLy.getNumTerms();
       }
       if (spaceDim > 2) {
         permKLz = klexpansion(KLlist.sublist("z-direction").get<int>("N"),
                               KLlist.sublist("z-direction").get<double>("L"),
                               KLlist.sublist("z-direction").get<double>("sigma"),
                               KLlist.sublist("z-direction").get<double>("eta"));
-        numindices *= permKLz.N;
+        numindices *= permKLz.getNumTerms();
       }
 
       // Need to define these indices so the coeffs are ordered properly
@@ -82,19 +85,19 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
       KLindices = Kokkos::View<size_t**,AssemblyDevice>("KL indices",numindices,spaceDim);
       int prog = 0;
       if (spaceDim == 1) {
-        for (size_t i=0; i<permKLx.N; ++i) {
+        for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
           KLindices(prog,0) = i;
           prog++;
         }
       }
       else if (spaceDim == 2) {
-        size_t alpha_max = permKLx.N + permKLy.N - 1; // max total order
+        size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() - 1; // max total order
         // loop over alpha (total basis order)
         for (size_t alpha=0; alpha<alpha_max; ++alpha) {
           // loop over y-direction basis
-          for (size_t j=0; j<permKLy.N; ++j) {
+          for (size_t j=0; j<permKLy.getNumTerms(); ++j) {
             // loop over x-direction basis
-            for (size_t i=0; i<permKLx.N; ++i) {
+            for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
               if ( i + j == alpha ) {
                 KLindices(prog,0) = i;
                 KLindices(prog,1) = j;
@@ -105,15 +108,15 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
         }
       }
       else if (spaceDim == 3) {
-        size_t alpha_max = permKLx.N + permKLy.N + permKLz.N - 2; // max total order
+        size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() + permKLz.getNumTerms() - 2; // max total order
         // loop over alpha (total basis order)
         for (size_t alpha=0; alpha<alpha_max; ++alpha) {
           // loop over z-direction basis
-          for (size_t k=0; k<permKLz.N; ++k) {
+          for (size_t k=0; k<permKLz.getNumTerms(); ++k) {
             // loop over y-direction basis
-            for (size_t j=0; j<permKLy.N; ++j) {
+            for (size_t j=0; j<permKLy.getNumTerms(); ++j) {
               // loop over x-direction basis
-              for (size_t i=0; i<permKLx.N; ++i) {
+              for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
                 if ( i + j + k == alpha ) {
                   KLindices(prog,0) = i;
                   KLindices(prog,1) = j;
@@ -136,8 +139,9 @@ porousMixed::porousMixed(Teuchos::ParameterList & settings, const int & dimensio
 // ========================================================================================
 // ========================================================================================
 
-void porousMixed::defineFunctions(Teuchos::ParameterList & fs,
-                                 Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void porousMixed<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                 Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -155,7 +159,8 @@ void porousMixed::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void porousMixed::volumeResidual() {
+template<class EvalT>
+void porousMixed<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int p_basis = wkset->usebasis[pnum];
@@ -163,7 +168,7 @@ void porousMixed::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  Vista source, bsource, Kinv_xx, Kinv_yy, Kinv_zz, mobility;
+  Vista<EvalT> source, bsource, Kinv_xx, Kinv_yy, Kinv_zz, mobility;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -171,13 +176,13 @@ void porousMixed::volumeResidual() {
     mobility = functionManager->evaluate("total_mobility","ip");
     
     if (usePermData) {
-      View_AD2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
-      View_AD2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
-      View_AD2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
       this->updatePerm(view_Kinv_xx, view_Kinv_yy, view_Kinv_zz);
-      Kinv_xx = Vista(view_Kinv_xx);
-      Kinv_yy = Vista(view_Kinv_yy);
-      Kinv_zz = Vista(view_Kinv_zz);
+      Kinv_xx = Vista<EvalT>(view_Kinv_xx);
+      Kinv_yy = Vista<EvalT>(view_Kinv_yy);
+      Kinv_zz = Vista<EvalT>(view_Kinv_zz);
     }
     else {
       Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
@@ -186,14 +191,14 @@ void porousMixed::volumeResidual() {
     }
     
     if (useKL) {
-      View_AD2 KL_Kxx("KL K xx",wts.extent(0),wts.extent(1));
-      View_AD2 KL_Kyy("KL K yy",wts.extent(0),wts.extent(1));
-      View_AD2 KL_Kzz("KL K zz",wts.extent(0),wts.extent(1));
+      View_EvalT2 KL_Kxx("KL K xx",wts.extent(0),wts.extent(1));
+      View_EvalT2 KL_Kyy("KL K yy",wts.extent(0),wts.extent(1));
+      View_EvalT2 KL_Kzz("KL K zz",wts.extent(0),wts.extent(1));
       this->updateKLPerm(KL_Kxx, KL_Kyy, KL_Kzz);
       
-      View_AD2 new_Kxx("new K xx",wts.extent(0),wts.extent(1));
-      View_AD2 new_Kyy("new K yy",wts.extent(0),wts.extent(1));
-      View_AD2 new_Kzz("new K zz",wts.extent(0),wts.extent(1));
+      View_EvalT2 new_Kxx("new K xx",wts.extent(0),wts.extent(1));
+      View_EvalT2 new_Kyy("new K yy",wts.extent(0),wts.extent(1));
+      View_EvalT2 new_Kzz("new K zz",wts.extent(0),wts.extent(1));
       
       parallel_for("porous mixed update KL",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -215,9 +220,9 @@ void porousMixed::volumeResidual() {
         
       });
       
-      Kinv_xx = Vista(new_Kxx);
-      Kinv_yy = Vista(new_Kyy);
-      Kinv_zz = Vista(new_Kzz);
+      Kinv_xx = Vista<EvalT>(new_Kxx);
+      Kinv_yy = Vista<EvalT>(new_Kyy);
+      Kinv_zz = Vista<EvalT>(new_Kzz);
       
     }
     
@@ -245,8 +250,8 @@ void porousMixed::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD p = psol(elem,pt)*wts(elem,pt);
-          AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT p = psol(elem,pt)*wts(elem,pt);
+          EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
           Kiux /= mobility(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
@@ -265,9 +270,9 @@ void porousMixed::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD p = psol(elem,pt)*wts(elem,pt);
-          AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
-          AD Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
+          EvalT p = psol(elem,pt)*wts(elem,pt);
+          EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
           Kiux /= mobility(elem,pt);
           Kiuy /= mobility(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -289,10 +294,10 @@ void porousMixed::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD p = psol(elem,pt)*wts(elem,pt);
-          AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
-          AD Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
-          AD Kiuz = Kinv_zz(elem,pt)*uz(elem,pt)*wts(elem,pt);
+          EvalT p = psol(elem,pt)*wts(elem,pt);
+          EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
+          EvalT Kiuz = Kinv_zz(elem,pt)*uz(elem,pt)*wts(elem,pt);
           Kiux /= mobility(elem,pt);
           Kiuy /= mobility(elem,pt);
           Kiuz /= mobility(elem,pt);
@@ -313,7 +318,7 @@ void porousMixed::volumeResidual() {
     
     auto basis = wkset->basis[p_basis];
     auto off = subview(wkset->offsets,pnum, ALL());
-    View_AD2 udiv;
+    View_EvalT2 udiv;
     if (spaceDim == 1) {
       udiv = wkset->getSolutionField("grad(u)[x]");
     }
@@ -325,7 +330,7 @@ void porousMixed::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD F = source(elem,pt) - udiv(elem,pt);
+        EvalT F = source(elem,pt) - udiv(elem,pt);
         F *= wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT v = basis(elem,dof,pt,0);
@@ -341,7 +346,8 @@ void porousMixed::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixed::boundaryResidual() {
+template<class EvalT>
+void porousMixed<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -354,7 +360,7 @@ void porousMixed::boundaryResidual() {
   auto res = wkset->res;
   
   View_Sc2 nx, ny, nz;
-  View_AD2 ux, uy, uz;
+  View_EvalT2 ux, uy, uz;
   nx = wkset->getScalarField("n[x]");
   
   if (spaceDim == 1) {
@@ -372,7 +378,7 @@ void porousMixed::boundaryResidual() {
     uz = wkset->getSolutionField("u[z]");
   }
   
-  Vista bsource;
+  Vista<EvalT> bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -392,7 +398,7 @@ void porousMixed::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD src = bsource(elem,pt)*wts(elem,pt);
+        EvalT src = bsource(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -413,7 +419,7 @@ void porousMixed::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD lam = lambda(elem,pt)*wts(elem,pt);
+        EvalT lam = lambda(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -435,7 +441,8 @@ void porousMixed::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void porousMixed::computeFlux() {
+template<class EvalT>
+void porousMixed<EvalT>::computeFlux() {
   
   int spaceDim = wkset->dimension;
   
@@ -444,7 +451,7 @@ void porousMixed::computeFlux() {
     
     auto uflux = subview(wkset->flux, ALL(), auxpnum, ALL());
     View_Sc2 nx, ny, nz;
-    View_AD2 ux, uy, uz;
+    View_EvalT2 ux, uy, uz;
     if (spaceDim == 1) {
       nx = wkset->getScalarField("n[x]");
       ux = wkset->getSolutionField("u");
@@ -452,7 +459,7 @@ void porousMixed::computeFlux() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<nx.extent(1); pt++) {
-          AD udotn = ux(elem,pt)*nx(elem,pt);
+          EvalT udotn = ux(elem,pt)*nx(elem,pt);
           uflux(elem,pt) = udotn;
         }
       });
@@ -466,7 +473,7 @@ void porousMixed::computeFlux() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<nx.extent(1); pt++) {
-          AD udotn = ux(elem,pt)*nx(elem,pt);
+          EvalT udotn = ux(elem,pt)*nx(elem,pt);
           udotn += uy(elem,pt)*ny(elem,pt);
           uflux(elem,pt) = udotn;
         }
@@ -484,7 +491,7 @@ void porousMixed::computeFlux() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<nx.extent(1); pt++) {
-          AD udotn = ux(elem,pt)*nx(elem,pt);
+          EvalT udotn = ux(elem,pt)*nx(elem,pt);
           udotn += uy(elem,pt)*ny(elem,pt);
           udotn += uz(elem,pt)*nz(elem,pt);
           uflux(elem,pt) = udotn;
@@ -500,7 +507,8 @@ void porousMixed::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixed::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void porousMixed<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   
@@ -543,7 +551,8 @@ void porousMixed::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixed::updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_zz) {
+template<class EvalT>
+void porousMixed<EvalT>::updatePerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_yy, View_EvalT2 Kinv_zz) {
   
   View_Sc2 data = wkset->extra_data;
   
@@ -559,8 +568,9 @@ void porousMixed::updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_z
 }
 
 
-void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
-                               View_AD2 KL_Kyy, View_AD2 KL_Kzz) {
+template<class EvalT>
+void porousMixed<EvalT>::updateKLPerm(View_EvalT2 KL_Kxx,
+                               View_EvalT2 KL_Kyy, View_EvalT2 KL_Kzz) {
   
   int spaceDim = wkset->dimension;
   
@@ -708,7 +718,8 @@ void porousMixed::updateKLPerm(View_AD2 KL_Kxx,
 // ========================================================================================
 // ========================================================================================
 
-std::vector<string> porousMixed::getDerivedNames() {
+template<class EvalT>
+std::vector<string> porousMixed<EvalT>::getDerivedNames() {
   std::vector<string> derived;
   derived.push_back("permeability_x");
   derived.push_back("permeability_y");
@@ -719,12 +730,13 @@ std::vector<string> porousMixed::getDerivedNames() {
 // ========================================================================================
 // ========================================================================================
 
-std::vector<View_AD2> porousMixed::getDerivedValues() {
-  std::vector<View_AD2> derived;
+template<class EvalT>
+std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > porousMixed<EvalT>::getDerivedValues() {
+  std::vector<View_EvalT2> derived;
   
-  View_AD2 K_xx, K_yy, K_zz;
+  View_EvalT2 K_xx, K_yy, K_zz;
   
-  Vista Kinv_xx, Kinv_yy, Kinv_zz;
+  Vista<EvalT> Kinv_xx, Kinv_yy, Kinv_zz;
   int spaceDim = wkset->dimension;
   
   // First compute Kinvxx, Kinvyy, Kinvzz
@@ -732,13 +744,13 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
   auto wts = wkset->wts;
   {
     if (usePermData) {
-      View_AD2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
-      View_AD2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
-      View_AD2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
       this->updatePerm(view_Kinv_xx, view_Kinv_yy, view_Kinv_zz);
-      Kinv_xx = Vista(view_Kinv_xx);
-      Kinv_yy = Vista(view_Kinv_yy);
-      Kinv_zz = Vista(view_Kinv_zz);
+      Kinv_xx = Vista<EvalT>(view_Kinv_xx);
+      Kinv_yy = Vista<EvalT>(view_Kinv_yy);
+      Kinv_zz = Vista<EvalT>(view_Kinv_zz);
     }
     else {
       Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
@@ -747,14 +759,14 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
     }
     
     if (useKL) {
-      View_AD2 KL_Kxx("KL K xx",wts.extent(0),wts.extent(1));
-      View_AD2 KL_Kyy("KL K yy",wts.extent(0),wts.extent(1));
-      View_AD2 KL_Kzz("KL K zz",wts.extent(0),wts.extent(1));
+      View_EvalT2 KL_Kxx("KL K xx",wts.extent(0),wts.extent(1));
+      View_EvalT2 KL_Kyy("KL K yy",wts.extent(0),wts.extent(1));
+      View_EvalT2 KL_Kzz("KL K zz",wts.extent(0),wts.extent(1));
       this->updateKLPerm(KL_Kxx, KL_Kyy, KL_Kzz);
       
-      View_AD2 new_Kxx("new K xx",wts.extent(0),wts.extent(1));
-      View_AD2 new_Kyy("new K yy",wts.extent(0),wts.extent(1));
-      View_AD2 new_Kzz("new K zz",wts.extent(0),wts.extent(1));
+      View_EvalT2 new_Kxx("new K xx",wts.extent(0),wts.extent(1));
+      View_EvalT2 new_Kyy("new K yy",wts.extent(0),wts.extent(1));
+      View_EvalT2 new_Kzz("new K zz",wts.extent(0),wts.extent(1));
       
       parallel_for("porous gdv perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -775,16 +787,16 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
         
       });
       
-      Kinv_xx = Vista(new_Kxx);
-      Kinv_yy = Vista(new_Kyy);
-      Kinv_zz = Vista(new_Kzz);
+      Kinv_xx = Vista<EvalT>(new_Kxx);
+      Kinv_yy = Vista<EvalT>(new_Kyy);
+      Kinv_zz = Vista<EvalT>(new_Kzz);
     }
     
   }
   
-  K_xx = View_AD2("K xx",wts.extent(0),wts.extent(1));
-  K_yy = View_AD2("K yy",wts.extent(0),wts.extent(1));
-  K_zz = View_AD2("K zz",wts.extent(0),wts.extent(1));
+  K_xx = View_EvalT2("K xx",wts.extent(0),wts.extent(1));
+  K_yy = View_EvalT2("K yy",wts.extent(0),wts.extent(1));
+  K_zz = View_EvalT2("K zz",wts.extent(0),wts.extent(1));
     
   parallel_for("porous gdv perm 2",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -810,3 +822,24 @@ std::vector<View_AD2> porousMixed::getDerivedValues() {
   
   return derived;
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::porousMixed<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::porousMixed<AD>;
+
+// Standard built-in types
+template class MrHyDE::porousMixed<AD2>;
+template class MrHyDE::porousMixed<AD4>;
+template class MrHyDE::porousMixed<AD8>;
+template class MrHyDE::porousMixed<AD16>;
+template class MrHyDE::porousMixed<AD18>;
+template class MrHyDE::porousMixed<AD24>;
+template class MrHyDE::porousMixed<AD32>;
+#endif

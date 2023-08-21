@@ -20,8 +20,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-VDNS::VDNS(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+VDNS<EvalT>::VDNS(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "VDNS";
@@ -64,8 +65,9 @@ VDNS::VDNS(Teuchos::ParameterList & settings, const int & dimension_)
 // ========================================================================================
 // ========================================================================================
 
-void VDNS::defineFunctions(Teuchos::ParameterList & fs,
-                                   Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void VDNS<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                   Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -99,13 +101,14 @@ void VDNS::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void VDNS::volumeResidual() {
+template<class EvalT>
+void VDNS<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   ScalarT dt = wkset->deltat;
   bool isTransient = wkset->isTransient;
-  Vista source_ux, source_pr, source_uy, source_uz, source_T;
-  Vista rho, mu, lambda, cp;
+  Vista<EvalT> source_ux, source_pr, source_uy, source_uz, source_T;
+  Vista<EvalT> rho, mu, lambda, cp;
   bool found_p0 = false;
   bool found_dp0dt = false;
   
@@ -163,9 +166,9 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = 4./3.*mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
+          EvalT Fx = 4./3.*mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt)) - source_ux(elem,pt);
+          EvalT F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt)) - source_ux(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + F*basis(elem,dof,pt,0);
@@ -184,11 +187,11 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO NO VISCOUS TERM
             // TODO CHECK THIS units, etc.
-            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0); 
             }
@@ -208,13 +211,13 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
+            EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
             thermDiv -= 1./p0(0)*dp0dt(0);
-            AD strongres = dux_dx(elem,pt) - thermDiv;
-            AD S = tau*strongres*wts(elem,pt);
+            EvalT strongres = dux_dx(elem,pt) - thermDiv;
+            EvalT S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += S*basis_grad(elem,dof,pt,0); 
             }
@@ -239,9 +242,9 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
+          EvalT F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
           F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
-          AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+          EvalT Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += F*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0);
           }
@@ -259,12 +262,12 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),0.0,0.0,
+            EvalT tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),0.0,0.0,
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
-            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt)) 
+            EvalT strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt)) 
               - (dp0dt(0) + source_T(elem,pt))/cp(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0);
             }
@@ -293,8 +296,8 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = dux_dx(elem,pt);
-          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
+          EvalT divu = dux_dx(elem,pt);
+          EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
           thermDiv -= 1./p0(0)*dp0dt(0);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -316,11 +319,11 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO NO VISCOUS TERM
             // TODO CHECK THIS units, etc.
-            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
-            AD Sx = tau*strongres*wts(elem,pt);
+            EvalT strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            EvalT Sx = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0); 
             }
@@ -352,13 +355,13 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt))) - pr(elem,pt);
-          //AD Fx = mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
+          EvalT Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt))) - pr(elem,pt);
+          //EvalT Fx = mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
-          //AD Fy = mu(elem,pt)*dux_dy(elem,pt);
+          EvalT Fy = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
+          //EvalT Fy = mu(elem,pt)*dux_dy(elem,pt);
           Fy *= wts(elem,pt);
-          AD F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) - source_ux(elem,pt);
+          EvalT F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) - source_ux(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt,0);
@@ -377,10 +380,10 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
-            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -402,13 +405,13 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+            EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
             thermDiv -= 1./p0(0)*dp0dt(0);
-            AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
-            AD S = tau*strongres*wts(elem,pt);
+            EvalT strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
+            EvalT S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += S*basis_grad(elem,dof,pt,0); 
             }
@@ -439,13 +442,13 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
-          //AD Fx = mu(elem,pt)*duy_dx(elem,pt);
+          EvalT Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
+          //EvalT Fx = mu(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = mu(elem,pt)*(2.*duy_dy(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt))) - pr(elem,pt);
-          //AD Fy = mu(elem,pt)*duy_dy(elem,pt) - pr(elem,pt);
+          EvalT Fy = mu(elem,pt)*(2.*duy_dy(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt))) - pr(elem,pt);
+          //EvalT Fy = mu(elem,pt)*duy_dy(elem,pt) - pr(elem,pt);
           Fy *= wts(elem,pt);
-          AD F = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) - source_uy(elem,pt);
+          EvalT F = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) - source_uy(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt,0);
@@ -465,10 +468,10 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
-            AD strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -489,13 +492,13 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
             tau = h(elem)*h(elem)/tau;
-            AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+            EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
             thermDiv -= 1./p0(0)*dp0dt(0);
-            AD strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
-            AD S = tau*strongres*wts(elem,pt);
+            EvalT strongres = (dux_dx(elem,pt) + duy_dx(elem,pt)) - thermDiv;
+            EvalT S = tau*strongres*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += S*basis_grad(elem,dof,pt,1); 
             }
@@ -525,10 +528,10 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
+          EvalT F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
           F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
-          AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
-          AD Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
+          EvalT Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+          EvalT Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += F*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1);
           }
@@ -546,13 +549,13 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),0.0,
+            EvalT tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),0.0,
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
-            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
+            EvalT strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
                 + uy(elem,pt)*dT_dy(elem,pt)) - (dp0dt(0) + source_T(elem,pt))/cp(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
             }
@@ -584,8 +587,8 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt));
-          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
+          EvalT divu = (dux_dx(elem,pt) + duy_dy(elem,pt));
+          EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
           thermDiv -= 1./p0(0)*dp0dt(0);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -610,12 +613,12 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // Strong residual x momentum
-            AD Sx = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            EvalT Sx = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
             Sx *= tau*wts(elem,pt);
             // Strong residual y momentum
-            AD Sy = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            EvalT Sy = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
             Sy *= tau*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
@@ -655,13 +658,13 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
+          EvalT Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
           Fx *= wts(elem,pt);
-          AD Fy = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
+          EvalT Fy = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
           Fy *= wts(elem,pt);
-          AD Fz = mu(elem,pt)*(dux_dz(elem,pt) + duz_dx(elem,pt));
+          EvalT Fz = mu(elem,pt)*(dux_dz(elem,pt) + duz_dx(elem,pt));
           Fz *= wts(elem,pt);
-          AD F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) - source_ux(elem,pt);
+          EvalT F = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) - source_ux(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
@@ -680,11 +683,11 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
-            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
-            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            EvalT Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
             }
@@ -722,13 +725,13 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
+          EvalT Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
           Fx *= wts(elem,pt);
-          AD Fy = mu(elem,pt)*(2.*duy_dy(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
+          EvalT Fy = mu(elem,pt)*(2.*duy_dy(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
           Fy *= wts(elem,pt);
-          AD Fz = mu(elem,pt)*(duy_dz(elem,pt) + duz_dy(elem,pt));
+          EvalT Fz = mu(elem,pt)*(duy_dz(elem,pt) + duz_dy(elem,pt));
           Fz *= wts(elem,pt);
-          AD F = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) - source_uy(elem,pt);
+          EvalT F = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) - source_uy(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
@@ -748,11 +751,11 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
-            AD strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
-            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            EvalT Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
             }
@@ -790,13 +793,13 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD Fx = mu(elem,pt)*(duz_dx(elem,pt) + dux_dz(elem,pt));
+          EvalT Fx = mu(elem,pt)*(duz_dx(elem,pt) + dux_dz(elem,pt));
           Fx *= wts(elem,pt);
-          AD Fy = mu(elem,pt)*(duz_dy(elem,pt) + duy_dz(elem,pt));
+          EvalT Fy = mu(elem,pt)*(duz_dy(elem,pt) + duy_dz(elem,pt));
           Fy *= wts(elem,pt);
-          AD Fz = mu(elem,pt)*(2.*duz_dz(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
+          EvalT Fz = mu(elem,pt)*(2.*duz_dz(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
           Fz *= wts(elem,pt);
-          AD F = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) - source_uz(elem,pt);
+          EvalT F = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) - source_uz(elem,pt);
           F *= wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
@@ -816,11 +819,11 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
-            AD strongres = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
-            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT strongres = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            EvalT Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
             }
@@ -852,11 +855,11 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt))*wts(elem,pt);
+          EvalT F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt))*wts(elem,pt);
           F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
-          AD Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
-          AD Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
-          AD Fz = lambda(elem,pt)/cp(elem,pt)*dT_dz(elem,pt)*wts(elem,pt);
+          EvalT Fx = lambda(elem,pt)/cp(elem,pt)*dT_dx(elem,pt)*wts(elem,pt);
+          EvalT Fy = lambda(elem,pt)/cp(elem,pt)*dT_dy(elem,pt)*wts(elem,pt);
+          EvalT Fz = lambda(elem,pt)/cp(elem,pt)*dT_dz(elem,pt)*wts(elem,pt);
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += F*basis(elem,dof,pt,0) + Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
           }
@@ -874,14 +877,14 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),
+            EvalT tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO CHECK THIS, UNITS ETC.
-            AD strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
+            EvalT strongres = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) 
                 + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt)) - (dp0dt(0) + source_T(elem,pt))/cp(elem,pt);
-            AD Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
-            AD Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
-            AD Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
+            EvalT Sx = tau*strongres*rho(elem,pt)*ux(elem,pt)*wts(elem,pt);
+            EvalT Sy = tau*strongres*rho(elem,pt)*uy(elem,pt)*wts(elem,pt);
+            EvalT Sz = tau*strongres*rho(elem,pt)*uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
             }
@@ -915,8 +918,8 @@ void VDNS::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt));
-          AD thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
+          EvalT divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt));
+          EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
           thermDiv -= 1./p0(0)*dp0dt(0);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (divu-thermDiv)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -947,15 +950,15 @@ void VDNS::volumeResidual() {
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
+            EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // Strong residual x momentum
-            AD Sx = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
+            EvalT Sx = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
             Sx *= tau*wts(elem,pt);
             // Strong residual y momentum
-            AD Sy = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
+            EvalT Sy = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
             Sy *= tau*wts(elem,pt);
             // Strong residual z momentum
-            AD Sz = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
+            EvalT Sz = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
             Sz *= tau*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
@@ -970,14 +973,15 @@ void VDNS::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void VDNS::boundaryResidual() {
+template<class EvalT>
+void VDNS<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
 
   int cside = wkset->currentside;
 
-  Vista neusource_ux, neusource_T, neusource_uy, neusource_uz;
+  Vista<EvalT> neusource_ux, neusource_T, neusource_uy, neusource_uz;
 
   string ux_sidetype = bcs(ux_num,cside);
   string T_sidetype = bcs(T_num,cside);
@@ -1227,7 +1231,8 @@ void VDNS::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void VDNS::computeFlux() {
+template<class EvalT>
+void VDNS<EvalT>::computeFlux() {
   
 }
 
@@ -1235,7 +1240,8 @@ void VDNS::computeFlux() {
 // return the integrands for the integrated quantities 
 // ========================================================================================
 
-std::vector< std::vector<string> > VDNS::setupIntegratedQuantities(const int & spaceDim) {
+template<class EvalT>
+std::vector< std::vector<string> > VDNS<EvalT>::setupIntegratedQuantities(const int & spaceDim) {
 
   std::vector< std::vector<string> > integrandsNamesAndTypes;
 
@@ -1288,7 +1294,8 @@ std::vector< std::vector<string> > VDNS::setupIntegratedQuantities(const int & s
 // ========================================================================================
 // ========================================================================================
 
-void VDNS::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void VDNS<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
 
@@ -1322,7 +1329,8 @@ void VDNS::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // Update p_0 and dp_0/dt after the IQs are calculated 
 // ========================================================================================
 
-void VDNS::updateIntegratedQuantitiesDependents() {
+template<class EvalT>
+void VDNS<EvalT>::updateIntegratedQuantitiesDependents() {
 
   if ( openSystem ) return; // shouldn't happen... but JIC no op.
 
@@ -1371,7 +1379,8 @@ void VDNS::updateIntegratedQuantitiesDependents() {
 // return the value of the stabilization parameter
 // ========================================================================================
 
-KOKKOS_FUNCTION AD VDNS::computeTau(const AD & rhoDiffl, const AD & xvl, const AD & yvl, const AD & zvl, const AD & rho, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const {
+template<class EvalT>
+KOKKOS_FUNCTION EvalT VDNS<EvalT>::computeTau(const EvalT & rhoDiffl, const EvalT & xvl, const EvalT & yvl, const EvalT & zvl, const EvalT & rho, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const {
   
   // TODO BWR if this is generalizable, maybe I should have a function for both NS classes
   // certainly if it's identical
@@ -1384,7 +1393,7 @@ KOKKOS_FUNCTION AD VDNS::computeTau(const AD & rhoDiffl, const AD & xvl, const A
   ScalarT C2 = 2.0;
   ScalarT C3 = isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
   
-  AD nvel = 0.0;
+  EvalT nvel = 0.0;
   if (spaceDim == 1)
     nvel = xvl*xvl;
   else if (spaceDim == 2)
@@ -1395,7 +1404,7 @@ KOKKOS_FUNCTION AD VDNS::computeTau(const AD & rhoDiffl, const AD & xvl, const A
   if (nvel > 1E-12)
     nvel = sqrt(nvel);
   
-  AD tau;
+  EvalT tau;
   // see, e.g. wikipedia article on SUPG/PSPG 
   // coefficients can be changed/tuned for different scenarios (including order of time scheme)
   // https://arxiv.org/pdf/1710.08898.pdf had a good, clear writeup of the final eqns
@@ -1405,3 +1414,24 @@ KOKKOS_FUNCTION AD VDNS::computeTau(const AD & rhoDiffl, const AD & xvl, const A
 
   return tau;
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::VDNS<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::VDNS<AD>;
+
+// Standard built-in types
+template class MrHyDE::VDNS<AD2>;
+template class MrHyDE::VDNS<AD4>;
+template class MrHyDE::VDNS<AD8>;
+template class MrHyDE::VDNS<AD16>;
+template class MrHyDE::VDNS<AD18>;
+template class MrHyDE::VDNS<AD24>;
+template class MrHyDE::VDNS<AD32>;
+#endif

@@ -14,8 +14,9 @@
 #include "porousMixedHybridized.hpp"
 using namespace MrHyDE;
 
-porousMixedHybrid::porousMixedHybrid(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+porousMixedHybrid<EvalT>::porousMixedHybrid(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "porousMixedHybrid";
@@ -54,8 +55,9 @@ porousMixedHybrid::porousMixedHybrid(Teuchos::ParameterList & settings, const in
 // ========================================================================================
 // ========================================================================================
 
-void porousMixedHybrid::defineFunctions(Teuchos::ParameterList & fs,
-                                        Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void porousMixedHybrid<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                        Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
 
@@ -71,7 +73,8 @@ void porousMixedHybrid::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void porousMixedHybrid::volumeResidual() {
+template<class EvalT>
+void porousMixedHybrid<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int p_basis = wkset->usebasis[pnum];
@@ -79,20 +82,20 @@ void porousMixedHybrid::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  Vista source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
+  Vista<EvalT> source, bsource, Kinv_xx, Kinv_yy, Kinv_zz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("source","ip");
     if (usePermData) {
       auto wts = wkset->wts;
-      View_AD2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
-      View_AD2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
-      View_AD2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_xx("K inverse xx",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_yy("K inverse yy",wts.extent(0),wts.extent(1));
+      View_EvalT2 view_Kinv_zz("K inverse zz",wts.extent(0),wts.extent(1));
       this->updatePerm(view_Kinv_xx, view_Kinv_yy, view_Kinv_zz);
-      Kinv_xx = Vista(view_Kinv_xx);
-      Kinv_yy = Vista(view_Kinv_yy);
-      Kinv_zz = Vista(view_Kinv_zz);
+      Kinv_xx = Vista<EvalT>(view_Kinv_xx);
+      Kinv_yy = Vista<EvalT>(view_Kinv_yy);
+      Kinv_zz = Vista<EvalT>(view_Kinv_zz);
     }
     else {
       Kinv_xx = functionManager->evaluate("Kinv_xx","ip");
@@ -115,8 +118,8 @@ void porousMixedHybrid::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD p = psol(elem,pt)*wts(elem,pt);
-          AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT p = psol(elem,pt)*wts(elem,pt);
+          EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT divv = basis_div(elem,dof,pt);
@@ -132,9 +135,9 @@ void porousMixedHybrid::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD p = psol(elem,pt)*wts(elem,pt);
-          AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
-          AD Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
+          EvalT p = psol(elem,pt)*wts(elem,pt);
+          EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT vy = basis(elem,dof,pt,1);
@@ -152,10 +155,10 @@ void porousMixedHybrid::volumeResidual() {
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          AD p = psol(elem,pt)*wts(elem,pt);
-          AD Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
-          AD Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
-          AD Kiuz = Kinv_zz(elem,pt)*uz(elem,pt)*wts(elem,pt);
+          EvalT p = psol(elem,pt)*wts(elem,pt);
+          EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
+          EvalT Kiuy = Kinv_yy(elem,pt)*uy(elem,pt)*wts(elem,pt);
+          EvalT Kiuz = Kinv_zz(elem,pt)*uz(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             ScalarT vx = basis(elem,dof,pt,0);
             ScalarT vy = basis(elem,dof,pt,1);
@@ -179,8 +182,8 @@ void porousMixedHybrid::volumeResidual() {
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  KOKKOS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD divu = udiv(elem,pt)*wts(elem,pt);
-        AD src = source(elem,pt)*wts(elem,pt);
+        EvalT divu = udiv(elem,pt)*wts(elem,pt);
+        EvalT src = source(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT v = basis(elem,dof,pt,0);
           res(elem,off(dof)) += -divu*v + src*v;
@@ -194,7 +197,8 @@ void porousMixedHybrid::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixedHybrid::boundaryResidual() {
+template<class EvalT>
+void porousMixedHybrid<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -206,7 +210,7 @@ void porousMixedHybrid::boundaryResidual() {
   
   auto basis = wkset->basis_side[u_basis];
   View_Sc2 nx, ny, nz;
-  View_AD2 ux, uy, uz;
+  View_EvalT2 ux, uy, uz;
   nx = wkset->getScalarField("n[x]");
   ux = wkset->getSolutionField("u[x]");
   if (spaceDim > 1) {
@@ -218,7 +222,7 @@ void porousMixedHybrid::boundaryResidual() {
     uz = wkset->getSolutionField("u[z]");
   }
   
-  Vista bsource;
+  Vista<EvalT> bsource;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
@@ -243,7 +247,7 @@ void porousMixedHybrid::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD src = bsource(elem,pt)*wts(elem,pt);
+        EvalT src = bsource(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -264,7 +268,7 @@ void porousMixedHybrid::boundaryResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD lam = lambda(elem,pt)*wts(elem,pt);
+        EvalT lam = lambda(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -284,7 +288,8 @@ void porousMixedHybrid::boundaryResidual() {
 // The edge (2D) and face (3D) contributions to the residual
 // ========================================================================================
 
-void porousMixedHybrid::faceResidual() {
+template<class EvalT>
+void porousMixedHybrid<EvalT>::faceResidual() {
   
   int spaceDim = wkset->dimension;
   int lambda_basis = wkset->usebasis[lambdanum];
@@ -294,7 +299,7 @@ void porousMixedHybrid::faceResidual() {
   auto res = wkset->res;
   auto wts = wkset->wts_side;
   View_Sc2 nx, ny, nz;
-  View_AD2 ux, uy, uz;
+  View_EvalT2 ux, uy, uz;
   nx = wkset->getScalarField("n[x]");
   ux = wkset->getSolutionField("u[x]");
   if (spaceDim > 1) {
@@ -319,7 +324,7 @@ void porousMixedHybrid::faceResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD lam = lambda(elem,pt)*wts(elem,pt);
+        EvalT lam = lambda(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           ScalarT vdotn = basis(elem,dof,pt,0)*nx(elem,pt);
           if (dim > 1) {
@@ -345,7 +350,7 @@ void porousMixedHybrid::faceResidual() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = ubasis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        AD udotn = ux(elem,pt)*nx(elem,pt);
+        EvalT udotn = ux(elem,pt)*nx(elem,pt);
         if (dim > 1) {
           udotn += uy(elem,pt)*ny(elem,pt);
         }
@@ -365,7 +370,8 @@ void porousMixedHybrid::faceResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void porousMixedHybrid::computeFlux() {
+template<class EvalT>
+void porousMixedHybrid<EvalT>::computeFlux() {
   
   int spaceDim = wkset->dimension;
   // Just need the basis for the number of active elements (any side basis will do)
@@ -375,7 +381,7 @@ void porousMixedHybrid::computeFlux() {
     Teuchos::TimeMonitor localtime(*fluxFill);
     auto uflux = subview(wkset->flux, ALL(), auxpnum, ALL());
     View_Sc2 nx, ny, nz;
-    View_AD2 ux, uy, uz;
+    View_EvalT2 ux, uy, uz;
     nx = wkset->getScalarField("n[x]");
     ux = wkset->getSolutionField("u[x]");
     if (spaceDim > 1) {
@@ -392,7 +398,7 @@ void porousMixedHybrid::computeFlux() {
                  KOKKOS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<nx.extent(1); pt++) {
-        AD udotn = ux(elem,pt)*nx(elem,pt);
+        EvalT udotn = ux(elem,pt)*nx(elem,pt);
         if (dim> 1) {
           udotn += uy(elem,pt)*ny(elem,pt);
         }
@@ -409,7 +415,8 @@ void porousMixedHybrid::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixedHybrid::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void porousMixedHybrid<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   
@@ -445,7 +452,8 @@ void porousMixedHybrid::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // ========================================================================================
 // ========================================================================================
 
-void porousMixedHybrid::updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 Kinv_zz) {
+template<class EvalT>
+void porousMixedHybrid<EvalT>::updatePerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_yy, View_EvalT2 Kinv_zz) {
   
   View_Sc2 data = wkset->extra_data;
   
@@ -459,3 +467,23 @@ void porousMixedHybrid::updatePerm(View_AD2 Kinv_xx, View_AD2 Kinv_yy, View_AD2 
     }
   });
 }
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::porousMixedHybrid<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::porousMixedHybrid<AD>;
+
+// Standard built-in types
+template class MrHyDE::porousMixedHybrid<AD2>;
+template class MrHyDE::porousMixedHybrid<AD4>;
+template class MrHyDE::porousMixedHybrid<AD8>;
+template class MrHyDE::porousMixedHybrid<AD16>;
+template class MrHyDE::porousMixedHybrid<AD18>;
+template class MrHyDE::porousMixedHybrid<AD24>;
+template class MrHyDE::porousMixedHybrid<AD32>;
+#endif

@@ -30,13 +30,21 @@ namespace MrHyDE {
    * virtual methods are overridden. If the appropriate virtual method is not
    * overridden, a message will be printed out.
    */
-  class physicsbase {
+
+  template<class EvalT>
+  class PhysicsBase {
     
   public:
+
+    typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
     
-    physicsbase() {};
+    PhysicsBase() {};
     
-    virtual ~physicsbase() {};
+    virtual 
+    ~PhysicsBase() {};
     
     /**
      * \brief Constructor for physics base
@@ -44,10 +52,8 @@ namespace MrHyDE {
      * \param[in] settings  The parameter list of settings
      * \param[in] dimension_  Spatial dimensionality
      */
-    physicsbase(Teuchos::ParameterList & settings, const int & dimension_) {
-      verbosity = settings.get<int>("verbosity",0);
-    };
-    
+    PhysicsBase(Teuchos::ParameterList & settings, const int & dimension_);
+
     // (not necessary, but probably need to be defined in all modules)
     /**
      * \brief Define the functions for the module based on the input parameterList.
@@ -57,58 +63,31 @@ namespace MrHyDE {
      */
     virtual
     void defineFunctions(Teuchos::ParameterList & fs,
-                         Teuchos::RCP<FunctionManager> & functionManager_) {
-      functionManager = functionManager_;
-      // GH: these print statements may be annoying when running on multiple MPI ranks
-      if (verbosity > 10) {
-        std::cout << "Warning: physicsBase::defineFunctions called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    };
+                         Teuchos::RCP<FunctionManager<EvalT> > & functionManager_);
     
     /**
      * \brief Compute the volumetric contributions to the residual.
      */
     virtual
-    void volumeResidual() {
-      if (verbosity > 10) {
-        std::cout << "Warning: physicsBase::volumeResidual called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    };
+    void volumeResidual();
     
     /**
      * \brief Compute the boundary contributions to the residual.
      */
     virtual
-    void boundaryResidual() {
-      if (verbosity > 10) {
-        std::cout << "Warning: physicsBase::boundaryResidual called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    };
+    void boundaryResidual();
     
     /**
      * \brief Compute the edge (2D) and face (3D) contributions to the residual
      */
     virtual
-    void faceResidual() {
-      if (verbosity > 10) {
-        std::cout << "Warning: physicsBase::faceResidual called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    };
-    
+    void faceResidual();
+
     /**
      * \brief Compute the boundary/edge flux
      */
     virtual
-    void computeFlux() {
-      if (verbosity > 10) {
-        std::cout << "Warning: physicsBase::computeFlux called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    };
+    void computeFlux();
     
     // ========================================================================================
     // ========================================================================================
@@ -120,13 +99,9 @@ namespace MrHyDE {
      * \param[in] paramnames The names of the input parameters
      * \note This will likely be deprecated, as this is used in few cases.
      */
-    virtual void updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
-                                  const std::vector<string> & paramnames) {
-      if (verbosity > 10) {
-        std::cout << "Warning: physicsBase::updateParameters called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    };
+    virtual 
+    void updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
+                                  const std::vector<string> & paramnames);
     
     // ========================================================================================
     // ========================================================================================
@@ -136,9 +111,8 @@ namespace MrHyDE {
      * 
      * \param[in] wkset_ An RCP for the workset to assign
      */
-    virtual void setWorkset(Teuchos::RCP<workset> & wkset_) {
-      wkset = wkset_;
-    };
+    virtual 
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
     
     // ========================================================================================
     // ========================================================================================
@@ -146,10 +120,8 @@ namespace MrHyDE {
     /**
      * \brief Get the name of derived quantities for the class.
      */
-    virtual std::vector<string> getDerivedNames() {
-      std::vector<string> derived;
-      return derived;
-    };
+    virtual 
+    std::vector<string> getDerivedNames();
     
     // ========================================================================================
     // ========================================================================================
@@ -157,10 +129,11 @@ namespace MrHyDE {
     /**
      * \brief Get the values of derived quantities for the class.
      */
-    virtual std::vector<View_AD2> getDerivedValues() {
-      std::vector<View_AD2> derived;
+    virtual 
+    std::vector<View_EvalT2> getDerivedValues() {
+      std::vector<View_EvalT2> derived;
       return derived;
-    };
+    }
     
     // ========================================================================================
     // ========================================================================================
@@ -171,9 +144,8 @@ namespace MrHyDE {
      * \param[in] newflags The flags to use for the update.
      * \note This currently does nothing.
      */
-    virtual void updateFlags(std::vector<bool> & newflags) {
-      // default is to do nothing
-    };
+    virtual 
+    void updateFlags(std::vector<bool> & newflags);
     
     // ========================================================================================
     // ========================================================================================
@@ -189,10 +161,8 @@ namespace MrHyDE {
      * \param[in] spaceDim  The number of spatial dimensions.
      * \return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
      */
-    virtual std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim) {
-      std::vector< std::vector<string> > integrandsNamesAndTypes;
-      return integrandsNamesAndTypes;
-    };
+    virtual 
+    std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim);
 
     /**
      * \brief Updates any values needed by the residual which depend on integrated quantities
@@ -200,12 +170,8 @@ namespace MrHyDE {
      *
      * This must be called after the postprocessing routine.
      */
-    virtual void updateIntegratedQuantitiesDependents() {
-      if (verbosity > 10) {
-        std::cout << "*** Warning: physicsBase::updateIntegratedQuantitiesDependents() called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    };
+    virtual 
+    void updateIntegratedQuantitiesDependents();
     
     // ========================================================================================
     // ========================================================================================
@@ -219,13 +185,13 @@ namespace MrHyDE {
      * The \ref workset for the class. This contains a variety of metadata 
      * and numerical data necessary for computing residuals.
      */ 
-    Teuchos::RCP<workset> wkset;
+    Teuchos::RCP<Workset<EvalT> > wkset;
 
     /**
      * The FunctionManager for the class. Depending on the physics module,
      * this contains a wide variety of functions to evaluate at integration points. 
      */
-    Teuchos::RCP<FunctionManager> functionManager;
+    Teuchos::RCP<FunctionManager<EvalT> > functionManager;
 
     vector<string> myvars, mybasistypes;
     bool include_face = false, isaux = false;
@@ -239,13 +205,12 @@ namespace MrHyDE {
     int verbosity;
     
     // Probably not used much
-    View_AD2 adjrhs;
-    
-    // On host, so ok
-    // Kokkos::View<int**,HostDevice> bcs;
+    View_EvalT2 adjrhs;
     
   };
   
 }
+
+//template class MrHyDE::PhysicsBase<AD>;
 
 #endif

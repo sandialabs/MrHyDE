@@ -29,7 +29,7 @@ ANONYMOUS:
   Subgrid input file: subgrid_input.yaml
   Solver: 
     solver: steady-state
-    workset size: 4
+    workset size: -1
   Analysis: 
     analysis type: forward
   Postprocess:

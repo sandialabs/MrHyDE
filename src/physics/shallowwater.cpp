@@ -19,8 +19,9 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-shallowwater::shallowwater(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+shallowwater<EvalT>::shallowwater(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   
   label = "shallowwater";
@@ -42,8 +43,9 @@ shallowwater::shallowwater(Teuchos::ParameterList & settings, const int & dimens
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
-                                   Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void shallowwater<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                   Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
 
@@ -69,9 +71,10 @@ void shallowwater::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::volumeResidual() {
+template<class EvalT>
+void shallowwater<EvalT>::volumeResidual() {
   
-  Vista bath, bath_x, bath_y, visc, cor, bfric, source_H, source_Hu, source_Hv;
+  Vista<EvalT> bath, bath_x, bath_y, visc, cor, bfric, source_H, source_Hu, source_Hv;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -123,17 +126,17 @@ void shallowwater::volumeResidual() {
     //ScalarT gravity = 1.0;//9.8;
     for (size_type pt=0; pt<Hbasis.extent(2); pt++ ) {
       
-      AD f = (xi_dot(elem,pt) - source_H(elem,pt))*wts(elem,pt);
-      AD Fx = -Hu(elem,pt)*wts(elem,pt);
-      AD Fy = -Hv(elem,pt)*wts(elem,pt);
+      EvalT f = (xi_dot(elem,pt) - source_H(elem,pt))*wts(elem,pt);
+      EvalT Fx = -Hu(elem,pt)*wts(elem,pt);
+      EvalT Fy = -Hv(elem,pt)*wts(elem,pt);
       for (size_type dof=0; dof<Hbasis.extent(1); dof++ ) {
         res(elem,Hoff(dof)) += f*Hbasis(elem,dof,pt,0) + Fx*Hbasis_grad(elem,dof,pt,0) + Fy*Hbasis_grad(elem,dof,pt,1);
       }
       
-      AD H = xi(elem,pt) + bath(elem,pt);
-      AD uHu = Hu(elem,pt)*Hu(elem,pt)/H;
-      AD uHv = Hu(elem,pt)*Hv(elem,pt)/H;
-      AD vHv = Hv(elem,pt)*Hv(elem,pt)/H;
+      EvalT H = xi(elem,pt) + bath(elem,pt);
+      EvalT uHu = Hu(elem,pt)*Hu(elem,pt)/H;
+      EvalT uHv = Hu(elem,pt)*Hv(elem,pt)/H;
+      EvalT vHv = Hv(elem,pt)*Hv(elem,pt)/H;
       
       f = (Hu_dot(elem,pt) - gravity*xi(elem,pt)*bath_x(elem,pt) - source_Hu(elem,pt))*wts(elem,pt);
       Fx = -(uHu + 0.5*gravity*(H*H-bath(elem,pt)*bath(elem,pt)))*wts(elem,pt);
@@ -160,7 +163,8 @@ void shallowwater::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::boundaryResidual() {
+template<class EvalT>
+void shallowwater<EvalT>::boundaryResidual() {
   
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
@@ -215,10 +219,10 @@ void shallowwater::boundaryResidual() {
   for (size_type e=0; e<sideinfo.extent(0); e++) {
     if (sideinfo(e,H_num,cside,0) == 2) { // Element e is on the side
       for (size_type k=0; k<Hbasis.extent(2); k++ ) {
-        AD xi = sol_side(e,H_num,k,0);
-        AD H = xi + bb;//bath_side(e,k);
-        AD Hu = sol_side(e,Hu_num,k,0);
-        AD Hv = sol_side(e,Hv_num,k,0);
+        EvalT xi = sol_side(e,H_num,k,0);
+        EvalT H = xi + bb;//bath_side(e,k);
+        EvalT Hu = sol_side(e,Hu_num,k,0);
+        EvalT Hv = sol_side(e,Hv_num,k,0);
         
         for (size_type i=0; i<Hbasis.extent(1); i++ ) {
           int resindex = offsets(H_num,i);
@@ -230,10 +234,10 @@ void shallowwater::boundaryResidual() {
     }
     if (sideinfo(e,Hu_num,cside,0) == 2) { // Element e is on the side
       for (size_type k=0; k<Hubasis.extent(2); k++ ) {
-        AD xi = sol_side(e,H_num,k,0);
-        AD H = xi + bb;//bath_side(e,k);
-        AD Hu = sol_side(e,Hu_num,k,0);
-        AD Hv = sol_side(e,Hv_num,k,0);
+        EvalT xi = sol_side(e,H_num,k,0);
+        EvalT H = xi + bb;//bath_side(e,k);
+        EvalT Hu = sol_side(e,Hu_num,k,0);
+        EvalT Hv = sol_side(e,Hv_num,k,0);
         
         for (size_type i=0; i<Hubasis.extent(1); i++ ) {
           int resindex = offsets(Hu_num,i);
@@ -245,10 +249,10 @@ void shallowwater::boundaryResidual() {
     }
     if (sideinfo(e,Hv_num,cside,0) == 2) { // Element e is on the side
       for (size_type k=0; k<Hvbasis.extent(2); k++ ) {
-        AD xi = sol_side(e,H_num,k,0);
-        AD H = xi + bb;//bath_side(e,k);
-        AD Hu = sol_side(e,Hu_num,k,0);
-        AD Hv = sol_side(e,Hv_num,k,0);
+        EvalT xi = sol_side(e,H_num,k,0);
+        EvalT H = xi + bb;//bath_side(e,k);
+        EvalT Hu = sol_side(e,Hu_num,k,0);
+        EvalT Hv = sol_side(e,Hv_num,k,0);
         
         for (size_type i=0; i<Hvbasis.extent(1); i++ ) {
           int resindex = offsets(Hv_num,i);
@@ -267,14 +271,16 @@ void shallowwater::boundaryResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void shallowwater::computeFlux() {
+template<class EvalT>
+void shallowwater<EvalT>::computeFlux() {
   
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void shallowwater::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void shallowwater<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   
@@ -289,3 +295,24 @@ void shallowwater::setWorkset(Teuchos::RCP<workset> & wkset_) {
       Hv_num = i;
   }
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::shallowwater<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::shallowwater<AD>;
+
+// Standard built-in types
+template class MrHyDE::shallowwater<AD2>;
+template class MrHyDE::shallowwater<AD4>;
+template class MrHyDE::shallowwater<AD8>;
+template class MrHyDE::shallowwater<AD16>;
+template class MrHyDE::shallowwater<AD18>;
+template class MrHyDE::shallowwater<AD24>;
+template class MrHyDE::shallowwater<AD32>;
+#endif

@@ -30,23 +30,25 @@ namespace MrHyDE {
    * Where the unknown ___ is the ___.
    * The following functions may be specified in the input.yaml file:
    */
-  class physicsImporter {
+
+  template<class EvalT>
+  class PhysicsImporter {
     
   public:
     
-    physicsImporter() {} ;
+    PhysicsImporter() {} ;
     
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    ~physicsImporter() {};
+    ~PhysicsImporter() {};
     
     // ========================================================================================
     // Define the functions for this module (not necessary, but probably need to be defined in all modules)
     // ========================================================================================
     
-    vector<Teuchos::RCP<physicsbase> > import(vector<string> & module_list,
+    vector<Teuchos::RCP<PhysicsBase<EvalT> > > import(vector<string> & module_list,
                                               Teuchos::ParameterList & settings,
                                               const int & dimension,
                                               Teuchos::RCP<MpiComm> & Commptr);

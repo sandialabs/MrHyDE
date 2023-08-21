@@ -21,12 +21,14 @@ using namespace MrHyDE;
 /* Constructor to set up the problem */
 // ========================================================================================
 
-msphasefield::msphasefield(Teuchos::ParameterList & settings, const int & dimension_,
+template<class EvalT>
+msphasefield<EvalT>::msphasefield(Teuchos::ParameterList & settings, const int & dimension_,
                            const Teuchos::RCP<MpiComm> & Comm_)
-  : physicsbase(settings, dimension_),
+  : PhysicsBase<EvalT>(settings, dimension_),
   Comm(Comm_)
 {
   
+  spaceDim = dimension_;
   numphases = settings.get<int>("number_phases",1);
   numdisks = settings.get<int>("numdisks",3);
   disksize = settings.get<ScalarT>("disksize",10.0);
@@ -174,8 +176,9 @@ msphasefield::msphasefield(Teuchos::ParameterList & settings, const int & dimens
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::defineFunctions(Teuchos::ParameterList & fs,
-                                   Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void msphasefield<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                                   Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
@@ -184,7 +187,8 @@ void msphasefield::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::volumeResidual() {
+template<class EvalT>
+void msphasefield<EvalT>::volumeResidual() {
   
   // NOTES:
   // 1. basis and basis_grad already include the integration weights
@@ -206,15 +210,15 @@ void msphasefield::volumeResidual() {
   
   ScalarT v = 0.0, dvdx = 0.0, dvdy = 0.0, dvdz = 0.0;
   
-  std::vector<AD>  phi;
-  //    std::vector<AD>  phiInterface;
-  std::vector<AD>  dphidx;
-  std::vector<AD>  dphidy;
-  std::vector<AD>  dphidz;
-  std::vector<AD>  phi_dot;
-  AD  sumphi = 0.0;
+  std::vector<EvalT>  phi;
+  //    std::vector<EvalT>  phiInterface;
+  std::vector<EvalT>  dphidx;
+  std::vector<EvalT>  dphidy;
+  std::vector<EvalT>  dphidz;
+  std::vector<EvalT>  phi_dot;
+  EvalT  sumphi = 0.0;
   
-  vector<View_AD2> sol, sol_dot, dsol_dx, dsol_dy, dsol_dz;
+  vector<View_EvalT2> sol, sol_dot, dsol_dx, dsol_dy, dsol_dz;
   
   for (size_t k=0; k<myvars.size(); k++) {
     sol.push_back(wkset->getSolutionField(myvars[k]));
@@ -256,10 +260,9 @@ void msphasefield::volumeResidual() {
         sumphi +=  phi[j]*phi[j];
       }
       
-      
-      AD Lnum = 0.0;
-      AD Lden = 0.0;
-      AD mobility = 0.0;
+      EvalT Lnum = 0.0;
+      EvalT Lden = 0.0;
+      EvalT mobility = 0.0;
       //      std::mt19937 gen(time(0));
       //      std::uniform_real_distribution<ScalarT> dis(-0.1, 0.1);
       if(variableMobility) {
@@ -270,12 +273,12 @@ void msphasefield::volumeResidual() {
             Lden +=           phi[i] * phi[i] * phi[j] * phi[j];
           }
         }
-#ifndef MrHyDE_NO_AD
-        ScalarT mcheck = Lden.val();
-#else
-        ScalarT mcheck = Lden;
-#endif
-        if(mcheck < 1E-8) {
+//#ifndef MrHyDE_NO_AD
+//        ScalarT mcheck = Lden;//.val();
+//#else
+//        ScalarT mcheck = Lden;
+//#endif
+        if (Lden < 1E-8) {
           mobility = 0.01;
         } else {
           mobility = Lnum/Lden;
@@ -324,7 +327,8 @@ void msphasefield::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::boundaryResidual() {
+template<class EvalT>
+void msphasefield<EvalT>::boundaryResidual() {
   
   //TMW: NOT BEEN UPDATED TO NXTGEN
   
@@ -386,7 +390,8 @@ void msphasefield::boundaryResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::edgeResidual() {
+template<class EvalT>
+void msphasefield<EvalT>::edgeResidual() {
   
 }
 
@@ -394,7 +399,8 @@ void msphasefield::edgeResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void msphasefield::computeFlux() {
+template<class EvalT>
+void msphasefield<EvalT>::computeFlux() {
   
   /*
   ScalarT x = 0.0;
@@ -426,7 +432,8 @@ void msphasefield::computeFlux() {
 // ========================================================================================
 // ========================================================================================
 
-void msphasefield::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void msphasefield<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
@@ -445,8 +452,9 @@ void msphasefield::setWorkset(Teuchos::RCP<workset> & wkset_) {
 /* return the source term (to be multiplied by test_function) */
 // ========================================================================================
 
-AD msphasefield::SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
-                            const std::vector<AD > & tsource) const {
+template<class EvalT>
+EvalT msphasefield<EvalT>::SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT & z,
+                            const std::vector<EvalT > & tsource) const {
   
   int spaceDim = wkset->dimension;
   if(spaceDim == 1) {
@@ -463,7 +471,8 @@ AD msphasefield::SourceTerm(const ScalarT & x, const ScalarT & y, const ScalarT 
 /* return the source term (to be multiplied by test_function) */
 // ========================================================================================
 
-ScalarT msphasefield::boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
+template<class EvalT>
+ScalarT msphasefield<EvalT>::boundarySource(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                                      const string & side) const {
   
   ScalarT val = 0.0;
@@ -481,8 +490,9 @@ ScalarT msphasefield::boundarySource(const ScalarT & x, const ScalarT & y, const
 /* return the diffusivity coefficient */
 // ========================================================================================
 
-AD msphasefield::DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
-  AD diff = 0.0;
+template<class EvalT>
+EvalT msphasefield<EvalT>::DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
+  EvalT diff = 0.0;
   diff = diff_FAD[0];
   return diff;
 }
@@ -491,7 +501,8 @@ AD msphasefield::DiffusionCoeff(const ScalarT & x, const ScalarT & y, const Scal
 /* return the source term (to be multiplied by test_function) */
 // ========================================================================================
 
-ScalarT msphasefield::robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
+template<class EvalT>
+ScalarT msphasefield<EvalT>::robinAlpha(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & t,
                                  const string & side) const {
   return 0.0;
 }
@@ -500,7 +511,8 @@ ScalarT msphasefield::robinAlpha(const ScalarT & x, const ScalarT & y, const Sca
 // TMW: this is deprecated
 // ========================================================================================
 
-void msphasefield::updateParameters(const vector<Teuchos::RCP<vector<AD> > > & params,
+template<class EvalT>
+void msphasefield<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
                                     const vector<string> & paramnames) {
   
   for (size_t p=0; p<paramnames.size(); p++) {
@@ -515,3 +527,24 @@ void msphasefield::updateParameters(const vector<Teuchos::RCP<vector<AD> > > & p
     //  cout << "Parameter not used: " << paramnames[p] << endl;
   }
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::msphasefield<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::msphasefield<AD>;
+
+// Standard built-in types
+template class MrHyDE::msphasefield<AD2>;
+template class MrHyDE::msphasefield<AD4>;
+template class MrHyDE::msphasefield<AD8>;
+template class MrHyDE::msphasefield<AD16>;
+template class MrHyDE::msphasefield<AD18>;
+template class MrHyDE::msphasefield<AD24>;
+template class MrHyDE::msphasefield<AD32>;
+#endif

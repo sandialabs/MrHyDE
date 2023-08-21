@@ -14,8 +14,9 @@
 #include "physics_test.hpp"
 using namespace MrHyDE;
 
-physicsTest::physicsTest(Teuchos::ParameterList & settings, const int & dimension_)
-  : physicsbase(settings, dimension_)
+template<class EvalT>
+physicsTest<EvalT>::physicsTest(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_)
 {
   Teuchos::ParameterList test_settings = settings.sublist("test settings");
 
@@ -32,8 +33,9 @@ physicsTest::physicsTest(Teuchos::ParameterList & settings, const int & dimensio
 // ========================================================================================
 // ========================================================================================
 
-void physicsTest::defineFunctions(Teuchos::ParameterList & fs,
-                             Teuchos::RCP<FunctionManager> & functionManager_) {
+template<class EvalT>
+void physicsTest<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+                             Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
 }
@@ -41,7 +43,8 @@ void physicsTest::defineFunctions(Teuchos::ParameterList & fs,
 // ========================================================================================
 // ========================================================================================
 
-void physicsTest::volumeResidual() {
+template<class EvalT>
+void physicsTest<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
   int p_basis_num = wkset->usebasis[pnum];
@@ -59,7 +62,7 @@ void physicsTest::volumeResidual() {
       for(int elem = 0; elem < wkset->numElem; elem++) {
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           for (size_type pt=0; pt<psol.extent(1); pt++) {
-            AD mass = psol(elem,pt)*wts(elem,pt);
+            EvalT mass = psol(elem,pt)*wts(elem,pt);
             res(elem,off(dof)) += mass*basis(elem,dof,pt,0);
             std::cout << "dof " << dof << ", point " << pt << ": " << basis(elem,dof,pt,0) << std::endl;
           }
@@ -73,7 +76,7 @@ void physicsTest::volumeResidual() {
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis_grad.extent(1); dof++) {
             for (size_type pt=0; pt<psol.extent(1); pt++) {
-              AD Kx = dpdx(elem,pt)*wts(elem,pt);
+              EvalT Kx = dpdx(elem,pt)*wts(elem,pt);
               res(elem,off(dof)) += Kx*basis_grad(elem,dof,pt,0);
               std::cout << "dof " << dof << ", point " << pt << " grad: (" << basis_grad(elem,dof,pt,0) << ")" << std::endl;
             }
@@ -86,8 +89,8 @@ void physicsTest::volumeResidual() {
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis_grad.extent(1); dof++) {
             for (size_type pt=0; pt<psol.extent(1); pt++) {
-              AD Kx = dpdx(elem,pt)*wts(elem,pt);
-              AD Ky = dpdy(elem,pt)*wts(elem,pt);
+              EvalT Kx = dpdx(elem,pt)*wts(elem,pt);
+              EvalT Ky = dpdy(elem,pt)*wts(elem,pt);
               res(elem,off(dof)) += Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1);
               std::cout << "dof " << dof << ", point " << pt << " grad: (" << basis_grad(elem,dof,pt,0) << "," << basis_grad(elem,dof,pt,1) << ")" << std::endl;
             }
@@ -101,9 +104,9 @@ void physicsTest::volumeResidual() {
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis_grad.extent(1); dof++) {
             for (size_type pt=0; pt<psol.extent(1); pt++) {
-              AD Kx = dpdx(elem,pt)*wts(elem,pt);
-              AD Ky = dpdy(elem,pt)*wts(elem,pt);
-              AD Kz = dpdz(elem,pt)*wts(elem,pt);
+              EvalT Kx = dpdx(elem,pt)*wts(elem,pt);
+              EvalT Ky = dpdy(elem,pt)*wts(elem,pt);
+              EvalT Kz = dpdz(elem,pt)*wts(elem,pt);
               res(elem,off(dof)) += Kx*basis_grad(elem,dof,pt,0) + Ky*basis_grad(elem,dof,pt,1) + Kz*basis_grad(elem,dof,pt,2);
               std::cout << "dof " << dof << ", point " << pt << " grad: (" << basis_grad(elem,dof,pt,0) << "," << basis_grad(elem,dof,pt,1) << "," << basis_grad(elem,dof,pt,2) << ")" << std::endl;
             }
@@ -124,7 +127,7 @@ void physicsTest::volumeResidual() {
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
             for (size_type pt=0; pt<px.extent(1); pt++) {
-              AD mass_x = px(elem,pt)*wts(elem,pt);
+              EvalT mass_x = px(elem,pt)*wts(elem,pt);
               res(elem,off(dof)) += mass_x*basis(elem,dof,pt,0);
               std::cout << "dof " << dof << ", point " << pt << ": (" << basis(elem,dof,pt,0) << ")" << std::endl;
             }
@@ -138,8 +141,8 @@ void physicsTest::volumeResidual() {
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
             for (size_type pt=0; pt<px.extent(1); pt++) {
-              AD mass_x = px(elem,pt)*wts(elem,pt);
-              AD mass_y = py(elem,pt)*wts(elem,pt);
+              EvalT mass_x = px(elem,pt)*wts(elem,pt);
+              EvalT mass_y = py(elem,pt)*wts(elem,pt);
               res(elem,off(dof)) += mass_x*basis(elem,dof,pt,0) + mass_y*basis(elem,dof,pt,1);
               std::cout << "dof " << dof << ", point " << pt << ": (" << basis(elem,dof,pt,0) << "," << basis(elem,dof,pt,1) << ")" << std::endl;
             }
@@ -154,9 +157,9 @@ void physicsTest::volumeResidual() {
         for(int elem = 0; elem < wkset->numElem; elem++) {
           for (size_type dof=0; dof<basis.extent(1); dof++) {
             for (size_type pt=0; pt<px.extent(1); pt++) {
-              AD mass_x = px(elem,pt)*wts(elem,pt);
-              AD mass_y = py(elem,pt)*wts(elem,pt);
-              AD mass_z = pz(elem,pt)*wts(elem,pt);
+              EvalT mass_x = px(elem,pt)*wts(elem,pt);
+              EvalT mass_y = py(elem,pt)*wts(elem,pt);
+              EvalT mass_z = pz(elem,pt)*wts(elem,pt);
               res(elem,off(dof)) += mass_x*basis(elem,dof,pt,0) + mass_y*basis(elem,dof,pt,1) + mass_z*basis(elem,dof,pt,2);
               std::cout << "dof " << dof << ", point " << pt << ": (" << basis(elem,dof,pt,0) << "," << basis(elem,dof,pt,1) << "," << basis(elem,dof,pt,2) << ")" << std::endl;
             }
@@ -174,14 +177,16 @@ void physicsTest::volumeResidual() {
 // ========================================================================================
 // ========================================================================================
 
-void physicsTest::boundaryResidual() {
+template<class EvalT>
+void physicsTest<EvalT>::boundaryResidual() {
   // No boundary conditions for now
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void physicsTest::edgeResidual() {
+template<class EvalT>
+void physicsTest<EvalT>::edgeResidual() {
   
 }
 
@@ -189,14 +194,16 @@ void physicsTest::edgeResidual() {
 // The boundary/edge flux
 // ========================================================================================
 
-void physicsTest::computeFlux() {
+template<class EvalT>
+void physicsTest<EvalT>::computeFlux() {
   // No flux for now
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void physicsTest::setWorkset(Teuchos::RCP<workset> & wkset_) {
+template<class EvalT>
+void physicsTest<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   wkset = wkset_;
   vector<string> varlist = wkset->varlist;
   for (size_t i=0; i<varlist.size(); i++) {
@@ -209,7 +216,8 @@ void physicsTest::setWorkset(Teuchos::RCP<workset> & wkset_) {
 // ========================================================================================
 // ========================================================================================
 
-void physicsTest::updatePerm(View_AD2 perm) {
+template<class EvalT>
+void physicsTest<EvalT>::updatePerm(View_EvalT2 perm) {
   
   View_Sc2 data = wkset->extra_data;
   
@@ -221,3 +229,24 @@ void physicsTest::updatePerm(View_AD2 perm) {
     }
   });
 }
+
+
+//////////////////////////////////////////////////////////////
+// Explicit template instantiations
+//////////////////////////////////////////////////////////////
+
+template class MrHyDE::physicsTest<ScalarT>;
+
+#ifndef MrHyDE_NO_AD
+// Custom AD type
+template class MrHyDE::physicsTest<AD>;
+
+// Standard built-in types
+template class MrHyDE::physicsTest<AD2>;
+template class MrHyDE::physicsTest<AD4>;
+template class MrHyDE::physicsTest<AD8>;
+template class MrHyDE::physicsTest<AD16>;
+template class MrHyDE::physicsTest<AD18>;
+template class MrHyDE::physicsTest<AD24>;
+template class MrHyDE::physicsTest<AD32>;
+#endif
