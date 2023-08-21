@@ -237,7 +237,7 @@ void SubGridDtN::setUpSubgridModels() {
   
   sub_assembler->allocateGroupStorage();
   
-  groups = sub_assembler->groups;
+  groups = sub_assembler->m_groups;
   
   Teuchos::RCP<GroupMetaData> group_data = sub_assembler->groupData[0];
   
@@ -888,7 +888,7 @@ void SubGridDtN::setUpSubgridModels() {
     
   }
   
-  sub_assembler->groups = groups;
+  sub_assembler->m_groups = groups;
   sub_assembler->boundary_groups = boundary_groups;
   sub_physics->setWorkset(wkset);
   sub_assembler->finalizeFunctions();
@@ -2133,9 +2133,9 @@ void SubGridDtN::setPreviousTime(ScalarT & time) {
 
 void SubGridDtN::updateActive(vector<bool> & new_active){
   active = new_active;
-  for (size_t macrogrp=0; macrogrp<sub_assembler->groups.size(); ++macrogrp) {
-    for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
-      sub_assembler->groups[macrogrp][grp]->active = active[macrogrp];
+  for (size_t macrogrp=0; macrogrp<sub_assembler->m_groups.size(); ++macrogrp) {
+    for (size_t grp=0; grp<sub_assembler->m_groups[macrogrp].size(); ++grp) {
+      sub_assembler->m_groups[macrogrp][grp]->active = active[macrogrp];
     }
   }
 }

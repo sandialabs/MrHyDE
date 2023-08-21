@@ -104,7 +104,7 @@ int main(int argc,char * argv[]) {
     Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh,
                                                                                                          disc, physics, params));
     
-    mesh->setMeshData(assembler->groups,
+    mesh->setMeshData(assembler->m_groups,
                       assembler->boundary_groups);
     
     if (settings->get<bool>("enable memory purge",true)) {
@@ -123,7 +123,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
-                                                                                             assembler->groups,
+                                                                                             assembler->m_groups,
                                                                                              #ifndef MrHyDE_NO_AD
                                                                                              assembler->function_managers_AD) );
                                                                                              #else

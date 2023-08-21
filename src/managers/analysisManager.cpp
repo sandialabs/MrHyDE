@@ -684,11 +684,11 @@ void AnalysisManager::updateRotationData(const int & newrandseed) {
   // Determine how many seeds there are
   size_t localnumSeeds = 0;
   size_t numSeeds = 0;
-  for (size_t block=0; block<solver_->assembler->groups.size(); ++block) {
-    for (size_t grp=0; grp<solver_->assembler->groups[block].size(); ++grp) {
-      for (size_t e=0; e<solver_->assembler->groups[block][grp]->numElem; ++e) {
-        if (solver_->assembler->groups[block][grp]->data_seed[e] > localnumSeeds) {
-          localnumSeeds = solver_->assembler->groups[block][grp]->data_seed[e];
+  for (size_t block=0; block<solver_->assembler->m_groups.size(); ++block) {
+    for (size_t grp=0; grp<solver_->assembler->m_groups[block].size(); ++grp) {
+      for (size_t e=0; e<solver_->assembler->m_groups[block][grp]->numElem; ++e) {
+        if (solver_->assembler->m_groups[block][grp]->data_seed[e] > localnumSeeds) {
+          localnumSeeds = solver_->assembler->m_groups[block][grp]->data_seed[e];
         }
       }
     }
@@ -740,13 +740,13 @@ void AnalysisManager::updateRotationData(const int & newrandseed) {
   // Set cell data
   ////////////////////////////////////////////////////////////////////////////////
   
-  for (size_t block=0; block<solver_->assembler->groups.size(); ++block) {
-    for (size_t grp=0; grp<solver_->assembler->groups[block].size(); ++grp) {
-      int numElem = solver_->assembler->groups[block][grp]->numElem;
+  for (size_t block=0; block<solver_->assembler->m_groups.size(); ++block) {
+    for (size_t grp=0; grp<solver_->assembler->m_groups[block].size(); ++grp) {
+      int numElem = solver_->assembler->m_groups[block][grp]->numElem;
       for (int c=0; c<numElem; c++) {
-        int cnode = solver_->assembler->groups[block][grp]->data_seed[c];
+        int cnode = solver_->assembler->m_groups[block][grp]->data_seed[c];
         for (int i=0; i<9; i++) {
-          solver_->assembler->groups[block][grp]->data(c,i) = rotation_data(cnode,i);
+          solver_->assembler->m_groups[block][grp]->data(c,i) = rotation_data(cnode,i);
         }
       }
     }
@@ -838,7 +838,7 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
       if (regenerate_grains) {
         auto seeds = solver_->mesh->generateNewMicrostructure(sampleints(j));
         solver_->mesh->importNewMicrostructure(sampleints(j), seeds,
-                                             solver_->assembler->groups,
+                                             solver_->assembler->m_groups,
                                              solver_->assembler->boundary_groups);
       }
       else if (regenerate_rotations) {

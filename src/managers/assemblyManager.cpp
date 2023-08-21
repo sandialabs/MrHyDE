@@ -19,7 +19,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_ASSEMBLY_MANAGER 1
+#define EEP_DEBUG_ASSEMBLY_MANAGER 0
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -137,7 +137,7 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   // Create groups/boundary groups
   this->createGroups();
   
-  params->setupDiscretizedParameters(groups, boundary_groups);
+  params->setupDiscretizedParameters(m_groups, boundary_groups);
   
   this->createFixedDOFs();
   
@@ -223,6 +223,15 @@ template<class Node>
 void AssemblyManager<Node>::createGroups() {
   
   Teuchos::TimeMonitor localtimer(*group_timer);
+
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
+    std::cout << "Entering AssemblyManager<Node>::createGroups()"
+              << ", blocknames.size() = " << blocknames.size()
+              << std::endl;
+    for (size_t i(0); i < blocknames.size(); ++i) {
+      std::cout << "blocknames[" << i << "] = " << blocknames[i] << std::endl;
+    }
+  }
   
   if (debug_level > 0) {
     if (comm->getRank() == 0) {
@@ -673,9 +682,17 @@ void AssemblyManager<Node>::createGroups() {
     }
     
     groupData.push_back(blockGroupData);
-    groups.push_back(block_groups);
+    m_groups.push_back(block_groups);
     boundary_groups.push_back(block_boundary_groups);
     
+  }
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
+    std::cout << "Leaving AssemblyManager<Node>::createGroups()"
+              << ", groupData.size() = "       << groupData.size()
+              << ", m_groups.size() = "        << m_groups.size()
+              << ", boundary_groups.size() = " << boundary_groups.size()
+              << std::endl;
+    //sleep(5);
   }
 }
 
@@ -705,15 +722,15 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     keepnodes = true;
   }
   
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     if (groupData[block]->use_basis_database) {
       this->buildDatabase(block);
     }
   }
   
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      groups[block][grp]->computeBasis(keepnodes);
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      m_groups[block][grp]->computeBasis(keepnodes);
     }
   }
   
@@ -735,10 +752,10 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     size_t numelements = 0;
     double minsize = 1e100;
     double maxsize = 0.0;
-    for (size_t block=0; block<groups.size(); ++block) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
-        numelements += groups[block][grp]->numElem;
-        auto wts = groups[block][grp]->wts;
+    for (size_t block=0; block<m_groups.size(); ++block) {
+      for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+        numelements += m_groups[block][grp]->numElem;
+        auto wts = m_groups[block][grp]->wts;
         auto host_wts = create_mirror_view(wts);
         deep_copy(host_wts,wts);
         for (size_type e=0; e<host_wts.extent(0); ++e) {
@@ -783,13 +800,13 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     
     // Volumetric ip/basis
     size_t groupstorage = 0;
-    for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t block=0; block<m_groups.size(); ++block) {
       if (groupData[block]->use_basis_database) {
         groupstorage += groupData[block]->getDatabaseStorage();
       }
       else {
-        for (size_t grp=0; grp<groups[block].size(); ++grp) {
-          groupstorage += groups[block][grp]->getVolumetricStorage();
+        for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+          groupstorage += m_groups[block][grp]->getVolumetricStorage();
         }
       }
     }
@@ -798,9 +815,9 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     
     // Face ip/basis
     size_t facestorage = 0;
-    for (size_t block=0; block<groups.size(); ++block) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
-        facestorage += groups[block][grp]->getFaceStorage();
+    for (size_t block=0; block<m_groups.size(); ++block) {
+      for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+        facestorage += m_groups[block][grp]->getFaceStorage();
       }
     }
     totalstorage = static_cast<double>(facestorage)/1.0e6;
@@ -838,8 +855,8 @@ void AssemblyManager<Node>::createWorkset() {
     }
   }
   
-  for (size_t block=0; block<groups.size(); ++block) {
-    if (groups[block].size() > 0) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    if (m_groups[block].size() > 0) {
       vector<int> info;
       info.push_back(groupData[block]->dimension);
       info.push_back((int)groupData[block]->num_disc_params);
@@ -1149,7 +1166,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
     }
   }
   
-  for (size_t block=0; block<groups.size(); block++) {
+  for (size_t block=0; block<m_groups.size(); block++) {
     this->setInitial(set,rhs,mass,useadjoint,lumpmass,scale,block,block);
   }
   
@@ -1191,9 +1208,9 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   auto offsets = wkset[block]->offsets;
   auto numDOF = groupData[block]->num_dof;
   
-  for (size_t grp=0; grp<groups[groupblock].size(); ++grp) {
+  for (size_t grp=0; grp<m_groups[groupblock].size(); ++grp) {
     
-    auto LIDs = groups[groupblock][grp]->LIDs[set];
+    auto LIDs = m_groups[groupblock][grp]->LIDs[set];
     
     auto localrhs = this->getInitial(groupblock, grp, true, useadjoint);
     auto localmass = this->getMass(groupblock, grp);
@@ -1314,7 +1331,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     data_avail = false;
   }
   
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     
     auto offsets = wkset[block]->offsets;
     auto numDOF = groupData[block]->num_dof;
@@ -1328,9 +1345,9 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     auto numDOF_ladev = create_mirror(LA_exec(),numDOF);
     deep_copy(numDOF_ladev,numDOF);
     
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
       
-      auto LIDs = groups[block][grp]->LIDs[set];
+      auto LIDs = m_groups[block][grp]->LIDs[set];
 
       if (sparse_mass) {
         auto curr_mass = groupData[block]->sparse_database_mass[set];
@@ -1340,7 +1357,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         auto values = curr_mass->getValues();
         auto local_columns = curr_mass->getLocalColumns();
         auto nnz = curr_mass->getNNZPerRow();
-        auto index = groups[block][grp]->basis_index;
+        auto index = m_groups[block][grp]->basis_index;
 
         parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs.extent(0)),
@@ -1562,24 +1579,24 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
   auto y_kv = y->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto y_slice = Kokkos::subview(y_kv, Kokkos::ALL(), 0);
   
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     auto offsets = wkset[block]->offsets;
     auto numDOF = groupData[block]->num_dof;
     
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
       
-      auto cLIDs = groups[block][grp]->LIDs[set];
+      auto cLIDs = m_groups[block][grp]->LIDs[set];
       
-      if (!groups[block][grp]->storeMass) { 
-        auto twts = groups[block][grp]->wts;
+      if (!m_groups[block][grp]->storeMass) { 
+        auto twts = m_groups[block][grp]->wts;
         vector<CompressedView<View_Sc4>> tbasis;
-        if (groups[block][grp]->storeAll) { // unlikely case, but enabled
-          tbasis = groups[block][grp]->basis;
+        if (m_groups[block][grp]->storeAll) { // unlikely case, but enabled
+          tbasis = m_groups[block][grp]->basis;
         }
         else {
           vector<View_Sc4> tmpbasis;
-          disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes,
-                                           groups[block][grp]->orientation, tmpbasis);
+          disc->getPhysicalVolumetricBasis(groupData[block], m_groups[block][grp]->nodes,
+                                           m_groups[block][grp]->orientation, tmpbasis);
           for (size_t i=0; i<tmpbasis.size(); ++i) {
             tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
           }
@@ -1650,7 +1667,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
             auto curr_mass = groupData[block]->sparse_database_mass[set];
             auto values = curr_mass->getValues();
             auto nnz = curr_mass->getNNZPerRow();
-            auto index = groups[block][grp]->basis_index;
+            auto index = m_groups[block][grp]->basis_index;
 
             if (!curr_mass->getStatus()) {
               curr_mass->setLocalColumns(offsets, numDOF);
@@ -1686,7 +1703,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
           }
           else {
 
-            auto index = groups[block][grp]->basis_index;
+            auto index = m_groups[block][grp]->basis_index;
 
             auto curr_mass = groupData[block]->database_mass[set];
 
@@ -1716,7 +1733,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
           
         }
         else {
-          auto curr_mass = groups[block][grp]->local_mass[set];
+          auto curr_mass = m_groups[block][grp]->local_mass[set];
           parallel_for("get mass",
                        RangePolicy<AssemblyExec>(0,curr_mass.extent(0)),
                        KOKKOS_LAMBDA (const size_type elem ) {
@@ -1763,17 +1780,17 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
   
   vector<vector<ScalarT> > normwts = physics->norm_wts[set];
   
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     
     auto offsets = wkset[block]->offsets;
     auto numDOF = groupData[block]->num_dof;
     
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
       
       for (size_type n=0; n<numDOF.extent(0); ++n) {
         
         ScalarT val = normwts[block][n];
-        auto LIDs = groups[block][grp]->LIDs[set];
+        auto LIDs = m_groups[block][grp]->LIDs[set];
         parallel_for("assembly insert Jac",
                      RangePolicy<LA_exec>(0,LIDs.extent(0)),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -1807,13 +1824,13 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
 template<class Node>
 void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & initial, const bool & useadjoint) {
   
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      LIDView_host LIDs = groups[block][grp]->LIDs_host[set];
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      LIDView_host LIDs = m_groups[block][grp]->LIDs_host[set];
       Kokkos::View<ScalarT**,AssemblyDevice> localinit = this->getInitial(block, grp, false, useadjoint);
       auto host_init = Kokkos::create_mirror_view(localinit);
       Kokkos::deep_copy(host_init,localinit);
-      int numElem = groups[block][grp]->numElem;
+      int numElem = m_groups[block][grp]->numElem;
       for (int c=0; c<numElem; c++) {
         for( size_t row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(c,row);
@@ -1902,10 +1919,10 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
   
   
   // Loop over the groups to put ones on the diagonal for DOFs not on Dirichlet boundaries
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      auto LIDs = groups[block][grp]->LIDs_host[set];
-      for (size_t c=0; c<groups[block][grp]->numElem; c++) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      auto LIDs = m_groups[block][grp]->LIDs_host[set];
+      for (size_t c=0; c<m_groups[block][grp]->numElem; c++) {
         for( size_type row=0; row<LIDs.extent(1); row++ ) {
           LO rowIndex = LIDs(c,row);
           if (!isFixedDOF[set](rowIndex)) {
@@ -1948,11 +1965,11 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   
   auto localMatrix = mass->getLocalMatrixHost();
   
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     wkset[block]->isOnSide = true;
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      int numElem = groups[block][grp]->numElem;
-      auto LIDs = groups[block][grp]->LIDs_host[set];
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      int numElem = m_groups[block][grp]->numElem;
+      auto LIDs = m_groups[block][grp]->LIDs_host[set];
       // Get the requested IC from the group
       auto localrhs = this->getInitialFace(block, grp, true);
       // Create the mass matrix
@@ -2071,13 +2088,13 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
   }
   
   
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     
     if (groupData[block]->multiscale || compute_sens || useadjoint) {
       allow_autotune = false;
     }
 
-    if (groups[block].size() > 0) {
+    if (m_groups[block].size() > 0) {
       if (!allow_autotune) {
         this->assembleJacRes<AD>(set, compute_jacobian,
                              compute_sens, compute_disc_sens, res, J, isTransient,
@@ -2190,22 +2207,22 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vect
   if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
     std::cout << "In AssemblyManager<Node>::assembleJacRes(a)"
               << ", set = " << set
-              << ": groups.size() = " << groups.size()
+              << ": m_groups.size() = " << m_groups.size()
               << std::endl;
   }
   comm->barrier();
   
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     comm->barrier();
     if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
       std::cout << "In AssemblyManager<Node>::assembleJacRes(a)"
                 << ", set = " << set
                 << ": block = " << block
-                << ": groups[block].size() = " << groups[block].size()
+                << ": m_groups[block].size() = " << m_groups[block].size()
                 << std::endl;
     }
     comm->barrier();
-    if (groups[block].size() > 0) {
+    if (m_groups[block].size() > 0) {
       this->assembleRes(set, compute_jacobian,
                            compute_sens, compute_disc_sens, res, J, isTransient,
                            current_time, useadjoint, store_adjPrev, num_active_params,
@@ -2305,11 +2322,11 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
 
   this->updateWorksetAdjoint(block, useadjoint);
   int numElem = groupData[block]->num_elem;
-  int numDOF = groups[block][0]->LIDs[set].extent(1);
+  int numDOF = m_groups[block][0]->LIDs[set].extent(1);
   
   int numParamDOF = 0;
   if (compute_disc_sens) {
-    numParamDOF = groups[block][0]->paramLIDs.extent(1);
+    numParamDOF = m_groups[block][0]->paramLIDs.extent(1);
   }
   
   // This data needs to be available on Host and Device
@@ -2338,7 +2355,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
   
   // Note: Cannot parallelize over groups since data structures are re-used
 
-  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+  for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
     
     if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
       std::cout << "In AssemblyManager<Node>::assembleJacRes(b)"
@@ -2352,9 +2369,9 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
 
     this->updateWorksetEID(block, grp);
     
-    if (isTransient && useadjoint && !groups[block][0]->group_data->multiscale) {
+    if (isTransient && useadjoint && !m_groups[block][0]->group_data->multiscale) {
       if (is_final_time) {
-        groups[block][grp]->resetAdjPrev(set,0.0);
+        m_groups[block][grp]->resetAdjPrev(set,0.0);
       }
     }
     
@@ -2377,7 +2394,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           
 #ifndef MrHyDE_NO_AD
           // Right now, this can only be called with AD, thus hard-coded
-          multiscale_manager->evaluateMacroMicroMacroMap(wkset_AD[block], groups[block][grp], set, isTransient, useadjoint,
+          multiscale_manager->evaluateMacroMicroMacroMap(wkset_AD[block], m_groups[block][grp], set, isTransient, useadjoint,
                                                          compute_jacobian, compute_sens, num_active_params,
                                                          compute_disc_sens, false,
                                                          store_adjPrev);
@@ -2435,7 +2452,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     if (reduce_memory) { // skip local_res and local_J
       EvalT dummyval = 0.0;
       this->scatter(set, J_kcrs, res_view,
-                    groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, block,
+                    m_groups[block][grp]->LIDs[set], m_groups[block][grp]->paramLIDs, block,
                     compute_jacobian, compute_sens, compute_disc_sens, useadjoint, dummyval);
     }
     else { // fill local_res and local_J and then scatter
@@ -2473,9 +2490,9 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       // Now scatter from local_res and local_J
       
       if (data_avail) {
-        this->scatterRes(res_view, local_res, groups[block][grp]->LIDs[set]);
+        this->scatterRes(res_view, local_res, m_groups[block][grp]->LIDs[set]);
         if (compute_jacobian) {
-          this->scatterJac(set, J_kcrs, local_J, groups[block][grp]->LIDs[set], groups[block][grp]->paramLIDs, compute_disc_sens);
+          this->scatterJac(set, J_kcrs, local_J, m_groups[block][grp]->LIDs[set], m_groups[block][grp]->paramLIDs, compute_disc_sens);
         }
       }
       else {
@@ -2486,18 +2503,18 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
         Kokkos::deep_copy(local_res_ladev,local_res);
         
         if (use_host_LIDs) { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          this->scatterRes(res_view, local_res_ladev, groups[block][grp]->LIDs_host[set]);
+          this->scatterRes(res_view, local_res_ladev, m_groups[block][grp]->LIDs_host[set]);
           if (compute_jacobian) {
-            this->scatterJac(set, J_kcrs, local_J_ladev, groups[block][grp]->LIDs_host[set], groups[block][grp]->paramLIDs_host, compute_disc_sens);
+            this->scatterJac(set, J_kcrs, local_J_ladev, m_groups[block][grp]->LIDs_host[set], m_groups[block][grp]->paramLIDs_host, compute_disc_sens);
           }
           
         }
         else { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
-          auto LIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->LIDs[set]);
-          auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), groups[block][grp]->paramLIDs);
-          Kokkos::deep_copy(LIDs_dev,groups[block][grp]->LIDs[set]);
-          Kokkos::deep_copy(paramLIDs_dev,groups[block][grp]->paramLIDs);
+          auto LIDs_dev = Kokkos::create_mirror(LA_exec(), m_groups[block][grp]->LIDs[set]);
+          auto paramLIDs_dev = Kokkos::create_mirror(LA_exec(), m_groups[block][grp]->paramLIDs);
+          Kokkos::deep_copy(LIDs_dev,m_groups[block][grp]->LIDs[set]);
+          Kokkos::deep_copy(paramLIDs_dev,m_groups[block][grp]->paramLIDs);
           
           this->scatterRes(res_view, local_res_ladev, LIDs_dev);
           if (compute_jacobian) {
@@ -3013,7 +3030,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute
   
   // Note: Cannot parallelize over groups since data structures are re-used
   
-  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+  for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
     
     wkset[block]->localEID = grp;
     
@@ -3053,7 +3070,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute
     // Scatter into global matrix/vector
     ///////////////////////////////////////////////////////////////////////////
     
-    this->scatterRes(set, res_view, groups[block][grp]->LIDs[set], block);
+    this->scatterRes(set, res_view, m_groups[block][grp]->LIDs[set], block);
     
   } // group loop
   
@@ -3142,9 +3159,9 @@ void AssemblyManager<Node>::dofConstraints(const size_t & set, matrix_RCP & J, v
 
 template<class Node>
 void AssemblyManager<Node>::resetPrevSoln(const size_t & set) {
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      groups[block][grp]->resetPrevSoln(set);
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      m_groups[block][grp]->resetPrevSoln(set);
     }
   }
   for (size_t block=0; block<boundary_groups.size(); ++block) {
@@ -3156,9 +3173,9 @@ void AssemblyManager<Node>::resetPrevSoln(const size_t & set) {
 
 template<class Node>
 void AssemblyManager<Node>::revertSoln(const size_t & set) {
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      groups[block][grp]->revertSoln(set);
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      m_groups[block][grp]->revertSoln(set);
     }
   }
   for (size_t block=0; block<boundary_groups.size(); ++block) {
@@ -3170,9 +3187,9 @@ void AssemblyManager<Node>::revertSoln(const size_t & set) {
 
 template<class Node>
 void AssemblyManager<Node>::resetStageSoln(const size_t & set) {
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      groups[block][grp]->resetStageSoln(set);
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      m_groups[block][grp]->resetStageSoln(set);
     }
   }
   for (size_t block=0; block<boundary_groups.size(); ++block) {
@@ -3239,9 +3256,9 @@ void AssemblyManager<Node>::updateStage(Teuchos::RCP<Workset<EvalT> > & wset, co
 
 template<class Node>
 void AssemblyManager<Node>::updateStageSoln(const size_t & set)  {
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      groups[block][grp]->updateStageSoln(set);
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+      m_groups[block][grp]->updateStageSoln(set);
     }
   }
   for (size_t block=0; block<boundary_groups.size(); ++block) {
@@ -3412,29 +3429,29 @@ void AssemblyManager<Node>::performGather(const size_t & set, ViewType vec_dev, 
   Kokkos::View<int**,AssemblyDevice> offsets;
   LIDView LIDs;
   
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
       switch(type) {
         case 0 :
-          LIDs = groups[block][grp]->LIDs[set];
-          numDOF = groups[block][grp]->group_data->num_dof;
-          data = groups[block][grp]->sol[set];
+          LIDs = m_groups[block][grp]->LIDs[set];
+          numDOF = m_groups[block][grp]->group_data->num_dof;
+          data = m_groups[block][grp]->sol[set];
           offsets = wkset[block]->offsets;
           break;
         case 1 : // deprecated (u_dot)
           break;
         case 2 :
-          LIDs = groups[block][grp]->LIDs[set];
-          numDOF = groups[block][grp]->group_data->num_dof;
-          data = groups[block][grp]->phi[set];
+          LIDs = m_groups[block][grp]->LIDs[set];
+          numDOF = m_groups[block][grp]->group_data->num_dof;
+          data = m_groups[block][grp]->phi[set];
           offsets = wkset[block]->offsets;
           break;
         case 3 : // deprecated (phi_dot)
           break;
         case 4:
-          LIDs = groups[block][grp]->paramLIDs;
-          numDOF = groups[block][grp]->group_data->num_param_dof;
-          data = groups[block][grp]->param;
+          LIDs = m_groups[block][grp]->paramLIDs;
+          numDOF = m_groups[block][grp]->group_data->num_param_dof;
+          data = m_groups[block][grp]->param;
           offsets = wkset[block]->paramoffsets;
           break;
         default :
@@ -3904,8 +3921,8 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   /////////////////////////////////////////////////////////////////////////////
   
   size_t totalelem = 0, boundaryelem = 0;
-  for (size_t grp=0; grp<groups[block].size(); ++grp) {
-    totalelem += groups[block][grp]->numElem;
+  for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+    totalelem += m_groups[block][grp]->numElem;
   }
   for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
     boundaryelem += boundary_groups[block][grp]->numElem;
@@ -3958,11 +3975,11 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
   
   vector<string> unique_orients;
   vector<vector<size_t> > all_orients;
-  for (size_t grp=0; grp<groups[block].size(); ++grp) {
-    auto orient_host = create_mirror_view(groups[block][grp]->orientation);
-    deep_copy(orient_host, groups[block][grp]->orientation);
-    vector<size_t> grp_orient(groups[block][grp]->numElem);
-    for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+  for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+    auto orient_host = create_mirror_view(m_groups[block][grp]->orientation);
+    deep_copy(orient_host, m_groups[block][grp]->orientation);
+    vector<size_t> grp_orient(m_groups[block][grp]->numElem);
+    for (size_t e=0; e<m_groups[block][grp]->numElem; ++e) {
       string orient = orient_host(e).to_string();
       bool found = false;
       size_t oprog = 0;
@@ -3992,24 +4009,24 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
     this->writeVolumetricData(block, all_orients);
   }
   
-  for (size_t grp=0; grp<groups[block].size(); ++grp) {
-    groups[block][grp]->storeAll = false;
-    Kokkos::View<LO*,AssemblyDevice> index("basis database index",groups[block][grp]->numElem);
+  for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
+    m_groups[block][grp]->storeAll = false;
+    Kokkos::View<LO*,AssemblyDevice> index("basis database index",m_groups[block][grp]->numElem);
     auto index_host = create_mirror_view(index);
     
     // Get the Jacobian for this group
-    DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
-    disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+    DRV jacobian("jacobian", m_groups[block][grp]->numElem, numip, dimension, dimension);
+    disc->getJacobian(groupData[block], m_groups[block][grp]->nodes, jacobian);
     auto jacobian_host = create_mirror_view(jacobian);
     deep_copy(jacobian_host,jacobian);
     
     // Get the measures for this group
-    DRV measure("measure", groups[block][grp]->numElem);
+    DRV measure("measure", m_groups[block][grp]->numElem);
     disc->getMeasure(groupData[block], jacobian, measure);
     auto measure_host = create_mirror_view(measure);
     deep_copy(measure_host,measure);
     
-    for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+    for (size_t e=0; e<m_groups[block][grp]->numElem; ++e) {
       bool found = false;
       size_t prog = 0;
 
@@ -4085,7 +4102,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
       }
     }
     deep_copy(index,index_host);
-    groups[block][grp]->basis_index = index;
+    m_groups[block][grp]->basis_index = index;
   }
 }
 
@@ -4252,7 +4269,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   int dimension = groupData[block]->dimension;
   
   size_t database_numElem = first_users.size();
-  DRV database_nodes("nodes for the database",database_numElem, groups[block][0]->nodes.extent(1), dimension);
+  DRV database_nodes("nodes for the database",database_numElem, m_groups[block][0]->nodes.extent(1), dimension);
   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_orientation("database orientations",database_numElem);
   View_Sc2 database_wts("physical wts",database_numElem, groupData[block]->ref_ip.extent(0));
   
@@ -4265,8 +4282,8 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     size_t refelem = first_users[e].second;
     
     // Get the nodes on the host
-    auto nodes_host = create_mirror_view(groups[block][refgrp]->nodes);
-    deep_copy(nodes_host, groups[block][refgrp]->nodes);
+    auto nodes_host = create_mirror_view(m_groups[block][refgrp]->nodes);
+    deep_copy(nodes_host, m_groups[block][refgrp]->nodes);
     
     for (size_type node=0; node<database_nodes.extent(1); ++node) {
       for (size_type dim=0; dim<database_nodes.extent(2); ++dim) {
@@ -4275,13 +4292,13 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     }
     
     // Get the orientations on the host
-    auto orientations_host = create_mirror_view(groups[block][refgrp]->orientation);
-    deep_copy(orientations_host, groups[block][refgrp]->orientation);
+    auto orientations_host = create_mirror_view(m_groups[block][refgrp]->orientation);
+    deep_copy(orientations_host, m_groups[block][refgrp]->orientation);
     database_orientation_host(e) = orientations_host(refelem);
     
     // Get the wts on the host
-    auto wts_host = create_mirror_view(groups[block][refgrp]->wts);
-    deep_copy(wts_host, groups[block][refgrp]->wts);
+    auto wts_host = create_mirror_view(m_groups[block][refgrp]->wts);
+    deep_copy(wts_host, m_groups[block][refgrp]->wts);
     
     for (size_type pt=0; pt<database_wts_host.extent(1); ++pt) {
       database_wts_host(e,pt) = wts_host(refelem,pt);
@@ -4327,8 +4344,8 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
 
     size_t database_numElem = first_users.size();
     for (size_t set=0; set<physics->set_names.size(); ++set) {
-      View_Sc3 mass("local mass",database_numElem, groups[block][0]->LIDs[set].extent(1),
-                    groups[block][0]->LIDs[set].extent(1));
+      View_Sc3 mass("local mass",database_numElem, m_groups[block][0]->LIDs[set].extent(1),
+                    m_groups[block][0]->LIDs[set].extent(1));
       
       auto offsets = wkset[block]->set_offsets[set];
       auto numDOF = groupData[block]->set_num_dof[set];
@@ -4572,7 +4589,7 @@ void AssemblyManager<Node>::buildBoundaryDatabase(const size_t & block, vector<s
     size_t refgrp = first_boundary_users[e].first;
     size_t refelem = first_boundary_users[e].second;
     
-    DRV database_bnodes("nodes for the database", 1, groups[block][0]->nodes.extent(1), dimension);
+    DRV database_bnodes("nodes for the database", 1, m_groups[block][0]->nodes.extent(1), dimension);
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_borientation("database orientations", 1);
     
     auto database_bnodes_host = create_mirror_view(database_bnodes);
@@ -4625,17 +4642,17 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
   int dimension = groupData[block]->dimension;
   size_type numip = groupData[block]->ref_ip.extent(0);
   
-  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+  for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
     
     // Get the Jacobian for this group
-    DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
-    disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+    DRV jacobian("jacobian", m_groups[block][grp]->numElem, numip, dimension, dimension);
+    disc->getJacobian(groupData[block], m_groups[block][grp]->nodes, jacobian);
     
     // Get the measures for this group
-    DRV measure("measure", groups[block][grp]->numElem);
+    DRV measure("measure", m_groups[block][grp]->numElem);
     disc->getMeasure(groupData[block], jacobian, measure);
     
-    DRV fro("fro norm of J", groups[block][grp]->numElem);
+    DRV fro("fro norm of J", m_groups[block][grp]->numElem);
     disc->getFrobenius(groupData[block], jacobian, fro);
     vector<ScalarT> currmeas;
     for (size_type e=0; e<measure.extent(0); ++e) {
@@ -4668,15 +4685,15 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
     std::ofstream respOUT(outfile.c_str());
     respOUT.precision(16);
     
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
       // Get the Jacobian for this group
-      DRV jac("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
-      disc->getJacobian(groupData[block], groups[block][grp]->nodes, jac);
+      DRV jac("jacobian", m_groups[block][grp]->numElem, numip, dimension, dimension);
+      disc->getJacobian(groupData[block], m_groups[block][grp]->nodes, jac);
       
-      DRV wts("jacobian", groups[block][grp]->numElem, numip);
-      disc->getPhysicalWts(groupData[block], groups[block][grp]->nodes, jac, wts);
+      DRV wts("jacobian", m_groups[block][grp]->numElem, numip);
+      disc->getPhysicalWts(groupData[block], m_groups[block][grp]->nodes, jac, wts);
       
-      for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+      for (size_t e=0; e<m_groups[block][grp]->numElem; ++e) {
         /*
         ScalarT j00 = 0.0, j01 = 0.0, j02 = 0.0;
         ScalarT j10 = 0.0, j11 = 0.0, j12 = 0.0;
@@ -5515,31 +5532,31 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
   //auto wset = wkset[block];
   wset->reset();
   
-  wset->numElem = groups[block][grp]->numElem;
+  wset->numElem = m_groups[block][grp]->numElem;
   this->updateGroupData(wset, block, grp);
   
-  wset->wts = groups[block][grp]->wts;
-  wset->h = groups[block][grp]->hsize;
+  wset->wts = m_groups[block][grp]->wts;
+  wset->h = m_groups[block][grp]->hsize;
 
-  wset->setScalarField(groups[block][grp]->ip[0],"x");
-  if (groups[block][grp]->ip.size() > 1) {
-    wset->setScalarField(groups[block][grp]->ip[1],"y");
+  wset->setScalarField(m_groups[block][grp]->ip[0],"x");
+  if (m_groups[block][grp]->ip.size() > 1) {
+    wset->setScalarField(m_groups[block][grp]->ip[1],"y");
   }
-  if (groups[block][grp]->ip.size() > 2) {
-    wset->setScalarField(groups[block][grp]->ip[2],"z");
+  if (m_groups[block][grp]->ip.size() > 2) {
+    wset->setScalarField(m_groups[block][grp]->ip[2],"z");
   }
 
   // Update the integration info and basis in workset
-  if (groups[block][grp]->storeAll || groups[block][grp]->group_data->use_basis_database) {
-    wset->basis = groups[block][grp]->basis;
-    wset->basis_grad = groups[block][grp]->basis_grad;
-    wset->basis_div = groups[block][grp]->basis_div;
-    wset->basis_curl = groups[block][grp]->basis_curl;
+  if (m_groups[block][grp]->storeAll || m_groups[block][grp]->group_data->use_basis_database) {
+    wset->basis = m_groups[block][grp]->basis;
+    wset->basis_grad = m_groups[block][grp]->basis_grad;
+    wset->basis_div = m_groups[block][grp]->basis_div;
+    wset->basis_curl = m_groups[block][grp]->basis_curl;
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalVolumetricBasis(groups[block][grp]->group_data, groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalVolumetricBasis(m_groups[block][grp]->group_data, m_groups[block][grp]->nodes, m_groups[block][grp]->orientation,
                                     tbasis, tbasis_grad, tbasis_curl,
                                     tbasis_div, tbasis_nodes);
 
@@ -5558,19 +5575,19 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
   }
   
   // Map the gathered solution to seeded version in workset
-  if (groups[block][grp]->group_data->requires_transient && !override_transient) {
-    for (size_t set=0; set<groups[block][grp]->group_data->num_sets; ++set) {
-      wset->computeSolnTransientSeeded(set, groups[block][grp]->sol[set], groups[block][grp]->sol_prev[set], 
-                                               groups[block][grp]->sol_stage[set], seedwhat, seedindex);
+  if (m_groups[block][grp]->group_data->requires_transient && !override_transient) {
+    for (size_t set=0; set<m_groups[block][grp]->group_data->num_sets; ++set) {
+      wset->computeSolnTransientSeeded(set, m_groups[block][grp]->sol[set], m_groups[block][grp]->sol_prev[set], 
+                                               m_groups[block][grp]->sol_stage[set], seedwhat, seedindex);
     }
   }
   else { // steady-state
-    for (size_t set=0; set<groups[block][grp]->group_data->num_sets; ++set) {
-      wset->computeSolnSteadySeeded(set, groups[block][grp]->sol[set], seedwhat);
+    for (size_t set=0; set<m_groups[block][grp]->group_data->num_sets; ++set) {
+      wset->computeSolnSteadySeeded(set, m_groups[block][grp]->sol[set], seedwhat);
     }
   }
   if (wset->numParams > 0) {
-    wset->computeParamSteadySeeded(groups[block][grp]->param, seedwhat);
+    wset->computeParamSteadySeeded(m_groups[block][grp]->param, seedwhat);
   }
   
 }
@@ -5599,14 +5616,14 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
     avgwts(elem) = avgwt;
   });
   
-  for (size_t set=0; set<groups[block][grp]->sol_avg.size(); ++set) {
+  for (size_t set=0; set<m_groups[block][grp]->sol_avg.size(); ++set) {
     
     // HGRAD vars
     vector<int> vars_HGRAD = wkset[block]->vars_HGRAD[set];
     vector<string> varlist_HGRAD = wkset[block]->varlist_HGRAD[set];
     for (size_t i=0; i<vars_HGRAD.size(); ++i) {
       auto sol = wkset[block]->getSolutionField(varlist_HGRAD[i]);
-      auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HGRAD[i],0);
+      auto savg = subview(m_groups[block][grp]->sol_avg[set],ALL(),vars_HGRAD[i],0);
       parallel_for("Group sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
                    KOKKOS_LAMBDA (const size_type elem ) {
@@ -5623,7 +5640,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
     vector<string> varlist_HVOL = wkset[block]->varlist_HVOL[set];
     for (size_t i=0; i<vars_HVOL.size(); ++i) {
       auto sol = wkset[block]->getSolutionField(varlist_HVOL[i]);
-      auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HVOL[i],0);
+      auto savg = subview(m_groups[block][grp]->sol_avg[set],ALL(),vars_HVOL[i],0);
       parallel_for("Group sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
                    KOKKOS_LAMBDA (const size_type elem ) {
@@ -5637,10 +5654,10 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
     
     // Compute the postfix options for vector vars
     vector<string> postfix = {"[x]"};
-    if (groups[block][grp]->sol_avg[set].extent(2) > 1) { // 2D or 3D
+    if (m_groups[block][grp]->sol_avg[set].extent(2) > 1) { // 2D or 3D
       postfix.push_back("[y]");
     }
-    if (groups[block][grp]->sol_avg[set].extent(2) > 2) { // 3D
+    if (m_groups[block][grp]->sol_avg[set].extent(2) > 2) { // 3D
       postfix.push_back("[z]");
     }
     
@@ -5650,7 +5667,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
     for (size_t i=0; i<vars_HDIV.size(); ++i) {
       for (size_t j=0; j<postfix.size(); ++j) {
         auto sol = wkset[block]->getSolutionField(varlist_HDIV[i]+postfix[j]);
-        auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HDIV[i],j);
+        auto savg = subview(m_groups[block][grp]->sol_avg[set],ALL(),vars_HDIV[i],j);
         parallel_for("Group sol avg",
                      RangePolicy<AssemblyExec>(0,savg.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
@@ -5669,7 +5686,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
     for (size_t i=0; i<vars_HCURL.size(); ++i) {
       for (size_t j=0; j<postfix.size(); ++j) {
         auto sol = wkset[block]->getSolutionField(varlist_HCURL[i]+postfix[j]);
-        auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HCURL[i],j);
+        auto savg = subview(m_groups[block][grp]->sol_avg[set],ALL(),vars_HCURL[i],j);
         parallel_for("Group sol avg",
                      RangePolicy<AssemblyExec>(0,savg.extent(0)),
                      KOKKOS_LAMBDA (const size_type elem ) {
@@ -5723,15 +5740,15 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
   wkset[block]->isVar(var,index);
   
   CompressedView<View_Sc4> cbasis;
-  auto cwts = groups[block][grp]->wts;
+  auto cwts = m_groups[block][grp]->wts;
 
-  if (groups[block][grp]->storeAll || groups[block][grp]->group_data->use_basis_database) {
-    cbasis = groups[block][grp]->basis[wkset[block]->usebasis[index]];
+  if (m_groups[block][grp]->storeAll || m_groups[block][grp]->group_data->use_basis_database) {
+    cbasis = m_groups[block][grp]->basis[wkset[block]->usebasis[index]];
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalVolumetricBasis(groupData[block], m_groups[block][grp]->nodes, m_groups[block][grp]->orientation,
                                      tbasis, tbasis_grad, tbasis_curl,
                                      tbasis_div, tbasis_nodes);
     cbasis = CompressedView<View_Sc4>(tbasis[wkset[block]->usebasis[index]]);
@@ -5751,7 +5768,7 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
   });
   
   size_t set = wkset[block]->current_set;
-  auto scsol = subview(groups[block][grp]->sol[set],ALL(),index,ALL());
+  auto scsol = subview(m_groups[block][grp]->sol[set],ALL(),index,ALL());
   parallel_for("wkset[block] soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -5782,15 +5799,15 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
   wkset[block]->isParameter(var,index);
   
   CompressedView<View_Sc4> cbasis;
-  auto cwts = groups[block][grp]->wts;
+  auto cwts = m_groups[block][grp]->wts;
 
-  if (groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
-    cbasis = groups[block][grp]->basis[wkset[block]->paramusebasis[index]];
+  if (m_groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
+    cbasis = m_groups[block][grp]->basis[wkset[block]->paramusebasis[index]];
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalVolumetricBasis(groupData[block], m_groups[block][grp]->nodes, m_groups[block][grp]->orientation,
                                      tbasis, tbasis_grad, tbasis_curl,
                                      tbasis_div, tbasis_nodes);
     cbasis = CompressedView<View_Sc4>(tbasis[wkset[block]->paramusebasis[index]]);
@@ -5809,7 +5826,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
     avgwts(elem) = avgwt;
   });
   
-  auto csol = subview(groups[block][grp]->param,ALL(),index,ALL());
+  auto csol = subview(m_groups[block][grp]->param,ALL(),index,ALL());
   parallel_for("wkset[block] soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -5889,29 +5906,29 @@ void AssemblyManager<Node>::updateWorksetFace(Teuchos::RCP<Workset<EvalT> > & ws
   
   //Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
-  wset->wts_side = groups[block][grp]->wts_face[facenum];
-  wset->h = groups[block][grp]->hsize;
+  wset->wts_side = m_groups[block][grp]->wts_face[facenum];
+  wset->h = m_groups[block][grp]->hsize;
 
-  wset->setScalarField(groups[block][grp]->ip_face[facenum][0],"x");
-  wset->setScalarField(groups[block][grp]->normals_face[facenum][0],"n[x]");
-  if (groups[block][grp]->ip_face[facenum].size() > 1) {
-    wset->setScalarField(groups[block][grp]->ip_face[facenum][1],"y");
-    wset->setScalarField(groups[block][grp]->normals_face[facenum][1],"n[y]");
+  wset->setScalarField(m_groups[block][grp]->ip_face[facenum][0],"x");
+  wset->setScalarField(m_groups[block][grp]->normals_face[facenum][0],"n[x]");
+  if (m_groups[block][grp]->ip_face[facenum].size() > 1) {
+    wset->setScalarField(m_groups[block][grp]->ip_face[facenum][1],"y");
+    wset->setScalarField(m_groups[block][grp]->normals_face[facenum][1],"n[y]");
   }
-  if (groups[block][grp]->ip_face[facenum].size() > 2) {
-    wset->setScalarField(groups[block][grp]->ip_face[facenum][2],"z");
-    wset->setScalarField(groups[block][grp]->normals_face[facenum][2],"n[z]");
+  if (m_groups[block][grp]->ip_face[facenum].size() > 2) {
+    wset->setScalarField(m_groups[block][grp]->ip_face[facenum][2],"z");
+    wset->setScalarField(m_groups[block][grp]->normals_face[facenum][2],"n[z]");
   }
     
   // Update the face integration points and basis in workset
-  if (groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
-    wset->basis_side = groups[block][grp]->basis_face[facenum];
-    wset->basis_grad_side = groups[block][grp]->basis_grad_face[facenum];
+  if (m_groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
+    wset->basis_side = m_groups[block][grp]->basis_face[facenum];
+    wset->basis_grad_side = m_groups[block][grp]->basis_grad_face[facenum];
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad;
   
-    disc->getPhysicalFaceBasis(groupData[block], facenum, groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalFaceBasis(groupData[block], facenum, m_groups[block][grp]->nodes, m_groups[block][grp]->orientation,
                                tbasis, tbasis_grad);
     vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad;
     for (size_t i=0; i<tbasis.size(); ++i) {
@@ -5979,12 +5996,12 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
     //Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (groupData[block]->multiscale) {
       this->updateWorkset<AD>(block, grp, seedwhat, seedindex);
-      groups[block][grp]->subgridModels[groups[block][grp]->subgrid_model_index]->subgridSolver(groups[block][grp]->sol[0], groups[block][grp]->sol_prev[0], 
-                                            groups[block][grp]->phi[0], wkset_AD[block]->time, isTransient, isAdjoint,
+      m_groups[block][grp]->subgridModels[m_groups[block][grp]->subgrid_model_index]->subgridSolver(m_groups[block][grp]->sol[0], m_groups[block][grp]->sol_prev[0], 
+                                            m_groups[block][grp]->phi[0], wkset_AD[block]->time, isTransient, isAdjoint,
                                             compute_jacobian, compute_sens, num_active_params,
                                             compute_disc_sens, compute_aux_sens,
-                                            *wkset_AD[block], groups[block][grp]->subgrid_usernum, 0,
-                                            groups[block][grp]->subgradient, store_adjPrev);
+                                            *wkset_AD[block], m_groups[block][grp]->subgrid_usernum, 0,
+                                            m_groups[block][grp]->subgradient, store_adjPrev);
       fixJacDiag = true;
     }
     else {
@@ -6113,7 +6130,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
   auto numDOF = groupData[block]->num_dof;
   
   size_t set = wkset_AD[block]->current_set;
-  auto cphi = groups[block][grp]->phi[set];
+  auto cphi = m_groups[block][grp]->phi[set];
   
   if (compute_jacobian) {
     parallel_for("Group adjust adjoint jac",
@@ -6132,7 +6149,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
     
     if (isTransient) {
       
-      auto aprev = groups[block][grp]->adj_prev[set];
+      auto aprev = m_groups[block][grp]->adj_prev[set];
       
       // Previous step contributions for the residual
       parallel_for("Group adjust transient adjoint jac",
@@ -6180,7 +6197,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
         
         // Sum new contributions into vectors
         int seedwhat = 2; // 2 for J wrt previous step solutions
-        for (size_type step=0; step<groups[block][grp]->sol_prev[set].extent(3); step++) {
+        for (size_type step=0; step<m_groups[block][grp]->sol_prev[set].extent(3); step++) {
           this->updateWorkset<AD>(block, grp, seedwhat,step);
           physics->volumeResidual<AD>(set, groupData[block]->my_block);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
@@ -6386,7 +6403,7 @@ void AssemblyManager<Node>::updateAuxJac(const int & block, const size_t & grp,
 #ifndef MrHyDE_NO_AD
   auto res_AD = wkset_AD[block]->res;
   auto offsets = wkset_AD[block]->offsets;
-  auto aoffsets = groups[block][grp]->auxoffsets;
+  auto aoffsets = m_groups[block][grp]->auxoffsets;
   auto numDOF = groupData[block]->num_dof;
   auto numAuxDOF = groupData[block]->num_aux_dof;
   
@@ -6416,20 +6433,20 @@ View_Sc2 AssemblyManager<Node>::getInitial(const int & block, const size_t & grp
                                            const bool & project, const bool & isAdjoint) {
   
   size_t set = wkset[block]->current_set;
-  View_Sc2 initialvals("initial values",groups[block][grp]->numElem, groups[block][grp]->LIDs[set].extent(1));
+  View_Sc2 initialvals("initial values",m_groups[block][grp]->numElem, m_groups[block][grp]->LIDs[set].extent(1));
   this->updateWorkset<ScalarT>(block, grp, 0,0);
   
   auto offsets = wkset[block]->offsets;
   auto numDOF = groupData[block]->num_dof;
-  auto cwts = groups[block][grp]->wts;
+  auto cwts = m_groups[block][grp]->wts;
   
   if (project) { // works for any basis
-    auto initialip = groupData[block]->physics->getInitial(groups[block][grp]->ip, set,
+    auto initialip = groupData[block]->physics->getInitial(m_groups[block][grp]->ip, set,
                                                         groupData[block]->my_block,
                                                         project, wkset[block]);
 
     for (size_type n=0; n<numDOF.extent(0); n++) {
-      auto cbasis = groups[block][grp]->basis[wkset[block]->usebasis[n]];
+      auto cbasis = m_groups[block][grp]->basis[wkset[block]->usebasis[n]];
       auto off = subview(offsets, n, ALL());
       string btype = wkset[block]->basis_types[wkset[block]->usebasis[n]];
       if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
@@ -6466,19 +6483,19 @@ View_Sc2 AssemblyManager<Node>::getInitial(const int & block, const size_t & grp
   else { // only works if using HGRAD linear basis
     vector<View_Sc2> vnodes;
     View_Sc2 vx,vy,vz;
-    vx = View_Sc2("view of nodes", groups[block][grp]->nodes.extent(0), groups[block][grp]->nodes.extent(1));
-    auto n_x = subview(groups[block][grp]->nodes,ALL(),ALL(),0);
+    vx = View_Sc2("view of nodes", m_groups[block][grp]->nodes.extent(0), m_groups[block][grp]->nodes.extent(1));
+    auto n_x = subview(m_groups[block][grp]->nodes,ALL(),ALL(),0);
     deep_copy(vx,n_x);
     vnodes.push_back(vx);
-    if (groups[block][grp]->nodes.extent(2) > 1) {
-      vy = View_Sc2("view of nodes", groups[block][grp]->nodes.extent(0), groups[block][grp]->nodes.extent(1));
-      auto n_y = subview(groups[block][grp]->nodes,ALL(),ALL(),1);
+    if (m_groups[block][grp]->nodes.extent(2) > 1) {
+      vy = View_Sc2("view of nodes", m_groups[block][grp]->nodes.extent(0), m_groups[block][grp]->nodes.extent(1));
+      auto n_y = subview(m_groups[block][grp]->nodes,ALL(),ALL(),1);
       deep_copy(vy,n_y);
       vnodes.push_back(vy);
     }
-    if (groups[block][grp]->nodes.extent(2) > 2) {
-      vz = View_Sc2("view of nodes", groups[block][grp]->nodes.extent(0), groups[block][grp]->nodes.extent(1));
-      auto n_z = subview(groups[block][grp]->nodes, ALL(), ALL(), 2);
+    if (m_groups[block][grp]->nodes.extent(2) > 2) {
+      vz = View_Sc2("view of nodes", m_groups[block][grp]->nodes.extent(0), m_groups[block][grp]->nodes.extent(1));
+      auto n_z = subview(m_groups[block][grp]->nodes, ALL(), ALL(), 2);
       deep_copy(vz,n_z);
       vnodes.push_back(vz);
     }
@@ -6511,7 +6528,7 @@ template<class Node>
 View_Sc2 AssemblyManager<Node>::getInitialFace(const int & block, const size_t & grp, const bool & project) {
   
   size_t set = wkset[block]->current_set;
-  View_Sc2 initialvals("initial values",groups[block][grp]->numElem, groups[block][grp]->LIDs[set].extent(1)); // TODO is this too big?
+  View_Sc2 initialvals("initial values",m_groups[block][grp]->numElem, m_groups[block][grp]->LIDs[set].extent(1)); // TODO is this too big?
   this->updateWorkset<ScalarT>(block, grp, 0, 0); // TODO not sure if this is necessary
 
   auto offsets = wkset[block]->offsets;
@@ -6524,7 +6541,7 @@ View_Sc2 AssemblyManager<Node>::getInitialFace(const int & block, const size_t &
     this->updateWorksetFace<ScalarT>(block, grp, face);
     auto cwts = wkset[block]->wts_side; // face weights get put into wts_side after update
     // get data from IC
-    auto initialip = groupData[block]->physics->getInitialFace(groups[block][grp]->ip_face[face], set,
+    auto initialip = groupData[block]->physics->getInitialFace(m_groups[block][grp]->ip_face[face], set,
                                                            groupData[block]->my_block,
                                                            project,
                                                            wkset[block]);
@@ -6557,22 +6574,22 @@ template<class Node>
 CompressedView<View_Sc3> AssemblyManager<Node>::getMass(const int & block, const size_t & grp) {
   
   size_t set = wkset[block]->current_set;
-  View_Sc3 mass_view("local mass", groups[block][grp]->numElem, 
-                     groups[block][grp]->LIDs[set].extent(1), 
-                     groups[block][grp]->LIDs[set].extent(1));
+  View_Sc3 mass_view("local mass", m_groups[block][grp]->numElem, 
+                     m_groups[block][grp]->LIDs[set].extent(1), 
+                     m_groups[block][grp]->LIDs[set].extent(1));
   CompressedView<View_Sc3> mass(mass_view);
   auto offsets = wkset[block]->offsets;
   auto numDOF = groupData[block]->num_dof;
-  auto cwts = groups[block][grp]->wts;
+  auto cwts = m_groups[block][grp]->wts;
   
   vector<CompressedView<View_Sc4>> tbasis;
-  if (groups[block][grp]->storeAll) {
-    tbasis = groups[block][grp]->basis;
+  if (m_groups[block][grp]->storeAll) {
+    tbasis = m_groups[block][grp]->basis;
   }
   else { // goes through this more than once, but really shouldn't be used much anyways
     vector<View_Sc4> tmpbasis,tmpbasis_grad, tmpbasis_curl, tmpbasis_nodes;
     vector<View_Sc3> tmpbasis_div;
-    disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalVolumetricBasis(groupData[block], m_groups[block][grp]->nodes, m_groups[block][grp]->orientation,
                                     tmpbasis, tmpbasis_grad, tmpbasis_curl,
                                     tmpbasis_div, tmpbasis_nodes);
     for (size_t i=0; i<tmpbasis.size(); ++i) {
@@ -6626,26 +6643,26 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getWeightedMass(const int & bloc
   size_t set = wkset[block]->current_set;
   auto numDOF = groupData[block]->num_dof;
   
-  View_Sc3 mass_view("local mass", groups[block][grp]->numElem, 
-                     groups[block][grp]->LIDs[set].extent(1), 
-                     groups[block][grp]->LIDs[set].extent(1));
+  View_Sc3 mass_view("local mass", m_groups[block][grp]->numElem, 
+                     m_groups[block][grp]->LIDs[set].extent(1), 
+                     m_groups[block][grp]->LIDs[set].extent(1));
   CompressedView<View_Sc3> mass;
 
   if (groupData[block]->use_mass_database) {
-    mass = CompressedView<View_Sc3>(groupData[block]->database_mass[set], groups[block][grp]->basis_index);
+    mass = CompressedView<View_Sc3>(groupData[block]->database_mass[set], m_groups[block][grp]->basis_index);
   }
   else {
-    auto cwts = groups[block][grp]->wts;
+    auto cwts = m_groups[block][grp]->wts;
     auto offsets = wkset[block]->offsets;
     vector<CompressedView<View_Sc4>> tbasis;
     mass = CompressedView<View_Sc3>(mass_view);
 
-    if (groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
-      tbasis = groups[block][grp]->basis;
+    if (m_groups[block][grp]->storeAll || groupData[block]->use_basis_database) {
+      tbasis = m_groups[block][grp]->basis;
     }
     else {
       vector<View_Sc4> tmpbasis;
-      disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes, groups[block][grp]->orientation,
+      disc->getPhysicalVolumetricBasis(groupData[block], m_groups[block][grp]->nodes, m_groups[block][grp]->orientation,
                                        tmpbasis);
       for (size_t i=0; i<tmpbasis.size(); ++i) {
         tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
@@ -6691,9 +6708,9 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getWeightedMass(const int & bloc
   
   }
   
-  if (groups[block][grp]->storeMass) {
+  if (m_groups[block][grp]->storeMass) {
     // This assumes they are computed in order
-    groups[block][grp]->local_mass.push_back(mass);
+    m_groups[block][grp]->local_mass.push_back(mass);
   }
 
   return mass;
@@ -6708,9 +6725,9 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getMassFace(const int & block, c
   
   size_t set = wkset[block]->current_set;
   
-  View_Sc3 mass_view("local mass", groups[block][grp]->numElem, 
-                     groups[block][grp]->LIDs[set].extent(1), 
-                     groups[block][grp]->LIDs[set].extent(1));
+  View_Sc3 mass_view("local mass", m_groups[block][grp]->numElem, 
+                     m_groups[block][grp]->LIDs[set].extent(1), 
+                     m_groups[block][grp]->LIDs[set].extent(1));
   CompressedView<View_Sc3> mass(mass_view);
 
   auto offsets = wkset[block]->offsets;
@@ -6761,10 +6778,10 @@ Kokkos::View<ScalarT***,AssemblyDevice> AssemblyManager<Node>::getSolutionAtNode
   size_t set = wkset[block]->current_set;
   
   int bnum = wkset[block]->usebasis[var];
-  auto cbasis = groups[block][grp]->basis_nodes[bnum];
+  auto cbasis = m_groups[block][grp]->basis_nodes[bnum];
   Kokkos::View<ScalarT***,AssemblyDevice> nodesol("solution at nodes",
                                                   cbasis.extent(0), cbasis.extent(2), groupData[block]->dimension);
-  auto uvals = subview(groups[block][grp]->sol[set], ALL(), var, ALL());
+  auto uvals = subview(m_groups[block][grp]->sol[set], ALL(), var, ALL());
   parallel_for("Group node sol",
                RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -6793,14 +6810,14 @@ void AssemblyManager<Node>::updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset
   // hard coded for what I need it for right now
   if (groupData[block]->have_phi) {
     wset->have_rotation_phi = true;
-    wset->rotation_phi = groups[block][grp]->data;
+    wset->rotation_phi = m_groups[block][grp]->data;
     wset->allocateRotations();
   }
   else if (groupData[block]->have_rotation) {
     wset->have_rotation = true;
     wset->allocateRotations();
     auto rot = wset->rotation;
-    auto data = groups[block][grp]->data;
+    auto data = m_groups[block][grp]->data;
 
     parallel_for("Group update data",
                  RangePolicy<AssemblyExec>(0,data.extent(0)),
@@ -6821,7 +6838,7 @@ void AssemblyManager<Node>::updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset
 
   }
   else if (groupData[block]->have_extra_data) {
-    wset->extra_data = groups[block][grp]->data;
+    wset->extra_data = m_groups[block][grp]->data;
   }
   
 }
@@ -6833,7 +6850,7 @@ vector<vector<int> > AssemblyManager<Node>::identifySubgridModels() {
 
 #ifndef MrHyDE_NO_AD
 
-  for (size_t block=0; block<groups.size(); ++block) {
+  for (size_t block=0; block<m_groups.size(); ++block) {
     
     vector<int> block_sgmodels;
     bool uses_subgrid = false;
@@ -6844,7 +6861,7 @@ vector<vector<int> > AssemblyManager<Node>::identifySubgridModels() {
     }
     
     if (uses_subgrid) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      for (size_t grp=0; grp<m_groups[block].size(); ++grp) {
         
         this->updateWorkset<AD>(block, grp, 0, 0);
         
@@ -6870,7 +6887,7 @@ vector<vector<int> > AssemblyManager<Node>::identifySubgridModels() {
             
             auto host_usagecheck = Kokkos::create_mirror_view(usagecheck_tmp);
             Kokkos::deep_copy(host_usagecheck, usagecheck_tmp);
-            for (size_t p=0; p<groups[block][grp]->numElem; p++) {
+            for (size_t p=0; p<m_groups[block][grp]->numElem; p++) {
               for (size_t j=0; j<host_usagecheck.extent(1); j++) {
                 if (host_usagecheck(p,j) >= 1.0) {
                   sgvotes[s] += 1;

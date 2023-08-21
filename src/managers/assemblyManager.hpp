@@ -728,7 +728,7 @@ namespace MrHyDE {
     
     // Groups and worksets are unique to each block, but span the physics sets
     std::vector<Teuchos::RCP<GroupMetaData> > groupData;
-    std::vector<std::vector<Teuchos::RCP<Group> > > groups;
+    std::vector<std::vector<Teuchos::RCP<Group> > > m_groups;
     std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;
     
     std::vector<Teuchos::RCP<Workset<ScalarT> > > wkset;

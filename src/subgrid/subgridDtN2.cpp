@@ -239,7 +239,7 @@ void SubGridDtN2::setUpSubgridModels() {
   
   //sub_assembler->allocateGroupStorage();
   
-  groups = sub_assembler->groups;
+  groups = sub_assembler->m_groups;
   
   Teuchos::RCP<GroupMetaData> group_data = sub_assembler->groupData[0];
   
@@ -357,7 +357,7 @@ void SubGridDtN2::setUpSubgridModels() {
   }
   
   // Update the assembly manager with the revised boundary groups
-  sub_assembler->groups = groups;
+  sub_assembler->m_groups = groups;
   sub_assembler->boundary_groups = boundary_groups;
     
   for (size_t grp=1; grp<groups.size(); ++ grp) {
@@ -1754,9 +1754,9 @@ void SubGridDtN2::advance() {
       prev_soln[macrogrp]->assign(*(curr_soln[macrogrp]));
       sub_solver->performGather(macrogrp, curr_soln[macrogrp], 0, 0);
     
-      for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
-        sub_assembler->groups[macrogrp][grp]->resetPrevSoln(0);
-        sub_assembler->groups[macrogrp][grp]->resetStageSoln(0);
+      for (size_t grp=0; grp<sub_assembler->m_groups[macrogrp].size(); ++grp) {
+        sub_assembler->m_groups[macrogrp][grp]->resetPrevSoln(0);
+        sub_assembler->m_groups[macrogrp][grp]->resetStageSoln(0);
       }
       for (size_t grp=0; grp<sub_assembler->boundary_groups[macrogrp].size(); ++grp) {
         sub_assembler->boundary_groups[macrogrp][grp]->resetPrevSoln(0);
@@ -1817,9 +1817,9 @@ void SubGridDtN2::setPreviousTime(ScalarT & time) {
 
 void SubGridDtN2::updateActive(vector<bool> & new_active){
   active = new_active;
-  for (size_t macrogrp=0; macrogrp<sub_assembler->groups.size(); ++macrogrp) {
-    for (size_t grp=0; grp<sub_assembler->groups[macrogrp].size(); ++grp) {
-      sub_assembler->groups[macrogrp][grp]->active = active[macrogrp];
+  for (size_t macrogrp=0; macrogrp<sub_assembler->m_groups.size(); ++macrogrp) {
+    for (size_t grp=0; grp<sub_assembler->m_groups[macrogrp].size(); ++grp) {
+      sub_assembler->m_groups[macrogrp][grp]->active = active[macrogrp];
     }
   }
 }

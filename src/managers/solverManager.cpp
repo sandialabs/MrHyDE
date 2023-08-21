@@ -15,7 +15,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_SOLVER_MANAGER 1
+#define EEP_DEBUG_SOLVER_MANAGER 0
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -357,14 +357,14 @@ void SolverManager<Node>::setupExplicitMass() {
       typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
       
       vector<size_t> maxEntriesPerRow(linalg->overlapped_map[set]->getLocalNumElements(), 0);
-      for (size_t block=0; block<assembler->groups.size(); ++block) {
+      for (size_t block=0; block<assembler->m_groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
         auto offsets_host = create_mirror_view(offsets);
         deep_copy(offsets_host,offsets);
 
         auto numDOF_host = assembler->groupData[block]->num_dof_host;
-        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          auto LIDs_host = assembler->groups[block][grp]->LIDs_host[set];
+        for (size_t grp=0; grp<assembler->m_groups[block].size(); ++grp) {
+          auto LIDs_host = assembler->m_groups[block][grp]->LIDs_host[set];
           
           for (size_type elem=0; elem<LIDs_host.extent(0); ++elem) {
             for (size_type n=0; n<numDOF_host.extent(0); ++n) {
@@ -389,11 +389,11 @@ void SolverManager<Node>::setupExplicitMass() {
       Teuchos::RCP<LA_CrsGraph> overlapped_graph = Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map[set],
                                                                                 maxEntriesPerRow));
       
-      for (size_t block=0; block<assembler->groups.size(); ++block) {
+      for (size_t block=0; block<assembler->m_groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
         auto numDOF = assembler->groupData[block]->num_dof;
-        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          auto LIDs = assembler->groups[block][grp]->LIDs_host[set];
+        for (size_t grp=0; grp<assembler->m_groups[block].size(); ++grp) {
+          auto LIDs = assembler->m_groups[block][grp]->LIDs_host[set];
           
           parallel_for("assembly insert Jac",
                        RangePolicy<HostExec>(0,LIDs.extent(0)),
@@ -484,7 +484,7 @@ void SolverManager<Node>::setupExplicitMass() {
 template<class Node>
 void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, const int & set) {
 
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
+  for (size_t block=0; block<assembler->m_groups.size(); ++block) {
 
     // TODO the RK scheme cannot be specified block by block
 
@@ -740,7 +740,7 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
 
   // TODO rearrange this? and setButcher...
 
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
+  for (size_t block=0; block<assembler->m_groups.size(); ++block) {
 
     // TODO currently, the BDF wts cannot be specified block by block
 
@@ -956,11 +956,11 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
       for (size_t set=0; set<useBasis.size(); ++set) {
         block_useBasis.push_back(useBasis[set][block]);
       }
-      for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-        //assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
-        assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
-        assembler->groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
-        assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
+      for (size_t grp=0; grp<assembler->m_groups[block].size(); ++grp) {
+        //assembler->m_groups[block][grp]->setWorkset(assembler->wkset[block]);
+        assembler->m_groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
+        assembler->m_groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
+        assembler->m_groups[block][grp]->setUpSubGradient(params->num_active_params);
       }
       
       wkset[block]->params = paramvals;
@@ -2336,8 +2336,8 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             if (samedevice) {
               auto offsets = assembler->wkset[block]->offsets;
               auto numDOF = assembler->groupData[block]->num_dof;
-              for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
-                auto LIDs = assembler->groups[block][cell]->LIDs[set];
+              for (size_t cell=0; cell<assembler->m_groups[block].size(); cell++) {
+                auto LIDs = assembler->m_groups[block][cell]->LIDs[set];
                 parallel_for("solver initial scalar",
                              RangePolicy<LA_exec>(0,LIDs.extent(0)),
                              KOKKOS_LAMBDA (const int e ) {
@@ -2354,8 +2354,8 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
               auto host_offsets = Kokkos::create_mirror_view(offsets);
               Kokkos::deep_copy(host_offsets,offsets);
               auto numDOF = assembler->groupData[block]->num_dof_host;
-              for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
-                auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
+              for (size_t cell=0; cell<assembler->m_groups[block].size(); cell++) {
+                auto LIDs = assembler->m_groups[block][cell]->LIDs_host[set];
                 parallel_for("solver initial scalar",
                              RangePolicy<LA_exec>(0,LIDs.extent(0)),
                              KOKKOS_LAMBDA (const int e ) {
