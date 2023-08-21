@@ -577,14 +577,14 @@ void AnalysisManager::run() {
     Teuchos::RCP< ROL::Objective_MILO<RealT> > obj;
     
     // Turn off visualization while optimizing
-    bool postproc_plot = postproc->write_solution;
-    postproc->write_solution = false;
+    bool postproc_plot = postproc_->write_solution;
+    postproc_->write_solution = false;
     
     // Generate data and get objective
-    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solve, postproc, params));
+    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solver_, postproc_, params_));
 
     std::cout << "analysis option: " << analysis_type << std::endl;     
-    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj,postproc);
+    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj,postproc_);
     HDSA::Ptr<HDSA::Model_Discrepancy_Update<RealT> > md_update = HDSA::makePtr<HDSA::Model_Discrepancy_Update<RealT> >(md_interface);
   
   RealT alpha = 1.e-3;
