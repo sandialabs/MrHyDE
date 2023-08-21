@@ -91,12 +91,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   if (!isTransient) {
     deltat = 1.0;
   }
-  // TODO should this also be an option?
-  fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
   
-  if (fully_explicit && Comm->getRank() == 0) {
-    cout << "WARNING: the fully explicit method is requested.  This is an experimental capability and may not work with all time integration methods" << endl;
-  }
+  // Explicit integration mode - may disable some features
+  fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
   
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   

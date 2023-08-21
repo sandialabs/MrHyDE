@@ -42,18 +42,6 @@ namespace MrHyDE {
     typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
     typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
     
-    #ifndef MrHyDE_NO_AD
-      typedef Kokkos::View<AD*,ContLayout,AssemblyDevice> View_AD1;
-      typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_AD2;
-      typedef Kokkos::View<AD***,ContLayout,AssemblyDevice> View_AD3;
-      typedef Kokkos::View<AD****,ContLayout,AssemblyDevice> View_AD4;
-    #else
-      typedef View_Sc1 View_AD1;
-      typedef View_Sc2 View_AD2;
-      typedef View_Sc3 View_AD3;
-      typedef View_Sc4 View_AD4;
-    #endif
-    
   public:
     
     // ========================================================================================
@@ -140,8 +128,21 @@ namespace MrHyDE {
     void computeObjectiveGradParam(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                                    DFAD & objectiveval);
 
+    template<class EvalT>
+    DFAD computeObjectiveGradParam(const size_t & obj, vector<vector_RCP> & current_soln,
+                                                         const ScalarT & current_time,
+                                                         Teuchos::RCP<Workset<EvalT> > & wset,
+                                                         Teuchos::RCP<FunctionManager<EvalT> > & fman);
+
+
     void computeObjectiveGradState(const size_t & set, vector_RCP & current_soln, const ScalarT & current_time,
                                    const ScalarT & deltat, vector_RCP & grad);
+
+    template<class EvalT>
+    void computeObjectiveGradState(const size_t & set, const size_t & obj, vector_RCP & current_soln,
+                                   const ScalarT & current_time, const ScalarT & deltat, vector_RCP & grad,
+                                   Teuchos::RCP<Workset<EvalT> > & wset,
+                                   Teuchos::RCP<FunctionManager<EvalT> > & fman);
 
     void computeWeightedNorm(vector<vector_RCP> & current_soln);
     

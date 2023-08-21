@@ -773,188 +773,106 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
       }
     }
     Kokkos::deep_copy(pvals, host_pvals);
-    
-    if (seed_active) {
-      size_t pprog = 0;
-      for (size_t i=0; i<paramvals.size(); i++) {
-        vector<ScalarT> currparams_Sc;
+  
+    this->sacadoizeParamsSc(seed_active, ptypes, plengths, pseed, pvals, paramvals_Sc, paramvals_KV);
 #ifndef MrHyDE_NO_AD
-        vector<AD> currparams_AD;
-        vector<AD2> currparams_AD2;
-        vector<AD4> currparams_AD4;
-        vector<AD8> currparams_AD8;
-        vector<AD16> currparams_AD16;
-        vector<AD18> currparams_AD18;
-        vector<AD24> currparams_AD24;
-        vector<AD32> currparams_AD32;
-#endif
-        if (paramtypes[i] == 1) { // active parameters
-          for (size_t j=0; j<paramvals[i].size(); j++) {
-#ifndef MrHyDE_NO_AD
-            currparams_AD.push_back(AD(MAXDERIVS,pprog,paramvals[i][j]));
-            currparams_AD2.push_back(AD2(2,pprog,paramvals[i][j]));
-            currparams_AD4.push_back(AD4(4,pprog,paramvals[i][j]));
-            currparams_AD8.push_back(AD8(8,pprog,paramvals[i][j]));
-            currparams_AD16.push_back(AD16(16,pprog,paramvals[i][j]));
-            currparams_AD18.push_back(AD18(18,pprog,paramvals[i][j]));
-            currparams_AD24.push_back(AD24(24,pprog,paramvals[i][j]));
-            currparams_AD32.push_back(AD32(32,pprog,paramvals[i][j]));
-//#else
-//            currparams_AD.push_back(paramvals[i][j]);
-//            currparams_AD2.push_back(paramvals[i][j]);
-//            currparams_AD4.push_back(paramvals[i][j]);
-//            currparams_AD8.push_back(paramvals[i][j]);
-//            currparams_AD16.push_back(paramvals[i][j]);
-//            currparams_AD18.push_back(paramvals[i][j]);
-//            currparams_AD24.push_back(paramvals[i][j]);
-//            currparams_AD32.push_back(paramvals[i][j]);
-#endif
-            currparams_Sc.push_back(paramvals[i][j]);
-            pprog++;
-          }
-        }
-        else { // inactive, stochastic, or discrete parameters
-          for (size_t j=0; j<paramvals[i].size(); j++) {
-            //host_params(i,j) = AD(paramvals[i][j]);            
-            currparams_Sc.push_back(paramvals[i][j]);
-#ifndef MrHyDE_NO_AD
-            currparams_AD.push_back(AD(paramvals[i][j]));
-            currparams_AD2.push_back(AD2(paramvals[i][j]));
-            currparams_AD4.push_back(AD4(paramvals[i][j]));
-            currparams_AD8.push_back(AD8(paramvals[i][j]));
-            currparams_AD16.push_back(AD16(paramvals[i][j]));
-            currparams_AD18.push_back(AD18(paramvals[i][j]));
-            currparams_AD24.push_back(AD24(paramvals[i][j]));
-            currparams_AD32.push_back(AD32(paramvals[i][j]));
-#endif
-          }
-        }
-        *(paramvals_Sc[i]) = currparams_Sc;
-#ifndef MrHyDE_NO_AD
-        *(paramvals_AD[i]) = currparams_AD;
-        *(paramvals_AD2[i]) = currparams_AD2;
-        *(paramvals_AD4[i]) = currparams_AD4;
-        *(paramvals_AD8[i]) = currparams_AD8;
-        *(paramvals_AD16[i]) = currparams_AD16;
-        *(paramvals_AD18[i]) = currparams_AD18;
-        *(paramvals_AD24[i]) = currparams_AD24;
-        *(paramvals_AD32[i]) = currparams_AD32;
-#endif
-      }
-      parallel_for("parameter manager sacadoize - seed active",
-                   RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-                   KOKKOS_LAMBDA (const size_type i ) {
-        if (ptypes(i) == 1) { // active params
-          for (size_t j=0; j<plengths(i); j++) {
-#ifndef MrHyDE_NO_AD
-            paramvals_KVAD(i,j) = AD(MAXDERIVS, pseed(i,j), pvals(i,j));
-            paramvals_KVAD2(i,j) = AD2(2, pseed(i,j), pvals(i,j));
-            paramvals_KVAD4(i,j) = AD4(4, pseed(i,j), pvals(i,j));
-            paramvals_KVAD8(i,j) = AD8(8, pseed(i,j), pvals(i,j));
-            paramvals_KVAD16(i,j) = AD16(16, pseed(i,j), pvals(i,j));
-            paramvals_KVAD18(i,j) = AD18(18, pseed(i,j), pvals(i,j));
-            paramvals_KVAD24(i,j) = AD24(24, pseed(i,j), pvals(i,j));
-            paramvals_KVAD32(i,j) = AD32(32, pseed(i,j), pvals(i,j));
-//#else
-//            paramvals_KVAD(i,j) = pvals(i,j);
-//            paramvals_KVAD2(i,j) = pvals(i,j);
-//            paramvals_KVAD4(i,j) = pvals(i,j);
-//            paramvals_KVAD8(i,j) = pvals(i,j);
-//            paramvals_KVAD16(i,j) = pvals(i,j);
-//            paramvals_KVAD18(i,j) = pvals(i,j);
-//            paramvals_KVAD24(i,j) = pvals(i,j);
-//            paramvals_KVAD32(i,j) = pvals(i,j);
-#endif
-            paramvals_KV(i,j) = pvals(i,j);
-          }
-        }
-        else {
-          for (size_t j=0; j<plengths(i); j++) {
-#ifndef MrHyDE_NO_AD
-            paramvals_KVAD(i,j) = AD(pvals(i,j));
-            paramvals_KVAD2(i,j) = AD2(pvals(i,j));
-            paramvals_KVAD4(i,j) = AD4(pvals(i,j));
-            paramvals_KVAD8(i,j) = AD8(pvals(i,j));
-            paramvals_KVAD16(i,j) = AD16(pvals(i,j));
-            paramvals_KVAD18(i,j) = AD18(pvals(i,j));
-            paramvals_KVAD24(i,j) = AD24(pvals(i,j));
-            paramvals_KVAD32(i,j) = AD32(pvals(i,j));
-#endif
-            paramvals_KV(i,j) = pvals(i,j);
-          }
-        }
-      });
-    }
-    else {
-      for (size_t i=0; i<paramvals.size(); i++) {
-        vector<ScalarT> currparams_Sc;
-#ifndef MrHyDE_NO_AD
-        vector<AD> currparams_AD;
-        vector<AD2> currparams_AD2;
-        vector<AD4> currparams_AD4;
-        vector<AD8> currparams_AD8;
-        vector<AD16> currparams_AD16;
-        vector<AD18> currparams_AD18;
-        vector<AD24> currparams_AD24;
-        vector<AD32> currparams_AD32;
-#endif
-        for (size_t j=0; j<paramvals[i].size(); j++) {
-          currparams_Sc.push_back(paramvals[i][j]);
-#ifndef MrHyDE_NO_AD
-          currparams_AD.push_back(AD(paramvals[i][j]));
-          currparams_AD2.push_back(AD2(paramvals[i][j]));
-          currparams_AD4.push_back(AD4(paramvals[i][j]));
-          currparams_AD8.push_back(AD8(paramvals[i][j]));
-          currparams_AD16.push_back(AD16(paramvals[i][j]));
-          currparams_AD18.push_back(AD18(paramvals[i][j]));
-          currparams_AD24.push_back(AD24(paramvals[i][j]));
-          currparams_AD32.push_back(AD32(paramvals[i][j]));
-#endif
-        }
-        *(paramvals_Sc[i]) = currparams_Sc;
-#ifndef MrHyDE_NO_AD
-        *(paramvals_AD[i]) = currparams_AD;
-        *(paramvals_AD2[i]) = currparams_AD2;
-        *(paramvals_AD4[i]) = currparams_AD4;
-        *(paramvals_AD8[i]) = currparams_AD8;
-        *(paramvals_AD16[i]) = currparams_AD16;
-        *(paramvals_AD18[i]) = currparams_AD18;
-        *(paramvals_AD24[i]) = currparams_AD24;
-        *(paramvals_AD32[i]) = currparams_AD32;
-#endif
-      }
-      parallel_for("parameter manager sacadoize - no seeding",
-                   RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-                   KOKKOS_LAMBDA (const size_type i ) {
-        for (size_t j=0; j<plengths(i); j++) {
-          paramvals_KV(i,j) = pvals(i,j);
-#ifndef MrHyDE_NO_AD
-          paramvals_KVAD(i,j) = AD(pvals(i,j));
-          paramvals_KVAD2(i,j) = AD2(pvals(i,j));
-          paramvals_KVAD4(i,j) = AD4(pvals(i,j));
-          paramvals_KVAD8(i,j) = AD8(pvals(i,j));
-          paramvals_KVAD16(i,j) = AD16(pvals(i,j));
-          paramvals_KVAD18(i,j) = AD18(pvals(i,j));
-          paramvals_KVAD24(i,j) = AD24(pvals(i,j));
-          paramvals_KVAD32(i,j) = AD32(pvals(i,j));
-#endif
-        }
-      });
-    }
-    AssemblyExec::execution_space().fence();
-    phys->updateParameters(paramvals_Sc, paramnames);
-#ifndef MrHyDE_NO_AD
-    phys->updateParameters(paramvals_AD, paramnames);
-    phys->updateParameters(paramvals_AD2, paramnames);
-    phys->updateParameters(paramvals_AD4, paramnames);
-    phys->updateParameters(paramvals_AD8, paramnames);
-    phys->updateParameters(paramvals_AD16, paramnames);
-    phys->updateParameters(paramvals_AD18, paramnames); // AquiEEP_merge
-    phys->updateParameters(paramvals_AD24, paramnames);
-    phys->updateParameters(paramvals_AD32, paramnames);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD, paramvals_KVAD);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD2, paramvals_KVAD2);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD4, paramvals_KVAD4);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD8, paramvals_KVAD8);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD16, paramvals_KVAD16);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD18, paramvals_KVAD18);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD24, paramvals_KVAD24);
+    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD32, paramvals_KVAD32);
 #endif
   }
-  
+}
+
+template<class Node>
+void ParameterManager<Node>::sacadoizeParamsSc(const bool & seed_active,
+                                             Kokkos::View<int*,AssemblyDevice> ptypes,
+                                             Kokkos::View<size_t*,AssemblyDevice> plengths,
+                                             Kokkos::View<size_t**,AssemblyDevice> pseed,
+                                             Kokkos::View<ScalarT**,AssemblyDevice> pvals,
+                                             vector<Teuchos::RCP<vector<ScalarT> > > & v_pvals,
+                                             Kokkos::View<ScalarT**,AssemblyDevice> kv_pvals) {
+  for (size_t i=0; i<paramvals.size(); i++) {
+    vector<ScalarT> currparams;
+    for (size_t j=0; j<paramvals[i].size(); j++) {
+      currparams.push_back(paramvals[i][j]);
+    }
+    *(v_pvals[i]) = currparams;
+  }
+  parallel_for("parameter manager sacadoize - no seeding",
+               RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+               KOKKOS_LAMBDA (const size_type i ) {
+    for (size_t j=0; j<plengths(i); j++) {
+      kv_pvals(i,j) = pvals(i,j);
+    }
+  });
+  phys->updateParameters(v_pvals, paramnames);
+}
+
+template<class Node>
+template<class EvalT>
+void ParameterManager<Node>::sacadoizeParams(const bool & seed_active,
+                                             Kokkos::View<int*,AssemblyDevice> ptypes,
+                                             Kokkos::View<size_t*,AssemblyDevice> plengths,
+                                             Kokkos::View<size_t**,AssemblyDevice> pseed,
+                                             Kokkos::View<ScalarT**,AssemblyDevice> pvals,
+                                             vector<Teuchos::RCP<vector<EvalT> > > & v_pvals,
+                                             Kokkos::View<EvalT**,AssemblyDevice> kv_pvals) {
+  if (seed_active) {
+    size_t pprog = 0;
+    for (size_t i=0; i<pvals.extent(0); i++) {
+      vector<EvalT> currparams;
+      if (paramtypes[i] == 1) { // active parameters
+        for (size_t j=0; j<paramvals[i].size(); j++) {
+          EvalT dummyval = 0.0;
+          currparams.push_back(EvalT(dummyval.size(),pprog,paramvals[i][j]));
+          pprog++;
+        }
+        }
+      else { // inactive, stochastic, or discrete parameters
+        for (size_t j=0; j<paramvals[i].size(); j++) {
+          currparams.push_back(EvalT(paramvals[i][j]));
+        }
+      }
+      *(v_pvals[i]) = currparams;
+    }
+    parallel_for("parameter manager sacadoize - seed active",
+                 RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+                 KOKKOS_LAMBDA (const size_type i ) {
+      if (ptypes(i) == 1) { // active params
+        for (size_t j=0; j<plengths(i); j++) {
+          EvalT dummyval = 0.0;
+          kv_pvals(i,j) = EvalT(dummyval.size(), pseed(i,j), pvals(i,j));
+        }
+      }
+      else {
+        for (size_t j=0; j<plengths(i); j++) {
+          kv_pvals(i,j) = EvalT(pvals(i,j));
+        }
+      }
+    });
+  }
+  else {
+    for (size_t i=0; i<paramvals.size(); i++) {
+      vector<EvalT> currparams;
+      for (size_t j=0; j<paramvals[i].size(); j++) {
+        currparams.push_back(EvalT(paramvals[i][j]));
+      }
+      *(v_pvals[i]) = currparams;
+    }
+    parallel_for("parameter manager sacadoize - no seeding",
+                 RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+                 KOKKOS_LAMBDA (const size_type i ) {
+      for (size_t j=0; j<plengths(i); j++) {
+        kv_pvals(i,j) = EvalT(pvals(i,j));
+      }
+    });
+  }
+  phys->updateParameters(v_pvals, paramnames);
 }
 
 // ========================================================================================

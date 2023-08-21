@@ -88,6 +88,23 @@ namespace MrHyDE {
     
     void sacadoizeParams(const bool & seed_active);
     
+    void sacadoizeParamsSc(const bool & seed_active,
+                         Kokkos::View<int*,AssemblyDevice> ptypes,
+                         Kokkos::View<size_t*,AssemblyDevice> plengths,
+                         Kokkos::View<size_t**,AssemblyDevice> pseed,
+                         Kokkos::View<ScalarT**,AssemblyDevice> pvals,
+                         vector<Teuchos::RCP<vector<ScalarT> > > & v_pvals,
+                         Kokkos::View<ScalarT**,AssemblyDevice> kv_pvals);
+
+    template<class EvalT>
+    void sacadoizeParams(const bool & seed_active,
+                         Kokkos::View<int*,AssemblyDevice> ptypes,
+                         Kokkos::View<size_t*,AssemblyDevice> plengths,
+                         Kokkos::View<size_t**,AssemblyDevice> pseed,
+                         Kokkos::View<ScalarT**,AssemblyDevice> pvals,
+                         vector<Teuchos::RCP<vector<EvalT> > > & v_pvals,
+                         Kokkos::View<EvalT**,AssemblyDevice> kv_pvals);
+
     // ========================================================================================
     // ========================================================================================
     

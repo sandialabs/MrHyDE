@@ -308,8 +308,7 @@ namespace MrHyDE {
     
     template<class VecViewType, class LIDViewType>
     void scatterRes(const size_t & set, VecViewType res_view,
-                 LIDViewType LIDs, 
-                 const int & block);
+                    LIDViewType LIDs, const int & block);
     
     // Computes y = M*x
     void applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y);
@@ -359,11 +358,7 @@ namespace MrHyDE {
                           const bool & compute_sens, const ScalarT & fluxwt,
                           bool & useTransientSol) {
 #ifndef MrHyDE_NO_AD
-      //#ifndef MrHyDE_NO_AD
-        typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
-      //#else
-      //  typedef View_Sc2 View_AD2;
-      //#endif
+      typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
       int wkblock = 0;
 
       wkset_AD[wkblock]->setTime(time);
@@ -542,6 +537,10 @@ namespace MrHyDE {
 
     void computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat);
 
+    template<class EvalT>
+    void computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat,
+                            Teuchos::RCP<Workset<EvalT> > & wset);
+
     // Backwards compatible function call
     // Calls fully templated version with AD
     void updateDataBoundary(const int & block, const size_t & grp);
@@ -576,12 +575,30 @@ namespace MrHyDE {
     void updateResBoundary(const int & block, const size_t & grp,
                            const bool & compute_sens, View_Sc3 local_res);
 
+    template<class EvalT>
+    void updateResBoundary(const int & block, const size_t & grp,
+                           const bool & compute_sens, View_Sc3 local_res,
+                           Teuchos::RCP<Workset<EvalT> > & wset);
+
     void updateJacBoundary(const int & block, const size_t & grp, 
                            const bool & useadjoint, View_Sc3 local_J);           
 
+    template<class EvalT>
+    void updateJacBoundary(const int & block, const size_t & grp, 
+                           const bool & useadjoint, View_Sc3 local_J,
+                           Teuchos::RCP<Workset<EvalT> > & wset);           
+
     void updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J);
 
+    template<class EvalT>
+    void updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J,
+                                Teuchos::RCP<Workset<EvalT> > & wset);
+
     void updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J);
+
+    template<class EvalT>
+    void updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J,
+                              Teuchos::RCP<Workset<EvalT> > & wset);
 
     View_Sc2 getDirichletBoundary(const int & block, const size_t & grp, const size_t & set);
 
@@ -649,14 +666,32 @@ namespace MrHyDE {
     void updateRes(const int & block, const size_t & grp,
                    const bool & compute_sens, View_Sc3 local_res);
 
+    template<class EvalT>
+    void updateRes(const int & block, const size_t & grp,
+                   const bool & compute_sens, View_Sc3 local_res,
+                   Teuchos::RCP<Workset<EvalT> > & wset);
+
     void updateAdjointRes(const int & block, const size_t & grp,
                             const bool & compute_jacobian, const bool & isTransient,
                             const bool & compute_aux_sens, const bool & store_adjPrev,
                             Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                             Kokkos::View<ScalarT***,AssemblyDevice> local_res);
 
+    template<class EvalT>
+    void updateAdjointRes(const int & block, const size_t & grp,
+                            const bool & compute_jacobian, const bool & isTransient,
+                            const bool & compute_aux_sens, const bool & store_adjPrev,
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                            Teuchos::RCP<Workset<EvalT> > & wset);
+
     void updateJac(const int & block, const size_t & grp,
                    const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+
+    template<class EvalT>
+    void updateJac(const int & block, const size_t & grp,
+                   const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                   Teuchos::RCP<Workset<EvalT> > & wset);
 
     void fixDiagJac(const int & block, const size_t & grp, 
                       Kokkos::View<ScalarT***,AssemblyDevice> local_J,
@@ -665,8 +700,18 @@ namespace MrHyDE {
     void updateParamJac(const int & block, const size_t & grp,
                         Kokkos::View<ScalarT***,AssemblyDevice> local_J);
 
+    template<class EvalT>
+    void updateParamJac(const int & block, const size_t & grp,
+                        Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                        Teuchos::RCP<Workset<EvalT> > & wset);
+
     void updateAuxJac(const int & block, const size_t & grp,
                       Kokkos::View<ScalarT***,AssemblyDevice> local_J);
+
+    template<class EvalT>
+    void updateAuxJac(const int & block, const size_t & grp,
+                      Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                      Teuchos::RCP<Workset<EvalT> > & wset);
 
     View_Sc2 getInitial(const int & block, const size_t & grp,
                         const bool & project, const bool & isAdjoint);

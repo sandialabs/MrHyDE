@@ -875,158 +875,163 @@ void AssemblyManager<Node>::createWorkset() {
       }
 
       // ScalarT workset, always active unless no elements on proc
-      wkset.push_back(Teuchos::rcp( new Workset<ScalarT>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+      wkset.push_back(Teuchos::rcp( new Workset<ScalarT>(info, numVars, isTransient,
+                                                         disc->basis_types[block],
+                                                         disc->basis_pointers[block],
+                                                         params->discretized_param_basis,
+                                                         groupData[block]->cell_topo)));
       wkset[block]->block = block;
       wkset[block]->blockname = blocknames[block];
       wkset[block]->set_var_bcs = bcs;
       wkset[block]->var_bcs = bcs[0];
-#ifndef MrHyDE_NO_AD
-      // AD workset, always active unless no elements on proc
-      wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
-      wkset_AD[block]->block = block;
-      wkset_AD[block]->blockname = blocknames[block];
-      wkset_AD[block]->set_var_bcs = bcs;
-      wkset_AD[block]->var_bcs = bcs[0];
 
+#ifndef MrHyDE_NO_AD
+      bool fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
+      string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
+      bool requires_AD = true;
+      if (fully_explicit && analysis_type == "forward") {
+        requires_AD = false;
+      }
+      
+      bool found = false;
       
       int ndr = num_derivs_required[block];
-      if (ndr>0 && ndr <= 2 ) {
+  
+      if (requires_AD && !found && ndr>0 && ndr <= 2 ) {
         // AD2 workset
-        wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(info, numVars, isTransient,
+                                                           disc->basis_types[block],
+                                                           disc->basis_pointers[block],
+                                                           params->discretized_param_basis,
+                                                           groupData[block]->cell_topo)));
         wkset_AD2[block]->block = block;
         wkset_AD2[block]->blockname = blocknames[block];
         wkset_AD2[block]->set_var_bcs = bcs;
         wkset_AD2[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(block, physics->set_names.size())));  
       }
 
-      if (ndr>2 && ndr <= 4 ) {
+      if (requires_AD && !found && ndr>2 && ndr <= 4 ) {
         // AD4 workset
-        wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(info, numVars, isTransient,
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             groupData[block]->cell_topo)));
         wkset_AD4[block]->block = block;
         wkset_AD4[block]->blockname = blocknames[block];
         wkset_AD4[block]->set_var_bcs = bcs;
         wkset_AD4[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(block, physics->set_names.size())));  
       }
 
-      if (ndr>4 && ndr <= 8 ) {
+      if (requires_AD && !found && ndr>4 && ndr <= 8 ) {
         // AD8 workset
-        wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(info, numVars, isTransient,
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             groupData[block]->cell_topo)));
         wkset_AD8[block]->block = block;
         wkset_AD8[block]->blockname = blocknames[block];
         wkset_AD8[block]->set_var_bcs = bcs;
         wkset_AD8[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(block, physics->set_names.size())));  
       }
 
-      if (ndr>8 && ndr <= 16 ) {
+      if (requires_AD && !found && ndr>8 && ndr <= 16 ) {
         // AD16 workset
-        wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(info, numVars, isTransient,
+                                                               disc->basis_types[block],
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD16[block]->block = block;
         wkset_AD16[block]->blockname = blocknames[block];
         wkset_AD16[block]->set_var_bcs = bcs;
         wkset_AD16[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(block, physics->set_names.size())));  
       }
 
-      if (ndr>16 && ndr <= 18 ) {
+      if (requires_AD && !found && ndr>16 && ndr <= 18 ) {
         // AD18 workset
-        wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(info, numVars, isTransient,
+                                                               disc->basis_types[block],
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD18[block]->block = block;
         wkset_AD18[block]->blockname = blocknames[block];
         wkset_AD18[block]->set_var_bcs = bcs;
         wkset_AD18[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(block, physics->set_names.size())));  
       }
 
-      if (ndr>18 && ndr <= 24 ) {
+      if (requires_AD && !found && ndr>18 && ndr <= 24 ) {
         // AD24 workset
-        wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(info, numVars, isTransient,
+                                                               disc->basis_types[block], 
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD24[block]->block = block;
         wkset_AD24[block]->blockname = blocknames[block];
         wkset_AD24[block]->set_var_bcs = bcs;
         wkset_AD24[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(block, physics->set_names.size())));  
       }
 
-      if (ndr>24 && ndr <= 32 ) {
+      if (requires_AD && !found && ndr>24 && ndr <= 32 ) {
         // AD32 workset
-        wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(info,
-                                                numVars,
-                                                isTransient,
-                                                disc->basis_types[block],
-                                                disc->basis_pointers[block],
-                                                params->discretized_param_basis,
-                                                groupData[block]->cell_topo)));
+        wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(info, numVars, isTransient,
+                                                               disc->basis_types[block],
+                                                               disc->basis_pointers[block],
+                                                               params->discretized_param_basis,
+                                                               groupData[block]->cell_topo)));
         wkset_AD32[block]->block = block;
         wkset_AD32[block]->blockname = blocknames[block];
         wkset_AD32[block]->set_var_bcs = bcs;
         wkset_AD32[block]->var_bcs = bcs[0];
+        found = true;
       }
       else {
         wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(block, physics->set_names.size())));  
       }
+
+      if ((requires_AD && !found) || groupData[block]->multiscale || !allow_autotune) {
+        // AD workset
+        wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(info, numVars, isTransient,
+                                                         disc->basis_types[block],
+                                                         disc->basis_pointers[block],
+                                                         params->discretized_param_basis,
+                                                         groupData[block]->cell_topo)));
+        wkset_AD[block]->block = block;
+        wkset_AD[block]->blockname = blocknames[block];
+        wkset_AD[block]->set_var_bcs = bcs;
+        wkset_AD[block]->var_bcs = bcs[0];
+      }
+      else {
+        wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(block, physics->set_names.size())));  
+      }
+     
 #endif
     }
     else {
@@ -2090,11 +2095,10 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
   
   for (size_t block=0; block<m_groups.size(); ++block) {
     
-    if (groupData[block]->multiscale || compute_sens || useadjoint) {
-      allow_autotune = false;
-    }
-
     if (m_groups[block].size() > 0) {
+      if (groupData[block]->multiscale) {
+        allow_autotune = false;
+      }
       if (!allow_autotune) {
         this->assembleJacRes<AD>(set, compute_jacobian,
                              compute_sens, compute_disc_sens, res, J, isTransient,
@@ -3804,14 +3808,13 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
 
 
 //==============================================================
-// Scatter both and use wkset->res
+// Scatter res and use wkset->res
 //==============================================================
 
 template<class Node>
 template<class VecViewType, class LIDViewType>
 void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
-                                    LIDViewType LIDs,
-                                    const int & block) {
+                                       LIDViewType LIDs, const int & block) {
   
   Teuchos::TimeMonitor localtimer(*scatter_timer);
   
@@ -4843,7 +4846,7 @@ template<class Node>
 void AssemblyManager<Node>::updateWorksetBoundary(const int & block, const size_t & grp,
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
-  this->updateWorksetBoundary<ScalarT>(block, grp, seedwhat, seedindex, override_transient);
+  this->updateWorksetBoundary(wkset[block], block, grp, seedwhat, seedindex, override_transient);
 }
 
 
@@ -4851,7 +4854,32 @@ template<class Node>
 void AssemblyManager<Node>::updateWorksetBoundaryAD(const int & block, const size_t & grp,
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
-  this->updateWorksetBoundary<AD>(block, grp, seedwhat, seedindex, override_transient);
+#ifndef MrHyDE_NO_AD
+  if (wkset_AD[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD2[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD4[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD8[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD16[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD18[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD24[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateWorksetBoundary(wkset_AD32[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+#endif
 }
 
 template<class Node>
@@ -4944,8 +4972,43 @@ void AssemblyManager<Node>::updateWorksetBoundary(Teuchos::RCP<Workset<EvalT> > 
   }
 }
 
+
 template<class Node>
 void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat) {
+
+#ifndef MrHyDE_NO_AD
+  if (wkset_AD[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->computeBoundaryAux(block, grp, seedwhat, wkset_AD32[block]);
+  }
+
+#endif
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat,
+                                               Teuchos::RCP<Workset<EvalT> > & wset) {
 
 #ifndef MrHyDE_NO_AD
   auto numAuxDOF = groupData[block]->num_aux_dof;
@@ -4953,8 +5016,8 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
   for (size_type var=0; var<numAuxDOF.extent(0); var++) {
     auto abasis = boundary_groups[block][grp]->auxside_basis[boundary_groups[block][grp]->auxusebasis[var]];
     auto off = subview(boundary_groups[block][grp]->auxoffsets,var,ALL());
-    string varname = wkset_AD[block]->aux_varlist[var];
-    auto local_aux = wkset_AD[block]->getSolutionField("aux "+varname,false);
+    string varname = wset->aux_varlist[var];
+    auto local_aux = wset->getSolutionField("aux "+varname,false);
     Kokkos::deep_copy(local_aux,0.0);
     auto localID = boundary_groups[block][grp]->localElemID;
     auto varaux = subview(boundary_groups[block][grp]->aux, ALL(), var, ALL());
@@ -5083,7 +5146,33 @@ void AssemblyManager<Node>::updateWorksetBasisBoundary(const int & block, const 
 
 template<class Node>
 void AssemblyManager<Node>::updateWorksetBasisBoundaryAD(const int & block, const size_t & grp) {
-  this->updateWorksetBasisBoundary<AD>(block, grp);
+#ifndef MrHyDE_NO_AD
+  if (wkset_AD[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD[block], block, grp);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD2[block], block, grp);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD4[block], block, grp);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD8[block], block, grp);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD16[block], block, grp);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD18[block], block, grp);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD24[block], block, grp);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateWorksetBasisBoundary(wkset_AD32[block], block, grp);
+  }
+
+#endif
 }
 
 template<class Node>
@@ -5172,10 +5261,45 @@ void AssemblyManager<Node>::updateWorksetBasisBoundary(Teuchos::RCP<Workset<Eval
 template<class Node>
 void AssemblyManager<Node>::updateResBoundary(const int & block, const size_t & grp,
                                       const bool & compute_sens, View_Sc3 local_res) {
+
+#ifndef MrHyDE_NO_AD     
+  if (wkset_AD[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD32[block]);
+  }
+#endif
+}
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateResBoundary(const int & block, const size_t & grp,
+                                      const bool & compute_sens, View_Sc3 local_res,
+                                      Teuchos::RCP<Workset<EvalT> > & wset) {
   
 #ifndef MrHyDE_NO_AD
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
   
   if (compute_sens) {
@@ -5215,10 +5339,44 @@ void AssemblyManager<Node>::updateResBoundary(const int & block, const size_t & 
 template<class Node>
 void AssemblyManager<Node>::updateJacBoundary(const int & block, const size_t & grp, 
                                       const bool & useadjoint, View_Sc3 local_J) {
+
+#ifndef MrHyDE_NO_AD     
+  if (wkset_AD[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD32[block]);
+  }
+#endif
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateJacBoundary(const int & block, const size_t & grp, 
+                                      const bool & useadjoint, View_Sc3 local_J,
+                                      Teuchos::RCP<Workset<EvalT> > & wset) {
   
 #ifndef MrHyDE_NO_AD
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
   
   if (useadjoint) {
@@ -5262,12 +5420,45 @@ void AssemblyManager<Node>::updateJacBoundary(const int & block, const size_t & 
 
 template<class Node>
 void AssemblyManager<Node>::updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J) {
+
+#ifndef MrHyDE_NO_AD     
+  if (wkset_AD[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateParamJacBoundary(block, grp, local_J, wkset_AD32[block]);
+  }
+#endif
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J,
+                                                   Teuchos::RCP<Workset<EvalT> > & wset) {
   
 #ifndef MrHyDE_NO_AD
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
-  auto paramoffsets = wkset_AD[block]->paramoffsets;
+  auto paramoffsets = wset->paramoffsets;
   auto numParamDOF = groupData[block]->num_param_dof;
   
   parallel_for("bgroup update param jac",
@@ -5293,9 +5484,42 @@ void AssemblyManager<Node>::updateParamJacBoundary(const int & block, const size
 
 template<class Node>
 void AssemblyManager<Node>::updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J) {
+
+#ifndef MrHyDE_NO_AD     
+  if (wkset_AD[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateAuxJacBoundary(block, grp, local_J, wkset_AD32[block]);
+  }
+#endif
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J,
+                                                 Teuchos::RCP<Workset<EvalT> > & wset) {
 #ifndef MrHyDE_NO_AD
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
   auto aoffsets = boundary_groups[block][grp]->auxoffsets;
   auto numAuxDOF = groupData[block]->num_aux_dof;
@@ -5477,7 +5701,32 @@ template<class Node>
 void AssemblyManager<Node>::updateWorksetAD(const int & block, const size_t & grp,
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
-  this->updateWorkset<AD>(block, grp, seedwhat, seedindex, override_transient);
+#ifndef MrHyDE_NO_AD     
+  if (wkset_AD[block]->isInitialized) {
+    this->updateWorkset(wkset_AD[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateWorkset(wkset_AD2[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateWorkset(wkset_AD4[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateWorkset(wkset_AD8[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateWorkset(wkset_AD16[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateWorkset(wkset_AD18[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateWorkset(wkset_AD24[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateWorkset(wkset_AD32[block], block, grp, seedwhat, seedindex, override_transient);
+  }
+#endif
 }
 
 template<class Node>
@@ -6072,9 +6321,43 @@ template<class Node>
 void AssemblyManager<Node>::updateRes(const int & block, const size_t & grp,
                                       const bool & compute_sens, View_Sc3 local_res) {
 
+#ifndef MrHyDE_NO_AD
+  if (wkset_AD[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateRes(block, grp, compute_sens, local_res, wkset_AD32[block]);
+  }
+#endif
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateRes(const int & block, const size_t & grp,
+                                      const bool & compute_sens, View_Sc3 local_res,
+                                      Teuchos::RCP<Workset<EvalT> > & wset) {
+
 #ifndef MrHyDE_NO_AD  
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
   
   if (compute_sens) {
@@ -6117,6 +6400,51 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
                             const bool & compute_aux_sens, const bool & store_adjPrev,
                             Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                             Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+
+#ifndef MrHyDE_NO_AD
+  if (wkset_AD[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD[block]);
+  }
+  if (wkset_AD2[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD2[block]);
+  }
+  if (wkset_AD4[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD4[block]);
+  }
+  if (wkset_AD8[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD8[block]);
+  }
+  if (wkset_AD16[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD16[block]);
+  }
+  if (wkset_AD18[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD18[block]);
+  }
+  if (wkset_AD24[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD24[block]);
+  }
+  if (wkset_AD32[block]->isInitialized) {
+    this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
+                           store_adjPrev, local_J, local_res, wkset_AD32[block]);
+  }
+#endif
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & grp,
+                            const bool & compute_jacobian, const bool & isTransient,
+                            const bool & compute_aux_sens, const bool & store_adjPrev,
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                            Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                            Teuchos::RCP<Workset<EvalT> > & wset) {
   
 #ifndef MrHyDE_NO_AD
 
@@ -6126,10 +6454,10 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
   // adj_prev stores 1/dt*M^T * phi_prev where M is evaluated at appropriate time
   
   // TMW: This will not work on a GPU
-  auto offsets = wkset_AD[block]->offsets;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
   
-  size_t set = wkset_AD[block]->current_set;
+  size_t set = wset->current_set;
   auto cphi = m_groups[block][grp]->phi[set];
   
   if (compute_jacobian) {
@@ -6198,8 +6526,8 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
         // Sum new contributions into vectors
         int seedwhat = 2; // 2 for J wrt previous step solutions
         for (size_type step=0; step<m_groups[block][grp]->sol_prev[set].extent(3); step++) {
-          this->updateWorkset<AD>(block, grp, seedwhat,step);
-          physics->volumeResidual<AD>(set, groupData[block]->my_block);
+          this->updateWorkset<EvalT>(block, grp, seedwhat,step);
+          physics->volumeResidual<EvalT>(set, groupData[block]->my_block);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
                                                        local_J.extent(0), local_J.extent(1), local_J.extent(2));
           this->updateJac(block, grp, true, Jdot);
@@ -6282,10 +6610,46 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
 template<class Node>
 void AssemblyManager<Node>::updateJac(const int & block, const size_t & grp,
                                       const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+
+#ifndef MrHyDE_NO_AD
+  if (wkset_AD[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD[block]);
+  }
+  if (wkset_AD2[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD2[block]);
+  }
+  if (wkset_AD4[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD4[block]);
+  }
+  if (wkset_AD8[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD8[block]);
+  }
+  if (wkset_AD16[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD16[block]);
+  }
+  if (wkset_AD18[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD18[block]);
+  }
+  if (wkset_AD24[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD24[block]);
+  }
+  if (wkset_AD32[block]->isInitialized) {
+    this->updateJac(block, grp, useadjoint, local_J, wkset_AD32[block]);
+  }
+  
+#endif
+}
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateJac(const int & block, const size_t & grp,
+                                      const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                      Teuchos::RCP<Workset<EvalT> > & wset) {
   
 #ifndef MrHyDE_NO_AD
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
   
   if (useadjoint) {
@@ -6365,14 +6729,49 @@ void AssemblyManager<Node>::fixDiagJac(const int & block, const size_t & grp,
 // Use the AD res to update the scalarT Jparam
 ///////////////////////////////////////////////////////////////////////////////////////
 
+
 template<class Node>
 void AssemblyManager<Node>::updateParamJac(const int & block, const size_t & grp,
                                            Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 #ifndef MrHyDE_NO_AD
-  auto paramoffsets = wkset_AD[block]->paramoffsets;
+  if (wkset_AD[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateParamJac(block, grp, local_J, wkset_AD32[block]);
+  }
+  #endif
+}
+
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateParamJac(const int & block, const size_t & grp,
+                                           Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                           Teuchos::RCP<Workset<EvalT> > & wset) {
+#ifndef MrHyDE_NO_AD
+  auto paramoffsets = wset->paramoffsets;
   auto numParamDOF = groupData[block]->num_param_dof;
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto numDOF = groupData[block]->num_dof;
   
   parallel_for("Group param J",
@@ -6399,10 +6798,45 @@ void AssemblyManager<Node>::updateParamJac(const int & block, const size_t & grp
 template<class Node>
 void AssemblyManager<Node>::updateAuxJac(const int & block, const size_t & grp,
                                            Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
+
+#ifndef MrHyDE_NO_AD
+  if (wkset_AD[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD[block]);
+  }
+  else if (wkset_AD2[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD2[block]);
+  }
+  else if (wkset_AD4[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD4[block]);
+  }
+  else if (wkset_AD8[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD8[block]);
+  }
+  else if (wkset_AD16[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD16[block]);
+  }
+  else if (wkset_AD18[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD18[block]);
+  }
+  else if (wkset_AD24[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD24[block]);
+  }
+  else if (wkset_AD32[block]->isInitialized) {
+    this->updateAuxJac(block, grp, local_J, wkset_AD32[block]);
+  }
+#endif
+
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateAuxJac(const int & block, const size_t & grp,
+                                           Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                           Teuchos::RCP<Workset<EvalT> > & wset) {
   
 #ifndef MrHyDE_NO_AD
-  auto res_AD = wkset_AD[block]->res;
-  auto offsets = wkset_AD[block]->offsets;
+  auto res_AD = wset->res;
+  auto offsets = wset->offsets;
   auto aoffsets = m_groups[block][grp]->auxoffsets;
   auto numDOF = groupData[block]->num_dof;
   auto numAuxDOF = groupData[block]->num_aux_dof;
