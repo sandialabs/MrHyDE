@@ -19,7 +19,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_ASSEMBLY_MANAGER 0
+#define EEP_DEBUG_ASSEMBLY_MANAGER 1
 
 // ========================================================================================
 /* Constructor to set up the problem */

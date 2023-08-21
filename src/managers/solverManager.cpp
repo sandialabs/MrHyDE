@@ -15,7 +15,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_SOLVER_MANAGER 0
+#define EEP_DEBUG_SOLVER_MANAGER 1
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -1126,7 +1126,7 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::forwardModel(DFAD & objective) {
+void SolverManager<Node>::forwardModel(DFAD & objective) { // AquiTim01
   Comm->barrier();
 #if 0
   if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
@@ -1317,6 +1317,16 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
                                           ScalarT & start_time, ScalarT & end_time) {
   
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
+
+  Comm->barrier();
+  if (true) { // EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "EEP Entering SolverManager<Node>::transientSolver()"
+              << ": initial.size() = "       << initial.size()
+              << ", gradient.dimension() = " << gradient.dimension()
+	      << std::endl;
+  }
+  Comm->barrier();
+  sleep(5);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1436,6 +1446,12 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           vector<vector<int> > sgmodels = assembler->identifySubgridModels();
           multiscale_manager->update(sgmodels);
           vector_RCP u_stage = linalg->getNewOverlappedVector(set);
+          if (true) {
+            std::cout << "EEP In SolverManager<Node>::transientSolver()" // AquiEEP_tmp
+	              << ": rank " << Comm->getRank()
+                      << ", u_stage->getGlobalLength() = " << u_stage->getGlobalLength()
+                      << std::endl;
+          }
 
           u_prev[set]->assign(*(u_cur[set]));
           

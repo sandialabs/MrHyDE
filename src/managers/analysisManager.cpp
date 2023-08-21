@@ -480,7 +480,7 @@ void AnalysisManager::run() {
       postproc_->write_solution = true;
       string outfile = "output_after_optimization.exo";
       postproc_->setNewExodusFile(outfile);
-      DFAD objfun = 0.0;
+      DFAD objfun = 0.0; // AquiTim01
       solver_->forwardModel(objfun);
       if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
         vector<bool> newflags(1,false);

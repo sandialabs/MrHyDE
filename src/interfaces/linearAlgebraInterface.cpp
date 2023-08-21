@@ -24,7 +24,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE 0
+#define EEP_DEBUG_LINEAR_ALGEBRA_INTERFACE 1
 
 // ========================================================================================
 // Constructor  

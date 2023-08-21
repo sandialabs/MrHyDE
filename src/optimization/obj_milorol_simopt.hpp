@@ -40,7 +40,7 @@ namespace ROL {
   using namespace MrHyDE;
   
   template<class Real>
-  class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> {
+  class Objective_MILO_SimOpt : public ROL::Objective_SimOpt<Real> { // AquiTim01
     
   private:
     

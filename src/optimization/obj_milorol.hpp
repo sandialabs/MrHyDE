@@ -58,8 +58,11 @@ namespace ROL {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    Real value(const Vector<Real> &Params, Real &tol){
+    Real value(const Vector<Real> &Params, Real &tol){ // AquiTim01
       
+      std::cout << "EEP Entering Objective_MILO::value()" // AquiEEP_tmp
+	        << ": Params.dimension() = " << Params.dimension()
+		<< std::endl;
       MrHyDE_OptVector Paramsp = 
       Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
       
@@ -70,6 +73,10 @@ namespace ROL {
       
       params->stashParams(); //dumping to file, for long runs...
       
+      std::cout << "EEP Leaving Objective_MILO::value()" // AquiEEP_tmp
+	        << ": val.val() = " << val.val()
+		<< std::endl;
+
       return val.val();
     }
     
