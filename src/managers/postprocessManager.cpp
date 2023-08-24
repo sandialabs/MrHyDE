@@ -2717,8 +2717,8 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
             if (compute_objective) {
               
               // Update the value of the objective
-              AD diff = rdata(0,0) - objectives[obj].sensor_data(pt,tindex);
-              AD sdiff = objectives[obj].weight*diff*diff;
+              EvalT diff = rdata(0,0) - objectives[obj].sensor_data(pt,tindex);
+              EvalT sdiff = objectives[obj].weight*diff*diff;
               objval += sdiff.val();
               
               // Update the gradient w.r.t scalar active parameters
@@ -2739,9 +2739,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 parallel_for("grp response get u",
                             RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
                             KOKKOS_LAMBDA (const size_type n ) {
+                  EvalT dummyval = 0.0;
                   for (size_type n=0; n<numParamDOF.extent(0); n++) {
                     for( int i=0; i<numParamDOF(n); i++ ) {
-                      p_dof(n,i) = AD(MAXDERIVS,poff(n,i),cp(n,i));
+                      p_dof(n,i) = EvalT(dummyval.size(),poff(n,i),cp(n,i));
                     }
                   }
                 });
@@ -2827,8 +2828,8 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
               }
             });
             
-            
-            View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),MAXDERIVS+1);
+            EvalT dummyval = 0.0;
+            View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),dummyval.size()+1);
             parallel_for("grp objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
@@ -2887,7 +2888,8 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 }
               });
               
-              View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),MAXDERIVS+1);
+              EvalT dummyval = 0.0;
+              View_Sc3 regvals_sc("scalar version of AD view",wts.extent(0),wts.extent(1),dummyval.size()+1);
               parallel_for("grp objective",
                            RangePolicy<AssemblyExec>(0,wts.extent(0)),
                            KOKKOS_LAMBDA (const size_type elem ) {
@@ -3282,7 +3284,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               std::string btype = wset->basis_types[bnum];
               if (btype == "HCURL" || btype == "HDIV") {
                 // TMW: this does not work yet
-                auto cbasis = assembler->wkset_AD[block]->basis[bnum];
+                auto cbasis = wset->basis[bnum];
                 auto u_sv = subview(u_ip, ALL(), var, ALL(), ALL());
                 auto u_dof_sv = subview(u_dof, ALL(), var, ALL());
                 parallel_for("grp response uip",
