@@ -52,6 +52,7 @@ Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
 assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_) { 
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PostprocessManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
+  hdsa_solop = false;
   
   this->setup(settings);
 }
@@ -1816,10 +1817,33 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   }
   
   int numParams = params->num_active_params + params->globalParamUnknowns;
+  vector<ScalarT> totaldiff;
   
+  if (hdsa_solop) {
+    // Objective function values
+    totaldiff.resize(1);
+    for (size_t set=0; set<current_soln.size(); ++set) {
+      vector_RCP D_soln;
+      bool fnd = hdsa_solop_data[set]->extract(D_soln, 0, current_time);
+      if (fnd) {
+	vector_RCP F_no = linalg->getNewVector(set);
+	vector_RCP D_no = linalg->getNewVector(set);
+	F_no->doExport(*(current_soln[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
+	D_no->doExport(*D_soln, *(linalg->exporter[set]), Tpetra::REPLACE);
+        
+	Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> obj(1);
+	D_no->dot( *F_no, obj );
+	if (Comm->getRank() == 0) {
+	  totaldiff[0] += obj[0];
+	}
+      }
+      else {
+	TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: did not find a data-generating solution");
+      }
+    }
+  } else {
   // Objective function values
-  vector<ScalarT> totaldiff(objectives.size(), 0.0);
-  
+  totaldiff.resize(objectives.size(), 0.0);
   
   for (size_t r=0; r<objectives.size(); ++r) {
     if (objectives[r].type == "integrated control"){
@@ -2190,7 +2214,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
       }
     }
   }
-  
+  } // nonHDSA block
   
   // For now, we scalarize the objective functions by summing them
   ScalarT totalobj = 0.0;

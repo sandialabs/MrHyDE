@@ -574,17 +574,17 @@ void AnalysisManager::run() {
   else if (analysis_type == "HDSA") {
     typedef ScalarT RealT;
 
-    Teuchos::RCP< ROL::Objective_MILO<RealT> > obj;
+    //Teuchos::RCP< HDSA::Objective_Mrhyde<RealT> > obj;  //bvbw needs new obj fcn
     
     // Turn off visualization while optimizing
     bool postproc_plot = postproc_->write_solution;
     postproc_->write_solution = false;
     
     // Generate data and get objective
-    obj = Teuchos::rcp( new ROL::Objective_MILO<RealT> (solver_, postproc_, params_));
+    //obj = Teuchos::rcp( new HDSA::Objective_Mrhyde<RealT> (solver_, postproc_, params_));
 
     std::cout << "analysis option: " << analysis_type << std::endl;     
-    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(obj,postproc_);
+    HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(solver_,postproc_,params_);
     HDSA::Ptr<HDSA::Model_Discrepancy_Update<RealT> > md_update = HDSA::makePtr<HDSA::Model_Discrepancy_Update<RealT> >(md_interface);
   
   RealT alpha = 1.e-3;

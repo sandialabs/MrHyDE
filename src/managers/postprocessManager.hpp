@@ -336,6 +336,9 @@ namespace MrHyDE {
     Teuchos::RCP<fftInterface> fft;
 #endif
 
+    bool hdsa_solop;
+    vector<Teuchos::RCP<SolutionStorage<Node> > > hdsa_solop_data;
+
   private:
 
     // Timers
