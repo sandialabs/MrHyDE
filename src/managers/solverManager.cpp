@@ -1323,7 +1323,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
 	      << std::endl;
   }
   Comm->barrier();
-  sleep(5);
+  sleep(2);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
