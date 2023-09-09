@@ -1316,14 +1316,14 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
 
   Comm->barrier();
-  if (true) { // EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
+  if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) { // (true)
     std::cout << "EEP Entering SolverManager<Node>::transientSolver()"
               << ": initial.size() = "       << initial.size()
               << ", gradient.dimension() = " << gradient.dimension()
-	      << std::endl;
+              << std::endl;
   }
   Comm->barrier();
-  sleep(2);
+  //sleep(2);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1443,9 +1443,9 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           vector<vector<int> > sgmodels = assembler->identifySubgridModels();
           multiscale_manager->update(sgmodels);
           vector_RCP u_stage = linalg->getNewOverlappedVector(set);
-          if (true) {
+          if (EEP_DEBUG_SOLVER_MANAGER) { // (true)
             std::cout << "EEP In SolverManager<Node>::transientSolver()" // AquiEEP_tmp
-	              << ": rank " << Comm->getRank()
+                      << ": rank " << Comm->getRank()
                       << ", u_stage->getGlobalLength() = " << u_stage->getGlobalLength()
                       << std::endl;
           }
@@ -1559,18 +1559,19 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     Comm->barrier();
 
     vector<vector_RCP> u_cur, u_prev, phi_cur, phi_prev;
-    for (size_t set=0; set<1; ++set) { // hard coded for now // Aqui_
+    for (size_t set=0; set<initial.size(); ++set) { // AquiNow
+  //for (size_t set=0; set<1; ++set) { // hard coded for now // Aqui_
       u_cur.push_back(linalg->getNewOverlappedVector(set));
       u_prev.push_back(linalg->getNewOverlappedVector(set));
       phi_cur.push_back(linalg->getNewOverlappedVector(set));
       phi_prev.push_back(linalg->getNewOverlappedVector(set));
     }
     
-    size_t set = 0;
+    size_t firstSet = 0; // AquiNow
     // Just getting the number of times from first physics set should be fine
     // TODO will this be affected by having physics sets with different timesteppers?
     int store_index = 0;
-    size_t numFwdSteps = postproc->soln[set]->getTotalTimes(store_index)-1; 
+    size_t numFwdSteps = postproc->soln[firstSet]->getTotalTimes(store_index)-1; // AquiNow
     
     size_t numTimeSteps(0);
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
@@ -1585,96 +1586,122 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       }
       Comm->barrier();
       size_t cindex = numFwdSteps-timeiter;
-      phi_prev[set] = linalg->getNewOverlappedVector(set);
-      phi_prev[set]->update(1.0,*(phi_cur[set]),0.0);
-      if(Comm->getRank() == 0 && verbosity > 0) {
-        cout << endl << endl << "*******************************************************" << endl;
-        cout << endl << "**** Beginning Adjoint Time Step " << timeiter << endl;
-        cout << "**** Current time is " << current_time << endl << endl;
-        cout << "*******************************************************" << endl << endl << endl;
-      }
-      
-      // TMW: this is specific to implicit Euler
-      // Needs to be generalized
-      // Also, need to implement checkpoint/recovery
-      bool fndu = postproc->soln[set]->extract(u_cur[set], cindex);
-      if (!fndu) {
-        // throw error
-      }
-      bool fndup = postproc->soln[set]->extract(u_prev[set], cindex-1);
-      if (!fndup) {
-        // throw error
-      }
-      params->updateDynamicParams(cindex-1);
-
-      assembler->performGather(set,u_prev[set],0,0);
-      assembler->resetPrevSoln(set);
-      
-      int stime_index = cindex-1;
-      current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
-      
-      // if multistage, recover forward solution at each stage
-      if (numstages[set] == 1) { // No need to re-solve in this case // Aqui_
-        int status = this->nonlinearSolver(set, u_cur[set], phi_cur[set]); // Aqui important
-
-        Comm->barrier();
-        if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-          std::cout << "EEP In SolverManager<Node>::transientSolver()"
-                    << ": in adjoint solve"
-                    << ", numTimeSteps = " << numTimeSteps
-                    << ", status = " << status
-                    << std::endl;
+      for (size_t set=0; set<u_cur.size(); ++set) { // AquiNow
+        phi_prev[set] = linalg->getNewOverlappedVector(set);
+        phi_prev[set]->update(1.0,*(phi_cur[set]),0.0);
+        if(Comm->getRank() == 0 && verbosity > 0) {
+          cout << endl << endl << "*******************************************************" << endl;
+          cout << endl << "**** Beginning Adjoint Time Step " << timeiter << endl;
+          cout << "**** Current time is " << current_time << endl << endl;
+          cout << "*******************************************************" << endl << endl << endl;
         }
-        Comm->barrier();
-
-        if (status>0) {
-          // throw error // Aqui_
+      
+        // TMW: this is specific to implicit Euler
+        // Needs to be generalized
+        // Also, need to implement checkpoint/recovery
+        bool fndu = postproc->soln[set]->extract(u_cur[set], cindex);
+        if (!fndu) {
+          // throw error
         }
-        // Aqui_: no need to do the same stuff done during the forward loop ???
-        postproc->computeSensitivities(u_cur, phi_cur, current_time, cindex, deltat, gradient); // Aqui important
-      }
-      else {
-        /*
-        is_adjoint = false;
-        vector<vector_RCP> stage_solns;
-        for (int stage = 0; stage<numstages; stage++) {
-          // Need a stage solution
-          vector_RCP u_stage = linalg->getNewOverlappedVector();
-          // Set the initial guess for stage solution
-          u_stage->update(1.0,*u_cur,0.0);
-          
-          assembler->updateStageNumber(stage); // could probably just += 1 in wksets
-          
-          int status = this->nonlinearSolver(u_stage, zero_vec);
-          if (status>0) {
-            // throw error
+        bool fndup = postproc->soln[set]->extract(u_prev[set], cindex-1);
+        if (!fndup) {
+          // throw error
+        }
+        params->updateDynamicParams(cindex-1);
+
+        assembler->performGather(set,u_prev[set],0,0);
+        assembler->resetPrevSoln(set);
+      
+        int stime_index = cindex-1;
+        current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
+      
+        // if multistage, recover forward solution at each stage
+        if (numstages[set] == 1) { // No need to re-solve in this case // Aqui_
+	  int zeroStage(0);
+          int status(0); // AquiNow
+          if (fully_explicit) { // AquiNow
+            status += this->explicitSolver(set, u_cur[set], phi_cur[set], zeroStage);
           }
-          stage_solns.push_back(u_stage);
-          assembler->updateStageSoln(); // moves the stage solution into u_stage (avoids mem transfer)
-        }
-        is_adjoint = true;
-        
-        vector<double> stage_grad(gradient.size(),0.0);
-        
-        for (int stage = numstages-1; stage>=0; stage--) {
-          // Need a stage solution
-          vector_RCP phi_stage = linalg->getNewOverlappedVector();
-          // Set the initial guess for stage solution
-          phi_stage->update(1.0,*phi_cur,0.0);
-          
-          assembler->updateStageNumber(stage); // could probably just += 1 in wksets
-          
-          int status = this->nonlinearSolver(stage_solns[stage], phi_stage);
-          if (status>0) {
-            // throw error
+          else {
+            status = this->nonlinearSolver(set, u_cur[set], phi_cur[set]); // Aqui important
           }
-          phi_cur->update(1.0, *phi_stage, 1.0);
-          phi_cur->update(-1.0, *phi_prev, 1.0);
+
+          Comm->barrier();
+          if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
+            std::cout << "EEP In SolverManager<Node>::transientSolver()"
+                      << ": in adjoint solve"
+                      << ", numTimeSteps = " << numTimeSteps
+                      << ", status = " << status
+                      << std::endl;
+          }
+          Comm->barrier();
+
+          if (status > 0) { // AquiNow
+            std::stringstream msg;
+            msg << "In SolverManager::transientSolver()"
+                << ", is_adjoint = "     << is_adjoint
+                << ", timeiter = "       << timeiter
+                << ", set = "            << set
+                << ", fully_explicit = " << fully_explicit
+                << ": status = "         << status
+                << std::endl;
+            throw std::runtime_error(msg.str());
+          }
+          // Aqui_: no need to do the same stuff done during the forward loop ???
+          postproc->computeSensitivities(u_cur, phi_cur, current_time, cindex, deltat, gradient); // Aqui important
         }
-        postproc->computeSensitivities(u_cur, phi_cur, current_time, deltat, gradient);
-        */
-      }
-      
+        else {
+          std::stringstream msg; // AquiNow
+          msg << "In SolverManager::transientSolver()"
+              << ", is_adjoint = "     << is_adjoint
+              << ", timeiter = "       << timeiter
+              << ", set = "            << set
+              << ", fully_explicit = " << fully_explicit
+              << ", numstages[set] = " << numstages[set]
+              << ": incomplete code for the case of numstages[set] != 1"
+              << std::endl;
+          throw std::runtime_error(msg.str());
+          /*
+          is_adjoint = false;
+          vector<vector_RCP> stage_solns;
+          for (int stage = 0; stage<numstages; stage++) {
+            // Need a stage solution
+            vector_RCP u_stage = linalg->getNewOverlappedVector();
+            // Set the initial guess for stage solution
+            u_stage->update(1.0,*u_cur,0.0);
+          
+            assembler->updateStageNumber(stage); // could probably just += 1 in wksets
+          
+            int status = this->nonlinearSolver(u_stage, zero_vec);
+            if (status>0) {
+              // throw error
+            }
+            stage_solns.push_back(u_stage);
+            assembler->updateStageSoln(); // moves the stage solution into u_stage (avoids mem transfer)
+          }
+          is_adjoint = true;
+        
+          vector<double> stage_grad(gradient.size(),0.0);
+        
+          for (int stage = numstages-1; stage>=0; stage--) {
+            // Need a stage solution
+            vector_RCP phi_stage = linalg->getNewOverlappedVector();
+            // Set the initial guess for stage solution
+            phi_stage->update(1.0,*phi_cur,0.0);
+          
+            assembler->updateStageNumber(stage); // could probably just += 1 in wksets
+          
+            int status = this->nonlinearSolver(stage_solns[stage], phi_stage);
+            if (status>0) {
+              // throw error
+            }
+            phi_cur->update(1.0, *phi_stage, 1.0);
+            phi_cur->update(-1.0, *phi_prev, 1.0);
+          }
+          postproc->computeSensitivities(u_cur, phi_cur, current_time, deltat, gradient);
+          */
+        } // if (numstages[set] == 1) - else
+      } // for set
       is_final_time = false;
       
       Comm->barrier();
