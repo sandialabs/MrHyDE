@@ -1,3 +1,10 @@
+/***********************************************************************
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
+ 
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
+************************************************************************/
 
 template<class M>
 class TT {

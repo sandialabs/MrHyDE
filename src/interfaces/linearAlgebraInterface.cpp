@@ -1,13 +1,10 @@
 /***********************************************************************
- This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE)
- 
- Copyright 2018 National Technology & Engineering Solutions of Sandia,
- LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
- U.S. Government retains certain rights in this software.”
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
  
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
- ************************************************************************/
+************************************************************************/
 
 #include "linearAlgebraInterface.hpp"
 #include <BelosBlockGmresSolMgr.hpp>
@@ -72,7 +69,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options.push_back(Teuchos::rcp( new SolverOptions<Node>(solvesettings) ));
+    options.push_back(Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) ));
   }
   
   // Create the solver options for the state L2-projections
@@ -84,7 +81,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options_L2.push_back(Teuchos::rcp( new SolverOptions<Node>(solvesettings) ));
+    options_L2.push_back(Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) ));
   }
   
   // Create the solver options for the state boundary L2-projections
@@ -97,7 +94,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
       solvesettings = settings->sublist("Solver");
     }
     solvesettings.set("use preconditioner",false);
-    options_BndryL2.push_back(Teuchos::rcp( new SolverOptions<Node>(solvesettings) ));
+    options_BndryL2.push_back(Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) ));
   }
   
   // Create the solver options for the discretized parameter Jacobians
@@ -109,7 +106,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options_param = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+    options_param = Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) );
   }
   
   // Create the solver options for the discretized parameter L2-projections
@@ -121,7 +118,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options_param_L2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+    options_param_L2 = Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) );
   }
   
   // Create the solver options for the discretized parameter boundary L2-projections
@@ -133,7 +130,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
     else { // use generic options
       solvesettings = settings->sublist("Solver");
     }
-    options_param_BndryL2 = Teuchos::rcp( new SolverOptions<Node>(solvesettings) );
+    options_param_BndryL2 = Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) );
   }
   
   this->setupLinearAlgebra();
@@ -325,7 +322,7 @@ template<class Node>
 Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList(const string & belosSublist) {
   Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
-  //belosList->set("Num Blocks",    1); //maxLinearIters);
+  belosList->set("Num Blocks", maxLinearIters);
   belosList->set("Convergence Tolerance", linearTOL);    // Relative convergence tolerance requested
   if (verbosity > 9) {
     belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
@@ -361,7 +358,7 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<SolverOptions<Node> > & opt,
+void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<LinearSolverOptions<Node> > & opt,
                                                 matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
 
   Teuchos::TimeMonitor localtimer(*linearsolvertimer);
@@ -548,6 +545,9 @@ void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Param(matrix_RCP & J, v
 
 template<class Node>
 Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterface<Node>::buildPreconditioner(const matrix_RCP & J, const string & precSublist) {
+  
+  Teuchos::TimeMonitor localtimer(*prectimer);
+
   Teuchos::ParameterList mueluParams;
 
   string xmlFileName = settings->sublist("Solver").get<string>("Preconditioner xml","");
@@ -605,8 +605,8 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
 
 // Explicit template instantiations
 template class MrHyDE::LinearAlgebraInterface<SolverNode>;
-template class MrHyDE::SolverOptions<SolverNode>;
+template class MrHyDE::LinearSolverOptions<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
 template class MrHyDE::LinearAlgebraInterface<SubgridSolverNode>;
-template class MrHyDE::SolverOptions<SubgridSolverNode>; 
+template class MrHyDE::LinearSolverOptions<SubgridSolverNode>; 
 #endif

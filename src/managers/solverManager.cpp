@@ -1,15 +1,10 @@
 /***********************************************************************
- This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
  
- Copyright 2018 National Technology & Engineering Solutions of Sandia,
- LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
- U.S. Government retains certain rights in this software.”
- 
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
- ************************************************************************/
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
+************************************************************************/
 
 #include "solverManager.hpp"
 
@@ -1592,8 +1587,9 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     bool build_jacobian = !linalg->getJacobianReuse(set);//true;
     matrix_RCP J = linalg->getNewMatrix(set);
 
-    matrix_RCP J_over = linalg->getNewOverlappedMatrix(set);
+    matrix_RCP J_over; 
     if (build_jacobian) {
+      J_over = linalg->getNewOverlappedMatrix(set);
       linalg->fillComplete(J_over);
     }
     
@@ -1611,11 +1607,13 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       store_adjPrev = true;
     }
 
-    bool test = true;
+    bool use_autotune = true;
     if (is_adjoint || assembler->groupData[0]->multiscale) {
-      test = false;
+      use_autotune = false;
     }
-    if (!test) { // cannot just use ScalarT
+
+      
+    if (!use_autotune) { // cannot just use ScalarT
       assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
                                 current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                 params->num_active_params, params->Psol_over, is_final_time, deltat);
@@ -1625,7 +1623,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                              params->num_active_params, params->Psol_over, is_final_time, deltat);
     }
-    
+
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
     
     if (is_adjoint) {
@@ -1705,13 +1703,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     
     if (solve) {
       
-      if (test) {
-        assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
-                                  current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                                  params->num_active_params, params->Psol_over, is_final_time, deltat);
-      }
-
       if (build_jacobian) {
+        if (use_autotune) {
+          assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+                                    current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                    params->num_active_params, params->Psol_over, is_final_time, deltat);
+        }
         linalg->fillComplete(J_over);
         J->resumeFill();
         linalg->exportMatrixFromOverlapped(set, J, J_over);
