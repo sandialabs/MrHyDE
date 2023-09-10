@@ -34,6 +34,9 @@ maxwell<EvalT>::maxwell(Teuchos::ParameterList & settings, const int & dimension
   }
   
   useLeapFrog = settings.get<bool>("use leap frog",false);
+  std::cout << "In maxwell::constructor()"
+            << ": useLeapFrog = " << useLeapFrog
+            << std::endl;
 }
 
 // ========================================================================================

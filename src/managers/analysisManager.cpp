@@ -450,7 +450,8 @@ void AnalysisManager::run() {
 
     comm_->barrier();
     if (comm_->getRank() == 0) {
-      std::cout << "EEP In AnalysisManager::run(): calling rolSolver.solve()..." << std::endl;
+      time_t now = time(nullptr);
+      std::cout << "EEP In AnalysisManager::run(): calling rolSolver.solve() at " << ctime(&now) << std::endl;
     }
     comm_->barrier();
 
@@ -459,7 +460,8 @@ void AnalysisManager::run() {
 
     comm_->barrier();
     if (comm_->getRank() == 0) {
-      std::cout << "EEP In AnalysisManager::run(): returned from rolSolver.solve()..." << std::endl;
+      time_t now = time(nullptr);
+      std::cout << "EEP In AnalysisManager::run(): returned from rolSolver.solve() at " << ctime(&now) << std::endl;
     }
     comm_->barrier();
 

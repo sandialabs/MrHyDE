@@ -104,6 +104,11 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   numVars = physics->num_vars; //
   vector<vector<vector<string> > > phys_varlist = physics->var_list;
   size_t numSets = setnames.size();
+  if (Comm->getRank() == 0) {
+    std::cout << "In SolverManager::constructor()"
+              << ": numSets = " << numSets
+              << std::endl;
+  }
   
   // needed information from the disc interface
   vector<vector<int> > cards = disc->cards;
@@ -177,6 +182,15 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
     myStartupSteps = 
       setSolverSettings.get<int>("transient startup steps",myStartupSteps);
 
+    if (Comm->getRank() == 0) {
+      std::cout << "In SolverManager::constructor()"
+                << ": set = "               << set
+                << ", myBDForder = "        << myBDForder
+                << ", myStartupBDForder = " << myStartupBDForder
+                << ", myButcherTab = "      << myButcherTab
+                << std::endl;
+    }
+
     if (myBDForder>1) {
       if (myButcherTab == "custom") {
         cout << "Warning: running a higher order BDF method with anything other than BWE/DIRK-1,1 is risky." << endl;
@@ -226,6 +240,15 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   maxnumsteps.resize(numSets,0);
   maxnumstages.resize(numSets,0);
 
+  if (Comm->getRank() == 0) {
+    std::cout << "In SolverManager::constructor()"
+              << ": about to call this->setButcherTableau()"
+              << ", numSets = "         << numSets
+              << ", BDForder.size() = " << BDForder.size()
+              << ", BDForder[0] = "     << BDForder[0]
+              << std::endl;
+  }
+  
   // set for all physics sets
   for (size_t set=0; set<numSets; ++set) {
     this->setBackwardDifference(BDForder,set);
@@ -481,6 +504,14 @@ void SolverManager<Node>::setupExplicitMass() {
 template<class Node>
 void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, const int & set) {
 
+  if (Comm->getRank() == 0) {
+    std::cout << "Entering SolverManager::setButcherTableau()"
+              << ": set = "                        << set
+              << ", assembler->m_groups.size() = " << assembler->m_groups.size()
+              << ", tableau[set] = "               << tableau[set]
+              << std::endl;
+  }
+
   for (size_t block=0; block<assembler->m_groups.size(); ++block) {
 
     // TODO the RK scheme cannot be specified block by block
@@ -591,7 +622,7 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
       butcher_c(1) = (1.0+p)/2.0;
       butcher_c(2) = 1.0;
     }
-    else if (myTableau == "leap-frog") { // Leap-frog for Maxwells
+    else if (myTableau == "leap-frog") { // Leap-frog for Maxwells // AquiAqui
       butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",2,2);
       butcher_A(1,0) = 1.0;
       butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",2);
@@ -722,7 +753,7 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
     int newnumstages = butcher_A.extent(0);
 
     maxnumstages[set] = std::max(numstages[set],newnumstages);
-    numstages[set] = newnumstages;
+    numstages[set] = newnumstages; // AquiAqui
   
     assembler->setWorksetButcher(set, block, dev_butcher_A, dev_butcher_b, dev_butcher_c);
 
@@ -1316,7 +1347,13 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
 
   Comm->barrier();
-  if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) { // (true)
+  if ((true) && (Comm->getRank() == 0)) { // (true)
+    std::cout << "EEP Entering SolverManager<Node>::transientSolver()"
+              << ": is_adjoint = "     << is_adjoint
+              << ", fully_explicit = " << fully_explicit
+              << std::endl;
+  }
+  else if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "EEP Entering SolverManager<Node>::transientSolver()"
               << ": initial.size() = "       << initial.size()
               << ", gradient.dimension() = " << gradient.dimension()
@@ -1617,7 +1654,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       
         // if multistage, recover forward solution at each stage
         if (numstages[set] == 1) { // No need to re-solve in this case // Aqui_
-	  int zeroStage(0);
+          int zeroStage(0);
           int status(0); // AquiNow
           if (fully_explicit) { // AquiNow
             status += this->explicitSolver(set, u_cur[set], phi_cur[set], zeroStage);
@@ -1648,6 +1685,12 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             throw std::runtime_error(msg.str());
           }
           // Aqui_: no need to do the same stuff done during the forward loop ???
+          if ((true) && (Comm->getRank() == 0)) {
+            std::cout << "EEP In SolverManager<Node>::transientSolver()"
+                      << ": in adjoint solve"
+                      << ", calling postproc->computeSensitivities()"
+                      << std::endl;
+          }
           postproc->computeSensitivities(u_cur, phi_cur, current_time, cindex, deltat, gradient); // Aqui important
         }
         else {
