@@ -23,10 +23,9 @@ namespace MrHyDE {
 
   public:
 
-      typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
-      typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
-      typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
-      typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
+    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
+    typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
+    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
     
     ////////////////////////////////////////////////////////////////////////////////////
     // Constructors
