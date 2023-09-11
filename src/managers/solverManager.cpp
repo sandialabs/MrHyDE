@@ -1283,9 +1283,9 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     }
   }
   
-  if (setnames.size()>1) {
+  if (false) { // setnames.size()>1) { // AquiNow
     if (Comm->getRank() == 0) {
-      cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl; // Aqui_
+      cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl;
     }
   }
   else {
@@ -1609,23 +1609,36 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     // TODO will this be affected by having physics sets with different timesteppers?
     int store_index = 0;
     size_t numFwdSteps = postproc->soln[firstSet]->getTotalTimes(store_index)-1; // AquiNow
+
+    Comm->barrier();
+    if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+      std::cout << "EEP In SolverManager<Node>::transientSolver()"
+                << ": in adjoint solve"
+                << ", numFwdSteps = " << numFwdSteps
+                << std::endl;
+    }
+    Comm->barrier();
     
     size_t numTimeSteps(0);
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       numTimeSteps += 1;
       Comm->barrier();
-      if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
+      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
         std::cout << "EEP In SolverManager<Node>::transientSolver()"
                   << ": in adjoint solve"
                   << ", numTimeSteps = " << numTimeSteps
                   << ", beginning current_time = " << current_time
+                  << ", u_cur.size() = " << u_cur.size()
+                  << ", numstages[0] = " << numstages[0]
                   << std::endl;
       }
       Comm->barrier();
       size_t cindex = numFwdSteps-timeiter;
       for (size_t set=0; set<u_cur.size(); ++set) { // AquiNow
         phi_prev[set] = linalg->getNewOverlappedVector(set);
+
         phi_prev[set]->update(1.0,*(phi_cur[set]),0.0);
+
         if(Comm->getRank() == 0 && verbosity > 0) {
           cout << endl << endl << "*******************************************************" << endl;
           cout << endl << "**** Beginning Adjoint Time Step " << timeiter << endl;
@@ -1640,31 +1653,59 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         if (!fndu) {
           // throw error
         }
+
         bool fndup = postproc->soln[set]->extract(u_prev[set], cindex-1);
         if (!fndup) {
           // throw error
         }
+
         params->updateDynamicParams(cindex-1);
 
-        assembler->performGather(set,u_prev[set],0,0);
+        Comm->barrier();
+        if (Comm->getRank() == 0) std::cout << "Aqui 005" << std::endl;
+        Comm->barrier();
+
+        //assembler->performGather(set,u_prev[set],0,0); // AquiNow
+
+        Comm->barrier();
+        if (Comm->getRank() == 0) std::cout << "Aqui 006" << std::endl;
+        Comm->barrier();
+
         assembler->resetPrevSoln(set);
-      
+
+        Comm->barrier();
+        if (Comm->getRank() == 0) std::cout << "Aqui 007" << std::endl;
+        Comm->barrier();
+
         int stime_index = cindex-1;
         current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
       
+        Comm->barrier();
+        if (Comm->getRank() == 0) std::cout << "Aqui 008" << std::endl;
+        Comm->barrier();
+
         // if multistage, recover forward solution at each stage
         if (numstages[set] == 1) { // No need to re-solve in this case // Aqui_
           int zeroStage(0);
           int status(0); // AquiNow
           if (fully_explicit) { // AquiNow
-            status += this->explicitSolver(set, u_cur[set], phi_cur[set], zeroStage);
+            Comm->barrier();
+            if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+              std::cout << "EEP In SolverManager<Node>::transientSolver()"
+                        << ": in adjoint solve"
+                        << ", numTimeSteps = " << numTimeSteps
+                        << ", calling 'this->explicitSolver()..."
+                        << std::endl;
+            }
+            Comm->barrier();
+            status = this->explicitSolver(set, u_cur[set], phi_cur[set], zeroStage);
           }
           else {
             status = this->nonlinearSolver(set, u_cur[set], phi_cur[set]); // Aqui important
           }
 
           Comm->barrier();
-          if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
+          if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
                       << ", numTimeSteps = " << numTimeSteps
