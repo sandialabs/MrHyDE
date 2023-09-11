@@ -1665,7 +1665,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         if (Comm->getRank() == 0) std::cout << "Aqui 005" << std::endl;
         Comm->barrier();
 
-        //assembler->performGather(set,u_prev[set],0,0); // AquiNow
+        assembler->performGather(set,u_prev[set],0,0); // AquiNow
 
         Comm->barrier();
         if (Comm->getRank() == 0) std::cout << "Aqui 006" << std::endl;
