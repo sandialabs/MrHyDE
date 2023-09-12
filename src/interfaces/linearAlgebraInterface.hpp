@@ -1,13 +1,10 @@
 /***********************************************************************
- This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE)
- 
- Copyright 2018 National Technology & Engineering Solutions of Sandia,
- LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
- U.S. Government retains certain rights in this software.”
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
  
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
- ************************************************************************/
+************************************************************************/
 
 /** \file   linearAlgebraInterface.hpp
  \brief  Contains the interface to the linear algebra tools from Trilinos.
@@ -39,7 +36,7 @@
 
 namespace MrHyDE {
   
-  /** \class  MrHyDE::SolverOptions
+  /** \class  MrHyDE::LinearSolverOptions
    \brief  Stores the specifications for a given linear solver.
    */
   
@@ -49,7 +46,7 @@ namespace MrHyDE {
   // ========================================================================================
   
   template<class Node>
-  class SolverOptions {
+  class LinearSolverOptions {
     
     typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
@@ -57,11 +54,11 @@ namespace MrHyDE {
     
   public:
     
-    SolverOptions() {};
+    LinearSolverOptions() {};
     
-    ~SolverOptions() {};
+    ~LinearSolverOptions() {};
     
-    SolverOptions(Teuchos::ParameterList & settings) {
+    LinearSolverOptions(Teuchos::ParameterList & settings) {
       amesos_type = settings.get<string>("Amesos solver","KLU2");
       belos_type = settings.get<string>("Belos solver","Block GMRES");
       belos_sublist = settings.get<string>("Belos settings","Belos Settings");
@@ -79,7 +76,7 @@ namespace MrHyDE {
       have_jacobian = false;
     }
     
-    // This is basically a struct storing data, so all data members are public
+    // This is basically just a struct storing data, so all data members are public
     
     string amesos_type, belos_type, prec_type;
     string belos_sublist, prec_sublist;
@@ -322,7 +319,7 @@ namespace MrHyDE {
     // Linear solver on Tpetra stack for Jacobians of states
     // ========================================================================================
     
-    void linearSolver(Teuchos::RCP<SolverOptions<Node> > & opt,
+    void linearSolver(Teuchos::RCP<LinearSolverOptions<Node> > & opt,
                       matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
     
@@ -374,8 +371,8 @@ namespace MrHyDE {
     vector<Teuchos::RCP<LA_Export> > exporter;
     vector<Teuchos::RCP<LA_Import> > importer;
     
-    vector<Teuchos::RCP<SolverOptions<Node> > > options, options_L2, options_BndryL2;
-    Teuchos::RCP<SolverOptions<Node> > options_param, options_param_L2, options_param_BndryL2;
+    vector<Teuchos::RCP<LinearSolverOptions<Node> > > options, options_L2, options_BndryL2;
+    Teuchos::RCP<LinearSolverOptions<Node> > options_param, options_param_L2, options_param_BndryL2;
     
   private:
 
@@ -411,6 +408,7 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::fillComplete*()");
     Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::export*()");
     Teuchos::RCP<Teuchos::Time> importtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::import*()");
+    Teuchos::RCP<Teuchos::Time> prectimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::buildPreconditioner()");
     
   };
   

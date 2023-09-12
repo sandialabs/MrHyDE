@@ -1,15 +1,10 @@
 /***********************************************************************
- This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
  
- Copyright 2018 National Technology & Engineering Solutions of Sandia,
- LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
- U.S. Government retains certain rights in this software.”
- 
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
- ************************************************************************/
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
+************************************************************************/
 
 #include "solverManager.hpp"
 
@@ -1465,7 +1460,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             this->setButcherTableau(ButcherTab,set);
           }
 
-          assembler->updatePhysicsSet(set);
+          assembler->updatePhysicsSet(set); // AquiTim02
       
           // Increment the previous step solutions (shift history and moves u into first spot)
           assembler->resetPrevSoln(set); 
@@ -1534,7 +1529,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         // Make sure last step solution is gathered
         // Last set of values is from a stage solution, which is potentially different
         for (size_t set=0; set<u_cur.size(); ++set) {
-          assembler->updatePhysicsSet(set); // Aqui important
+          assembler->updatePhysicsSet(set); // Aqui important // AquiTim02
           assembler->performGather(set,u_cur[set],0,0);
         }
         multiscale_manager->completeTimeStep();
@@ -1665,6 +1660,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         if (Comm->getRank() == 0) std::cout << "Aqui 005" << std::endl;
         Comm->barrier();
 
+        assembler->updatePhysicsSet(set); // AquiTim02
         assembler->performGather(set,u_prev[set],0,0); // AquiNow
 
         Comm->barrier();
@@ -1694,6 +1690,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
               std::cout << "EEP In SolverManager<Node>::transientSolver()"
                         << ": in adjoint solve"
                         << ", numTimeSteps = " << numTimeSteps
+                        << ", set = " << set
                         << ", calling 'this->explicitSolver()..."
                         << std::endl;
             }
@@ -1709,6 +1706,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
                       << ", numTimeSteps = " << numTimeSteps
+                      << ", set = " << set
                       << ", status = " << status
                       << std::endl;
           }
@@ -1729,6 +1727,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           if ((true) && (Comm->getRank() == 0)) {
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
+                      << ", numTimeSteps = " << numTimeSteps
+                      << ", set = " << set
                       << ", calling postproc->computeSensitivities()"
                       << std::endl;
           }
@@ -1889,8 +1889,9 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     bool build_jacobian = !linalg->getJacobianReuse(set);//true;
     matrix_RCP J = linalg->getNewMatrix(set);
 
-    matrix_RCP J_over = linalg->getNewOverlappedMatrix(set);
+    matrix_RCP J_over; 
     if (build_jacobian) {
+      J_over = linalg->getNewOverlappedMatrix(set);
       linalg->fillComplete(J_over);
     }
     
@@ -1917,12 +1918,13 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     }
     Comm->barrier();
 
-    bool test = true;
+    bool use_autotune = true;
     if (is_adjoint || assembler->groupData[0]->multiscale) {
-      test = false;
+      use_autotune = false;
     }
-    if (!test) { // cannot just use ScalarT
-      assembler->assembleJacRes(set, u_io, phi_io, build_jacobian, false, false, // Aqui important
+     
+    if (!use_autotune) { // cannot just use ScalarT
+      assembler->assembleJacRes(set, u_io, phi_io, build_jacobian, false, false,
                                 current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                 params->num_active_params, params->Psol_over, is_final_time, deltat);
     }
@@ -2047,13 +2049,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     
     if (solve) {
       
-      if (test) {
-        assembler->assembleJacRes(set, u_io, phi_io, build_jacobian, false, false,
-                                  current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                                  params->num_active_params, params->Psol_over, is_final_time, deltat);
-      }
-
       if (build_jacobian) {
+        if (use_autotune) {
+          assembler->assembleJacRes(set, u_io, phi_io, build_jacobian, false, false,
+                                    current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                    params->num_active_params, params->Psol_over, is_final_time, deltat);
+        }
         linalg->fillComplete(J_over);
         J->resumeFill();
         linalg->exportMatrixFromOverlapped(set, J, J_over);

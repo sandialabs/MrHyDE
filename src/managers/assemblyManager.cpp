@@ -1,15 +1,10 @@
 /***********************************************************************
- This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE), an optimized version of
- Multiscale/Multiphysics Interfaces for Large-scale Optimization (MILO)
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
  
- Copyright 2018 National Technology & Engineering Solutions of Sandia,
- LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
- U.S. Government retains certain rights in this software.”
- 
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or
- Bart van Bloemen Waanders (bartv@sandia.gov)
- ************************************************************************/
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
+************************************************************************/
 
 #include "assemblyManager.hpp"
 
@@ -1172,7 +1167,9 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   }
   
   for (size_t block=0; block<m_groups.size(); block++) {
-    this->setInitial(set,rhs,mass,useadjoint,lumpmass,scale,block,block);
+    if (wkset[block]->isInitialized) {
+      this->setInitial(set,rhs,mass,useadjoint,lumpmass,scale,block,block);
+    }
   }
   
   mass->fillComplete();
@@ -5044,9 +5041,10 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
                    TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
+        EvalT dummyval = 0.0;
         for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
           for (size_type dof=0; dof<abasis.extent(1); ++dof) {
-            AD auxval = AD(MAXDERIVS,off(dof), varaux(localID(elem),dof));
+            EvalT auxval = EvalT(dummyval.size(),off(dof), varaux(localID(elem),dof));
             local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
           }
         }
@@ -6001,6 +5999,8 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
                                                   const string & var, View_Sc2 csol) {
   
   //Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
+  
+  cout << wkset.size() << "  " << block << endl;
   
   // Figure out which basis we need
   int index;

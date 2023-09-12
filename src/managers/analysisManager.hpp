@@ -1,13 +1,10 @@
 /***********************************************************************
- This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE).
- 
- Copyright 2018 National Technology & Engineering Solutions of Sandia,
- LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
- U.S. Government retains certain rights in this software.”
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
  
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
- ************************************************************************/
+************************************************************************/
 
 /** \file   analysisManager.hpp
  \brief  Creates the analysis manager which performs the high-level interface to the solution strategies, e.g, standard run, dry run, UQ, ROL-optimization.

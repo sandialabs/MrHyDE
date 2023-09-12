@@ -1,13 +1,10 @@
 /***********************************************************************
- This is a framework for solving Multi-resolution Hybridized
- Differential Equations (MrHyDE)
- 
- Copyright 2018 National Technology & Engineering Solutions of Sandia,
- LLC (NTESS). Under the terms of Contract DE-NA0003525 with NTESS, the
- U.S. Government retains certain rights in this software.”
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
  
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
- ************************************************************************/
+************************************************************************/
 
 #include "interpreter.hpp"
 
@@ -87,7 +84,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
       }
     }*/
     if (!found) {
-      Branch nbranch = Branch<EvalT>(currbranch);
+      auto nbranch = Branch<EvalT>(currbranch);
       branches.push_back(nbranch);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back(currop);
@@ -155,7 +152,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -173,7 +170,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -202,7 +199,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
               }
             }*/
             if (!found) {
-              Branch nbranch = Branch<EvalT>(currbranch);
+              auto nbranch = Branch<EvalT>(currbranch);
               branches.push_back(nbranch);
               branches[index].dep_list_.push_back(branches.size()-1);
               branches[index].dep_ops_.push_back(currop);
@@ -238,7 +235,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -256,7 +253,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -274,7 +271,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -298,7 +295,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -327,7 +324,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -359,7 +356,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -381,7 +378,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
             }
           }*/
           if (!found) {
-            Branch nbranch = Branch<EvalT>(currbranch);
+            auto nbranch = Branch<EvalT>(currbranch);
             branches.push_back(nbranch);
             branches[index].dep_list_.push_back(branches.size()-1);
             branches[index].dep_ops_.push_back(currop);
@@ -397,7 +394,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
         for (size_t k=1; k<s.length()-1; k++) {
           currbranch += s[k];
         }
-        Branch nbranch = Branch<EvalT>(currbranch);
+        auto nbranch = Branch<EvalT>(currbranch);
         branches.push_back(nbranch);
         branches[index].dep_list_.push_back(branches.size()-1);
         branches[index].dep_ops_.push_back(currop);
@@ -416,7 +413,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
           for (size_t k=pindex+1; k<s.length()-1; k++) {
             currbranch += s[k];
           }
-          Branch nbranch = Branch<EvalT>(currbranch);
+          auto nbranch = Branch<EvalT>(currbranch);
           branches.push_back(nbranch);
           branches[index].dep_list_.push_back(branches.size()-1);
           //branches[index].dep_ops.push_back(currop);
@@ -504,19 +501,19 @@ bool Interpreter<EvalT>::isOperator(vector<Branch<EvalT> > & branches, size_t & 
         argument2 += argument[i];
       }
       
-      Branch nbranch1 = Branch<EvalT>(argument1);
+      auto nbranch1 = Branch<EvalT>(argument1);
       branches.push_back(nbranch1);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back("");
       
-      Branch nbranch2 = Branch<EvalT>(argument2);
+      auto nbranch2 = Branch<EvalT>(argument2);
       branches.push_back(nbranch2);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back(oper);
       branches[index].is_decomposed_ = true;
     }
     else {
-      Branch nbranch = Branch<EvalT>(argument);
+      auto nbranch = Branch<EvalT>(argument);
       branches.push_back(nbranch);
       branches[index].dep_list_.push_back(branches.size()-1);
       branches[index].dep_ops_.push_back(oper);
