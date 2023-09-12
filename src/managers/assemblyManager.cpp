@@ -3405,32 +3405,32 @@ void AssemblyManager<Node>::performGather(const size_t & set, const vector_RCP &
   
   // vector is on LA_device, but gather must happen on AssemblyDevice
   if (Kokkos::SpaceAccessibility<AssemblyExec, LA_mem>::accessible) { // can we avoid a copy?
-    comm->barrier();
-    if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 001-a" << std::endl;
-    comm->barrier();
+    //comm->barrier();
+    //if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 001-a" << std::endl;
+    //comm->barrier();
     this->performGather(set, vec_slice, type);
-    comm->barrier();
-    if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 001-b" << std::endl;
-    comm->barrier();
+    //comm->barrier();
+    //if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 001-b" << std::endl;
+    //comm->barrier();
     this->performBoundaryGather(set, vec_slice, type);
-    comm->barrier();
-    if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 001-c" << std::endl;
-    comm->barrier();
+    //comm->barrier();
+    //if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 001-c" << std::endl;
+    //comm->barrier();
   }
   else { // apparently not
-    comm->barrier();
-    if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 002-a" << std::endl;
-    comm->barrier();
+    //comm->barrier();
+    //if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 002-a" << std::endl;
+    //comm->barrier();
     auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
     Kokkos::deep_copy(vec_dev,vec_slice);
     this->performGather(set, vec_dev, type);
-    comm->barrier();
-    if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 002-b" << std::endl;
-    comm->barrier();
+    //comm->barrier();
+    //if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 002-b" << std::endl;
+    //comm->barrier();
     this->performBoundaryGather(set, vec_dev, type);
-    comm->barrier();
-    if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 002-c" << std::endl;
-    comm->barrier();
+    //comm->barrier();
+    //if (comm->getRank() == 0) std::cout << "In AssemblyManager::performGather(), pos 002-c" << std::endl;
+    //comm->barrier();
   }
   
 }

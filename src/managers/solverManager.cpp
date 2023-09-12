@@ -1301,7 +1301,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
       
       this->nonlinearSolver(0, u[0], phi[0]);
       
-      postproc->computeSensitivities(u, phi, 0, current_time, deltat, gradient);
+      postproc->computeSensitivities(0 /*set*/, u, phi, 0, current_time, deltat, gradient); // AquiNow // Aqui???
       
     }
     else if (solver_type == "transient") {
@@ -1321,8 +1321,11 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     }
   }
   Comm->barrier();
-  if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-    std::cout << "EEP Leaving SolverManager<Node>::adjointModel()" << std::endl;
+  double tmp = gradient.norm();
+  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+    std::cout << "EEP Leaving SolverManager<Node>::adjointModel()"
+              << ": gradient.norm() = " << tmp
+              << std::endl;
     std::cout << "Leaving======================================================" << std::endl;
   }
   Comm->barrier();
@@ -1342,7 +1345,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
 
   Comm->barrier();
-  if ((true) && (Comm->getRank() == 0)) { // (true)
+  if ((false) && (Comm->getRank() == 0)) { // (true)
     std::cout << "EEP Entering SolverManager<Node>::transientSolver()"
               << ": is_adjoint = "     << is_adjoint
               << ", fully_explicit = " << fully_explicit
@@ -1606,7 +1609,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     size_t numFwdSteps = postproc->soln[firstSet]->getTotalTimes(store_index)-1; // AquiNow
 
     Comm->barrier();
-    if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+    if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
       std::cout << "EEP In SolverManager<Node>::transientSolver()"
                 << ": in adjoint solve"
                 << ", numFwdSteps = " << numFwdSteps
@@ -1618,7 +1621,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       numTimeSteps += 1;
       Comm->barrier();
-      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+      if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
         std::cout << "EEP In SolverManager<Node>::transientSolver()"
                   << ": in adjoint solve"
                   << ", numTimeSteps = " << numTimeSteps
@@ -1656,37 +1659,22 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
 
         params->updateDynamicParams(cindex-1);
 
-        Comm->barrier();
-        if (Comm->getRank() == 0) std::cout << "Aqui 005" << std::endl;
-        Comm->barrier();
-
-        assembler->updatePhysicsSet(set); // AquiTim02
-        assembler->performGather(set,u_prev[set],0,0); // AquiNow
-
-        Comm->barrier();
-        if (Comm->getRank() == 0) std::cout << "Aqui 006" << std::endl;
-        Comm->barrier();
+        assembler->updatePhysicsSet(set); // AquiTim02 // AquiNow
+        assembler->performGather(set,u_prev[set],0,0); // Aqui??? Where is u_prev used?
+        //assembler->performGather(set,phi_prev[set],0,0); // AquiNow
 
         assembler->resetPrevSoln(set);
-
-        Comm->barrier();
-        if (Comm->getRank() == 0) std::cout << "Aqui 007" << std::endl;
-        Comm->barrier();
 
         int stime_index = cindex-1;
         current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
       
-        Comm->barrier();
-        if (Comm->getRank() == 0) std::cout << "Aqui 008" << std::endl;
-        Comm->barrier();
-
         // if multistage, recover forward solution at each stage
         if (numstages[set] == 1) { // No need to re-solve in this case // Aqui_
           int zeroStage(0);
           int status(0); // AquiNow
           if (fully_explicit) { // AquiNow
             Comm->barrier();
-            if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+            if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
               std::cout << "EEP In SolverManager<Node>::transientSolver()"
                         << ": in adjoint solve"
                         << ", numTimeSteps = " << numTimeSteps
@@ -1702,7 +1690,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           }
 
           Comm->barrier();
-          if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+          if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
                       << ", numTimeSteps = " << numTimeSteps
@@ -1724,7 +1712,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             throw std::runtime_error(msg.str());
           }
           // Aqui_: no need to do the same stuff done during the forward loop ???
-          if ((true) && (Comm->getRank() == 0)) {
+          if ((false) && (Comm->getRank() == 0)) {
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
                       << ", numTimeSteps = " << numTimeSteps
@@ -1732,7 +1720,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
                       << ", calling postproc->computeSensitivities()"
                       << std::endl;
           }
-          postproc->computeSensitivities(u_cur, phi_cur, current_time, cindex, deltat, gradient); // Aqui important
+
+          postproc->computeSensitivities(set, u_cur, phi_cur, current_time, cindex, deltat, gradient); // AquiNow // Aqui important
         }
         else {
           std::stringstream msg; // AquiNow

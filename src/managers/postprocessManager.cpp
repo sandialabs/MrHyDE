@@ -4011,7 +4011,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
 // ========================================================================================
 
 template<class Node>
-void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
+void PostprocessManager<Node>::computeSensitivities(int set, // AquiNow
+                                                    vector<vector_RCP> & u,
                                                     vector<vector_RCP> & adjoint,
                                                     const ScalarT & current_time,
                                                     const int & tindex,
@@ -4020,6 +4021,8 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   
   if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "Entering PostprocessManager<Node>::computeSensitivities()"
+              << ": params->num_active_params = " << params->num_active_params
+              << ", params->getNumParams(4) = " << params->getNumParams(4)
               << std::endl;
   }
   if (debug_level > 1) {
@@ -4042,7 +4045,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     this->computeObjectiveGradParam(u, current_time, obj_sens);
   }
   
-  size_t set = 0; // hard coded for now
+  //size_t set = 0; // hard coded for now // AquiNow
   
   auto u_kv = u[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto adjoint_kv = adjoint[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
@@ -4123,9 +4126,20 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     else {
       curr_grad = disc_grad[0]->getVector();
     }
+
+    if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "In PostprocessManager<Node>::computeSensitivities()"
+                << ": calling this->computeDiscreteSensitivities()"
+                << std::endl;
+    }
     
+    auto sens = this->computeDiscreteSensitivities(set, u, adjoint, current_time, deltat); // AquiNow
     
-    auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, deltat);
+    if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "In PostprocessManager<Node>::computeSensitivities()"
+                << ": returned from this->computeDiscreteSensitivities()"
+                << std::endl;
+    }
     
     auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
 
@@ -4212,12 +4226,17 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
 
 template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > 
-PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
+PostprocessManager<Node>::computeDiscreteSensitivities(int set, vector<vector_RCP> & u, // AquiNow
                                                        vector<vector_RCP> & adjoint,
                                                        const ScalarT & current_time,
                                                        const ScalarT & deltat) {
 
-  int set = 0; // hard-coded for now
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Entering PostprocessManager::computeDiscreteSensitivities()"
+              << std::endl;
+  }
+
+  //int set = 0; // hard-coded for now // AquiNow
   
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;

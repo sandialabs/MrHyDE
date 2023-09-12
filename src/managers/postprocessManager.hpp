@@ -146,7 +146,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
-    void computeSensitivities(vector<vector_RCP> & u, vector<vector_RCP> & adjoint,
+    void computeSensitivities(int set, vector<vector_RCP> & u, vector<vector_RCP> & adjoint, // AquiNow
                               const ScalarT & current_time, const int & tindex, const ScalarT & deltat,
                               MrHyDE_OptVector & gradient);
 
@@ -160,7 +160,7 @@ namespace MrHyDE {
     // ========================================================================================
 
     Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > 
-    computeDiscreteSensitivities(vector<vector_RCP> & u,
+    computeDiscreteSensitivities(int set, vector<vector_RCP> & u, // AquiNow
                                  vector<vector_RCP> & adjoint,
                                  const ScalarT & current_time,
                                  const ScalarT & deltat);
