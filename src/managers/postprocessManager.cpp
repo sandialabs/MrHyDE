@@ -11,7 +11,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_POST_PROC_MANAGER 0
+#define EEP_DEBUG_POST_PROC_MANAGER 1
 
 // ========================================================================================
 /* Minimal constructor to set up the problem */
@@ -4151,7 +4151,7 @@ void PostprocessManager<Node>::computeSensitivities(int set, // AquiNow
       sens_kv(i,0) += cobj;
     }
     
-    curr_grad->update(1.0, *sens, 1.0);
+    curr_grad->update(1.0, *sens, 1.0); // Aqui???
     
   }
   saveObjectiveGradientData(gradient);

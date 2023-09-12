@@ -1721,7 +1721,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
                       << std::endl;
           }
 
-          postproc->computeSensitivities(set, u_cur, phi_cur, current_time, cindex, deltat, gradient); // AquiNow // Aqui important
+          postproc->computeSensitivities(set, u_cur, phi_cur, current_time, cindex, deltat, gradient); // AquiNow // Aqui???
         }
         else {
           std::stringstream msg; // AquiNow

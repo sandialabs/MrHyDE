@@ -9,7 +9,7 @@
 #ifndef ROL_MILO_HPP
 #define ROL_MILO_HPP
 
-#define EEP_DEBUG_OBJ_MILOROL 0
+#define EEP_DEBUG_OBJ_MILOROL 1
 
 #include "ROL_StdVector.hpp"
 #include "ROL_RiskVector.hpp"
@@ -60,7 +60,7 @@ namespace ROL {
     Real value(const Vector<Real> &Params, Real &tol){ // AquiTim01
       
       if (EEP_DEBUG_OBJ_MILOROL) {
-        std::cout << "EEP Entering Objective_MILO::value()" // AquiEEP_tmp
+        std::cout << "EEP Entering Objective_MILO::value()"
                   << ": Params.dimension() = " << Params.dimension()
                   << std::endl;
       }
@@ -75,7 +75,7 @@ namespace ROL {
       params->stashParams(); //dumping to file, for long runs...
       
       if (EEP_DEBUG_OBJ_MILOROL) {
-        std::cout << "EEP Leaving Objective_MILO::value()" // AquiEEP_tmp
+        std::cout << "EEP Leaving Objective_MILO::value()"
                   << ": val.val() = " << val.val()
                   << std::endl;
       }
@@ -86,6 +86,11 @@ namespace ROL {
     //! Compute gradient of objective function with respect to parameters // AquiROL
     void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){ // AquiROL
 
+      if (EEP_DEBUG_OBJ_MILOROL) {
+        std::cout << "EEP Entering Objective_MILO::gradient()"
+                  << ": Params.dimension() = " << Params.dimension()
+                  << std::endl;
+      }
       bool newparams = this->checkNewParams(Params);
 
       if (newparams) {
@@ -103,6 +108,11 @@ namespace ROL {
       
       solver->adjointModel(sens); // AquiROL
 
+      if (EEP_DEBUG_OBJ_MILOROL) {
+        std::cout << "EEP Leaving Objective_MILO::gradient()"
+                  << ": g.norm() = " << sens.norm()
+                  << std::endl;
+      }
     }
     
     bool checkNewParams(const Vector<Real> &Params) {

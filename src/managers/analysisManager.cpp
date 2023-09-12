@@ -461,6 +461,7 @@ void AnalysisManager::run() {
       std::cout << "EEP In AnalysisManager::run(): returned from rolSolver.solve() at " << ctime(&now) << std::endl;
     }
     comm_->barrier();
+    sleep(10);
 
     //ScalarT optTime = timer.stop();
 
