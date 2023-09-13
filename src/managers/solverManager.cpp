@@ -10,7 +10,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_SOLVER_MANAGER 1
+#define EEP_DEBUG_SOLVER_MANAGER 0
 
 // ========================================================================================
 /* Constructor to set up the problem */
@@ -1961,6 +1961,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     Comm->barrier();
     if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
       std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                << ", is_adjoint = " << is_adjoint
                 << ", set = " << set
                 << ": numNonlinearSteps = " << numNonlinearSteps
                 << ", calling assembler->assembleJacRes()"
@@ -2090,7 +2091,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
                 << ", is_adjoint = " << is_adjoint
                 << ", set = " << set
                 << ": numNonlinearSteps = " << numNonlinearSteps
-                << ", resnorm = " << resnorm
+                << ", ||current_res||_inf = " << resnorm[0]
                 << std::endl;
     }
     Comm->barrier();
@@ -2168,7 +2169,43 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       }
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
+
+      tmp[0] = 0.;
+      aux[0] = 0.;
+      current_du->norm2(tmp);
+      current_res->norm2(aux);
+      Comm->barrier();
+      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+        std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                  << ", is_adjoint = " << is_adjoint
+                  << ", set = " << set
+                  << ": numNonlinearSteps = " << numNonlinearSteps
+                  << ", calling linalg->linearSolver()"
+                  << ", ||current_res||_2 = " << aux[0]
+                  << ", ||current_du||_2 = " << tmp[0]
+                  << std::endl;
+      }
+      Comm->barrier();
+
       linalg->linearSolver(set, J, current_res, current_du); // Aqui important
+
+      tmp[0] = 0.;
+      aux[0] = 0.;
+      current_du->norm2(tmp);
+      current_res->norm2(aux);
+      Comm->barrier();
+      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+        std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
+                  << ", is_adjoint = " << is_adjoint
+                  << ", set = " << set
+                  << ": numNonlinearSteps = " << numNonlinearSteps
+                  << ", returned from linalg->linearSolver()"
+                  << ", ||current_res||_2 = " << aux[0]
+                  << ", ||current_du||_2 = " << tmp[0]
+                  << std::endl;
+      }
+      Comm->barrier();
+
       linalg->writeToFile(J, current_res, current_du);
       linalg->importVectorToOverlapped(set, current_du_over, current_du);
       
