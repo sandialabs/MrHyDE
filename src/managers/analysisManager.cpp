@@ -538,7 +538,7 @@ void AnalysisManager::run() {
     double start_time = rstsettings_.get<double>("start time",0.0);
  
     solver_->initial_time = start_time;
-    solver_->current_time = start_time;
+    solver_->m_current_time = start_time;
 
     ///////////////////////////////////////////////////////////
     // Recover the state

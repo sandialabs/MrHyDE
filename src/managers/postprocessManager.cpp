@@ -3115,8 +3115,9 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          vector_RCP & grad) {
   
   if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
-    std::cout << "Entering PostprocessManager<Node>::computeObjectiveGradState()"
+    std::cout << "Entering PostprocessManager<Node>::computeObjectiveGradState(A)"
               << ", set = " << set
+              << ", objectives.size() = " << objectives.size()
 #ifndef MrHyDE_NO_AD
               << ", AD will be used..."
 #else
@@ -3183,6 +3184,11 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     }
   }
 
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Leaving PostprocessManager<Node>::computeObjectiveGradState(A)"
+              << ", set = " << set
+              << std::endl;
+  }
 }
 
 // ========================================================================================
@@ -3199,6 +3205,16 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          Teuchos::RCP<Workset<EvalT> > & wset,
                                                          Teuchos::RCP<FunctionManager<EvalT> > & fman) {
   
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Entering PostprocessManager<Node>::computeObjectiveGradState(B)"
+              << ", set = " << set
+#ifndef MrHyDE_NO_AD
+              << ", AD will be used..."
+#else
+              << ", AD will not be used..."
+#endif
+              << std::endl;
+  }
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -3998,12 +4014,13 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   
   
 #endif
-  
+
   if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
-    std::cout << "Leaving PostprocessManager<Node>::computeObjectiveGradState()"
+    std::cout << "Leaving PostprocessManager<Node>::computeObjectiveGradState(B)"
               << ", set = " << set
               << std::endl;
   }
+
 }
 
 
@@ -4018,11 +4035,23 @@ void PostprocessManager<Node>::computeSensitivities(int set, // AquiNow
                                                     const int & tindex,
                                                     const ScalarT & deltat,
                                                     MrHyDE_OptVector & gradient) {
-  
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> xyz(1);
+  u[0]->norm2(xyz);
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> aux(1);
+  adjoint[0]->norm2(aux);
+  double abc = gradient.norm();
   if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "Entering PostprocessManager<Node>::computeSensitivities()"
+              << ", set = " << set
+              << ", tindex = " << tindex
               << ": params->num_active_params = " << params->num_active_params
               << ", params->getNumParams(4) = " << params->getNumParams(4)
+              << ", response_type = " << response_type
+              << ", u.size() = " << u.size()
+              << ", ||u[0]||_2 = " << xyz[0]
+              << ", adjoint.size() = " << adjoint.size()
+              << ", ||adjoint[0]||_2 = " << aux[0]
+              << ", ||gradient||_2 = " << abc
               << std::endl;
   }
   if (debug_level > 1) {
@@ -4051,6 +4080,11 @@ void PostprocessManager<Node>::computeSensitivities(int set, // AquiNow
   auto adjoint_kv = adjoint[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
   if (params->num_active_params > 0) {
+    if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+      std::cout << "In PostprocessManager<Node>::computeSensitivities()"
+                << ": entering case 'params->num_active_params > 0'"
+                << std::endl;
+    }
   
     params->sacadoizeParams(true);
     
@@ -4117,7 +4151,6 @@ void PostprocessManager<Node>::computeSensitivities(int set, // AquiNow
   int numDiscParams = params->getNumParams(4);
   
   if (numDiscParams > 0) {
-    
     auto disc_grad = gradient.getField();
     vector_RCP curr_grad;
     if (gradient.isDynamic()) {
@@ -4127,17 +4160,24 @@ void PostprocessManager<Node>::computeSensitivities(int set, // AquiNow
       curr_grad = disc_grad[0]->getVector();
     }
 
+    bool gradIsDyn = gradient.isDynamic();
+    Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> tmp(1);
+    curr_grad->norm2(tmp);
     if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
       std::cout << "In PostprocessManager<Node>::computeSensitivities()"
-                << ": calling this->computeDiscreteSensitivities()"
+                << ": gradIsDyn = " << gradIsDyn
+                << ", ||curr_grad||_2 = " << tmp[0]
                 << std::endl;
     }
     
     auto sens = this->computeDiscreteSensitivities(set, u, adjoint, current_time, deltat); // AquiNow
     
+    sens->norm2(tmp);
     if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
       std::cout << "In PostprocessManager<Node>::computeSensitivities()"
                 << ": returned from this->computeDiscreteSensitivities()"
+                << ", ||sens||_2 = " << tmp[0]
+                << ", params->paramOwned.size() = " << params->paramOwned.size()
                 << std::endl;
     }
     
@@ -4151,7 +4191,7 @@ void PostprocessManager<Node>::computeSensitivities(int set, // AquiNow
       sens_kv(i,0) += cobj;
     }
     
-    curr_grad->update(1.0, *sens, 1.0); // Aqui???
+    curr_grad->update(1.0, *sens, 1.0); // curr_grad = 1 * curr_grad + 1 * sens
     
   }
   saveObjectiveGradientData(gradient);
@@ -4233,6 +4273,7 @@ PostprocessManager<Node>::computeDiscreteSensitivities(int set, vector<vector_RC
 
   if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
     std::cout << "Entering PostprocessManager::computeDiscreteSensitivities()"
+              << ", set = " << set
               << std::endl;
   }
 
@@ -4263,7 +4304,15 @@ PostprocessManager<Node>::computeDiscreteSensitivities(int set, vector<vector_RC
   vector_RCP adj = linalg->getNewVector(set);
   adj->doExport(*(adjoint[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
   J->apply(*adj,*gradient);
-  
+
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> tmp(1);
+  gradient->norm2(tmp);
+  if (EEP_DEBUG_POST_PROC_MANAGER && (Comm->getRank() == 0)) {
+    std::cout << "Leaving PostprocessManager::computeDiscreteSensitivities()"
+              << ", set = " << set
+              << ": ||gradient||_2 = " << tmp[0]
+              << std::endl;
+  }
 
   return gradient;
 }

@@ -211,7 +211,7 @@ namespace MrHyDE {
     int numEvaluations, maxTimeStepCuts;
     vector<string> ButcherTab, startupButcherTab; // [set]
     
-    ScalarT NLtol, NLabstol,final_time, lintol, current_time, initial_time, deltat, amplification_factor;
+    ScalarT NLtol, NLabstol,final_time, lintol, m_current_time, initial_time, deltat, amplification_factor;
     
     string solver_type, initial_type;
     

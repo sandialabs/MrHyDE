@@ -113,6 +113,8 @@ namespace ROL {
                   << ": g.norm() = " << sens.norm()
                   << std::endl;
       }
+      sleep(10);
+      exit(1);
     }
     
     bool checkNewParams(const Vector<Real> &Params) {
