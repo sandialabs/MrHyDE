@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Machine name: rocketman
+# Machine type: linux workstation with GPU
+# Build type: serial
+
+# Modules used (SEMS 2.0):
+#  1) sems-gcc/10.1.0     4) sems-boost/1.69.0     7) sems-hdf5/1.10.7     10) sems-netcdf-c/4.7.4
+#  2) sems-cmake/3.24.2   5) sems-openmpi/1.10.7   8) sems-yaml-cpp/0.6.2  11) sems-parallel-netcdf/1.12.1
+#  3) sems-ninja/1.10.1   6) sems-zlib/1.2.11      9) sems-doxygen/1.8.20  12) sems-texlive/20210325
+
+EXTRA_ARGS=$@
+ENABLE_UNIT_TESTS=false
+ENABLE_SANDBOX=false
+
+if [[ ${EXTRA_ARGS} == *"sandbox"* ]]; then
+  echo "Turning on MrHyDE_ENABLE_SANDBOX"
+  ENABLE_SANDBOX=true
+fi
+
+if [[ ${EXTRA_ARGS} == *"test"* ]]; then
+  echo "Turning on MrHyDE_ENABLE_UNIT_TESTS"
+  ENABLE_UNIT_TESTS=true
+fi
+
+rm CMakeCache.txt
+rm -rf CMakeFiles
+
+TRILINOS_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/Trilinos"
+MrHyDE_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/MrHyDE"
+
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source"
+TRILINOS_INSTALL="${TRILINOS_SOURCE_PREFIX}/Trilinos-build-MrHyDE/lib/cmake/Trilinos"
+
+MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
+MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
+
+cmake \
+  -D Trilinos_SRC_DIR=${TRILINOS_SOURCE} \
+  -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
+  -D MrHyDE_ENABLE_UNIT_TESTS=${ENABLE_UNIT_TESTS} \
+  -D MrHyDE_ENABLE_SANDBOX=${ENABLE_SANDBOX} \
+  -D MrHyDE_BUILD_DOXYGEN=true \
+  -D CMAKE_INSTALL_PREFIX:PATH=${MrHyDE_BUILD} \
+  ${MrHyDE_SOURCE}
+
+#  -D CMAKE_CXX_LINK_FLAGS="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
