@@ -2284,9 +2284,24 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
 
 template<class Node>
 int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vector_RCP & phi, const int & stage) {
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> tmp(1);
+  Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> aux(1);
+
+  tmp[0] = 0.;
+  aux[0] = 0.;
+  u->norm2(tmp);
+  if (is_adjoint) {
+    phi->norm2(aux);
+  }
   Comm->barrier();
-  if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-    std::cout << "EEP Entering SolverManager<Node>::explicitSolver()" << std::endl;
+  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+    std::cout << "EEP Entering SolverManager<Node>::explicitSolver()"
+              << ", is_adjoint = " << is_adjoint
+              << ", set = " << set
+              << ", stage = " << stage
+              << ": ||u||_2 = " << tmp[0]
+              << ", ||phi||_2 = " << aux[0]
+              << std::endl;
   }
   Comm->barrier();
   
@@ -2347,6 +2362,20 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
 
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   current_res->norm2(rnorm);
+
+  Comm->barrier();
+  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+    std::cout << "EEP In SolverManager<Node>::explicitSolver()"
+              << ", is_adjoint = " << is_adjoint
+              << ", set = " << set
+              << ", stage = " << stage
+              << ": ||current_res||_2 = " << rnorm[0]
+              << ", assembler->lump_mass = " << assembler->lump_mass
+              << ", assembler->matrix_free = " << assembler->matrix_free
+              << ", use_custom_PCG = " << use_custom_PCG
+              << std::endl;
+  }
+  Comm->barrier();
 
   // *********************** SOLVE THE LINEAR SYSTEM **************************
   
@@ -2417,9 +2446,22 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
     }
   }
   
+  tmp[0] = 0.;
+  aux[0] = 0.;
+  u->norm2(tmp);
+  if (is_adjoint) {
+    phi->norm2(aux);
+  }
   Comm->barrier();
-  if (EEP_DEBUG_SOLVER_MANAGER && (Comm->getRank() == 0)) {
-    std::cout << "EEP Entering SolverManager<Node>::explicitSolver(): status = " << status << std::endl;
+  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+    std::cout << "EEP Leaving SolverManager<Node>::explicitSolver()"
+              << ", is_adjoint = " << is_adjoint
+              << ", set = " << set
+              << ", stage = " << stage
+              << ": status = " << status
+              << ", ||u||_2 = " << tmp[0]
+              << ", ||phi||_2 = " << aux[0]
+              << std::endl;
   }
   Comm->barrier();
 
