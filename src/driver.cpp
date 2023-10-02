@@ -192,6 +192,15 @@ int main(int argc,char * argv[]) {
     Kokkos::fence();
     Comm->barrier();
     
+    if (verbosity >= 10) {
+      if (Comm->getRank() == 0) {
+        std::cout << std::endl << "*********************************************" << std::endl;
+        std::cout << "Printing settings used by MrHyDE (ignore unused keyword):" << std::endl;
+        settings->print(); // only prints on rank 0 anyway
+        std::cout << "*********************************************" << std::endl;
+      }
+    }
+
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analysis->run();

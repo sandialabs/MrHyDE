@@ -1277,6 +1277,8 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   
   Teuchos::TimeMonitor localtimer(*set_init_timer);
   
+  using namespace std;
+
   if (debug_level > 0) {
     if (comm->getRank() == 0) {
       cout << "**** Starting AssemblyManager::getWeightedMass ..." << endl;
@@ -1406,7 +1408,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
                 else {
                   for (int k=0; k<numDOF(n); k++) {
                     int col = offsets(n,k);
-                    val += std::abs(localmass(elem,row,col));
+                    val += abs(localmass(elem,row,col));
                   }
                 }
               
@@ -2215,7 +2217,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
                                            const int & block, const ScalarT & deltat) {
   
   Teuchos::TimeMonitor localassemblytimer(*assembly_timer);
-  
+  using namespace std;
+
   // Kokkos::CRSMatrix and Kokkos::View for J and res
   // Scatter needs to be on LA_device
   typedef typename Tpetra::CrsMatrix<ScalarT, LO, GO, Node >::local_matrix_device_type local_matrix;
@@ -4582,50 +4585,32 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
 template<class Node>
 void AssemblyManager<Node>::finalizeFunctions() {
   for (size_t block=0; block<wkset.size(); ++block) {
-    if (wkset[block]->isInitialized) {
-      this->finalizeFunctions(function_managers[block], wkset[block]);
-    }
+    this->finalizeFunctions(function_managers[block], wkset[block]);
   }
 #ifndef MrHyDE_NO_AD
   for (size_t block=0; block<wkset_AD.size(); ++block) {
-    if (wkset_AD[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD[block], wkset_AD[block]);
-    }
+    this->finalizeFunctions(function_managers_AD[block], wkset_AD[block]);
   }
   for (size_t block=0; block<wkset_AD2.size(); ++block) {
-    if (wkset_AD2[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD2[block], wkset_AD2[block]);
-    }
+    this->finalizeFunctions(function_managers_AD2[block], wkset_AD2[block]);
   }
   for (size_t block=0; block<wkset_AD4.size(); ++block) {
-    if (wkset_AD4[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD4[block], wkset_AD4[block]);
-    }
+    this->finalizeFunctions(function_managers_AD4[block], wkset_AD4[block]);
   }
   for (size_t block=0; block<wkset_AD8.size(); ++block) {
-    if (wkset_AD8[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD8[block], wkset_AD8[block]);
-    }
+    this->finalizeFunctions(function_managers_AD8[block], wkset_AD8[block]);
   }
   for (size_t block=0; block<wkset_AD16.size(); ++block) {
-    if (wkset_AD16[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD16[block], wkset_AD16[block]);
-    }
+    this->finalizeFunctions(function_managers_AD16[block], wkset_AD16[block]);
   }
   for (size_t block=0; block<wkset_AD18.size(); ++block) {
-    if (wkset_AD18[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD18[block], wkset_AD18[block]);
-    }
+    this->finalizeFunctions(function_managers_AD18[block], wkset_AD18[block]);
   }
   for (size_t block=0; block<wkset_AD24.size(); ++block) {
-    if (wkset_AD24[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD24[block], wkset_AD24[block]);
-    }
+    this->finalizeFunctions(function_managers_AD24[block], wkset_AD24[block]);
   }
   for (size_t block=0; block<wkset_AD32.size(); ++block) {
-    if (wkset_AD32[block]->isInitialized) {
-      this->finalizeFunctions(function_managers_AD32[block], wkset_AD32[block]);
-    }
+    this->finalizeFunctions(function_managers_AD32[block], wkset_AD32[block]);
   }
 #endif
 }
@@ -4636,9 +4621,11 @@ void AssemblyManager<Node>::finalizeFunctions(Teuchos::RCP<FunctionManager<EvalT
                                               Teuchos::RCP<Workset<EvalT> > & wset) {
   fman->setupLists(params->paramnames);
   fman->wkset = wset;
-  fman->decomposeFunctions();
-  if (verbosity >= 20) {
-    fman->printFunctions();
+  if (wset->isInitialized) {
+    fman->decomposeFunctions();
+    if (verbosity >= 20) {
+      fman->printFunctions();
+    }
   }
 }
 
