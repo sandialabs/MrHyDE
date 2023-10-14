@@ -66,7 +66,7 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   
   // needed information from the mesh
   //blocknames = mesh->block_names;
-  mesh->stk_mesh->getElementBlockNames(blocknames);
+  blocknames = mesh->getBlockNames();
   
   // check if we need to assembly volumetric, boundary and face terms
   for (size_t set=0; set<physics->set_names.size(); ++set) {
@@ -226,8 +226,7 @@ void AssemblyManager<Node>::createGroups() {
   double storageProportion = settings->sublist("Solver").get<double>("storage proportion",1.0);
   double mesh_scale = settings->sublist("Mesh").get<double>("scale factor",1.0);
 
-  vector<stk::mesh::Entity> all_meshElems;
-  mesh->stk_mesh->getMyElements(all_meshElems);
+  vector<stk::mesh::Entity> all_meshElems = mesh->getMySTKElements();
   
   
   auto LIDs = disc->dof_lids;
@@ -250,10 +249,9 @@ void AssemblyManager<Node>::createGroups() {
     vector<Teuchos::RCP<Group> > block_groups;
     vector<Teuchos::RCP<BoundaryGroup> > block_boundary_groups;
     
-    vector<stk::mesh::Entity> stk_meshElems;
-    mesh->stk_mesh->getMyElements(blocknames[block], stk_meshElems);
+    vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blocknames[block]);
     
-    topo_RCP cellTopo = mesh->stk_mesh->getCellTopology(blocknames[block]);
+    topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
     int numNodesPerElem = cellTopo->getNodeCount();
     int dimension = physics->dimension;
     size_t numTotalElem = stk_meshElems.size();
@@ -283,8 +281,7 @@ void AssemblyManager<Node>::createGroups() {
         elemPerGroup = std::min(static_cast<size_t>(tmp_elemPerGroup),numTotalElem);
       }
       
-      vector<string> sideSets;// = mesh->side_names;
-      mesh->stk_mesh->getSidesetNames(sideSets);
+      vector<string> sideSets = mesh->getSideNames();
       vector<bool> aface;
       for (size_t set=0; set<assemble_face_terms.size(); ++set) {
         aface.push_back(assemble_face_terms[set][block]);
@@ -350,16 +347,16 @@ void AssemblyManager<Node>::createGroups() {
         for (size_t side=0; side<sideSets.size(); side++ ) {
           string sideName = sideSets[side];
           
-          vector<stk::mesh::Entity> sideEntities;
-          mesh->stk_mesh->getMySides(sideName, blocknames[block], sideEntities);
+          vector<stk::mesh::Entity> sideEntities = mesh->getMySTKSides(sideName, blocknames[block]);
+          
           vector<size_t>             local_side_Ids;
           vector<stk::mesh::Entity> side_output;
           vector<size_t>             local_elem_Ids;
           
-          panzer_stk::workset_utils::getSideElements(*(mesh->stk_mesh), blocknames[block], sideEntities, local_side_Ids, side_output);
           
+          mesh->getSTKSideElements(blocknames[block], sideEntities, local_side_Ids, side_output);
           DRV sidenodes;
-          mesh->stk_mesh->getElementVertices(side_output, blocknames[block],sidenodes);
+          mesh->getSTKElementVertices(side_output, blocknames[block], sidenodes);
           
           size_t numSideElem = local_side_Ids.size();
           size_t belemProg = 0;
@@ -404,7 +401,7 @@ void AssemblyManager<Node>::createGroups() {
                 LO sideIndex;
                 
                 for (size_t e=0; e<currElem; e++) {
-                  host_eIndex(e) = mesh->stk_mesh->elementLocalId(side_output[group[e+prog]]);
+                  host_eIndex(e) = mesh->getSTKElementLocalId(side_output[group[e+prog]]);
                   sideIndex = local_side_Ids[group[e+prog]];
                   for (size_type n=0; n<host_currnodes.extent(1); n++) {
                     for (size_type m=0; m<host_currnodes.extent(2); m++) {
@@ -631,7 +628,7 @@ void AssemblyManager<Node>::createGroups() {
           local_grp[e] = host_eIDs(elem_groups[grp][e]);
         }
         
-        mesh->stk_mesh->getElementVertices(local_grp, blocknames[block], currnodes);
+        mesh->getSTKElementVertices(local_grp, blocknames[block], currnodes);
         parallel_for("assembly scale nodes",
                      RangePolicy<AssemblyExec>(0,currnodes.extent(0)),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -7271,6 +7268,497 @@ void AssemblyManager<Node>::createFunctions() {
     }
     physics->defineFunctions(function_managers_AD32);
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::setMeshData() {
+  
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Starting assembly manager setMeshData" << endl;
+    }
+  }
+  
+  if (mesh->have_mesh_data) {
+    this->importMeshData();
+  }
+  else if (mesh->compute_mesh_data) {
+    int randSeed = settings->sublist("Mesh").get<int>("random seed", 1234);
+    auto seeds = mesh->generateNewMicrostructure(randSeed);
+    this->importNewMicrostructure(randSeed, seeds);
+  }
+  
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Finished mesh interface setMeshData" << endl;
+    }
+  }
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::importMeshData() {
+  
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::importMeshData ..." << endl;
+    }
+  }
+  
+  Teuchos::Time meshimporttimer("mesh import", false);
+  meshimporttimer.start();
+  
+  int numdata = 1;
+  if (mesh->have_rotations) {
+    numdata = 9;
+  }
+  else if (mesh->have_rotation_phi) {
+    numdata = 3;
+  }
+  
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      int numElem = groups[block][grp]->numElem;
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
+      groups[block][grp]->data = cell_data;
+      groups[block][grp]->data_distance = vector<ScalarT>(numElem);
+      groups[block][grp]->data_seed = vector<size_t>(numElem);
+      groups[block][grp]->data_seedindex = vector<size_t>(numElem);
+    }
+  }
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      int numElem = boundary_groups[block][grp]->numElem;
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
+      boundary_groups[block][grp]->data = cell_data;
+      boundary_groups[block][grp]->data_distance = vector<ScalarT>(numElem);
+      boundary_groups[block][grp]->data_seed = vector<size_t>(numElem);
+      boundary_groups[block][grp]->data_seedindex = vector<size_t>(numElem);
+    }
+  }
+  
+  Teuchos::RCP<Data> mesh_data;
+  
+  string mesh_data_pts_file = mesh->mesh_data_pts_tag + ".dat";
+  string mesh_data_file = mesh->mesh_data_tag + ".dat";
+  
+  bool have_grid_data = settings->sublist("Mesh").get<bool>("data on grid",false);
+  if (have_grid_data) {
+    int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
+    int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
+    int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
+    mesh_data = Teuchos::rcp(new Data("mesh data", mesh->dimension, mesh_data_pts_file,
+                                      mesh_data_file, false, Nx, Ny, Nz));
+    
+    for (size_t block=0; block<groups.size(); ++block) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        DRV nodes = groups[block][grp]->nodes;
+        int numElem = groups[block][grp]->numElem;
+        
+        auto centers = mesh->getElementCenters(nodes, groups[block][grp]->group_data->cell_topo);
+        auto centers_host = create_mirror_view(centers);
+        deep_copy(centers_host,centers);
+        
+        for (int c=0; c<numElem; c++) {
+          ScalarT distance = 0.0;
+          
+          // Doesn't use the Compadre interface
+          int cnode = mesh_data->findClosestGridPoint(centers_host(c,0), centers_host(c,1),
+                                                      centers_host(c,2), distance);
+          
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode);
+          for (size_type i=0; i<cdata.extent(1); i++) {
+            groups[block][grp]->data(c,i) = cdata(0,i);
+          }
+          groups[block][grp]->group_data->have_extra_data = true;
+          groups[block][grp]->group_data->have_rotation = mesh->have_rotations;
+          groups[block][grp]->group_data->have_phi = mesh->have_rotation_phi;
+          
+          groups[block][grp]->data_seed[c] = cnode;
+          groups[block][grp]->data_seedindex[c] = cnode % 100;
+          groups[block][grp]->data_distance[c] = distance;
+        }
+      }
+    }
+    
+    for (size_t block=0; block<boundary_groups.size(); ++block) {
+      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+        DRV nodes = boundary_groups[block][grp]->nodes;
+        int numElem = boundary_groups[block][grp]->numElem;
+        
+        auto centers = mesh->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
+        auto centers_host = create_mirror_view(centers);
+        deep_copy(centers_host,centers);
+        
+        for (int c=0; c<numElem; c++) {
+          ScalarT distance = 0.0;
+          
+          int cnode = mesh_data->findClosestGridPoint(centers_host(c,0), centers_host(c,1),
+                                                      centers_host(c,2), distance);
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode);
+          for (size_type i=0; i<cdata.extent(1); i++) {
+            boundary_groups[block][grp]->data(c,i) = cdata(0,i);
+          }
+          boundary_groups[block][grp]->group_data->have_extra_data = true;
+          boundary_groups[block][grp]->group_data->have_rotation = mesh->have_rotations;
+          boundary_groups[block][grp]->group_data->have_phi = mesh->have_rotation_phi;
+          
+          boundary_groups[block][grp]->data_seed[c] = cnode;
+          boundary_groups[block][grp]->data_seedindex[c] = cnode % 100;
+          boundary_groups[block][grp]->data_distance[c] = distance;
+        }
+      }
+    }
+  }
+  else {
+    mesh_data = Teuchos::rcp(new Data("mesh data", mesh->dimension, mesh_data_pts_file,
+                                      mesh_data_file, false));
+    
+    for (size_t block=0; block<groups.size(); ++block) {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        DRV nodes = groups[block][grp]->nodes;
+        int numElem = groups[block][grp]->numElem;
+        
+        auto centers = mesh->getElementCenters(nodes, groups[block][grp]->group_data->cell_topo);
+        
+        Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
+        
+        mesh_data->findClosestPoint(centers,cnode,distance);
+        
+        auto distance_mirror = Kokkos::create_mirror_view(distance);
+        auto data_mirror = Kokkos::create_mirror_view(groups[block][grp]->data);
+
+        for (int c=0; c<numElem; c++) {
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode(c));
+
+          for (size_t i=0; i<cdata.extent(1); i++) {
+            data_mirror(c,i) = cdata(0,i);
+          }
+
+          groups[block][grp]->group_data->have_extra_data = true;
+          groups[block][grp]->group_data->have_rotation = mesh->have_rotations;
+          groups[block][grp]->group_data->have_phi = mesh->have_rotation_phi;
+          
+          groups[block][grp]->data_seed[c] = cnode(c);
+          groups[block][grp]->data_seedindex[c] = cnode(c) % 100;
+          groups[block][grp]->data_distance[c] = distance_mirror(c);
+
+        }
+        Kokkos::deep_copy(groups[block][grp]->data, data_mirror);
+      }
+    }
+    
+    for (size_t block=0; block<boundary_groups.size(); ++block) {
+      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+        DRV nodes = boundary_groups[block][grp]->nodes;
+        int numElem = boundary_groups[block][grp]->numElem;
+        
+        auto centers = mesh->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
+        
+        Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
+        
+        mesh_data->findClosestPoint(centers,cnode,distance);
+
+        auto distance_mirror = Kokkos::create_mirror_view(distance);
+        auto data_mirror = Kokkos::create_mirror_view(boundary_groups[block][grp]->data);
+        
+        for (int c=0; c<numElem; c++) {
+          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode(c));
+
+          for (size_t i=0; i<cdata.extent(1); i++) {
+            data_mirror(c,i) = cdata(0,i);
+          }
+
+          boundary_groups[block][grp]->group_data->have_extra_data = true;
+          boundary_groups[block][grp]->group_data->have_rotation = mesh->have_rotations;
+          boundary_groups[block][grp]->group_data->have_phi = mesh->have_rotation_phi;
+          
+          boundary_groups[block][grp]->data_seed[c] = cnode(c);
+          boundary_groups[block][grp]->data_seedindex[c] = cnode(c) % 50;
+          boundary_groups[block][grp]->data_distance[c] = distance_mirror(c);
+        }
+        Kokkos::deep_copy(boundary_groups[block][grp]->data, data_mirror);
+      }
+    }
+  }
+  
+  
+  meshimporttimer.stop();
+  if (verbosity>5 && comm->getRank() == 0) {
+    cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
+  }
+  
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::meshDataImport" << endl;
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 seeds) {
+  
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::importNewMicrostructure ..." << endl;
+    }
+  }
+  Teuchos::Time meshimporttimer("mesh import", false);
+  meshimporttimer.start();
+  
+  std::default_random_engine generator(randSeed);
+  
+  size_type num_seeds = seeds.extent(0);
+  std::uniform_int_distribution<int> idistribution(0,100);
+  Kokkos::View<int*,HostDevice> seedIndex("seed index",num_seeds);
+  for (int i=0; i<num_seeds; i++) {
+    int ci = idistribution(generator);
+    seedIndex(i) = ci;
+  }
+  
+  //KokkosTools::print(seedIndex);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Set seed data
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  int numdata = 9;
+  
+  std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
+  Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",num_seeds,numdata);
+  for (int k=0; k<num_seeds; k++) {
+    ScalarT x = ndistribution(generator);
+    ScalarT y = ndistribution(generator);
+    ScalarT z = ndistribution(generator);
+    ScalarT w = ndistribution(generator);
+    
+    ScalarT r = sqrt(x*x + y*y + z*z + w*w);
+    x *= 1.0/r;
+    y *= 1.0/r;
+    z *= 1.0/r;
+    w *= 1.0/r;
+    
+    rotation_data(k,0) = w*w + x*x - y*y - z*z;
+    rotation_data(k,1) = 2.0*(x*y - w*z);
+    rotation_data(k,2) = 2.0*(x*z + w*y);
+    
+    rotation_data(k,3) = 2.0*(x*y + w*z);
+    rotation_data(k,4) = w*w - x*x + y*y - z*z;
+    rotation_data(k,5) = 2.0*(y*z - w*x);
+    
+    rotation_data(k,6) = 2.0*(x*z - w*y);
+    rotation_data(k,7) = 2.0*(y*z + w*x);
+    rotation_data(k,8) = w*w - x*x - y*y + z*z;
+    
+  }
+  
+  //KokkosTools::print(rotation_data);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Initialize cell data
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  int totalElem = 0;
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      int numElem = groups[block][grp]->numElem;
+      totalElem += numElem;
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
+      groups[block][grp]->data = cell_data;
+      groups[block][grp]->data_distance = vector<ScalarT>(numElem);
+      groups[block][grp]->data_seed = vector<size_t>(numElem);
+      groups[block][grp]->data_seedindex = vector<size_t>(numElem);
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Create a list of all cell nodes
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  DRV totalNodes("nodes from all groups",totalElem,
+                 groups[0][0]->nodes.extent(1),
+                 groups[0][0]->nodes.extent(2));
+  int prog = 0;
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      auto nodes = groups[block][grp]->nodes;
+      parallel_for("mesh data cell nodes",
+                   RangePolicy<AssemblyExec>(0,nodes.extent(0)),
+                   KOKKOS_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<nodes.extent(1); ++pt) {
+          for (size_type dim=0; dim<nodes.extent(2); ++dim) {
+            totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
+          }
+        }
+      });
+      prog += groups[block][grp]->numElem;
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Create a list of all cell centers
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  auto centers = mesh->getElementCenters(totalNodes, groups[0][0]->group_data->cell_topo);
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Find the closest seeds
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",totalElem);
+  Kokkos::View<int*, CompadreDevice> cnode("cnode",totalElem);
+  
+  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreInterface_constructNeighborLists(seeds, centers, distance);
+  cnode = neighborlists.getNeighborLists();
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Set group data
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  prog = 0;
+  for (size_t block=0; block<groups.size(); ++block) {
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      int numElem = groups[block][grp]->numElem;
+      //auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cellTopo);
+      
+      //Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+      //Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
+      //Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
+      //cnode = neighborlists.getNeighborLists();
+
+      for (int c=0; c<numElem; c++) {
+        
+        int cpt = cnode(prog);
+        prog++;
+        
+        for (int i=0; i<9; i++) {
+          groups[block][grp]->data(c,i) = rotation_data(cpt,i);//rotation_data(cnode(c),i);
+        }
+        
+        groups[block][grp]->group_data->have_rotation = true;
+        groups[block][grp]->group_data->have_phi = false;
+        
+        groups[block][grp]->data_seed[c] = cpt % 100;//cnode(c) % 100;
+        groups[block][grp]->data_seedindex[c] = seedIndex(cpt); //seedIndex(cnode(c));
+        groups[block][grp]->data_distance[c] = distance(cpt);//distance(c);
+        
+      }
+    }
+    
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Initialize boundary data
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  totalElem = 0;
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      int numElem = boundary_groups[block][grp]->numElem;
+      totalElem += numElem;
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
+      boundary_groups[block][grp]->data = cell_data;
+      boundary_groups[block][grp]->data_distance = vector<ScalarT>(numElem);
+      boundary_groups[block][grp]->data_seed = vector<size_t>(numElem);
+      boundary_groups[block][grp]->data_seedindex = vector<size_t>(numElem);
+    }
+  }
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  // Create a list of all cell nodes
+  ////////////////////////////////////////////////////////////////////////////////
+  
+  if (totalElem > 0) {
+    
+    totalNodes = DRV("nodes from all groups",totalElem,
+                     groups[0][0]->nodes.extent(1),
+                     groups[0][0]->nodes.extent(2));
+    prog = 0;
+    for (size_t block=0; block<boundary_groups.size(); ++block) {
+      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+        auto nodes = boundary_groups[block][grp]->nodes;
+        parallel_for("mesh data cell nodes",
+                     RangePolicy<AssemblyExec>(0,nodes.extent(0)),
+                     KOKKOS_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<nodes.extent(1); ++pt) {
+            for (size_type dim=0; dim<nodes.extent(2); ++dim) {
+              totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
+            }
+          }
+        });
+        prog += boundary_groups[block][grp]->numElem;
+      }
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Create a list of all cell centers
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    centers = mesh->getElementCenters(totalNodes, groups[0][0]->group_data->cell_topo);
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Find the closest seeds
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    distance = Kokkos::View<ScalarT*, AssemblyDevice>("distance",totalElem);
+    cnode = Kokkos::View<int*, CompadreDevice>("cnode",totalElem);
+    neighborlists = CompadreInterface_constructNeighborLists(seeds, centers, distance);
+    cnode = neighborlists.getNeighborLists();
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    // Set data
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    prog = 0;
+    for (size_t block=0; block<boundary_groups.size(); ++block) {
+      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+        DRV nodes = boundary_groups[block][grp]->nodes;
+        int numElem = boundary_groups[block][grp]->numElem;
+        
+        for (int c=0; c<numElem; c++) {
+          
+          int cpt = cnode(prog);
+          prog++;
+          
+          for (int i=0; i<9; i++) {
+            boundary_groups[block][grp]->data(c,i) = rotation_data(cpt,i);
+          }
+          
+          boundary_groups[block][grp]->group_data->have_rotation = true;
+          boundary_groups[block][grp]->group_data->have_phi = false;
+          
+          boundary_groups[block][grp]->data_seed[c] = cpt % 100;
+          boundary_groups[block][grp]->data_seedindex[c] = seedIndex(cpt);
+          boundary_groups[block][grp]->data_distance[c] = distance(cpt);
+          
+        }
+      }
+    }
+    
+  }
+  
+  meshimporttimer.stop();
+  if (verbosity>5 && comm->getRank() == 0) {
+    cout << "microstructure import time: " << meshimporttimer.totalElapsedTime(false) << endl;
+  }
+  
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::importNewMicrostructure" << endl;
+    }
+  }
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

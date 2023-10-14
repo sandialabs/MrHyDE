@@ -25,12 +25,13 @@
 #include "Panzer_STK_SetupUtilities.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "Panzer_STK_ExodusReaderFactory.hpp"
+#include "Panzer_STKConnManager.hpp"
 
 #include "preferences.hpp"
-#include "physicsInterface.hpp"
-#include "group.hpp"
+//#include "physicsInterface.hpp"
+//#include "group.hpp"
 #include "data.hpp"
-#include "boundaryGroup.hpp"
+//#include "boundaryGroup.hpp"
 
 namespace MrHyDE {
   
@@ -76,7 +77,9 @@ namespace MrHyDE {
      * This function uses the vriables defined in the physics interface to add fields to the mesh and complete the mesh construction.
      */
     
-    void finalize(Teuchos::RCP<PhysicsInterface> & phys);
+    void finalize(std::vector<std::vector<std::vector<string> > > varlist,
+                  std::vector<std::vector<std::vector<string> > > vartypes,
+                  std::vector<std::vector<std::vector<std::vector<string> > > > derivedlist);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -88,25 +91,66 @@ namespace MrHyDE {
     DRV perturbMesh(const int & b, DRV & blocknodes);
     
     ////////////////////////////////////////////////////////////////////////////////
+    // Access function (mostly) for the stk mesh
     ////////////////////////////////////////////////////////////////////////////////
     
-    /**
-     * This function calls the functions associated with microstructure and sets the data in cells and boundary cells.
-     */
+    void setupExodusFile(const string & filename);
+
+    void setupOptimizationExodusFile(const string & filename);
     
-    void setMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
-                     vector<vector<Teuchos::RCP<BoundaryGroup>>> & boundary_groups);
+    void setSolutionFieldData(string var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln);
+
+    void setCellFieldData(string var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT*,HostDevice> soln);
+
+    void setOptimizationSolutionFieldData(string & var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln);
+
+    void setOptimizationCellFieldData(string & var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT*,HostDevice> soln);
+
+    void writeToExodus(const double & currenttime);
+
+    void writeToExodus(const string & filename);
     
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+    void writeToOptimizationExodus(const double & currenttime);
+
+    void writeToOptimizationExodus(const string & filename);
     
-    /**
-     * This function eads in a microstructure from a file and sets the data in the cells and boundary cells.
-     */
+    vector<string> getBlockNames();
+
+    vector<string> getSideNames();
     
-    void importMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
-                        vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups);
+    vector<string> getNodeNames();
+
+    int getDimension();
     
+    topo_RCP getCellTopology(string & blockID);
+    
+    Teuchos::RCP<panzer::ConnManager> getSTKConnManager();
+
+    void setSTKMesh(Teuchos::RCP<panzer_stk::STK_Interface> & new_mesh);
+
+  
+    vector<stk::mesh::Entity> getMySTKElements();
+  
+    vector<stk::mesh::Entity> getMySTKElements(string & blockID);
+  
+    void getSTKNodeIdsForElement(stk::mesh::Entity & stk_meshElem, vector<stk::mesh::EntityId> & stk_nodeids);
+
+    vector<stk::mesh::Entity> getMySTKSides(string & sideName, string & blockname);
+
+    vector<stk::mesh::Entity> getMySTKNodes(string & nodeName, string & blockID);
+
+    void getSTKSideElements(string & blockname, vector<stk::mesh::Entity> & sideEntities, 
+                            vector<size_t> & local_side_Ids, vector<stk::mesh::Entity> & side_output);
+
+    void getSTKElementVertices(vector<stk::mesh::Entity> & side_output, string & blockname, DRV & sidenodes);
+    
+    LO getSTKElementLocalId(stk::mesh::Entity & elem);
+
+    void getSTKElementVertices(vector<size_t> & local_grp, string & blockname, DRV & currnodes);
+
+    void getSTKNodeElements(string & blockname, vector<stk::mesh::Entity> & nodeEntities, 
+                            vector<size_t> & local_node_Ids, vector<stk::mesh::Entity> & side_output);
+
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -154,20 +198,14 @@ namespace MrHyDE {
      
     void purgeMemory();
     
+    void purgeMesh();
+    
     /**
      * Generate a new realization of the microstructue.
      */
     
     View_Sc2 generateNewMicrostructure(int & randSeed);
-
-    /**
-     * Determine which grain contains each cell and boundary cell.
-     */
     
-    void importNewMicrostructure(int & randSeed, View_Sc2 seeds,
-                                 vector<vector<Teuchos::RCP<Group> > > & groups,
-                                 vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups);
-
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
@@ -175,8 +213,6 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::ParameterList>  settings; ///< RCP to the main MrHyDE parameter list
     Teuchos::RCP<MpiComm> comm; ///< RCP to the MPIComm
     Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory; ///< RCP to the Panzer STK Mesh Factory
-    Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh; ///< RCP to the Panzer STK Mesh
-    Teuchos::RCP<panzer_stk::STK_Interface> stk_optimization_mesh; ///< RCP to the Panzer STK Mesh used to visualize an optmization history.
     
     bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
@@ -194,6 +230,10 @@ namespace MrHyDE {
     
     Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas;
     vector<vector<ScalarT> > nfield_vals, efield_vals;
+    
+  private:
+    Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh; ///< RCP to the Panzer STK Mesh
+    Teuchos::RCP<panzer_stk::STK_Interface> stk_optimization_mesh; ///< RCP to the Panzer STK Mesh used to visualize an optmization history.
     
   };
   

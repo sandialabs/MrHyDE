@@ -17,8 +17,11 @@ using namespace MrHyDE;
 
 PhysicsInterface::PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                    Teuchos::RCP<MpiComm> & comm_,
-                                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
-settings(settings_), comm(comm_){
+                                   std::vector<string> block_names_,
+                                   std::vector<string> side_names_,
+                                   int dimension_) :
+                                   //Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
+settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names_), side_names(side_names_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -29,10 +32,10 @@ settings(settings_), comm(comm_){
     cout << "**** Starting PhysicsInterface constructor ..." << endl;
   }
   
-  mesh->getElementBlockNames(block_names);
-  mesh->getSidesetNames(side_names);
+  //mesh->getElementBlockNames(block_names);
+  //mesh->getSidesetNames(side_names);
   
-  dimension = mesh->getDimension();
+  //dimension = mesh->getDimension();
   
   if (settings->sublist("Physics").isParameter("physics set names")) {
     string names = settings->sublist("Physics").get<string>("physics set names");

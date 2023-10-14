@@ -28,6 +28,7 @@
 #include "parameterManager.hpp"
 #include "multiscaleManager.hpp"
 #include "functionManager.hpp"
+#include "data.hpp"
 
 namespace MrHyDE {
   
@@ -724,6 +725,30 @@ namespace MrHyDE {
 
     template<class EvalT>
     void updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * This function calls the functions associated with microstructure and sets the data in cells and boundary cells.
+     */
+    
+    void setMeshData();
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * This function eads in a microstructure from a file and sets the data in the cells and boundary cells.
+     */
+    
+    void importMeshData();
+    
+    /**
+     * Determine which grain contains each cell and boundary cell.
+     */
+    
+    void importNewMicrostructure(int & randSeed, View_Sc2 seeds);
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////

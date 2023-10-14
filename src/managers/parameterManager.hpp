@@ -44,7 +44,7 @@ namespace MrHyDE {
     
     ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                      Teuchos::RCP<Teuchos::ParameterList> & settings,
-                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                     Teuchos::RCP<MeshInterface> & mesh_,
                      Teuchos::RCP<PhysicsInterface> & phys_,
                      Teuchos::RCP<DiscretizationInterface> & disc_);
     
@@ -270,7 +270,7 @@ namespace MrHyDE {
     std::vector<ScalarT> h_mesh;
     
     Teuchos::RCP<MpiComm> Comm;
-    Teuchos::RCP<panzer_stk::STK_Interface>  mesh;
+    Teuchos::RCP<MeshInterface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> phys;
     Teuchos::RCP<Teuchos::ParameterList> settings;

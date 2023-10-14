@@ -20,7 +20,7 @@
 #include "physicsBase.hpp"
 #include "workset.hpp"
 
-#include "Panzer_STK_Interface.hpp"
+//#include "Panzer_STK_Interface.hpp"
 #include "Panzer_DOFManager.hpp"
 
 namespace MrHyDE {
@@ -54,7 +54,9 @@ namespace MrHyDE {
     ~PhysicsInterface() {} ;
     
     PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
-                     Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
+                     std::vector<string> block_names_, std::vector<string> side_names_,
+                     int dimension_);
+                     //Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Add the requested physics modules, variables, discretization types 
@@ -208,6 +210,34 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
+    vector<vector<vector<string> > > getVarList() {
+      return var_list;
+    }
+
+    vector<vector<vector<string> > > getVarTypes() {
+      return types;
+    }
+
+    vector<vector<vector<vector<string> > > > getDerivedList() {
+      vector<vector<vector<vector<string> > > > dlist;
+      for (size_t set=0; set<modules.size(); ++set) {
+        vector<vector<vector<string> > > setlist;
+        for (size_t blk=0; blk<modules[set].size(); ++blk) {
+          vector<vector<string> > blklist;
+          for (size_t mod=0; mod<modules[set][blk].size(); ++mod) {
+            blklist.push_back(modules[set][blk][mod]->getDerivedNames());
+          }
+          setlist.push_back(blklist);
+        }
+        dlist.push_back(setlist);
+      }
+      return dlist;
+
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    
     void purgeMemory();
     
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -234,18 +264,6 @@ namespace MrHyDE {
     vector<Teuchos::RCP<FunctionManager<AD32> > > function_managers_AD32;
 #endif
 
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > > modules; // always defined
-#ifndef MrHyDE_NO_AD
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules_AD; // always defined for now for BW-compat
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD2> > > > > modules_AD2;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD4> > > > > modules_AD4;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD8> > > > > modules_AD8;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD16> > > > > modules_AD16;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD18> > > > > modules_AD18;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD24> > > > > modules_AD24;
-    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD32> > > > > modules_AD32;
-#endif
-
     vector<vector<Teuchos::ParameterList>> physics_settings, disc_settings, solver_settings; // [set][block]
     vector<vector<vector<bool> > > use_subgrid;
     vector<vector<vector<bool> > > use_DG;
@@ -265,7 +283,20 @@ namespace MrHyDE {
     
     vector<vector<string> > extra_fields_list, extra_cell_fields_list, response_list, target_list, weight_list;
     
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > > modules; // always defined
+#ifndef MrHyDE_NO_AD
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > > modules_AD; // always defined for now for BW-compat
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD2> > > > > modules_AD2;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD4> > > > > modules_AD4;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD8> > > > > modules_AD8;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD16> > > > > modules_AD16;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD18> > > > > modules_AD18;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD24> > > > > modules_AD24;
+    vector<vector<vector<Teuchos::RCP<PhysicsBase<AD32> > > > > modules_AD32;
+#endif
+
   private:
+
     Teuchos::RCP<Teuchos::Time> bc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
     Teuchos::RCP<Teuchos::Time> dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
     Teuchos::RCP<Teuchos::Time> side_info_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");

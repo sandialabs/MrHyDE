@@ -20,7 +20,7 @@ using namespace MrHyDE;
 template<class Node>
 ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<Teuchos::ParameterList> & settings_,
-                                   Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                   Teuchos::RCP<MeshInterface> & mesh_,
                                    Teuchos::RCP<PhysicsInterface> & phys_,
                                    Teuchos::RCP<DiscretizationInterface> & disc_) :
 Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
@@ -40,7 +40,7 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   // Parameters
   /////////////////////////////////////////////////////////////////////////////
   
-  mesh->getElementBlockNames(blocknames);
+  blocknames = mesh->getBlockNames();
   spaceDim = mesh->getDimension();
   verbosity = settings->get<int>("verbosity",0);
   debug_level = settings->get<int>("debug level",0);
@@ -313,7 +313,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     discretized_param_basis = disc->basis_pointers[0];
     
     paramDOF = Teuchos::rcp(new panzer::DOFManager());
-    Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
+    Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
     paramDOF->setConnManager(conn,*(Comm->getRawMpiComm()));
     
     Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern;

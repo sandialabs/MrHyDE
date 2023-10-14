@@ -182,7 +182,7 @@ void SubGridDtN2::setUpSubgridModels() {
     meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
     
     sub_mesh = Teuchos::rcp(new MeshInterface(settings, LocalComm) );
-    sub_mesh->stk_mesh = mesh;
+    sub_mesh->setSTKMesh(mesh);
     if (debug_level > 1) {
       if (LocalComm->getRank() == 0) {
         mesh->printMetaData(std::cout);
@@ -195,14 +195,15 @@ void SubGridDtN2::setUpSubgridModels() {
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm, sub_mesh->stk_mesh) );
+  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm, sub_mesh->getBlockNames(),
+                                                   sub_mesh->getSideNames(),
+                                                   sub_mesh->getDimension()) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations
   /////////////////////////////////////////////////////////////////////////////////////
-  
   sub_disc = Teuchos::rcp( new DiscretizationInterface(settings, LocalComm,
-                                                       sub_mesh->stk_mesh, sub_physics) );
+                                                       sub_mesh, sub_physics) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the function managers
@@ -228,7 +229,7 @@ void SubGridDtN2::setUpSubgridModels() {
   // Set up the parameter manager, the assembler and the solver
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->stk_mesh,
+  sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                      sub_physics, sub_disc));
   
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
@@ -772,7 +773,7 @@ void SubGridDtN2::addMeshData() {
   }
   
   if (groups.size() > 0) {
-    sub_mesh->setMeshData(groups, boundary_groups);
+    sub_assembler->setMeshData();
   }
   
   if (debug_level > 0) {
