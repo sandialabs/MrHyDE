@@ -9,7 +9,7 @@
 #ifndef ROL_MILO_HPP
 #define ROL_MILO_HPP
 
-#define EEP_DEBUG_OBJ_MILOROL 1
+#define EEP_DEBUG_OBJ_MILOROL 0
 
 #include "ROL_StdVector.hpp"
 #include "ROL_RiskVector.hpp"

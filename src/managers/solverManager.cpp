@@ -1301,7 +1301,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
       
       this->nonlinearSolver(0, u[0], phi[0]);
       
-      postproc->computeSensitivities(0 /*set*/, u, phi, 0, m_current_time, deltat, gradient); // AquiNow // Aqui???
+      postproc->computeSensitivities(0 /*set*/, u, phi, 0, m_current_time, deltat, gradient); // AquiNow
       
     }
     else if (solver_type == "transient") {
@@ -1322,7 +1322,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   }
   Comm->barrier();
   double tmp = gradient.norm();
-  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+  if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
     std::cout << "EEP Leaving SolverManager<Node>::adjointModel()"
               << ": gradient.norm() = " << tmp
               << std::endl;
@@ -1502,7 +1502,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
               status += this->explicitSolver(set, u_stage, zero_vec[set], stage);
             }
             else {
-              status += this->nonlinearSolver(set, u_stage, zero_vec[set]);
+              status += this->nonlinearSolver(set, u_stage, zero_vec[set]); // AquiTim03
             }
 
             // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
@@ -1532,7 +1532,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         // Make sure last step solution is gathered
         // Last set of values is from a stage solution, which is potentially different
         for (size_t set=0; set<u_cur.size(); ++set) {
-          assembler->updatePhysicsSet(set); // Aqui important // AquiTim02
+          assembler->updatePhysicsSet(set); // AquiTim02
           assembler->performGather(set,u_cur[set],0,0);
         }
         multiscale_manager->completeTimeStep();
@@ -1659,9 +1659,9 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
 
         params->updateDynamicParams(cindex-1);
 
-        assembler->updatePhysicsSet(set); // AquiTim02 // AquiNow
-        assembler->performGather(set,u_prev[set],0,0); // Aqui??? Where is u_prev used?
-        //assembler->performGather(set,phi_prev[set],0,0); // AquiNow
+        assembler->updatePhysicsSet(set); // AquiNow
+        assembler->performGather(set,u_prev[set],0,0); // Aqui??? Where is u_prev used? // AquiTim03
+        assembler->performGather(set,phi_prev[set],0,0); // AquiNow // AquiTim03 // Pay attention to 0,0
 
         assembler->resetPrevSoln(set);
 
@@ -1678,7 +1678,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         u_cur[set]->norm2(tmp);
         phi_cur[set]->norm2(aux);
         Comm->barrier();
-        if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+        if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
           std::cout << "EEP In SolverManager<Node>::transientSolver()"
                     << ": in adjoint solve"
                     << ", numTimeSteps = " << numTimeSteps
@@ -1695,7 +1695,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           int status(0); // AquiNow
           if (fully_explicit) { // AquiNow
             Comm->barrier();
-            if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+            if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
               std::cout << "EEP In SolverManager<Node>::transientSolver()"
                         << ": in adjoint solve"
                         << ", numTimeSteps = " << numTimeSteps
@@ -1707,7 +1707,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             status = this->explicitSolver(set, u_cur[set], phi_cur[set], zeroStage);
           }
           else {
-            status = this->nonlinearSolver(set, u_cur[set], phi_cur[set]); // Aqui important
+            status = this->nonlinearSolver(set, u_cur[set], phi_cur[set]); // AquiTim03
           }
 
           tmp[0] = 0.;
@@ -1715,7 +1715,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           u_cur[set]->norm2(tmp);
           phi_cur[set]->norm2(aux);
           Comm->barrier();
-          if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+          if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
                       << ", numTimeSteps = " << numTimeSteps
@@ -1739,8 +1739,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
                 << std::endl;
             throw std::runtime_error(msg.str());
           }
-          // Aqui_: no need to do the same stuff done during the forward loop ???
-          if ((true) && (Comm->getRank() == 0)) {
+
+          if ((false) && (Comm->getRank() == 0)) {
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
                       << ", numTimeSteps = " << numTimeSteps
@@ -1749,14 +1749,14 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
                       << std::endl;
           }
 
-          postproc->computeSensitivities(set, u_cur, phi_cur, m_current_time, cindex, deltat, gradient); // AquiNow // Aqui???
+          postproc->computeSensitivities(set, u_cur, phi_cur, m_current_time, cindex, deltat, gradient); // AquiNow
 
           tmp[0] = 0.;
           aux[0] = 0.;
           u_cur[set]->norm2(tmp);
           phi_cur[set]->norm2(aux);
           Comm->barrier();
-          if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+          if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
             std::cout << "EEP In SolverManager<Node>::transientSolver()"
                       << ": in adjoint solve"
                       << ", numTimeSteps = " << numTimeSteps
@@ -1959,7 +1959,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     }
     current_res_over->norm2(aux);
     Comm->barrier();
-    if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+    if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
       std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
                 << ", is_adjoint = " << is_adjoint
                 << ", set = " << set
@@ -1997,7 +1997,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     }
     current_res_over->norm2(aux);
     Comm->barrier();
-    if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+    if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
       std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
                 << ", is_adjoint = " << is_adjoint
                 << ", set = " << set
@@ -2027,7 +2027,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       }
       current_res->norm2(aux);
       Comm->barrier();
-      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+      if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
         std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
                   << ", is_adjoint = " << is_adjoint
                   << ", set = " << set
@@ -2051,7 +2051,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       }
       current_res->norm2(aux);
       Comm->barrier();
-      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+      if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
         std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
                   << ", is_adjoint = " << is_adjoint
                   << ", set = " << set
@@ -2143,7 +2143,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
     if (solve) {
-      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+      if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
         std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
                   << ", is_adjoint = " << is_adjoint
                   << ", set = " << set
@@ -2175,7 +2175,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       current_du->norm2(tmp);
       current_res->norm2(aux);
       Comm->barrier();
-      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+      if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
         std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
                   << ", is_adjoint = " << is_adjoint
                   << ", set = " << set
@@ -2194,7 +2194,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u_io, 
       current_du->norm2(tmp);
       current_res->norm2(aux);
       Comm->barrier();
-      if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+      if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
         std::cout << "EEP In SolverManager<Node>::nonlinearSolver()"
                   << ", is_adjoint = " << is_adjoint
                   << ", set = " << set
@@ -2294,7 +2294,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
     phi->norm2(aux);
   }
   Comm->barrier();
-  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+  if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
     std::cout << "EEP Entering SolverManager<Node>::explicitSolver()"
               << ", is_adjoint = " << is_adjoint
               << ", set = " << set
@@ -2341,22 +2341,49 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   current_res_over->putScalar(0.0);
   matrix_RCP J_over;
   
-  bool test = true;
+  bool test = true; // AquiTim03_
   if (test){
-    assembler->assembleRes(set, u, phi, build_jacobian, false, false,
-                            current_res_over, J_over, isTransient, m_current_time, is_adjoint, store_adjPrev,
-                            params->num_active_params, params->Psol_over, is_final_time, deltat);
-  
+    assembler->assembleRes( set
+                          , u                // state variable
+                          , phi              // Lagrange multiplier
+                          , build_jacobian   // = false
+                          , false            // compute_sens
+                          , false            // compute_disc_sens
+                          , current_res_over // output; computed
+                          , J_over           // not touched output ???
+                          , isTransient
+                          , m_current_time
+                          , is_adjoint
+                          , store_adjPrev
+                          , params->num_active_params
+                          , params->Psol_over // input // discretized params
+                          , is_final_time
+                          , deltat
+                          );
   }
   else {
-    assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
-                              current_res_over, J_over, isTransient, m_current_time, is_adjoint, store_adjPrev,
-                              params->num_active_params, params->Psol_over, is_final_time, deltat);
+    assembler->assembleJacRes( set
+                             , u
+                             , phi
+                             , build_jacobian
+                             , false
+                             , false
+                             , current_res_over
+                             , J_over
+                             , isTransient
+                             , m_current_time
+                             , is_adjoint
+                             , store_adjPrev
+                             , params->num_active_params
+                             , params->Psol_over
+                             , is_final_time
+                             , deltat
+                             );
   }
   
   linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
 
-  if (is_adjoint) { // AquiNow???
+  if (is_adjoint) { // AquiNow??? // AquiTim03
     postproc->computeObjectiveGradState(set, u, m_current_time+deltat, deltat, current_res); // AquiNow???
   }
 
@@ -2364,7 +2391,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   current_res->norm2(rnorm);
 
   Comm->barrier();
-  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+  if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
     std::cout << "EEP In SolverManager<Node>::explicitSolver()"
               << ", is_adjoint = " << is_adjoint
               << ", set = " << set
@@ -2453,7 +2480,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
     phi->norm2(aux);
   }
   Comm->barrier();
-  if ((true) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
+  if ((false) && (Comm->getRank() == 0)) { // EEP_DEBUG_SOLVER_MANAGER
     std::cout << "EEP Leaving SolverManager<Node>::explicitSolver()"
               << ", is_adjoint = " << is_adjoint
               << ", set = " << set

@@ -2168,6 +2168,11 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
       cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
     }
   }
+  if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
+    std::cout << "Leaving AssemblyManager<Node>::assembleJacRes(a)"
+              << ", set = " << set
+              << std::endl;
+  }
 }
 
 // ========================================================================================
@@ -2187,7 +2192,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vect
   
   if (debug_level > 1) {
     if (comm->getRank() == 0) {
-      cout << "******** Starting AssemblyManager::assembleRes ..." << endl;
+      cout << "******** Starting AssemblyManager::assembleRes(a) ..." << endl;
     }
   }
   
@@ -2206,7 +2211,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vect
 
   comm->barrier();
   if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
-    std::cout << "In AssemblyManager<Node>::assembleJacRes(a)"
+    std::cout << "In AssemblyManager<Node>::assembleRes(a)"
               << ", set = " << set
               << ": m_groups.size() = " << m_groups.size()
               << std::endl;
@@ -2216,7 +2221,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vect
   for (size_t block=0; block<m_groups.size(); ++block) {
     comm->barrier();
     if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
-      std::cout << "In AssemblyManager<Node>::assembleJacRes(a)"
+      std::cout << "In AssemblyManager<Node>::assembleRes(a)"
                 << ", set = " << set
                 << ": block = " << block
                 << ": m_groups[block].size() = " << m_groups[block].size()
@@ -2233,11 +2238,11 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vect
   
   if (debug_level > 1) {
     if (comm->getRank() == 0) {
-      cout << "******** Finished AssemblyManager::assembleRes" << endl;
+      cout << "******** Finished AssemblyManager::assembleRes(a)" << endl;
     }
   }
   if (EEP_DEBUG_ASSEMBLY_MANAGER && (comm->getRank() == 0)) {
-    std::cout << "Leaving AssemblyManager<Node>::assembleJacRes(a)"
+    std::cout << "Leaving AssemblyManager<Node>::assembleRes(a)"
               << ", set = " << set
               << std::endl;
   }

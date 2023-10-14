@@ -11,7 +11,7 @@
 
 using namespace MrHyDE;
 
-#define EEP_DEBUG_POST_PROC_MANAGER 1
+#define EEP_DEBUG_POST_PROC_MANAGER 0
 
 // ========================================================================================
 /* Minimal constructor to set up the problem */
