@@ -4,7 +4,7 @@
  large-scale multiphysics and multiscale systems.
  
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
- ************************************************************************/
+************************************************************************/
 
 #include "multiscaleManager.hpp"
 #include "split_mpi_communicators.hpp"

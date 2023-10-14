@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Machine name: rocketman
+# Machine type: linux workstation with GPU
+
+# Modules used:
+#  1) sems-gcc/10.1.0     4) sems-boost/1.69.0     7) sems-hdf5/1.10.7     10) sems-netcdf-c/4.7.4
+#  2) sems-cmake/3.24.2   5) sems-openmpi/1.10.7   8) sems-yaml-cpp/0.6.2  11) sems-parallel-netcdf/1.12.1
+#  3) sems-ninja/1.10.1   6) sems-zlib/1.2.11      9) sems-doxygen/1.8.20  12) sems-texlive/20210325
+
+# Note: CMake will warn about the following unused flag during configure
+#    CMAKE_SKIP_RULE_DEPENDENCY
+
+rm CMakeCache.txt
+rm -rf CMakeFiles
+EXTRA_ARGS=$@
+
+TRILINOS_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/Trilinos"
+
+TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source-MrHyDE"
+BUILD_DIR="${TRILINOS_SOURCE_PREFIX}/Trilinos-build-MrHyDE"
+
+BOOST_INCLUDE_DIR="${SEMS_BOOST_INCLUDE_PATH}"
+BOOST_LIB_DIR="${SEMS_BOOST_LIBRARY_PATH}"
+
+NETCDF_INCLUDE_DIR="${SEMS_NETCDF_INCLUDE_PATH}"
+NETCDF_LIB_DIR="${SEMS_NETCDF_LIBRARY_PATH}"
+
+cmake \
+  -D CMAKE_BUILD_TYPE:STRING="RELEASE" \
+  -D CMAKE_CXX_FLAGS:STRING="-O3 -ansi -pedantic -ftrapv -Wall -Wno-long-long -Wno-strict-aliasing -DBOOST_NO_HASH" \
+  -D CMAKE_C_FLAGS:STRING="-O3" \
+  -D CMAKE_Fortran_FLAGS:STRING="-O3" \
+  -D CMAKE_VERBOSE_MAKEFILE:BOOL=OFF \
+  -D CMAKE_SKIP_RULE_DEPENDENCY=ON \
+  -D CMAKE_INSTALL_PREFIX:PATH=${BUILD_DIR} \
+  -D Trilinos_ENABLE_CHECKED_STL:BOOL=OFF \
+  -D Trilinos_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+  -D Trilinos_ENABLE_INSTALL_CMAKE_CONFIG_FILES:BOOL=ON \
+  -D Trilinos_SKIP_FORTRANCINTERFACE_VERIFY_TEST:BOOL=ON \
+  -D Trilinos_ENABLE_Amesos:BOOL=ON \
+  -D Trilinos_ENABLE_Amesos2:BOOL=ON \
+  -D Trilinos_ENABLE_AztecOO:BOOL=ON \
+  -D Trilinos_ENABLE_Belos:BOOL=ON \
+  -D Trilinos_ENABLE_Compadre:BOOL=ON \
+  -D Trilinos_ENABLE_Epetra:BOOL=ON \
+  -D Trilinos_ENABLE_Ifpack:BOOL=ON \
+  -D Trilinos_ENABLE_ML:BOOL=ON \
+  -D Trilinos_ENABLE_MueLu:BOOL=ON \
+  -D Trilinos_ENABLE_Panzer:BOOL=ON \
+  -D Trilinos_ENABLE_ROL:BOOL=ON \
+  -D Trilinos_ENABLE_SEACAS:BOOL=ON \
+    -D SEACASExodus_ENABLE_MPI:BOOL=OFF \
+  -D Trilinos_ENABLE_Shards:BOOL=ON \
+  -D Trilinos_ENABLE_STK:BOOL=ON \
+  -D Trilinos_ENABLE_Stratimikos:BOOL=ON \
+  -D Trilinos_ENABLE_Teko:BOOL=ON \
+  -D Trilinos_ENABLE_Teuchos:BOOL=ON \
+  -D Trilinos_ENABLE_Zoltan:BOOL=ON \
+  -D TPL_ENABLE_Boost:BOOL=ON \
+    -D TPL_Boost_INCLUDE_DIRS:FILEPATH=${BOOST_INCLUDE_DIR} \
+  -D TPL_ENABLE_BoostLib:BOOL=ON \
+    -D BoostLib_INCLUDE_DIRS:FILEPATH=${BOOST_INCLUDE_DIR} \
+    -D BoostLib_LIBRARY_DIRS:FILEPATH=${BOOST_LIB_DIR} \
+  -D TPL_ENABLE_Netcdf:BOOL=ON \
+    -D Netcdf_LIBRARY_DIRS:FILEPATH=${NETCDF_LIB_DIR} \
+    -D TPL_Netcdf_INCLUDE_DIRS:PATH=${NETCDF_INCLUDE_DIR} \
+  -D TPL_ENABLE_MPI:BOOL=ON \
+  -D TPL_ENABLE_GLM=OFF \
+  -D TPL_ENABLE_Matio:BOOL=OFF \
+  -D Trilinos_EXTRA_LINK_FLAGS:STRING="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
+  -D TPL_X11_INCLUDE_DIRS:PATH=/usr/include/X11 \
+  ${EXTRA-ARGS} \
+  ${TRILINOS_SOURCE}
+
+#  -D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
+#  -D Trilinos_ENABLE_TESTS:BOOL=OFF \
+#  -D Trilinos_ENABLE_ALL_PACKAGES:BOOL=OFF \
+#  -D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \

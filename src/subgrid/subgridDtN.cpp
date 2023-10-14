@@ -166,7 +166,7 @@ void SubGridDtN::setUpSubgridModels() {
     meshFactory.completeMeshConstruction(*mesh,*(LocalComm->getRawMpiComm()));
     
     sub_mesh = Teuchos::rcp(new MeshInterface(settings, LocalComm) );
-    sub_mesh->stk_mesh = mesh;
+    sub_mesh->setSTKMesh(mesh);
     if (debug_level > 1) {
       if (LocalComm->getRank() == 0) {
         mesh->printMetaData(std::cout);
@@ -179,13 +179,14 @@ void SubGridDtN::setUpSubgridModels() {
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm, sub_mesh->stk_mesh) );
+  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm, sub_mesh->getBlockNames(),
+                                                   sub_mesh->getSideNames(), sub_mesh->getDimension()) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_disc = Teuchos::rcp( new DiscretizationInterface(settings, LocalComm, sub_mesh->stk_mesh, sub_physics) );
+  sub_disc = Teuchos::rcp( new DiscretizationInterface(settings, LocalComm, sub_mesh, sub_physics) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the function managers
@@ -226,7 +227,7 @@ void SubGridDtN::setUpSubgridModels() {
   // Set up the parameter manager, the assembler and the solver
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh->stk_mesh,
+  sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                      sub_physics, sub_disc));
   
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
@@ -257,9 +258,8 @@ void SubGridDtN::setUpSubgridModels() {
   sgt.getUniqueSides(sideinfo, unique_sides, unique_local_sides, unique_names,
                      macrosidenames, elem_groups);
   
-  vector<stk::mesh::Entity> stk_meshElems;
-  sub_mesh->stk_mesh->getMyElements(blockID, stk_meshElems);
-  
+  vector<stk::mesh::Entity> stk_meshElems = sub_mesh->getMySTKElements(blockID);
+    
   // Does need to be PHX::Device
   Kokkos::View<const LO**,Kokkos::LayoutRight, PHX::Device> LIDs = sub_disc->dof_lids[0];//->getLIDs(); // hard coded
     
@@ -320,7 +320,7 @@ void SubGridDtN::setUpSubgridModels() {
       for (size_t i=0; i<currElem; i++) {
         vector<stk::mesh::EntityId> stk_nodeids;
         size_t elemID = host_eIndex(i);
-        sub_mesh->stk_mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
+        sub_mesh->getSTKNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);//stk_mesh->getNodeIdsForElement(stk_meshElems[elemID], stk_nodeids);
         for (int n=0; n<numNodesPerElem; n++) {
           host_currind(i,n) = stk_nodeids[n];
         }
@@ -981,7 +981,7 @@ void SubGridDtN::addMeshData() {
   }
   
   if (groups.size() > 0) {
-    sub_mesh->setMeshData(groups, boundary_groups);
+    sub_assembler->setMeshData();
   }
   
   if (debug_level > 0) {

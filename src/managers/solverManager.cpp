@@ -2848,8 +2848,7 @@ void SolverManager<Node>::finalizeMultiscale() {
     }
     multiscale_manager->setMacroInfo(disc->basis_pointers, disc->basis_types,
                                      physics->var_list[0], useBasis[0], disc->offsets[0],
-                                     macro_numDOF,
-                                     params->paramnames, params->discretized_param_names);
+                                     macro_numDOF, params->paramnames, params->discretized_param_names);
     
     vector<vector<int> > sgmodels = assembler->identifySubgridModels();
     ScalarT my_cost = multiscale_manager->initialize(sgmodels);

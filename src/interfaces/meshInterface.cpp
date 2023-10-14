@@ -12,7 +12,7 @@
 using namespace MrHyDE;
 
 // ========================================================================================
-/* Constructor to set up the problem */
+// Constructor to set up a mesh interface that builds an stk or simple mesh
 // ========================================================================================
 
 MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
@@ -32,6 +32,11 @@ settings(settings_), comm(comm_) {
     }
   }
   
+  use_stk_mesh = settings->sublist("Mesh").get<bool>("use STK mesh",true);
+  use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
+  if (use_simple_mesh) {
+    use_stk_mesh = false;
+  }
   shape = settings->sublist("Mesh").get<string>("shape","none");
   if (shape == "none") { // new keywords, but allowing BWDS compat.
     shape = settings->sublist("Mesh").get<string>("element type","quad");
@@ -98,86 +103,80 @@ settings(settings_), comm(comm_) {
   // Get dimensions
   num_nodes_per_elem = cTopo.getNodeCount();
   settings->sublist("Mesh").set("numNodesPerElem",num_nodes_per_elem,"number of nodes per element");
-  side_dim = 0;
-  if (dimension > 1) {
-    sTopo.getDimension();
-  }
-  settings->sublist("Mesh").set("sideDim",side_dim,"dimension of the sides of each element");
-  num_sides = cTopo.getSideCount();
-  num_faces = cTopo.getFaceCount();
-  if (dimension == 1)
-    settings->sublist("Mesh").set("numSidesPerElem",2,"number of sides per element");
-  if (dimension == 2)
-    settings->sublist("Mesh").set("numSidesPerElem",num_sides,"number of sides per element");
-  if (dimension == 3)
-    settings->sublist("Mesh").set("numSidesPerElem",num_faces,"number of sides per element");
   
-  // Define a parameter list with the required fields for the panzer_stk mesh factory
-  RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
+  if (use_stk_mesh) {
+    // Define a parameter list with the required fields for the panzer_stk mesh factory
+    RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
   
-  if (settings->sublist("Mesh").get<std::string>("source","Internal") ==  "Exodus") {
-    mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
-    pl->set("File Name",settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo"));
-  }
-  else {
-    pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
-    pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
-    pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
-    pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
-    if (dimension > 1) {
-      pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",comm->getSize()));
-      pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
-      pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
-      pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
-      pl->set("Yf",settings->sublist("Mesh").get("ymax",1.0));
-      pl->set("Y Procs", settings->sublist("Mesh").get("Yprocs",1));
+    if (settings->sublist("Mesh").get<std::string>("source","Internal") ==  "Exodus") {
+      mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
+      pl->set("File Name",settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo"));
     }
-    if (dimension > 2) {
-      pl->set("Z Blocks",settings->sublist("Mesh").get("Zblocks",1));
-      pl->set("Z Elements",settings->sublist("Mesh").get("NZ",20));
-      pl->set("Z0",settings->sublist("Mesh").get("zmin",0.0));
-      pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
-      pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
-    }
-    if (dimension == 1) {
-      mesh_factory = Teuchos::rcp(new panzer_stk::LineMeshFactory());
-    }
-    else if (dimension == 2) {
-      if (shape == "quad") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::SquareQuadMeshFactory());
+    else {
+      pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
+      pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
+      pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
+      pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
+      if (dimension > 1) {
+        pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",comm->getSize()));
+        pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
+        pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
+        pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
+        pl->set("Yf",settings->sublist("Mesh").get("ymax",1.0));
+        pl->set("Y Procs", settings->sublist("Mesh").get("Yprocs",1));
       }
-      if (shape == "tri") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::SquareTriMeshFactory());
+      if (dimension > 2) {
+        pl->set("Z Blocks",settings->sublist("Mesh").get("Zblocks",1));
+        pl->set("Z Elements",settings->sublist("Mesh").get("NZ",20));
+        pl->set("Z0",settings->sublist("Mesh").get("zmin",0.0));
+        pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
+        pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
+      }
+      if (dimension == 1) {
+        mesh_factory = Teuchos::rcp(new panzer_stk::LineMeshFactory());
+      }
+      else if (dimension == 2) {
+        if (shape == "quad") {
+          mesh_factory = Teuchos::rcp(new panzer_stk::SquareQuadMeshFactory());
+        }
+        if (shape == "tri") {
+            mesh_factory = Teuchos::rcp(new panzer_stk::SquareTriMeshFactory());
+          }
+        }
+      else if (dimension == 3) {
+        if (shape == "hex") {
+          mesh_factory = Teuchos::rcp(new panzer_stk::CubeHexMeshFactory());
+        }
+        if (shape == "tet") {
+          mesh_factory = Teuchos::rcp(new panzer_stk::CubeTetMeshFactory());
+        }
       }
     }
-    else if (dimension == 3) {
-      if (shape == "hex") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::CubeHexMeshFactory());
-      }
-      if (shape == "tet") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::CubeTetMeshFactory());
-      }
+
+    // Syntax for periodic BCs ... must be set in the mesh input file
+    if (settings->sublist("Mesh").isSublist("Periodic BCs")) {
+      pl->sublist("Periodic BCs").setParameters( settings->sublist("Mesh").sublist("Periodic BCs") );
     }
+  
+    mesh_factory->setParameterList(pl);
+  
+    // create the mesh
+    stk_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
+  
+    // create a mesh for an optmization movie
+    if (settings->sublist("Postprocess").get("create optimization movie",false)) {
+      stk_optimization_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
+    }
+  
+    stk_mesh->getElementBlockNames(block_names);
+    stk_mesh->getSidesetNames(side_names);
+    stk_mesh->getNodesetNames(node_names);
   }
-  // Syntax for periodic BCs ... must be set in the mesh input file
-  
-  if (settings->sublist("Mesh").isSublist("Periodic BCs")) {
-    pl->sublist("Periodic BCs").setParameters( settings->sublist("Mesh").sublist("Periodic BCs") );
+  else if (use_simple_mesh) {
+    // GHDR: Need to define block_names, side_names, node_names
+
   }
-  
-  mesh_factory->setParameterList(pl);
-  
-  // create the mesh
-  stk_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
-  
-  // create a mesh for an optmization movie
-  if (settings->sublist("Postprocess").get("create optimization movie",false)) {
-    stk_optimization_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
-  }
-  
-  stk_mesh->getElementBlockNames(block_names);
-  stk_mesh->getSidesetNames(side_names);
-  stk_mesh->getNodesetNames(node_sets);
+
 
   for (size_t b=0; b<block_names.size(); b++) {
     cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
@@ -216,6 +215,7 @@ settings(settings_), comm(comm_) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Use an existing stk mesh/factory to create a mesh interface
 ////////////////////////////////////////////////////////////////////////////////
 
 MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
@@ -270,7 +270,7 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
   
   stk_mesh->getElementBlockNames(block_names);
   stk_mesh->getSidesetNames(side_names);
-  stk_mesh->getNodesetNames(node_sets);
+  stk_mesh->getNodesetNames(node_names);
 
   for (size_t b=0; b<block_names.size(); b++) {
     cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
@@ -311,7 +311,9 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
+void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > varlist,
+                             std::vector<std::vector<std::vector<string> > > vartypes,
+                             std::vector<std::vector<std::vector<std::vector<string> > > > derivedList) {
   
   if (debug_level > 0) {
     if (comm->getRank() == 0) {
@@ -345,30 +347,30 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
     for (size_t app=0; app<appends.size(); ++app) {
       
       std::string append = appends[app];
-      for (std::size_t set=0; set<phys->set_names.size(); set++) {
+      for (std::size_t set=0; set<varlist.size(); ++set) {
         
-        for (std::size_t i=0;i<block_names.size();i++) {
+        for (std::size_t blk=0;blk<block_names.size(); ++blk) {
           
-          std::vector<string> varlist = phys->var_list[set][i];
-          std::vector<string> vartypes = phys->types[set][i];
+          //std::vector<string> varlist = phys->var_list[set][i];
+          //std::vector<string> vartype = phys->types[set][i];
           
-          for (size_t j=0; j<varlist.size(); j++) {
-            if (vartypes[j] == "HGRAD") {
-              stk_mesh->addSolutionField(varlist[j]+append, block_names[i]);
+          for (size_t var=0; var<varlist[set][blk].size(); var++) {
+            if (vartypes[set][blk][var] == "HGRAD") {
+              stk_mesh->addSolutionField(varlist[set][blk][var]+append, block_names[blk]);
             }
-            else if (vartypes[j] == "HVOL") { // PW constant
-              stk_mesh->addCellField(varlist[j]+append, block_names[i]);
+            else if (vartypes[set][blk][var] == "HVOL") { // PW constant
+              stk_mesh->addCellField(varlist[set][blk][var]+append, block_names[blk]);
             }
-            else if (vartypes[j] == "HFACE") { // hybridized variable
-              stk_mesh->addCellField(varlist[j]+append, block_names[i]);
+            else if (vartypes[set][blk][var] == "HFACE") { // hybridized variable
+              stk_mesh->addCellField(varlist[set][blk][var]+append, block_names[blk]);
             }
-            else if (vartypes[j] == "HDIV" || vartypes[j] == "HCURL") { // HDIV or HCURL
-              stk_mesh->addCellField(varlist[j]+append+"x", block_names[i]);
+            else if (vartypes[set][blk][var] == "HDIV" || vartypes[set][blk][var] == "HCURL") { // HDIV or HCURL
+              stk_mesh->addCellField(varlist[set][blk][var]+append+"x", block_names[blk]);
               if (dimension > 1) {
-                stk_mesh->addCellField(varlist[j]+append+"y", block_names[i]);
+                stk_mesh->addCellField(varlist[set][blk][var]+append+"y", block_names[blk]);
               }
               if (dimension > 2) {
-                stk_mesh->addCellField(varlist[j]+append+"z", block_names[i]);
+                stk_mesh->addCellField(varlist[set][blk][var]+append+"z", block_names[blk]);
               }
             }
           }
@@ -379,56 +381,56 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
           
           
           Teuchos::ParameterList efields;
-          if (settings->sublist("Postprocess").isSublist(block_names[i])) {
-            efields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra fields");
+          if (settings->sublist("Postprocess").isSublist(block_names[blk])) {
+            efields = settings->sublist("Postprocess").sublist(block_names[blk]).sublist("Extra fields");
           }
           else {
             efields = settings->sublist("Postprocess").sublist("Extra fields");
           }
           Teuchos::ParameterList::ConstIterator ef_itr = efields.begin();
           while (ef_itr != efields.end()) {
-            stk_mesh->addSolutionField(ef_itr->first+append, block_names[i]);
+            stk_mesh->addSolutionField(ef_itr->first+append, block_names[blk]);
             ef_itr++;
           }
           
           Teuchos::ParameterList ecfields;
-          if (settings->sublist("Postprocess").isSublist(block_names[i])) {
-            ecfields = settings->sublist("Postprocess").sublist(block_names[i]).sublist("Extra cell fields");
+          if (settings->sublist("Postprocess").isSublist(block_names[blk])) {
+            ecfields = settings->sublist("Postprocess").sublist(block_names[blk]).sublist("Extra cell fields");
           }
           else {
             ecfields = settings->sublist("Postprocess").sublist("Extra cell fields");
           }
           Teuchos::ParameterList::ConstIterator ecf_itr = ecfields.begin();
           while (ecf_itr != ecfields.end()) {
-            stk_mesh->addCellField(ecf_itr->first+append, block_names[i]);
+            stk_mesh->addCellField(ecf_itr->first+append, block_names[blk]);
             if (settings->isSublist("Subgrid")) {
               string sgfn = "subgrid_mean_" + ecf_itr->first;
-              stk_mesh->addCellField(sgfn+append, block_names[i]);
+              stk_mesh->addCellField(sgfn+append, block_names[blk]);
             }
             ecf_itr++;
           }
           
-          for (size_t j=0; j<phys->modules[set][i].size(); ++j) {
-            std::vector<string> derivedlist = phys->modules[set][i][j]->getDerivedNames();
-            for (size_t k=0; k<derivedlist.size(); ++k) {
-              stk_mesh->addCellField(derivedlist[k]+append, block_names[i]);
+          for (size_t var=0; var<derivedList[set][blk].size(); ++var) {
+            //std::vector<string> derivedlist = phys->modules[set][i][j]->getDerivedNames();
+            for (size_t k=0; k<derivedList[set][blk][var].size(); ++k) {
+              stk_mesh->addCellField(derivedList[set][blk][var][k]+append, block_names[blk]);
             }
           }
           
           if (have_mesh_data || compute_mesh_data) {
-            stk_mesh->addCellField("mesh_data_seed", block_names[i]);
-            stk_mesh->addCellField("mesh_data", block_names[i]);
+            stk_mesh->addCellField("mesh_data_seed", block_names[blk]);
+            stk_mesh->addCellField("mesh_data", block_names[blk]);
           }
           
           if (settings->isSublist("Subgrid")) {
-            stk_mesh->addCellField("subgrid model", block_names[i]);
+            stk_mesh->addCellField("subgrid model", block_names[blk]);
           }
           
           if (settings->sublist("Postprocess").get("write group number",false)) {
-            stk_mesh->addCellField("group number", block_names[i]);
+            stk_mesh->addCellField("group number", block_names[blk]);
           }
           if (settings->sublist("Solver").get<bool>("use basis database",false)) {
-            stk_mesh->addCellField("unique Jacobian ID", block_names[i]);
+            stk_mesh->addCellField("unique Jacobian ID", block_names[blk]);
           }
           if (settings->isSublist("Parameters")) {
             Teuchos::ParameterList parameters = settings->sublist("Parameters");
@@ -437,18 +439,18 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
               Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
               if (newparam.get<string>("usage") == "discretized") {
                 if (newparam.get<string>("type") == "HGRAD") {
-                  stk_mesh->addSolutionField(pl_itr->first+append, block_names[i]);
+                  stk_mesh->addSolutionField(pl_itr->first+append, block_names[blk]);
                 }
                 else if (newparam.get<string>("type") == "HVOL") {
-                  stk_mesh->addCellField(pl_itr->first+append, block_names[i]);
+                  stk_mesh->addCellField(pl_itr->first+append, block_names[blk]);
                 }
                 else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
-                  stk_mesh->addCellField(pl_itr->first+append+"x", block_names[i]);
+                  stk_mesh->addCellField(pl_itr->first+append+"x", block_names[blk]);
                   if (dimension > 1) {
-                    stk_mesh->addCellField(pl_itr->first+append+"y", block_names[i]);
+                    stk_mesh->addCellField(pl_itr->first+append+"y", block_names[blk]);
                   }
                   if (dimension > 2) {
-                    stk_mesh->addCellField(pl_itr->first+append+"z", block_names[i]);
+                    stk_mesh->addCellField(pl_itr->first+append+"z", block_names[blk]);
                   }
                 }
               }
@@ -471,7 +473,7 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
   
   if (settings->sublist("Postprocess").get("create optimization movie",false)) {
     
-    for(std::size_t i=0;i<block_names.size();i++) {
+    for(std::size_t blk=0; blk<block_names.size(); ++blk) {
       
       if (settings->isSublist("Parameters")) {
         Teuchos::ParameterList parameters = settings->sublist("Parameters");
@@ -480,18 +482,18 @@ void MeshInterface::finalize(Teuchos::RCP<PhysicsInterface> & phys) {
           Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
           if (newparam.get<string>("usage") == "discretized") {
             if (newparam.get<string>("type") == "HGRAD") {
-              stk_optimization_mesh->addSolutionField(pl_itr->first, block_names[i]);
+              stk_optimization_mesh->addSolutionField(pl_itr->first, block_names[blk]);
             }
             else if (newparam.get<string>("type") == "HVOL") {
-              stk_optimization_mesh->addCellField(pl_itr->first, block_names[i]);
+              stk_optimization_mesh->addCellField(pl_itr->first, block_names[blk]);
             }
             else if (newparam.get<string>("type") == "HDIV" || newparam.get<string>("type") == "HCURL") {
-              stk_optimization_mesh->addCellField(pl_itr->first+"x", block_names[i]);
+              stk_optimization_mesh->addCellField(pl_itr->first+"x", block_names[blk]);
               if (dimension > 1) {
-                stk_optimization_mesh->addCellField(pl_itr->first+"y", block_names[i]);
+                stk_optimization_mesh->addCellField(pl_itr->first+"y", block_names[blk]);
               }
               if (dimension > 2) {
-                stk_optimization_mesh->addCellField(pl_itr->first+"z", block_names[i]);
+                stk_optimization_mesh->addCellField(pl_itr->first+"z", block_names[blk]);
               }
             }
           }
@@ -613,32 +615,18 @@ DRV MeshInterface::perturbMesh(const int & b, DRV & blocknodes) {
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
-void MeshInterface::setMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
-                                vector<vector<Teuchos::RCP<BoundaryGroup>>> & boundary_groups) {
-  
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh interface setMeshData" << endl;
-    }
-  }
-  
-  if (have_mesh_data) {
-    this->importMeshData(groups, boundary_groups);
-  }
-  else if (compute_mesh_data) {
-    int randSeed = settings->sublist("Mesh").get<int>("random seed", 1234);
-    auto seeds = this->generateNewMicrostructure(randSeed);
-    this->importNewMicrostructure(randSeed, seeds, groups, boundary_groups);
-  }
-  
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh interface setMeshData" << endl;
-    }
-  }
-  
+    
+void MeshInterface::setupExodusFile(const string & filename) {
+  stk_mesh->setupExodusFile(filename);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void MeshInterface::setupOptimizationExodusFile(const string & filename) {
+  stk_optimization_mesh->setupExodusFile(filename);
+}
+    
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -662,209 +650,6 @@ View_Sc2 MeshInterface::getElementCenters(DRV nodes, topo_RCP & reftopo) {
   
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void MeshInterface::importMeshData(vector<vector<Teuchos::RCP<Group> > > & groups,
-                                   vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups) {
-  
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh::importMeshData ..." << endl;
-    }
-  }
-  
-  Teuchos::Time meshimporttimer("mesh import", false);
-  meshimporttimer.start();
-  
-  int numdata = 1;
-  if (have_rotations) {
-    numdata = 9;
-  }
-  else if (have_rotation_phi) {
-    numdata = 3;
-  }
-  
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      int numElem = groups[block][grp]->numElem;
-      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
-      groups[block][grp]->data = cell_data;
-      groups[block][grp]->data_distance = vector<ScalarT>(numElem);
-      groups[block][grp]->data_seed = vector<size_t>(numElem);
-      groups[block][grp]->data_seedindex = vector<size_t>(numElem);
-    }
-  }
-  for (size_t block=0; block<boundary_groups.size(); ++block) {
-    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-      int numElem = boundary_groups[block][grp]->numElem;
-      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
-      boundary_groups[block][grp]->data = cell_data;
-      boundary_groups[block][grp]->data_distance = vector<ScalarT>(numElem);
-      boundary_groups[block][grp]->data_seed = vector<size_t>(numElem);
-      boundary_groups[block][grp]->data_seedindex = vector<size_t>(numElem);
-    }
-  }
-  
-  Teuchos::RCP<Data> mesh_data;
-  
-  string mesh_data_pts_file = mesh_data_pts_tag + ".dat";
-  string mesh_data_file = mesh_data_tag + ".dat";
-  
-  bool have_grid_data = settings->sublist("Mesh").get<bool>("data on grid",false);
-  if (have_grid_data) {
-    int Nx = settings->sublist("Mesh").get<int>("data grid Nx",0);
-    int Ny = settings->sublist("Mesh").get<int>("data grid Ny",0);
-    int Nz = settings->sublist("Mesh").get<int>("data grid Nz",0);
-    mesh_data = Teuchos::rcp(new Data("mesh data", dimension, mesh_data_pts_file,
-                                      mesh_data_file, false, Nx, Ny, Nz));
-    
-    for (size_t block=0; block<groups.size(); ++block) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
-        DRV nodes = groups[block][grp]->nodes;
-        int numElem = groups[block][grp]->numElem;
-        
-        auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cell_topo);
-        auto centers_host = create_mirror_view(centers);
-        deep_copy(centers_host,centers);
-        
-        for (int c=0; c<numElem; c++) {
-          ScalarT distance = 0.0;
-          
-          // Doesn't use the Compadre interface
-          int cnode = mesh_data->findClosestGridPoint(centers_host(c,0), centers_host(c,1),
-                                                      centers_host(c,2), distance);
-          
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode);
-          for (size_type i=0; i<cdata.extent(1); i++) {
-            groups[block][grp]->data(c,i) = cdata(0,i);
-          }
-          groups[block][grp]->group_data->have_extra_data = true;
-          groups[block][grp]->group_data->have_rotation = have_rotations;
-          groups[block][grp]->group_data->have_phi = have_rotation_phi;
-          
-          groups[block][grp]->data_seed[c] = cnode;
-          groups[block][grp]->data_seedindex[c] = cnode % 100;
-          groups[block][grp]->data_distance[c] = distance;
-        }
-      }
-    }
-    
-    for (size_t block=0; block<boundary_groups.size(); ++block) {
-      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-        DRV nodes = boundary_groups[block][grp]->nodes;
-        int numElem = boundary_groups[block][grp]->numElem;
-        
-        auto centers = this->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
-        auto centers_host = create_mirror_view(centers);
-        deep_copy(centers_host,centers);
-        
-        for (int c=0; c<numElem; c++) {
-          ScalarT distance = 0.0;
-          
-          int cnode = mesh_data->findClosestGridPoint(centers_host(c,0), centers_host(c,1),
-                                                      centers_host(c,2), distance);
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode);
-          for (size_type i=0; i<cdata.extent(1); i++) {
-            boundary_groups[block][grp]->data(c,i) = cdata(0,i);
-          }
-          boundary_groups[block][grp]->group_data->have_extra_data = true;
-          boundary_groups[block][grp]->group_data->have_rotation = have_rotations;
-          boundary_groups[block][grp]->group_data->have_phi = have_rotation_phi;
-          
-          boundary_groups[block][grp]->data_seed[c] = cnode;
-          boundary_groups[block][grp]->data_seedindex[c] = cnode % 100;
-          boundary_groups[block][grp]->data_distance[c] = distance;
-        }
-      }
-    }
-  }
-  else {
-    mesh_data = Teuchos::rcp(new Data("mesh data", dimension, mesh_data_pts_file,
-                                      mesh_data_file, false));
-    
-    for (size_t block=0; block<groups.size(); ++block) {
-      for (size_t grp=0; grp<groups[block].size(); ++grp) {
-        DRV nodes = groups[block][grp]->nodes;
-        int numElem = groups[block][grp]->numElem;
-        
-        auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cell_topo);
-        
-        Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
-        
-        mesh_data->findClosestPoint(centers,cnode,distance);
-        
-        auto distance_mirror = Kokkos::create_mirror_view(distance);
-        auto data_mirror = Kokkos::create_mirror_view(groups[block][grp]->data);
-
-        for (int c=0; c<numElem; c++) {
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode(c));
-
-          for (size_t i=0; i<cdata.extent(1); i++) {
-            data_mirror(c,i) = cdata(0,i);
-          }
-
-          groups[block][grp]->group_data->have_extra_data = true;
-          groups[block][grp]->group_data->have_rotation = have_rotations;
-          groups[block][grp]->group_data->have_phi = have_rotation_phi;
-          
-          groups[block][grp]->data_seed[c] = cnode(c);
-          groups[block][grp]->data_seedindex[c] = cnode(c) % 100;
-          groups[block][grp]->data_distance[c] = distance_mirror(c);
-
-        }
-        Kokkos::deep_copy(groups[block][grp]->data, data_mirror);
-      }
-    }
-    
-    for (size_t block=0; block<boundary_groups.size(); ++block) {
-      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-        DRV nodes = boundary_groups[block][grp]->nodes;
-        int numElem = boundary_groups[block][grp]->numElem;
-        
-        auto centers = this->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
-        
-        Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
-        
-        mesh_data->findClosestPoint(centers,cnode,distance);
-
-        auto distance_mirror = Kokkos::create_mirror_view(distance);
-        auto data_mirror = Kokkos::create_mirror_view(boundary_groups[block][grp]->data);
-        
-        for (int c=0; c<numElem; c++) {
-          Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode(c));
-
-          for (size_t i=0; i<cdata.extent(1); i++) {
-            data_mirror(c,i) = cdata(0,i);
-          }
-
-          boundary_groups[block][grp]->group_data->have_extra_data = true;
-          boundary_groups[block][grp]->group_data->have_rotation = have_rotations;
-          boundary_groups[block][grp]->group_data->have_phi = have_rotation_phi;
-          
-          boundary_groups[block][grp]->data_seed[c] = cnode(c);
-          boundary_groups[block][grp]->data_seedindex[c] = cnode(c) % 50;
-          boundary_groups[block][grp]->data_distance[c] = distance_mirror(c);
-        }
-        Kokkos::deep_copy(boundary_groups[block][grp]->data, data_mirror);
-      }
-    }
-  }
-  
-  
-  meshimporttimer.stop();
-  if (verbosity>5 && comm->getRank() == 0) {
-    cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
-  }
-  
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh::meshDataImport" << endl;
-    }
-  }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -1045,264 +830,6 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
 
 
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
-                                            vector<vector<Teuchos::RCP<Group> > > & groups,
-                                            vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups) {
-  
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh::importNewMicrostructure ..." << endl;
-    }
-  }
-  Teuchos::Time meshimporttimer("mesh import", false);
-  meshimporttimer.start();
-  
-  std::default_random_engine generator(randSeed);
-  
-  num_seeds = seeds.extent(0);
-  std::uniform_int_distribution<int> idistribution(0,100);
-  Kokkos::View<int*,HostDevice> seedIndex("seed index",num_seeds);
-  for (int i=0; i<num_seeds; i++) {
-    int ci = idistribution(generator);
-    seedIndex(i) = ci;
-  }
-  
-  //KokkosTools::print(seedIndex);
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Set seed data
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  int numdata = 9;
-  
-  std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
-  Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",num_seeds,numdata);
-  for (int k=0; k<num_seeds; k++) {
-    ScalarT x = ndistribution(generator);
-    ScalarT y = ndistribution(generator);
-    ScalarT z = ndistribution(generator);
-    ScalarT w = ndistribution(generator);
-    
-    ScalarT r = sqrt(x*x + y*y + z*z + w*w);
-    x *= 1.0/r;
-    y *= 1.0/r;
-    z *= 1.0/r;
-    w *= 1.0/r;
-    
-    rotation_data(k,0) = w*w + x*x - y*y - z*z;
-    rotation_data(k,1) = 2.0*(x*y - w*z);
-    rotation_data(k,2) = 2.0*(x*z + w*y);
-    
-    rotation_data(k,3) = 2.0*(x*y + w*z);
-    rotation_data(k,4) = w*w - x*x + y*y - z*z;
-    rotation_data(k,5) = 2.0*(y*z - w*x);
-    
-    rotation_data(k,6) = 2.0*(x*z - w*y);
-    rotation_data(k,7) = 2.0*(y*z + w*x);
-    rotation_data(k,8) = w*w - x*x - y*y + z*z;
-    
-  }
-  
-  //KokkosTools::print(rotation_data);
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Initialize cell data
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  int totalElem = 0;
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      int numElem = groups[block][grp]->numElem;
-      totalElem += numElem;
-      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
-      groups[block][grp]->data = cell_data;
-      groups[block][grp]->data_distance = vector<ScalarT>(numElem);
-      groups[block][grp]->data_seed = vector<size_t>(numElem);
-      groups[block][grp]->data_seedindex = vector<size_t>(numElem);
-    }
-  }
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Create a list of all cell nodes
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  DRV totalNodes("nodes from all groups",totalElem,
-                 groups[0][0]->nodes.extent(1),
-                 groups[0][0]->nodes.extent(2));
-  int prog = 0;
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      auto nodes = groups[block][grp]->nodes;
-      parallel_for("mesh data cell nodes",
-                   RangePolicy<AssemblyExec>(0,nodes.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<nodes.extent(1); ++pt) {
-          for (size_type dim=0; dim<nodes.extent(2); ++dim) {
-            totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
-          }
-        }
-      });
-      prog += groups[block][grp]->numElem;
-    }
-  }
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Create a list of all cell centers
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  auto centers = this->getElementCenters(totalNodes, groups[0][0]->group_data->cell_topo);
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Find the closest seeds
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",totalElem);
-  Kokkos::View<int*, CompadreDevice> cnode("cnode",totalElem);
-  
-  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreInterface_constructNeighborLists(seeds, centers, distance);
-  cnode = neighborlists.getNeighborLists();
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Set group data
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  prog = 0;
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      int numElem = groups[block][grp]->numElem;
-      //auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cellTopo);
-      
-      //Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-      //Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
-      //Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
-      //cnode = neighborlists.getNeighborLists();
-
-      for (int c=0; c<numElem; c++) {
-        
-        int cpt = cnode(prog);
-        prog++;
-        
-        for (int i=0; i<9; i++) {
-          groups[block][grp]->data(c,i) = rotation_data(cpt,i);//rotation_data(cnode(c),i);
-        }
-        
-        groups[block][grp]->group_data->have_rotation = true;
-        groups[block][grp]->group_data->have_phi = false;
-        
-        groups[block][grp]->data_seed[c] = cpt % 100;//cnode(c) % 100;
-        groups[block][grp]->data_seedindex[c] = seedIndex(cpt); //seedIndex(cnode(c));
-        groups[block][grp]->data_distance[c] = distance(cpt);//distance(c);
-        
-      }
-    }
-    
-  }
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Initialize boundary data
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  totalElem = 0;
-  for (size_t block=0; block<boundary_groups.size(); ++block) {
-    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-      int numElem = boundary_groups[block][grp]->numElem;
-      totalElem += numElem;
-      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
-      boundary_groups[block][grp]->data = cell_data;
-      boundary_groups[block][grp]->data_distance = vector<ScalarT>(numElem);
-      boundary_groups[block][grp]->data_seed = vector<size_t>(numElem);
-      boundary_groups[block][grp]->data_seedindex = vector<size_t>(numElem);
-    }
-  }
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Create a list of all cell nodes
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  if (totalElem > 0) {
-    
-    totalNodes = DRV("nodes from all groups",totalElem,
-                     groups[0][0]->nodes.extent(1),
-                     groups[0][0]->nodes.extent(2));
-    prog = 0;
-    for (size_t block=0; block<boundary_groups.size(); ++block) {
-      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-        auto nodes = boundary_groups[block][grp]->nodes;
-        parallel_for("mesh data cell nodes",
-                     RangePolicy<AssemblyExec>(0,nodes.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<nodes.extent(1); ++pt) {
-            for (size_type dim=0; dim<nodes.extent(2); ++dim) {
-              totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
-            }
-          }
-        });
-        prog += boundary_groups[block][grp]->numElem;
-      }
-    }
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // Create a list of all cell centers
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    centers = this->getElementCenters(totalNodes, groups[0][0]->group_data->cell_topo);
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // Find the closest seeds
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    distance = Kokkos::View<ScalarT*, AssemblyDevice>("distance",totalElem);
-    cnode = Kokkos::View<int*, CompadreDevice>("cnode",totalElem);
-    neighborlists = CompadreInterface_constructNeighborLists(seeds, centers, distance);
-    cnode = neighborlists.getNeighborLists();
-    
-    ////////////////////////////////////////////////////////////////////////////////
-    // Set data
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    prog = 0;
-    for (size_t block=0; block<boundary_groups.size(); ++block) {
-      for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-        DRV nodes = boundary_groups[block][grp]->nodes;
-        int numElem = boundary_groups[block][grp]->numElem;
-        
-        for (int c=0; c<numElem; c++) {
-          
-          int cpt = cnode(prog);
-          prog++;
-          
-          for (int i=0; i<9; i++) {
-            boundary_groups[block][grp]->data(c,i) = rotation_data(cpt,i);
-          }
-          
-          boundary_groups[block][grp]->group_data->have_rotation = true;
-          boundary_groups[block][grp]->group_data->have_phi = false;
-          
-          boundary_groups[block][grp]->data_seed[c] = cpt % 100;
-          boundary_groups[block][grp]->data_seedindex[c] = seedIndex(cpt);
-          boundary_groups[block][grp]->data_distance[c] = distance(cpt);
-          
-        }
-      }
-    }
-    
-  }
-  
-  meshimporttimer.stop();
-  if (verbosity>5 && comm->getRank() == 0) {
-    cout << "microstructure import time: " << meshimporttimer.totalElapsedTime(false) << endl;
-  }
-  
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh::importNewMicrostructure" << endl;
-    }
-  }
-  
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -1310,9 +837,14 @@ void MeshInterface::importNewMicrostructure(int & randSeed, View_Sc2 seeds,
 DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
   vector<size_t> localIds;
   DRV blocknodes;
-  
-  panzer_stk::workset_utils::getIdsAndVertices(*stk_mesh, block_names[block], localIds, blocknodes);
-  int nnodes = blocknodes.extent(1);
+  int nnodes = 0;
+  if (use_stk_mesh) {
+    panzer_stk::workset_utils::getIdsAndVertices(*stk_mesh, block_names[block], localIds, blocknodes);
+    nnodes = blocknodes.extent(1);
+  }
+  else if (use_simple_mesh) {
+    // nnodes = ???
+  }
   
   DRV cnodes("element nodes",1,nnodes,dimension);
   for (int i=0; i<nnodes; i++) {
@@ -1520,12 +1052,177 @@ void MeshInterface::readExodusData() {
 // After the setup phase, we might be able to get rid of a few things
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+void MeshInterface::purgeMesh() {
+  stk_mesh = Teuchos::null;
+  mesh_factory = Teuchos::null;
+}
+
 void MeshInterface::purgeMemory() {
-  
-  
   nfield_vals.clear();
   efield_vals.clear();
   meas = Teuchos::null;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Access function (mostly) for the stk mesh
+////////////////////////////////////////////////////////////////////////////////
+    
+void MeshInterface::setSolutionFieldData(string var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln) {
+  if (use_stk_mesh) {
+    stk_mesh->setSolutionFieldData(var, blockID, myElements, soln);
+  }
+}
+
+void MeshInterface::setCellFieldData(string var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT*,HostDevice> soln) {
+  if (use_stk_mesh) {
+    stk_mesh->setCellFieldData(var, blockID, myElements, soln);
+  }
+}
+
+void MeshInterface::setOptimizationSolutionFieldData(string & var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln) {
+  if (use_stk_mesh) {
+    stk_optimization_mesh->setSolutionFieldData(var, blockID, myElements, soln);
+  }
+}
+
+void MeshInterface::setOptimizationCellFieldData(string & var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT*,HostDevice> soln) {
+  if (use_stk_mesh) {
+    stk_optimization_mesh->setCellFieldData(var, blockID, myElements, soln);
+  }
+}
+
+void MeshInterface::writeToExodus(const double & currenttime) {
+  if (use_stk_mesh) {
+    stk_mesh->writeToExodus(currenttime);
+  }
+}
+
+void MeshInterface::writeToExodus(const string & filename) {
+  if (use_stk_mesh) {
+    stk_mesh->writeToExodus(filename);
+  }
+}
+    
+void MeshInterface::writeToOptimizationExodus(const double & currenttime) {
+  if (use_stk_mesh) {
+    stk_optimization_mesh->writeToExodus(currenttime);
+  }
+}
+
+void MeshInterface::writeToOptimizationExodus(const string & filename) {
+  if (use_stk_mesh) {
+    stk_optimization_mesh->writeToExodus(filename);
+  }
+}
+    
+vector<string> MeshInterface::getBlockNames() {
+  return block_names;
+}
+
+vector<string> MeshInterface::getSideNames() {
+  return side_names;
+}
+    
+vector<string> MeshInterface::getNodeNames() {
+  return node_names;
+}
+
+int MeshInterface::getDimension() {
+  return dimension;
+}
+    
+topo_RCP MeshInterface::getCellTopology(string & blockID) {
+  topo_RCP currtopo;
+  for (size_t blk=0; blk<block_names.size(); ++blk) {
+    if (block_names[blk] == blockID) {
+      currtopo = cell_topo[blk];
+    }
+  }
+  return currtopo;
+}
+    
+Teuchos::RCP<panzer::ConnManager> MeshInterface::getSTKConnManager() {
+  if (use_stk_mesh) {
+    return Teuchos::rcp(new panzer_stk::STKConnManager(stk_mesh));
+  }
+}
+
+void MeshInterface::setSTKMesh(Teuchos::RCP<panzer_stk::STK_Interface> & new_mesh) {
+  stk_mesh = new_mesh;
+  stk_mesh->getElementBlockNames(block_names);
+  stk_mesh->getSidesetNames(side_names);
+  stk_mesh->getNodesetNames(node_names);
+}
+
   
+vector<stk::mesh::Entity> MeshInterface::getMySTKElements() {
+  vector<stk::mesh::Entity> stk_meshElems;
+  if (use_stk_mesh) {
+    stk_mesh->getMyElements(stk_meshElems);
+  }
+  return stk_meshElems;
+}
   
+vector<stk::mesh::Entity> MeshInterface::getMySTKElements(string & blockID) {
+  vector<stk::mesh::Entity> stk_meshElems;
+  if (use_stk_mesh) {
+    stk_mesh->getMyElements(blockID, stk_meshElems);
+  }
+  return stk_meshElems;
+}
+  
+void MeshInterface::getSTKNodeIdsForElement(stk::mesh::Entity & stk_meshElem, vector<stk::mesh::EntityId> & stk_nodeids) {
+  if (use_stk_mesh) {
+    stk_mesh->getNodeIdsForElement(stk_meshElem, stk_nodeids);
+  }
+}
+
+vector<stk::mesh::Entity> MeshInterface::getMySTKSides(string & sideName, string & blockname) {
+  vector<stk::mesh::Entity> sideEntities;
+  if (use_stk_mesh) {
+    stk_mesh->getMySides(sideName, blockname, sideEntities);
+  }
+  return sideEntities;
+}
+
+vector<stk::mesh::Entity> MeshInterface::getMySTKNodes(string & nodeName, string & blockID) {
+  vector<stk::mesh::Entity> nodeEntities;
+  if (use_stk_mesh) {
+    stk_mesh->getMyNodes(nodeName, blockID, nodeEntities);
+  }
+  return nodeEntities;
+}
+
+void MeshInterface::getSTKSideElements(string & blockname, vector<stk::mesh::Entity> & sideEntities, 
+                                       vector<size_t> & local_side_Ids, vector<stk::mesh::Entity> & side_output) {
+  if (use_stk_mesh) {
+    panzer_stk::workset_utils::getSideElements(*stk_mesh, blockname, sideEntities, local_side_Ids, side_output);
+  }
+}
+
+void MeshInterface::getSTKElementVertices(vector<stk::mesh::Entity> & side_output, string & blockname, DRV & sidenodes) {
+  if (use_stk_mesh) {
+    stk_mesh->getElementVertices(side_output, blockname, sidenodes);
+  }
+}
+    
+LO MeshInterface::getSTKElementLocalId(stk::mesh::Entity & elem) {
+  LO id = 0;
+  if (use_stk_mesh) {
+    id = stk_mesh->elementLocalId(elem);
+  }
+  return id;
+}
+
+void MeshInterface::getSTKElementVertices(vector<size_t> & local_grp, string & blockname, DRV & currnodes) {
+  if (use_stk_mesh) {
+    stk_mesh->getElementVertices(local_grp, blockname, currnodes);
+  }
+}
+
+void MeshInterface::getSTKNodeElements(string & blockname, vector<stk::mesh::Entity> & nodeEntities, 
+                                       vector<size_t> & local_node_Ids, vector<stk::mesh::Entity> & side_output) {
+  if (use_stk_mesh) {
+    panzer_stk::workset_utils::getNodeElements(*stk_mesh, blockname, nodeEntities, local_node_Ids, side_output);
+  }
 }

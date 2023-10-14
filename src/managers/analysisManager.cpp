@@ -837,9 +837,7 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
       // Update random microstructure
       if (regenerate_grains) {
         auto seeds = solver_->mesh->generateNewMicrostructure(sampleints(j));
-        solver_->mesh->importNewMicrostructure(sampleints(j), seeds,
-                                             solver_->assembler->m_groups,
-                                             solver_->assembler->boundary_groups);
+        solver_->assembler->importNewMicrostructure(sampleints(j), seeds);
       }
       else if (regenerate_rotations) {
         this->updateRotationData(sampleints(j));

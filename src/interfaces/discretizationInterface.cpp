@@ -65,7 +65,7 @@ using namespace MrHyDE;
 
 DiscretizationInterface::DiscretizationInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                                  Teuchos::RCP<MpiComm> & Comm_,
-                                                 Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                                                 Teuchos::RCP<MeshInterface> & mesh_,
                                                  Teuchos::RCP<PhysicsInterface> & physics_) :
 settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   
@@ -87,8 +87,8 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   ////////////////////////////////////////////////////////////////////////////////
   
   dimension = mesh->getDimension();
-  mesh->getElementBlockNames(block_names);
-  mesh->getSidesetNames(side_names);
+  block_names = mesh->getBlockNames();
+  side_names = mesh->getSideNames();
 
   ////////////////////////////////////////////////////////////////////////////////
   // Assemble the information we always store
@@ -103,13 +103,12 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     topo_RCP cellTopo = mesh->getCellTopology(blockID);
     string shape = cellTopo->getName();
     
-    vector<stk::mesh::Entity> stk_meshElems;
-    mesh->getMyElements(blockID, stk_meshElems);
+    vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blockID);
     
     // list of all elements on this processor
     vector<size_t> blockmy_elements = vector<size_t>(stk_meshElems.size());
     for( size_t e=0; e<stk_meshElems.size(); e++ ) {
-      blockmy_elements[e] = mesh->elementLocalId(stk_meshElems[e]);
+      blockmy_elements[e] = mesh->getSTKElementLocalId(stk_meshElems[e]);
     }
     my_elements.push_back(blockmy_elements);
     
@@ -214,11 +213,25 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     
   } // block loop
   
-  this->buildDOFManagers();
-  
-  //this->setBCData();
-  
-  //this->setDirichletData();
+
+  // We do not actually store the DOF or Connectivity managers
+  // Probably require:
+  // std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids; [set](elem, dof)
+  // std::vector<std::vector<GO> > dof_owned, dof_owned_and_shared; // list of degrees of freedom on processor
+  // std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof] 
+  // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
+
+  // May also need to fill:
+  // std::vector<Intrepid2::Orientation> panzer_orientations; [elem]
+  // vector<int> num_derivs_required; [block] (takes max over sets)
+     
+  if (mesh->use_stk_mesh) {
+    this->buildDOFManagers();
+  }
+  else {
+    // GHDR: need to fill in the objects listed above (try it without the orientations and num_derivs_required)
+    // 
+  }
   
   if (debug_level > 0) {
     if (comm->getRank() == 0) {
@@ -1988,7 +2001,7 @@ void DiscretizationInterface::buildDOFManagers() {
     }
   }
   
-  Teuchos::RCP<panzer::ConnManager> conn = Teuchos::rcp(new panzer_stk::STKConnManager(mesh));
+  Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
   
   num_derivs_required = vector<int>(block_names.size(),0);
   
@@ -2166,8 +2179,8 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
   }
   
   vector<string> sideSets, nodeSets;
-  mesh->getSidesetNames(sideSets);
-  mesh->getNodesetNames(nodeSets);
+  sideSets = mesh->getSideNames();
+  nodeSets = mesh->getNodeNames();
   
   //for (size_t set=0; set<physics->setnames.size(); ++set) {
     vector<vector<string> > varlist = physics->var_list[set];
@@ -2193,16 +2206,15 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
       }
       
       std::string blockID = block_names[block];
-      vector<stk::mesh::Entity> stk_meshElems;
-      mesh->getMyElements(blockID, stk_meshElems);
+      vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blockID);
       size_t maxElemLID = 0;
       for (size_t i=0; i<stk_meshElems.size(); i++) {
-        size_t lid = mesh->elementLocalId(stk_meshElems[i]);
+        size_t lid = mesh->getSTKElementLocalId(stk_meshElems[i]);
         maxElemLID = std::max(lid,maxElemLID);
       }
       std::vector<size_t> localelemmap(maxElemLID+1);
       for (size_t i=0; i<stk_meshElems.size(); i++) {
-        size_t lid = mesh->elementLocalId(stk_meshElems[i]);
+        size_t lid = mesh->getSTKElementLocalId(stk_meshElems[i]);
         localelemmap[lid] = i;
       }
 
@@ -2235,8 +2247,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
         for (size_t side=0; side<sideSets.size(); side++ ) {
           string sideName = sideSets[side];
           
-          vector<stk::mesh::Entity> sideEntities;
-          mesh->getMySides(sideName, blockID, sideEntities);
+          vector<stk::mesh::Entity> sideEntities = mesh->getMySTKSides(sideName, blockID);
           
           bool isDiri = false;
           bool isNeum = false;
@@ -2274,10 +2285,11 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
             vector<size_t>             local_side_Ids;
             vector<stk::mesh::Entity> side_output;
             vector<size_t>             local_elem_Ids;
-            panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities, local_side_Ids, side_output);
+            mesh->getSTKSideElements(blockID, sideEntities, local_side_Ids, side_output);
+            //panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities, local_side_Ids, side_output);
             
             for (size_t i=0; i<side_output.size(); i++ ) {
-              local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
+              local_elem_Ids.push_back(mesh->getSTKElementLocalId(side_output[i]));
               size_t localid = localelemmap[local_elem_Ids[i]];
               if (isDiri) {
                 if (use_weak_dbcs) {
@@ -2323,17 +2335,16 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
           }
           
           if (isDiri && !use_weak_dbcs) {
-            vector<stk::mesh::Entity> nodeEntities;
-            mesh->getMyNodes(nodeName, blockID, nodeEntities);
+            vector<stk::mesh::Entity> nodeEntities = mesh->getMySTKNodes(nodeName, blockID);
             vector<GO> elemGIDs;
             
             vector<size_t> local_elem_Ids;
             vector<size_t> local_node_Ids;
             vector<stk::mesh::Entity> side_output;
-            panzer_stk::workset_utils::getNodeElements(*mesh,blockID,nodeEntities,local_node_Ids,side_output);
-            
+            mesh->getSTKNodeElements(blockID, nodeEntities, local_node_Ids, side_output);
+
             for( size_t i=0; i<side_output.size(); i++ ) {
-              local_elem_Ids.push_back(mesh->elementLocalId(side_output[i]));
+              local_elem_Ids.push_back(mesh->getSTKElementLocalId(side_output[i]));
               size_t localid = localelemmap[local_elem_Ids[i]];
               elemGIDs = dof_gids[set][localid];
               //currDOF->getElementGIDs(localid,elemGIDs,blockID);
@@ -2446,8 +2457,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
         std::vector<LO> var_dofs;
         for (size_t side=0; side<side_names.size(); side++ ) {
           std::string sideName = side_names[side];
-          vector<stk::mesh::Entity> sideEntities;
-          mesh->getMySides(sideName, blockID, sideEntities);
+          vector<stk::mesh::Entity> sideEntities = mesh->getMySTKSides(sideName, blockID);
           
           bool isDiri = false;
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
@@ -2460,11 +2470,12 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
             vector<size_t>             local_side_Ids;
             vector<stk::mesh::Entity>  side_output;
             vector<size_t>             local_elem_Ids;
-            panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
-                                                       local_side_Ids, side_output);
+            mesh->getSTKSideElements(blockID, sideEntities, local_side_Ids, side_output);
+            //panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
+            //                                           local_side_Ids, side_output);
             
             for( size_t i=0; i<side_output.size(); i++ ) {
-              LO local_EID = mesh->elementLocalId(side_output[i]);
+              LO local_EID = mesh->getSTKElementLocalId(side_output[i]);
               auto elemLIDs = DOF->getElementLIDs(local_EID);
               const std::pair<vector<int>,vector<int> > SideIndex = DOF->getGIDFieldOffsets_closure(blockID, fieldnum,
                                                                                                         dimension-1,

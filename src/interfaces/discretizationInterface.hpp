@@ -21,6 +21,7 @@
 #include "Panzer_ConnManager.hpp"
 #include "Panzer_STK_Interface.hpp"
 #include "physicsInterface.hpp"
+#include "meshInterface.hpp"
 #include "groupMetaData.hpp"
 
 namespace MrHyDE {
@@ -44,14 +45,14 @@ namespace MrHyDE {
      *
      * @param[in]  settings_  Main Teuchos Parameter List for MrHyDE
      * @param[in]  Comm_ Global MPI communicator
-     * @param[in]  mesh_ STK mesh - not the MrHyDE Mesh Interface
+     * @param[in]  mesh_ MrHyDE Mesh Interface
      * @param[in]  phys_ MrHyDE Physics Interface
      *
      */
 
     DiscretizationInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                             Teuchos::RCP<MpiComm> & Comm_,
-                            Teuchos::RCP<panzer_stk::STK_Interface> & mesh_,
+                            Teuchos::RCP<MeshInterface> & mesh_,
                             Teuchos::RCP<PhysicsInterface> & phys_);
                    
     //////////////////////////////////////////////////////////////////////////////////////
@@ -304,7 +305,7 @@ namespace MrHyDE {
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> comm;
-    Teuchos::RCP<panzer_stk::STK_Interface> mesh;
+    Teuchos::RCP<MeshInterface> mesh;
     Teuchos::RCP<PhysicsInterface> physics;
     vector<vector<basis_RCP> > basis_pointers; // [block][basis]
     vector<vector<string> > basis_types; // [block][basis]

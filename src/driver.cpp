@@ -75,41 +75,41 @@ int main(int argc,char * argv[]) {
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
     
-    Teuchos::RCP<PhysicsInterface> physics = Teuchos::rcp( new PhysicsInterface(settings, Comm, mesh->stk_mesh) );
+    Teuchos::RCP<PhysicsInterface> physics = Teuchos::rcp( new PhysicsInterface(settings, Comm, 
+                                                                                mesh->getBlockNames(),
+                                                                                mesh->getSideNames(),
+                                                                                mesh->getDimension()) );
     
     ////////////////////////////////////////////////////////////////////////////////
     // Mesh only needs the variable names and types to finalize
     ////////////////////////////////////////////////////////////////////////////////
     
-    mesh->finalize(physics);
+    mesh->finalize(physics->getVarList(), physics->getVarTypes(), physics->getDerivedList());
     
     ////////////////////////////////////////////////////////////////////////////////
     // Define the discretization(s)
     ////////////////////////////////////////////////////////////////////////////////
         
     Teuchos::RCP<DiscretizationInterface> disc = Teuchos::rcp( new DiscretizationInterface(settings, Comm,
-                                                                                           mesh->stk_mesh,
-                                                                                           physics) );
+                                                                                           mesh, physics) );
             
     ////////////////////////////////////////////////////////////////////////////////
     // Create the solver object
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
-                                                                                                        mesh->stk_mesh, physics, disc));
+                                                                                                        mesh, physics, disc));
     
     Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh,
                                                                                                          disc, physics, params));
     
-    mesh->setMeshData(assembler->m_groups,
-                      assembler->boundary_groups);
+    assembler->setMeshData();
     
     if (settings->get<bool>("enable memory purge",true)) {
       disc->purgeLIDs();
       if (!settings->sublist("Postprocess").get("write solution",false) && 
           !settings->sublist("Postprocess").get("create optimization movie",false)) {
-        mesh->stk_mesh = Teuchos::null;
-        mesh->mesh_factory = Teuchos::null;
+        mesh->purgeMesh();
         disc->mesh = Teuchos::null;
         params->mesh = Teuchos::null;
       }
@@ -192,6 +192,15 @@ int main(int argc,char * argv[]) {
     Kokkos::fence();
     Comm->barrier();
     
+    if (verbosity >= 10) {
+      if (Comm->getRank() == 0) {
+        std::cout << std::endl << "*********************************************" << std::endl;
+        std::cout << "Printing settings used by MrHyDE (ignore unused keyword):" << std::endl;
+        settings->print(); // only prints on rank 0 anyway
+        std::cout << "*********************************************" << std::endl;
+      }
+    }
+
     {
       Teuchos::TimeMonitor rtimer(*runTimer);
       analysis->run();
