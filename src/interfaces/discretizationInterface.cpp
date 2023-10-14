@@ -213,11 +213,25 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     
   } // block loop
   
-  this->buildDOFManagers();
-  
-  //this->setBCData();
-  
-  //this->setDirichletData();
+
+  // We do not actually store the DOF or Connectivity managers
+  // Probably require:
+  // std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids; [set](elem, dof)
+  // std::vector<std::vector<GO> > dof_owned, dof_owned_and_shared; // list of degrees of freedom on processor
+  // std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof] 
+  // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
+
+  // May also need to fill:
+  // std::vector<Intrepid2::Orientation> panzer_orientations; [elem]
+  // vector<int> num_derivs_required; [block] (takes max over sets)
+     
+  if (mesh->use_stk_mesh) {
+    this->buildDOFManagers();
+  }
+  else {
+    // GHDR: need to fill in the objects listed above (try it without the orientations and num_derivs_required)
+    // 
+  }
   
   if (debug_level > 0) {
     if (comm->getRank() == 0) {

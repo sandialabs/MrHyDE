@@ -12,7 +12,7 @@
 using namespace MrHyDE;
 
 // ========================================================================================
-/* Constructor to set up the problem */
+// Constructor to set up a mesh interface that builds an stk or simple mesh
 // ========================================================================================
 
 MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
@@ -32,6 +32,11 @@ settings(settings_), comm(comm_) {
     }
   }
   
+  use_stk_mesh = settings->sublist("Mesh").get<bool>("use STK mesh",true);
+  use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
+  if (use_simple_mesh) {
+    use_stk_mesh = false;
+  }
   shape = settings->sublist("Mesh").get<string>("shape","none");
   if (shape == "none") { // new keywords, but allowing BWDS compat.
     shape = settings->sublist("Mesh").get<string>("element type","quad");
@@ -98,86 +103,80 @@ settings(settings_), comm(comm_) {
   // Get dimensions
   num_nodes_per_elem = cTopo.getNodeCount();
   settings->sublist("Mesh").set("numNodesPerElem",num_nodes_per_elem,"number of nodes per element");
-  side_dim = 0;
-  if (dimension > 1) {
-    sTopo.getDimension();
-  }
-  settings->sublist("Mesh").set("sideDim",side_dim,"dimension of the sides of each element");
-  num_sides = cTopo.getSideCount();
-  num_faces = cTopo.getFaceCount();
-  if (dimension == 1)
-    settings->sublist("Mesh").set("numSidesPerElem",2,"number of sides per element");
-  if (dimension == 2)
-    settings->sublist("Mesh").set("numSidesPerElem",num_sides,"number of sides per element");
-  if (dimension == 3)
-    settings->sublist("Mesh").set("numSidesPerElem",num_faces,"number of sides per element");
   
-  // Define a parameter list with the required fields for the panzer_stk mesh factory
-  RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
+  if (use_stk_mesh) {
+    // Define a parameter list with the required fields for the panzer_stk mesh factory
+    RCP<Teuchos::ParameterList> pl = rcp(new Teuchos::ParameterList);
   
-  if (settings->sublist("Mesh").get<std::string>("source","Internal") ==  "Exodus") {
-    mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
-    pl->set("File Name",settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo"));
-  }
-  else {
-    pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
-    pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
-    pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
-    pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
-    if (dimension > 1) {
-      pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",comm->getSize()));
-      pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
-      pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
-      pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
-      pl->set("Yf",settings->sublist("Mesh").get("ymax",1.0));
-      pl->set("Y Procs", settings->sublist("Mesh").get("Yprocs",1));
+    if (settings->sublist("Mesh").get<std::string>("source","Internal") ==  "Exodus") {
+      mesh_factory = Teuchos::rcp(new panzer_stk::STK_ExodusReaderFactory());
+      pl->set("File Name",settings->sublist("Mesh").get<std::string>("mesh file","mesh.exo"));
     }
-    if (dimension > 2) {
-      pl->set("Z Blocks",settings->sublist("Mesh").get("Zblocks",1));
-      pl->set("Z Elements",settings->sublist("Mesh").get("NZ",20));
-      pl->set("Z0",settings->sublist("Mesh").get("zmin",0.0));
-      pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
-      pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
-    }
-    if (dimension == 1) {
-      mesh_factory = Teuchos::rcp(new panzer_stk::LineMeshFactory());
-    }
-    else if (dimension == 2) {
-      if (shape == "quad") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::SquareQuadMeshFactory());
+    else {
+      pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
+      pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
+      pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
+      pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
+      if (dimension > 1) {
+        pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",comm->getSize()));
+        pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
+        pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
+        pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
+        pl->set("Yf",settings->sublist("Mesh").get("ymax",1.0));
+        pl->set("Y Procs", settings->sublist("Mesh").get("Yprocs",1));
       }
-      if (shape == "tri") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::SquareTriMeshFactory());
+      if (dimension > 2) {
+        pl->set("Z Blocks",settings->sublist("Mesh").get("Zblocks",1));
+        pl->set("Z Elements",settings->sublist("Mesh").get("NZ",20));
+        pl->set("Z0",settings->sublist("Mesh").get("zmin",0.0));
+        pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
+        pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
+      }
+      if (dimension == 1) {
+        mesh_factory = Teuchos::rcp(new panzer_stk::LineMeshFactory());
+      }
+      else if (dimension == 2) {
+        if (shape == "quad") {
+          mesh_factory = Teuchos::rcp(new panzer_stk::SquareQuadMeshFactory());
+        }
+        if (shape == "tri") {
+            mesh_factory = Teuchos::rcp(new panzer_stk::SquareTriMeshFactory());
+          }
+        }
+      else if (dimension == 3) {
+        if (shape == "hex") {
+          mesh_factory = Teuchos::rcp(new panzer_stk::CubeHexMeshFactory());
+        }
+        if (shape == "tet") {
+          mesh_factory = Teuchos::rcp(new panzer_stk::CubeTetMeshFactory());
+        }
       }
     }
-    else if (dimension == 3) {
-      if (shape == "hex") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::CubeHexMeshFactory());
-      }
-      if (shape == "tet") {
-        mesh_factory = Teuchos::rcp(new panzer_stk::CubeTetMeshFactory());
-      }
+
+    // Syntax for periodic BCs ... must be set in the mesh input file
+    if (settings->sublist("Mesh").isSublist("Periodic BCs")) {
+      pl->sublist("Periodic BCs").setParameters( settings->sublist("Mesh").sublist("Periodic BCs") );
     }
+  
+    mesh_factory->setParameterList(pl);
+  
+    // create the mesh
+    stk_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
+  
+    // create a mesh for an optmization movie
+    if (settings->sublist("Postprocess").get("create optimization movie",false)) {
+      stk_optimization_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
+    }
+  
+    stk_mesh->getElementBlockNames(block_names);
+    stk_mesh->getSidesetNames(side_names);
+    stk_mesh->getNodesetNames(node_names);
   }
-  // Syntax for periodic BCs ... must be set in the mesh input file
-  
-  if (settings->sublist("Mesh").isSublist("Periodic BCs")) {
-    pl->sublist("Periodic BCs").setParameters( settings->sublist("Mesh").sublist("Periodic BCs") );
+  else if (use_simple_mesh) {
+    // GHDR: Need to define block_names, side_names, node_names
+
   }
-  
-  mesh_factory->setParameterList(pl);
-  
-  // create the mesh
-  stk_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
-  
-  // create a mesh for an optmization movie
-  if (settings->sublist("Postprocess").get("create optimization movie",false)) {
-    stk_optimization_mesh = mesh_factory->buildUncommitedMesh(*(comm->getRawMpiComm()));
-  }
-  
-  stk_mesh->getElementBlockNames(block_names);
-  stk_mesh->getSidesetNames(side_names);
-  stk_mesh->getNodesetNames(node_sets);
+
 
   for (size_t b=0; b<block_names.size(); b++) {
     cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
@@ -216,6 +215,7 @@ settings(settings_), comm(comm_) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Use an existing stk mesh/factory to create a mesh interface
 ////////////////////////////////////////////////////////////////////////////////
 
 MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
@@ -270,7 +270,7 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
   
   stk_mesh->getElementBlockNames(block_names);
   stk_mesh->getSidesetNames(side_names);
-  stk_mesh->getNodesetNames(node_sets);
+  stk_mesh->getNodesetNames(node_names);
 
   for (size_t b=0; b<block_names.size(); b++) {
     cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
@@ -837,9 +837,14 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
 DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
   vector<size_t> localIds;
   DRV blocknodes;
-  
-  panzer_stk::workset_utils::getIdsAndVertices(*stk_mesh, block_names[block], localIds, blocknodes);
-  int nnodes = blocknodes.extent(1);
+  int nnodes = 0;
+  if (use_stk_mesh) {
+    panzer_stk::workset_utils::getIdsAndVertices(*stk_mesh, block_names[block], localIds, blocknodes);
+    nnodes = blocknodes.extent(1);
+  }
+  else if (use_simple_mesh) {
+    // nnodes = ???
+  }
   
   DRV cnodes("element nodes",1,nnodes,dimension);
   for (int i=0; i<nnodes; i++) {
@@ -1053,13 +1058,9 @@ void MeshInterface::purgeMesh() {
 }
 
 void MeshInterface::purgeMemory() {
-  
-  
   nfield_vals.clear();
   efield_vals.clear();
   meas = Teuchos::null;
-  
-  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1067,35 +1068,51 @@ void MeshInterface::purgeMemory() {
 ////////////////////////////////////////////////////////////////////////////////
     
 void MeshInterface::setSolutionFieldData(string var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln) {
-  stk_mesh->setSolutionFieldData(var, blockID, myElements, soln);
+  if (use_stk_mesh) {
+    stk_mesh->setSolutionFieldData(var, blockID, myElements, soln);
+  }
 }
 
 void MeshInterface::setCellFieldData(string var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT*,HostDevice> soln) {
-  stk_mesh->setCellFieldData(var, blockID, myElements, soln);
+  if (use_stk_mesh) {
+    stk_mesh->setCellFieldData(var, blockID, myElements, soln);
+  }
 }
 
 void MeshInterface::setOptimizationSolutionFieldData(string & var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln) {
-  stk_optimization_mesh->setSolutionFieldData(var, blockID, myElements, soln);
+  if (use_stk_mesh) {
+    stk_optimization_mesh->setSolutionFieldData(var, blockID, myElements, soln);
+  }
 }
 
 void MeshInterface::setOptimizationCellFieldData(string & var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT*,HostDevice> soln) {
-  stk_optimization_mesh->setCellFieldData(var, blockID, myElements, soln);
+  if (use_stk_mesh) {
+    stk_optimization_mesh->setCellFieldData(var, blockID, myElements, soln);
+  }
 }
 
 void MeshInterface::writeToExodus(const double & currenttime) {
-  stk_mesh->writeToExodus(currenttime);
+  if (use_stk_mesh) {
+    stk_mesh->writeToExodus(currenttime);
+  }
 }
 
 void MeshInterface::writeToExodus(const string & filename) {
-  stk_mesh->writeToExodus(filename);
+  if (use_stk_mesh) {
+    stk_mesh->writeToExodus(filename);
+  }
 }
     
 void MeshInterface::writeToOptimizationExodus(const double & currenttime) {
-  stk_optimization_mesh->writeToExodus(currenttime);
+  if (use_stk_mesh) {
+    stk_optimization_mesh->writeToExodus(currenttime);
+  }
 }
 
 void MeshInterface::writeToOptimizationExodus(const string & filename) {
-  stk_optimization_mesh->writeToExodus(filename);
+  if (use_stk_mesh) {
+    stk_optimization_mesh->writeToExodus(filename);
+  }
 }
     
 vector<string> MeshInterface::getBlockNames() {
@@ -1107,9 +1124,7 @@ vector<string> MeshInterface::getSideNames() {
 }
     
 vector<string> MeshInterface::getNodeNames() {
-  vector<string> nodesets;
-  stk_mesh->getNodesetNames(nodesets);
-  return nodesets;
+  return node_names;
 }
 
 int MeshInterface::getDimension() {
@@ -1117,67 +1132,97 @@ int MeshInterface::getDimension() {
 }
     
 topo_RCP MeshInterface::getCellTopology(string & blockID) {
-  return stk_mesh->getCellTopology(blockID);
+  topo_RCP currtopo;
+  for (size_t blk=0; blk<block_names.size(); ++blk) {
+    if (block_names[blk] == blockID) {
+      currtopo = cell_topo[blk];
+    }
+  }
+  return currtopo;
 }
     
 Teuchos::RCP<panzer::ConnManager> MeshInterface::getSTKConnManager() {
-  return Teuchos::rcp(new panzer_stk::STKConnManager(stk_mesh));
+  if (use_stk_mesh) {
+    return Teuchos::rcp(new panzer_stk::STKConnManager(stk_mesh));
+  }
 }
 
 void MeshInterface::setSTKMesh(Teuchos::RCP<panzer_stk::STK_Interface> & new_mesh) {
   stk_mesh = new_mesh;
   stk_mesh->getElementBlockNames(block_names);
   stk_mesh->getSidesetNames(side_names);
-  stk_mesh->getNodesetNames(node_sets);
+  stk_mesh->getNodesetNames(node_names);
 }
 
   
 vector<stk::mesh::Entity> MeshInterface::getMySTKElements() {
   vector<stk::mesh::Entity> stk_meshElems;
-  stk_mesh->getMyElements(stk_meshElems);
+  if (use_stk_mesh) {
+    stk_mesh->getMyElements(stk_meshElems);
+  }
   return stk_meshElems;
 }
   
 vector<stk::mesh::Entity> MeshInterface::getMySTKElements(string & blockID) {
   vector<stk::mesh::Entity> stk_meshElems;
-  stk_mesh->getMyElements(blockID, stk_meshElems);
+  if (use_stk_mesh) {
+    stk_mesh->getMyElements(blockID, stk_meshElems);
+  }
   return stk_meshElems;
 }
   
 void MeshInterface::getSTKNodeIdsForElement(stk::mesh::Entity & stk_meshElem, vector<stk::mesh::EntityId> & stk_nodeids) {
-  stk_mesh->getNodeIdsForElement(stk_meshElem, stk_nodeids);
+  if (use_stk_mesh) {
+    stk_mesh->getNodeIdsForElement(stk_meshElem, stk_nodeids);
+  }
 }
 
 vector<stk::mesh::Entity> MeshInterface::getMySTKSides(string & sideName, string & blockname) {
   vector<stk::mesh::Entity> sideEntities;
-  stk_mesh->getMySides(sideName, blockname, sideEntities);
+  if (use_stk_mesh) {
+    stk_mesh->getMySides(sideName, blockname, sideEntities);
+  }
   return sideEntities;
 }
 
 vector<stk::mesh::Entity> MeshInterface::getMySTKNodes(string & nodeName, string & blockID) {
   vector<stk::mesh::Entity> nodeEntities;
-  stk_mesh->getMyNodes(nodeName, blockID, nodeEntities);
+  if (use_stk_mesh) {
+    stk_mesh->getMyNodes(nodeName, blockID, nodeEntities);
+  }
   return nodeEntities;
 }
 
 void MeshInterface::getSTKSideElements(string & blockname, vector<stk::mesh::Entity> & sideEntities, 
-                                       vector<size_t> & local_side_Ids, vector<stk::mesh::Entity> & side_output){
-  panzer_stk::workset_utils::getSideElements(*stk_mesh, blockname, sideEntities, local_side_Ids, side_output);
+                                       vector<size_t> & local_side_Ids, vector<stk::mesh::Entity> & side_output) {
+  if (use_stk_mesh) {
+    panzer_stk::workset_utils::getSideElements(*stk_mesh, blockname, sideEntities, local_side_Ids, side_output);
+  }
 }
 
 void MeshInterface::getSTKElementVertices(vector<stk::mesh::Entity> & side_output, string & blockname, DRV & sidenodes) {
-  stk_mesh->getElementVertices(side_output, blockname, sidenodes);
+  if (use_stk_mesh) {
+    stk_mesh->getElementVertices(side_output, blockname, sidenodes);
+  }
 }
     
 LO MeshInterface::getSTKElementLocalId(stk::mesh::Entity & elem) {
-  return stk_mesh->elementLocalId(elem);
+  LO id = 0;
+  if (use_stk_mesh) {
+    id = stk_mesh->elementLocalId(elem);
+  }
+  return id;
 }
 
 void MeshInterface::getSTKElementVertices(vector<size_t> & local_grp, string & blockname, DRV & currnodes) {
-  stk_mesh->getElementVertices(local_grp, blockname, currnodes);
+  if (use_stk_mesh) {
+    stk_mesh->getElementVertices(local_grp, blockname, currnodes);
+  }
 }
 
 void MeshInterface::getSTKNodeElements(string & blockname, vector<stk::mesh::Entity> & nodeEntities, 
                                        vector<size_t> & local_node_Ids, vector<stk::mesh::Entity> & side_output) {
-  panzer_stk::workset_utils::getNodeElements(*stk_mesh, blockname, nodeEntities, local_node_Ids, side_output);
+  if (use_stk_mesh) {
+    panzer_stk::workset_utils::getNodeElements(*stk_mesh, blockname, nodeEntities, local_node_Ids, side_output);
+  }
 }

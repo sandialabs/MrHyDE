@@ -221,10 +221,10 @@ namespace MrHyDE {
     vector<int> random_seeds;
     vector<topo_RCP> cell_topo, side_topo;
     int meshmod_xvar, meshmod_yvar, meshmod_zvar;
-    bool meshmod_usesmoother;
+    bool meshmod_usesmoother, use_stk_mesh, use_simple_mesh;
     ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size;
     
-    vector<string> block_names, side_names, node_sets, nfield_names, efield_names;
+    vector<string> block_names, side_names, node_names, nfield_names, efield_names;
     int numResponses;
     std::default_random_engine generator;
     
