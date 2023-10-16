@@ -5821,8 +5821,6 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
   
   //Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
   
-  cout << wkset.size() << "  " << block << endl;
-  
   // Figure out which basis we need
   int index;
   wkset[block]->isVar(var,index);
