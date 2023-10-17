@@ -5819,8 +5819,6 @@ template<class Node>
 void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size_t & grp,
                                                   const string & var, View_Sc2 csol) {
   
-  //Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
-  
   // Figure out which basis we need
   int index;
   wkset[block]->isVar(var,index);
