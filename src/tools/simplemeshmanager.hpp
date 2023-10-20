@@ -49,9 +49,9 @@
 #define SIMPLEMESHMANAGER_HPP
 
 #include "Teuchos_ParameterList.hpp"
-#include "Intrepid_FieldContainer.hpp"
 #include "ROL_Ptr.hpp"
 
+// TODO: GH fix documentation
 /** \class  SimpleMeshManager
     \brief  This is the pure virtual parent class for mesh construction
             and management; it enables the generation of a few select
@@ -71,7 +71,7 @@ public:
              Format: number_of_nodes x 2 (Real)
                      (node_index)  x, y coordinates
   */
-  virtual ROL::Ptr<Intrepid::FieldContainer<Real> > getNodes() const = 0;
+  virtual NodeView_host getNodes() const = 0;
 
   /** \brief Returns cell to node adjacencies.
              Format: number_of_cells x number_of_nodes_per_cell (int)
@@ -91,8 +91,8 @@ public:
              Format: number_of_cells x number_of_faces_per_cell (int)
                      (cell_index)  face_index1  face_index2  ...
   */
-  virtual ROL::Ptr<Intrepid::FieldContainer<int> > getCellToFaceMap() const {
-    return ROL::makePtr<Intrepid::FieldContainer<int>>(); // default due to lack of faces in 1D and 2D
+  virtual LIDView_host getCellToFaceMap() const {
+    return LIDView_host(); // default due to lack of faces in 1D and 2D
   }
 
   /** \brief Returns cell IDs per processor.
@@ -185,7 +185,7 @@ private:
   int numNodes_;
   int numEdges_;
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
+  NodeView_host meshNodes_;
   LIDView_host meshCellToNodeMap_;
   LIDView_host meshCellToEdgeMap_;
 
@@ -229,7 +229,7 @@ public:
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > getNodes() const {
+  NodeView_host getNodes() const {
     return meshNodes_;
   }
 
@@ -270,8 +270,8 @@ private:
 
   void computeNodes() {
 
-    meshNodes_ = ROL::makePtr<Intrepid::FieldContainer<Real>>(numNodes_, 2);
-    Intrepid::FieldContainer<Real> &nodes = *meshNodes_;
+
+    meshNodes_ = NodeView_host("SimpleMeshManager::nodes", numNodes_, 2);
 
     Real dy1 = stepH_ / ny1_;
     Real dy3 = (channelH_ - stepH_) / ny3_;
@@ -283,13 +283,13 @@ private:
     // bottom region
     for (int j=0; j<ny1_; ++j) {
       for (int i=0; i<=nx1_; ++i) {
-        nodes(nodeCt, 0) = stepW_ + i*dx1;
-        nodes(nodeCt, 1) = j*dy1;
+        meshNodes_(nodeCt, 0) = stepW_ + i*dx1;
+        meshNodes_(nodeCt, 1) = j*dy1;
         ++nodeCt;
       }
       for (int i=0; i<nx2_; ++i) {
-        nodes(nodeCt, 0) = stepW_ + observeW_ + (i+1)*dx2;
-        nodes(nodeCt, 1) = j*dy1;
+        meshNodes_(nodeCt, 0) = stepW_ + observeW_ + (i+1)*dx2;
+        meshNodes_(nodeCt, 1) = j*dy1;
         ++nodeCt;
       }
     }
@@ -297,18 +297,18 @@ private:
     // top region
     for (int j=0; j<=ny3_; ++j) {
       for (int i=0; i<=nx3_; ++i) {
-        nodes(nodeCt, 0) = i*dx3;
-        nodes(nodeCt, 1) = stepH_ + j*dy3;
+        meshNodes_(nodeCt, 0) = i*dx3;
+        meshNodes_(nodeCt, 1) = stepH_ + j*dy3;
         ++nodeCt;
       }
       for (int i=0; i<nx1_; ++i) {
-        nodes(nodeCt, 0) = stepW_ + (i+1)*dx1;
-        nodes(nodeCt, 1) = stepH_ + j*dy3;
+        meshNodes_(nodeCt, 0) = stepW_ + (i+1)*dx1;
+        meshNodes_(nodeCt, 1) = stepH_ + j*dy3;
         ++nodeCt;
       }
       for (int i=0; i<nx2_; ++i) {
-        nodes(nodeCt, 0) = stepW_ + observeW_ + (i+1)*dx2;
-        nodes(nodeCt, 1) = stepH_ + j*dy3;
+        meshNodes_(nodeCt, 0) = stepW_ + observeW_ + (i+1)*dx2;
+        meshNodes_(nodeCt, 1) = stepH_ + j*dy3;
         ++nodeCt;
       }
     }
@@ -500,7 +500,7 @@ private:
   int numNodes_;
   int numEdges_;
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
+  NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
 
@@ -528,7 +528,7 @@ public:
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > getNodes() const {
+  NodeView_host getNodes() const {
     return meshNodes_;
   }
 
@@ -568,8 +568,7 @@ private:
 
   void computeNodes() {
 
-    meshNodes_ = ROL::makePtr<Intrepid::FieldContainer<Real>>(numNodes_, 2);
-    Intrepid::FieldContainer<Real> &nodes = *meshNodes_;
+    meshNodes_ = NodeView_host("SimpleMeshManager::nodes", numNodes_, 2);
 
     Real dx = width_ / nx_;
     Real dy = height_ / ny_;
@@ -578,8 +577,8 @@ private:
     for (int j=0; j<=ny_; ++j) {
       Real ycoord = Y0_ + j*dy;
       for (int i=0; i<=nx_; ++i) {
-        nodes(nodeCt, 0) = X0_ + i*dx;
-        nodes(nodeCt, 1) = ycoord; 
+        meshNodes_(nodeCt, 0) = X0_ + i*dx;
+        meshNodes_(nodeCt, 1) = ycoord; 
         ++nodeCt;
       }
     }
@@ -668,7 +667,7 @@ private:
   int numCells_;
   int numNodes_;
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
+  NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
 
   ROL::Ptr<std::vector<std::vector<std::vector<int> > > > meshSideSets_;
@@ -694,7 +693,7 @@ public:
 
   }
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > getNodes() const {
+  NodeView_host getNodes() const {
     return meshNodes_;
   }
 
@@ -721,13 +720,12 @@ private:
 
   void computeNodes() {
 
-    meshNodes_ = ROL::makePtr<Intrepid::FieldContainer<Real>>(numNodes_,1);
-    Intrepid::FieldContainer<Real> &nodes = *meshNodes_;
+    meshNodes_ = NodeView_host("SimpleMeshManager::nodes", numNodes_,1);
 
     Real dx = width_ / nx_;
 
     for( int i=0; i<nx_+1; ++i ) {
-      nodes(i, 0) = X0_ + i*dx;
+      meshNodes_(i, 0) = X0_ + i*dx;
     }
   } // computeNodes
 
@@ -781,7 +779,7 @@ private:
   int numNodes_;
   int numEdges_;
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
+  NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
 
@@ -810,7 +808,7 @@ public:
     computeSideSets();
   }
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > getNodes() const {
+  NodeView_host getNodes() const {
     return meshNodes_;
   }
 
@@ -845,11 +843,10 @@ public:
 private:
 
   void computeNodes() {
-    meshNodes_ = ROL::makePtr<Intrepid::FieldContainer<Real>>(numNodes_,1);
-    Intrepid::FieldContainer<Real> &nodes = *meshNodes_;
+    meshNodes_ = NodeView_host("SimpleMeshManager::nodes", numNodes_, 1);
 
     for( int i=0; i<nx_+1; ++i ) {
-      nodes(i, 0) = X0_ + std::pow(static_cast<Real>(i)/nx_,gamma_) * width_;
+      meshNodes_(i, 0) = X0_ + std::pow(static_cast<Real>(i)/nx_,gamma_) * width_;
     }
   } // computeNodes
 
@@ -937,7 +934,7 @@ private:
   int numNodes_;
   int numEdges_;
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
+  NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
 
@@ -968,7 +965,7 @@ public:
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<Real> > getNodes() const {
+  NodeView_host getNodes() const {
     return meshNodes_;
   }
 
@@ -1008,8 +1005,7 @@ private:
 
   void computeNodes() {
 
-    meshNodes_ = ROL::makePtr<Intrepid::FieldContainer<Real>>(numNodes_, 3);
-    Intrepid::FieldContainer<Real> &nodes = *meshNodes_;
+    meshNodes_ = NodeView_host("SimpleMeshManager::nodes", numNodes_, 3);
 
     Real dx = width_ / nx_;
     Real dy = depth_ / ny_;
@@ -1021,9 +1017,9 @@ private:
       for (int j=0; j<=ny_; ++j) {
         Real ycoord = Y0_ + j*dy;
         for (int i=0; i<=nx_; ++i) {
-          nodes(nodeCt, 0) = X0_ + i*dx;
-          nodes(nodeCt, 1) = ycoord; 
-          nodes(nodeCt, 2) = zcoord; 
+          meshNodes_(nodeCt, 0) = X0_ + i*dx;
+          meshNodes_(nodeCt, 1) = ycoord; 
+          meshNodes_(nodeCt, 2) = zcoord; 
           ++nodeCt;
         }
       }

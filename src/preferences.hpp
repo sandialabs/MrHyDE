@@ -18,7 +18,7 @@ using Kokkos::parallel_reduce;
 using Kokkos::RangePolicy;
 using Kokkos::MDRangePolicy;
 using Kokkos::TeamPolicy;
-//using Kokkos::Rank; // GH: this conflicts with Intrepid::Rank, which is currently used simplemeshmanager; plan to remove Intrepid dependency later
+using Kokkos::Rank;
 using Kokkos::subview;
 using Kokkos::ALL;
 using Kokkos::create_mirror_view;
@@ -176,6 +176,7 @@ typedef Kokkos::Device<AssemblyExec,AssemblyMem> AssemblyDevice;
 typedef Kokkos::DynRankView<double,PHX::Device> DRV; // for interacting with Intrepid2/Panzer
 typedef Kokkos::View<LO**,AssemblyDevice> LIDView;
 typedef Kokkos::View<LO**,HostDevice> LIDView_host;
+typedef Kokkos::View<ScalarT**,HostDevice> NodeView_host;
 typedef Kokkos::View<ScalarT*>::size_type size_type;
 
 // Use ContLayout for faster hierarchical parallelism
