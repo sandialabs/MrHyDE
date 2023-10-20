@@ -77,14 +77,14 @@ public:
              Format: number_of_cells x number_of_nodes_per_cell (int)
                      (cell_index)  node_index1  node_index2  ...
   */
-  virtual ROL::Ptr<Intrepid::FieldContainer<int> > getCellToNodeMap() const = 0;
+  virtual LIDView_host getCellToNodeMap() const = 0;
 
   /** \brief Returns cell to edge adjacencies.
              Format: number_of_cells x number_of_edges_per_cell (int)
                      (cell_index)  edge_index1  edge_index2  ...
   */
-  virtual ROL::Ptr<Intrepid::FieldContainer<int> > getCellToEdgeMap() const {
-    return ROL::makePtr<Intrepid::FieldContainer<int>>(); // default due to lack of edges in 1D
+  virtual LIDView_host getCellToEdgeMap() const {
+    return LIDView_host(); // default due to lack of edges in 1D
   }
 
   /** \brief Returns cell to face adjacencies.
@@ -186,8 +186,8 @@ private:
   int numEdges_;
 
   ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToNodeMap_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToEdgeMap_;
+  LIDView_host meshCellToNodeMap_;
+  LIDView_host meshCellToEdgeMap_;
 
   ROL::Ptr<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
 
@@ -234,12 +234,12 @@ public:
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToNodeMap() const {
+  LIDView_host getCellToNodeMap() const {
     return meshCellToNodeMap_;
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToEdgeMap() const {
+  LIDView_host getCellToEdgeMap() const {
     return meshCellToEdgeMap_;
   }
 
@@ -318,38 +318,37 @@ private:
 
   void computeCellToNodeMap() {
 
-    meshCellToNodeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_, 4);
-    Intrepid::FieldContainer<int> &ctn = *meshCellToNodeMap_;
+    meshCellToNodeMap_ = LIDView_host("SimpleMeshManager::cellToNode", numCells_, 4);
 
     int cellCt = 0;
 
     // bottom region
     for (int j=0; j<ny1_-1; ++j) {
       for (int i=0; i<nx1_+nx2_; ++i) {
-        ctn(cellCt, 0) = j*(nx1_+nx2_+1) + i;
-        ctn(cellCt, 1) = j*(nx1_+nx2_+1) + (i+1);
-        ctn(cellCt, 2) = (j+1)*(nx1_+nx2_+1) + (i+1);
-        ctn(cellCt, 3) = (j+1)*(nx1_+nx2_+1) + i;
+        meshCellToNodeMap_(cellCt, 0) = j*(nx1_+nx2_+1) + i;
+        meshCellToNodeMap_(cellCt, 1) = j*(nx1_+nx2_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 2) = (j+1)*(nx1_+nx2_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 3) = (j+1)*(nx1_+nx2_+1) + i;
         ++cellCt;
       }
     }
 
     // transition region
     for (int i=0; i<nx1_+nx2_; ++i) {
-      ctn(cellCt, 0) = (ny1_-1)*(nx1_+nx2_+1) + i;
-      ctn(cellCt, 1) = (ny1_-1)*(nx1_+nx2_+1) + (i+1);
-      ctn(cellCt, 2) = ny1_*(nx1_+nx2_+1) + nx3_ + (i+1);
-      ctn(cellCt, 3) = ny1_*(nx1_+nx2_+1) + nx3_ + i;
+      meshCellToNodeMap_(cellCt, 0) = (ny1_-1)*(nx1_+nx2_+1) + i;
+      meshCellToNodeMap_(cellCt, 1) = (ny1_-1)*(nx1_+nx2_+1) + (i+1);
+      meshCellToNodeMap_(cellCt, 2) = ny1_*(nx1_+nx2_+1) + nx3_ + (i+1);
+      meshCellToNodeMap_(cellCt, 3) = ny1_*(nx1_+nx2_+1) + nx3_ + i;
       ++cellCt;
     }
 
     // top region
     for (int j=0; j<ny3_; ++j) {
       for (int i=0; i<nx3_+nx1_+nx2_; ++i) {
-        ctn(cellCt, 0) = ny1_*(nx1_+nx2_+1) + j*(nx3_+nx1_+nx2_+1) + i;
-        ctn(cellCt, 1) = ny1_*(nx1_+nx2_+1) + j*(nx3_+nx1_+nx2_+1) + (i+1);
-        ctn(cellCt, 2) = ny1_*(nx1_+nx2_+1) + (j+1)*(nx3_+nx1_+nx2_+1) + (i+1);
-        ctn(cellCt, 3) = ny1_*(nx1_+nx2_+1) + (j+1)*(nx3_+nx1_+nx2_+1) + i;
+        meshCellToNodeMap_(cellCt, 0) = ny1_*(nx1_+nx2_+1) + j*(nx3_+nx1_+nx2_+1) + i;
+        meshCellToNodeMap_(cellCt, 1) = ny1_*(nx1_+nx2_+1) + j*(nx3_+nx1_+nx2_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 2) = ny1_*(nx1_+nx2_+1) + (j+1)*(nx3_+nx1_+nx2_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 3) = ny1_*(nx1_+nx2_+1) + (j+1)*(nx3_+nx1_+nx2_+1) + i;
         ++cellCt;
       }
     }
@@ -359,38 +358,37 @@ private:
 
   void computeCellToEdgeMap() {
 
-    meshCellToEdgeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_, 4);
-    Intrepid::FieldContainer<int> &cte = *meshCellToEdgeMap_;
+    meshCellToEdgeMap_ = LIDView_host("SimpleMeshManager::cellToEdge", numCells_, 4);
 
     int cellCt = 0;
 
     // bottom region
     for (int j=0; j<ny1_-1; ++j) {
       for (int i=0; i<nx1_+nx2_; ++i) {
-        cte(cellCt, 0) = j*(2*(nx1_+nx2_)+1) + i;
-        cte(cellCt, 1) = j*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + (i+1);
-        cte(cellCt, 2) = (j+1)*(2*(nx1_+nx2_)+1) + i;
-        cte(cellCt, 3) = j*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + i;
+        meshCellToEdgeMap_(cellCt, 0) = j*(2*(nx1_+nx2_)+1) + i;
+        meshCellToEdgeMap_(cellCt, 1) = j*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + (i+1);
+        meshCellToEdgeMap_(cellCt, 2) = (j+1)*(2*(nx1_+nx2_)+1) + i;
+        meshCellToEdgeMap_(cellCt, 3) = j*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + i;
         ++cellCt;
       }
     }
 
     // transition region
     for (int i=0; i<nx1_+nx2_; ++i) {
-      cte(cellCt, 0) = (ny1_-1)*(2*(nx1_+nx2_)+1) + i;
-      cte(cellCt, 1) = (ny1_-1)*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + (i+1);
-      cte(cellCt, 2) = ny1_*(2*(nx1_+nx2_)+1) + nx3_ + i;
-      cte(cellCt, 3) = (ny1_-1)*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + i;
+      meshCellToEdgeMap_(cellCt, 0) = (ny1_-1)*(2*(nx1_+nx2_)+1) + i;
+      meshCellToEdgeMap_(cellCt, 1) = (ny1_-1)*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + (i+1);
+      meshCellToEdgeMap_(cellCt, 2) = ny1_*(2*(nx1_+nx2_)+1) + nx3_ + i;
+      meshCellToEdgeMap_(cellCt, 3) = (ny1_-1)*(2*(nx1_+nx2_)+1) + (nx1_+nx2_) + i;
       ++cellCt;
     }
 
     // top region
     for (int j=0; j<ny3_; ++j) {
       for (int i=0; i<nx3_+nx1_+nx2_; ++i) {
-        cte(cellCt, 0) = ny1_*(2*(nx1_+nx2_)+1) + j*(2*(nx3_+nx1_+nx2_)+1) + i;
-        cte(cellCt, 1) = ny1_*(2*(nx1_+nx2_)+1) + j*(2*(nx3_+nx1_+nx2_)+1) + (nx3_+nx1_+nx2_) + (i+1);
-        cte(cellCt, 2) = ny1_*(2*(nx1_+nx2_)+1) + (j+1)*(2*(nx3_+nx1_+nx2_)+1) + i;
-        cte(cellCt, 3) = ny1_*(2*(nx1_+nx2_)+1) + j*(2*(nx3_+nx1_+nx2_)+1) + (nx3_+nx1_+nx2_) + i;
+        meshCellToEdgeMap_(cellCt, 0) = ny1_*(2*(nx1_+nx2_)+1) + j*(2*(nx3_+nx1_+nx2_)+1) + i;
+        meshCellToEdgeMap_(cellCt, 1) = ny1_*(2*(nx1_+nx2_)+1) + j*(2*(nx3_+nx1_+nx2_)+1) + (nx3_+nx1_+nx2_) + (i+1);
+        meshCellToEdgeMap_(cellCt, 2) = ny1_*(2*(nx1_+nx2_)+1) + (j+1)*(2*(nx3_+nx1_+nx2_)+1) + i;
+        meshCellToEdgeMap_(cellCt, 3) = ny1_*(2*(nx1_+nx2_)+1) + j*(2*(nx3_+nx1_+nx2_)+1) + (nx3_+nx1_+nx2_) + i;
         ++cellCt;
       }
     }
@@ -503,8 +501,8 @@ private:
   int numEdges_;
 
   ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToNodeMap_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToEdgeMap_;
+  LIDView_host  meshCellToNodeMap_;
+  LIDView_host  meshCellToEdgeMap_;
 
   ROL::Ptr<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
 
@@ -535,12 +533,12 @@ public:
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToNodeMap() const {
+  LIDView_host getCellToNodeMap() const {
     return meshCellToNodeMap_;
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToEdgeMap() const {
+  LIDView_host getCellToEdgeMap() const {
     return meshCellToEdgeMap_;
   }
 
@@ -591,17 +589,16 @@ private:
 
   void computeCellToNodeMap() {
 
-    meshCellToNodeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_, 4);
-    Intrepid::FieldContainer<int> &ctn = *meshCellToNodeMap_;
+    meshCellToNodeMap_ = LIDView_host("SimpleMeshManager::cellToNode", numCells_, 4);
 
     int cellCt = 0;
 
     for (int j=0; j<ny_; ++j) {
       for (int i=0; i<nx_; ++i) {
-        ctn(cellCt, 0) = j*(nx_+1) + i;
-        ctn(cellCt, 1) = j*(nx_+1) + (i+1);
-        ctn(cellCt, 2) = (j+1)*(nx_+1) + (i+1);
-        ctn(cellCt, 3) = (j+1)*(nx_+1) + i;
+        meshCellToNodeMap_(cellCt, 0) = j*(nx_+1) + i;
+        meshCellToNodeMap_(cellCt, 1) = j*(nx_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 2) = (j+1)*(nx_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 3) = (j+1)*(nx_+1) + i;
         ++cellCt;
       }
     }
@@ -611,17 +608,16 @@ private:
 
   void computeCellToEdgeMap() {
 
-    meshCellToEdgeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_, 4);
-    Intrepid::FieldContainer<int> &cte = *meshCellToEdgeMap_;
+    meshCellToEdgeMap_ = LIDView_host("SimpleMeshManager::cellToEdge", numCells_, 4);
 
     int cellCt = 0;
 
     for (int j=0; j<ny_; ++j) {
       for (int i=0; i<nx_; ++i) {
-        cte(cellCt, 0) = j*(2*nx_+1) + i;
-        cte(cellCt, 1) = j*(2*nx_+1) + nx_ + (i+1);
-        cte(cellCt, 2) = (j+1)*(2*nx_+1) + i;
-        cte(cellCt, 3) = j*(2*nx_+1) + nx_ + i;
+        meshCellToEdgeMap_(cellCt, 0) = j*(2*nx_+1) + i;
+        meshCellToEdgeMap_(cellCt, 1) = j*(2*nx_+1) + nx_ + (i+1);
+        meshCellToEdgeMap_(cellCt, 2) = (j+1)*(2*nx_+1) + i;
+        meshCellToEdgeMap_(cellCt, 3) = j*(2*nx_+1) + nx_ + i;
         ++cellCt;
       }
     }
@@ -673,7 +669,7 @@ private:
   int numNodes_;
 
   ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToNodeMap_;
+  LIDView_host  meshCellToNodeMap_;
 
   ROL::Ptr<std::vector<std::vector<std::vector<int> > > > meshSideSets_;
 
@@ -702,7 +698,7 @@ public:
     return meshNodes_;
   }
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToNodeMap() const {
+  LIDView_host getCellToNodeMap() const {
     return meshCellToNodeMap_;
   }
 
@@ -738,12 +734,11 @@ private:
 
   void computeCellToNodeMap() {
 
-    meshCellToNodeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_,2);
-    Intrepid::FieldContainer<int> &ctn = *meshCellToNodeMap_;
+    meshCellToNodeMap_ = LIDView_host("SimpleMeshManager::cellToNode", numCells_, 2);
 
     for( int i=0; i<nx_; ++i ) {
-      ctn(i,0) = i;
-      ctn(i,1) = i+1;
+      meshCellToNodeMap_(i,0) = i;
+      meshCellToNodeMap_(i,1) = i+1;
     }
   } // computeCellToNodeMap
 
@@ -787,8 +782,8 @@ private:
   int numEdges_;
 
   ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToNodeMap_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToEdgeMap_;
+  LIDView_host  meshCellToNodeMap_;
+  LIDView_host  meshCellToEdgeMap_;
 
   ROL::Ptr<std::vector<std::vector<std::vector<int> > > > meshSideSets_;
 
@@ -819,11 +814,11 @@ public:
     return meshNodes_;
   }
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToNodeMap() const {
+  LIDView_host getCellToNodeMap() const {
     return meshCellToNodeMap_; 
   }
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToEdgeMap() const {
+  LIDView_host getCellToEdgeMap() const {
     return meshCellToEdgeMap_;
   }
 
@@ -860,22 +855,20 @@ private:
 
 
   void computeCellToNodeMap() {
-    meshCellToNodeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_,2);
-    Intrepid::FieldContainer<int> &ctn = *meshCellToNodeMap_;
+    meshCellToNodeMap_ = LIDView_host("SimpleMeshManager::cellToNode", numCells_, 2);
 
     for( int i=0; i<nx_; ++i ) {
-      ctn(i,0) = i;
-      ctn(i,1) = i+1;
+      meshCellToNodeMap_(i,0) = i;
+      meshCellToNodeMap_(i,1) = i+1;
     }
   } // computeCellToNodeMap
 
 
   void computeCellToEdgeMap() {
-    meshCellToEdgeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_,1);
-    Intrepid::FieldContainer<int> &cte = *meshCellToEdgeMap_;
+    meshCellToEdgeMap_ = LIDView_host("SimpleMeshManager::cellToEdge", numCells_, 1);
 
     for( int i=0; i<nx_; ++i ) {
-      cte(i,0) = i;
+      meshCellToEdgeMap_(i,0) = i;
     }
   } // computeCellToEdgeMap
 
@@ -945,8 +938,8 @@ private:
   int numEdges_;
 
   ROL::Ptr<Intrepid::FieldContainer<Real> > meshNodes_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToNodeMap_;
-  ROL::Ptr<Intrepid::FieldContainer<int> >  meshCellToEdgeMap_;
+  LIDView_host  meshCellToNodeMap_;
+  LIDView_host  meshCellToEdgeMap_;
 
   ROL::Ptr<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
 
@@ -980,12 +973,12 @@ public:
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToNodeMap() const {
+  LIDView_host getCellToNodeMap() const {
     return meshCellToNodeMap_;
   }
 
 
-  ROL::Ptr<Intrepid::FieldContainer<int> > getCellToEdgeMap() const {
+  LIDView_host getCellToEdgeMap() const {
     return meshCellToEdgeMap_;
   }
 
@@ -1041,8 +1034,7 @@ private:
 
   void computeCellToNodeMap() {
 
-    meshCellToNodeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_, 8);
-    Intrepid::FieldContainer<int> &ctn = *meshCellToNodeMap_;
+    meshCellToNodeMap_ = LIDView_host("SimpleMeshManager::cellToNode", numCells_, 8);
 
     int cellCt = 0;
 
@@ -1052,15 +1044,15 @@ private:
       for (int j=0; j<ny_; ++j) {
         for (int i=0; i<nx_; ++i) {
           //
-          ctn(cellCt, 0) = k*numNodesXY + j*(nx_+1) + i;
-          ctn(cellCt, 1) = k*numNodesXY + j*(nx_+1) + (i+1);
-          ctn(cellCt, 2) = k*numNodesXY + (j+1)*(nx_+1) + (i+1);
-          ctn(cellCt, 3) = k*numNodesXY + (j+1)*(nx_+1) + i;
+          meshCellToNodeMap_(cellCt, 0) = k*numNodesXY + j*(nx_+1) + i;
+          meshCellToNodeMap_(cellCt, 1) = k*numNodesXY + j*(nx_+1) + (i+1);
+          meshCellToNodeMap_(cellCt, 2) = k*numNodesXY + (j+1)*(nx_+1) + (i+1);
+          meshCellToNodeMap_(cellCt, 3) = k*numNodesXY + (j+1)*(nx_+1) + i;
           //
-          ctn(cellCt, 4) = (k+1)*numNodesXY + j*(nx_+1) + i;
-          ctn(cellCt, 5) = (k+1)*numNodesXY + j*(nx_+1) + (i+1);
-          ctn(cellCt, 6) = (k+1)*numNodesXY + (j+1)*(nx_+1) + (i+1);
-          ctn(cellCt, 7) = (k+1)*numNodesXY + (j+1)*(nx_+1) + i;
+          meshCellToNodeMap_(cellCt, 4) = (k+1)*numNodesXY + j*(nx_+1) + i;
+          meshCellToNodeMap_(cellCt, 5) = (k+1)*numNodesXY + j*(nx_+1) + (i+1);
+          meshCellToNodeMap_(cellCt, 6) = (k+1)*numNodesXY + (j+1)*(nx_+1) + (i+1);
+          meshCellToNodeMap_(cellCt, 7) = (k+1)*numNodesXY + (j+1)*(nx_+1) + i;
           //
           ++cellCt;
         }
@@ -1072,8 +1064,7 @@ private:
 
   void computeCellToEdgeMap() {
 
-    meshCellToEdgeMap_ = ROL::makePtr<Intrepid::FieldContainer<int>>(numCells_, 12);
-    Intrepid::FieldContainer<int> &cte = *meshCellToEdgeMap_;
+    meshCellToEdgeMap_ = LIDView_host("SimpleMeshManager::cellToEdge", numCells_, 12);
 
     int cellCt = 0;
 
@@ -1085,20 +1076,20 @@ private:
       for (int j=0; j<ny_; ++j) {
         for (int i=0; i<nx_; ++i) {
           // bottom
-          cte(cellCt,  0) = k*numEdgesXYZ + j*(2*nx_+1) + i;
-          cte(cellCt,  1) = k*numEdgesXYZ + j*(2*nx_+1) + nx_ + (i+1);
-          cte(cellCt,  2) = k*numEdgesXYZ + (j+1)*(2*nx_+1) + i;
-          cte(cellCt,  3) = k*numEdgesXYZ + j*(2*nx_+1) + nx_ + i;
+          meshCellToEdgeMap_(cellCt,  0) = k*numEdgesXYZ + j*(2*nx_+1) + i;
+          meshCellToEdgeMap_(cellCt,  1) = k*numEdgesXYZ + j*(2*nx_+1) + nx_ + (i+1);
+          meshCellToEdgeMap_(cellCt,  2) = k*numEdgesXYZ + (j+1)*(2*nx_+1) + i;
+          meshCellToEdgeMap_(cellCt,  3) = k*numEdgesXYZ + j*(2*nx_+1) + nx_ + i;
           // verticals
-          cte(cellCt,  8) = k*numEdgesXYZ + numEdgesXY + j*(nx_+1) + i;
-          cte(cellCt,  9) = k*numEdgesXYZ + numEdgesXY + j*(nx_+1) + (i+1);
-          cte(cellCt, 10) = k*numEdgesXYZ + numEdgesXY + (j+1)*(nx_+1) + (i+1);
-          cte(cellCt, 11) = k*numEdgesXYZ + numEdgesXY + (j+1)*(nx_+1) + i;
+          meshCellToEdgeMap_(cellCt,  8) = k*numEdgesXYZ + numEdgesXY + j*(nx_+1) + i;
+          meshCellToEdgeMap_(cellCt,  9) = k*numEdgesXYZ + numEdgesXY + j*(nx_+1) + (i+1);
+          meshCellToEdgeMap_(cellCt, 10) = k*numEdgesXYZ + numEdgesXY + (j+1)*(nx_+1) + (i+1);
+          meshCellToEdgeMap_(cellCt, 11) = k*numEdgesXYZ + numEdgesXY + (j+1)*(nx_+1) + i;
           // top
-          cte(cellCt,  4) = (k+1)*numEdgesXYZ + j*(2*nx_+1) + i;
-          cte(cellCt,  5) = (k+1)*numEdgesXYZ + j*(2*nx_+1) + nx_ + (i+1);
-          cte(cellCt,  6) = (k+1)*numEdgesXYZ + (j+1)*(2*nx_+1) + i;
-          cte(cellCt,  7) = (k+1)*numEdgesXYZ + j*(2*nx_+1) + nx_ + i;
+          meshCellToEdgeMap_(cellCt,  4) = (k+1)*numEdgesXYZ + j*(2*nx_+1) + i;
+          meshCellToEdgeMap_(cellCt,  5) = (k+1)*numEdgesXYZ + j*(2*nx_+1) + nx_ + (i+1);
+          meshCellToEdgeMap_(cellCt,  6) = (k+1)*numEdgesXYZ + (j+1)*(2*nx_+1) + i;
+          meshCellToEdgeMap_(cellCt,  7) = (k+1)*numEdgesXYZ + j*(2*nx_+1) + nx_ + i;
           ++cellCt;
         }
       }
