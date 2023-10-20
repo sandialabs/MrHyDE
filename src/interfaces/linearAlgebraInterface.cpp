@@ -159,6 +159,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
   }
   
+  std::cout << "1" << std::endl;
   std::vector<string> blocknames = disc->block_names;
   
   // --------------------------------------------------
@@ -166,6 +167,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   // --------------------------------------------------
   max_entries = 0;
   
+  std::cout << "2" << std::endl;
   for (size_t set=0; set<setnames.size(); ++set) {
     vector<GO> owned, ownedAndShared;
     owned = disc->dof_owned[set];
@@ -239,6 +241,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       this->fillComplete(overlapped_matrix[set]);
     }
   }
+  std::cout << "3" << std::endl;
   
   // --------------------------------------------------
   // discretized parameter LA objects
@@ -305,6 +308,8 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       
     }
   }
+
+  std::cout << "4" << std::endl;
   
   if (debug_level > 0) {
     if (comm->getRank() == 0) {

@@ -35,7 +35,46 @@ settings(settings_), comm(comm_) {
   use_stk_mesh = settings->sublist("Mesh").get<bool>("use STK mesh",true);
   use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
   if (use_simple_mesh) {
+    std::cout << "Setting up simple mesh parameter list..." << std::endl;
     use_stk_mesh = false;
+    Teuchos::ParameterList pl;
+    pl.sublist("Geometry").set("Width", 1.0);
+    pl.sublist("Geometry").set("Height", 1.0);
+    pl.sublist("Geometry").set("NX",100);
+    pl.sublist("Geometry").set("NY",100);
+    // width_  = parlist.sublist("Geometry").get( "Width", 3.0);
+    // height_ = parlist.sublist("Geometry").get("Height", 1.0);
+    // X0_     = parlist.sublist("Geometry").get(    "X0", 0.0);
+    // Y0_     = parlist.sublist("Geometry").get(    "Y0", 0.0);
+    // // Mesh data.
+    // nx_ = parlist.sublist("Geometry").get("NX", 3);
+    // ny_ = parlist.sublist("Geometry").get("NY", 1);
+
+
+
+    // pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
+    // pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
+    // pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
+    // pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
+    // if (dimension > 1) {
+    //   pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",comm->getSize()));
+    //   pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
+    //   pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
+    //   pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
+    //   pl->set("Yf",settings->sublist("Mesh").get("ymax",1.0));
+    //   pl->set("Y Procs", settings->sublist("Mesh").get("Yprocs",1));
+    // }
+    // if (dimension > 2) {
+    //   pl->set("Z Blocks",settings->sublist("Mesh").get("Zblocks",1));
+    //   pl->set("Z Elements",settings->sublist("Mesh").get("NZ",20));
+    //   pl->set("Z0",settings->sublist("Mesh").get("zmin",0.0));
+    //   pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
+    //   pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
+    // }
+    std::cout << "Setting up simple mesh..." << std::endl;
+    simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+    std::cout << "Done setting up simple mesh!" << std::endl;
+
   }
   shape = settings->sublist("Mesh").get<string>("shape","none");
   if (shape == "none") { // new keywords, but allowing BWDS compat.
@@ -173,38 +212,40 @@ settings(settings_), comm(comm_) {
     stk_mesh->getNodesetNames(node_names);
   }
   else if (use_simple_mesh) {
+    block_names = { "block_0" };
     // GHDR: Need to define block_names, side_names, node_names
-
+    cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>())));
+    side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));
   }
 
-
-  for (size_t b=0; b<block_names.size(); b++) {
-    cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
-  }
+  if(use_stk_mesh) {
+    for (size_t b=0; b<block_names.size(); b++) {
+      cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
+    }
   
-  for (size_t b=0; b<block_names.size(); b++) {
-    topo_RCP cell_topo = stk_mesh->getCellTopology(block_names[b]);
-    string shape = cell_topo->getName();
-    if (dimension == 1) {
-      // nothing to do here
+    for (size_t b=0; b<block_names.size(); b++) {
+      topo_RCP cell_topo = stk_mesh->getCellTopology(block_names[b]);
+      string shape = cell_topo->getName();
+      if (dimension == 1) {
+        // nothing to do here
+      }
+      if (dimension == 2) {
+        if (shape == "Quadrilateral_4") {
+          side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+        }
+        if (shape == "Triangle_3") {
+          side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
+        }
+      }
+      if (dimension == 3) {
+        if (shape == "Hexahedron_8") {
+          side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
+        }
+        if (shape == "Tetrahedron_4") {
+          side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
+        }
+      }
     }
-    if (dimension == 2) {
-      if (shape == "Quadrilateral_4") {
-        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
-      }
-      if (shape == "Triangle_3") {
-        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<> >() )));
-      }
-    }
-    if (dimension == 3) {
-      if (shape == "Hexahedron_8") {
-        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >() )));
-      }
-      if (shape == "Tetrahedron_4") {
-        side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Triangle<> >() )));
-      }
-    }
-    
   }
 
   if (debug_level > 0) {
@@ -314,7 +355,6 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
 void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > varlist,
                              std::vector<std::vector<std::vector<string> > > vartypes,
                              std::vector<std::vector<std::vector<std::vector<string> > > > derivedList) {
-  
   if (debug_level > 0) {
     if (comm->getRank() == 0) {
       cout << "**** Starting mesh interface finalize ..." << endl;
@@ -324,7 +364,6 @@ void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > var
   ////////////////////////////////////////////////////////////////////////////////
   // Add fields to the mesh
   ////////////////////////////////////////////////////////////////////////////////
-  
   if (settings->sublist("Postprocess").get("write solution",false)) {
     std::vector<std::string> appends;
     if (settings->sublist("Analysis").get<std::string>("analysis type","forward") == "UQ") {
@@ -463,11 +502,15 @@ void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > var
     }
   }
   
-  mesh_factory->completeMeshConstruction(*stk_mesh,*(comm->getRawMpiComm()));
-  
+  if(use_stk_mesh) {
+    mesh_factory->completeMeshConstruction(*stk_mesh,*(comm->getRawMpiComm()));
+  }
+
   if (verbosity>1) {
-    if (comm->getRank() == 0) {
-      stk_mesh->printMetaData(std::cout);
+    if(use_stk_mesh) {
+      if (comm->getRank() == 0) {
+        stk_mesh->printMetaData(std::cout);
+      }
     }
   }
   
@@ -844,6 +887,7 @@ DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
   }
   else if (use_simple_mesh) {
     // nnodes = ???
+    // blocknodes = ???
   }
   
   DRV cnodes("element nodes",1,nnodes,dimension);

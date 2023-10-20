@@ -26,6 +26,7 @@
 #include "Panzer_STK_Interface.hpp"
 #include "Panzer_STK_ExodusReaderFactory.hpp"
 #include "Panzer_STKConnManager.hpp"
+#include "simplemeshmanager.hpp"
 
 #include "preferences.hpp"
 //#include "physicsInterface.hpp"
@@ -231,6 +232,7 @@ namespace MrHyDE {
     Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas;
     vector<vector<ScalarT> > nfield_vals, efield_vals;
     
+    Teuchos::RCP<SimpleMeshManager<ScalarT>> simple_mesh; ///< RCP to the SimpleMeshManager
   private:
     Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh; ///< RCP to the Panzer STK Mesh
     Teuchos::RCP<panzer_stk::STK_Interface> stk_optimization_mesh; ///< RCP to the Panzer STK Mesh used to visualize an optmization history.

@@ -18,7 +18,7 @@ using Kokkos::parallel_reduce;
 using Kokkos::RangePolicy;
 using Kokkos::MDRangePolicy;
 using Kokkos::TeamPolicy;
-using Kokkos::Rank;
+//using Kokkos::Rank; // GH: this conflicts with Intrepid::Rank, which is currently used simplemeshmanager; plan to remove Intrepid dependency later
 using Kokkos::subview;
 using Kokkos::ALL;
 using Kokkos::create_mirror_view;
