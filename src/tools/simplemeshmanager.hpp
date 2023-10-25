@@ -49,7 +49,6 @@
 #define SIMPLEMESHMANAGER_HPP
 
 #include "Teuchos_ParameterList.hpp"
-#include "ROL_Ptr.hpp"
 
 // TODO: GH fix documentation
 /** \class  SimpleMeshManager
@@ -98,8 +97,8 @@ public:
   /** \brief Returns cell IDs per processor.
              Format: number_of_procs vectors, each with number_of_cells cell IDs (ints)
   */
-  virtual ROL::Ptr<std::vector<std::vector<int>>> getProcCellIds() const {
-    return ROL::makePtr<std::vector<std::vector<int>>>();
+  virtual Teuchos::RCP<std::vector<std::vector<int>>> getProcCellIds() const {
+    return Teuchos::rcp(new std::vector<std::vector<int>>());
     // default due to support for in-line partitioning,
     // where this functionality is bypassed
   }
@@ -109,10 +108,10 @@ public:
                      the FieldConTainer is a 1D array of cell indices.
              Input:  Sideset number.  Its meaning is context-dependent.
   */
-  //virtual ROL::Ptr<std::vector<std::vector<Intrepid::FieldContainer<int> > > > getSideSets(
+  //virtual Teuchos::RCP<std::vector<std::vector<Intrepid::FieldContainer<int> > > > getSideSets(
   //            std::ostream & outStream = std::cout,
   //            const bool verbose = false) const = 0;
-  virtual ROL::Ptr<std::vector<std::vector<std::vector<int> > > > getSideSets(
+  virtual Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const = 0;
 
@@ -135,6 +134,9 @@ public:
   virtual int getNumFaces() const {
     return 0; // default due to lack of faces in 1D and 2D
   }
+
+  //void
+  //mesh->getElementBlockNames(blocknames);
 
 }; // SimpleMeshManager
 
@@ -189,7 +191,7 @@ private:
   LIDView_host meshCellToNodeMap_;
   LIDView_host meshCellToEdgeMap_;
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
 
 public:
 
@@ -244,7 +246,7 @@ public:
   }
 
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > > getSideSets(
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const { 
     return meshSideSets_;
@@ -406,7 +408,7 @@ private:
 
   virtual void computeSideSets() {
 
-    meshSideSets_ = ROL::makePtr<std::vector<std::vector<std::vector<int> > >>(11);
+    meshSideSets_ = Teuchos::rcp(new std::vector<std::vector<std::vector<int>>>(11));
     int numSides = 4;
     (*meshSideSets_)[0].resize(numSides); // bottom
     (*meshSideSets_)[1].resize(numSides); // right lower
@@ -504,7 +506,7 @@ private:
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
 
 public:
 
@@ -543,7 +545,7 @@ public:
   }
 
 
-  virtual ROL::Ptr<std::vector<std::vector<std::vector<int> > > > getSideSets(
+  virtual Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const { 
     return meshSideSets_;
@@ -626,7 +628,7 @@ private:
 
   virtual void computeSideSets() {
 
-    meshSideSets_ = ROL::makePtr<std::vector<std::vector<std::vector<int> > >>(1);
+    meshSideSets_ = Teuchos::rcp(new std::vector<std::vector<std::vector<int>>>(1));
     int numSides = 4;
     (*meshSideSets_)[0].resize(numSides);
     (*meshSideSets_)[0][0].resize(nx_);
@@ -670,7 +672,7 @@ private:
   NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > > meshSideSets_;
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > meshSideSets_;
 
 public:
 
@@ -701,7 +703,7 @@ public:
     return meshCellToNodeMap_;
   }
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > > getSideSets(
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const {
     return meshSideSets_;
@@ -745,7 +747,7 @@ private:
     int numSideSets = 2;
     int numSides = 2;
     meshSideSets_
-      = ROL::makePtr<std::vector<std::vector<std::vector<int> > >>(numSideSets);
+      = Teuchos::rcp(new std::vector<std::vector<std::vector<int>>>(numSideSets));
 
     (*meshSideSets_)[0].resize(numSides);
     (*meshSideSets_)[0][0].resize(1);
@@ -783,7 +785,7 @@ private:
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > > meshSideSets_;
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > meshSideSets_;
 
 public:
 
@@ -820,7 +822,7 @@ public:
     return meshCellToEdgeMap_;
   }
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > > getSideSets(
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const { 
     return meshSideSets_;
@@ -874,7 +876,7 @@ private:
     int numSideSets = 2;
     int numSides = 2;
     meshSideSets_
-      = ROL::makePtr<std::vector<std::vector<std::vector<int> > >>(numSideSets);
+      = Teuchos::rcp(new std::vector<std::vector<std::vector<int>>>(numSideSets));
 
     (*meshSideSets_)[0].resize(numSides);
     (*meshSideSets_)[0][0].resize(1);
@@ -938,7 +940,7 @@ private:
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
 
 public:
 
@@ -980,7 +982,7 @@ public:
   }
 
 
-  ROL::Ptr<std::vector<std::vector<std::vector<int> > > > getSideSets(
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const { 
     return meshSideSets_;
@@ -1097,7 +1099,7 @@ private:
   virtual void computeSideSets() {
 
     // single sideset (all of the boundary)
-    meshSideSets_ = ROL::makePtr<std::vector<std::vector<std::vector<int> > >>(1);
+    meshSideSets_ = Teuchos::rcp(new std::vector<std::vector<std::vector<int>>>(1));
     // the sideset has six sides with local side ids from 0 to 5
     int numSides = 6;
     (*meshSideSets_)[0].resize(numSides);

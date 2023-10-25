@@ -725,6 +725,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     size_t numelements = 0;
     double minsize = 1e100;
     double maxsize = 0.0;
+    std::cout << "Found " << groups.size() << " blocks!" << std::endl;
+    std::cout << "Found " << groups[0].size() << " groups!" << std::endl;
     for (size_t block=0; block<groups.size(); ++block) {
       for (size_t grp=0; grp<groups[block].size(); ++grp) {
         numelements += groups[block][grp]->numElem;

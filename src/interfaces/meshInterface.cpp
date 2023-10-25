@@ -35,45 +35,24 @@ settings(settings_), comm(comm_) {
   use_stk_mesh = settings->sublist("Mesh").get<bool>("use STK mesh",true);
   use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
   if (use_simple_mesh) {
-    std::cout << "Setting up simple mesh parameter list..." << std::endl;
-    use_stk_mesh = false;
-    Teuchos::ParameterList pl;
-    pl.sublist("Geometry").set("Width", 1.0);
-    pl.sublist("Geometry").set("Height", 1.0);
-    pl.sublist("Geometry").set("NX",100);
-    pl.sublist("Geometry").set("NY",100);
-    // width_  = parlist.sublist("Geometry").get( "Width", 3.0);
-    // height_ = parlist.sublist("Geometry").get("Height", 1.0);
-    // X0_     = parlist.sublist("Geometry").get(    "X0", 0.0);
-    // Y0_     = parlist.sublist("Geometry").get(    "Y0", 0.0);
-    // // Mesh data.
-    // nx_ = parlist.sublist("Geometry").get("NX", 3);
-    // ny_ = parlist.sublist("Geometry").get("NY", 1);
-
-
-
-    // pl->set("X Blocks",settings->sublist("Mesh").get("Xblocks",1));
-    // pl->set("X Elements",settings->sublist("Mesh").get("NX",20));
-    // pl->set("X0",settings->sublist("Mesh").get("xmin",0.0));
-    // pl->set("Xf",settings->sublist("Mesh").get("xmax",1.0));
-    // if (dimension > 1) {
-    //   pl->set("X Procs", settings->sublist("Mesh").get("Xprocs",comm->getSize()));
-    //   pl->set("Y Blocks",settings->sublist("Mesh").get("Yblocks",1));
-    //   pl->set("Y Elements",settings->sublist("Mesh").get("NY",20));
-    //   pl->set("Y0",settings->sublist("Mesh").get("ymin",0.0));
-    //   pl->set("Yf",settings->sublist("Mesh").get("ymax",1.0));
-    //   pl->set("Y Procs", settings->sublist("Mesh").get("Yprocs",1));
-    // }
-    // if (dimension > 2) {
-    //   pl->set("Z Blocks",settings->sublist("Mesh").get("Zblocks",1));
-    //   pl->set("Z Elements",settings->sublist("Mesh").get("NZ",20));
-    //   pl->set("Z0",settings->sublist("Mesh").get("zmin",0.0));
-    //   pl->set("Zf",settings->sublist("Mesh").get("zmax",1.0));
-    //   pl->set("Z Procs", settings->sublist("Mesh").get("Zprocs",1));
-    // }
     std::cout << "Setting up simple mesh..." << std::endl;
+    use_stk_mesh = false;
+
+    Teuchos::ParameterList pl;
+    pl.sublist("Geometry").set("X0",     settings->sublist("Mesh").get("xmin",0.0));
+    pl.sublist("Geometry").set("Width",  settings->sublist("Mesh").get("xmax",1.0)-settings->sublist("Mesh").get("xmin",0.0));
+    pl.sublist("Geometry").set("NX",     settings->sublist("Mesh").get("NX",20));
+    // if dim>1
+    pl.sublist("Geometry").set("Y0",     settings->sublist("Mesh").get("ymin",0.0));
+    pl.sublist("Geometry").set("Height", settings->sublist("Mesh").get("ymax",1.0)-settings->sublist("Mesh").get("ymin",0.0));
+    pl.sublist("Geometry").set("NY",     settings->sublist("Mesh").get("NY",20));
+    // if dim>2
+    pl.sublist("Geometry").set("Z0",     settings->sublist("Mesh").get("zmin",0.0));
+    pl.sublist("Geometry").set("Depth",  settings->sublist("Mesh").get("zmax",1.0)-settings->sublist("Mesh").get("zmin",0.0));
+    pl.sublist("Geometry").set("NZ",     settings->sublist("Mesh").get("NZ",20));
+
     simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
-    std::cout << "Done setting up simple mesh!" << std::endl;
+    std::cout << "Done setting up simple mesh with " << simple_mesh->getNumCells() << " elements!" << std::endl;
 
   }
   shape = settings->sublist("Mesh").get<string>("shape","none");
@@ -212,7 +191,7 @@ settings(settings_), comm(comm_) {
     stk_mesh->getNodesetNames(node_names);
   }
   else if (use_simple_mesh) {
-    block_names = { "block_0" };
+    block_names = { "eblock-0_0" };
     // GHDR: Need to define block_names, side_names, node_names
     cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>())));
     side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));

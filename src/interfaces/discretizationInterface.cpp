@@ -230,12 +230,45 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   }
   else {
     // GHDR: need to fill in the objects listed above (try it without the orientations and num_derivs_required)
-    // 
 
-    // dof_lids = mesh->simple_mesh->getCellToNodeMap(); // [set](elem, dof)
-    // std::vector<std::vector<GO> > dof_owned, dof_owned_and_shared; // list of degrees of freedom on processor
-    // std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof] 
+    // GH: this simply pushes back DOFs 0,1,...,N-1 where N is the number of nodes for owned and ownedAndShared
+    vector<GO> owned;
+    for(unsigned int i=0; i<mesh->simple_mesh->getNumNodes(); ++i)
+      owned.push_back(((GO) i));
+    dof_owned.push_back(owned);
+    dof_owned_and_shared.push_back(owned);
+
+    dof_lids.push_back(mesh->simple_mesh->getCellToNodeMap()); // [set](elem, dof)
+    //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof] 
+    std::vector<std::vector<GO>> elemids;
+    for(unsigned int e=0; e<dof_lids[0].extent(0); ++e) {
+      std::vector<GO> localelemids;
+      for(unsigned int i=0; i<dof_lids[0].extent(1); ++i) {
+        localelemids.push_back(dof_lids[0](e,i));
+      }
+      elemids.push_back(localelemids);
+    }
+    dof_gids.push_back(elemids);
+
     // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
+    for (size_t set=0; set<physics->set_names.size(); ++set) {
+      vector<vector<string> > varlist = physics->var_list[set];
+      vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+      for (size_t block=0; block<block_names.size(); ++block) {
+        vector<vector<int> > celloffsets;
+        for (size_t j=0; j<varlist[block].size(); j++) {
+          string var = varlist[block][j];
+          //int num = setDOF->getFieldNum(var);
+          vector<int> var_offsets = {0, 1, 3, 2}; // GH: super hacky???
+          for(unsigned int i=0; i<var_offsets.size(); ++i)
+            std::cout << " " << var_offsets[i];
+
+          celloffsets.push_back(var_offsets);
+        }
+        set_offsets.push_back(celloffsets);
+      }
+      offsets.push_back(set_offsets);
+    }
   }
   
   if (debug_level > 0) {
@@ -2089,8 +2122,12 @@ void DiscretizationInterface::buildDOFManagers() {
       vector<vector<int> > celloffsets;
       for (size_t j=0; j<varlist[block].size(); j++) {
         string var = varlist[block][j];
+        std::cout << var;
         int num = setDOF->getFieldNum(var);
         vector<int> var_offsets = setDOF->getGIDFieldOffsets(block_names[block],num);
+        for(unsigned int i=0; i<var_offsets.size(); ++i)
+          std::cout << " " << var_offsets[i];
+        std::cout << std::endl;
 
         celloffsets.push_back(var_offsets);
       }
