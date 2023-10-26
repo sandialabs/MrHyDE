@@ -103,14 +103,21 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     topo_RCP cellTopo = mesh->getCellTopology(blockID);
     string shape = cellTopo->getName();
     
-    vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blockID);
-    
-    // list of all elements on this processor
-    vector<size_t> blockmy_elements = vector<size_t>(stk_meshElems.size());
-    for( size_t e=0; e<stk_meshElems.size(); e++ ) {
-      blockmy_elements[e] = mesh->getSTKElementLocalId(stk_meshElems[e]);
+    if(mesh->use_stk_mesh) {
+      vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blockID);
+      
+      // list of all elements on this processor
+      vector<size_t> blockmy_elements = vector<size_t>(stk_meshElems.size());
+      for( size_t e=0; e<stk_meshElems.size(); e++ ) {
+        blockmy_elements[e] = mesh->getSTKElementLocalId(stk_meshElems[e]);
+      }
+      my_elements.push_back(blockmy_elements);
+    } else {
+      vector<size_t> blockmy_elements = vector<size_t>(mesh->simple_mesh->getNumCells());
+      for(unsigned int i=0; i<blockmy_elements.size(); ++i)
+        blockmy_elements[i] = i;
+      my_elements.push_back(blockmy_elements);
     }
-    my_elements.push_back(blockmy_elements);
     
     vector<int> blockcards;
     vector<basis_RCP> blockbasis;
@@ -268,7 +275,18 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
         set_offsets.push_back(celloffsets);
       }
       offsets.push_back(set_offsets);
+
+      // more hacky stuff; can't set dbcs without dof manager, but we don't have a dof manager
+      std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
+      std::vector<std::vector<LO> > block_dbc_dofs;
+      std::vector<LO> var_dofs;
+      var_dofs.push_back(0);
+      block_dbc_dofs.push_back(var_dofs);
+      set_dbc_dofs.push_back(block_dbc_dofs);
+      dbc_dofs.push_back(set_dbc_dofs);
+
     }
+    panzer_orientations = std::vector<Intrepid2::Orientation>(mesh->simple_mesh->getNumCells(),Intrepid2::Orientation());
   }
   
   if (debug_level > 0) {

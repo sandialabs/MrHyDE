@@ -865,7 +865,7 @@ DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
     nnodes = blocknodes.extent(1);
   }
   else if (use_simple_mesh) {
-    // nnodes = ???
+    nnodes = simple_mesh->getNumNodes();
     // blocknodes = ???
   }
   
