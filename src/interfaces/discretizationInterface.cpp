@@ -267,8 +267,6 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
           string var = varlist[block][j];
           //int num = setDOF->getFieldNum(var);
           vector<int> var_offsets = {0, 1, 3, 2}; // GH: super hacky???
-          for(unsigned int i=0; i<var_offsets.size(); ++i)
-            std::cout << " " << var_offsets[i];
 
           celloffsets.push_back(var_offsets);
         }
@@ -2140,12 +2138,8 @@ void DiscretizationInterface::buildDOFManagers() {
       vector<vector<int> > celloffsets;
       for (size_t j=0; j<varlist[block].size(); j++) {
         string var = varlist[block][j];
-        std::cout << var;
         int num = setDOF->getFieldNum(var);
         vector<int> var_offsets = setDOF->getGIDFieldOffsets(block_names[block],num);
-        for(unsigned int i=0; i<var_offsets.size(); ++i)
-          std::cout << " " << var_offsets[i];
-        std::cout << std::endl;
 
         celloffsets.push_back(var_offsets);
       }

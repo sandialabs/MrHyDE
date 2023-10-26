@@ -268,9 +268,6 @@ void AssemblyManager<Node>::createGroups() {
       //panzer_stk::workset_utils::getIdsAndVertices(*(mesh->stk_mesh), blocknames[block], localIds, blocknodes); // fill on host
       
       vector<size_t> myElem = disc->my_elements[block];
-      std::cout << "My elements" << std::endl;
-      for(unsigned int i=0; i<myElem.size(); ++i)
-        std::cout << myElem[i] << " ";
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
       auto host_eIDs = Kokkos::create_mirror_view(eIDs);
       for (size_t elem=0; elem<myElem.size(); elem++) {
@@ -655,10 +652,6 @@ void AssemblyManager<Node>::createGroups() {
         block_groups.push_back(Teuchos::rcp(new Group(blockGroupData, currnodes, eIndex,
                                                       disc, storeThis)));
         size_t cindex = block_groups.size()-1;
-        std::cout << "set_LIDs = [";
-        for(unsigned int i=0; i<set_LIDs.size(); ++i)
-          std::cout << set_LIDs[i].extent(0) << "," << set_LIDs[i].extent(1) << " ";
-        std::cout << "]" << std::endl;
         block_groups[cindex]->LIDs = set_LIDs;
         block_groups[cindex]->createHostLIDs();
         block_groups[cindex]->sideinfo = set_sideinfo;
@@ -734,8 +727,6 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     size_t numelements = 0;
     double minsize = 1e100;
     double maxsize = 0.0;
-    std::cout << "Found " << groups.size() << " blocks!" << std::endl;
-    std::cout << "Found " << groups[0].size() << " groups!" << std::endl;
     for (size_t block=0; block<groups.size(); ++block) {
       for (size_t grp=0; grp<groups[block].size(); ++grp) {
         numelements += groups[block][grp]->numElem;
@@ -2939,11 +2930,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute
     // Scatter into global matrix/vector
     ///////////////////////////////////////////////////////////////////////////
     
-    std::cout << "xx " << set << std::endl;
-    std::cout << groups[block][grp]->LIDs[set].extent(0) << "," << groups[block][grp]->LIDs[set].extent(1) << std::endl;
-    std::cout << res_view.extent(0) << "," << res_view.extent(1) << std::endl;
     this->scatterRes(set, res_view, groups[block][grp]->LIDs[set], block);
-    std::cout << "yy" << std::endl;
     
   } // group loop
   
@@ -3695,22 +3682,16 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
   /////////////////////////////////////
   
   // Make sure the functor can access the necessary data
-  std::cout << "0" << std::endl;
   auto fixedDOF = isFixedDOF[set];
-  std::cout << "1" << std::endl;
   auto res = wkset[block]->res;
-  std::cout << "2" << std::endl;
   auto offsets = wkset[block]->offsets;
-  std::cout << "3" << std::endl;
   auto numDOF = groupData[block]->num_dof;
-  std::cout << "4" << std::endl;
   
   bool use_atomics_ = false;
   if (LA_exec::concurrency() > 1) {
     use_atomics_ = true;
   }
   
-  std::cout << "a" << std::endl;
   parallel_for("assembly insert Jac",
                RangePolicy<LA_exec>(0,LIDs.extent(0)),
                KOKKOS_LAMBDA (const int elem ) {
@@ -3721,24 +3702,15 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
     // Residual scatter
     for (size_type n=0; n<numDOF.extent(0); ++n) {
       for (int j=0; j<numDOF(n); j++) {
-        std::cout << "b" << std::endl;
         row = offsets(n,j);
-        std::cout << "c" << std::endl;
         rowIndex = LIDs(elem,row);
-        std::cout << "d" << std::endl;
         if (!fixedDOF(rowIndex)) {
-          std::cout << "e" << std::endl;
             ScalarT val = -res(elem,row);
-            std::cout << "f" << std::endl;
             if (use_atomics_) {
-              std::cout << "g" << std::endl;
               Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
-              std::cout << "h" << std::endl;
             }
             else {
-              std::cout << "i" << std::endl;
               res_view(rowIndex,0) += val;
-              std::cout << "j" << std::endl;
             }
           
         }

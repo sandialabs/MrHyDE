@@ -35,7 +35,6 @@ settings(settings_), comm(comm_) {
   use_stk_mesh = settings->sublist("Mesh").get<bool>("use STK mesh",true);
   use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
   if (use_simple_mesh) {
-    std::cout << "Setting up simple mesh..." << std::endl;
     use_stk_mesh = false;
 
     Teuchos::ParameterList pl;
@@ -52,8 +51,6 @@ settings(settings_), comm(comm_) {
     pl.sublist("Geometry").set("NZ",     settings->sublist("Mesh").get("NZ",20));
 
     simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
-    std::cout << "Done setting up simple mesh with " << simple_mesh->getNumCells() << " elements!" << std::endl;
-
   }
   shape = settings->sublist("Mesh").get<string>("shape","none");
   if (shape == "none") { // new keywords, but allowing BWDS compat.
