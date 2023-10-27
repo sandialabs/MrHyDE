@@ -862,8 +862,8 @@ DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
     nnodes = blocknodes.extent(1);
   }
   else if (use_simple_mesh) {
-    nnodes = simple_mesh->getNumNodes();
-    // blocknodes = ???
+    //nnodes = simple_mesh->getNumNodes();
+    //blocknodes = simple_mesh->getCellNodes({elemID});
   }
   
   DRV cnodes("element nodes",1,nnodes,dimension);
@@ -1237,6 +1237,8 @@ LO MeshInterface::getSTKElementLocalId(stk::mesh::Entity & elem) {
 void MeshInterface::getSTKElementVertices(vector<size_t> & local_grp, string & blockname, DRV & currnodes) {
   if (use_stk_mesh) {
     stk_mesh->getElementVertices(local_grp, blockname, currnodes);
+  } else {
+    currnodes = simple_mesh->getCellNodes(local_grp);
   }
 }
 

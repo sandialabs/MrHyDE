@@ -240,7 +240,7 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
 
     // GH: this simply pushes back DOFs 0,1,...,N-1 where N is the number of nodes for owned and ownedAndShared
     vector<GO> owned;
-    for(unsigned int i=0; i<mesh->simple_mesh->getNumNodes(); ++i)
+    for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
       owned.push_back(((GO) i));
     dof_owned.push_back(owned);
     dof_owned_and_shared.push_back(owned);

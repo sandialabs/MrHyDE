@@ -72,6 +72,12 @@ public:
   */
   virtual NodeView_host getNodes() const = 0;
 
+  /** \brief Returns cell node coordinates.
+             Format: number_of_cells x nodes_per_elem x dimension
+                     (cell,node,dim)  x, y coordinates
+  */
+  virtual DRV getCellNodes(std::vector<size_t> &indices) const = 0;
+
   /** \brief Returns cell to node adjacencies.
              Format: number_of_cells x number_of_nodes_per_cell (int)
                      (cell_index)  node_index1  node_index2  ...
@@ -233,6 +239,16 @@ public:
 
   NodeView_host getNodes() const {
     return meshNodes_;
+  }
+
+
+  DRV getCellNodes(std::vector<size_t> &indices) const {
+    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    for(unsigned int i=0; i<indices.size(); ++i)
+      for(unsigned int j=0; j<cellNodes.extent(1); ++j)
+        for(unsigned int k=0; k<cellNodes.extent(2); ++k)
+          cellNodes(i,j,k) = meshNodes_(meshCellToNodeMap_(indices[i],j),k);
+    return cellNodes;
   }
 
 
@@ -535,6 +551,16 @@ public:
   }
 
 
+  DRV getCellNodes(std::vector<size_t> &indices) const {
+    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    for(unsigned int i=0; i<indices.size(); ++i)
+      for(unsigned int j=0; j<cellNodes.extent(1); ++j)
+        for(unsigned int k=0; k<cellNodes.extent(2); ++k)
+          cellNodes(i,j,k) = meshNodes_(meshCellToNodeMap_(indices[i],j),k);
+    return cellNodes;
+  }
+
+
   LIDView_host getCellToNodeMap() const {
     return meshCellToNodeMap_;
   }
@@ -699,6 +725,16 @@ public:
     return meshNodes_;
   }
 
+
+  DRV getCellNodes(std::vector<size_t> &indices) const {
+    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    for(unsigned int i=0; i<indices.size(); ++i)
+      for(unsigned int j=0; j<cellNodes.extent(1); ++j)
+        for(unsigned int k=0; k<cellNodes.extent(2); ++k)
+          cellNodes(i,j,k) = meshNodes_(meshCellToNodeMap_(indices[i],j),k);
+    return cellNodes;
+  }
+
   LIDView_host getCellToNodeMap() const {
     return meshCellToNodeMap_;
   }
@@ -812,6 +848,16 @@ public:
 
   NodeView_host getNodes() const {
     return meshNodes_;
+  }
+
+
+  DRV getCellNodes(std::vector<size_t> &indices) const {
+    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    for(unsigned int i=0; i<indices.size(); ++i)
+      for(unsigned int j=0; j<cellNodes.extent(1); ++j)
+        for(unsigned int k=0; k<cellNodes.extent(2); ++k)
+          cellNodes(i,j,k) = meshNodes_(meshCellToNodeMap_(indices[i],j),k);
+    return cellNodes;
   }
 
   LIDView_host getCellToNodeMap() const {
@@ -969,6 +1015,16 @@ public:
 
   NodeView_host getNodes() const {
     return meshNodes_;
+  }
+
+
+  DRV getCellNodes(std::vector<size_t> &indices) const {
+    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    for(unsigned int i=0; i<indices.size(); ++i)
+      for(unsigned int j=0; j<cellNodes.extent(1); ++j)
+        for(unsigned int k=0; k<cellNodes.extent(2); ++k)
+          cellNodes(i,j,k) = meshNodes_(meshCellToNodeMap_(indices[i],j),k);
+    return cellNodes;
   }
 
 

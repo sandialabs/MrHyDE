@@ -193,4 +193,36 @@ typedef Kokkos::View<ScalarT*****,AssemblyDevice> View_Sc5;
 typedef Teuchos::RCP<const shards::CellTopology> topo_RCP;
 typedef Teuchos::RCP<Intrepid2::Basis<PHX::Device::execution_space, double, double > > basis_RCP;
 
+#include <exception>
+
+#define PRINT_VAR(var) \
+std::cout << #var << " = " << var << std::endl;
+
+#define PRINT_VECTOR(var) \
+std::cout << #var << "(" << var.size() << ") = [" << var[0]; \
+for(unsigned int i=1; i<var.size(); ++i) \
+  std::cout << " " << var[i]; \
+std::cout << "]" << std::endl;
+
+#define PRINT_VIEW1D(var) \
+std::cout << #var << "(" << var.extent(0) << ") = [" << var(0); \
+for(unsigned int i=1; i<var.extent(0); ++i) \
+  std::cout << " " << var(i); \
+std::cout << "]" << std::endl;
+
+#define PRINT_VIEW2D(var) \
+std::cout << #var << "(" << var.extent(0) << "," << var.extent(1) << ") = ["; \
+for(unsigned int i=0; i<var.extent(0); ++i) \
+  for(unsigned int j=0; j<var.extent(1); ++j) \
+    std::cout << " " << var(i,j); \
+std::cout << "]" << std::endl;
+
+#define PRINT_VIEW3D(var) \
+std::cout << #var << "(" << var.extent(0) << "," << var.extent(1) << "," << var.extent(2) << ") = ["; \
+for(unsigned int i=0; i<var.extent(0); ++i) \
+  for(unsigned int j=0; j<var.extent(1); ++j) \
+    for(unsigned int k=0; k<var.extent(2); ++k) \
+      std::cout << " " << var(i,j,k); \
+std::cout << "]" << std::endl;
+
 #endif
