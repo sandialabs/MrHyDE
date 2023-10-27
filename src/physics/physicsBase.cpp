@@ -19,7 +19,7 @@ using namespace MrHyDE;
     template<class EvalT>
     PhysicsBase<EvalT>::PhysicsBase(Teuchos::ParameterList & settings, const int & dimension_) {
       verbosity = settings.get<int>("verbosity",0);
-    };
+    }
     
     // (not necessary, but probably need to be defined in all modules)
     /**
@@ -38,7 +38,7 @@ using namespace MrHyDE;
         std::cout << "Warning: physicsBase::defineFunctions called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
       }
-    };
+    }
     
     /**
      * \brief Compute the volumetric contributions to the residual.
@@ -50,7 +50,7 @@ using namespace MrHyDE;
         std::cout << "Warning: physicsBase::volumeResidual called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
       }
-    };
+    }
     
     /**
      * \brief Compute the boundary contributions to the residual.
@@ -62,7 +62,7 @@ using namespace MrHyDE;
         std::cout << "Warning: physicsBase::boundaryResidual called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
       }
-    };
+    }
     
     /**
      * \brief Compute the edge (2D) and face (3D) contributions to the residual
@@ -74,7 +74,7 @@ using namespace MrHyDE;
         std::cout << "Warning: physicsBase::faceResidual called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
       }
-    };
+    }
     
     /**
      * \brief Compute the boundary/edge flux
@@ -86,7 +86,7 @@ using namespace MrHyDE;
         std::cout << "Warning: physicsBase::computeFlux called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
       }
-    };
+    }
     
     // ========================================================================================
     // ========================================================================================
@@ -106,7 +106,7 @@ using namespace MrHyDE;
         std::cout << "Warning: physicsBase::updateParameters called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
       }
-    };
+    }
     
     // ========================================================================================
     // ========================================================================================
@@ -120,7 +120,7 @@ using namespace MrHyDE;
     template<class EvalT>
     void PhysicsBase<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
       wkset = wkset_;
-    };
+    }
     
     // ========================================================================================
     // ========================================================================================
@@ -133,7 +133,7 @@ using namespace MrHyDE;
     std::vector<string> PhysicsBase<EvalT>::getDerivedNames() {
       std::vector<string> derived;
       return derived;
-    };
+    }
     
     // ========================================================================================
     // ========================================================================================
@@ -161,7 +161,7 @@ using namespace MrHyDE;
     template<class EvalT>
     void PhysicsBase<EvalT>::updateFlags(std::vector<bool> & newflags) {
       // default is to do nothing
-    };
+    }
     
     // ========================================================================================
     // ========================================================================================
@@ -182,7 +182,7 @@ using namespace MrHyDE;
     std::vector< std::vector<string> > PhysicsBase<EvalT>::setupIntegratedQuantities(const int & spaceDim) {
       std::vector< std::vector<string> > integrandsNamesAndTypes;
       return integrandsNamesAndTypes;
-    };
+    }
 
     /**
      * \brief Updates any values needed by the residual which depend on integrated quantities
@@ -197,7 +197,7 @@ using namespace MrHyDE;
         std::cout << "*** Warning: physicsBase::updateIntegratedQuantitiesDependents() called!" << std::endl;
         std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
       }
-    };
+    }
     
     // ========================================================================================
     // ========================================================================================
