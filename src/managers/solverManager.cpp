@@ -37,7 +37,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   
   numEvaluations = 0;
   setnames = physics->set_names;
-  store_vectors = true;
+  store_vectors = false;
   if (setnames.size() > 1) {
     store_vectors = false;
   }

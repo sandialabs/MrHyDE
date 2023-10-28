@@ -1788,7 +1788,7 @@ Kokkos::View<EvalT**,ContLayout,AssemblyDevice> Workset<EvalT>::getResidual() {
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-View_Sc2 Workset<EvalT>::getWeights() {
+CompressedView<View_Sc2> Workset<EvalT>::getWeights() {
   return wts;
 }
 

@@ -725,53 +725,53 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     
     // Volumetric elements
     size_t numelements = 0;
-    double minsize = 1e100;
-    double maxsize = 0.0;
+    //double minsize = 1e100;
+    //double maxsize = 0.0;
     for (size_t block=0; block<groups.size(); ++block) {
       for (size_t grp=0; grp<groups[block].size(); ++grp) {
         numelements += groups[block][grp]->numElem;
-        auto wts = groups[block][grp]->wts;
-        auto host_wts = create_mirror_view(wts);
-        deep_copy(host_wts,wts);
-        for (size_type e=0; e<host_wts.extent(0); ++e) {
-          double currsize = 0.0;
-          for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
-            currsize += host_wts(e,pt);
-          }
-          maxsize = std::max(currsize,maxsize);
-          minsize = std::min(currsize,minsize);
-        }
+        //auto wts = groups[block][grp]->wts;
+        //auto host_wts = wts;//create_mirror_view(wts);
+        //deep_copy(host_wts,wts);
+        //for (size_type e=0; e<host_wts.extent(0); ++e) {
+        //  double currsize = 0.0;
+        //  for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
+        //    currsize += host_wts(e,pt);
+        //  }
+        //  maxsize = std::max(currsize,maxsize);
+        //  minsize = std::min(currsize,minsize);
+        //}
       }
     }
     cout << " - Processor " << comm->getRank() << " has " << numelements << " elements" << endl;
-    cout << " - Processor " << comm->getRank() << " min element size: " << minsize << endl;
-    cout << " - Processor " << comm->getRank() << " max element size: " << maxsize << endl;
+    //cout << " - Processor " << comm->getRank() << " min element size: " << minsize << endl;
+    //cout << " - Processor " << comm->getRank() << " max element size: " << maxsize << endl;
     
     // Boundary elements
     size_t numbndryelements = 0;
-    double minbsize = 1e100;
-    double maxbsize = 0.0;
+    //double minbsize = 1e100;
+    //double maxbsize = 0.0;
     for (size_t block=0; block<boundary_groups.size(); ++block) {
       for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
         numbndryelements += boundary_groups[block][grp]->numElem;
         //if (boundary_groups[block][grp]->storeAll) {
-        auto wts = boundary_groups[block][grp]->wts;
-        auto host_wts = create_mirror_view(wts);
-        deep_copy(host_wts,wts);
-        for (size_type e=0; e<host_wts.extent(0); ++e) {
-          double currsize = 0.0;
-          for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
-            currsize += host_wts(e,pt);
-          }
-          maxbsize = std::max(currsize,maxbsize);
-          minbsize = std::min(currsize,minbsize);
-        }
+        //auto wts = boundary_groups[block][grp]->wts;
+        //auto host_wts = create_mirror_view(wts);
+        //deep_copy(host_wts,wts);
+        //for (size_type e=0; e<host_wts.extent(0); ++e) {
+        //  double currsize = 0.0;
+        //  for (size_type pt=0; pt<host_wts.extent(1); ++pt) {
+        //    currsize += host_wts(e,pt);
+        //  }
+        //  maxbsize = std::max(currsize,maxbsize);
+        //  minbsize = std::min(currsize,minbsize);
+        //}
         //}
       }
     }
     cout << " - Processor " << comm->getRank() << " has " << numbndryelements << " boundary elements" << endl;
-    cout << " - Processor " << comm->getRank() << " min boundary element size: " << minbsize << endl;
-    cout << " - Processor " << comm->getRank() << " max boundary element size: " << maxbsize << endl;
+    //cout << " - Processor " << comm->getRank() << " min boundary element size: " << minbsize << endl;
+    //cout << " - Processor " << comm->getRank() << " max boundary element size: " << maxbsize << endl;
     
     // Volumetric ip/basis
     size_t groupstorage = 0;
@@ -4156,8 +4156,12 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     database_orientation_host(e) = orientations_host(refelem);
     
     // Get the wts on the host
-    auto wts_host = create_mirror_view(groups[block][refgrp]->wts);
-    deep_copy(wts_host, groups[block][refgrp]->wts);
+    View_Sc2 twts("temp physical wts",groups[block][refgrp]->numElem, database_wts.extent(1));
+    disc->getPhysicalIntegrationData(groupData[block], groups[block][refgrp]->nodes, groups[block][refgrp]->ip, twts);
+    
+    //auto wts_host = groups[block][refgrp]->wts;
+    auto wts_host = create_mirror_view(twts);
+    deep_copy(wts_host, twts);
     
     for (size_type pt=0; pt<database_wts_host.extent(1); ++pt) {
       database_wts_host(e,pt) = wts_host(refelem,pt);
@@ -4168,7 +4172,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   deep_copy(database_nodes, database_nodes_host);
   deep_copy(database_orientation, database_orientation_host);
   deep_copy(database_wts, database_wts_host);
-  
+  groupData[block]->database_wts = database_wts;
   
   vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
   vector<View_Sc3> tbasis_div;

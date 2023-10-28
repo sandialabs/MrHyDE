@@ -154,7 +154,7 @@ namespace MrHyDE {
     
     View_EvalT2 getResidual();
     
-    View_Sc2 getWeights();
+    CompressedView<View_Sc2> getWeights();
     
     View_Sc2 getSideWeights();
     
@@ -344,7 +344,8 @@ namespace MrHyDE {
     vector<ScalarField> scalar_fields, side_scalar_fields, point_scalar_fields;
     
     View_Sc1 h;
-    View_Sc2 wts, wts_side;
+    View_Sc2 wts_side;
+    CompressedView<View_Sc2> wts;
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<CompressedView<View_Sc3>> basis_div;
     

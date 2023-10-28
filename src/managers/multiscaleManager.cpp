@@ -536,7 +536,7 @@ void MultiscaleManager::update(vector<vector<int> > & sgmodels) {
             bool include_xyz = true;
             View_Sc2 avg_xyz("average spatial locations",u_curr.extent(0),groups[block][grp]->ip.size());
             if (include_xyz) {
-              auto wts = groups[block][grp]->wts;
+              auto wts = groups[block][grp]->getWts();
               View_Sc1 avg_wts("average wts",u_curr.extent(0));
               parallel_for("assembly compute coarse sol",
                            RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
@@ -1011,7 +1011,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
       bool include_xyz = true;
       View_Sc2 avg_xyz("average spatial locations",u_curr.extent(0),group->ip.size());
       if (include_xyz) {
-        auto wts = group->wts;
+        auto wts = group->getWts();
         View_Sc1 avg_wts("average wts",u_curr.extent(0));
         parallel_for("assembly compute coarse sol",
                      RangePolicy<AssemblyExec>(0,u_curr.extent(0)),

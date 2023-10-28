@@ -25,6 +25,7 @@ namespace MrHyDE {
     ViewType view_;
     Kokkos::View<LO*,AssemblyDevice> key_;
     bool have_key_;
+    size_t rank_;
 
   public:
     CompressedView(ViewType view, Kokkos::View<LO*,AssemblyDevice> key)
@@ -32,12 +33,14 @@ namespace MrHyDE {
       key_(key)
     {
       have_key_ = true;
+      rank_ = view_.rank();
     }
 
     CompressedView(ViewType view)
     : view_(view)
     {
       have_key_ = false;
+      rank_ = view_.rank();
     }
       
     KOKKOS_INLINE_FUNCTION    
@@ -87,6 +90,9 @@ namespace MrHyDE {
       }
     }
     
+    // Decompress the data stored in view_ using key_
+    // This should ONLY be used if the decompressed view is temporary
+
     KOKKOS_INLINE_FUNCTION
     size_type extent(const size_type & dim) const {
       if (dim==0) {
@@ -115,6 +121,16 @@ namespace MrHyDE {
     KOKKOS_INLINE_FUNCTION
     ViewType getView() const {
       return view_;
+    }
+    
+    KOKKOS_INLINE_FUNCTION
+    Kokkos::View<LO*,AssemblyDevice> getKey() const {
+      return key_;
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    bool getHaveKey() const {
+      return have_key_;
     }
     
     void print() {

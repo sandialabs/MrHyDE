@@ -34,13 +34,11 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
   disc->getPhysicalOrientations(group_data, localElemID,
                                 orientation, true);
   
-  size_type numip = group_data->ref_ip.extent(0);
-  wts = View_Sc2("physical wts",numElem, numip);
+  View_Sc2 twts = this->getWts();
   hsize = View_Sc1("physical hsize",numElem);
-
-  disc->getPhysicalIntegrationData(group_data, nodes, ip, wts);
+  //disc->getPhysicalIntegrationData(group_data, nodes, ip, twts);
   
-  this->computeSize();
+  this->computeSize(twts);
 
   if (group_data->build_face_terms) {
     for (size_type side=0; side<group_data->num_sides; side++) {
@@ -68,7 +66,7 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void Group::computeSize() {
+void Group::computeSize(View_Sc2 twts) {
 
   // -------------------------------------------------
   // Compute the element sizes (h = vol^(1/dimension))
@@ -76,11 +74,11 @@ void Group::computeSize() {
   size_t dimension = group_data->dimension;
 
   parallel_for("elem size",
-               RangePolicy<AssemblyExec>(0,wts.extent(0)),
+               RangePolicy<AssemblyExec>(0,twts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
     ScalarT vol = 0.0;
-    for (size_type i=0; i<wts.extent(1); i++) {
-      vol += wts(elem,i);
+    for (size_type i=0; i<twts.extent(1); i++) {
+      vol += twts(elem,i);
     }
     ScalarT dimscl = 1.0/(ScalarT)dimension;
     hsize(elem) = std::pow(vol,dimscl);
@@ -131,6 +129,9 @@ void Group::computeBasis(const bool & keepnodes) {
   
   if (storeAll) {
     
+    View_Sc2 twts = this->getWts();
+    wts = CompressedView<View_Sc2>(twts);
+  
     if (!haveBasis) {
       // Compute integration data and basis functions
       vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
@@ -169,6 +170,7 @@ void Group::computeBasis(const bool & keepnodes) {
     }
   }
   else if (group_data->use_basis_database) {
+    wts = CompressedView<View_Sc2>(group_data->database_wts,basis_index);
     for (size_t i=0; i<group_data->database_basis.size(); ++i) {
       basis.push_back(CompressedView<View_Sc4>(group_data->database_basis[i],basis_index));
       basis_grad.push_back(CompressedView<View_Sc4>(group_data->database_basis_grad[i],basis_index));
@@ -608,4 +610,35 @@ size_t Group::getFaceStorage() {
     }
   }
   return mystorage;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Recompute the wts or decompress them
+///////////////////////////////////////////////////////////////////////////////////////
+
+View_Sc2 Group::getWts() {
+  View_Sc2 newwts;
+  if (wts.extent(0) > 0) {
+    if (wts.getHaveKey()) {
+      auto vdata = wts.getView();
+      auto vkey = wts.getKey();
+      newwts = View_Sc2("temp wts",numElem, vdata.extent(1));
+      parallel_for("grp wts decompress",
+               RangePolicy<AssemblyExec>(0,numElem),
+               KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type i=0; i<vdata.extent(1); ++i) {
+          newwts(elem,i) = vdata(vkey(elem),i);
+        }
+      });
+    }
+    else {
+      newwts = wts.getView();
+    }
+  }
+  else {
+    size_type numip = group_data->ref_ip.extent(0);
+    newwts = View_Sc2("temp physical wts",numElem, numip);
+    disc->getPhysicalIntegrationData(group_data, nodes, ip, newwts);
+  }
+  return newwts;
 }

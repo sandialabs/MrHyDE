@@ -94,6 +94,7 @@ namespace MrHyDE {
     vector<View_Sc3> database_basis_div;  // [basis type]
     vector<View_Sc4> database_side_basis, database_side_basis_grad;
     vector<vector<View_Sc4> > database_face_basis, database_face_basis_grad;
+    View_Sc2 database_wts;
 
     // database of mass matrices
     vector<View_Sc3> database_mass;  // [set](dof,dof) 

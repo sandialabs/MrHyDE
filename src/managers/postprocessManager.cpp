@@ -4721,7 +4721,7 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
 // ========================================================================================
 
 template<class Node>
-View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc2 wts) {
+View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, CompressedView<View_Sc2> & wts) {
   
   int numElem = wts.extent(0);
   View_Sc2 fields("grp field data",numElem, extracellfields_list[block].size());
@@ -4778,7 +4778,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int & block, View_Sc
 // ========================================================================================
 
 template<class Node>
-View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, View_Sc2 wts) {
+View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int & block, CompressedView<View_Sc2> & wts) {
   
   int numElem = wts.extent(0);
   View_Sc2 fields("grp field data",numElem, derivedquantities_list[block].size());

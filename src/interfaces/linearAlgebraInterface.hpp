@@ -140,7 +140,7 @@ namespace MrHyDE {
     }
     
     vector_RCP getNewOverlappedVector(const size_t & set, const int & numvecs = 1) {
-      Teuchos::TimeMonitor vectimer(*newvectortimer);
+      Teuchos::TimeMonitor vectimer(*newovervectortimer);
       vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(overlapped_map[set],numvecs));
       return newvec;
     }
@@ -401,7 +401,8 @@ namespace MrHyDE {
     ScalarT linearTOL;
     
     Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
-    Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Vector()");
+    Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNewVector()");
+    Teuchos::RCP<Teuchos::Time> newovervectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNewOverlappedVector()");
     Teuchos::RCP<Teuchos::Time> newmatrixtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Matrix()");
     Teuchos::RCP<Teuchos::Time> writefiletimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::write()");
     Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::linearSolver*()");

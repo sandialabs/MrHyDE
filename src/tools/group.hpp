@@ -42,7 +42,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void computeSize();
+    void computeSize(View_Sc2 twts);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -201,6 +201,8 @@ namespace MrHyDE {
     
     size_t getFaceStorage();
     
+    View_Sc2 getWts();
+    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -229,7 +231,7 @@ namespace MrHyDE {
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;
     vector<View_Sc2> ip;
-    View_Sc2 wts; 
+    //View_Sc2 wts; 
     vector<vector<View_Sc2>> ip_face, normals_face;
     vector<View_Sc2> wts_face;
     vector<View_Sc1> hsize_face;
@@ -245,7 +247,8 @@ namespace MrHyDE {
     // basis information
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_nodes;
     vector<CompressedView<View_Sc3>> basis_div, local_mass, local_jacobian;
-    
+    CompressedView<View_Sc2> wts;
+
     vector<vector<CompressedView<View_Sc4>>> basis_face, basis_grad_face;
     View_Sc1 hsize;
     
