@@ -283,6 +283,9 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
       set_dbc_dofs.push_back(block_dbc_dofs);
       dbc_dofs.push_back(set_dbc_dofs);
 
+      // parameter manager wants num_derivs_required
+      num_derivs_required = std::vector<int>(1);
+
     }
     panzer_orientations = std::vector<Intrepid2::Orientation>(mesh->simple_mesh->getNumCells(),Intrepid2::Orientation());
   }
