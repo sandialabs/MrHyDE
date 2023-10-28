@@ -114,9 +114,6 @@ public:
                      the FieldConTainer is a 1D array of cell indices.
              Input:  Sideset number.  Its meaning is context-dependent.
   */
-  //virtual Teuchos::RCP<std::vector<std::vector<Intrepid::FieldContainer<int> > > > getSideSets(
-  //            std::ostream & outStream = std::cout,
-  //            const bool verbose = false) const = 0;
   virtual Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
               const bool verbose = false,
               std::ostream & outStream = std::cout) const = 0;
@@ -193,6 +190,9 @@ private:
   int numNodes_;
   int numEdges_;
 
+  int nodesPerCell_;
+  int dimension_;
+
   NodeView_host meshNodes_;
   LIDView_host meshCellToNodeMap_;
   LIDView_host meshCellToEdgeMap_;
@@ -229,6 +229,8 @@ public:
     numCells_ = (nx1_ + nx2_)*ny1_  +  (nx3_ + nx1_ + nx2_)*ny3_;
     numNodes_ = (nx1_ + nx2_ + 1)*ny1_  +  (nx3_ + nx1_ + nx2_ + 1)*(ny3_ + 1);
     numEdges_ = (2*(nx1_ + nx2_)+1)*ny1_ + (2*(nx3_ + nx1_ + nx2_)+1)*ny3_ + (nx3_ + nx1_ + nx2_);
+    nodesPerCell_ = 4;
+    dimension_ = 2;
     // Compute mesh data structures.
     computeNodes();
     computeCellToNodeMap();
@@ -243,7 +245,7 @@ public:
 
 
   DRV getCellNodes(std::vector<size_t> &indices) const {
-    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    DRV cellNodes("cell nodes", indices.size(), nodesPerCell_, dimension_);
     for(unsigned int i=0; i<indices.size(); ++i)
       for(unsigned int j=0; j<cellNodes.extent(1); ++j)
         for(unsigned int k=0; k<cellNodes.extent(2); ++k)
@@ -518,6 +520,9 @@ private:
   int numNodes_;
   int numEdges_;
 
+  int nodesPerCell_;
+  int dimension_;
+
   NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
@@ -538,6 +543,8 @@ public:
     numCells_ = nx_ * ny_;
     numNodes_ = (nx_+1) * (ny_+1);
     numEdges_ = (nx_+1)*ny_ + (ny_+1)*nx_;
+    nodesPerCell_ = 4;
+    dimension_ = 2;
     // Compute and store mesh data structures.
     computeNodes();
     computeCellToNodeMap();
@@ -552,7 +559,7 @@ public:
 
 
   DRV getCellNodes(std::vector<size_t> &indices) const {
-    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    DRV cellNodes("cell nodes", indices.size(), nodesPerCell_, dimension_);
     for(unsigned int i=0; i<indices.size(); ++i)
       for(unsigned int j=0; j<cellNodes.extent(1); ++j)
         for(unsigned int k=0; k<cellNodes.extent(2); ++k)
@@ -695,6 +702,9 @@ private:
   int numCells_;
   int numNodes_;
 
+  int nodesPerCell_;
+  int dimension_;
+
   NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
 
@@ -713,6 +723,8 @@ public:
 
     numCells_ = nx_;
     numNodes_ = nx_+1;
+    nodesPerCell_ = 2;
+    dimension_ = 1;
 
     // Compute and store mesh data structures
     computeNodes();
@@ -727,7 +739,7 @@ public:
 
 
   DRV getCellNodes(std::vector<size_t> &indices) const {
-    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    DRV cellNodes("cell nodes", indices.size(), nodesPerCell_, dimension_);
     for(unsigned int i=0; i<indices.size(); ++i)
       for(unsigned int j=0; j<cellNodes.extent(1); ++j)
         for(unsigned int k=0; k<cellNodes.extent(2); ++k)
@@ -817,6 +829,9 @@ private:
   int numNodes_;
   int numEdges_;
 
+  int nodesPerCell_;
+  int dimension_;
+
   NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
@@ -836,6 +851,8 @@ public:
     numCells_ = nx_;
     numNodes_ = nx_+1;
     numEdges_ = 2;
+    nodesPerCell_ = 2;
+    dimension_ = 1;
 
     std::cout << "NUMCELLS: " << numCells_ << "  NUMNODES: " << numNodes_ << "  NUMEDGES: " << numEdges_ << std::endl;
 
@@ -852,7 +869,7 @@ public:
 
 
   DRV getCellNodes(std::vector<size_t> &indices) const {
-    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    DRV cellNodes("cell nodes", indices.size(), nodesPerCell_, dimension_);
     for(unsigned int i=0; i<indices.size(); ++i)
       for(unsigned int j=0; j<cellNodes.extent(1); ++j)
         for(unsigned int k=0; k<cellNodes.extent(2); ++k)
@@ -982,6 +999,9 @@ private:
   int numNodes_;
   int numEdges_;
 
+  int nodesPerCell_;
+  int dimension_;
+
   NodeView_host meshNodes_;
   LIDView_host  meshCellToNodeMap_;
   LIDView_host  meshCellToEdgeMap_;
@@ -1005,6 +1025,8 @@ public:
     numCells_ = nx_ * ny_ * nz_;
     numNodes_ = (nx_+1) * (ny_+1) * (nz_+1);
     numEdges_ = ((nx_+1)*ny_ + (ny_+1)*nx_)*(nz_+1) + (nx_+1)*(ny_+1)*nz_;
+    nodesPerCell_ = 8;
+    dimension_ = 3;
     // Compute and store mesh data structures.
     computeNodes(); 
     computeCellToNodeMap(); 
@@ -1019,7 +1041,7 @@ public:
 
 
   DRV getCellNodes(std::vector<size_t> &indices) const {
-    DRV cellNodes("cell nodes", indices.size(), 4, 2);
+    DRV cellNodes("cell nodes", indices.size(), nodesPerCell_, dimension_);
     for(unsigned int i=0; i<indices.size(); ++i)
       for(unsigned int j=0; j<cellNodes.extent(1); ++j)
         for(unsigned int k=0; k<cellNodes.extent(2); ++k)
