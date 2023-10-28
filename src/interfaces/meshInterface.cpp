@@ -1075,6 +1075,7 @@ void MeshInterface::readExodusData() {
 void MeshInterface::purgeMesh() {
   stk_mesh = Teuchos::null;
   mesh_factory = Teuchos::null;
+  simple_mesh = Teuchos::null;
 }
 
 void MeshInterface::purgeMemory() {
@@ -1162,9 +1163,11 @@ topo_RCP MeshInterface::getCellTopology(string & blockID) {
 }
     
 Teuchos::RCP<panzer::ConnManager> MeshInterface::getSTKConnManager() {
+  Teuchos::RCP<panzer::ConnManager> conn;
   if (use_stk_mesh) {
-    return Teuchos::rcp(new panzer_stk::STKConnManager(stk_mesh));
+    conn = Teuchos::rcp(new panzer_stk::STKConnManager(stk_mesh));
   }
+  return conn;
 }
 
 void MeshInterface::setSTKMesh(Teuchos::RCP<panzer_stk::STK_Interface> & new_mesh) {
