@@ -423,13 +423,21 @@ void SolverManager<Node>::setupExplicitMass() {
     }
     
     diagMass.push_back(linalg->getNewVector(set));
-    vector_RCP diagMass_over = linalg->getNewOverlappedVector(set);
+    vector_RCP diagMass_over;
+    if (linalg->getHaveOverlapped()) {
+      diagMass_over = linalg->getNewOverlappedVector(set);
+    } 
+    else {
+      diagMass_over = diagMass[set];
+    }
     
     assembler->getWeightedMass(set,mass,diagMass_over);
     
-    linalg->exportVectorFromOverlapped(set,diagMass[set], diagMass_over);
-    if (compute_matrix) {
-      linalg->exportMatrixFromOverlapped(set,explicitMass[set], mass);
+    if (linalg->getHaveOverlapped()) {
+      linalg->exportVectorFromOverlapped(set,diagMass[set], diagMass_over);
+      if (compute_matrix) {
+        linalg->exportMatrixFromOverlapped(set,explicitMass[set], mass);
+      }
     }
     //if (debug_level > 2) {
     //  KokkosTools::print(diagMass[set]);

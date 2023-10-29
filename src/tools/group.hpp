@@ -202,7 +202,7 @@ namespace MrHyDE {
     size_t getFaceStorage();
     
     View_Sc2 getWts();
-    
+
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -261,7 +261,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Storage information
-    bool active, storeAll, storeMass, usealtsol = false, haveBasis;
+    bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false;
 
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;

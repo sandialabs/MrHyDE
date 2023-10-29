@@ -127,6 +127,14 @@ void Group::initializeBasisIndex() {
 
 void Group::computeBasis(const bool & keepnodes) {
   
+  // Set up the integration points
+  if (!have_ip) {
+    size_type numip = group_data->ref_ip.extent(0);
+    View_Sc2 tmpwts("temp physical wts",numElem, numip);
+    disc->getPhysicalIntegrationData(group_data, nodes, ip, tmpwts);
+    have_ip = true;
+  }
+  
   if (storeAll) {
     
     View_Sc2 twts = this->getWts();
@@ -638,7 +646,8 @@ View_Sc2 Group::getWts() {
   else {
     size_type numip = group_data->ref_ip.extent(0);
     newwts = View_Sc2("temp physical wts",numElem, numip);
-    disc->getPhysicalIntegrationData(group_data, nodes, ip, newwts);
+    vector<View_Sc2> tip;
+    disc->getPhysicalIntegrationData(group_data, nodes, tip, newwts);
   }
   return newwts;
 }
