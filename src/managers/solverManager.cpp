@@ -343,10 +343,10 @@ void SolverManager<Node>::setupExplicitMass() {
     assembler->updatePhysicsSet(set);
     if (compute_matrix) {
       
-      typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
-      typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
+      //typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+      //typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
       
-      vector<size_t> maxEntriesPerRow(linalg->overlapped_map[set]->getLocalNumElements(), 0);
+      vector<size_t> maxEntriesPerRow(linalg->getLocalNumElements(set), 0);
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
         auto offsets_host = create_mirror_view(offsets);
@@ -376,8 +376,8 @@ void SolverManager<Node>::setupExplicitMass() {
       maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
                                                                             static_cast<int>(maxEntries)));
       
-      Teuchos::RCP<LA_CrsGraph> overlapped_graph = Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map[set],
-                                                                                maxEntriesPerRow));
+      Teuchos::RCP<Tpetra::CrsGraph<LO,GO,Node> > overlapped_graph = linalg->getNewOverlappedGraph(set, maxEntriesPerRow);
+      //Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map[set], maxEntriesPerRow));
       
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
@@ -392,10 +392,10 @@ void SolverManager<Node>::setupExplicitMass() {
               for (int j=0; j<numDOF(n); j++) {
                 vector<GO> cols;
                 int row = offsets(n,j);
-                GO rowIndex = linalg->overlapped_map[set]->getGlobalElement(LIDs(elem,row));
+                GO rowIndex = linalg->getGlobalElement(set, LIDs(elem,row));//overlapped_map[set]->getGlobalElement(LIDs(elem,row));
                 for (int k=0; k<numDOF(n); k++) {
                   int col = offsets(n,k);
-                  GO gcol = linalg->overlapped_map[set]->getGlobalElement(LIDs(elem,col));
+                  GO gcol = linalg->getGlobalElement(set, LIDs(elem,col));//overlapped_map[set]->getGlobalElement(LIDs(elem,col));
                   cols.push_back(gcol);
                 }
                 overlapped_graph->insertGlobalIndices(rowIndex,cols);
@@ -407,19 +407,19 @@ void SolverManager<Node>::setupExplicitMass() {
       overlapped_graph->fillComplete();
       
       vector<GO> owned;
-      //disc->DOF[set]->getOwnedIndices(owned);
-      disc->dof_owned[set];//->getOwnedIndices(owned);
-      vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getLocalNumElements(), 0);
+      disc->dof_owned[set];
+      //vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getLocalNumElements(), 0);
+      vector<size_t> maxOwnedEntriesPerRow(linalg->getLocalNumElements(set), 0);
       for (size_t i=0; i<owned.size(); ++i) {
-        LO ind1 = linalg->overlapped_map[set]->getLocalElement(owned[i]);
-        LO ind2 = linalg->owned_map[set]->getLocalElement(owned[i]);
+        LO ind1 = linalg->getOverlappedLID(set, owned[i]);//overlapped_map[set]->getLocalElement(owned[i]);
+        LO ind2 = linalg->getOwnedLID(set, owned[i]);//owned_map[set]->getLocalElement(owned[i]);
         maxOwnedEntriesPerRow[ind2] = maxEntriesPerRow[ind1];
       }
       
-      explicitMass.push_back(Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map[set],
-                                                           maxOwnedEntriesPerRow)));
+      explicitMass.push_back(linalg->getNewMatrix(set, maxOwnedEntriesPerRow));
+        //Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map[set], maxOwnedEntriesPerRow)));
       
-      mass = Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+      mass = linalg->getNewOverlappedMatrix(set);//Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
     }
     
     diagMass.push_back(linalg->getNewVector(set));
@@ -453,7 +453,7 @@ void SolverManager<Node>::setupExplicitMass() {
       z_pcg.push_back(linalg->getNewVector(set));
       p_pcg.push_back(linalg->getNewVector(set));
       r_pcg.push_back(linalg->getNewVector(set));
-      if (assembler->matrix_free) {
+      if (linalg->getHaveOverlapped() && assembler->matrix_free) {
         q_pcg_over.push_back(linalg->getNewOverlappedVector(set));
         p_pcg_over.push_back(linalg->getNewOverlappedVector(set));
       }
@@ -1807,9 +1807,15 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   }
   else {
     current_res = linalg->getNewVector(set);
-    current_res_over = linalg->getNewOverlappedVector(set);
     current_du = linalg->getNewVector(set);
-    current_du_over = linalg->getNewOverlappedVector(set);
+    if (linalg->getHaveOverlapped()) {
+      current_res_over = linalg->getNewOverlappedVector(set);
+      current_du_over = linalg->getNewOverlappedVector(set);
+    }
+    else {
+      current_res_over = current_res;
+      current_du_over = current_du;
+    }
   }
 
   // *********************** COMPUTE THE RESIDUAL **************************
@@ -1817,21 +1823,14 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   current_res_over->putScalar(0.0);
   matrix_RCP J_over;
   
-  bool test = true;
-  if (test){
-    assembler->assembleRes(set, u, phi, build_jacobian, false, false,
-                            current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                            params->num_active_params, params->Psol_over, is_final_time, deltat);
+  assembler->assembleRes(set, u, phi, build_jacobian, false, false,
+                         current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                         params->num_active_params, params->Psol_over, is_final_time, deltat);
   
+  if (linalg->getHaveOverlapped()) {
+    linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
   }
-  else {
-    assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
-                              current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                              params->num_active_params, params->Psol_over, is_final_time, deltat);
-  }
-  
-  linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
-  
+
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   current_res->norm2(rnorm);
 
@@ -1846,8 +1845,10 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
     ScalarT wt = deltat*butcher_b(stage);
     
     current_du_over->putScalar(0.0);
-    current_du->putScalar(0.0);
-    
+    if (linalg->getHaveOverlapped()) {
+      current_du->putScalar(0.0);
+    }
+
     if (!assembler->lump_mass) {
       current_res->scale(wt);
       if (assembler->matrix_free) {
@@ -1879,7 +1880,9 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
         du_view(k,0) = wt*res_view(k,0)/dm_view(k,0);
       });
     }
-    linalg->importVectorToOverlapped(set, current_du_over, current_du);
+    if (linalg->getHaveOverlapped()) {
+      linalg->importVectorToOverlapped(set, current_du_over, current_du);
+    }
     
     u->update(1.0, *(current_du_over), 1.0);
     
@@ -2406,8 +2409,14 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
     q = linalg->getNewVector(set);
     r = linalg->getNewVector(set);
     z = linalg->getNewVector(set);
-    p_over = linalg->getNewOverlappedVector(set);
-    q_over = linalg->getNewOverlappedVector(set);
+    if (linalg->getHaveOverlapped()) {
+      p_over = linalg->getNewOverlappedVector(set);
+      q_over = linalg->getNewOverlappedVector(set);
+    }
+    else {
+      p_over = p;
+      q_over = q;
+    }
   }
    
   p->putScalar(zero);
@@ -2415,17 +2424,26 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
   r->putScalar(zero);
   z->putScalar(zero);
   
-  p_over->putScalar(zero);
-  q_over->putScalar(zero);
-  
+  if (linalg->getHaveOverlapped()) {
+    p_over->putScalar(zero);
+    q_over->putScalar(zero);
+  }
+
   int iter=0;
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   
   {
     Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-    linalg->importVectorToOverlapped(set, p_over, x);
+    if (linalg->getHaveOverlapped()) {
+      linalg->importVectorToOverlapped(set, p_over, x);
+    }
+    else {
+      p_over->assign(*x);
+    }
     assembler->applyMassMatrixFree(set, p_over, q_over);
-    linalg->exportVectorFromOverlapped(set, q, q_over);
+    if (linalg->getHaveOverlapped()) {
+      linalg->exportVectorFromOverlapped(set, q, q_over);
+    }
   }
   
   r->assign(*b);
@@ -2462,10 +2480,14 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
     
     {
       Teuchos::TimeMonitor localtimer(*PCGApplyOptimer);
-      linalg->importVectorToOverlapped(set, p_over, p);
+      if (linalg->getHaveOverlapped()) {
+        linalg->importVectorToOverlapped(set, p_over, p);
+      }
       q_over->putScalar(zero);
       assembler->applyMassMatrixFree(set, p_over, q_over);
-      linalg->exportVectorFromOverlapped(set, q, q_over);
+      if (linalg->getHaveOverlapped()) {
+        linalg->exportVectorFromOverlapped(set, q, q_over);
+      }
     }
     
     p->dot(*q,dotprod);

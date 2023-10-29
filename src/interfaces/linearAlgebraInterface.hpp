@@ -141,7 +141,13 @@ namespace MrHyDE {
     
     vector_RCP getNewOverlappedVector(const size_t & set, const int & numvecs = 1) {
       Teuchos::TimeMonitor vectimer(*newovervectortimer);
-      vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(overlapped_map[set],numvecs));
+      vector_RCP newvec;
+      if (have_overlapped) {
+        newvec = Teuchos::rcp(new LA_MultiVector(overlapped_map[set],numvecs));
+      }
+      else {
+        newvec = Teuchos::rcp(new LA_MultiVector(owned_map[set],numvecs));
+      }
       return newvec;
     }
     
@@ -162,6 +168,12 @@ namespace MrHyDE {
         newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], max_entries));
       }
       
+      return newmat;
+    }
+
+    matrix_RCP getNewMatrix(const size_t & set, vector<size_t> & maxent) {
+      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxent));
       return newmat;
     }
     
@@ -284,6 +296,63 @@ namespace MrHyDE {
     }
     
     // ========================================================================================
+    // Random access function
+    // ========================================================================================
+ 
+    size_t getLocalNumElements(const size_t & set) {
+      size_t numElem = 0;
+      if (have_overlapped) {
+        numElem = overlapped_map[set]->getLocalNumElements();
+      }
+      else {
+        numElem = owned_map[set]->getLocalNumElements();
+      }
+      return numElem;
+    }
+
+    Teuchos::RCP<LA_CrsGraph> getNewOverlappedGraph(const size_t & set, vector<size_t> & maxEntriesPerRow) {
+      Teuchos::RCP<LA_CrsGraph> newgraph;
+      if (have_overlapped) {
+        newgraph = Teuchos::rcp(new LA_CrsGraph(overlapped_map[set], maxEntriesPerRow));
+      }
+      else {
+        newgraph = Teuchos::rcp(new LA_CrsGraph(owned_map[set], maxEntriesPerRow));
+      }
+      return newgraph;
+    }
+    
+    GO getGlobalElement(const size_t & set, const LO & lid) {
+      GO gid = 0;
+      if (have_overlapped) {
+        gid = overlapped_map[set]->getGlobalElement(lid);
+      }
+      else {
+        gid = owned_map[set]->getGlobalElement(lid);
+      }
+      return gid;
+    }
+
+    bool getHaveOverlapped() {
+      return have_overlapped;
+    }
+
+    LO getOverlappedLID(const size_t & set, const GO & gid) {
+      LO lid = 0;
+      if (have_overlapped) {
+        lid = overlapped_map[set]->getLocalElement(gid);
+      }
+      else {
+        lid = owned_map[set]->getLocalElement(gid);
+      }
+      return lid;
+    }
+
+    LO getOwnedLID(const size_t & set, const GO & gid) {
+      return owned_map[set]->getLocalElement(gid);
+    }
+    
+      
+    // ========================================================================================
     // Write the Jacobian and/or residual to a matrix-market text file
     // ========================================================================================
 
@@ -384,7 +453,8 @@ namespace MrHyDE {
     int verbosity, debug_level;
     vector<string> setnames;
     bool do_dump_jacobian, do_dump_residual, do_dump_solution;
-    
+    bool have_overlapped;
+
     // Maps, graphs, importers and exporters
     size_t max_entries;
     
