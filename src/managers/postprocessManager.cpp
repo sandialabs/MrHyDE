@@ -561,21 +561,21 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
   
   if (write_exodus_this_step && current_time+1.0e-100 >= exodus_record_start && current_time-1.0e-100 <= exodus_record_stop) {
     if (write_solution) {
-      this->writeSolution(current_time);
+      this->writeSolution(current_soln, current_time);
     }
   }
   if (write_this_step && current_time+1.0e-100 >= record_start && current_time-1.0e-100 <= record_stop) {
     if (compute_error) {
-      this->computeError(current_time);
+      this->computeError(current_soln, current_time);
     }
     if (compute_response || compute_objective) {
       this->computeObjective(current_soln, current_time, objectiveval);
     }
     if (compute_flux_response) {
-      this->computeFluxResponse(current_time);
+      this->computeFluxResponse(current_soln, current_time);
     }
     if (compute_integrated_quantities) {
-      this->computeIntegratedQuantities(current_time);
+      this->computeIntegratedQuantities(current_soln, current_time);
     }
     if (compute_weighted_norm) {
       this->computeWeightedNorm(current_soln);
@@ -1123,7 +1123,7 @@ void PostprocessManager<Node>::report() {
 // ========================================================================================
 
 template<class Node>
-void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
+void PostprocessManager<Node>::computeError(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
@@ -1131,6 +1131,30 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
     }
   }
   
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type     LA_device;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv;
+  for (size_t s=0; s<current_soln.size(); ++s) {
+    auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+
   Teuchos::TimeMonitor localtimer(*computeErrorTimer);
   
   error_times.push_back(currenttime);
@@ -1175,8 +1199,13 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
       }
       for (size_t grp=0; grp<assembler->groups[block].size(); grp++) {
         if (assembler->groups[block][grp]->active) {
+          for (size_t set=0; set<sol_kv.size(); ++set) {
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+            }
+          }
         if (have_vol_errs) {
-          assembler->updateWorkset(assembler->wkset[altblock],block, grp, seedwhat,0, true);
+          assembler->updateWorkset(assembler->wkset[altblock],block, grp, seedwhat, 0, true);
           //assembler->updateWorkset(altblock, grp, seedwhat,true);
         }
         //auto wts = assembler->wkset[block]->wts;
@@ -1372,7 +1401,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
           for (size_t face=0; face<assembler->groups[block][grp]->group_data->num_sides; face++) {
             // TMW - hard coded for now
             for (size_t set=0; set<assembler->wkset[altblock]->numSets; ++set) {
-              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groups[block][grp]->sol[set], seedwhat);
+              assembler->wkset[altblock]->computeSolnSteadySeeded(set, assembler->groupData[block]->sol[set], seedwhat);
             }
             assembler->updateWorksetFace(block, grp, face);
             assembler->wkset[altblock]->resetSolutionFields();
@@ -1464,7 +1493,7 @@ void PostprocessManager<Node>::computeError(const ScalarT & currenttime) {
 // ========================================================================================
 
 template<class Node>
-void PostprocessManager<Node>::computeResponse(const ScalarT & currenttime) {
+void PostprocessManager<Node>::computeResponse(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
   
   /*
   response_times.push_back(currenttime);
@@ -1522,7 +1551,7 @@ void PostprocessManager<Node>::computeResponse(const ScalarT & currenttime) {
 // ========================================================================================
 
 template<class Node>
-void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) {
+void PostprocessManager<Node>::computeFluxResponse(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
   
   for (size_t block=0; block<assembler->groupData.size(); ++block) {
     for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
@@ -1573,12 +1602,51 @@ void PostprocessManager<Node>::computeFluxResponse(const ScalarT & currenttime) 
 // ========================================================================================
 
 template<class Node>
-void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & currenttime) {
+void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
 
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting PostprocessManager::computeIntegratedQuantities ..." << std::endl;
     }
+  }
+
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type     LA_device;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv;
+  for (size_t s=0; s<current_soln.size(); ++s) {
+    auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
   }
 
   // TODO :: BWR -- currently, I am proceeding like quantities are requested over 
@@ -1613,6 +1681,12 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
           localContribution = 0.; // zero out this grp's contribution JIC here but needed below
 
           // setup the workset for this grp
+          if (!assembler->groups[globalBlock][grp]->have_sols) {
+            for (size_t set=0; set<sol_kv.size(); ++set) {
+              assembler->performGather(set, globalBlock, grp, sol_kv[set], 0, 0);
+            }
+            assembler->performGather(0, globalBlock, grp, params_kv[0], 4, 0);
+          }
           assembler->updateWorkset(globalBlock, grp, 0,0,true);
           // get integration weights
           auto wts = assembler->wkset[globalBlock]->wts;
@@ -1651,6 +1725,10 @@ void PostprocessManager<Node>::computeIntegratedQuantities(const ScalarT & curre
                (integratedQuantities[iLocal][iIQ].boundarynames == "all") ) {
 
             // setup the workset for this grp
+            for (size_t set=0; set<sol_kv.size(); ++set) {
+              assembler->performBoundaryGather(set, globalBlock, grp, sol_kv[set], 0, 0);
+            }
+            assembler->performBoundaryGather(0, globalBlock, grp, params_kv[0], 4, 0);
             assembler->updateWorksetBoundary(globalBlock, grp, 0, 0, true); 
             // get integration weights
             auto wts = assembler->wkset[globalBlock]->wts_side;
@@ -1808,6 +1886,45 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
     std::cout << "******** Starting PostprocessManager::computeObjective ..." << std::endl;
   }
   
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type     LA_device;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv;
+  for (size_t s=0; s<current_soln.size(); ++s) {
+    auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
+  }
+
   int numParams = params->num_active_params + params->globalParamUnknowns;
   
   // Objective function values
@@ -1825,6 +1942,12 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
         auto wts = assembler->groups[block][grp]->wts;
         
+        if (!assembler->groups[block][grp]->have_sols) {
+          for (size_t set=0; set<sol_kv.size(); ++set) {
+            assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+          }
+          assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+        }
         assembler->updateWorkset(block, grp, 0,0,true);
         
         auto obj_dev = assembler->function_managers[block]->evaluate(objectives[r].name,"ip");
@@ -1891,6 +2014,13 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
           auto wts = assembler->groups[block][grp]->wts;
             
+          if (!assembler->groups[block][grp]->have_sols) {
+            for (size_t set=0; set<sol_kv.size(); ++set) {
+              assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+            }
+            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+          }
+
           assembler->updateWorkset(block, grp, 0,0,true);
         
           auto obj_dev = assembler->function_managers[block]->evaluate(objectives[r].name+" response","ip");
@@ -1988,8 +2118,15 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             }
             
             auto numDOF = assembler->groupData[block]->num_dof;
+            if (!assembler->groups[block][grp]->have_sols) {
+              for (size_t set=0; set<sol_kv.size(); ++set) {
+                assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+              }
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+            }
+
             View_Sc2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
-            auto cu = subview(assembler->groups[block][grp]->sol[0],elem,ALL(),ALL()); // hard coded
+            auto cu = subview(assembler->groupData[block]->sol[0],elem,ALL(),ALL()); // hard coded
             parallel_for("grp response get u",
                         RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                         KOKKOS_LAMBDA (const size_type n ) {
@@ -2027,9 +2164,11 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             // Map the local discretized params to param and grad at ip
             if (params->globalParamUnknowns > 0) {
               auto numParamDOF = assembler->groupData[block]->num_param_dof;
-              
+              if (!assembler->groups[block][grp]->have_sols) {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
               View_Sc2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
-              auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
+              auto cp = subview(assembler->groupData[block]->param,elem,ALL(),ALL());
               parallel_for("grp response get u",
                           RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
                           KOKKOS_LAMBDA (const size_type n ) {
@@ -2104,6 +2243,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             
             auto wts = assembler->groups[block][grp]->wts;
             
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+            }
             assembler->updateWorkset(block, grp, 3,0,true);
             
             auto regvals_tmp = assembler->function_managers[block]->evaluate(objectives[r].regularizations[reg].name,"ip");
@@ -2145,6 +2287,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               auto wts = assembler->boundary_groups[block][grp]->wts;
               
+              assembler->performBoundaryGather(0, block, grp, params_kv[0], 4, 0);
               assembler->updateWorksetBoundary(block, grp, 3, 0, true);
               
               auto regvals_tmp = assembler->function_managers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
@@ -2296,6 +2439,45 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
 
   typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
   
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type     LA_device;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv;
+  for (size_t s=0; s<current_soln.size(); ++s) {
+    auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
+  }
+
   // Objective function values
   ScalarT objval = 0.0;
   
@@ -2318,6 +2500,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
         
         auto wts = assembler->groups[block][grp]->wts;
         
+        if (!assembler->groups[block][grp]->have_sols) {
+          assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+          assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+        }
         assembler->updateWorksetAD(block, grp, 0, 0, true);
         
         auto obj_dev = fman->evaluate(objectives[obj].name,"ip");
@@ -2367,6 +2553,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
           
           auto wts = assembler->groups[block][grp]->wts;
           
+          if (!assembler->groups[block][grp]->have_sols) {
+            assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+          }
           assembler->updateWorksetAD(block, grp, 3, 0, true);
           
           auto obj_dev = fman->evaluate(objectives[obj].name,"ip");
@@ -2451,6 +2641,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
         
           auto wts = assembler->groups[block][grp]->wts;
             
+          if (!assembler->groups[block][grp]->have_sols) {
+            assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+          }
           assembler->updateWorkset(block, grp, 0, 0, true);
         
           auto obj_dev = fman->evaluate(objectives[obj].name+" response","ip");
@@ -2517,6 +2711,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
           
           auto wts = assembler->groups[block][grp]->wts;
           
+          if (!assembler->groups[block][grp]->have_sols) {
+            assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+          }
           assembler->updateWorksetAD(block, grp, 3,0,true);
         
           auto obj_dev = fman->evaluate(objectives[obj].name+" response","ip");
@@ -2623,7 +2821,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
             
             auto numDOF = assembler->groupData[block]->num_dof;
             View_EvalT2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
-            auto cu = subview(assembler->groups[block][grp]->sol[0],elem,ALL(),ALL()); // hard coded
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+            }
+            auto cu = subview(assembler->groupData[block]->sol[0],elem,ALL(),ALL()); // hard coded
             parallel_for("grp response get u",
                         RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                         KOKKOS_LAMBDA (const size_type n ) {
@@ -2663,7 +2864,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
               auto numParamDOF = assembler->groupData[block]->num_param_dof;
               
               View_EvalT2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
-              auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
+              if (!assembler->groups[block][grp]->have_sols) {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
+              auto cp = subview(assembler->groupData[block]->param,elem,ALL(),ALL());
               parallel_for("grp response get u",
                           RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
                           KOKKOS_LAMBDA (const size_type n ) {
@@ -2728,7 +2932,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 auto numParamDOF = assembler->groupData[block]->num_param_dof;
                 auto poff = wset->paramoffsets;
                 View_EvalT2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
-                auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
+                if (!assembler->groups[block][grp]->have_sols) {
+                  assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+                }
+                auto cp = subview(assembler->groupData[block]->param,elem,ALL(),ALL());
                 parallel_for("grp response get u",
                             RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
                             KOKKOS_LAMBDA (const size_type n ) {
@@ -2808,6 +3015,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
             
             auto wts = assembler->groups[block][grp]->wts;
             
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+            }
             assembler->updateWorksetAD(block, grp, 3, 0, true);
             
             auto regvals_tmp = fman->evaluate(objectives[obj].regularizations[reg].name,"ip");
@@ -2868,6 +3079,8 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
               
               auto wts = assembler->boundary_groups[block][grp]->wts;
               
+              assembler->performBoundaryGather(0, block, grp, sol_kv[0], 0, 0);
+              assembler->performBoundaryGather(0, block, grp, params_kv[0], 4, 0);
               assembler->updateWorksetBoundaryAD(block, grp, 3, 0, true);
               
               auto regvals_tmp = fman->evaluate(objectives[obj].regularizations[reg].name,"side ip");
@@ -3015,6 +3228,45 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
     std::cout << "******** Starting PostprocessManager::computeSensorSolution ..." << std::endl;
   }
   
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type     LA_device;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv;
+  for (size_t s=0; s<current_soln.size(); ++s) {
+    auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
+  }
+
   for (size_t r=0; r<objectives.size(); ++r) {
     
     if (objectives[r].type == "sensors" || objectives[r].type == "sensor response" || objectives[r].type == "pointwise response") {
@@ -3036,7 +3288,10 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
           int elem_owner = objectives[r].sensor_owners(pt,1);
           for (size_t set=0; set<varlist.size(); ++set) {  
             auto numDOF = assembler->groupData[block]->set_num_dof_host[set];
-            auto cu = subview(assembler->groups[block][grp_owner]->sol[set],elem_owner,ALL(),ALL());
+            if (!assembler->groups[block][grp_owner]->have_sols) {
+              assembler->performGather(set, block, grp_owner, sol_kv[set], 0, 0);
+            }
+            auto cu = subview(assembler->groupData[block]->sol[set],elem_owner,ALL(),ALL());
             auto cu_host = create_mirror_view(cu);
             //KokkosTools::print(assembler->groups[block][grp_owner]->u[set]);
             deep_copy(cu_host,cu);
@@ -3226,7 +3481,36 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       use_host_LIDs = true;
     }
   }
-    
+  
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv;
+  auto vec_kv = current_soln->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+  if (data_avail) {
+    sol_kv.push_back(vec_slice);
+  }
+  else {
+    auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+    Kokkos::deep_copy(vec_dev,vec_slice);
+    sol_kv.push_back(vec_dev);
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
+  }
+  
   
     if (objectives[obj].type == "integrated control"){
       auto grad_over = linalg->getNewOverlappedVector(set);
@@ -3252,12 +3536,21 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(set, block, grp, sol_kv[0], 0, 0);
+              assembler->performGather(set, block, grp, params_kv[0], 4, 0);
+            }
             assembler->updateWorksetAD(block, grp, 1,0, true);
           }
           else {
             View_EvalT3 u_dof("u_dof",numElem,numDOF.extent(0),
                            assembler->groups[block][grp]->LIDs[set].extent(1)); //(numElem, numVars, numDOF)
-            auto u = assembler->groups[block][grp]->sol[set];
+            
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(set, block, grp, sol_kv[0], 0, 0);
+              assembler->performGather(set, block, grp, params_kv[0], 4, 0);
+            }
+            auto u = assembler->groupData[block]->sol[set];
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
@@ -3510,12 +3803,20 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           // Seed the state and compute the solution at the ip
           if (w==0) {
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(set, block, grp, sol_kv[0], 0, 0);
+              assembler->performGather(set, block, grp, params_kv[0], 4, 0);
+            }
             assembler->updateWorksetAD(block, grp, 1 ,0, true);
           }
           else {
             View_EvalT3 u_dof("u_dof",numElem,numDOF.extent(0),
                            assembler->groups[block][grp]->LIDs[set].extent(1)); //(numElem, numVars, numDOF)
-            auto u = assembler->groups[block][grp]->sol[set];
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(set, block, grp, sol_kv[0], 0, 0);
+              assembler->performGather(set, block, grp, params_kv[0], 4, 0);
+            }
+            auto u = assembler->groupData[block]->sol[set];
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                          KOKKOS_LAMBDA (const size_type e ) {
@@ -3796,7 +4097,11 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
           
           
           View_EvalT2 u_dof("u_dof",numDOF.extent(0),assembler->groups[block][grp]->LIDs[set].extent(1));
-          auto cu = subview(assembler->groups[block][grp]->sol[set],elem,ALL(),ALL());
+          if (!assembler->groups[block][grp]->have_sols) {
+            assembler->performGather(set, block, grp, sol_kv[0], 0, 0);
+            assembler->performGather(set, block, grp, params_kv[0], 4, 0);
+          }
+          auto cu = subview(assembler->groupData[block]->sol[set],elem,ALL(),ALL());
           parallel_for("grp response get u",
                        RangePolicy<AssemblyExec>(0,u_dof.extent(0)),
                        KOKKOS_LAMBDA (const size_type n ) {
@@ -3834,7 +4139,11 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             auto numParamDOF = assembler->groupData[block]->num_param_dof;
             
             View_EvalT2 p_dof("p_dof",numParamDOF.extent(0),assembler->groups[block][grp]->paramLIDs.extent(1));
-            auto cp = subview(assembler->groups[block][grp]->param,elem,ALL(),ALL());
+            if (!assembler->groups[block][grp]->have_sols) {
+              assembler->performGather(set, block, grp, sol_kv[0], 0, 0);
+              assembler->performGather(set, block, grp, params_kv[0], 4, 0);
+            }
+            auto cp = subview(assembler->groupData[block]->param,elem,ALL(),ALL());
             parallel_for("grp response get u",
                          RangePolicy<AssemblyExec>(0,p_dof.extent(0)),
                          KOKKOS_LAMBDA (const size_type n ) {
@@ -3993,6 +4302,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
 
 template<class Node>
 void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
+                                                    vector<vector_RCP> & u_stage,
+                                                    vector<vector_RCP> & u_prev,
                                                     vector<vector_RCP> & adjoint,
                                                     const ScalarT & current_time,
                                                     const int & tindex,
@@ -4040,8 +4351,8 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     auto res_kv = res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     
     res_over->putScalar(0.0);
-    
-    assembler->assembleJacRes(set, u[set], u[set], false, true, false,
+    vector<vector_RCP> zero_vec;
+    assembler->assembleJacRes(set, 0, u, u_stage, u_prev, u, zero_vec, zero_vec, false, true, false,
                               res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
                               params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
     
@@ -4117,7 +4428,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     curr_grad->update(1.0, *sens, 1.0);
     
   }
-  saveObjectiveGradientData(gradient);
+  this->saveObjectiveGradientData(gradient);
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Finished PostprocessManager::computeSensitivities ..." << std::endl;
@@ -4146,7 +4457,7 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
   
   size_t set = 0; // hard coded for now
-  
+  size_t stage = 0;
   // adjoint solution is overlapped
   vector_RCP adj = linalg->getNewVector(set);
   linalg->exportVectorFromOverlapped(set, adj, adjoint[set]);
@@ -4160,8 +4471,9 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
     matrix_RCP J_over;// = linalg->getNewOverlappedMatrix(set);
     
     res_over->putScalar(0.0);
-    
-    assembler->assembleJacRes(set, u[set], u[set], false, false, false,
+    vector<vector_RCP> zero_vec;
+
+    assembler->assembleJacRes(set, stage, u, zero_vec, zero_vec, u, zero_vec, zero_vec, false, false, false,
                               res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
                               params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
     
@@ -4201,8 +4513,8 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
   res_over->putScalar(0.0);
   J->setAllToScalar(0.0);
   J_over->setAllToScalar(0.0);
-  
-  assembler->assembleJacRes(set, u[set], u[set], true, false, true,
+  vector<vector_RCP> zero_vec;
+  assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true,
                             res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
                             params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
     
@@ -4226,7 +4538,7 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
 // ========================================================================================
 
 template<class Node>
-void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
+void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
   
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
@@ -4234,6 +4546,41 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
     if (Comm->getRank() == 0) {
       std::cout << "******** Starting PostprocessManager::writeSolution() ..." << std::endl;
     }
+  }
+
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type     LA_device;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv, params_kv;
+  for (size_t s=0; s<current_soln.size(); ++s) {
+    auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+
+  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
   }
 
   plot_times.push_back(currenttime);
@@ -4277,7 +4624,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               std::string var = varlist[set][block][n];
               for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
                 auto eID = assembler->groups[block][grp]->localElemID;
-                auto sol = Kokkos::subview(assembler->groups[block][grp]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
+                if (!assembler->groups[block][grp]->have_sols) {
+                  assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+                }
+                auto sol = Kokkos::subview(assembler->groupData[block]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
                 parallel_for("postproc plot HGRAD",
                             RangePolicy<AssemblyExec>(0,eID.extent(0)),
                             KOKKOS_LAMBDA (const int elem ) {
@@ -4309,7 +4659,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             std::string var = varlist[set][block][n];
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
+              if (!assembler->groups[block][grp]->have_sols) {
+                assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+              }
+              auto sol = Kokkos::subview(assembler->groupData[block]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HVOL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -4369,7 +4722,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
               for (size_t face=0; face<assembler->groupData[block]->num_sides; face++) {
                 int seedwhat = 0;
                 for (size_t iset=0; iset<assembler->wkset[block]->numSets; ++iset) {
-                  assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groups[block][grp]->sol[iset], seedwhat);
+                  if (!assembler->groups[block][grp]->have_sols) {
+                    assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+                  }
+                  assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groupData[block]->sol[iset], seedwhat);
                 }
                 //assembler->groups[block][grp]->computeSolnFaceIP(face);
                 assembler->updateWorksetFace(block, grp, face);
@@ -4419,7 +4775,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             auto soln_computed = Kokkos::create_mirror_view(soln_dev);
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              if (!assembler->groups[block][grp]->have_sols) {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
+              auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                 for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
@@ -4435,7 +4794,10 @@ void PostprocessManager<Node>::writeSolution(const ScalarT & currenttime) {
             //std::string var = varlist[block][n];
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              if (!assembler->groups[block][grp]->have_sols) {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
+              auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
                 soln_dev(eID(elem)) = sol(elem,0);
               });
@@ -4848,6 +5210,30 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
   
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
+  typedef typename Node::device_type     LA_device;
+  typedef typename Node::execution_space LA_exec;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
+  }
+
   for (size_t block=0; block<assembler->groups.size(); ++block) {
     std::string blockID = blocknames[block];
     //vector<vector<int> > curroffsets = disc->offsets[block];
@@ -4873,7 +5259,10 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
             auto soln_computed = Kokkos::create_mirror_view(soln_dev);
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              if (!assembler->groups[block][grp]->have_sols) {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
+              auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot param HGRAD",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -4891,7 +5280,10 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
             //std::string var = varlist[block][n];
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              auto sol = Kokkos::subview(assembler->groups[block][grp]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              if (!assembler->groups[block][grp]->have_sols) {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
+              auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot param HVOL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {

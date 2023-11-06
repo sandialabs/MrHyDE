@@ -954,9 +954,10 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
       for (size_t set=0; set<useBasis.size(); ++set) {
         block_useBasis.push_back(useBasis[set][block]);
       }
+      assembler->groupData[block]->setSolutionFields(maxnumsteps, maxnumstages);
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         //assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
-        assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
+        assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages, false);
         assembler->groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
         assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
       }
@@ -969,7 +970,7 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
       if (assembler->boundary_groups.size() > block) { // avoid seg faults
         for (size_t grp=0; grp<assembler->boundary_groups[block].size(); ++grp) {
           if (assembler->boundary_groups[block][grp]->numElem > 0) {
-            assembler->boundary_groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages);
+            assembler->boundary_groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages, false);
           }
         }
       }
@@ -1149,14 +1150,14 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
     }
   }
   
-  vector<vector_RCP> u = this->setInitial();
+  vector<vector_RCP> sol = this->setInitial();
     
   if (solver_type == "steady-state") {
-    this->steadySolver(objective, u);
+    this->steadySolver(objective, sol);
   }
   else if (solver_type == "transient") {
     MrHyDE_OptVector gradient; // not really used here
-    this->transientSolver(u, objective, gradient, initial_time, final_time);
+    this->transientSolver(sol, objective, gradient, initial_time, final_time);
   }
   else {
     // print out an error message
@@ -1179,7 +1180,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u) {
+void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & sol) {
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1190,17 +1191,15 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & u)
   for (int ss=0; ss<subcycles; ++ss) {
     for (size_t set=0; set<setnames.size(); ++set) {
       assembler->updatePhysicsSet(set);
-      vector_RCP zero_soln;
+      vector<vector_RCP> zero_soln;
       if (usestrongDBCs) {
-        this->setDirichlet(set, u[set]);
+        this->setDirichlet(set, sol[set]);
       }
-      this->nonlinearSolver(set, u[set], zero_soln);
+      this->nonlinearSolver(set, 0, sol, zero_soln, zero_soln, 
+                            zero_soln, zero_soln, zero_soln);
     }
   }
-  postproc->record(u,current_time,1,objective);
-  if (compute_fwd_sens) {
-    //this->forwardSensSolver();
-  }
+  postproc->record(sol,current_time,1,objective);
   
   if (debug_level > 0) {
     if (Comm->getRank() == 0) {
@@ -1235,16 +1234,15 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     vector<vector_RCP> phi = setInitial();
     
     if (solver_type == "steady-state") {
-      vector<vector_RCP> u;
-      u.push_back(linalg->getNewVector(0));
-      bool fnd = postproc->soln[0]->extract(u[0], current_time);
+      vector<vector_RCP> sol, zero_vec;
+      sol.push_back(linalg->getNewVector(0));
+      bool fnd = postproc->soln[0]->extract(sol[0], current_time);
       if (!fnd) {
         cout << "UNABLE TO FIND FORWARD SOLUTION" << endl;
       }
       
-      this->nonlinearSolver(0, u[0], phi[0]);
-      
-      postproc->computeSensitivities(u, phi, 0, current_time, deltat, gradient);
+      this->nonlinearSolver(0, 0, sol, sol, zero_vec, phi, phi, zero_vec);
+      postproc->computeSensitivities(sol, zero_vec, zero_vec, phi, 0, current_time, deltat, gradient);
       
     }
     else if (solver_type == "transient") {
@@ -1288,44 +1286,50 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
   }
   
   vector<vector_RCP> zero_vec(initial.size());
+  //vector<vector<vector_RCP> > zero_step_vec(initial.size());
   
   current_time = start_time;
   if (!is_adjoint) { // forward solve - adaptive time stepping
     is_final_time = false;
-    vector<vector_RCP> u = initial;
+    vector<vector_RCP> sol = initial;
     
     if (usestrongDBCs) {
       for (size_t set=0; set<initial.size(); ++set) {
         assembler->updatePhysicsSet(set);
-        this->setDirichlet(set,u[set]);
+        this->setDirichlet(set,sol[set]);
       }
     }
     
-    for (size_t set=0; set<initial.size(); ++set) {
-      assembler->updatePhysicsSet(set);
-      assembler->performGather(set,u[set],0,0);
-    }
+    //assembler->performGather(sol, 0, 0);
+
+    //for (size_t set=0; set<initial.size(); ++set) {
+    //  assembler->updatePhysicsSet(set);
+    //  assembler->performGather(set,sol[set],0,0);
+    //}
     
-    postproc->record(u,current_time,true,obj);
+    postproc->record(sol,current_time,true,obj);
     
-    for (size_t set=0; set<initial.size(); ++set) {
-      assembler->updatePhysicsSet(set);
-      for (int s=0; s<numsteps[set]; s++) {
-        assembler->resetPrevSoln(set);
+
+    //for (size_t set=0; set<initial.size(); ++set) {
+    //  assembler->updatePhysicsSet(set);
+    //  for (int s=0; s<numsteps[set]; s++) {
+    //    assembler->resetPrevSoln(set);
+    //  }
+    //}
+    vector<vector<vector_RCP> > sol_prev;
+    for (size_t set=0; set<sol.size(); ++set) {
+      vector<vector_RCP> c_prev;
+      for (size_t step=0; step<maxnumsteps[set]; ++step) {
+        c_prev.push_back(linalg->getNewOverlappedVector(set));
       }
+      sol_prev.push_back(c_prev);
     }
-    
+           
     int stepProg = 0;
     obj = 0.0;
     int numCuts = 0;
     int maxCuts = maxTimeStepCuts; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
-    
-    vector<vector_RCP> u_prev;
-    for (size_t set=0; set<initial.size(); ++set) {
-      u_prev.push_back(linalg->getNewOverlappedVector(set));
-      //u_stage.push_back(linalg->getNewOverlappedVector(set));
-    }
     
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       int status = 0;
@@ -1338,8 +1342,9 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       params->updateDynamicParams(stepProg);
       assembler->updateTimeStep(stepProg);
       
-      for (int ss=0; ss<subcycles; ++ss) {
-        for (size_t set=0; set<u.size(); ++set) {
+      
+      //for (int ss=0; ss<subcycles; ++ss) {
+        for (size_t set=0; set<sol.size(); ++set) {
           // this needs to come first now, so that updatePhysicsSet can pick out the
           // time integration info
           if (BDForder[set] > 1 && stepProg == startupSteps[set]) {
@@ -1349,12 +1354,23 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           }
 
           assembler->updatePhysicsSet(set);
-      
+    
+          //assembler->resetPrevSoln(set); 
+          vector<vector_RCP> sol_stage;
+          for (size_t stage=0; stage<maxnumstages[set]; ++stage) {
+            sol_stage.push_back(linalg->getNewOverlappedVector(set));
+            sol_stage[stage]->assign(*(sol[set]));
+          }
+    
           // Increment the previous step solutions (shift history and moves u into first spot)
-          assembler->resetPrevSoln(set); 
-          
+          for (size_t step=1; step<sol_prev[set].size(); ++step) {
+            size_t ind = sol_prev[set].size()-step;
+            sol_prev[set][ind]->assign(*(sol_prev[set][ind-1]));
+          }
+          sol_prev[set][0]->assign(*(sol[set]));
+      
           // Reset the stage solutions (sets all to zero)
-          assembler->resetStageSoln(set);
+          //assembler->resetStageSoln(set);
           
           ////////////////////////////////////////////////////////////////////////
           // Allow the groups to change subgrid model
@@ -1362,37 +1378,38 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           
           vector<vector<int> > sgmodels = assembler->identifySubgridModels();
           multiscale_manager->update(sgmodels);
-          vector_RCP u_stage = linalg->getNewOverlappedVector(set);
+          //vector_RCP u_stage = linalg->getNewOverlappedVector(set);
 
-          u_prev[set]->assign(*(u[set]));
+          //u_prev[set]->assign(*(u[set]));
           
           for (int stage=0; stage<numstages[set]; stage++) {
             // Need a stage solution
             // Set the initial guess for stage solution
-            u_stage->assign(*(u_prev[set]));
+            // sol_stage[stage]->assign(*(sol_prev[0]));
             // Updates the current time and sets the stage number in wksets
             assembler->updateStage(stage, current_time, deltat); 
 
             if (usestrongDBCs) {
-              this->setDirichlet(set, u_stage);
+              this->setDirichlet(set, sol_stage[stage]);
             }
   
             if (fully_explicit) {
-              status += this->explicitSolver(set, u_stage, zero_vec[set], stage);
+              status += this->explicitSolver(set, stage, sol, sol_stage, sol_prev[set], 
+                                             zero_vec, zero_vec, zero_vec);
             }
             else {
-              status += this->nonlinearSolver(set, u_stage, zero_vec[set]);
+              status += this->nonlinearSolver(set, stage, sol, sol_stage, sol_prev[set], zero_vec, zero_vec, zero_vec);
             }
 
             // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
             
-            u[set]->update(1.0, *u_stage, 1.0);
-            u[set]->update(-1.0, *(u_prev[set]), 1.0);
-            assembler->updateStageSoln(set); // moves the stage solution into u_stage
+            sol[set]->update(1.0, *(sol_stage[stage]), 1.0);
+            sol[set]->update(-1.0, *(sol_prev[set][0]), 1.0);
+            //assembler->updateStageSoln(set); // moves the stage solution into u_stage
             multiscale_manager->completeStage();
           }
         }
-      }
+      //}
       
       if (status == 0) { // NL solver converged
         current_time += deltat;
@@ -1400,20 +1417,21 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         
         // Make sure last step solution is gathered
         // Last set of values is from a stage solution, which is potentially different
-        for (size_t set=0; set<u.size(); ++set) {
-          assembler->updatePhysicsSet(set);
-          assembler->performGather(set,u[set],0,0);
-        }
+        //assembler->performGather(sol, 0, 0);
+        //for (size_t set=0; set<u.size(); ++set) {
+        //  assembler->updatePhysicsSet(set);
+        //  assembler->performGather(set,u[set],0,0);
+        //}
         multiscale_manager->completeTimeStep();
-        postproc->record(u,current_time,stepProg,obj);
+        postproc->record(sol,current_time,stepProg,obj);
         
       }
       else { // something went wrong, cut time step and try again
         deltat *= 0.5;
         numCuts += 1;
-        for (size_t set=0; set<u.size(); ++set) {
+        for (size_t set=0; set<sol.size(); ++set) {
           assembler->revertSoln(set);
-          u[set]->assign(*(u_prev[set]));
+          sol[set]->assign(*(sol_prev[set][0]));
         }
         if (Comm->getRank() == 0 && verbosity > 0) {
           cout << endl << endl << "*******************************************************" << endl;
@@ -1426,22 +1444,25 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     }
     // If the final step doesn't fall when a write is requested, catch that here  
     if (stepProg % postproc->write_frequency != 0 && postproc->write_solution) {
-      postproc->writeSolution(current_time);
+      postproc->writeSolution(sol, current_time);
     }
   }
   else { // adjoint solve - fixed time stepping based on forward solve
+  
     current_time = final_time;
     is_final_time = true;
     
-    vector<vector_RCP> u, u_prev, phi, phi_prev;
+    vector<vector_RCP> sol, sol_prev, phi, phi_prev, sol_stage, phi_stage;
     for (size_t set=0; set<1; ++set) { // hard coded for now
-      u.push_back(linalg->getNewOverlappedVector(set));
-      u_prev.push_back(linalg->getNewOverlappedVector(set));
+      sol.push_back(linalg->getNewOverlappedVector(set));
+      sol_prev.push_back(linalg->getNewOverlappedVector(set));
       phi.push_back(linalg->getNewOverlappedVector(set));
       phi_prev.push_back(linalg->getNewOverlappedVector(set));
+      sol_stage.push_back(linalg->getNewOverlappedVector(set));
+      phi_stage.push_back(linalg->getNewOverlappedVector(set));
     }
     
-    size_t set = 0;
+    size_t set = 0, stage = 0;
     // Just getting the number of times from first physics set should be fine
     // TODO will this be affected by having physics sets with different timesteppers?
     int store_index = 0;
@@ -1450,7 +1471,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       size_t cindex = numFwdSteps-timeiter;
       phi_prev[set] = linalg->getNewOverlappedVector(set);
-      phi_prev[set]->update(1.0,*(phi[set]),0.0);
+      phi_prev[set]->update(1.0,*(phi[0]),0.0);
       if(Comm->getRank() == 0 && verbosity > 0) {
         cout << endl << endl << "*******************************************************" << endl;
         cout << endl << "**** Beginning Adjoint Time Step " << timeiter << endl;
@@ -1461,75 +1482,40 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       // TMW: this is specific to implicit Euler
       // Needs to be generalized
       // Also, need to implement checkpoint/recovery
-      bool fndu = postproc->soln[set]->extract(u[set], cindex);
+      bool fndu = postproc->soln[set]->extract(sol[set], cindex);
       if (!fndu) {
         // throw error
       }
-      bool fndup = postproc->soln[set]->extract(u_prev[set], cindex-1);
+      bool fndup = postproc->soln[set]->extract(sol_prev[set], cindex-1);
       if (!fndup) {
         // throw error
       }
       params->updateDynamicParams(cindex-1);
 
-      assembler->performGather(set,u_prev[set],0,0);
-      assembler->resetPrevSoln(set);
+      //assembler->performGather(set,u_prev[set],0,0);
+      //assembler->resetPrevSoln(set);
       
       int stime_index = cindex-1;
       current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
       
+      sol_stage[set]->assign(*sol[set]);
       // if multistage, recover forward solution at each stage
       if (numstages[set] == 1) { // No need to re-solve in this case
-        int status = this->nonlinearSolver(set, u[set], phi[set]);
+        int status = this->nonlinearSolver(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev);
         if (status>0) {
           // throw error
         }
-        postproc->computeSensitivities(u, phi, current_time, cindex, deltat, gradient);
+        phi[set]->update(1.0,*(phi_stage[0]),0.0);
+        postproc->computeSensitivities(sol, sol_stage, sol_prev, phi, current_time, cindex, deltat, gradient);
       }
       else {
-        /*
-        is_adjoint = false;
-        vector<vector_RCP> stage_solns;
-        for (int stage = 0; stage<numstages; stage++) {
-          // Need a stage solution
-          vector_RCP u_stage = linalg->getNewOverlappedVector();
-          // Set the initial guess for stage solution
-          u_stage->update(1.0,*u,0.0);
-          
-          assembler->updateStageNumber(stage); // could probably just += 1 in wksets
-          
-          int status = this->nonlinearSolver(u_stage, zero_vec);
-          if (status>0) {
-            // throw error
-          }
-          stage_solns.push_back(u_stage);
-          assembler->updateStageSoln(); // moves the stage solution into u_stage (avoids mem transfer)
-        }
-        is_adjoint = true;
-        
-        vector<double> stage_grad(gradient.size(),0.0);
-        
-        for (int stage = numstages-1; stage>=0; stage--) {
-          // Need a stage solution
-          vector_RCP phi_stage = linalg->getNewOverlappedVector();
-          // Set the initial guess for stage solution
-          phi_stage->update(1.0,*phi,0.0);
-          
-          assembler->updateStageNumber(stage); // could probably just += 1 in wksets
-          
-          int status = this->nonlinearSolver(stage_solns[stage], phi_stage);
-          if (status>0) {
-            // throw error
-          }
-          phi->update(1.0, *phi_stage, 1.0);
-          phi->update(-1.0, *phi_prev, 1.0);
-        }
-        postproc->computeSensitivities(u, phi, current_time, deltat, gradient);
-        */
+        // NEEDS TO BE REWRITTEN
       }
       
       is_final_time = false;
       
     }
+    
   }
   
   if (debug_level > 1) {
@@ -1544,8 +1530,16 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
 // ========================================================================================
 
 template<class Node>
-int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vector_RCP & phi) {
-  
+int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stage,
+                                         vector<vector_RCP> & sol, // [set]
+                                         vector<vector_RCP> & sol_stage, // [stage]
+                                         vector<vector_RCP> & sol_prev, // [step]
+                                         vector<vector_RCP> & phi, // [set]
+                                         vector<vector_RCP> & phi_stage, // [stage]
+                                         vector<vector_RCP> & phi_prev) { // [step]
+   // Goal is to update sol_stage[stage]
+   // Assembler will need to gather sol for other physics sets and other step/stage solutions for current set
+
   Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
 
   if (debug_level > 1) {
@@ -1621,15 +1615,14 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
     }
 
       
-    if (!use_autotune) { // cannot just use ScalarT
-      assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+    if (!use_autotune) { 
+      assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
                                 current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                 params->num_active_params, params->Psol_over, is_final_time, deltat);
     }
     else {
-      assembler->assembleRes(set, u, phi, build_jacobian, false, false,
-                             current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                             params->num_active_params, params->Psol_over, is_final_time, deltat);
+      assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, 
+                             params->Psol_over, current_res_over, J_over, isTransient, current_time, deltat);
     }
 
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
@@ -1640,13 +1633,9 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
         cdt = deltat;
       }
       
-      postproc->computeObjectiveGradState(set, u, current_time+cdt, deltat, current_res);
+      postproc->computeObjectiveGradState(set, sol[set], current_time+cdt, deltat, current_res);
     }
     
-    
-    if (debug_level>2) {
-      //KokkosTools::print(current_res,"residual from solver interface");
-    }
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
     
     {
@@ -1676,11 +1665,21 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       alpha *= 0.5;
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(-1.0*alpha, *(current_du_over), 1.0);
+        if (phi_stage.size() > 0) {
+          phi_stage[stage]->update(-1.0*alpha, *(current_du_over), 1.0);
+        }
+        else {
+          phi[set]->update(-1.0*alpha, *(current_du_over), 1.0);
+        }
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        u->update(-1.0*alpha, *(current_du_over), 1.0);
+        if (sol_stage.size() > 0) {
+          sol_stage[stage]->update(-1.0*alpha, *(current_du_over), 1.0);
+        }
+        else {
+          sol[set]->update(-1.0*alpha, *(current_du_over), 1.0);
+        }
       }
       if (Comm->getRank() == 0 && verbosity > 1) {
         cout << "***** Backtracking: new learning rate = " << alpha << endl;
@@ -1704,16 +1703,13 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       }
     }
     
-    //KokkosTools::print(J_over);
-    //KokkosTools::print(current_res);
-
     // *********************** SOLVE THE LINEAR SYSTEM **************************
     
     if (solve) {
       
       if (build_jacobian) {
         if (use_autotune) {
-          assembler->assembleJacRes(set, u, phi, build_jacobian, false, false,
+          assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
                                     current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                     params->num_active_params, params->Psol_over, is_final_time, deltat);
         }
@@ -1723,9 +1719,6 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
         linalg->fillComplete(J);
       }
       
-      if (debug_level>2) {
-        //KokkosTools::print(J,"Jacobian from solver interface");
-      }
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
       linalg->linearSolver(set, J, current_res, current_du);
@@ -1735,34 +1728,41 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
       alpha = 1.0;
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        phi->update(alpha, *(current_du_over), 1.0);
+        if (phi_stage.size() > 0) {
+          phi_stage[stage]->update(alpha, *(current_du_over), 1.0);
+        }
+        else {
+          phi[set]->update(-1.0*alpha, *(current_du_over), 1.0);
+        }
       }
       else {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        u->update(alpha, *(current_du_over), 1.0);
+        if (sol_stage.size() > 0) {
+          sol_stage[stage]->update(alpha, *(current_du_over), 1.0);
+        }
+        else {
+          sol[set]->update(alpha, *(current_du_over), 1.0);
+        }
       }
     }
     NLiter++; // increment number of iterations
     
     if (NLiter >= maxiter) {
       proceed = false;
-      // Need to perform another gather for cases where the number of iterations is tight
-      assembler->performGather(set,u,0,0);
     }
-    
   } // while loop
   if (debug_level>1) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> normu(1);
-    u->norm2(normu);
+    if (sol_stage.size() > 0) {
+      sol_stage[stage]->norm2(normu);
+    }
+    else {
+      sol[set]->norm2(normu);
+    }
     if (Comm->getRank() == 0) {
       cout << "Norm of solution: " << normu[0] << "    (overlapped vector so results may differ on multiple procs)" << endl;
     }
   }
-  
-  if (debug_level>2) {
-    //KokkosTools::print(u);
-  }
-  
   if (Comm->getRank() == 0) {
     if (!is_adjoint) {
       if ( (NLiter>maxNLiter) && verbosity > 1) {
@@ -1786,9 +1786,18 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, vector_RCP & u, vec
 // ========================================================================================
 
 template<class Node>
-int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vector_RCP & phi, const int & stage) {
+int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage,
+                                        vector<vector_RCP> & sol, // [set]
+                                        vector<vector_RCP> & sol_stage, // [stage]
+                                        vector<vector_RCP> & sol_prev, // [step]
+                                        vector<vector_RCP> & phi, // [set]
+                                        vector<vector_RCP> & phi_stage, // [stage]
+                                        vector<vector_RCP> & phi_prev) { // [step]
   
   
+  // Goal is just to update sol_stage[stage]
+  // Other solutions are just used in assembler for gather operations
+
   Teuchos::TimeMonitor localtimer(*explicitsolvertimer);
   
   if (debug_level > 1) {
@@ -1801,10 +1810,8 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   assembler->updatePhysicsSet(set);
   
   if (usestrongDBCs) {
-    this->setDirichlet(set,u);
+    this->setDirichlet(set,sol_stage[stage]);
   }
-  
-  bool build_jacobian = false;
   
   vector_RCP current_res, current_res_over, current_du, current_du_over;
   if (store_vectors) {
@@ -1831,9 +1838,8 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   current_res_over->putScalar(0.0);
   matrix_RCP J_over;
   
-  assembler->assembleRes(set, u, phi, build_jacobian, false, false,
-                         current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                         params->num_active_params, params->Psol_over, is_final_time, deltat);
+  assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, 
+                         params->Psol_over, current_res_over, J_over, isTransient, current_time, deltat);
   
   if (linalg->getHaveOverlapped()) {
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
@@ -1892,13 +1898,13 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
       linalg->importVectorToOverlapped(set, current_du_over, current_du);
     }
     
-    u->update(1.0, *(current_du_over), 1.0);
+    sol_stage[stage]->update(1.0, *(current_du_over), 1.0);
     
   }
   
   if (verbosity>=10) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
-    u->norm2(unorm);
+    sol_stage[set]->norm2(unorm);
     if (Comm->getRank() == 0) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Explicit integrator: L2 norm of solution: " << unorm[0] << endl;
@@ -1907,7 +1913,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, vector_RCP & u, vect
   }
   
   
-  assembler->performGather(set,u,0,0);
+  //assembler->performGather(set,sol[set],0,0);
   
   if (debug_level > 1) {
     if (Comm->getRank() == 0) {

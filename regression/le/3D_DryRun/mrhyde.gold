@@ -10,11 +10,7 @@ DOFManager Field Information:
       "dy" is field ID 1
       "dz" is field ID 2
  - Processor 0 has 1000 elements
- - Processor 0 min element size: 0.001
- - Processor 0 max element size: 0.001
  - Processor 0 has 600 boundary elements
- - Processor 0 min boundary element size: 0.01
- - Processor 0 max boundary element size: 0.01
  - Processor 0 is using 2.30424 MB to store volumetric data
  - Processor 0 is using 0 MB to store face data
  - Processor 0 is using 0.806496 MB to store boundary data

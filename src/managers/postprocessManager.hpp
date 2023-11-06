@@ -91,17 +91,17 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void computeError(const ScalarT & current_time);
+    void computeError(vector<vector_RCP> & current_soln, const ScalarT & current_time);
     
     // ========================================================================================
     // ========================================================================================
     
-    void computeResponse(const ScalarT & current_time);
+    void computeResponse(vector<vector_RCP> & current_soln, const ScalarT & current_time);
     
     // ========================================================================================
     // ========================================================================================
     
-    void computeFluxResponse(const ScalarT & current_time);
+    void computeFluxResponse(vector<vector_RCP> & current_soln, const ScalarT & current_time);
     
     // ========================================================================================
     // ========================================================================================
@@ -112,7 +112,7 @@ namespace MrHyDE {
      * @param[in]  current_time  Current simulation time
      */
     
-    void computeIntegratedQuantities(const ScalarT & current_time);
+    void computeIntegratedQuantities(vector<vector_RCP> & current_soln, const ScalarT & current_time);
 
     // ========================================================================================
     // ========================================================================================
@@ -146,7 +146,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
-    void computeSensitivities(vector<vector_RCP> & u, vector<vector_RCP> & adjoint,
+    void computeSensitivities(vector<vector_RCP> & u, vector<vector_RCP> & sol_stage, vector<vector_RCP> & sol_prev, vector<vector_RCP> & adjoint,
                               const ScalarT & current_time, const int & tindex, const ScalarT & deltat,
                               MrHyDE_OptVector & gradient);
 
@@ -168,7 +168,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void writeSolution(const ScalarT & current_time);
+    void writeSolution(vector<vector_RCP> & current_soln, const ScalarT & current_time);
     
     // ========================================================================================
     // ========================================================================================

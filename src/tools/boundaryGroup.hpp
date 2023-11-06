@@ -107,19 +107,20 @@ namespace MrHyDE {
      */   
 
     void setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, 
-                     const vector<int> & maxnumstages);
+                     const vector<int> & maxnumstages, const bool & allocate_storage = false);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each discretized parameter will use
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_);
+    void setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_,
+                          const bool & allocate_storage = false);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each aux variable will use
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setAuxUseBasis(vector<int> & ausebasis_);
+    void setAuxUseBasis(vector<int> & ausebasis_, const bool & allocate_storage = false);
       
     ///////////////////////////////////////////////////////////////////////////////////////
     // Map the coarse grid solution to the fine grid integration points
@@ -164,7 +165,7 @@ namespace MrHyDE {
     vector<View_Sc2> ip, normals, tangents;
     View_Sc2 wts;
     View_Sc1 hsize;
-    bool storeAll, haveBasis;
+    bool storeAll, haveBasis, have_sols = false;
     Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly

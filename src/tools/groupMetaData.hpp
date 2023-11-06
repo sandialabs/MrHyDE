@@ -53,6 +53,11 @@ namespace MrHyDE {
     size_t getDatabaseStorage();
 
     ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    void setSolutionFields(vector<int> & maxnumsteps, vector<int> & maxnumstages);
+
+    ///////////////////////////////////////////////////////////////////////////////////////
     // This class is really just for storing common meta-data for groups and bondary groups
     // As such, all data is public
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -106,6 +111,12 @@ namespace MrHyDE {
     
     Kokkos::View<int*,AssemblyDevice> num_dof, num_param_dof, num_aux_dof;
     Kokkos::View<int*,HostDevice> num_dof_host, num_param_dof_host, num_aux_dof_host;
+    
+    vector<View_Sc3> sol, phi;
+    View_Sc3 param, aux; // (elem,var,numdof)
+    vector<View_Sc3> sol_avg, sol_alt;
+    View_Sc3 param_avg, aux_avg; // (elem,var,dim)
+    vector<View_Sc4> sol_prev, phi_prev, aux_prev, sol_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
     Teuchos::RCP<Teuchos::Time> grp_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::groupMetaData::constructor()");
   };

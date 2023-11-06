@@ -185,29 +185,36 @@ void BoundaryGroup::addAuxVars(const vector<string> & auxlist_) {
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
+void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, 
+                                const vector<int> & maxnumstages, const bool & allocate_storage) {
   vector<vector<int> > usebasis = usebasis_;
   
-  // Set up the containers for usual solution storage
-  for (size_t set=0; set<usebasis.size(); ++set) {
-    int maxnbasis = 0;
-    for (size_type i=0; i<group_data->set_num_dof_host[set].extent(0); i++) {
-      if (group_data->set_num_dof_host[set](i) > maxnbasis) {
-        maxnbasis = group_data->set_num_dof_host[set](i);
+  if (allocate_storage) {
+    have_sols = true;
+    // Set up the containers for usual solution storage
+    for (size_t set=0; set<usebasis.size(); ++set) {
+      int maxnbasis = 0;
+      for (size_type i=0; i<group_data->set_num_dof_host[set].extent(0); i++) {
+        if (group_data->set_num_dof_host[set](i) > maxnbasis) {
+          maxnbasis = group_data->set_num_dof_host[set](i);
+        }
+      }
+      View_Sc3 newu("u bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
+      sol.push_back(newu);
+      if (group_data->requires_adjoint) {
+        View_Sc3 newphi("phi bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
+        phi.push_back(newphi);
+      }
+      if (group_data->requires_transient) {
+        View_Sc4 newuprev("u previous bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumsteps[set]);
+        sol_prev.push_back(newuprev);
+        View_Sc4 newustage("u stages bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumstages[set]-1);
+        sol_stage.push_back(newustage);
       }
     }
-    View_Sc3 newu("u bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
-    sol.push_back(newu);
-    if (group_data->requires_adjoint) {
-      View_Sc3 newphi("phi bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
-      phi.push_back(newphi);
-    }
-    if (group_data->requires_transient) {
-      View_Sc4 newuprev("u previous bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumsteps[set]);
-      sol_prev.push_back(newuprev);
-      View_Sc4 newustage("u stages bgrp",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumstages[set]-1);
-      sol_stage.push_back(newustage);
-    }
+  }
+  else {
+    have_sols = false;
   }
 }
 
@@ -215,37 +222,40 @@ void BoundaryGroup::setUseBasis(vector<vector<int> > & usebasis_, const vector<i
 // Define which basis each discretized parameter will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryGroup::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_) {
+void BoundaryGroup::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_,
+                                     const bool & allocate_storage) {
   vector<int> paramusebasis = pusebasis_;
   
-  auto numParamDOF = group_data->num_param_dof;
-  
-  int maxnbasis = 0;
-  for (size_type i=0; i<numParamDOF.extent(0); i++) {
-    if (numParamDOF(i) > maxnbasis) {
-      maxnbasis = numParamDOF(i);
+  if (allocate_storage) {
+    auto numParamDOF = group_data->num_param_dof;
+    int maxnbasis = 0;
+    for (size_type i=0; i<numParamDOF.extent(0); i++) {
+      if (numParamDOF(i) > maxnbasis) {
+        maxnbasis = numParamDOF(i);
+      }
     }
+    param = View_Sc3("param",numElem,numParamDOF.extent(0),maxnbasis);
   }
-  param = View_Sc3("param",numElem,numParamDOF.extent(0),maxnbasis);
-  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Define which basis each aux variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void BoundaryGroup::setAuxUseBasis(vector<int> & ausebasis_) {
+void BoundaryGroup::setAuxUseBasis(vector<int> & ausebasis_, const bool & allocate_storage) {
   auxusebasis = ausebasis_;
-  auto numAuxDOF = Kokkos::create_mirror_view(group_data->num_aux_dof);
-  Kokkos::deep_copy(numAuxDOF,group_data->num_aux_dof);
-  int maxnbasis = 0;
-  for (size_type i=0; i<numAuxDOF.extent(0); i++) {
-    if (numAuxDOF(i) > maxnbasis) {
-      maxnbasis = numAuxDOF(i);
+
+  if (allocate_storage) {
+    auto numAuxDOF = Kokkos::create_mirror_view(group_data->num_aux_dof);
+    Kokkos::deep_copy(numAuxDOF,group_data->num_aux_dof);
+    int maxnbasis = 0;
+    for (size_type i=0; i<numAuxDOF.extent(0); i++) {
+      if (numAuxDOF(i) > maxnbasis) {
+        maxnbasis = numAuxDOF(i);
+      }
     }
+    aux = View_Sc3("aux",numElem,numAuxDOF.extent(0),maxnbasis);
   }
-  aux = View_Sc3("aux",numElem,numAuxDOF.extent(0),maxnbasis);
-  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -254,7 +264,7 @@ void BoundaryGroup::setAuxUseBasis(vector<int> & ausebasis_) {
 
 void BoundaryGroup::resetPrevSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  if (group_data->requires_transient && sol.size() > set && sol_prev.size() > set) {
     auto csol = sol[set];
     auto csol_prev = sol_prev[set];
     
@@ -295,7 +305,7 @@ void BoundaryGroup::resetPrevSoln(const size_t & set) {
 
 void BoundaryGroup::revertSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  if (group_data->requires_transient && sol.size() > set && sol_prev.size() > set) {
     auto csol = sol[set];
     auto csol_prev = sol_prev[set];
     
@@ -311,7 +321,6 @@ void BoundaryGroup::revertSoln(const size_t & set) {
       }
     });
   }
-  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -320,7 +329,7 @@ void BoundaryGroup::revertSoln(const size_t & set) {
 
 void BoundaryGroup::resetStageSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  if (group_data->requires_transient && sol.size() > set && sol_stage.size() > set) {
     auto csol = sol[set];
     auto csol_stage = sol_stage[set];
     
@@ -345,7 +354,7 @@ void BoundaryGroup::resetStageSoln(const size_t & set) {
 
 void BoundaryGroup::updateStageSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  if (group_data->requires_transient && sol.size() > set && sol_stage.size() > set) {
     auto csol = sol[set];
     auto csol_stage = sol_stage[set];
     // add u into the current stage soln (done after stage solution is computed)
@@ -363,6 +372,7 @@ void BoundaryGroup::updateStageSoln(const size_t & set) {
       });
     }
   }
+  
   
 }
 

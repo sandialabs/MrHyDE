@@ -140,7 +140,13 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void assembleJacRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
+    void assembleJacRes(const size_t & set, const size_t & stage,
+                        vector<vector_RCP> & sol, 
+                        vector<vector_RCP> & sol_stage,
+                        vector<vector_RCP> & sol_prev, 
+                        vector<vector_RCP> & phi,
+                        vector<vector_RCP> & phi_stage,
+                        vector<vector_RCP> & phi_step,                   
                         const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
@@ -151,32 +157,46 @@ namespace MrHyDE {
                         const ScalarT & deltat);
     
     template<class EvalT>
-    void assembleJacRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
-                        const bool & compute_disc_sens,
-                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                        const ScalarT & current_time, const bool & useadjoint,
-                        const bool & store_adjPrev,
-                        const int & num_active_params,
-                        const bool & is_final_time, const int & block,
-                        const ScalarT & deltat);
-    
-    void assembleRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
+    void assembleJacRes(const size_t & set, const size_t & stage,
+                        vector<vector_RCP> & sol, 
+                        vector<vector_RCP> & sol_stage,
+                        vector<vector_RCP> & sol_prev, 
+                        vector<vector_RCP> & phi,
+                        vector<vector_RCP> & phi_stage,
+                        vector<vector_RCP> & phi_step,        
+                        vector_RCP & param_sol,           
                         const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                         const ScalarT & current_time, const bool & useadjoint,
                         const bool & store_adjPrev,
-                        const int & num_active_params, vector_RCP & Psol,
-                        const bool & is_final_time,
-                        const ScalarT & deltat);
-    
-    void assembleRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
-                        const bool & compute_disc_sens,
-                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                        const ScalarT & current_time, const bool & useadjoint,
-                        const bool & store_adjPrev,
                         const int & num_active_params,
                         const bool & is_final_time, const int & block,
+                        const ScalarT & deltat);
+    
+    void assembleRes(const size_t & set, const size_t & stage,
+                        vector<vector_RCP> & sol, 
+                        vector<vector_RCP> & sol_stage,
+                        vector<vector_RCP> & sol_prev, 
+                        vector<vector_RCP> & phi,
+                        vector<vector_RCP> & phi_stage,
+                        vector<vector_RCP> & phi_step,   
+                        vector_RCP & param_sol,                
+                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                        const ScalarT & current_time, 
+                        const ScalarT & deltat);
+    
+    void assembleRes(const size_t & set, const size_t & stage,
+                        vector<vector_RCP> & sol, 
+                        vector<vector_RCP> & sol_stage,
+                        vector<vector_RCP> & sol_prev, 
+                        vector<vector_RCP> & phi,
+                        vector<vector_RCP> & phi_stage,
+                        vector<vector_RCP> & phi_step,   
+                        vector_RCP & param_sol,        
+                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                        const ScalarT & current_time, 
+                        const int & block,
                         const ScalarT & deltat);
     
     
@@ -268,9 +288,44 @@ namespace MrHyDE {
     template<class ViewType>
     void performGather(const size_t & set, ViewType vec_dev, const int & type);
         
+    
+    template<class ViewType>
+    void performGather(const size_t & block, const size_t & grp, const vector<ViewType> & vec, const int & type);
+
+    template<class ViewType>
+    void performGather(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
+                       const int & type, const size_t & local_entry);
+
+    template<class ViewType>
+    void performGather4D(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
+                       const int & type, const size_t & local_entry);
+
+    void performGather(const size_t & set, const size_t & block, const size_t & grp, 
+                       vector_RCP & vec, const int & type, const size_t & local_entry);
+
+    template<class ViewType>
+    void performGather(const size_t & current_set, const size_t & block, const size_t & grp, const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
+                       vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
+                       vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
+                       vector<ViewType> & params);
+
     template<class ViewType>
     void performBoundaryGather(const size_t & set, ViewType vec_dev, const int & type);
     
+    template<class ViewType>
+    void performBoundaryGather(const size_t & current_set, const size_t & block, const size_t & grp, const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
+                               vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
+                               vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
+                               vector<ViewType> & params);
+
+    template<class ViewType>
+    void performBoundaryGather(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
+                               const int & type, const size_t & local_entry);
+
+    template<class ViewType>
+    void performBoundaryGather4D(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
+                                 const int & type, const size_t & local_entry);
+
     // ========================================================================================
     // Scatter 
     // ========================================================================================
@@ -367,6 +422,7 @@ namespace MrHyDE {
 
       vector<View_AD2> sol_vals = wkset_AD[wkblock]->sol_vals;
       //auto param_AD = wkset_AD->pvals;
+      //auto ulocal = groupData[block]->sol[set];
       auto ulocal = boundary_groups[block][grp]->sol[set];
       auto currLIDs = boundary_groups[block][grp]->LIDs[set];
 
@@ -383,11 +439,14 @@ namespace MrHyDE {
           auto u_AD = sol_vals[uindex];
           auto off = subview(wkset_AD[wkblock]->set_offsets[set],var,ALL());
           auto cu = subview(ulocal,ALL(),var,ALL());
+          //auto cu_prev = subview(groupData[block]->sol_prev[set],ALL(),var,ALL(),ALL());
+          //auto cu_stage = subview(groupData[block]->sol_stage[set],ALL(),var,ALL(),ALL());
+
           auto cu_prev = subview(boundary_groups[block][grp]->sol_prev[set],ALL(),var,ALL(),ALL());
           auto cu_stage = subview(boundary_groups[block][grp]->sol_stage[set],ALL(),var,ALL(),ALL());
 
           parallel_for("wkset transient sol seedwhat 1",
-                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       TeamPolicy<AssemblyExec>(currLIDs.extent(0), Kokkos::AUTO, VECTORSIZE),
                        KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
             int elem = team.league_rank();
             ScalarT beta_u;//, beta_t;

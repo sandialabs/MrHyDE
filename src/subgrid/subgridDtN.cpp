@@ -436,7 +436,14 @@ void SubGridDtN::setUpSubgridModels() {
     boundary_groups[0][grp]->setAuxUseBasis(macro_usebasis);
     boundary_groups[0][grp]->auxoffsets = macro_offsets;
     //boundary_groups[0][grp]->wkset = wkset[0];
+    boundary_groups[0][grp]->setUseBasis(sub_solver->solver->useBasis[0],
+                                         sub_solver->solver->maxnumsteps,
+                                         sub_solver->solver->maxnumstages, true);
   }
+  
+  groups[0][0]->setUseBasis(sub_solver->solver->useBasis[0],
+                            sub_solver->solver->maxnumsteps,
+                            sub_solver->solver->maxnumstages, true);
   
   // TMW: would like to remove these since most of this is stored by the
   //      parameter manager
@@ -686,12 +693,13 @@ void SubGridDtN::setUpSubgridModels() {
         }
       }
       macroData[mindex]->bcs = currbcs;
-      
+      sub_assembler->groupData[0]->setSolutionFields(sub_solver->solver->maxnumsteps,
+                                                     sub_solver->solver->maxnumstages);
       for (size_t grp=0; grp<groups[mindex].size(); ++grp) {
         //groups[mindex][grp]->setWorkset(sub_assembler->wkset[0]);
         groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
-                                      sub_solver->solver->maxnumsteps,
-                                      sub_solver->solver->maxnumstages);
+                                        sub_solver->solver->maxnumsteps,
+                                        sub_solver->solver->maxnumstages, true);
         groups[mindex][grp]->setUpAdjointPrev(sub_solver->solver->maxnumsteps,
                                            sub_solver->solver->maxnumstages);
         groups[mindex][grp]->setUpSubGradient(sub_solver->solver->params->num_active_params);
@@ -702,7 +710,7 @@ void SubGridDtN::setUpSubgridModels() {
             //boundary_groups[mindex][grp]->setWorkset(sub_assembler->wkset[0]);
             boundary_groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
                                                   sub_solver->solver->maxnumsteps,
-                                                  sub_solver->solver->maxnumstages);
+                                                  sub_solver->solver->maxnumstages, true);
           }
         }
       }
@@ -1237,7 +1245,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridDtN::computeError(const ScalarT & time)
       compute = true;
     }
     if (compute) {
-      sub_postproc->computeError(time);
+      sub_postproc->computeError(curr_soln, time);
       for (size_t block=0; block<sub_postproc->errors[0].size(); ++block) {
         Kokkos::View<ScalarT*,HostDevice> cerr = sub_postproc->errors[0][block];
         for (size_t etype=0; etype<cerr.extent(0); etype++) {
@@ -1246,6 +1254,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridDtN::computeError(const ScalarT & time)
       }
       sub_postproc->errors.clear();
     }
+    
   }
   
   return errors;
@@ -1262,14 +1271,13 @@ Kokkos::View<ScalarT**,HostDevice> SubGridDtN::computeError(vector<std::pair<str
     
     errors = Kokkos::View<ScalarT**,HostDevice>("error", times.size(), sub_postproc->error_list[0].size());
     
-    
     for (size_t t=0; t<times.size(); t++) {
       bool compute = false;
       if (subgrid_static) {
         compute = true;
       }
       if (compute) {
-        sub_postproc->computeError(times[t]);
+        sub_postproc->computeError(curr_soln, times[t]);
         for (size_t b=0; b<sub_postproc->errors[0].size(); b++) {
           Kokkos::View<ScalarT*,HostDevice> cerr = sub_postproc->errors[0][b];
           for (size_t etype=0; etype<cerr.extent(0); etype++) {
@@ -1279,6 +1287,7 @@ Kokkos::View<ScalarT**,HostDevice> SubGridDtN::computeError(vector<std::pair<str
         sub_postproc->errors.clear();
       }
     }
+    
   }
   
   return errors;
@@ -1505,7 +1514,7 @@ void SubGridDtN::setupCombinedExodus(vector<string> & appends) {
 void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
 
   Teuchos::TimeMonitor outputtimer(*sgfemCombinedMeshOutputTimer);
-  
+  /*
   if (macroData.size()>0) {
     
     bool isTD = false;
@@ -1671,23 +1680,6 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
     vector<string> extrafieldnames = sub_postproc->extrafields_list[0];
     for (size_t j=0; j<extrafieldnames.size(); j++) {
       Kokkos::View<ScalarT**,HostDevice> efdata("field data",myElements.size(), numNodesPerElem);
-      /*
-      size_t eprog = 0;
-      for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
-        for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
-          DRV nodes = groups[macrogrp][grp]->nodes;
-          Kokkos::View<ScalarT**,AssemblyDevice> cfields = sub_physics->getExtraFields(0, 0, nodes, time, wkset[0]);
-          auto host_cfields = Kokkos::create_mirror_view(cfields);
-          Kokkos::deep_copy(host_cfields,cfields);
-          for (size_t p=0; p<groups[macrogrp][grp]->numElem; p++) {
-            for (size_t i=0; i<host_cfields.extent(1); i++) {
-              efdata(eprog,i) = host_cfields(p,i);
-            }
-            eprog++;
-          }
-        }
-      }
-       */
       combined_mesh->setSolutionFieldData(extrafieldnames[j]+append, blockID, myElements, efdata);
     }
     
@@ -1762,35 +1754,6 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
       auto ccd = subview(dq,ALL(),j);
       combined_mesh->setCellFieldData(dqnames[j]+append, blockID, myElements, ccd);
     }
-    /*
-    for (size_t j=0; j<extracellfieldnames.size(); j++) {
-      Kokkos::View<ScalarT*,HostDevice> efdata("cell data",myElements.size());
-      
-      int eprog = 0;
-      for (size_t macrogrp=0; macrogrp<groups.size(); macrogrp++) {
-        for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
-        
-          groups[macrogrp][grp]->updateData();
-          groups[macrogrp][grp]->updateWorksetBasis();
-          wkset[0]->time = time;
-          wkset[0]->computeSolnSteadySeeded(groups[macrogrp][grp]->u, 0);
-          wkset[0]->computeParamSteadySeeded(groups[macrogrp][grp]->param, 0);
-          wkset[0]->computeSolnVolIP();
-          wkset[0]->computeParamVolIP();
-          
-          Kokkos::View<ScalarT*,AssemblyDevice> cfields = sub_physics->getExtraCellFields(0, j, groups[macrogrp][grp]->wts);
-          
-          auto host_cfields = Kokkos::create_mirror_view(cfields);
-          Kokkos::deep_copy(host_cfields, cfields);
-          for (size_type p=0; p<host_cfields.extent(0); p++) {
-            efdata(eprog) = host_cfields(p);
-            eprog++;
-          }
-        }
-      }
-      combined_mesh->setCellFieldData(extracellfieldnames[j], blockID, myElements, efdata);
-    }
-    */
     
     if (isTD) {
       combined_mesh->writeToExodus(time);
@@ -1801,6 +1764,7 @@ void SubGridDtN::writeSolution(const ScalarT & time, const string & append) {
     
   }
   
+  */
 }
 
 

@@ -3,7 +3,7 @@
 ANONYMOUS:
   verbosity: 0
   debug level: 0
-  Mesh: 
+  Mesh:
     blocknames: eblock-0_0
     dimension: 2
     Source: Exodus

@@ -3,6 +3,7 @@
 ANONYMOUS:
   Subgrid:
     debug level: 0
+    verbosity: 0
     subgrid model: DtN2
     Mesh:
       element type: quad

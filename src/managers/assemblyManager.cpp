@@ -2039,7 +2039,13 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
 // ========================================================================================
 
 template<class Node>
-void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
+void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & stage,
+                                           vector<vector_RCP> & sol, 
+                                           vector<vector_RCP> & sol_stage,
+                                           vector<vector_RCP> & sol_prev, 
+                                           vector<vector_RCP> & phi,
+                                           vector<vector_RCP> & phi_stage,
+                                           vector<vector_RCP> & phi_prev,
                                            const bool & compute_jacobian, const bool & compute_sens,
                                            const bool & compute_disc_sens,
                                            vector_RCP & res, matrix_RCP & J, const bool & isTransient,
@@ -2055,20 +2061,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
     }
   }
 #ifndef MrHyDE_NO_AD
-  {
-    Teuchos::TimeMonitor localtimer(*gather_timer);
     
-    // Local gather of solutions
-    this->performGather(set, u, 0, 0);
-    if (params->num_discretized_params > 0) {
-      this->performGather(set, Psol, 4, 0);
-    }
-    if (useadjoint) {
-      this->performGather(set, phi, 2, 0);
-    }
-  }
-  
-  
   for (size_t block=0; block<groups.size(); ++block) {
     
     if (groups[block].size() > 0) {
@@ -2076,66 +2069,66 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
         allow_autotune = false;
       }
       if (!allow_autotune) {
-        this->assembleJacRes<AD>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+        this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                 compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                 current_time, useadjoint, store_adjPrev, num_active_params,
+                                 is_final_time, block, deltat);
       }
       else {
         int ndr = num_derivs_required[block];
         if (ndr == MAXDERIVS) {
-          this->assembleJacRes<AD>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                   compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                   current_time, useadjoint, store_adjPrev, num_active_params,
+                                   is_final_time, block, deltat);
         }
         else if (ndr>0 && ndr <= 2) {
-          this->assembleJacRes<AD2>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD2>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                    compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                    current_time, useadjoint, store_adjPrev, num_active_params,
+                                    is_final_time, block, deltat);
         }
         else if (ndr>2 && ndr <= 4) {
-          this->assembleJacRes<AD4>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD4>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                    compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                    current_time, useadjoint, store_adjPrev, num_active_params,
+                                    is_final_time, block, deltat);
         }
         else if (ndr>4 && ndr <= 8) {
-          this->assembleJacRes<AD8>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD8>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                    compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                    current_time, useadjoint, store_adjPrev, num_active_params,
+                                    is_final_time, block, deltat);
         }
         else if (ndr>8 && ndr <= 16) {
-          this->assembleJacRes<AD16>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD16>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                     current_time, useadjoint, store_adjPrev, num_active_params,
+                                     is_final_time, block, deltat);
         }
         else if (ndr>16 && ndr <= 18) {
-          this->assembleJacRes<AD18>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD18>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                     current_time, useadjoint, store_adjPrev, num_active_params,
+                                     is_final_time, block, deltat);
         }
         else if (ndr>18 && ndr <= 24) {
-          this->assembleJacRes<AD24>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD24>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                     current_time, useadjoint, store_adjPrev, num_active_params,
+                                     is_final_time, block, deltat);
         }
         else if (ndr>24 && ndr <= 32) {
-          this->assembleJacRes<AD32>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD32>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                     current_time, useadjoint, store_adjPrev, num_active_params,
+                                     is_final_time, block, deltat);
         }
         else {
-          this->assembleJacRes<AD>(set, compute_jacobian,
-                             compute_sens, compute_disc_sens, res, J, isTransient,
-                             current_time, useadjoint, store_adjPrev, num_active_params,
-                             is_final_time, block, deltat);
+          this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+                                   compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
+                                   current_time, useadjoint, store_adjPrev, num_active_params,
+                                   is_final_time, block, deltat);
         }
       }
     }
@@ -2150,57 +2143,6 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, vector_RCP & u, v
 }
 
 // ========================================================================================
-// Wrapper to the main assembly routine to assemble over all blocks (most common use case)
-// ========================================================================================
-
-template<class Node>
-void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vector_RCP & phi,
-                                               const bool & compute_jacobian, const bool & compute_sens,
-                                               const bool & compute_disc_sens,
-                                               vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                                               const ScalarT & current_time,
-                                               const bool & useadjoint, const bool & store_adjPrev,
-                                               const int & num_active_params,
-                                               vector_RCP & Psol, const bool & is_final_time,
-                                               const ScalarT & deltat) {
-  
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Starting AssemblyManager::assembleRes ..." << endl;
-    }
-  }
-  
-  {
-    Teuchos::TimeMonitor localtimer(*gather_timer);
-    
-    // Local gather of solutions
-    this->performGather(set, u, 0, 0);
-    if (params->num_discretized_params > 0) {
-      this->performGather(set, Psol, 4, 0);
-    }
-    if (useadjoint) {
-      this->performGather(set, phi, 2, 0);
-    }
-  }
-  
-  
-  for (size_t block=0; block<groups.size(); ++block) {
-    if (groups[block].size() > 0) {
-      this->assembleRes(set, compute_jacobian,
-                           compute_sens, compute_disc_sens, res, J, isTransient,
-                           current_time, useadjoint, store_adjPrev, num_active_params,
-                           is_final_time, block, deltat);
-    }
-  }
-  
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Finished AssemblyManager::assembleRes" << endl;
-    }
-  }
-}
-
-// ========================================================================================
 // Main assembly routine ... only assembles on a given block (b)
 // This routine is the old version that does both Jacobian and residual
 // Will eventually be deprecated
@@ -2208,7 +2150,15 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, vector_RCP & u, vect
 
 template<class Node>
 template<class EvalT>
-void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
+void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & stage,
+                                           vector<vector_RCP> & sol, 
+                                           vector<vector_RCP> & sol_stage,
+                                           vector<vector_RCP> & sol_prev, 
+                                           vector<vector_RCP> & phi,
+                                           vector<vector_RCP> & phi_stage,
+                                           vector<vector_RCP> & phi_prev,
+                                           vector_RCP & param_sol,
+                                           const bool & compute_jacobian, const bool & compute_sens,
                                            const bool & compute_disc_sens,
                                            vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                                            const ScalarT & current_time,
@@ -2265,6 +2215,106 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     }
   }
   
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv, sol_stage_kv, sol_prev_kv, phi_kv, phi_stage_kv, phi_prev_kv;
+  for (size_t s=0; s<sol.size(); ++s) {
+    auto vec_kv = sol[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+  bool use_only_sol = false;
+  if (sol_stage.size() == 0 && sol_prev.size() == 0) {
+    use_only_sol = true;
+  }
+  if (!use_only_sol) {
+    for (size_t s=0; s<sol_stage.size(); ++s) {
+      auto vec_kv = sol_stage[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+      if (data_avail) {
+        sol_stage_kv.push_back(vec_slice);
+      }
+      else {
+        auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+        Kokkos::deep_copy(vec_dev,vec_slice);
+        sol_stage_kv.push_back(vec_dev);
+      }
+    }
+    for (size_t s=0; s<sol_prev.size(); ++s) {
+      auto vec_kv = sol_prev[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+      if (data_avail) {
+        sol_prev_kv.push_back(vec_slice);
+      }
+      else {
+        auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+        Kokkos::deep_copy(vec_dev,vec_slice);
+        sol_prev_kv.push_back(vec_dev);
+      }
+    }  
+  }
+  if (useadjoint) {
+    for (size_t s=0; s<phi.size(); ++s) {
+      auto vec_kv = phi[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+      if (data_avail) {
+        phi_kv.push_back(vec_slice);
+      }
+      else {
+        auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+        Kokkos::deep_copy(vec_dev,vec_slice);
+        phi_kv.push_back(vec_dev);
+      }
+    }
+    if (!use_only_sol) {
+      for (size_t s=0; s<phi_stage.size(); ++s) {
+        auto vec_kv = phi_stage[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+        auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+        if (data_avail) {
+          phi_stage_kv.push_back(vec_slice);
+        }
+        else {
+          auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+          Kokkos::deep_copy(vec_dev,vec_slice);
+          phi_stage_kv.push_back(vec_dev);
+        }
+      }
+      for (size_t s=0; s<phi_prev.size(); ++s) {
+        auto vec_kv = phi_prev[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+        auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+        if (data_avail) {
+          phi_prev_kv.push_back(vec_slice);
+        }
+        else {
+          auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+          Kokkos::deep_copy(vec_dev,vec_slice);
+          phi_prev_kv.push_back(vec_dev);
+        }
+      }  
+    }
+  }
+    
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = param_sol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
+  }
+  
   //////////////////////////////////////////////////////////////////////////////////////
   // Set up the worksets and allocate the local residual and Jacobians
   //////////////////////////////////////////////////////////////////////////////////////
@@ -2318,6 +2368,17 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
     }
     
     /////////////////////////////////////////////////////////////////////////////
+    // Perform the necessary local gathers (now stored in group meta data)
+    /////////////////////////////////////////////////////////////////////////////
+    {
+      Teuchos::TimeMonitor localtimer(*gather_timer);
+    
+      this->performGather(set, block, grp, useadjoint, stage, use_only_sol,
+                          sol_kv, sol_stage_kv, sol_prev_kv, 
+                          phi_kv, phi_stage_kv, phi_prev_kv, params_kv);
+    }
+
+    /////////////////////////////////////////////////////////////////////////////
     // Compute the local residual and Jacobian on this group
     /////////////////////////////////////////////////////////////////////////////
     
@@ -2336,7 +2397,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
           
 #ifndef MrHyDE_NO_AD
           // Right now, this can only be called with AD, thus hard-coded
-          multiscale_manager->evaluateMacroMicroMacroMap(wkset_AD[block], groups[block][grp], set, isTransient, useadjoint,
+          this->updateWorkset<AD>(block, grp, 0, 0);
+          multiscale_manager->evaluateMacroMicroMacroMap(wkset_AD[block], groups[block][grp], groupData[block], set, isTransient, useadjoint,
                                                          compute_jacobian, compute_sens, num_active_params,
                                                          compute_disc_sens, false,
                                                          store_adjPrev);
@@ -2480,6 +2542,14 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const bool & comp
       
       if (boundary_groups[block][grp]->numElem > 0) {
         
+        /////////////////////////////////////////////////////////////////////////////
+        // Perform the necessary local gathers (now stored in group meta data)
+        /////////////////////////////////////////////////////////////////////////////
+    
+        this->performBoundaryGather(set, block, grp, useadjoint, stage, use_only_sol,
+                                    sol_kv, sol_stage_kv, sol_prev_kv, 
+                                    phi_kv, phi_stage_kv, phi_prev_kv, params_kv);
+    
         /////////////////////////////////////////////////////////////////////////////
         // Compute the local residual and Jacobian on this boundary group
         /////////////////////////////////////////////////////////////////////////////
@@ -2846,26 +2916,135 @@ void AssemblyManager<Node>::updateWorksetResidual(Teuchos::RCP<Workset<EvalT> > 
 }
 
 // ========================================================================================
+// Wrapper to the main assembly routine to assemble over all blocks (most common use case)
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage,
+                                        vector<vector_RCP> & sol, 
+                                        vector<vector_RCP> & sol_stage,
+                                        vector<vector_RCP> & sol_prev,
+                                        vector<vector_RCP> & phi,   
+                                        vector<vector_RCP> & phi_stage,
+                                        vector<vector_RCP> & phi_prev,  
+                                        vector_RCP & param_sol,
+                                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                        const ScalarT & current_time, const ScalarT & deltat) {
+  
+  if (debug_level > 1) {
+    if (comm->getRank() == 0) {
+      cout << "******** Starting AssemblyManager::assembleRes ..." << endl;
+    }
+  }
+    
+  for (size_t block=0; block<groups.size(); ++block) {
+    if (groups[block].size() > 0) {
+      this->assembleRes(set, stage, 
+                        sol, sol_stage, sol_prev, phi, phi_stage, phi_stage,
+                        param_sol, res, J, isTransient,
+                        current_time, block, deltat);
+    }
+  }
+  
+  if (debug_level > 1) {
+    if (comm->getRank() == 0) {
+      cout << "******** Finished AssemblyManager::assembleRes" << endl;
+    }
+  }
+}
+
+// ========================================================================================
 // Main assembly routine ... just the residual on a given block (b)
 // ========================================================================================
 
 template<class Node>
-void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute_jacobian, const bool & compute_sens,
-                                           const bool & compute_disc_sens,
-                                           vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                                           const ScalarT & current_time,
-                                           const bool & useadjoint, const bool & store_adjPrev,
-                                           const int & num_active_params,
-                                           const bool & is_final_time,
-                                           const int & block, const ScalarT & deltat) {
+void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage,
+                                        vector<vector_RCP> & sol, 
+                                        vector<vector_RCP> & sol_stage,
+                                        vector<vector_RCP> & sol_prev,
+                                        vector<vector_RCP> & phi,   
+                                        vector<vector_RCP> & phi_stage,
+                                        vector<vector_RCP> & phi_prev,  
+                                        vector_RCP & param_sol,
+                                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                                        const ScalarT & current_time,
+                                        const int & block, const ScalarT & deltat) {
   
   Teuchos::TimeMonitor localassemblytimer(*assembly_res_timer);
     
   auto res_view = res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
+  typedef typename Node::execution_space LA_exec;
+  
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
   // Set the seeding flag for AD objects
   int seedwhat = 0;
     
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv, sol_stage_kv, sol_prev_kv, phi_kv, phi_stage_kv, phi_prev_kv;
+  for (size_t s=0; s<sol.size(); ++s) {
+    auto vec_kv = sol[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+      Kokkos::deep_copy(vec_dev,vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+  bool use_only_sol = false;
+  if (sol_stage.size() == 0 && sol_prev.size() == 0) {
+    use_only_sol = true;
+  }
+  if (!use_only_sol) {
+    for (size_t s=0; s<sol_stage.size(); ++s) {
+      auto vec_kv = sol_stage[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+      if (data_avail) {
+        sol_stage_kv.push_back(vec_slice);
+      }
+      else {
+        auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+        Kokkos::deep_copy(vec_dev,vec_slice);
+        sol_stage_kv.push_back(vec_dev);
+      }
+    }
+    for (size_t s=0; s<sol_prev.size(); ++s) {
+      auto vec_kv = sol_prev[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+      if (data_avail) {
+        sol_prev_kv.push_back(vec_slice);
+      }
+      else {
+        auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+        Kokkos::deep_copy(vec_dev,vec_slice);
+        sol_prev_kv.push_back(vec_dev);
+      }
+    }  
+  }
+
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  
+  auto p_kv = param_sol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  
+  if (data_avail) {
+    params_kv.push_back(pslice);
+  }
+  else {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+    Kokkos::deep_copy(p_dev,pslice);
+    params_kv.push_back(p_dev);
+  }
+  
   //////////////////////////////////////////////////////////////////////////////////////
   // Set up the worksets and allocate the local residual and Jacobians
   //////////////////////////////////////////////////////////////////////////////////////
@@ -2894,6 +3073,19 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute
     
     wkset[block]->localEID = grp;
     
+    /////////////////////////////////////////////////////////////////////////////
+    // Perform the necessary local gathers (now stored in group meta data)
+    /////////////////////////////////////////////////////////////////////////////
+    
+    {
+      Teuchos::TimeMonitor localtimer(*gather_timer);
+    
+      this->performGather(set, block, grp, false, stage, use_only_sol,
+                          sol_kv, sol_stage_kv, sol_prev_kv, 
+                          phi_kv, phi_stage_kv, phi_prev_kv, 
+                          params_kv);
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     // Compute the local residual and Jacobian on this group
     /////////////////////////////////////////////////////////////////////////////
@@ -2938,7 +3130,6 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute
   // Boundary terms
   //////////////////////////////////////////////////////////////////////////////////////
   
-  
   if (assemble_boundary_terms[set][block]) {
     
     wkset[block]->isOnSide = true;
@@ -2951,6 +3142,12 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const bool & compute
         // Compute the local residual and Jacobian on this boundary group
         /////////////////////////////////////////////////////////////////////////////
         wkset[block]->resetResidual();
+
+        this->performBoundaryGather(set, block, grp, false, stage, use_only_sol,
+                                    sol_kv, sol_stage_kv, sol_prev_kv, 
+                                    phi_kv, phi_stage_kv, phi_prev_kv,
+                                    params_kv);
+
         this->updateWorksetBoundary<ScalarT>(block, grp, seedwhat);
         physics->boundaryResidual<ScalarT>(set,block);
         physics->fluxConditions<ScalarT>(set,block);
@@ -3277,6 +3474,133 @@ void AssemblyManager<Node>::performGather(const size_t & set, const vector_RCP &
 }
 
 // ========================================================================================
+// Gather local solutions on groups.
+// This intermediate function allows us to copy the data from LA_device to AssemblyDevice only once (if necessary)
+// ========================================================================================
+    
+template<class Node>
+template<class ViewType>
+void AssemblyManager<Node>::performGather(const size_t & current_set, const size_t & block, const size_t & grp, 
+                                          const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
+                                          vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
+                                          vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
+                                          vector<ViewType> & param_sol) {
+
+  if (use_only_sol) {
+    for (size_t set=0; set<sol.size(); ++set) {
+      this->performGather(set, block, grp, sol[set], 0, 0);
+    }
+    if (include_adjoint) {
+      for (size_t set=0; set<phi.size(); ++set) {
+        this->performGather(set, block, grp, phi[set], 2, 0);
+      }      
+    }
+  }
+  else {
+    // For most sets, we use the solution
+    for (size_t set=0; set<sol.size(); ++set) {
+      if (set != current_set) {
+        this->performGather(set, block, grp, sol[set], 0, 0);
+      }
+    }
+    // For the current set, we use the stage solution
+    this->performGather(current_set, block, grp, sol_stage[stage], 0, 0);
+
+    for (size_t stg=0; stg<sol_stage.size(); ++stg) {
+      if (stg < stage) { // no need to fill current stage?
+        this->performGather4D(current_set, block, grp, sol_stage[stg], 5, stg);
+      }
+    }
+    for (size_t stp=0; stp<sol_prev.size(); ++stp) {
+      this->performGather4D(current_set, block, grp, sol_prev[stp], 6, stp);
+    }
+    
+    if (include_adjoint) {
+      for (size_t set=0; set<phi.size(); ++set) {
+        if (set != current_set) {
+          this->performGather(set, block, grp, phi[set], 2, 0);
+        }
+      }  
+      this->performGather(current_set, block, grp, phi_stage[stage], 2, 0);    
+      for (size_t stg=0; stg<phi_stage.size(); ++stg) {
+        if (stg < stage) { // no need to fill current stage?
+          this->performGather4D(current_set, block, grp, phi_stage[stg], 7, stg);
+        }
+      }
+      for (size_t stp=0; stp<phi_prev.size(); ++stp) {
+        this->performGather4D(current_set, block, grp, phi_prev[stp], 8, stp);
+      }
+    }
+  }
+  if (params->num_discretized_params > 0) {
+    this->performGather(current_set, block, grp, param_sol[0], 4, 0);
+  }
+}
+
+// ========================================================================================
+// Gather local solutions on groups.
+// This intermediate function allows us to copy the data from LA_device to AssemblyDevice only once (if necessary)
+// ========================================================================================
+    
+template<class Node>
+template<class ViewType>
+void AssemblyManager<Node>::performBoundaryGather(const size_t & current_set, const size_t & block, const size_t & grp, 
+                                                  const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
+                                                  vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
+                                                  vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
+                                                  vector<ViewType> & param_sol) {
+  if (use_only_sol) {
+    for (size_t set=0; set<sol.size(); ++set) {
+      this->performBoundaryGather(set, block, grp, sol[set], 0, 0);
+    }
+    if (include_adjoint) {
+      for (size_t set=0; set<phi.size(); ++set) {
+        this->performBoundaryGather(set, block, grp, phi[set], 2, 0);
+      }      
+    }
+  }
+  else {
+    // For most sets, we use the solution
+    for (size_t set=0; set<sol.size(); ++set) {
+      if (set != current_set) {
+        this->performBoundaryGather(set, block, grp, sol[set], 0, 0);
+      }
+    }
+    // For the current set, we use the stage solution
+    this->performBoundaryGather(current_set, block, grp, sol_stage[stage], 0, 0);
+
+    for (size_t stg=0; stg<sol_stage.size(); ++stg) {
+      if (stg < stage) { // no need to fill current stage?
+        this->performBoundaryGather4D(current_set, block, grp, sol_stage[stg], 5, stg);
+      }
+    }
+    for (size_t stp=0; stp<sol_prev.size(); ++stp) {
+      this->performBoundaryGather4D(current_set, block, grp, sol_prev[stp], 6, stp);
+    }
+    
+    if (include_adjoint) {
+      for (size_t set=0; set<phi.size(); ++set) {
+        if (set != current_set) {
+          this->performBoundaryGather(set, block, grp, phi[set], 2, 0);
+        }
+      }  
+      this->performBoundaryGather(current_set, block, grp, phi_stage[stage], 2, 0);    
+      for (size_t stg=0; stg<phi_stage.size(); ++stg) {
+        if (stg < stage) { // no need to fill current stage?
+          this->performBoundaryGather4D(current_set, block, grp, phi_stage[stg], 7, stg);
+        }
+      }
+      for (size_t stp=0; stp<phi_prev.size(); ++stp) {
+        this->performBoundaryGather4D(current_set, block, grp, phi_prev[stp], 8, stp);
+      }
+    }
+  }
+  if (params->num_discretized_params > 0) {
+    this->performBoundaryGather(current_set, block, grp, param_sol[0], 4, 0);
+  }
+}
+
+// ========================================================================================
 //
 // ========================================================================================
 
@@ -3284,6 +3608,7 @@ template<class Node>
 template<class ViewType>
 void AssemblyManager<Node>::performGather(const size_t & set, ViewType vec_dev, const int & type) {
   
+  /*
   Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
   Kokkos::View<int**,AssemblyDevice> offsets;
@@ -3330,7 +3655,264 @@ void AssemblyManager<Node>::performGather(const size_t & set, ViewType vec_dev, 
       
     }
   }
+  */
 }
+
+
+// ========================================================================================
+//
+// ========================================================================================
+
+template<class Node>
+void AssemblyManager<Node>::performGather(const size_t & set, const size_t & block, const size_t & grp, 
+                                          vector_RCP & vec, const int & type, const size_t & local_entry) {
+
+  typedef typename Node::device_type LA_device;
+  typedef typename Node::execution_space LA_exec;
+  
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+  
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  auto vec_kv = vec->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+  if (data_avail) {
+    this->performGather(set, block, grp, vec_slice, type, local_entry);
+  }
+  else {
+    auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
+    Kokkos::deep_copy(vec_dev,vec_slice);
+    this->performGather(set, block, grp, vec_dev, type, local_entry);
+    
+  }
+  
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+
+template<class Node>
+template<class ViewType>
+void AssemblyManager<Node>::performGather(const size_t & set, const size_t & block, const size_t & grp, 
+                                          ViewType vec_dev, const int & type, const size_t & local_entry) {
+  
+  Kokkos::View<LO*,AssemblyDevice> numDOF;
+  Kokkos::View<ScalarT***,AssemblyDevice> data;
+  Kokkos::View<int**,AssemblyDevice> offsets;
+  LIDView LIDs;
+  
+  switch(type) {
+    case 0 :
+      LIDs = groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->sol[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 1 : // deprecated (u_dot)
+      break;
+    case 2 :
+      LIDs = groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->phi[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 3 : // deprecated (phi_dot)
+      break;
+    case 4:
+      LIDs = groups[block][grp]->paramLIDs;
+      numDOF = groupData[block]->num_param_dof;
+      data = groupData[block]->param;
+      offsets = wkset[block]->paramoffsets;
+      break;
+    default :
+      cout << "ERROR - NOTHING WAS GATHERED" << endl;
+  }
+  auto cvec = vec_dev;    
+  parallel_for("assembly gather",
+               RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
+    for (size_type var=0; var<offsets.extent(0); var++) {
+      for(int dof=0; dof<numDOF(var); dof++ ) {
+        data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
+      }
+    }
+  });
+  
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+
+template<class Node>
+template<class ViewType>
+void AssemblyManager<Node>::performGather4D(const size_t & set, const size_t & block, const size_t & grp, 
+                                            ViewType vec_dev, const int & type, const size_t & local_entry) {
+  
+  Kokkos::View<LO*,AssemblyDevice> numDOF;
+  Kokkos::View<ScalarT****,AssemblyDevice> data;
+  Kokkos::View<int**,AssemblyDevice> offsets;
+  LIDView LIDs;
+  
+  
+  switch(type) {
+    case 5: // sol_stage
+      LIDs = groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->sol_stage[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 6: // sol_prev
+      LIDs = groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->sol_prev[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 7: // phi_stage
+      LIDs = groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->phi_stage[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 8: // phi_prev
+      LIDs = groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->phi_prev[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    default :
+      cout << "ERROR - NOTHING WAS GATHERED" << endl;
+  }
+  
+  auto cvec = vec_dev;    
+  parallel_for("assembly gather",
+               RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
+    for (size_type var=0; var<offsets.extent(0); var++) {
+      for(int dof=0; dof<numDOF(var); dof++ ) {
+        data(elem,var,dof,local_entry) = cvec(LIDs(elem,offsets(var,dof)));
+      }
+    }
+  });
+  
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+
+template<class Node>
+template<class ViewType>
+void AssemblyManager<Node>::performBoundaryGather(const size_t & set, const size_t & block, const size_t & grp, 
+                                                  ViewType vec_dev, const int & type, const size_t & local_entry) {
+  
+  Kokkos::View<LO*,AssemblyDevice> numDOF;
+  Kokkos::View<ScalarT***,AssemblyDevice> data;
+  Kokkos::View<int**,AssemblyDevice> offsets;
+  LIDView LIDs;
+  
+  
+  switch(type) {
+    case 0 :
+      LIDs = boundary_groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->sol[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 1 : // deprecated (u_dot)
+      break;
+    case 2 :
+      LIDs = boundary_groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->phi[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 3 : // deprecated (phi_dot)
+      break;
+    case 4:
+      LIDs = boundary_groups[block][grp]->paramLIDs;
+      numDOF = groupData[block]->num_param_dof;
+      data = groupData[block]->param;
+      offsets = wkset[block]->paramoffsets;
+      break;
+    default :
+      cout << "ERROR - NOTHING WAS GATHERED" << endl;
+  }
+  
+  auto cvec = vec_dev;    
+  parallel_for("assembly gather",
+               RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
+    for (size_type var=0; var<offsets.extent(0); var++) {
+      for(int dof=0; dof<numDOF(var); dof++ ) {
+        data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
+      }
+    }
+  });
+  
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+
+template<class Node>
+template<class ViewType>
+void AssemblyManager<Node>::performBoundaryGather4D(const size_t & set, const size_t & block, const size_t & grp, 
+                                                    ViewType vec_dev, const int & type, const size_t & local_entry) {
+  
+  Kokkos::View<LO*,AssemblyDevice> numDOF;
+  Kokkos::View<ScalarT****,AssemblyDevice> data;
+  Kokkos::View<int**,AssemblyDevice> offsets;
+  LIDView LIDs;
+  
+  
+  switch(type) {
+    case 5: // sol_stage
+      LIDs = boundary_groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->sol_stage[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 6: // sol_prev
+      LIDs = boundary_groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->sol_prev[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 7: // phi_stage
+      LIDs = boundary_groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->phi_stage[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    case 8: // phi_prev
+      LIDs = boundary_groups[block][grp]->LIDs[set];
+      numDOF = groupData[block]->set_num_dof[set];
+      data = groupData[block]->phi_prev[set];
+      offsets = wkset[block]->set_offsets[set];
+      break;
+    default :
+      cout << "ERROR - NOTHING WAS GATHERED" << endl;
+  }
+  
+  auto cvec = vec_dev;    
+  parallel_for("assembly gather",
+               RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+               KOKKOS_LAMBDA (const int elem ) {
+    for (size_type var=0; var<offsets.extent(0); var++) {
+      for(int dof=0; dof<numDOF(var); dof++ ) {
+        data(elem,var,dof,local_entry) = cvec(LIDs(elem,offsets(var,dof)));
+      }
+    }
+  });
+  
+}
+
 
 // ========================================================================================
 //
@@ -3340,6 +3922,7 @@ template<class Node>
 template<class ViewType>
 void AssemblyManager<Node>::performBoundaryGather(const size_t & set, ViewType vec_dev, const int & type) {
   
+  /*
   for (size_t block=0; block<boundary_groups.size(); ++block) {
     
     Kokkos::View<LO*,AssemblyDevice> numDOF;
@@ -3389,6 +3972,7 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & set, ViewType v
       }
     }
   }
+  */
 }
 
 //==============================================================
@@ -4792,27 +5376,35 @@ void AssemblyManager<Node>::updateWorksetBoundary(Teuchos::RCP<Workset<EvalT> > 
   // Map the gathered solution to seeded version in workset
   if (groupData[block]->requires_transient && !override_transient) {
     for (size_t set=0; set<groupData[block]->num_sets; ++set) {
-      wset->computeSolnTransientSeeded(set, boundary_groups[block][grp]->sol[set], 
-                                        boundary_groups[block][grp]->sol_prev[set], 
-                                        boundary_groups[block][grp]->sol_stage[set], 
+      wset->computeSolnTransientSeeded(set, groupData[block]->sol[set], 
+                                        groupData[block]->sol_prev[set], 
+                                        groupData[block]->sol_stage[set], 
                                         seedwhat, seedindex);
     }
   }
   else { // steady-state
     for (size_t set=0; set<groupData[block]->num_sets; ++set) {
-      wset->computeSolnSteadySeeded(set, boundary_groups[block][grp]->sol[set], seedwhat);
+      if (boundary_groups[block][grp]->have_sols) {
+        wset->computeSolnSteadySeeded(set, boundary_groups[block][grp]->sol[set], seedwhat);
+      }
+      else {
+        wset->computeSolnSteadySeeded(set, groupData[block]->sol[set], seedwhat);
+      }
     }
   }
   if (wset->numParams > 0) {
-    wset->computeParamSteadySeeded(boundary_groups[block][grp]->param, seedwhat);
+    if (boundary_groups[block][grp]->have_sols) {
+      wset->computeParamSteadySeeded(boundary_groups[block][grp]->param, seedwhat);
+    }
+    else {
+      wset->computeParamSteadySeeded(groupData[block]->param, seedwhat);
+    }
   }
 
   // Aux solutions are still handled separately
   //this->computeSoln(seedwhat);
   if (wset->numAux > 0 && std::is_same<EvalT,AD>::value) {
-    
-    this->computeBoundaryAux(block, grp, seedwhat);
-
+       this->computeBoundaryAux(block, grp, seedwhat);
   }
 }
 
@@ -4894,6 +5486,7 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
     }
   }
 #endif
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -5671,17 +6264,33 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
   // Map the gathered solution to seeded version in workset
   if (groups[block][grp]->group_data->requires_transient && !override_transient) {
     for (size_t set=0; set<groups[block][grp]->group_data->num_sets; ++set) {
-      wset->computeSolnTransientSeeded(set, groups[block][grp]->sol[set], groups[block][grp]->sol_prev[set], 
-                                               groups[block][grp]->sol_stage[set], seedwhat, seedindex);
+      if (groups[block][grp]->have_sols) {
+        wset->computeSolnTransientSeeded(set, groups[block][grp]->sol[set], groups[block][grp]->sol_prev[set], 
+                                         groups[block][grp]->sol_stage[set], seedwhat, seedindex);
+      }
+      else {
+        wset->computeSolnTransientSeeded(set, groupData[block]->sol[set], groupData[block]->sol_prev[set], 
+                                         groupData[block]->sol_stage[set], seedwhat, seedindex);
+      }
     }
   }
   else { // steady-state
     for (size_t set=0; set<groups[block][grp]->group_data->num_sets; ++set) {
-      wset->computeSolnSteadySeeded(set, groups[block][grp]->sol[set], seedwhat);
+      if (groups[block][grp]->have_sols) {
+        wset->computeSolnSteadySeeded(set, groups[block][grp]->sol[set], seedwhat);
+      }
+      else {
+        wset->computeSolnSteadySeeded(set, groupData[block]->sol[set], seedwhat);
+      }
     }
   }
   if (wset->numParams > 0) {
-    wset->computeParamSteadySeeded(groups[block][grp]->param, seedwhat);
+    if (groups[block][grp]->have_sols) {
+      wset->computeParamSteadySeeded(groups[block][grp]->param, seedwhat);
+    }
+    else {
+      wset->computeParamSteadySeeded(groupData[block]->param, seedwhat);
+    }
   }
   
 }
@@ -5695,7 +6304,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
   // THIS FUNCTION ASSUMES THAT THE WORKSET BASIS HAS BEEN UPDATED
   
   //Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
-  
+  /*
   // Compute the average weight, i.e., the size of each elem
   // May consider storing this
   auto cwts = wkset[block]->wts;
@@ -5793,7 +6402,8 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
       }
     }
   }
-  
+  */
+
   /*
   if (param_avg.extent(1) > 0) {
     View_AD4 psol = wkset[block]->local_param;
@@ -5826,7 +6436,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
 template<class Node>
 void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size_t & grp,
                                                   const string & var, View_Sc2 csol) {
-  
+  /*
   // Figure out which basis we need
   int index;
   wkset[block]->isVar(var,index);
@@ -5874,7 +6484,7 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
       csol(elem,dim) = avgval/avgwts(elem);
     }
   });
-  
+  */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -5885,7 +6495,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
                                                     const string & var, View_Sc2 sol) {
   
   //Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
-  
+  /*
   // Figure out which basis we need
   int index;
   wkset[block]->isParameter(var,index);
@@ -5932,7 +6542,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
       sol(elem,dim) = avgval/avgwts(elem);
     }
   });
-  
+  */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -6088,12 +6698,22 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
     //Teuchos::TimeMonitor localtimer(*volumeResidualTimer);
     if (groupData[block]->multiscale) {
       this->updateWorkset<AD>(block, grp, seedwhat, seedindex);
-      groups[block][grp]->subgridModels[groups[block][grp]->subgrid_model_index]->subgridSolver(groups[block][grp]->sol[0], groups[block][grp]->sol_prev[0], 
-                                            groups[block][grp]->phi[0], wkset_AD[block]->time, isTransient, isAdjoint,
-                                            compute_jacobian, compute_sens, num_active_params,
-                                            compute_disc_sens, compute_aux_sens,
-                                            *wkset_AD[block], groups[block][grp]->subgrid_usernum, 0,
-                                            groups[block][grp]->subgradient, store_adjPrev);
+      if (groups[block][grp]->have_sols) {
+        groups[block][grp]->subgridModels[groups[block][grp]->subgrid_model_index]->subgridSolver(groups[block][grp]->sol[0], groups[block][grp]->sol_prev[0], 
+                                              groups[block][grp]->phi[0], wkset_AD[block]->time, isTransient, isAdjoint,
+                                              compute_jacobian, compute_sens, num_active_params,
+                                              compute_disc_sens, compute_aux_sens,
+                                              *wkset_AD[block], groups[block][grp]->subgrid_usernum, 0,
+                                              groups[block][grp]->subgradient, store_adjPrev);
+      }
+      else {
+        groups[block][grp]->subgridModels[groups[block][grp]->subgrid_model_index]->subgridSolver(groups[block][grp]->group_data->sol[0], groups[block][grp]->group_data->sol_prev[0], 
+                                              groups[block][grp]->group_data->phi[0], wkset_AD[block]->time, isTransient, isAdjoint,
+                                              compute_jacobian, compute_sens, num_active_params,
+                                              compute_disc_sens, compute_aux_sens,
+                                              *wkset_AD[block], groups[block][grp]->subgrid_usernum, 0,
+                                              groups[block][grp]->subgradient, store_adjPrev);
+      }
       fixJacDiag = true;
     }
     else {
@@ -6301,7 +6921,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
   auto numDOF = groupData[block]->num_dof;
   
   size_t set = wset->current_set;
-  auto cphi = groups[block][grp]->phi[set];
+  auto cphi = groupData[block]->phi[set];
   
   if (compute_jacobian) {
     parallel_for("Group adjust adjoint jac",
@@ -6368,7 +6988,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
         
         // Sum new contributions into vectors
         int seedwhat = 2; // 2 for J wrt previous step solutions
-        for (size_type step=0; step<groups[block][grp]->sol_prev[set].extent(3); step++) {
+        for (size_type step=0; step<groupData[block]->sol_prev[set].extent(3); step++) {
           this->updateWorkset<EvalT>(block, grp, seedwhat,step);
           physics->volumeResidual<EvalT>(set, groupData[block]->my_block);
           Kokkos::View<ScalarT***,AssemblyDevice> Jdot("temporary fix for transient adjoint",
@@ -7058,7 +7678,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> AssemblyManager<Node>::getSolutionAtNode
   auto cbasis = groups[block][grp]->basis_nodes[bnum];
   Kokkos::View<ScalarT***,AssemblyDevice> nodesol("solution at nodes",
                                                   cbasis.extent(0), cbasis.extent(2), groupData[block]->dimension);
-  auto uvals = subview(groups[block][grp]->sol[set], ALL(), var, ALL());
+  auto uvals = subview(groupData[block]->sol[set], ALL(), var, ALL());
   parallel_for("Group node sol",
                RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -7779,3 +8399,9 @@ template class MrHyDE::AssemblyManager<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
 template class MrHyDE::AssemblyManager<SubgridSolverNode>;
 #endif
+
+template void AssemblyManager<SolverNode>::performGather(const size_t & set, const size_t & block, const size_t & grp, Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, 
+                                                         const int & type, const size_t & local_entry);
+
+template void AssemblyManager<SolverNode>::performBoundaryGather(const size_t & set, const size_t & block, const size_t & grp, Kokkos::View<ScalarT*,AssemblyDevice> vec_dev, 
+                                                                 const int & type, const size_t & local_entry);

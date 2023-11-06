@@ -338,7 +338,7 @@ void SubGridDtN2::setUpSubgridModels() {
             //boundary_groups[mindex][grp]->wkset = wkset[0];
             boundary_groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
                                                   sub_solver->solver->maxnumsteps,
-                                                  sub_solver->solver->maxnumstages);
+                                                  sub_solver->solver->maxnumstages, true);
           }
         }
       }
@@ -354,6 +354,15 @@ void SubGridDtN2::setUpSubgridModels() {
     
   }
   
+  groups[0][0]->setUseBasis(sub_solver->solver->useBasis[0],
+                            sub_solver->solver->maxnumsteps,
+                            sub_solver->solver->maxnumstages, true);
+  for (size_t grp=0; grp<boundary_groups[0].size(); ++grp) {
+    boundary_groups[0][grp]->setUseBasis(sub_solver->solver->useBasis[0],
+                                         sub_solver->solver->maxnumsteps,
+                                         sub_solver->solver->maxnumstages, true);
+  }
+
   // Update the assembly manager with the revised boundary groups
   sub_assembler->groups = groups;
   sub_assembler->boundary_groups = boundary_groups;
@@ -520,7 +529,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
     newbgroups[s]->computeBasis(true);
     newbgroups[s]->addAuxVars(macro_varlist);
     newbgroups[s]->group_data->num_aux_dof = macro_numDOF;
-    newbgroups[s]->setAuxUseBasis(macro_usebasis);
+    newbgroups[s]->setAuxUseBasis(macro_usebasis, true);
     newbgroups[s]->auxoffsets = macro_offsets;
     
   }
@@ -576,10 +585,12 @@ void SubGridDtN2::createNewGroups(SubGridTools2 & sgt, size_t & mindex) {
   newgroups[0]->createHostLIDs();
   newgroups[0]->computeBasis(true);
   
+  //sub_assembler->groupData[0]->setSolutionFields(sub_solver->solver->maxnumsteps,
+  //                                               sub_solver->solver->maxnumstages);
   //newgroups[0]->setWorkset(sub_assembler->wkset_AD[0]);
   newgroups[0]->setUseBasis(sub_solver->solver->useBasis[0],
-                                sub_solver->solver->maxnumsteps,
-                                sub_solver->solver->maxnumstages);
+                            sub_solver->solver->maxnumsteps,
+                            sub_solver->solver->maxnumstages, true);
   newgroups[0]->setUpAdjointPrev(sub_solver->solver->maxnumsteps,
                                      sub_solver->solver->maxnumstages);
   newgroups[0]->setUpSubGradient(sub_solver->solver->params->num_active_params);
@@ -864,9 +875,7 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
   }
   
   // Extract the previous solution as the initial guess/condition for subgrid problems
-  Teuchos::RCP<SG_MultiVector> prev_fwdsoln, prev_adjsoln;
-  
-  Teuchos::RCP<SG_MultiVector> curr_adjsoln;
+  Teuchos::RCP<SG_MultiVector> curr_adjsoln, prev_fwdsoln, prev_adjsoln;
   
   // Solve the local subgrid problem and fill in the coarse macrowkset->res;
   sub_solver->solve(coarse_u, coarse_uprev, coarse_phi,
@@ -981,7 +990,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridDtN2::computeError(const ScalarT & time
       compute = true;
     }
     if (compute) {
-      sub_postproc->computeError(time);
+      sub_postproc->computeError(curr_soln, time);
       for (size_t block=0; block<sub_postproc->errors[0].size(); ++block) {
         Kokkos::View<ScalarT*,HostDevice> cerr = sub_postproc->errors[0][block];
         for (size_t etype=0; etype<cerr.extent(0); etype++) {
@@ -990,6 +999,7 @@ Kokkos::View<ScalarT*,HostDevice> SubGridDtN2::computeError(const ScalarT & time
       }
       sub_postproc->errors.clear();
     }
+    
   }
   return errors;
 }
@@ -1006,14 +1016,13 @@ Kokkos::View<ScalarT**,HostDevice> SubGridDtN2::computeError(vector<std::pair<st
     
     errors = Kokkos::View<ScalarT**,HostDevice>("error", times.size(), sub_postproc->error_list[0].size());
     
-    
     for (size_t t=0; t<times.size(); t++) {
       bool compute = false;
       if (subgrid_static) {
         compute = true;
       }
       if (compute) {
-        sub_postproc->computeError(times[t]);
+        sub_postproc->computeError(curr_soln, times[t]);
         for (size_t block=0; block<sub_postproc->errors[0].size(); ++block) {
           Kokkos::View<ScalarT*,HostDevice> cerr = sub_postproc->errors[0][block];
           for (size_t etype=0; etype<cerr.extent(0); etype++) {
@@ -1023,6 +1032,7 @@ Kokkos::View<ScalarT**,HostDevice> SubGridDtN2::computeError(vector<std::pair<st
         sub_postproc->errors.clear();
       }
     }
+    
   }
   
   return errors;

@@ -175,6 +175,7 @@ void Group::computeBasis(const bool & keepnodes) {
     }    
     if (!keepnodes) {
       nodes = DRV("empty nodes",1);
+      orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",1);
     }
   }
   else if (group_data->use_basis_database) {
@@ -187,6 +188,7 @@ void Group::computeBasis(const bool & keepnodes) {
     }
     if (!keepnodes) {
       nodes = DRV("empty nodes",1);
+      orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",1);
     }
   }
   
@@ -274,97 +276,107 @@ void Group::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const 
 // Define which basis each variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void Group::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
+void Group::setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, 
+                        const vector<int> & maxnumstages, const bool & allocate_storage) {
   vector<vector<int> > usebasis = usebasis_;
+
+  if (allocate_storage) {
+    have_sols = true;
+    // Set up the containers for usual solution storage
+    sol = vector<View_Sc3>(group_data->num_sets);
+    phi = vector<View_Sc3>(group_data->num_sets);
   
-  // Set up the containers for usual solution storage
-  sol = vector<View_Sc3>(group_data->num_sets);
-  phi = vector<View_Sc3>(group_data->num_sets);
+    sol_prev = vector<View_Sc4>(group_data->num_sets);
+    sol_stage = vector<View_Sc4>(group_data->num_sets);
+    phi_prev = vector<View_Sc4>(group_data->num_sets);
+    phi_stage = vector<View_Sc4>(group_data->num_sets);
   
-  sol_prev = vector<View_Sc4>(group_data->num_sets);
-  sol_stage = vector<View_Sc4>(group_data->num_sets);
-  phi_prev = vector<View_Sc4>(group_data->num_sets);
-  phi_stage = vector<View_Sc4>(group_data->num_sets);
+    sol_avg = vector<View_Sc3>(group_data->num_sets);
   
-  sol_avg = vector<View_Sc3>(group_data->num_sets);
-  
-  for (size_t set=0; set<group_data->num_sets; ++set) {
-    int maxnbasis = 0;
-    for (size_type i=0; i<group_data->set_num_dof_host[set].extent(0); i++) {
-      if (group_data->set_num_dof_host[set](i) > maxnbasis) {
-        maxnbasis = group_data->set_num_dof_host[set](i);
+    for (size_t set=0; set<group_data->num_sets; ++set) {
+      int maxnbasis = 0;
+      for (size_type i=0; i<group_data->set_num_dof_host[set].extent(0); i++) {
+        if (group_data->set_num_dof_host[set](i) > maxnbasis) {
+          maxnbasis = group_data->set_num_dof_host[set](i);
+        }
       }
-    }
     
-    // Storage for gathered forward (state) solutions
-    View_Sc3 newu("u",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
-    sol[set] = newu;
+      // Storage for gathered forward (state) solutions
+      View_Sc3 newu("u",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
+      sol[set] = newu;
     
-    // Storage for adjoint solutions
-    View_Sc3 newphi;
-    if (group_data->requires_adjoint) {
-      newphi = View_Sc3("phi",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
-    }
-    else {
-      newphi = View_Sc3("phi",1,1,1); // just a placeholder
-    }
-    phi[set] = newphi;
-    
-    // Storage for transient data for forward and adjoint solutions
-    View_Sc4 newuprev, newustage, newphiprev, newphistage;
-    
-    if (group_data->requires_transient) {
-      newuprev = View_Sc4("u previous",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumsteps[set]);
-      newustage = View_Sc4("u stages",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumstages[set]-1);
+      // Storage for adjoint solutions
+      View_Sc3 newphi;
       if (group_data->requires_adjoint) {
-        newphiprev = View_Sc4("phi previous",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumsteps[set]);
-        newphistage = View_Sc4("phi stages",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumstages[set]-1);
+        newphi = View_Sc3("phi",numElem,group_data->set_num_dof[set].extent(0),maxnbasis);
       }
       else {
+        newphi = View_Sc3("phi",1,1,1); // just a placeholder
+      }
+      phi[set] = newphi;
+    
+      // Storage for transient data for forward and adjoint solutions
+      View_Sc4 newuprev, newustage, newphiprev, newphistage;
+    
+      if (group_data->requires_transient) {
+        newuprev = View_Sc4("u previous",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumsteps[set]);
+        newustage = View_Sc4("u stages",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumstages[set]-1);
+        if (group_data->requires_adjoint) {
+          newphiprev = View_Sc4("phi previous",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumsteps[set]);
+          newphistage = View_Sc4("phi stages",numElem,group_data->set_num_dof[set].extent(0),maxnbasis,maxnumstages[set]-1);
+        }
+        else {
+          newphiprev = View_Sc4("phi previous",1,1,1,1);
+          newphistage = View_Sc4("phi stages",1,1,1,1);
+        }
+      }
+      else {
+        newuprev = View_Sc4("u previous",1,1,1,1);
+        newustage = View_Sc4("u stages",1,1,1,1);
         newphiprev = View_Sc4("phi previous",1,1,1,1);
         newphistage = View_Sc4("phi stages",1,1,1,1);
       }
-    }
-    else {
-      newuprev = View_Sc4("u previous",1,1,1,1);
-      newustage = View_Sc4("u stages",1,1,1,1);
-      newphiprev = View_Sc4("phi previous",1,1,1,1);
-      newphistage = View_Sc4("phi stages",1,1,1,1);
-    }
-    sol_prev[set] = newuprev;
-    sol_stage[set] = newustage;
-    phi_prev[set] = newphiprev;
-    phi_stage[set] = newphistage;
+      sol_prev[set] = newuprev;
+      sol_stage[set] = newustage;
+      phi_prev[set] = newphiprev;
+      phi_stage[set] = newphistage;
     
-    // Storage for average solutions
-    View_Sc3 newuavg;
-    if (group_data->compute_sol_avg) {
-      newuavg = View_Sc3("u spatial average",numElem,group_data->set_num_dof[set].extent(0),group_data->dimension);
+      // Storage for average solutions
+      View_Sc3 newuavg;
+      if (group_data->compute_sol_avg) {
+        newuavg = View_Sc3("u spatial average",numElem,group_data->set_num_dof[set].extent(0),group_data->dimension);
+      }
+      else {
+        newuavg = View_Sc3("u spatial average",1,1,1);
+      }
+      sol_avg[set] = newuavg;
     }
-    else {
-      newuavg = View_Sc3("u spatial average",1,1,1);
-    }
-    sol_avg[set] = newuavg;
   }
+  else {
+    have_sols = false;
+  }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Define which basis each discretized parameter will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void Group::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_) {
+void Group::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_,
+                             const bool & allocate_storage) {
   vector<int> paramusebasis = pusebasis_;
-  
-  int maxnbasis = 0;
-  for (size_type i=0; i<group_data->num_param_dof.extent(0); i++) {
-    if (group_data->num_param_dof(i) > maxnbasis) {
-      maxnbasis = group_data->num_param_dof(i);
+  if (allocate_storage) {
+    int maxnbasis = 0;
+    for (size_type i=0; i<group_data->num_param_dof.extent(0); i++) {
+      if (group_data->num_param_dof(i) > maxnbasis) {
+        maxnbasis = group_data->num_param_dof(i);
+      }
     }
-  }
-  param = View_Sc3("param",numElem,group_data->num_param_dof.extent(0),maxnbasis);
+    param = View_Sc3("param",numElem,group_data->num_param_dof.extent(0),maxnbasis);
   
-  if (group_data->compute_sol_avg) {
-    param_avg = View_Sc3("param",numElem,group_data->num_param_dof.extent(0), group_data->dimension);
+    if (group_data->compute_sol_avg) {
+      param_avg = View_Sc3("param",numElem,group_data->num_param_dof.extent(0), group_data->dimension);
+    }
   }
 }
 
@@ -372,16 +384,18 @@ void Group::setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbas
 // Define which basis each aux variable will use
 ///////////////////////////////////////////////////////////////////////////////////////
 
-void Group::setAuxUseBasis(vector<int> & ausebasis_) {
+void Group::setAuxUseBasis(vector<int> & ausebasis_,
+                           const bool & allocate_storage) {
   auxusebasis = ausebasis_;
-  int maxnbasis = 0;
-  for (size_type i=0; i<group_data->num_aux_dof.extent(0); i++) {
-    if (group_data->num_aux_dof(i) > maxnbasis) {
-      maxnbasis = group_data->num_aux_dof(i);
+  if (allocate_storage) {
+    int maxnbasis = 0;
+    for (size_type i=0; i<group_data->num_aux_dof.extent(0); i++) {
+      if (group_data->num_aux_dof(i) > maxnbasis) {
+        maxnbasis = group_data->num_aux_dof(i);
+      }
     }
+    aux = View_Sc3("aux",numElem,group_data->num_aux_dof.extent(0),maxnbasis);
   }
-  aux = View_Sc3("aux",numElem,group_data->num_aux_dof.extent(0),maxnbasis);
-  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -390,7 +404,7 @@ void Group::setAuxUseBasis(vector<int> & ausebasis_) {
 
 void Group::resetPrevSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  if (group_data->requires_transient && sol.size() > set && sol_prev.size() > set) {
     auto csol = sol[set];
     auto csol_prev = sol_prev[set];
     
@@ -431,7 +445,7 @@ void Group::resetPrevSoln(const size_t & set) {
 
 void Group::revertSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  if (group_data->requires_transient && sol.size() > set && sol_prev.size() > set) {
     auto csol = sol[set];
     auto csol_prev = sol_prev[set];
     
@@ -456,7 +470,8 @@ void Group::revertSoln(const size_t & set) {
 
 void Group::resetStageSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  
+  if (group_data->requires_transient && sol.size() > set && sol_stage.size() > set) {
     auto csol = sol[set];
     auto csol_stage = sol_stage[set];
     
@@ -475,6 +490,7 @@ void Group::resetStageSoln(const size_t & set) {
       });
     }
   }
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -483,7 +499,7 @@ void Group::resetStageSoln(const size_t & set) {
 
 void Group::updateStageSoln(const size_t & set) {
   
-  if (group_data->requires_transient) {
+  if (group_data->requires_transient && sol.size() > set && sol_stage.size() > set) {
     auto csol = sol[set];
     auto csol_stage = sol_stage[set];
     

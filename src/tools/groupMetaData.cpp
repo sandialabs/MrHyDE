@@ -87,7 +87,7 @@ cell_topo(cellTopo_) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void GroupMetaData::updatePhysicsSet(const size_t & set) {
-  if (num_sets> 1) {
+  if (num_sets > 1) {
     num_dof = set_num_dof[set];
     num_dof_host = set_num_dof_host[set];
   }
@@ -125,4 +125,99 @@ size_t GroupMetaData::getDatabaseStorage() {
     mystorage += scalarcost*database_face_basis_grad[k].size();
   }
   return mystorage;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Allocate solution storage fields
+///////////////////////////////////////////////////////////////////////////////////////
+
+void GroupMetaData::setSolutionFields(vector<int> & maxnumsteps, vector<int> & maxnumstages) {
+    
+  // Set up the containers for usual solution storage
+  sol = vector<View_Sc3>(num_sets);
+  sol_prev = vector<View_Sc4>(num_sets);
+  sol_stage = vector<View_Sc4>(num_sets);
+  
+  // Adjoint solutions
+  phi = vector<View_Sc3>(num_sets);
+  phi_prev = vector<View_Sc4>(num_sets);
+  phi_stage = vector<View_Sc4>(num_sets);
+  
+  //sol_avg = vector<View_Sc3>(num_sets);
+  
+  for (size_t set=0; set<num_sets; ++set) {
+    int maxnbasis = 0;
+    for (size_type i=0; i<set_num_dof_host[set].extent(0); i++) {
+      if (set_num_dof_host[set](i) > maxnbasis) {
+        maxnbasis = set_num_dof_host[set](i);
+      }
+    }
+    
+    // Storage for gathered forward (state) solutions
+    View_Sc3 newu("u",num_elem,set_num_dof[set].extent(0),maxnbasis);
+    sol[set] = newu;
+    
+    // Storage for adjoint solutions
+    View_Sc3 newphi;
+    if (requires_adjoint) {
+      newphi = View_Sc3("phi",num_elem,set_num_dof[set].extent(0),maxnbasis);
+    }
+    else {
+      newphi = View_Sc3("phi",1,1,1); // just a placeholder
+    }
+    phi[set] = newphi;
+    
+    // Storage for transient data for forward and adjoint solutions
+    View_Sc4 newuprev, newustage, newphiprev, newphistage;
+    
+    if (requires_transient) {
+      newuprev = View_Sc4("u previous", num_elem, set_num_dof[set].extent(0), maxnbasis, maxnumsteps[set]);
+      newustage = View_Sc4("u stages", num_elem, set_num_dof[set].extent(0), maxnbasis, maxnumstages[set]-1);
+      if (requires_adjoint) {
+        newphiprev = View_Sc4("phi previous", num_elem, set_num_dof[set].extent(0), maxnbasis, maxnumsteps[set]);
+        newphistage = View_Sc4("phi stages", num_elem, set_num_dof[set].extent(0), maxnbasis, maxnumstages[set]-1);
+      }
+      else {
+        newphiprev = View_Sc4("phi previous",1,1,1,1);
+        newphistage = View_Sc4("phi stages",1,1,1,1);
+      }
+    }
+    else {
+      newuprev = View_Sc4("u previous",1,1,1,1);
+      newustage = View_Sc4("u stages",1,1,1,1);
+      newphiprev = View_Sc4("phi previous",1,1,1,1);
+      newphistage = View_Sc4("phi stages",1,1,1,1);
+    }
+    sol_prev[set] = newuprev;
+    sol_stage[set] = newustage;
+    phi_prev[set] = newphiprev;
+    phi_stage[set] = newphistage;
+    
+    // Storage for average solutions
+    //View_Sc3 newuavg;
+    //if (group_data->compute_sol_avg) {
+    //  newuavg = View_Sc3("u spatial average",numElem,group_data->set_num_dof[set].extent(0),group_data->dimension);
+    //}
+    //else {
+    //  newuavg = View_Sc3("u spatial average",1,1,1);
+    //}
+    //sol_avg[set] = newuavg;
+  }
+  
+  int maxnbasis = 0;
+  for (size_type i=0; i<num_param_dof.extent(0); i++) {
+    if (num_param_dof(i) > maxnbasis) {
+      maxnbasis = num_param_dof(i);
+    }
+  }
+  param = View_Sc3("param", num_elem, num_param_dof.extent(0), maxnbasis);
+
+  maxnbasis = 0;
+  for (size_type i=0; i<num_aux_dof.extent(0); i++) {
+    if (num_aux_dof(i) > maxnbasis) {
+      maxnbasis = num_aux_dof(i);
+    }
+  }
+  aux = View_Sc3("aux", num_elem, num_aux_dof.extent(0), maxnbasis);
+  
 }

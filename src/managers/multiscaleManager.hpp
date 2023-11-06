@@ -85,7 +85,9 @@ namespace MrHyDE {
     
     ScalarT initialize(vector<vector<int> > & sgmodels);
     
-    void evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & wkset, Teuchos::RCP<Group> & group,
+    void evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & wkset, 
+                                    Teuchos::RCP<Group> & group,
+                                    Teuchos::RCP<GroupMetaData> & groupData,
                                     const int & set, 
                                     const bool & isTransient, const bool & isAdjoint,
                                     const bool & compute_jacobian, const bool & compute_sens,

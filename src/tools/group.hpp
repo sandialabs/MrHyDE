@@ -112,19 +112,20 @@ namespace MrHyDE {
      */ 
     
     void setUseBasis(vector<vector<int> > & usebasis_, const vector<int> & maxnumsteps, 
-                     const vector<int> & maxnumstages);
+                     const vector<int> & maxnumstages, const bool & allocate_storage = false);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each discretized parameter will use
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_);
+    void setParamUseBasis(vector<int> & pusebasis_, vector<int> & paramnumbasis_,
+                          const bool & allocate_storage = false);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Define which basis each aux variable will use
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void setAuxUseBasis(vector<int> & ausebasis_);
+    void setAuxUseBasis(vector<int> & ausebasis_, const bool & allocate_storage = false);
     
     ///////////////////////////////////////////////////////////////////////////////////////
     // Reset the data stored in the previous step/stage solutions
@@ -261,7 +262,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Storage information
-    bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false;
+    bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false, have_sols = false;
 
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;

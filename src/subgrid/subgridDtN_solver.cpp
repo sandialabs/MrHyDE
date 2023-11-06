@@ -316,7 +316,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
         this->nonlinearSolver(stage_sol, curr_adj, disc_params, currlambda,
                               sgtime, isTransient, isAdjoint, num_active_params, 
                               alpha, macrogrp, false);
-        
+
         this->forwardSensitivityPropagation(d_sol, compute_sens, stage_sol,
                                             curr_adj, disc_params, currlambda,
                                             sgtime, isTransient, isAdjoint, num_active_params, 
@@ -705,7 +705,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
       use_host_LIDs = true;
     }
   }
-
+  
   auto localMatrix = Jacobian->getLocalMatrixDevice();
   auto res_view = residual->template getLocalView<SubgridSolverNode::device_type>(Tpetra::Access::ReadWrite);
   
@@ -757,6 +757,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
         //////////////////////////////////////////////////////////////
         
         // Volumetric contribution
+        // requires a gather
         assembler->updateWorksetAD(macrogrp, e, seedwhat, seedindex);
         assembler->physics->volumeResidual<AD>(0,0);
         
@@ -817,7 +818,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
         if (assembler->boundary_groups[macrogrp][e]->numElem > 0) {
           
           //int seedwhat = 1;
-          
+          assembler->groupData[macrogrp]->aux = lambda;
           assembler->updateWorksetBoundaryAD(macrogrp, e, seedwhat, seedindex);
           assembler->physics->boundaryResidual<AD>(0,0);
           
@@ -955,7 +956,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sol,
     else {
       J = J_over;
     }
-    //KokkosTools::print(J);
+    //(J);
     
     
     if (solver->Comm->getSize() > 1) {
