@@ -2279,7 +2279,7 @@ void DiscretizationInterface::buildDOFManagers() {
       dof_owned_and_shared.push_back(ownedas_kv);
     }
 
-    
+    /*
     int maxE = 0; 
     for (size_t block=0; block<block_names.size(); ++block) {
       for (size_t elem=0; elem<my_elements[block].size(); ++elem) {
@@ -2301,7 +2301,7 @@ void DiscretizationInterface::buildDOFManagers() {
       
     }
     dof_gids.push_back(set_GIDs);
-    
+    */
    
     vector<vector<string> > varlist = physics->var_list[set];
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
@@ -2834,10 +2834,9 @@ DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RC
 vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & block, const size_t & elem) {
   vector<GO> gids;
   for (size_t k=0; k<dof_lids[set].extent(1); ++k) {
-    //auto telem = my_elements[block][elem];
-    //GO gid = dof_owned_and_shared[set](dof_lids[set](elem,k));
-    //gids.push_back(gid);
-    gids.push_back(dof_gids[set](elem,k));
+    GO gid = dof_owned_and_shared[set](dof_lids[set](elem,k));
+    gids.push_back(gid);
+    //gids.push_back(dof_gids[set](elem,k));
   }
   return gids;//dof_gids[set][elem];
 }

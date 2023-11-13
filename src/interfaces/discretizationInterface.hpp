@@ -308,7 +308,7 @@ namespace MrHyDE {
     DRV getReferenceNodes(topo_RCP & cellTopo);
     
     DRV getMyNodes(const size_t & block, Kokkos::View<LO*,AssemblyDevice> elemIDs);
-    
+
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -379,7 +379,7 @@ namespace MrHyDE {
     std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids;
     std::vector<Kokkos::View<GO*,HostDevice> > dof_owned, dof_owned_and_shared;
     //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][gid] may consider a different storage strategy
-    std::vector<Kokkos::View<GO**,HostDevice> > dof_gids;
+    //std::vector<Kokkos::View<GO**,HostDevice> > dof_gids;
     Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations;
 
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;

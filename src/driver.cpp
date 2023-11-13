@@ -130,17 +130,12 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the solver and finalize some objects
     ////////////////////////////////////////////////////////////////////////////////
-    
-    //cout << "before solver" << endl;
-    //sleep(10);
       
     Teuchos::RCP<SolverManager<SolverNode> > solve = Teuchos::rcp( new SolverManager<SolverNode>(Comm, settings, mesh,
                                                                                                  disc, physics, assembler, params) );
     if (settings->get<bool>("enable memory purge",false)) {
       disc->purgeLIDs();
       disc->purgeMemory();
-      //cout << "after disc purge" << endl;
-      //sleep(10);
     }
 
     solve->multiscale_manager = multiscale_manager;
@@ -149,16 +144,14 @@ int main(int argc,char * argv[]) {
     postproc->linalg = solve->linalg;
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Purge Panzer memory before solving
+    // Allocate most of the per-element memory usage
     ////////////////////////////////////////////////////////////////////////////////
-    
-    //cout << "before allocate grps" << endl;
-    //sleep(10);
       
     assembler->allocateGroupStorage();
 
-      //cout << "before purge" << endl;
-      //sleep(10);
+    ////////////////////////////////////////////////////////////////////////////////
+    // Purge Panzer memory before solving
+    ////////////////////////////////////////////////////////////////////////////////
       
     if (settings->get<bool>("enable memory purge",false)) {
       if (debug_level > 0 && Comm->getRank() == 0) {
@@ -170,16 +163,11 @@ int main(int argc,char * argv[]) {
         disc->mesh = Teuchos::null;
         params->mesh = Teuchos::null;
       }
-      //cout << "after mesh purge" << endl;
-      //sleep(10);
       disc->purgeOrientations();
       mesh->purgeMemory();
       assembler->purgeMemory();
       params->purgeMemory();
       physics->purgeMemory();
-      //cout << "after physics purge" << endl;
-      //sleep(10);
-      
       if (debug_level > 0 && Comm->getRank() == 0) {
         std::cout << "******** Finished driver memory purge ..." << std::endl;
       } 
