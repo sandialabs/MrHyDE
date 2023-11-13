@@ -290,7 +290,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
     
     // Since normals get recomputed often, this needs to be reset
     auto wts = wkset->wts_side;
-    auto h = wkset->h;
+    auto h = wkset->getSideElementSize();
     auto res = wkset->res;
     
     Teuchos::TimeMonitor localtime(*boundaryResidualFill);
@@ -696,7 +696,7 @@ void linearelasticity<EvalT>::computeFlux() {
     mu_side = functionManager->evaluate("mu","side ip");
   }
   
-  auto h = wkset->h;
+  auto h = wkset->getSideElementSize();
   
   // Just need the basis for the number of active elements (any side basis will do)
   auto basis = wkset->basis_side[wkset->usebasis[dx_num]];

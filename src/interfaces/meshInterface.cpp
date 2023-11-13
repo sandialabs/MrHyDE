@@ -875,6 +875,12 @@ DRV MeshInterface::getElemNodes(const int & block, const int & elemID) {
   return cnodes;
 }
 
+DRV MeshInterface::getMyNodes(const size_t & block, vector<size_t> & elemIDs) {
+  
+  DRV currnodes("current nodes", elemIDs.size(), num_nodes_per_elem, dimension);
+  this->getSTKElementVertices(elemIDs, block_names[block], currnodes);
+  return currnodes;
+}
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 

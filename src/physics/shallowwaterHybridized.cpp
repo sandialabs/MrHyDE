@@ -206,7 +206,7 @@ void shallowwaterHybridized<EvalT>::boundaryResidual() {
   }
 
   auto wts = wkset->wts_side;
-  auto h = wkset->h;
+  auto h = wkset->getSideElementSize();
   auto res = wkset->res;
   auto varlist = wkset->varlist;
 

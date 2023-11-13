@@ -15,30 +15,29 @@
 using namespace MrHyDE;
 
 Group::Group(const Teuchos::RCP<GroupMetaData> & group_data_,
-           const DRV nodes_,
            const Kokkos::View<LO*,AssemblyDevice> localID_,
            Teuchos::RCP<DiscretizationInterface> & disc_,
            const bool & storeAll_) :
-group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
+group_data(group_data_), localElemID(localID_), disc(disc_)
 {
-  numElem = nodes.extent(0);
+  numElem = localElemID.extent(0);
   
   active = true;
   storeAll = storeAll_;
   haveBasis = false;
   storeMass = true;
-  
+  have_nodes = false;
+
   // Even if we don't store the basis or integration info, we still store
   // the orientations since these are small, but expensive to recompute (for some reason)
-  orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
-  disc->getPhysicalOrientations(group_data, localElemID,
-                                orientation, true);
+  //orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+  //disc->getPhysicalOrientations(group_data, localElemID,
+    //                            orientation, true);
+  //nodes = disc->mesh->getMyNodes(group_data->my_block, localElemID);
+  //View_Sc2 twts = this->getWts();
+  //hsize = View_Sc1("physical hsize",numElem);
   
-  View_Sc2 twts = this->getWts();
-  hsize = View_Sc1("physical hsize",numElem);
-  //disc->getPhysicalIntegrationData(group_data, nodes, ip, twts);
-  
-  this->computeSize(twts);
+  //this->computeSize(twts);
 
   if (group_data->build_face_terms) {
     for (size_type side=0; side<group_data->num_sides; side++) {
@@ -47,7 +46,56 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
       vector<View_Sc2> face_normals;
       View_Sc2 face_wts("face wts", numElem, numfip);
       vector<View_Sc4> face_basis, face_basis_grad;
-      disc->getPhysicalFaceIntegrationData(group_data, side, nodes, 
+      disc->getPhysicalFaceIntegrationData(group_data, side, localElemID, 
+                                           face_ip, face_wts, face_normals);
+          
+          
+      ip_face.push_back(face_ip);
+      wts_face.push_back(face_wts);
+      normals_face.push_back(face_normals);
+      
+    }
+    this->computeFaceSize();   
+  }
+
+  this->initializeBasisIndex();
+  
+}
+
+Group::Group(const Teuchos::RCP<GroupMetaData> & group_data_,
+           const Kokkos::View<LO*,AssemblyDevice> localID_,
+           DRV nodes_,
+           Teuchos::RCP<DiscretizationInterface> & disc_,
+           const bool & storeAll_) :
+group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
+{
+  numElem = localElemID.extent(0);
+  
+  active = true;
+  storeAll = storeAll_;
+  haveBasis = false;
+  storeMass = true;
+  have_nodes = true;
+
+  // Even if we don't store the basis or integration info, we still store
+  // the orientations since these are small, but expensive to recompute (for some reason)
+  orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+  disc->getPhysicalOrientations(group_data, localElemID,
+                                orientation, true);
+  
+  //View_Sc2 twts = this->getWts();
+  //hsize = View_Sc1("physical hsize",numElem);
+  
+  //this->computeSize(twts);
+
+  if (group_data->build_face_terms) {
+    for (size_type side=0; side<group_data->num_sides; side++) {
+      int numfip = group_data->ref_side_ip[side].extent(0);
+      vector<View_Sc2> face_ip;
+      vector<View_Sc2> face_normals;
+      View_Sc2 face_wts("face wts", numElem, numfip);
+      vector<View_Sc4> face_basis, face_basis_grad;
+      disc->getPhysicalFaceIntegrationData(group_data, side, nodes,
                                            face_ip, face_wts, face_normals);
           
           
@@ -67,7 +115,7 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void Group::computeSize(View_Sc2 twts) {
-
+  /*
   // -------------------------------------------------
   // Compute the element sizes (h = vol^(1/dimension))
   // -------------------------------------------------
@@ -83,6 +131,7 @@ void Group::computeSize(View_Sc2 twts) {
     ScalarT dimscl = 1.0/(ScalarT)dimension;
     hsize(elem) = std::pow(vol,dimscl);
   });
+  */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -128,10 +177,41 @@ void Group::initializeBasisIndex() {
 void Group::computeBasis(const bool & keepnodes) {
   
   // Set up the integration points
+  
   if (!have_ip) {
-    size_type numip = group_data->ref_ip.extent(0);
-    View_Sc2 tmpwts("temp physical wts",numElem, numip);
-    disc->getPhysicalIntegrationData(group_data, nodes, ip, tmpwts);
+    if (group_data->use_ip_database) {
+      CompressedView<View_Sc2> ip_x(group_data->database_x, ip_x_index);
+      ip.push_back(ip_x);
+      if (group_data->dimension > 1) {
+        CompressedView<View_Sc2> ip_y(group_data->database_y, ip_y_index);
+        ip.push_back(ip_y);
+      }
+      if (group_data->dimension > 2) {
+        CompressedView<View_Sc2> ip_z(group_data->database_z, ip_z_index);
+        ip.push_back(ip_z);
+      }
+    }
+    else {
+      size_type numip = group_data->ref_ip.extent(0);
+      View_Sc2 tmpwts("temp physical wts",numElem, numip);
+      vector<View_Sc2> newip;
+      if (have_nodes) {
+        disc->getPhysicalIntegrationData(group_data, nodes, newip, tmpwts);
+      }
+      else {
+        disc->getPhysicalIntegrationData(group_data, localElemID, newip, tmpwts);
+      }
+      CompressedView<View_Sc2> ip_x(newip[0]);
+      ip.push_back(ip_x);
+      if (group_data->dimension > 1) {
+        CompressedView<View_Sc2> ip_y(newip[1]);
+        ip.push_back(ip_y);
+      }
+      if (group_data->dimension > 2) {
+        CompressedView<View_Sc2> ip_z(newip[2]);
+        ip.push_back(ip_z);
+      }
+    }
     have_ip = true;
   }
   
@@ -144,9 +224,16 @@ void Group::computeBasis(const bool & keepnodes) {
       // Compute integration data and basis functions
       vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
       vector<View_Sc3> tbasis_div;
-      disc->getPhysicalVolumetricBasis(group_data, nodes, orientation,
-                                       tbasis, tbasis_grad, tbasis_curl,
-                                       tbasis_div, tbasis_nodes, true);
+      if (have_nodes) {
+        disc->getPhysicalVolumetricBasis(group_data, nodes, orientation,
+                                         tbasis, tbasis_grad, tbasis_curl,
+                                         tbasis_div, tbasis_nodes, true);
+      }
+      else {
+        disc->getPhysicalVolumetricBasis(group_data, localElemID,
+                                         tbasis, tbasis_grad, tbasis_curl,
+                                         tbasis_div, tbasis_nodes, true);
+      }
 
       for (size_t i=0; i<tbasis.size(); ++i) {
         basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
@@ -159,8 +246,14 @@ void Group::computeBasis(const bool & keepnodes) {
         for (size_type side=0; side<group_data->num_sides; side++) {
           vector<View_Sc4> face_basis, face_basis_grad;
           
-          disc->getPhysicalFaceBasis(group_data, side, nodes, orientation,
-                                    face_basis, face_basis_grad);
+          if (have_nodes) {
+            disc->getPhysicalFaceBasis(group_data, side, nodes, orientation,
+                                       face_basis, face_basis_grad);
+          }
+          else {
+            disc->getPhysicalFaceBasis(group_data, side, localElemID,
+                                      face_basis, face_basis_grad);
+          }
           vector<CompressedView<View_Sc4>> newf_basis, newf_basis_grad;
           for (size_t i=0; i<face_basis.size(); ++i) {
             newf_basis.push_back(CompressedView<View_Sc4>(face_basis[i]));
@@ -174,7 +267,7 @@ void Group::computeBasis(const bool & keepnodes) {
       haveBasis = true;
     }    
     if (!keepnodes) {
-      nodes = DRV("empty nodes",1);
+      //nodes = DRV("empty nodes",1);
       orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",1);
     }
   }
@@ -187,7 +280,7 @@ void Group::computeBasis(const bool & keepnodes) {
       basis_curl.push_back(CompressedView<View_Sc4>(group_data->database_basis_curl[i],basis_index));
     }
     if (!keepnodes) {
-      nodes = DRV("empty nodes",1);
+      //nodes = DRV("empty nodes",1);
       orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",1);
     }
   }
@@ -663,7 +756,40 @@ View_Sc2 Group::getWts() {
     size_type numip = group_data->ref_ip.extent(0);
     newwts = View_Sc2("temp physical wts",numElem, numip);
     vector<View_Sc2> tip;
-    disc->getPhysicalIntegrationData(group_data, nodes, tip, newwts);
+    if (have_nodes) {
+      disc->getPhysicalIntegrationData(group_data, nodes, tip, newwts);
+    }
+    else {
+      disc->getPhysicalIntegrationData(group_data, localElemID, tip, newwts);
+    }
   }
   return newwts;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Recompute the wts or decompress them
+///////////////////////////////////////////////////////////////////////////////////////
+
+vector<View_Sc2> Group::getIntegrationPts() {
+  vector<View_Sc2> newpts;
+  for (size_t dim=0; dim<ip.size(); ++dim) {
+    View_Sc2 pts;
+    if (ip[dim].getHaveKey()) {
+      auto vdata = ip[dim].getView();
+      auto vkey = ip[dim].getKey();
+      pts = View_Sc2("temp pts",numElem, vdata.extent(1));
+      parallel_for("grp pts decompress",
+               RangePolicy<AssemblyExec>(0,numElem),
+               KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type i=0; i<vdata.extent(1); ++i) {
+          pts(elem,i) = vdata(vkey(elem),i);
+        }
+      });
+    }
+    else {
+      pts = ip[dim].getView();
+    }
+    newpts.push_back(pts);
+  }
+  return newpts;
 }

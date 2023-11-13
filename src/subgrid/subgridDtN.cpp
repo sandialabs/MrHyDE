@@ -330,7 +330,7 @@ void SubGridDtN::setUpSubgridModels() {
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orient_drv("kv to orients",currElem);
       Intrepid2::OrientationTools<AssemblyDevice>::getOrientation(orient_drv, currind, *(sub_mesh->cell_topo[0]));
       
-      newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(group_data,currnodes,eIndex,sideIndex,
+      newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(group_data,eIndex,currnodes,sideIndex,
                                                           sideID, sidename, newbgroups.size(),
                                                           sub_disc, true)));
       newbgroups[newbgroups.size()-1]->LIDs = vLIDs;
@@ -548,7 +548,7 @@ void SubGridDtN::setUpSubgridModels() {
       vLIDs.push_back(LIDs);
       
       newgroups.push_back(Teuchos::rcp(new Group(sub_assembler->groupData[0],
-                                                 newnodes, localID,
+                                                 localID, newnodes, 
                                                  sub_disc, true)));
       
       newgroups[newgroups.size()-1]->LIDs = vLIDs;
@@ -633,8 +633,8 @@ void SubGridDtN::setUpSubgridModels() {
         vector<LIDView> vLIDs;
         vLIDs.push_back(LIDs);
         
-        newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(sub_assembler->groupData[0], currnodes,
-                                                            localID, sideID, sidenum, unique_names[s],
+        newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(sub_assembler->groupData[0], 
+                                                            localID, currnodes, sideID, sidenum, unique_names[s],
                                                             newbgroups.size(), sub_disc, true)));
         
         newbgroups[newbgroups.size()-1]->LIDs = vLIDs;
@@ -1836,12 +1836,13 @@ DRV SubGridDtN::getIP() {
   for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
     size_t numElem = groups[macrogrp][grp]->numElem;
     View_Sc2 x,y,z;
-    x = groups[macrogrp][grp]->ip[0];
+    vector<View_Sc2> ip = groups[macrogrp][grp]->getIntegrationPts();
+    x = ip[0];
     if (dimension>1) {
-      y = groups[macrogrp][grp]->ip[1];
+      y = ip[1];
     }
     if (dimension>2) {
-      z = groups[macrogrp][grp]->ip[2];
+      z = ip[2];
     }
     for (size_t c=0; c<numElem; c++) {
       for (size_type i=0; i<x.extent(1); i++) {

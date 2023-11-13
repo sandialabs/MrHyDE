@@ -481,8 +481,8 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
     }
     
     // Create the boundary groups
-    newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(sub_assembler->groupData[0], currnodes,
-                                                      eIndex, sideIndex, s, "interior",
+    newbgroups.push_back(Teuchos::rcp(new BoundaryGroup(sub_assembler->groupData[0], 
+                                                      eIndex, currnodes, sideIndex, s, "interior",
                                                       newbgroups.size(), sub_disc, true)));
     
     // Compute or reuse the LIDs
@@ -578,7 +578,7 @@ void SubGridDtN2::createNewGroups(SubGridTools2 & sgt, size_t & mindex) {
   vLIDs.push_back(LIDs);
   
   newgroups.push_back(Teuchos::rcp(new Group(sub_assembler->groupData[0],
-                                             newnodes, localID,
+                                             localID, newnodes,
                                              sub_disc, true)));
   
   newgroups[0]->LIDs = vLIDs;
@@ -1587,12 +1587,13 @@ DRV SubGridDtN2::getIP() {
   for (size_t grp=0; grp<groups[macrogrp].size(); ++grp) {
     size_t numElem = groups[macrogrp][grp]->numElem;
     View_Sc2 x,y,z;
-    x = groups[macrogrp][grp]->ip[0];
+    vector<View_Sc2> ip = groups[macrogrp][grp]->getIntegrationPts();
+    x = ip[0];
     if (dimension>1) {
-      y = groups[macrogrp][grp]->ip[1];
+      y = ip[1];
     }
     if (dimension>2) {
-      z = groups[macrogrp][grp]->ip[2];
+      z = ip[2];
     }
     for (size_t c=0; c<numElem; c++) {
       for (size_type i=0; i<x.extent(1); i++) {

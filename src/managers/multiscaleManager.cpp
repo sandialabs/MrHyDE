@@ -23,7 +23,7 @@ MultiscaleManager::MultiscaleManager(const Teuchos::RCP<MpiComm> & MacroComm_,
                                      Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                      vector<vector<Teuchos::RCP<Group> > > & groups_,
                                      vector<Teuchos::RCP<FunctionManager<AD> > > macro_functionManagers_ ) :
-MacroComm(MacroComm_), settings(settings_), groups(groups_), macro_functionManagers(macro_functionManagers_) {
+MacroComm(MacroComm_), macro_mesh(mesh_), settings(settings_), groups(groups_), macro_functionManagers(macro_functionManagers_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -255,6 +255,7 @@ ScalarT MultiscaleManager::initialize(vector<vector<int> > & sgmodels) {
         size_t sgusernum = 0;
         int sgwinner = sgmodels[block][grp];
         for (size_t s=0; s<subgridModels.size(); s++) { // needs to add this group info to all of them (sgusernum is same for all)
+          //DRV nodes = macro_mesh->getMyNodes(block, groups[block][grp]->localElemID);
           sgusernum = subgridModels[s]->addMacro(groups[block][grp]->nodes,
                                                  groups[block][grp]->sideinfo[0],
                                                  groups[block][grp]->LIDs[0],

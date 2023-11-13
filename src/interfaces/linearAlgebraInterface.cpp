@@ -167,14 +167,14 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   max_entries = 0;
   
   for (size_t set=0; set<setnames.size(); ++set) {
-    vector<GO> owned, ownedAndShared;
-    owned = disc->dof_owned[set];
-    ownedAndShared = disc->dof_owned_and_shared[set];
-    //disc->DOF[set]->getOwnedIndices(owned);
-    LO numUnknowns = (LO)owned.size();
-    //disc->DOF[set]->getOwnedAndGhostedIndices(ownedAndShared);
+    //vector<GO> owned, ownedAndShared;
+    auto owned = disc->dof_owned[set];
+    auto ownedAndShared = disc->dof_owned_and_shared[set];
+    
+    LO numUnknowns = (LO)owned.extent(0);
     GO localNumUnknowns = numUnknowns;
     GO globalNumUnknowns = 0;
+
     Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
     
     owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, comm)));
@@ -195,11 +195,10 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     if (allocate_matrices) {
       vector<size_t> max_entriesPerRow(overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->my_elements[b];
-        for (size_t e=0; e<EIDs.size(); e++) {
-          size_t elemID = EIDs[e];
+        auto EIDs = disc->my_elements[b];
+        for (size_t e=0; e<EIDs.extent(0); e++) {
+          size_t elemID = EIDs(e);
           vector<GO> gids = disc->getGIDs(set,b,elemID); //
-          //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
             LO ind1 = overlapped_map[set]->getLocalElement(gids[i]);
             max_entriesPerRow[ind1] += gids.size();
@@ -220,9 +219,9 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
                                                               curr_max_entries)));
     
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->my_elements[b];
-        for (size_t e=0; e<EIDs.size(); e++) {
-          size_t elemID = EIDs[e];
+        auto EIDs = disc->my_elements[b];
+        for (size_t e=0; e<EIDs.extent(0); e++) {
+          size_t elemID = EIDs(e);
           vector<GO> gids = disc->getGIDs(set,b,elemID);
           //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
@@ -268,9 +267,9 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       
       vector<size_t> max_entriesPerRow(param_overlapped_map->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->my_elements[b];
-        for (size_t e=0; e<EIDs.size(); e++) {
-          size_t elemID = EIDs[e];
+        auto EIDs = disc->my_elements[b];
+        for (size_t e=0; e<EIDs.extent(0); e++) {
+          size_t elemID = EIDs(e);
           vector<GO> gids;
           params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
           vector<GO> stategids = disc->getGIDs(0,b,elemID);
@@ -288,10 +287,10 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
 
       param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(param_overlapped_map, overlapped_map[0], max_entries));
       for (size_t b=0; b<blocknames.size(); b++) {
-        vector<size_t> EIDs = disc->my_elements[b];
-        for (size_t e=0; e<EIDs.size(); e++) {
+        auto EIDs = disc->my_elements[b];
+        for (size_t e=0; e<EIDs.extent(0); e++) {
           vector<GO> gids;
-          size_t elemID = EIDs[e];
+          size_t elemID = EIDs(e);
           params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
           vector<GO> stategids = disc->getGIDs(0,b,elemID);
           // TMW: warning - this is hard coded to one physics set

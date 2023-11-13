@@ -34,8 +34,13 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     Group(const Teuchos::RCP<GroupMetaData> & group_data_,
-          const DRV nodes_,
           const Kokkos::View<LO*,AssemblyDevice> localID_,
+          Teuchos::RCP<DiscretizationInterface> & disc_,
+          const bool & storeAll_);
+    
+    Group(const Teuchos::RCP<GroupMetaData> & group_data_,
+          const Kokkos::View<LO*,AssemblyDevice> localID_,
+          DRV nodes,
           Teuchos::RCP<DiscretizationInterface> & disc_,
           const bool & storeAll_);
     
@@ -204,6 +209,8 @@ namespace MrHyDE {
     
     View_Sc2 getWts();
 
+    vector<View_Sc2> getIntegrationPts();
+
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -231,12 +238,12 @@ namespace MrHyDE {
     
     // Data created here (Views should all be AssemblyDevice)
     size_t numElem;
-    vector<View_Sc2> ip;
+    vector<CompressedView<View_Sc2> > ip;
     //View_Sc2 wts; 
     vector<vector<View_Sc2>> ip_face, normals_face;
     vector<View_Sc2> wts_face;
     vector<View_Sc1> hsize_face;
-    Kokkos::View<LO*,AssemblyDevice> basis_index;
+    Kokkos::View<LO*,AssemblyDevice> basis_index, ip_x_index, ip_y_index, ip_z_index;
     
     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
     vector<View_Sc3> sol, phi;
@@ -262,7 +269,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Storage information
-    bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false, have_sols = false;
+    bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false, have_sols = false, have_nodes;
 
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;

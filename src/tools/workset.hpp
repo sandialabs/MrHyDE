@@ -319,6 +319,10 @@ namespace MrHyDE {
     
     void allocateRotations();
     
+    View_Sc1 getElementSize();
+
+    View_Sc1 getSideElementSize();
+
     ////////////////////////////////////////////////////////////////////////////////////
     // Public data
     ////////////////////////////////////////////////////////////////////////////////////
@@ -355,7 +359,7 @@ namespace MrHyDE {
     View_Sc3 param_avg, aux_avg; // (elem,var,dim)
     vector<View_Sc4> sol_prev, phi_prev, aux_prev, sol_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
     
-    View_Sc1 h;
+    //View_Sc1 h;
     View_Sc2 wts_side;
     CompressedView<View_Sc2> wts;
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;

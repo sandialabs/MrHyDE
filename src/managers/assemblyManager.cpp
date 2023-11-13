@@ -53,6 +53,7 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   
   assembly_partitioning = settings->sublist("Solver").get<string>("assembly partitioning","sequential");
   allow_autotune = settings->sublist("Solver").get<bool>("enable autotune",true);
+  store_nodes = settings->sublist("Solver").get<bool>("store nodes",true);
   
   //if (settings->isSublist("Subgrid")) {
   //assembly_partitioning = "subgrid-preserving";
@@ -224,8 +225,7 @@ void AssemblyManager<Node>::createGroups() {
   }
   
   double storageProportion = settings->sublist("Solver").get<double>("storage proportion",1.0);
-  double mesh_scale = settings->sublist("Mesh").get<double>("scale factor",1.0);
-
+  
   vector<stk::mesh::Entity> all_meshElems = mesh->getMySTKElements();
   
   
@@ -252,8 +252,8 @@ void AssemblyManager<Node>::createGroups() {
     vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blocknames[block]);
     
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
-    int numNodesPerElem = cellTopo->getNodeCount();
-    int dimension = physics->dimension;
+    //int numNodesPerElem = cellTopo->getNodeCount();
+    //int dimension = physics->dimension;
     size_t numTotalElem;
     if(mesh->use_stk_mesh)
       numTotalElem = stk_meshElems.size();
@@ -267,11 +267,11 @@ void AssemblyManager<Node>::createGroups() {
       //Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
       //panzer_stk::workset_utils::getIdsAndVertices(*(mesh->stk_mesh), blocknames[block], localIds, blocknodes); // fill on host
       
-      vector<size_t> myElem = disc->my_elements[block];
+      auto myElem = disc->my_elements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
       auto host_eIDs = Kokkos::create_mirror_view(eIDs);
       for (size_t elem=0; elem<myElem.size(); elem++) {
-        host_eIDs(elem) = static_cast<LO>(myElem[elem]);
+        host_eIDs(elem) = static_cast<LO>(myElem(elem));
       }
       Kokkos::deep_copy(eIDs, host_eIDs);
       
@@ -396,7 +396,7 @@ void AssemblyManager<Node>::createGroups() {
                 }
                 Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
                 //Kokkos::View<LO*,AssemblyDevice> sideIndex("local side indices",currElem);
-                DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
+                DRV currnodes("currnodes", currElem, mesh->num_nodes_per_elem, mesh->dimension);
                 
                 auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
                 Kokkos::View<LO*,HostDevice> host_eIndex2("element indices",currElem);
@@ -409,7 +409,7 @@ void AssemblyManager<Node>::createGroups() {
                   sideIndex = local_side_Ids[group[e+prog]];
                   for (size_type n=0; n<host_currnodes.extent(1); n++) {
                     for (size_type m=0; m<host_currnodes.extent(2); m++) {
-                      host_currnodes(e,n,m) = mesh_scale*sidenodes(group[e+prog],n,m);
+                      host_currnodes(e,n,m) = sidenodes(group[e+prog],n,m);
                     }
                   }
                 }
@@ -447,7 +447,7 @@ void AssemblyManager<Node>::createGroups() {
                   storeThis = false;
                 }
                 
-                block_boundary_groups.push_back(Teuchos::rcp(new BoundaryGroup(blockGroupData, currnodes, eIndex, sideIndex,
+                block_boundary_groups.push_back(Teuchos::rcp(new BoundaryGroup(blockGroupData, eIndex, currnodes, sideIndex,
                                                                                side, sideName, block_boundary_groups.size(),
                                                                                disc, storeThis)));
                 size_t cindex = block_boundary_groups.size()-1;
@@ -601,7 +601,6 @@ void AssemblyManager<Node>::createGroups() {
         processedElem += currElem;
         
         Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
-        DRV currnodes("currnodes", currElem, numNodesPerElem, dimension);
         
         auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
         Kokkos::View<LO*,HostDevice> host_eIndex2("element indices on host",currElem);
@@ -630,16 +629,6 @@ void AssemblyManager<Node>::createGroups() {
           local_grp[e] = host_eIDs(elem_groups[grp][e]);
         }
         
-        mesh->getSTKElementVertices(local_grp, blocknames[block], currnodes);
-        parallel_for("assembly scale nodes",
-                     RangePolicy<AssemblyExec>(0,currnodes.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for (size_t pt=0; pt<currnodes.extent(1); ++pt) {
-            for (size_t dim=0; dim<currnodes.extent(2); ++dim) {
-              currnodes(elem,pt,dim) *= mesh_scale;
-            }
-          }
-        });
         // Set the side information (soon to be removed)-
         vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
         if(mesh->use_stk_mesh) {
@@ -649,8 +638,16 @@ void AssemblyManager<Node>::createGroups() {
           }
         }
 
-        block_groups.push_back(Teuchos::rcp(new Group(blockGroupData, currnodes, eIndex,
-                                                      disc, storeThis)));
+        if (blockGroupData->multiscale || store_nodes) {
+          DRV currnodes("currnodes", currElem, mesh->num_nodes_per_elem, mesh->dimension);
+          mesh->getSTKElementVertices(local_grp, blocknames[block], currnodes);
+          block_groups.push_back(Teuchos::rcp(new Group(blockGroupData, eIndex, currnodes,
+                                                        disc, storeThis)));
+        }
+        else {
+          block_groups.push_back(Teuchos::rcp(new Group(blockGroupData, eIndex,
+                                                        disc, storeThis)));
+        }
         size_t cindex = block_groups.size()-1;
         block_groups[cindex]->LIDs = set_LIDs;
         block_groups[cindex]->createHostLIDs();
@@ -1581,8 +1578,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
         }
         else {
           vector<View_Sc4> tmpbasis;
-          disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes,
-                                           groups[block][grp]->orientation, tmpbasis);
+          disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->localElemID, tmpbasis);
           for (size_t i=0; i<tmpbasis.size(); ++i) {
             tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
           }
@@ -4348,7 +4344,7 @@ void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
 template<class Node>
 void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   
-  vector<std::pair<size_t,size_t> > first_users; // stores <grpID,elemID>
+  vector<std::pair<size_t,size_t> > first_users, first_users_x, first_users_y, first_users_z; // stores <grpID,elemID>
   vector<std::pair<size_t,size_t> > first_boundary_users; // stores <grpID,elemID>
   
   /////////////////////////////////////////////////////////////////////////////
@@ -4358,6 +4354,8 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   this->identifyVolumetricDatabase(block, first_users);
   
   this->identifyBoundaryDatabase(block, first_boundary_users);
+  
+  this->identifyVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
   
   /////////////////////////////////////////////////////////////////////////////
   // Step 2: inform the user about the savings
@@ -4390,6 +4388,8 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   
   this->buildBoundaryDatabase(block, first_boundary_users);
   
+  this->buildVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
+  
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -4419,8 +4419,10 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
   vector<string> unique_orients;
   vector<vector<size_t> > all_orients;
   for (size_t grp=0; grp<groups[block].size(); ++grp) {
-    auto orient_host = create_mirror_view(groups[block][grp]->orientation);
-    deep_copy(orient_host, groups[block][grp]->orientation);
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("tmp orients",groups[block][grp]->numElem);
+    disc->getPhysicalOrientations(groupData[block], groups[block][grp]->localElemID, orientation, true);
+    auto orient_host = create_mirror_view(orientation);
+    deep_copy(orient_host, orientation);
     vector<size_t> grp_orient(groups[block][grp]->numElem);
     for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
       string orient = orient_host(e).to_string();
@@ -4459,7 +4461,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
     
     // Get the Jacobian for this group
     DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
-    disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+    disc->getJacobian(groupData[block], groups[block][grp]->localElemID, jacobian);
     auto jacobian_host = create_mirror_view(jacobian);
     deep_copy(jacobian_host,jacobian);
     
@@ -4571,8 +4573,13 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
   vector<vector<size_t> > all_orients;
   for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
     vector<size_t> grp_orient(boundary_groups[block][grp]->numElem);
-    auto orient_host = create_mirror_view(boundary_groups[block][grp]->orientation);
-    deep_copy(orient_host,boundary_groups[block][grp]->orientation);
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("tmp orients",boundary_groups[block][grp]->numElem);
+    disc->getPhysicalOrientations(groupData[block], boundary_groups[block][grp]->localElemID, orientation, true);
+    auto orient_host = create_mirror_view(orientation);
+    deep_copy(orient_host, orientation);
+    
+    //auto orient_host = create_mirror_view(boundary_groups[block][grp]->orientation);
+    //deep_copy(orient_host,boundary_groups[block][grp]->orientation);
     
     for (size_t e=0; e<boundary_groups[block][grp]->numElem; ++e) {
       string orient = orient_host(e).to_string();
@@ -4604,7 +4611,7 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
     
     // Get the Jacobian for this group
     DRV jacobian("jacobian", boundary_groups[block][grp]->numElem, numip, dimension, dimension);
-    disc->getJacobian(groupData[block], boundary_groups[block][grp]->nodes, jacobian);
+    disc->getJacobian(groupData[block], boundary_groups[block][grp]->localElemID, jacobian);
     auto jacobian_host = create_mirror_view(jacobian);
     deep_copy(jacobian_host,jacobian);
     
@@ -4698,6 +4705,197 @@ void AssemblyManager<Node>::identifyBoundaryDatabase(const size_t & block, vecto
   }
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::identifyVolumetricIPDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users_x,
+                                                         vector<std::pair<size_t,size_t> > & first_users_y, 
+                                                         vector<std::pair<size_t,size_t> > & first_users_z) {
+
+  Teuchos::TimeMonitor localtimer(*group_database_create_timer);
+  
+  double database_TOL = settings->sublist("Solver").get<double>("database TOL",1.0e-10);
+  
+  int dimension = groupData[block]->dimension;
+  size_type numip = groupData[block]->ref_ip.extent(0);
+  
+  vector<vector<ScalarT> > db_x, db_y, db_z;
+
+  for (size_t grp=0; grp<groups[block].size(); ++grp) {
+    size_t numElem = groups[block][grp]->numElem;
+    
+    View_Sc2 tmpwts("temp physical wts",numElem, numip);
+    vector<View_Sc2> newip;
+    if (groups[block][grp]->have_nodes) {
+      disc->getPhysicalIntegrationData(groupData[block], groups[block][grp]->nodes, newip, tmpwts);
+    }
+    else {
+      disc->getPhysicalIntegrationData(groupData[block], groups[block][grp]->localElemID, newip, tmpwts);
+    }
+    
+    // Identify database for x
+    { 
+      auto newip_host = create_mirror_view(newip[0]);
+      deep_copy(newip_host, newip[0]);
+      Kokkos::View<LO*,AssemblyDevice> index("ip x database index",numElem);
+      auto index_host = create_mirror_view(index);
+
+      for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+        bool found = false;
+        size_t prog = 0;
+        
+        while (!found && prog<first_users_x.size()) {
+          
+          // Check #1: x pts
+          size_type pt = 0;
+          bool ruled_out = false;
+          while (pt<numip && !ruled_out) { 
+            ScalarT frodiff = 0.0;
+            ScalarT diff = 0.0;
+            diff = newip_host(e,pt)-db_x[prog][pt];
+            frodiff += diff*diff;
+            if (std::sqrt(frodiff) > database_TOL) {
+              ruled_out = true;
+            }
+            pt++;
+          }
+            
+          if (!ruled_out) {
+            found = true;
+            index_host(e) = prog;
+          }
+          else {
+            ++prog;
+          }
+        }
+      
+        if (!found) {
+          index_host(e) = first_users_x.size();
+          std::pair<size_t,size_t> newuj{grp,e};
+          first_users_x.push_back(newuj);
+        
+          vector<ScalarT> newpts(numip);
+          for (size_t pt=0; pt<numip; ++pt) {
+            newpts[pt] = newip_host(e,pt);
+          }
+          db_x.push_back(newpts);
+        }
+      }
+    
+      deep_copy(index,index_host);
+      groups[block][grp]->ip_x_index = index;
+    }
+    
+    // Identify database for y
+    if (dimension > 1) {
+      auto newip_host = create_mirror_view(newip[1]);
+      deep_copy(newip_host, newip[1]);
+      Kokkos::View<LO*,AssemblyDevice> index("ip y database index",numElem);
+      auto index_host = create_mirror_view(index);
+
+      for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+        bool found = false;
+        size_t prog = 0;
+        
+        while (!found && prog<first_users_y.size()) {
+          
+          // Check #1: y pts
+          size_type pt = 0;
+          bool ruled_out = false;
+          while (pt<numip && !ruled_out) { 
+            ScalarT frodiff = 0.0;
+            ScalarT diff = 0.0;
+            diff = newip_host(e,pt)-db_y[prog][pt];
+            frodiff += diff*diff;
+            if (std::sqrt(frodiff) > database_TOL) {
+              ruled_out = true;
+            }
+            pt++;
+          }
+            
+          if (!ruled_out) {
+            found = true;
+            index_host(e) = prog;
+          }
+          else {
+            ++prog;
+          }
+        }
+      
+        if (!found) {
+          index_host(e) = first_users_y.size();
+          std::pair<size_t,size_t> newuj{grp,e};
+          first_users_y.push_back(newuj);
+        
+          vector<ScalarT> newpts(numip);
+          for (size_t pt=0; pt<numip; ++pt) {
+            newpts[pt] = newip_host(e,pt);
+          }
+          db_y.push_back(newpts);
+        }
+      }
+    
+      deep_copy(index,index_host);
+      groups[block][grp]->ip_y_index = index;
+    }
+
+    // Identify database for z
+    if (dimension > 2) {
+      auto newip_host = create_mirror_view(newip[2]);
+      deep_copy(newip_host, newip[2]);
+      Kokkos::View<LO*,AssemblyDevice> index("ip z database index",numElem);
+      auto index_host = create_mirror_view(index);
+
+      for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
+        bool found = false;
+        size_t prog = 0;
+        
+        while (!found && prog<first_users_z.size()) {
+          
+          // Check #1: y pts
+          size_type pt = 0;
+          bool ruled_out = false;
+          while (pt<numip && !ruled_out) { 
+            ScalarT frodiff = 0.0;
+            ScalarT diff = 0.0;
+            diff = newip_host(e,pt)-db_z[prog][pt];
+            frodiff += diff*diff;
+            if (std::sqrt(frodiff) > database_TOL) {
+              ruled_out = true;
+            }
+            pt++;
+          }
+            
+          if (!ruled_out) {
+            found = true;
+            index_host(e) = prog;
+          }
+          else {
+            ++prog;
+          }
+        }
+      
+        if (!found) {
+          index_host(e) = first_users_z.size();
+          std::pair<size_t,size_t> newuj{grp,e};
+          first_users_z.push_back(newuj);
+        
+          vector<ScalarT> newpts(numip);
+          for (size_t pt=0; pt<numip; ++pt) {
+            newpts[pt] = newip_host(e,pt);
+          }
+          db_z.push_back(newpts);
+        }
+      }
+    
+      deep_copy(index,index_host);
+      groups[block][grp]->ip_z_index = index;
+    }
+
+
+  }
+}
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -4712,12 +4910,13 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
   int dimension = groupData[block]->dimension;
   
   size_t database_numElem = first_users.size();
-  DRV database_nodes("nodes for the database",database_numElem, groups[block][0]->nodes.extent(1), dimension);
-  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_orientation("database orientations",database_numElem);
+  DRV database_nodes("nodes for the database",database_numElem, mesh->num_nodes_per_elem, dimension);
+  //Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_orientation("database orientations",database_numElem);
   View_Sc2 database_wts("physical wts",database_numElem, groupData[block]->ref_ip.extent(0));
-  
-  auto database_nodes_host = create_mirror_view(database_nodes);
-  auto database_orientation_host = create_mirror_view(database_orientation);
+  Kokkos::View<LO*,AssemblyDevice> database_ids("database local elem ids", database_numElem);
+  //auto database_nodes_host = create_mirror_view(database_nodes);
+  auto database_ids_host = create_mirror_view(database_ids);
+  //auto database_orientation_host = create_mirror_view(database_orientation);
   auto database_wts_host = create_mirror_view(database_wts);
   
   for (size_t e=0; e<first_users.size(); ++e) {
@@ -4725,23 +4924,26 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     size_t refelem = first_users[e].second;
     
     // Get the nodes on the host
-    auto nodes_host = create_mirror_view(groups[block][refgrp]->nodes);
-    deep_copy(nodes_host, groups[block][refgrp]->nodes);
+    //DRV nodes = mesh->getMyNodes(block, groups[block][refgrp]->localElemID);
+    //auto nodes_host = create_mirror_view(nodes);
+    //deep_copy(nodes_host, nodes);
     
-    for (size_type node=0; node<database_nodes.extent(1); ++node) {
-      for (size_type dim=0; dim<database_nodes.extent(2); ++dim) {
-        database_nodes_host(e,node,dim) = nodes_host(refelem,node,dim);
-      }
-    }
+    //for (size_type node=0; node<database_nodes.extent(1); ++node) {
+    //  for (size_type dim=0; dim<database_nodes.extent(2); ++dim) {
+    //    database_nodes_host(e,node,dim) = nodes_host(refelem,node,dim);
+    //  }
+    //}
     
     // Get the orientations on the host
-    auto orientations_host = create_mirror_view(groups[block][refgrp]->orientation);
-    deep_copy(orientations_host, groups[block][refgrp]->orientation);
-    database_orientation_host(e) = orientations_host(refelem);
+    //auto orientations_host = create_mirror_view(groups[block][refgrp]->orientation);
+    //deep_copy(orientations_host, groups[block][refgrp]->orientation);
+    //database_orientation_host(e) = orientations_host(refelem);
     
+    database_ids_host(e) = groups[block][refgrp]->localElemID(refelem);
     // Get the wts on the host
     View_Sc2 twts("temp physical wts",groups[block][refgrp]->numElem, database_wts.extent(1));
-    disc->getPhysicalIntegrationData(groupData[block], groups[block][refgrp]->nodes, groups[block][refgrp]->ip, twts);
+    vector<View_Sc2> tmpip;
+    disc->getPhysicalIntegrationData(groupData[block], groups[block][refgrp]->localElemID, tmpip, twts);
     
     //auto wts_host = groups[block][refgrp]->wts;
     auto wts_host = create_mirror_view(twts);
@@ -4753,15 +4955,16 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     
   }
   
-  deep_copy(database_nodes, database_nodes_host);
-  deep_copy(database_orientation, database_orientation_host);
+  //deep_copy(database_nodes, database_nodes_host);
+  deep_copy(database_ids, database_ids_host);
+  //deep_copy(database_orientation, database_orientation_host);
   deep_copy(database_wts, database_wts_host);
   groupData[block]->database_wts = database_wts;
   
   vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
   vector<View_Sc3> tbasis_div;
   
-  disc->getPhysicalVolumetricBasis(groupData[block], database_nodes, database_orientation,
+  disc->getPhysicalVolumetricBasis(groupData[block], database_ids,
                                    tbasis, tbasis_grad, tbasis_curl,
                                    tbasis_div, tbasis_nodes, true);
   groupData[block]->database_basis = tbasis;
@@ -4773,7 +4976,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     for (size_type side=0; side<groupData[block]->num_sides; side++) {
       vector<View_Sc4> face_basis, face_basis_grad;
       
-      disc->getPhysicalFaceBasis(groupData[block], side, database_nodes, database_orientation,
+      disc->getPhysicalFaceBasis(groupData[block], side, database_ids, 
                                  face_basis, face_basis_grad);
       
       groupData[block]->database_face_basis.push_back(face_basis);
@@ -4878,8 +5081,8 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
           for (size_t q=0; q<qrules.size(); ++q) {
             vector<string> qrule = qrules[q];
             DRV cwts;
-            DRV cbasis = disc->evaluateBasisNewQuadrature(block, wkset[block]->set_usebasis[set][n], qrule,
-                                                          database_nodes, database_orientation, cwts);
+            DRV cbasis = disc->evaluateBasisNewQuadrature(groupData[block], block, wkset[block]->set_usebasis[set][n], qrule,
+                                                          database_ids, cwts);
 
             View_Sc3 newmass("local mass", mass.extent(0), cbasis.extent(1), cbasis.extent(1)); 
               
@@ -5003,9 +5206,95 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
 /////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
+void AssemblyManager<Node>::buildVolumetricIPDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users_x,
+                                                      vector<std::pair<size_t,size_t> > & first_users_y,
+                                                      vector<std::pair<size_t,size_t> > & first_users_z) {
+  
+  Teuchos::TimeMonitor localtimer(*group_database_basis_timer);
+  
+  using namespace std;
+
+  int dimension = groupData[block]->dimension;
+  size_type numip = groupData[block]->ref_ip.extent(0);
+  
+  // Build x ip database
+  {
+    size_t database_numElem = first_users_x.size();
+    Kokkos::View<ScalarT**,AssemblyDevice> database_x("database x ip", database_numElem, numip);
+    auto database_x_host = create_mirror_view(database_x);
+
+    for (size_t e=0; e<first_users_x.size(); ++e) {
+      size_t refgrp = first_users_x[e].first;
+      size_t refelem = first_users_x[e].second;
+    
+      View_Sc2 twts("temp physical wts",groups[block][refgrp]->numElem, numip);
+      vector<View_Sc2> newip;
+      disc->getPhysicalIntegrationData(groupData[block], groups[block][refgrp]->localElemID, newip, twts);
+      auto newip_x_host = create_mirror_view(newip[0]);
+      deep_copy(newip_x_host, newip[0]);
+      for (size_type pt=0; pt<newip_x_host.extent(1); ++pt) {
+        database_x_host(e,pt) = newip_x_host(refelem,pt);
+      }
+    }
+    deep_copy(database_x, database_x_host);
+    groupData[block]->database_x = database_x;
+  }
+
+  // Build y ip database
+  if (dimension > 1) {
+    size_t database_numElem = first_users_y.size();
+    Kokkos::View<ScalarT**,AssemblyDevice> database_y("database y ip", database_numElem, numip);
+    auto database_y_host = create_mirror_view(database_y);
+
+    for (size_t e=0; e<first_users_y.size(); ++e) {
+      size_t refgrp = first_users_y[e].first;
+      size_t refelem = first_users_y[e].second;
+    
+      View_Sc2 twts("temp physical wts",groups[block][refgrp]->numElem, numip);
+      vector<View_Sc2> newip;
+      disc->getPhysicalIntegrationData(groupData[block], groups[block][refgrp]->localElemID, newip, twts);
+      auto newip_y_host = create_mirror_view(newip[1]);
+      deep_copy(newip_y_host, newip[1]);
+      for (size_type pt=0; pt<newip_y_host.extent(1); ++pt) {
+        database_y_host(e,pt) = newip_y_host(refelem,pt);
+      }
+    }
+    deep_copy(database_y, database_y_host);
+    groupData[block]->database_y = database_y;
+  }
+
+  // Build z ip database
+  if (dimension > 2) {
+    size_t database_numElem = first_users_z.size();
+    Kokkos::View<ScalarT**,AssemblyDevice> database_z("database z ip", database_numElem, numip);
+    auto database_z_host = create_mirror_view(database_z);
+
+    for (size_t e=0; e<first_users_z.size(); ++e) {
+      size_t refgrp = first_users_z[e].first;
+      size_t refelem = first_users_z[e].second;
+    
+      View_Sc2 twts("temp physical wts",groups[block][refgrp]->numElem, numip);
+      vector<View_Sc2> newip;
+      disc->getPhysicalIntegrationData(groupData[block], groups[block][refgrp]->localElemID, newip, twts);
+      auto newip_z_host = create_mirror_view(newip[2]);
+      deep_copy(newip_z_host, newip[2]);
+      for (size_type pt=0; pt<newip_z_host.extent(1); ++pt) {
+        database_z_host(e,pt) = newip_z_host(refelem,pt);
+      }
+    }
+    deep_copy(database_z, database_z_host);
+    groupData[block]->database_z = database_z;
+  }
+  
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
 void AssemblyManager<Node>::buildBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users) {
   
-  int dimension = groupData[block]->dimension;
+  //int dimension = groupData[block]->dimension;
   size_type numsideip = groupData[block]->ref_side_ip[0].extent(0);
   
   size_t database_boundary_numElem = first_boundary_users.size();
@@ -5036,33 +5325,36 @@ void AssemblyManager<Node>::buildBoundaryDatabase(const size_t & block, vector<s
     size_t refgrp = first_boundary_users[e].first;
     size_t refelem = first_boundary_users[e].second;
     
-    DRV database_bnodes("nodes for the database", 1, groups[block][0]->nodes.extent(1), dimension);
-    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_borientation("database orientations", 1);
+    Kokkos::View<LO*,AssemblyDevice> database_localID("tmp local elem id",1);
+    database_localID(0) = boundary_groups[block][refgrp]->localElemID(refelem);
+    //DRV nodes = mesh->getMyNodes(block, boundary_groups[block][refgrp]->localElemID);
+    //DRV database_bnodes("nodes for the database", 1, nodes.extent(1), dimension);
+    //Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> database_borientation("database orientations", 1);
     
-    auto database_bnodes_host = create_mirror_view(database_bnodes);
-    auto database_borientation_host = create_mirror_view(database_borientation);
+    //auto database_bnodes_host = create_mirror_view(database_bnodes);
+    //auto database_borientation_host = create_mirror_view(database_borientation);
     
     LO localSideID = boundary_groups[block][refgrp]->localSideID;
     // Get the nodes on the host
-    auto nodes_host = create_mirror_view(boundary_groups[block][refgrp]->nodes);
-    deep_copy(nodes_host, boundary_groups[block][refgrp]->nodes);
+    //auto nodes_host = create_mirror_view(nodes);
+    //deep_copy(nodes_host, nodes);
     
-    for (size_type node=0; node<database_bnodes.extent(1); ++node) {
-      for (size_type dim=0; dim<database_bnodes.extent(2); ++dim) {
-        database_bnodes_host(0,node,dim) = nodes_host(refelem,node,dim);
-      }
-    }
-    deep_copy(database_bnodes, database_bnodes_host);
+    //for (size_type node=0; node<database_bnodes.extent(1); ++node) {
+    //  for (size_type dim=0; dim<database_bnodes.extent(2); ++dim) {
+    //    database_bnodes_host(0,node,dim) = nodes_host(refelem,node,dim);
+    //  }
+    //}
+    //deep_copy(database_bnodes, database_bnodes_host);
     
     // Get the orientations on the host
-    auto orientations_host = create_mirror_view(boundary_groups[block][refgrp]->orientation);
-    deep_copy(orientations_host, boundary_groups[block][refgrp]->orientation);
-    database_borientation_host(0) = orientations_host(refelem);
-    deep_copy(database_borientation, database_borientation_host);
+    //auto orientations_host = create_mirror_view(boundary_groups[block][refgrp]->orientation);
+    //deep_copy(orientations_host, boundary_groups[block][refgrp]->orientation);
+    //database_borientation_host(0) = orientations_host(refelem);
+    //deep_copy(database_borientation, database_borientation_host);
     
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalBoundaryBasis(groupData[block], database_bnodes, localSideID, database_borientation,
+    disc->getPhysicalBoundaryBasis(groupData[block], database_localID, localSideID, 
                                    tbasis, tbasis_grad, tbasis_curl, tbasis_div);
     
     for (size_t i=0; i<groupData[block]->basis_pointers.size(); i++) {
@@ -5093,7 +5385,7 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
     
     // Get the Jacobian for this group
     DRV jacobian("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
-    disc->getJacobian(groupData[block], groups[block][grp]->nodes, jacobian);
+    disc->getJacobian(groupData[block], groups[block][grp]->localElemID, jacobian);
     
     // Get the measures for this group
     DRV measure("measure", groups[block][grp]->numElem);
@@ -5135,10 +5427,10 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       // Get the Jacobian for this group
       DRV jac("jacobian", groups[block][grp]->numElem, numip, dimension, dimension);
-      disc->getJacobian(groupData[block], groups[block][grp]->nodes, jac);
+      disc->getJacobian(groupData[block], groups[block][grp]->localElemID, jac);
       
       DRV wts("jacobian", groups[block][grp]->numElem, numip);
-      disc->getPhysicalWts(groupData[block], groups[block][grp]->nodes, jac, wts);
+      disc->getPhysicalWts(groupData[block], groups[block][grp]->localElemID, jac, wts);
       
       for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
         /*
@@ -5655,7 +5947,7 @@ void AssemblyManager<Node>::updateWorksetBasisBoundary(Teuchos::RCP<Workset<Eval
                                                        const int & block, const size_t & grp) {
 
   wset->wts_side = boundary_groups[block][grp]->wts;
-  wset->h = boundary_groups[block][grp]->hsize;
+  //wset->h = boundary_groups[block][grp]->hsize;
   
   wset->setScalarField(boundary_groups[block][grp]->ip[0],"x");
   wset->setScalarField(boundary_groups[block][grp]->normals[0],"n[x]");
@@ -5678,9 +5970,8 @@ void AssemblyManager<Node>::updateWorksetBasisBoundary(Teuchos::RCP<Workset<Eval
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalBoundaryBasis(groupData[block], boundary_groups[block][grp]->nodes, 
+    disc->getPhysicalBoundaryBasis(groupData[block], boundary_groups[block][grp]->localElemID, 
                                    boundary_groups[block][grp]->localSideID, 
-                                   boundary_groups[block][grp]->orientation,
                                    tbasis, tbasis_grad, tbasis_curl, tbasis_div);
     vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad;
     for (size_t i=0; i<tbasis.size(); ++i) {
@@ -6223,14 +6514,14 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
   this->updateGroupData(wset, block, grp);
   
   wset->wts = groups[block][grp]->wts;
-  wset->h = groups[block][grp]->hsize;
-
-  wset->setScalarField(groups[block][grp]->ip[0],"x");
-  if (groups[block][grp]->ip.size() > 1) {
-    wset->setScalarField(groups[block][grp]->ip[1],"y");
+  //wset->h = groups[block][grp]->hsize;
+  vector<View_Sc2> ip = groups[block][grp]->getIntegrationPts();
+  wset->setScalarField(ip[0],"x");
+  if (ip.size() > 1) {
+    wset->setScalarField(ip[1],"y");
   }
-  if (groups[block][grp]->ip.size() > 2) {
-    wset->setScalarField(groups[block][grp]->ip[2],"z");
+  if (ip.size() > 2) {
+    wset->setScalarField(ip[2],"z");
   }
 
   // Update the integration info and basis in workset
@@ -6243,7 +6534,7 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
     vector<View_Sc3> tbasis_div;
-    disc->getPhysicalVolumetricBasis(groups[block][grp]->group_data, groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalVolumetricBasis(groups[block][grp]->group_data, groups[block][grp]->localElemID, 
                                     tbasis, tbasis_grad, tbasis_curl,
                                     tbasis_div, tbasis_nodes);
 
@@ -6609,7 +6900,7 @@ void AssemblyManager<Node>::updateWorksetFace(Teuchos::RCP<Workset<EvalT> > & ws
   //Teuchos::TimeMonitor localtimer(*computeSolnFaceTimer);
   
   wset->wts_side = groups[block][grp]->wts_face[facenum];
-  wset->h = groups[block][grp]->hsize;
+  //wset->h = groups[block][grp]->hsize;
 
   wset->setScalarField(groups[block][grp]->ip_face[facenum][0],"x");
   wset->setScalarField(groups[block][grp]->normals_face[facenum][0],"n[x]");
@@ -6630,7 +6921,7 @@ void AssemblyManager<Node>::updateWorksetFace(Teuchos::RCP<Workset<EvalT> > & ws
   else {
     vector<View_Sc4> tbasis, tbasis_grad;
   
-    disc->getPhysicalFaceBasis(groupData[block], facenum, groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalFaceBasis(groupData[block], facenum, groups[block][grp]->localElemID, 
                                tbasis, tbasis_grad);
     vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad;
     for (size_t i=0; i<tbasis.size(); ++i) {
@@ -7338,7 +7629,8 @@ View_Sc2 AssemblyManager<Node>::getInitial(const int & block, const size_t & grp
   auto cwts = groups[block][grp]->wts;
   
   if (project) { // works for any basis
-    auto initialip = groupData[block]->physics->getInitial(groups[block][grp]->ip, set,
+    vector<View_Sc2> ip = groups[block][grp]->getIntegrationPts();
+    auto initialip = groupData[block]->physics->getInitial(ip, set,
                                                         groupData[block]->my_block,
                                                         project, wkset[block]);
 
@@ -7380,19 +7672,20 @@ View_Sc2 AssemblyManager<Node>::getInitial(const int & block, const size_t & grp
   else { // only works if using HGRAD linear basis
     vector<View_Sc2> vnodes;
     View_Sc2 vx,vy,vz;
-    vx = View_Sc2("view of nodes", groups[block][grp]->nodes.extent(0), groups[block][grp]->nodes.extent(1));
-    auto n_x = subview(groups[block][grp]->nodes,ALL(),ALL(),0);
+    DRV nodes = disc->getMyNodes(block, groups[block][grp]->localElemID);
+    vx = View_Sc2("view of nodes", nodes.extent(0), nodes.extent(1));
+    auto n_x = subview(nodes,ALL(),ALL(),0);
     deep_copy(vx,n_x);
     vnodes.push_back(vx);
-    if (groups[block][grp]->nodes.extent(2) > 1) {
-      vy = View_Sc2("view of nodes", groups[block][grp]->nodes.extent(0), groups[block][grp]->nodes.extent(1));
-      auto n_y = subview(groups[block][grp]->nodes,ALL(),ALL(),1);
+    if (nodes.extent(2) > 1) {
+      vy = View_Sc2("view of nodes", nodes.extent(0), nodes.extent(1));
+      auto n_y = subview(nodes,ALL(),ALL(),1);
       deep_copy(vy,n_y);
       vnodes.push_back(vy);
     }
-    if (groups[block][grp]->nodes.extent(2) > 2) {
-      vz = View_Sc2("view of nodes", groups[block][grp]->nodes.extent(0), groups[block][grp]->nodes.extent(1));
-      auto n_z = subview(groups[block][grp]->nodes, ALL(), ALL(), 2);
+    if (nodes.extent(2) > 2) {
+      vz = View_Sc2("view of nodes", nodes.extent(0), nodes.extent(1));
+      auto n_z = subview(nodes, ALL(), ALL(), 2);
       deep_copy(vz,n_z);
       vnodes.push_back(vz);
     }
@@ -7486,7 +7779,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getMass(const int & block, const
   else { // goes through this more than once, but really shouldn't be used much anyways
     vector<View_Sc4> tmpbasis,tmpbasis_grad, tmpbasis_curl, tmpbasis_nodes;
     vector<View_Sc3> tmpbasis_div;
-    disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes, groups[block][grp]->orientation,
+    disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->localElemID, 
                                     tmpbasis, tmpbasis_grad, tmpbasis_curl,
                                     tmpbasis_div, tmpbasis_nodes);
     for (size_t i=0; i<tmpbasis.size(); ++i) {
@@ -7559,8 +7852,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getWeightedMass(const int & bloc
     }
     else {
       vector<View_Sc4> tmpbasis;
-      disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->nodes, groups[block][grp]->orientation,
-                                       tmpbasis);
+      disc->getPhysicalVolumetricBasis(groupData[block], groups[block][grp]->localElemID, tmpbasis);
       for (size_t i=0; i<tmpbasis.size(); ++i) {
         tbasis.push_back(CompressedView<View_Sc4>(tmpbasis[i]));
       }
@@ -8210,13 +8502,15 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   // Create a list of all cell nodes
   ////////////////////////////////////////////////////////////////////////////////
   
+  DRV tmpnodes = disc->getMyNodes(0, groups[0][0]->localElemID);
   DRV totalNodes("nodes from all groups",totalElem,
-                 groups[0][0]->nodes.extent(1),
-                 groups[0][0]->nodes.extent(2));
+                 tmpnodes.extent(1),
+                 tmpnodes.extent(2));
   int prog = 0;
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      auto nodes = groups[block][grp]->nodes;
+      DRV nodes = disc->getMyNodes(block, groups[block][grp]->localElemID);
+      
       parallel_for("mesh data cell nodes",
                    RangePolicy<AssemblyExec>(0,nodes.extent(0)),
                    KOKKOS_LAMBDA (const int elem ) {
@@ -8305,13 +8599,14 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   
   if (totalElem > 0) {
     
+    DRV tmpnodes = disc->getMyNodes(0, groups[0][0]->localElemID);
     totalNodes = DRV("nodes from all groups",totalElem,
-                     groups[0][0]->nodes.extent(1),
-                     groups[0][0]->nodes.extent(2));
+                     tmpnodes.extent(1),
+                     tmpnodes.extent(2));
     prog = 0;
     for (size_t block=0; block<boundary_groups.size(); ++block) {
       for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-        auto nodes = boundary_groups[block][grp]->nodes;
+        DRV nodes = disc->getMyNodes(block, boundary_groups[block][grp]->localElemID);
         parallel_for("mesh data cell nodes",
                      RangePolicy<AssemblyExec>(0,nodes.extent(0)),
                      KOKKOS_LAMBDA (const int elem ) {
@@ -8347,7 +8642,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
     prog = 0;
     for (size_t block=0; block<boundary_groups.size(); ++block) {
       for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
-        DRV nodes = boundary_groups[block][grp]->nodes;
+        DRV nodes = disc->getMyNodes(block, boundary_groups[block][grp]->localElemID);
         int numElem = boundary_groups[block][grp]->numElem;
         
         for (int c=0; c<numElem; c++) {

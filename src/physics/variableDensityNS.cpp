@@ -176,7 +176,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (rho u_1 dv_1/dx_1, \tau_mom R_mom,1)
       // 1/\tau_mom^2 = (c1 \mu/h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -198,7 +198,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (dv_1/dx_1, \tau_mass R_mass) 
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto T = wkset->getSolutionField("T");
         auto dT_dt = wkset->getSolutionField("T_t");
         auto dT_dx = wkset->getSolutionField("grad(T)[x]");
@@ -251,7 +251,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (rho u_1 dw/dx_1, \tau_T R_T)
       // 1/\tau_T^2 = (c1 cp/lambda*h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
 
         parallel_for("VDNS T volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -305,7 +305,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (dq/dx_1, \tau_mom R_mom,1)
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto ux = wkset->getSolutionField("ux");
         auto dux_dt = wkset->getSolutionField("ux_t");
@@ -369,7 +369,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (rho [u_1 dv_1/dx_1 + u_2 dv_1/dx_2], \tau_mom R_mom,1)
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -391,7 +391,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (dv_1/dx_1, \tau_mass R_mass) 
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto T = wkset->getSolutionField("T");
         auto dT_dt = wkset->getSolutionField("T_t");
         auto dT_dx = wkset->getSolutionField("grad(T)[x]");
@@ -457,7 +457,7 @@ void VDNS<EvalT>::volumeResidual() {
       // TODO CHECK UNITS HERE
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("VDNS uy volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -478,7 +478,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (dv_2/dx_2, \tau_mass R_mass) 
       // \tau_mass is like h^2/\tau_mom
       if (useGRADDIV) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto T = wkset->getSolutionField("T");
         auto dT_dt = wkset->getSolutionField("T_t");
         auto dT_dx = wkset->getSolutionField("grad(T)[x]");
@@ -538,7 +538,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (rho [u_1 dw/dx_1 + u_2 dw/dx_2], \tau_T R_T)
       // 1/\tau_T^2 = (c1 cp/lambda*h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
 
         parallel_for("VDNS T volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -596,7 +596,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (dq/dx_1, \tau_mom R_mom,1) + (dq/dx_2, \tau_mom R_mom,2)
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         auto dux_dt = wkset->getSolutionField("ux_t");
@@ -672,7 +672,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (rho [u_1 dv_1/dx_1 + u_2 dv_1/dx_2 + u_3 dv_1/dx_3], \tau_mom R_mom,1)
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -740,7 +740,7 @@ void VDNS<EvalT>::volumeResidual() {
       // TODO CHECK UNITS HERE
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("VDNS uy volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -808,7 +808,7 @@ void VDNS<EvalT>::volumeResidual() {
       // TODO CHECK UNITS HERE
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
         parallel_for("VDNS uz volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -866,7 +866,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (rho [u_1 dw/dx_1 + u_2 dw/dx_2 + u_3 dw/dx_3], \tau_T R_T)
       // 1/\tau_T^2 = (c1 cp/lambda*h)^2 + (c2 |\rho u|/h)^2 + (c3 \rho/dt)^2
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
 
         parallel_for("VDNS T volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -927,7 +927,7 @@ void VDNS<EvalT>::volumeResidual() {
       // (dq/dx_1, \tau_mom R_mom,1) + (dq/dx_2, \tau_mom R_mom,2) + (dq/dx_3, \tau_mom R_mom,3)
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
@@ -1013,7 +1013,7 @@ void VDNS<EvalT>::boundaryResidual() {
   }
 
   auto wts = wkset->wts_side;
-  auto h = wkset->h;
+  auto h = wkset->getSideElementSize();
   auto res = wkset->res;
 
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);

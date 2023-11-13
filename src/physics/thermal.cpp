@@ -203,7 +203,7 @@ void thermal<EvalT>::boundaryResidual() {
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
   
   auto wts = wkset->wts_side;
-  auto h = wkset->h;
+  auto h = wkset->getSideElementSize();
   auto res = wkset->res;
   auto off = subview( wkset->offsets, e_num, ALL());
   int dim = wkset->dimension;
@@ -314,7 +314,7 @@ void thermal<EvalT>::computeFlux() {
     dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_side;
   }
   
-  auto h = wkset->h;
+  auto h = wkset->getSideElementSize();
   int dim = wkset->dimension;
   ScalarT epen = 10.0;
   {

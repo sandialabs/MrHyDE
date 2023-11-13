@@ -184,7 +184,7 @@ void porous<EvalT>::boundaryResidual() {
   }
   
   auto wts = wkset->wts_side;
-  auto h = wkset->h;
+  auto h = wkset->getSideElementSize();
   auto res = wkset->res;
   
   Teuchos::TimeMonitor localtime(*boundaryResidualFill);
@@ -319,7 +319,7 @@ void porous<EvalT>::computeFlux() {
     gravity = functionManager->evaluate("gravity","side ip");
   }
   
-  auto h = wkset->h;
+  auto h = wkset->getSideElementSize();
   auto basis_grad = wkset->basis_side[wkset->usebasis[pnum]];
  
   {

@@ -376,10 +376,18 @@ namespace MrHyDE {
 
     void identifyBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
     
+    void identifyVolumetricIPDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users_x,
+                                      vector<std::pair<size_t,size_t> > & first_users_y,
+                                      vector<std::pair<size_t,size_t> > & first_users_z);
+
     void buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
 
     void buildBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
     
+    void buildVolumetricIPDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users_x,
+                                   vector<std::pair<size_t,size_t> > & first_users_y,
+                                   vector<std::pair<size_t,size_t> > & first_users_z);
+
     void finalizeFunctions();
 
     template<class EvalT>
@@ -867,7 +875,7 @@ namespace MrHyDE {
     std::vector<Teuchos::RCP<Workset<AD32> > > wkset_AD32;
 #endif
 
-    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free, allow_autotune;
+    bool usestrongDBCs, use_meas_as_dbcs, multiscale, isTransient, fix_zero_rows, lump_mass, matrix_free, allow_autotune, store_nodes;
     
     std::string assembly_partitioning;
     std::vector<std::vector<bool> > assemble_volume_terms, assemble_boundary_terms, assemble_face_terms; // use basis functions in assembly [block][set]

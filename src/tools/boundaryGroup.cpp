@@ -18,7 +18,6 @@ using namespace MrHyDE;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 BoundaryGroup::BoundaryGroup(const Teuchos::RCP<GroupMetaData> & group_data_,
-                             const DRV nodes_,
                              const Kokkos::View<LO*,AssemblyDevice> localID_,
                              LO & sideID_,
                              const int & sidenum_, const string & sidename_,
@@ -26,15 +25,60 @@ BoundaryGroup::BoundaryGroup(const Teuchos::RCP<GroupMetaData> & group_data_,
                              Teuchos::RCP<DiscretizationInterface> & disc_,
                              const bool & storeAll_) :
 group_data(group_data_), localElemID(localID_), localSideID(sideID_),
-sidenum(sidenum_), groupID(groupID_), nodes(nodes_), 
+sidenum(sidenum_), groupID(groupID_), 
 sidename(sidename_), disc(disc_)   {
   
-  numElem = nodes.extent(0);
+  numElem = localElemID.extent(0);
   
   storeAll = storeAll_;
   
   haveBasis = false;
+  have_nodes = false;
+  //nodes = disc->mesh->getMyNodes(group_data->my_block, localElemID);
+
+  // Orientations are always stored
+  orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
+  disc->getPhysicalOrientations(group_data, localElemID, orientation, false);
   
+  // Integration points, weights, normals, tangents and element sizes are always stored
+  int numip = group_data->ref_side_ip[0].extent(0);
+  wts = View_Sc2("physical wts",numElem, numip);
+  hsize = View_Sc1("physical meshsize",numElem);
+  
+  disc->getPhysicalBoundaryIntegrationData(group_data, localElemID, localSideID, ip,
+                                           wts, normals, tangents);
+  
+  this->computeSize();
+  this->initializeBasisIndex();
+  if (group_data->have_multidata) {
+    multidata = View_Sc3("multidata array",numElem,wts.extent(1),54);
+  }
+  else {
+    multidata = View_Sc3("multidata array",0,0,0);
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+BoundaryGroup::BoundaryGroup(const Teuchos::RCP<GroupMetaData> & group_data_,
+                             const Kokkos::View<LO*,AssemblyDevice> localID_,
+                             DRV nodes_, LO & sideID_,
+                             const int & sidenum_, const string & sidename_,
+                             const int & groupID_,
+                             Teuchos::RCP<DiscretizationInterface> & disc_,
+                             const bool & storeAll_) :
+group_data(group_data_), localElemID(localID_), localSideID(sideID_),
+sidenum(sidenum_), groupID(groupID_), nodes(nodes_),
+sidename(sidename_), disc(disc_)   {
+  
+  numElem = localElemID.extent(0);
+  
+  storeAll = storeAll_;
+  
+  haveBasis = false;
+  have_nodes = true;
+
   // Orientations are always stored
   orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
   disc->getPhysicalOrientations(group_data, localElemID, orientation, false);
@@ -99,8 +143,14 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
     vector<View_Sc3> tbasis_div;
     
-    disc->getPhysicalBoundaryBasis(group_data, nodes, localSideID, orientation,
-                                   tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+    if (have_nodes) {
+      disc->getPhysicalBoundaryBasis(group_data, nodes, localSideID, orientation,
+                                     tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+    }
+    else {
+      disc->getPhysicalBoundaryBasis(group_data, localElemID, localSideID, 
+                                     tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+    }
     for (size_t i=0; i<tbasis.size(); ++i) {
       basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
       basis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
@@ -109,7 +159,7 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
     }
     haveBasis = true;
     if (!keepnodes) {
-      nodes = DRV("dummy nodes",1);
+      //nodes = DRV("dummy nodes",1);
     }
   }
   else if (group_data->use_basis_database) {
@@ -119,7 +169,7 @@ void BoundaryGroup::computeBasis(const bool & keepnodes) {
     }
     
     if (!keepnodes) {
-      nodes = DRV("empty nodes",1);
+      //nodes = DRV("empty nodes",1);
     }
   }
   

@@ -70,7 +70,7 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     
     Teuchos::RCP<MeshInterface> mesh = Teuchos::rcp(new MeshInterface(settings, Comm) );
-    
+  
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the physics
     ////////////////////////////////////////////////////////////////////////////////
@@ -105,16 +105,6 @@ int main(int argc,char * argv[]) {
     
     assembler->setMeshData();
     
-    if (settings->get<bool>("enable memory purge",true)) {
-      disc->purgeLIDs();
-      if (!settings->sublist("Postprocess").get("write solution",false) && 
-          !settings->sublist("Postprocess").get("create optimization movie",false)) {
-        mesh->purgeMesh();
-        disc->mesh = Teuchos::null;
-        params->mesh = Teuchos::null;
-      }
-    }
-
     ////////////////////////////////////////////////////////////////////////////////
     // Set up the subgrid discretizations/models if using multiscale method
     ////////////////////////////////////////////////////////////////////////////////
@@ -141,9 +131,18 @@ int main(int argc,char * argv[]) {
     // Set up the solver and finalize some objects
     ////////////////////////////////////////////////////////////////////////////////
     
+    //cout << "before solver" << endl;
+    //sleep(10);
+      
     Teuchos::RCP<SolverManager<SolverNode> > solve = Teuchos::rcp( new SolverManager<SolverNode>(Comm, settings, mesh,
                                                                                                  disc, physics, assembler, params) );
-    
+    if (settings->get<bool>("enable memory purge",false)) {
+      disc->purgeLIDs();
+      disc->purgeMemory();
+      //cout << "after disc purge" << endl;
+      //sleep(10);
+    }
+
     solve->multiscale_manager = multiscale_manager;
     assembler->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
@@ -152,25 +151,41 @@ int main(int argc,char * argv[]) {
     ////////////////////////////////////////////////////////////////////////////////
     // Purge Panzer memory before solving
     ////////////////////////////////////////////////////////////////////////////////
+    
+    //cout << "before allocate grps" << endl;
+    //sleep(10);
+      
+    assembler->allocateGroupStorage();
 
-    if (settings->get<bool>("enable memory purge",true)) {
+      //cout << "before purge" << endl;
+      //sleep(10);
+      
+    if (settings->get<bool>("enable memory purge",false)) {
       if (debug_level > 0 && Comm->getRank() == 0) {
         std::cout << "******** Starting driver memory purge ..." << std::endl;
       }
-      disc->purgeMemory();
+      if (!settings->sublist("Postprocess").get("write solution",false) && 
+          !settings->sublist("Postprocess").get("create optimization movie",false)) {
+        mesh->purgeMesh();
+        disc->mesh = Teuchos::null;
+        params->mesh = Teuchos::null;
+      }
+      //cout << "after mesh purge" << endl;
+      //sleep(10);
+      disc->purgeOrientations();
       mesh->purgeMemory();
       assembler->purgeMemory();
       params->purgeMemory();
       physics->purgeMemory();
-
+      //cout << "after physics purge" << endl;
+      //sleep(10);
+      
       if (debug_level > 0 && Comm->getRank() == 0) {
         std::cout << "******** Finished driver memory purge ..." << std::endl;
       } 
            
     }
     
-    assembler->allocateGroupStorage();
-
     solve->completeSetup();
 
     ////////////////////////////////////////////////////////////////////////////////

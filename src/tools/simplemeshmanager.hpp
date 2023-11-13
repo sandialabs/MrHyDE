@@ -548,7 +548,7 @@ public:
     // Compute and store mesh data structures.
     computeNodes();
     computeCellToNodeMap();
-    computeCellToEdgeMap();
+    //computeCellToEdgeMap();
     computeSideSets();
   }
 

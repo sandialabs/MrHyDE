@@ -107,15 +107,15 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
       vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blockID);
       
       // list of all elements on this processor
-      vector<size_t> blockmy_elements = vector<size_t>(stk_meshElems.size());
+      Kokkos::View<LO*,HostDevice> blockmy_elements("list of elements",stk_meshElems.size());
       for( size_t e=0; e<stk_meshElems.size(); e++ ) {
-        blockmy_elements[e] = mesh->getSTKElementLocalId(stk_meshElems[e]);
+        blockmy_elements(e) = mesh->getSTKElementLocalId(stk_meshElems[e]);
       }
       my_elements.push_back(blockmy_elements);
     } else {
-      vector<size_t> blockmy_elements = vector<size_t>(mesh->simple_mesh->getNumCells());
+      Kokkos::View<LO*,HostDevice> blockmy_elements("list of elements",mesh->simple_mesh->getNumCells());
       for(unsigned int i=0; i<blockmy_elements.size(); ++i)
-        blockmy_elements[i] = i;
+        blockmy_elements(i) = i;
       my_elements.push_back(blockmy_elements);
     }
     
@@ -220,7 +220,6 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     
   } // block loop
   
-
   // We do not actually store the DOF or Connectivity managers
   // Probably require:
   // std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids; [set](elem, dof)
@@ -239,23 +238,31 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     // GHDR: need to fill in the objects listed above (try it without the orientations and num_derivs_required)
 
     // GH: this simply pushes back DOFs 0,1,...,N-1 where N is the number of nodes for owned and ownedAndShared
-    vector<GO> owned;
+    //vector<GO> owned;
+    //for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
+    //  owned.push_back(((GO) i));
+    Kokkos::View<GO*,HostDevice> owned("owned dofs",mesh->simple_mesh->getNumNodes());
     for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
-      owned.push_back(((GO) i));
+      owned(i) = (GO) i;
+    
     dof_owned.push_back(owned);
     dof_owned_and_shared.push_back(owned);
 
     dof_lids.push_back(mesh->simple_mesh->getCellToNodeMap()); // [set](elem, dof)
+    
+    /*
     //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof] 
-    std::vector<std::vector<GO>> elemids;
+    Kokkos::View<GO**,HostDevice> elemids("dof gids", dof_lids[dof_lids.size()-1].extent(0), dof_lids[dof_lids.size()-1].extent(1));
     for(unsigned int e=0; e<dof_lids[0].extent(0); ++e) {
       std::vector<GO> localelemids;
       for(unsigned int i=0; i<dof_lids[0].extent(1); ++i) {
-        localelemids.push_back(dof_lids[0](e,i));
+        //localelemids.push_back(dof_lids[0](e,i));
+        elemids(e,i) = dof_lids[0](e,i);
       }
-      elemids.push_back(localelemids);
+      //elemids.push_back(localelemids);
     }
     dof_gids.push_back(elemids);
+    */
 
     // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
     for (size_t set=0; set<physics->set_names.size(); ++set) {
@@ -287,7 +294,9 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
       num_derivs_required = std::vector<int>(1);
 
     }
-    panzer_orientations = std::vector<Intrepid2::Orientation>(mesh->simple_mesh->getNumCells(),Intrepid2::Orientation());
+    
+    panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",mesh->simple_mesh->getNumCells());
+
   }
   
   if (debug_level > 0) {
@@ -628,6 +637,12 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
 // -------------------------------------------------
 
 void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
+                                                         Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip, View_Sc2 wts) {
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  this->getPhysicalIntegrationData(groupData, nodes, ip, wts);
+}
+
+void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
                                                          DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts) {
   
   int dimension = groupData->dimension;
@@ -675,17 +690,21 @@ void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaD
 //////////////////////////////////////////////////////////////////////////////////////
 
 void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
-                                          DRV nodes, DRV jacobian) {
+                                          Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian) {
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  this->getJacobian(groupData, nodes, jacobian);
+}
 
+void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
+                                          DRV nodes, DRV jacobian) {
   CellTools::setJacobian(jacobian, groupData->ref_ip, nodes, *(groupData->cell_topo));
-                       
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
 void DiscretizationInterface::getPhysicalWts(Teuchos::RCP<GroupMetaData> & groupData,
-                                             DRV nodes, DRV jacobian, DRV wts) {
+                                             Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian, DRV wts) {
 
   int numip = groupData->ref_ip.extent(0);
   int numElem = jacobian.extent(0);
@@ -750,8 +769,37 @@ void DiscretizationInterface::getFrobenius(Teuchos::RCP<GroupMetaData> & groupDa
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
+DRV DiscretizationInterface::getMyNodes(const size_t & block, Kokkos::View<LO*,AssemblyDevice> elemIDs) {
+ 
+  vector<size_t> localIds(elemIDs.extent(0));
+  auto elemIDs_host = create_mirror_view(elemIDs);
+  deep_copy(elemIDs_host, elemIDs);
+  
+  for (size_type e=0; e<elemIDs_host.extent(0); ++e) {
+    localIds[e] = my_elements[block](elemIDs_host(e));
+  }
+  DRV nodes = mesh->getMyNodes(block, localIds);
+  return nodes;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
 void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData,
-                                                         DRV nodes, 
+                                                         Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                         vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                                                         vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
+                                                         vector<View_Sc4> & basis_nodes,
+                                                         const bool & apply_orientations) {
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("kv to orients",elemIDs.extent(0));
+  this->getPhysicalOrientations(groupData, elemIDs, orientation, true);
+  this->getPhysicalVolumetricBasis(groupData, nodes, orientation, basis, basis_grad,
+                                   basis_curl, basis_div, basis_nodes, apply_orientations);
+}
+
+void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData,
+                                                         DRV nodes,
                                                          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                          vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                                          vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
@@ -988,7 +1036,17 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
 // Specialized routine to compute just the basis (not GRAD, CURL or DIV) and the wts
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
+void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, 
+                                                         Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                         vector<View_Sc4> & basis) {
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("kv to orients",elemIDs.extent(0));
+  this->getPhysicalOrientations(groupData, elemIDs, orientation, true);
+  this->getPhysicalVolumetricBasis(groupData, nodes, orientation, basis);                                       
+}
+
+void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, 
+                                                         DRV nodes,
                                                          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                          vector<View_Sc4> & basis) {
   
@@ -997,6 +1055,8 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
   int dimension = groupData->dimension;
   int numip = groupData->ref_ip.extent(0);
   int numElem = orientation.extent(0);
+  
+  
   
   // -------------------------------------------------
   // Compute the integration information
@@ -1113,9 +1173,9 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
   for (size_type i=0; i<host_eIndex.extent(0); i++) {
     LO elemID = host_eIndex(i);
     if (use_block) {
-      elemID = my_elements[groupData->my_block][host_eIndex(i)];
+      elemID = my_elements[groupData->my_block](host_eIndex(i));
     }
-    orientation_host(i) = panzer_orientations[elemID];
+    orientation_host(i) = panzer_orientations(elemID);
   }
   deep_copy(orientation,orientation_host);
 }
@@ -1124,7 +1184,17 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
 // Compute the basis functions at the face ip
 // -------------------------------------------------
 
-void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes, 
+void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, 
+                                                             Kokkos::View<LO*,AssemblyDevice> elemIDs, 
+                                                             vector<View_Sc2> & face_ip, View_Sc2 face_wts,
+                                                             vector<View_Sc2> & face_normals) {
+
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  this->getPhysicalFaceIntegrationData(groupData, side, nodes, face_ip, face_wts, face_normals);
+}
+
+void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, 
+                                                             DRV nodes,
                                                              vector<View_Sc2> & face_ip, View_Sc2 face_wts,
                                                              vector<View_Sc2> & face_normals) {
   
@@ -1250,7 +1320,19 @@ void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupM
 
 
 
-void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes, 
+void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, 
+                                                   Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                   vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad) {
+
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("kv to orients",elemIDs.extent(0));
+  this->getPhysicalOrientations(groupData, elemIDs, orientation, true);
+  this->getPhysicalFaceBasis(groupData, side, nodes, orientation, basis, basis_grad);
+
+}
+
+void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, 
+                                                   DRV nodes,
                                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                    vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad) {
     
@@ -1262,6 +1344,7 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
   int dimension = groupData->dimension;
   int numip = ref_ip.extent(0);
   int numElem = nodes.extent(0);
+
   
   // Step 1: fill in ip_side, wts_side and normals
   DRV jacobian("face jac", numElem, numip, dimension, dimension);
@@ -1397,6 +1480,15 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
 //======================================================================
 //
 //======================================================================
+
+void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                                 LO & localSideID,
+                                                                 vector<View_Sc2> & ip, View_Sc2 wts,
+                                                                 vector<View_Sc2> & normals, vector<View_Sc2> & tangents) {
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  this->getPhysicalBoundaryIntegrationData(groupData, nodes, localSideID, ip, wts, normals, tangents);
+
+}
 
 void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                                                  LO & localSideID,
@@ -1585,6 +1677,18 @@ void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<Gr
 //
 //======================================================================
 
+void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaData> & groupData, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                       LO & localSideID,
+                                                       vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                                                       vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div) {
+
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("kv to orients",elemIDs.extent(0));
+  this->getPhysicalOrientations(groupData, elemIDs, orientation, false);
+  this->getPhysicalBoundaryBasis(groupData, nodes, localSideID, orientation, basis, basis_grad, basis_curl, basis_div);
+
+}
+
 void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                                        LO & localSideID,
                                                        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -1600,6 +1704,7 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
   
   int numip = ref_ip.extent(0);
   int numElem = nodes.extent(0);
+  
   
   // -------------------------------------------------
   // Compute the integration information
@@ -1771,13 +1876,25 @@ DRV DiscretizationInterface::evaluateBasis(const basis_RCP & basis_pointer, cons
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisID, const DRV & nodes, 
+DRV DiscretizationInterface::evaluateBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & block, const int & basisID, const Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                           const DRV & evalpts, topo_RCP & cellTopo) {
+
+  DRV nodes = this->getMyNodes(block, elemIDs);
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("kv to orients",elemIDs.extent(0));
+  this->getPhysicalOrientations(groupData, elemIDs, orientation, true);
+  DRV basis = this->evaluateBasis(block, basisID, nodes, evalpts, cellTopo, orientation);
+  return basis;
+
+}
+
+DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisID, DRV nodes,
                                            const DRV & evalpts, topo_RCP & cellTopo,
                                            Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation) {
   
   int numCells = 1;
   int numpts = evalpts.extent(0);
   int numBasis = basis_pointers[block][basisID]->getCardinality();
+  
   
   DRV finalbasis;
   
@@ -1851,8 +1968,20 @@ DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisI
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
+DRV DiscretizationInterface::evaluateBasisNewQuadrature(Teuchos::RCP<GroupMetaData> & groupData, const int & block, 
+                                                        const int & basisID, vector<string> & quad_rules,
+                                                        Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                        DRV & wts) {
+  DRV nodes = this->getMyNodes(block, elemIDs);
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("kv to orients",elemIDs.extent(0));
+  this->getPhysicalOrientations(groupData, elemIDs, orientation, true);
+  DRV basis = this->evaluateBasisNewQuadrature(block, basisID, quad_rules, nodes, orientation, wts);
+  return basis;
+}
+
 DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const int & basisID, vector<string> & quad_rules,
-                                                        DRV nodes, Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                                                        DRV nodes,
+                                                        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                         DRV & wts) {
   
 
@@ -1991,13 +2120,21 @@ DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-DRV DiscretizationInterface::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes,
+DRV DiscretizationInterface::evaluateBasisGrads(const size_t & block, const basis_RCP & basis_pointer, const Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                const DRV & evalpts, const topo_RCP & cellTopo) {
+  DRV nodes = this->getMyNodes(block, elemIDs);
+  DRV basisgrads = this->evaluateBasisGrads(basis_pointer, nodes, evalpts, cellTopo);
+  return basisgrads;
+}
+
+DRV DiscretizationInterface::evaluateBasisGrads(const basis_RCP & basis_pointer, DRV nodes,
                                                 const DRV & evalpts, const topo_RCP & cellTopo) {
   
   int numCells = 1;
   int numpts = evalpts.extent(0);
   int dimension = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
+  
   DRV basisgrads("basisgrads", numBasis, numpts, dimension);
   DRV basisgrads_Transformed("basisgrads_Transformed", numCells, numBasis, numpts, dimension);
   basis_pointer->getValues(basisgrads, evalpts, Intrepid2::OPERATOR_GRAD);
@@ -2014,7 +2151,19 @@ DRV DiscretizationInterface::evaluateBasisGrads(const basis_RCP & basis_pointer,
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-DRV DiscretizationInterface::evaluateBasisGrads(const basis_RCP & basis_pointer, const DRV & nodes,
+DRV DiscretizationInterface::evaluateBasisGrads2(Teuchos::RCP<GroupMetaData> & groupData, 
+                                                const size_t & block, const basis_RCP & basis_pointer, const Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                const DRV & evalpts, const topo_RCP & cellTopo) {
+
+  DRV nodes = this->getMyNodes(block, elemIDs);
+  Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation("kv to orients",elemIDs.extent(0));
+  this->getPhysicalOrientations(groupData, elemIDs, orientation, true);
+  DRV basisgrads = this->evaluateBasisGrads2(basis_pointer, nodes, evalpts, cellTopo, orientation);
+  return basisgrads;
+
+}
+
+DRV DiscretizationInterface::evaluateBasisGrads2(const basis_RCP & basis_pointer, DRV nodes,
                                                 const DRV & evalpts, const topo_RCP & cellTopo,
                                                 Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation) {
   
@@ -2022,6 +2171,8 @@ DRV DiscretizationInterface::evaluateBasisGrads(const basis_RCP & basis_pointer,
   int numpts = evalpts.extent(0);
   int dimension = evalpts.extent(1);
   int numBasis = basis_pointer->getCardinality();
+
+  
   DRV basisgrads("basisgrads", numBasis, numpts, dimension);
   DRV basisgrads_Transformed("basisgrads_Transformed", numCells, numBasis, numpts, dimension);
   basis_pointer->getValues(basisgrads, evalpts, Intrepid2::OPERATOR_GRAD);
@@ -2106,35 +2257,52 @@ void DiscretizationInterface::buildDOFManagers() {
     // Instead of storing the DOF manager, which holds onto the mesh, we extract what we need
     //DOF.push_back(setDOF);
     Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = setDOF->getLIDs();
+    
     dof_lids.push_back(setLIDs);
     
+    {
+      vector<GO> owned;
+      setDOF->getOwnedIndices(owned);
+      Kokkos::View<GO*,HostDevice> owned_kv("owned dofs",owned.size());
+      for (size_type i=0; i<owned_kv.extent(0); ++i) {
+        owned_kv(i) = owned[i];
+      }
+      dof_owned.push_back(owned_kv);
+    }
+    {
+      vector<GO> ownedAndShared;
+      setDOF->getOwnedAndGhostedIndices(ownedAndShared);
+      Kokkos::View<GO*,HostDevice> ownedas_kv("owned dofs",ownedAndShared.size());
+      for (size_type i=0; i<ownedas_kv.extent(0); ++i) {
+        ownedas_kv(i) = ownedAndShared[i];
+      }
+      dof_owned_and_shared.push_back(ownedas_kv);
+    }
 
-    vector<GO> owned, ownedAndShared;
-    setDOF->getOwnedIndices(owned);
-    setDOF->getOwnedAndGhostedIndices(ownedAndShared);
-    dof_owned.push_back(owned);
-    dof_owned_and_shared.push_back(ownedAndShared);
-
-    size_t maxE = 0; 
+    
+    int maxE = 0; 
     for (size_t block=0; block<block_names.size(); ++block) {
       for (size_t elem=0; elem<my_elements[block].size(); ++elem) {
         maxE = std::max(maxE,my_elements[block][elem]);
       }
     }
-    vector<vector<GO>> set_GIDs(maxE+1);
+    Kokkos::View<GO**,HostDevice> set_GIDs("set gids", maxE+1, setLIDs.extent(1));
     
     for (size_t block=0; block<block_names.size(); ++block) {
       
       for (size_t elem=0; elem<my_elements[block].size(); ++elem) {
         vector<GO> gids;
         setDOF->getElementGIDs(my_elements[block][elem], gids, block_names[block]);
-        set_GIDs[my_elements[block][elem]] = gids;
+        for (size_t j=0; j<gids.size(); ++j) {
+          set_GIDs(my_elements[block][elem],j) = gids[j];
+        }
       }
       //set_GIDs.push_back(block_GIDs);
       
     }
     dof_gids.push_back(set_GIDs);
-
+    
+   
     vector<vector<string> > varlist = physics->var_list[set];
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
     for (size_t block=0; block<block_names.size(); ++block) {
@@ -2179,7 +2347,7 @@ void DiscretizationInterface::buildDOFManagers() {
 
     size_t totalElem = 0;
     for (size_t block=0; block<block_names.size(); ++block) {
-      totalElem += my_elements[block].size();
+      totalElem += my_elements[block].extent(0);
     }
 
     // Make sure the conn is setup for a nodal connectivity
@@ -2187,22 +2355,22 @@ void DiscretizationInterface::buildDOFManagers() {
     oconn->buildConnectivity(pattern);
 
     // Initialize the orientations vector
-    panzer_orientations.clear();
-    panzer_orientations.resize(totalElem);
+    //panzer_orientations.clear();
+    panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orients",totalElem);
   
     using NodeView = Kokkos::View<GO*, Kokkos::DefaultHostExecutionSpace>;
     
     // Add owned orientations
     {
       for (size_t block=0; block<block_names.size(); ++block) {
-        for (size_t c=0; c<my_elements[block].size(); ++c) {
-          size_t elemID = my_elements[block][c];
+        for (size_t c=0; c<my_elements[block].extent(0); ++c) {
+          size_t elemID = my_elements[block](c);
           const GO * nodes = oconn->getConnectivity(elemID);
           NodeView node_view("nodes",num_nodes_per_cell);
           for (int node=0; node<num_nodes_per_cell; ++node) {
             node_view(node) = nodes[node];
           }
-          panzer_orientations[elemID] = Intrepid2::Orientation::getOrientation(topology, node_view);
+          panzer_orientations(elemID) = Intrepid2::Orientation::getOrientation(topology, node_view);
           
         }
       }
@@ -2403,7 +2571,12 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
             for( size_t i=0; i<side_output.size(); i++ ) {
               local_elem_Ids.push_back(mesh->getSTKElementLocalId(side_output[i]));
               size_t localid = localelemmap[local_elem_Ids[i]];
-              elemGIDs = dof_gids[set][localid];
+              for (size_t k=0; k<dof_lids[set].extent(1); ++k) {
+                GO gid = dof_owned_and_shared[set](dof_lids[set](localid,k));
+                elemGIDs.push_back(gid);
+                //elemGIDs.push_back(dof_gids[set](localid,k));
+              }
+              //elemGIDs = dof_gids[set][localid];
               //currDOF->getElementGIDs(localid,elemGIDs,blockID);
               block_dbc_dofs.push_back(elemGIDs[offsets[set][block][j][local_node_Ids[i]]]);
             }
@@ -2448,17 +2621,20 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
       delete [] block_dbc_dofs_global;
       
       vector<GO> dbc_final;
-      vector<GO> ownedAndShared = dof_owned_and_shared[set];
-      //currDOF->getOwnedAndGhostedIndices(ownedAndShared);
+      {
+        vector<GO> ownedAndShared(dof_owned_and_shared[set].extent(0));
+        for (size_t i=0; i<ownedAndShared.size(); ++i) {
+          ownedAndShared[i] = dof_owned_and_shared[set](i);
+        }
       
-      sort(all_dbcs.begin(),all_dbcs.end());
-      sort(ownedAndShared.begin(),ownedAndShared.end());
-      set_intersection(all_dbcs.begin(),all_dbcs.end(),
-                       ownedAndShared.begin(),ownedAndShared.end(),
-                       back_inserter(dbc_final));
+        sort(all_dbcs.begin(),all_dbcs.end());
+        sort(ownedAndShared.begin(),ownedAndShared.end());
+        set_intersection(all_dbcs.begin(),all_dbcs.end(),
+                         ownedAndShared.begin(),ownedAndShared.end(),
+                         back_inserter(dbc_final));
       
-      set_point_dofs.push_back(dbc_final);
-      
+        set_point_dofs.push_back(dbc_final);
+      }
     } // blocks
     
     var_bcs.push_back(set_var_bcs);
@@ -2611,7 +2787,15 @@ vector<vector<int> > DiscretizationInterface::getOffsets(const int & set, const 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-DRV DiscretizationInterface::mapPointsToReference(DRV phys_pts, DRV nodes, topo_RCP & cellTopo) {
+DRV DiscretizationInterface::mapPointsToReference(DRV phys_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs, 
+                                                  const size_t & block, topo_RCP & cellTopo) {
+  DRV nodes = this->getMyNodes(block, elemIDs);
+  DRV ref_pts = this->mapPointsToReference(phys_pts, nodes, cellTopo);
+  return ref_pts;
+
+}
+DRV DiscretizationInterface::mapPointsToReference(DRV phys_pts, DRV nodes,
+                                                  topo_RCP & cellTopo) {
   DRV ref_pts("reference cell points",phys_pts.extent(0), phys_pts.extent(1), phys_pts.extent(2));
   CellTools::mapToReferenceFrame(ref_pts, phys_pts, nodes, *cellTopo);
   return ref_pts;
@@ -2631,6 +2815,13 @@ DRV DiscretizationInterface::getReferenceNodes(topo_RCP & cellTopo) {
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs, 
+                                                 const size_t & block, topo_RCP & cellTopo) {
+  DRV nodes = this->getMyNodes(block, elemIDs);
+  DRV phys_pts = this->mapPointsToPhysical(ref_pts, nodes, cellTopo);
+  return phys_pts;
+}
+
 DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RCP & cellTopo) {
   DRV phys_pts("reference cell points",nodes.extent(0), ref_pts.extent(0), ref_pts.extent(1));
   CellTools::mapToPhysicalFrame(phys_pts, ref_pts, nodes, *cellTopo);
@@ -2641,16 +2832,31 @@ DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RC
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & block, const size_t & elem) {
-  return dof_gids[set][elem];
+  vector<GO> gids;
+  for (size_t k=0; k<dof_lids[set].extent(1); ++k) {
+    //auto telem = my_elements[block][elem];
+    //GO gid = dof_owned_and_shared[set](dof_lids[set](elem,k));
+    //gids.push_back(gid);
+    gids.push_back(dof_gids[set](elem,k));
+  }
+  return gids;//dof_gids[set][elem];
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhysicalData(DRV phys_pts, DRV nodes,
-                                                                                         topo_RCP & cellTopo,
+Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhysicalData(DRV phys_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                                                         topo_RCP & cellTopo, const size_t & block,
                                                                                          const ScalarT & tol) {
-  DRV ref_pts = this->mapPointsToReference(phys_pts,nodes,cellTopo);
+  DRV nodes = this->getMyNodes(block, elemIDs);
+  Kokkos::DynRankView<int,PHX::Device> check = this->checkInclusionPhysicalData(phys_pts, nodes, cellTopo, tol);
+  return check;
+}
+
+Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhysicalData(DRV phys_pts, DRV nodes,
+                                                                                         topo_RCP & cellTopo, 
+                                                                                         const ScalarT & tol) {
+  DRV ref_pts = this->mapPointsToReference(phys_pts, nodes, cellTopo);
   //DRV phys_pts2 = this->mapPointsToPhysical(ref_pts,nodes,cellTopo);
   DRV phys_pts2("physical cell point remapped",phys_pts.extent(0), phys_pts.extent(1), phys_pts.extent(2));
   CellTools::mapToPhysicalFrame(phys_pts2, ref_pts, nodes, *cellTopo);
@@ -2749,13 +2955,14 @@ void DiscretizationInterface::purgeLIDs() {
 
 void DiscretizationInterface::purgeMemory() {
   
-  //for (size_t j=0; j<DOF.size(); ++j) {
-  //  DOF[j] = Teuchos::null;//.clear();
-  //}
-  dof_gids.clear();
   dof_owned.clear();
   dof_owned_and_shared.clear();
   side_info.clear();
-  panzer_orientations.clear();
+  
+}
+
+void DiscretizationInterface::purgeOrientations() {
+  
+  panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orients",1);
 
 }

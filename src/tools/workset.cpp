@@ -2656,6 +2656,42 @@ void Workset<EvalT>::allocateRotations() {
   }
 }
 
+//////////////////////////////////////////////////////////////
+// Allocate and return the element sizes, h
+//////////////////////////////////////////////////////////////
+
+template<class EvalT>
+View_Sc1 Workset<EvalT>::getElementSize() {
+  View_Sc1 hsize("tmp hsize",wts.extent(0));
+  parallel_for("elem size",
+               RangePolicy<AssemblyExec>(0,wts.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    ScalarT vol = 0.0;
+    for (size_type i=0; i<wts.extent(1); i++) {
+      vol += wts(elem,i);
+    }
+    ScalarT dimscl = 1.0/(ScalarT)dimension;
+    hsize(elem) = std::pow(vol,dimscl);
+  });
+  return hsize;
+}
+
+template<class EvalT>
+View_Sc1 Workset<EvalT>::getSideElementSize() {
+  
+  View_Sc1 hsize("tmp hsize",wts_side.extent(0));
+  parallel_for("elem size",
+               RangePolicy<AssemblyExec>(0,wts_side.extent(0)),
+               KOKKOS_LAMBDA (const size_type elem ) {
+    ScalarT vol = 0.0;
+    for (size_type i=0; i<wts_side.extent(1); i++) {
+      vol += wts_side(elem,i);
+    }
+    ScalarT dimscl = 1.0/(ScalarT)dimension;
+    hsize(elem) = std::pow(vol,dimscl);
+  });
+  return hsize;
+}
 
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations

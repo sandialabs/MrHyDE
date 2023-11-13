@@ -36,9 +36,16 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     BoundaryGroup(const Teuchos::RCP<GroupMetaData> & group_data_,
-                  const DRV nodes_,
                   const Kokkos::View<LO*,AssemblyDevice> localID_,
                   LO & sideID_,
+                  const int & sidenum_, const string & sidename_,
+                  const int & groupID_,
+                  Teuchos::RCP<DiscretizationInterface> & disc_,
+                  const bool & storeAll_);
+
+    BoundaryGroup(const Teuchos::RCP<GroupMetaData> & group_data_,
+                  const Kokkos::View<LO*,AssemblyDevice> localID_,
+                  DRV nodes_, LO & sideID_,
                   const int & sidenum_, const string & sidename_,
                   const int & groupID_,
                   Teuchos::RCP<DiscretizationInterface> & disc_,
@@ -165,7 +172,7 @@ namespace MrHyDE {
     vector<View_Sc2> ip, normals, tangents;
     View_Sc2 wts;
     View_Sc1 hsize;
-    bool storeAll, haveBasis, have_sols = false;
+    bool storeAll, haveBasis, have_sols = false, have_nodes;
     Kokkos::View<LO*,AssemblyDevice> basis_index;
     
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly

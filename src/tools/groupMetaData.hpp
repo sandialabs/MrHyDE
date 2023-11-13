@@ -89,7 +89,7 @@ namespace MrHyDE {
     vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
         
     bool compute_diff, use_fine_scale, load_sensor_files, write_sensor_files, use_basis_database = false, use_mass_database = false;
-    bool mortar_objective;
+    bool mortar_objective, use_ip_database = false;
     bool exodus_sensors = false, compute_sol_avg = false, store_mass = true;
     bool multiscale = false, have_phi, have_rotation, have_extra_data, have_multidata;
     
@@ -100,6 +100,7 @@ namespace MrHyDE {
     vector<View_Sc4> database_side_basis, database_side_basis_grad;
     vector<vector<View_Sc4> > database_face_basis, database_face_basis_grad;
     View_Sc2 database_wts;
+    View_Sc2 database_x, database_y, database_z;
 
     // database of mass matrices
     vector<View_Sc3> database_mass;  // [set](dof,dof) 

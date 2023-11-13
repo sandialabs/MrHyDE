@@ -97,7 +97,7 @@ void Burgers<EvalT>::volumeResidual() {
       supg_C1 = functionManager->evaluate("supg C1","ip");
       supg_C2 = functionManager->evaluate("supg C2","ip");
     }
-    auto h = wkset->h;
+    auto h = wkset->getElementSize();
     auto dt = wkset->deltat;
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),

@@ -86,7 +86,7 @@ void incompressibleSaturation<EvalT>::volumeResidual() {
     this->computeFluxVector();
 
     if (useWells) {
-      auto h = wkset->h;
+      auto h = wkset->getElementSize();
       sourceterms[0] = myWells.addWellSources(sourceterms[0],h,functionManager, 
                                               wkset->numElem, wkset->numip); 
     }

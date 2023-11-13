@@ -150,7 +150,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // TODO viscous contribution for higher order elements?
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -210,7 +210,7 @@ void navierstokes<EvalT>::volumeResidual() {
           
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto ux = wkset->getSolutionField("ux");
         auto dux_dt = wkset->getSolutionField("ux_t");
@@ -298,7 +298,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // SUPG contribution
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]"); // TODO unnecesary?
         parallel_for("NS ux volume resid",
@@ -383,7 +383,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // SUPG contribution
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("NS uy volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -444,7 +444,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         auto ux =wkset->getSolutionField("ux");
@@ -544,7 +544,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // SUPG contribution
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -634,7 +634,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // SUPG contribution
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("NS uy volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -724,7 +724,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // SUPG contribution
       
       if (useSUPG) {
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
         parallel_for("NS uz volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -788,7 +788,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
@@ -888,7 +888,7 @@ void navierstokes<EvalT>::boundaryResidual() {
     
     // Since normals get recomputed often, this needs to be reset
     auto wts = wkset->wts_side;
-    auto h = wkset->h;
+    auto h = wkset->getSideElementSize();
     auto res = wkset->res;
     
     //Teuchos::TimeMonitor localtime(*boundaryResidualFill);

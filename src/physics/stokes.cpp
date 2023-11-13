@@ -135,7 +135,7 @@ void stokes<EvalT>::volumeResidual() {
 
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         
         parallel_for("Stokes pr volume resid",
@@ -155,7 +155,7 @@ void stokes<EvalT>::volumeResidual() {
 
       if (useLSIC) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
         
         parallel_for("Stokes pr volume resid",
@@ -243,7 +243,7 @@ void stokes<EvalT>::volumeResidual() {
 
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         
@@ -267,7 +267,7 @@ void stokes<EvalT>::volumeResidual() {
 
       if (useLSIC) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
         
@@ -389,7 +389,7 @@ void stokes<EvalT>::volumeResidual() {
 
       if (usePSPG) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
@@ -415,7 +415,7 @@ void stokes<EvalT>::volumeResidual() {
 
       if (useLSIC) {
         
-        auto h = wkset->h;
+        auto h = wkset->getElementSize();
         auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
         auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
         auto duz_dz = wkset->getSolutionField("grad(uz)[z]");

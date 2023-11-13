@@ -128,7 +128,7 @@ void hartmann<EvalT>::boundaryResidual()
 
         // Since normals get recomputed often, this needs to be reset
         auto wts = wkset->wts_side;
-        auto h = wkset->h;
+        auto h = wkset->getSideElementSize();
         auto res = wkset->res;
 
         {

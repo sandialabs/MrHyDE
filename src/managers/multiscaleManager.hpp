@@ -145,6 +145,7 @@ namespace MrHyDE {
     ScalarT reltol, abstol;
     std::vector<Teuchos::RCP<SubGridModel> > subgridModels;
     Teuchos::RCP<MpiComm> Comm, MacroComm;
+    Teuchos::RCP<MeshInterface> macro_mesh;
     Teuchos::RCP<Teuchos::ParameterList> settings;
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
     std::vector<Teuchos::RCP<Workset<AD> > > macro_wkset;

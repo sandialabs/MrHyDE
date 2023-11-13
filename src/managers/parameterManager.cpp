@@ -373,11 +373,11 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
         Kokkos::deep_copy(numDOF_host, numDOF_KV);
         groups[block][0]->group_data->num_param_dof_host = numDOF_host;
         
-        vector<size_t> myElem = disc->my_elements[block];
+        auto myElem = disc->my_elements[block];
         Kokkos::View<size_t*,AssemblyDevice> GEIDs("element IDs on device",myElem.size());
         auto host_GEIDs = Kokkos::create_mirror_view(GEIDs);
-        for (size_t elem=0; elem<myElem.size(); elem++) {
-          host_GEIDs(elem) = myElem[elem];
+        for (size_t elem=0; elem<myElem.extent(0); elem++) {
+          host_GEIDs(elem) = myElem(elem);
         }
         Kokkos::deep_copy(GEIDs, host_GEIDs);
         
@@ -463,10 +463,10 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     }
     
     for (size_t block=0; block<blocknames.size(); ++block) {
-      vector<size_t> EIDs = disc->my_elements[block];
-      for (size_t e=0; e<EIDs.size(); e++) {
+      auto EIDs = disc->my_elements[block];
+      for (size_t e=0; e<EIDs.extent(0); e++) {
         vector<GO> gids;
-        size_t elemID = EIDs[e];
+        size_t elemID = EIDs(e);
         paramDOF->getElementGIDs(elemID, gids, blocknames[block]);
         
         for (size_t num=0; num<num_discretized_params; num++) {

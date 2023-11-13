@@ -222,7 +222,7 @@ void porousMixed<EvalT>::volumeResidual() {
     }
     
     if (useWells) {
-      auto h = wkset->h;
+      auto h = wkset->getElementSize();
       source = myWells.addWellSources(source,h,functionManager,
       wts.extent(0) /* numElem */, wts.extent(1) /* numIp */ ); 
     }

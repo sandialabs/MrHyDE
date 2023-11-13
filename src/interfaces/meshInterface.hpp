@@ -152,6 +152,8 @@ namespace MrHyDE {
     void getSTKNodeElements(string & blockname, vector<stk::mesh::Entity> & nodeEntities, 
                             vector<size_t> & local_node_Ids, vector<stk::mesh::Entity> & side_output);
 
+    DRV getMyNodes(const size_t & block, vector<size_t> & elemIDs);
+
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     

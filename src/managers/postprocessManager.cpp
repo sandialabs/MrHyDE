@@ -4587,8 +4587,11 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
   
   for (size_t block=0; block<blocknames.size(); ++block) {
     std::string blockID = blocknames[block];
-    vector<size_t> myElements = disc->my_elements[block];
-    
+    auto myElements_tmp = disc->my_elements[block];
+    vector<size_t> myElements(myElements_tmp.extent(0));
+    for (size_t i=0; i<myElements_tmp.extent(0); ++i) {
+      myElements[i] = myElements_tmp(i);
+    }
     if (myElements.size() > 0) {
         
       for (size_t set=0; set<setnames.size(); ++set) {
@@ -5236,10 +5239,11 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
 
   for (size_t block=0; block<assembler->groups.size(); ++block) {
     std::string blockID = blocknames[block];
-    //vector<vector<int> > curroffsets = disc->offsets[block];
-    vector<size_t> myElements = disc->my_elements[block];
-    //vector<string> vartypes = physics->types[block];
-    //vector<int> varorders = physics->orders[block];
+    auto myElements_tmp = disc->my_elements[block];
+    vector<size_t> myElements(myElements_tmp.extent(0));
+    for (size_t i=0; i<myElements_tmp.extent(0); ++i) {
+      myElements[i] = myElements_tmp(i);
+    }
     
     if (myElements.size() > 0) {
       
@@ -5536,16 +5540,18 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       auto pp_sub = subview(spts,pt,ALL());
       Kokkos::deep_copy(cpt_sub,pp_sub);
       
-      auto nodes = assembler->groups[block][sowners(pt,0)]->nodes;
-      auto nodes_sv = subview(nodes,sowners(pt,1),ALL(),ALL());
-      DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
-      auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
-      deep_copy(cnodes_sv,nodes_sv);
+      Kokkos::View<LO*,AssemblyDevice> cids("current local elem ids",1);
+      cids(0) = assembler->groups[block][sowners(pt,0)]->localElemID(sowners(pt,0));
+      //auto nodes = mesh->getMyNodes(block, assembler->groups[block][sowners(pt,0)]->localElemID);
+      //auto nodes_sv = subview(nodes,sowners(pt,1),ALL(),ALL());
+      //DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
+      //auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
+      //deep_copy(cnodes_sv,nodes_sv);
 
       DRV refpt("refsenspts",1,dimension);
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
-      DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cell_topo);
+      DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cids, block, assembler->groupData[block]->cell_topo);
       
       for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
         refpt(0,d) = refpt_tmp(0,0,d);
@@ -5560,7 +5566,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
         auto cellTopo = assembler->groupData[block]->cell_topo;
         
         Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
-        DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
+        DRV bvals = disc->evaluateBasis(assembler->groupData[block], block, k, cids, refpt, cellTopo);
 
         if (basis_type == "HGRAD") {
 
@@ -5568,7 +5574,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
           auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),0);
           deep_copy(bvals2_sv,bvals_sv);
 
-          DRV bgradvals = assembler->disc->evaluateBasisGrads(basis_ptr, cnodes, refpt, cellTopo, corientation);
+          DRV bgradvals = assembler->disc->evaluateBasisGrads2(assembler->groupData[block], block, basis_ptr, cids, refpt, cellTopo);
           auto bgradvals_sv = subview(bgradvals,0,ALL(),ALL(),ALL());
           auto bgrad_sv = subview(csensorBasisGrad[k],pt,ALL(),ALL(),ALL());
           deep_copy(bgrad_sv,bgradvals_sv);
@@ -5966,23 +5972,25 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
     auto pp_sub = subview(spts,pt,ALL());
     Kokkos::deep_copy(cpt_sub,pp_sub);
       
-    auto nodes = assembler->groups[block][sowners(pt,0)]->nodes;
-    auto nodes_sv = subview(nodes,sowners(pt,1),ALL(),ALL());
-    DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
-    auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
-    deep_copy(cnodes_sv,nodes_sv);
+    Kokkos::View<LO*,AssemblyDevice> cids("current local elemids",1);
+    cids(0) = assembler->groups[block][sowners(pt,0)]->localElemID(sowners(pt,1));
+    //auto nodes = mesh->getMyNodes(block, assembler->groups[block][sowners(pt,0)]->localElemID);
+    //auto nodes_sv = subview(nodes,sowners(pt,1),ALL(),ALL());
+    //DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
+    //auto cnodes_sv = subview(cnodes,0,ALL(),ALL());
+    //deep_copy(cnodes_sv,nodes_sv);
 
     DRV refpt("refsenspts",1,dimension);
-    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
+    //Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
-    DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cnodes, assembler->groupData[block]->cell_topo);
+    DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cids, block, assembler->groupData[block]->cell_topo);
 
     for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
       refpt(0,d) = refpt_tmp(0,0,d);
     }
       
-    auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
-    corientation(0) = orient(sowners(pt,1));
+    //auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
+    //corientation(0) = orient(sowners(pt,1));
     
 
     for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
@@ -5991,14 +5999,14 @@ void PostprocessManager<Node>::computeSensorBasis(const int & objID) {
       auto cellTopo = assembler->groupData[block]->cell_topo;
         
       Kokkos::View<ScalarT****,AssemblyDevice> bvals2, bgradvals2;
-      DRV bvals = disc->evaluateBasis(block, k, cnodes, refpt, cellTopo, corientation);
+      DRV bvals = disc->evaluateBasis(assembler->groupData[block], block, k, cids, refpt, cellTopo);
 
       if (basis_type == "HGRAD") {
         auto bvals_sv = subview(bvals,0,ALL(),ALL());
         auto bvals2_sv = subview(csensorBasis[k],pt,ALL(),ALL(),0);
         deep_copy(bvals2_sv,bvals_sv);
           
-        DRV bgradvals = assembler->disc->evaluateBasisGrads(basis_ptr, cnodes, refpt, cellTopo, corientation);
+        DRV bgradvals = assembler->disc->evaluateBasisGrads2(assembler->groupData[block], block, basis_ptr, cids, refpt, cellTopo);
         auto bgradvals_sv = subview(bgradvals,0,ALL(),ALL(),ALL());
         auto bgrad_sv = subview(csensorBasisGrad[k],pt,ALL(),ALL(),ALL());
         deep_copy(bgrad_sv,bgradvals_sv);
@@ -6038,7 +6046,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
     
   for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
     
-    auto nodes = assembler->groups[block][grp]->nodes;
+    auto nodes = disc->getMyNodes(block, assembler->groups[block][grp]->localElemID);
     auto nodes_host = create_mirror_view(nodes);
     deep_copy(nodes_host,nodes);
     
@@ -6090,14 +6098,16 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
               phys_pt_host(0,0,d) = spts_host(pt,d);
             }
             deep_copy(phys_pt,phys_pt_host);
-            DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
-            auto n_sub = subview(nodes,p,ALL(),ALL());
-            auto cn_sub = subview(cnodes,0,ALL(),ALL());
-            Kokkos::deep_copy(cn_sub,n_sub);
+            Kokkos::View<LO*,AssemblyDevice> cids("current local elem ids",1);
+            cids(0) = assembler->groups[block][grp]->localElemID(p);
+            //DRV cnodes("current nodes",1,nodes.extent(1), nodes.extent(2));
+            //auto n_sub = subview(nodes,p,ALL(),ALL());
+            //auto cn_sub = subview(cnodes,0,ALL(),ALL());
+            //Kokkos::deep_copy(cn_sub,n_sub);
             
-            auto inRefgrp = assembler->disc->checkInclusionPhysicalData(phys_pt,cnodes,
+            auto inRefgrp = assembler->disc->checkInclusionPhysicalData(phys_pt,cids,
                                                                          assembler->groupData[block]->cell_topo,
-                                                                         1.0e-14);
+                                                                         block, 1.0e-14);
             auto inRef_host = create_mirror_view(inRefgrp);
             deep_copy(inRef_host,inRefgrp);
             if (inRef_host(0,0)) {
