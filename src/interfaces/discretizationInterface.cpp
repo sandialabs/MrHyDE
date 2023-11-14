@@ -636,15 +636,66 @@ void DiscretizationInterface::setReferenceData(Teuchos::RCP<GroupMetaData> & gro
 // Compute the volumetric integration information
 // -------------------------------------------------
 
+void DiscretizationInterface::getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                                                         Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip) {
+  DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
+  this->getPhysicalIntegrationPts(groupData, nodes, ip);
+}
+
+void DiscretizationInterface::getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                                                         DRV nodes, vector<View_Sc2> & ip) {
+  
+  Teuchos::TimeMonitor constructor_timer(*phys_vol_IP_timer);
+
+  int dimension = groupData->dimension;
+  int numip = groupData->ref_ip.extent(0);
+  int numElem = nodes.extent(0);
+  
+  // -------------------------------------------------
+  // Compute the integration information
+  // -------------------------------------------------
+  
+  DRV tmpip("tmp ip", numElem, numip, dimension);
+  
+  {
+    CellTools::mapToPhysicalFrame(tmpip, groupData->ref_ip, nodes, *(groupData->cell_topo));
+    View_Sc2 x("x",tmpip.extent(0), tmpip.extent(1));
+    auto tmpip_x = subview(tmpip, ALL(), ALL(),0);
+    deep_copy(x,tmpip_x);
+    ip.push_back(x);
+    if (dimension > 1) {
+      View_Sc2 y("y",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_y = subview(tmpip, ALL(), ALL(),1);
+      deep_copy(y,tmpip_y);
+      ip.push_back(y);
+    }
+    if (dimension > 2) {
+      View_Sc2 z("z",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_z = subview(tmpip, ALL(), ALL(),2);
+      deep_copy(z,tmpip_z);
+      ip.push_back(z);
+    }
+    
+  }
+}
+
 void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
                                                          Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip, View_Sc2 wts) {
   DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
   this->getPhysicalIntegrationData(groupData, nodes, ip, wts);
 }
 
+/// @brief ////////////////////////////////////////////////////
+/// @param groupData 
+/// @param nodes 
+/// @param ip 
+/// @param wts 
+
 void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
                                                          DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts) {
   
+  Teuchos::TimeMonitor constructor_timer(*phys_vol_IP_timer);
+
   int dimension = groupData->dimension;
   int numip = groupData->ref_ip.extent(0);
   int numElem = nodes.extent(0);
@@ -771,6 +822,7 @@ void DiscretizationInterface::getFrobenius(Teuchos::RCP<GroupMetaData> & groupDa
 
 DRV DiscretizationInterface::getMyNodes(const size_t & block, Kokkos::View<LO*,AssemblyDevice> elemIDs) {
  
+  Teuchos::TimeMonitor constructor_timer(*get_nodes_timer);
   vector<size_t> localIds(elemIDs.extent(0));
   auto elemIDs_host = create_mirror_view(elemIDs);
   deep_copy(elemIDs_host, elemIDs);

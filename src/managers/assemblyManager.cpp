@@ -4355,8 +4355,10 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   
   this->identifyBoundaryDatabase(block, first_boundary_users);
   
-  this->identifyVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
-  
+  if (groupData[block]->use_ip_database) {
+    this->identifyVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
+  }
+
   /////////////////////////////////////////////////////////////////////////////
   // Step 2: inform the user about the savings
   /////////////////////////////////////////////////////////////////////////////
@@ -4378,6 +4380,14 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
     cout << " - Processor " << comm->getRank() << ": Number of unique boundary elements on block " << blocknames[block] << ": " << first_boundary_users.size() << endl;
     cout << " - Processor " << comm->getRank() << ": Database boundary memory savings on " << blocknames[block] << ": "
     << (100.0 - 100.0*((double)first_boundary_users.size()/(double)boundaryelem)) << "%" << endl;
+    if (groupData[block]->use_ip_database) {
+      int totalip = totalelem*groupData[block]->ref_ip.extent(0);
+      cout << " - Processor " << comm->getRank() << ": Number of quadrature points on block " << blocknames[block] << ": " << totalip << endl;
+      size_t total_ip_stored = first_users_x.size() + first_users_y.size() + first_users_z.size();
+      cout << " - Processor " << comm->getRank() << ": Number of unique quadrature points on block " << blocknames[block] << ": " << total_ip_stored << endl;
+      cout << " - Processor " << comm->getRank() << ": Database quadrature memory savings on " << blocknames[block] << ": "
+      << (100.0 - 100.0*((double)total_ip_stored/(double)totalip)) << "%" << endl;
+    }
   }
   
   /////////////////////////////////////////////////////////////////////////////
@@ -4387,8 +4397,9 @@ void AssemblyManager<Node>::buildDatabase(const size_t & block) {
   this->buildVolumetricDatabase(block, first_users);
   
   this->buildBoundaryDatabase(block, first_boundary_users);
-  
-  this->buildVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
+  if (groupData[block]->use_ip_database) {
+    this->buildVolumetricIPDatabase(block, first_users_x, first_users_y, first_users_z);
+  }
   
 }
 
@@ -4722,16 +4733,115 @@ void AssemblyManager<Node>::identifyVolumetricIPDatabase(const size_t & block, v
   
   vector<vector<ScalarT> > db_x, db_y, db_z;
 
+  bool use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
+  if (use_simple_mesh) {
+    if (dimension == 2) {
+      int NX = settings->sublist("Mesh").get("NX",20);
+      size_t prog = 0;
+      size_t grp = 0;
+      while (prog<NX && grp<groups[block].size()) {
+        auto elems = groups[block][grp]->localElemID;
+        for (size_type e=0; e<elems.size(); ++e) {
+          auto el = elems(e);
+          if (el<NX) {
+            std::pair<size_t,size_t> newuj{grp,e};
+            first_users_x.push_back(newuj);
+            ++prog;
+          }
+        }
+        ++grp;
+      }
+      //for (int i=0; i<NX; ++i) {
+        //std::pair<size_t,size_t> newuj{0,i};
+        //first_users_x.push_back(newuj);
+        //bool found = false;
+        //size_t grp = 0;
+        //while (!found && grp<groups[block].size()) {
+        //  auto elemindex = groups[block][grp]->localElemID;
+          //size_type e=0;
+          //while (!found && e<elemindex.extent(0)) {
+          //  if (elemindex(e) == i) {
+          //    std::pair<size_t,size_t> newuj{grp,e};
+          //    first_users_x.push_back(newuj);
+          //    found = true;
+          //  }
+          //  ++e;
+          //}
+          //++grp;
+        //}
+      //}
+
+      int NY = settings->sublist("Mesh").get("NY",20);
+      prog = 0;
+      grp = 0;
+      while (prog<NY && grp<groups[block].size()) {
+        auto elems = groups[block][grp]->localElemID;
+        if (prog*NX >= elems(0) && elems(elems.extent(0)-1) >= (prog)*NX) {
+          for (size_type e=0; e<elems.size(); ++e) {
+            auto el = elems(e);
+            if (el == prog*NX) {
+              std::pair<size_t,size_t> newuj{grp,e};
+              first_users_y.push_back(newuj);
+              ++prog;
+            }
+          }  
+        }
+        else {
+          ++grp;
+        }
+      }
+      
+      //for (int i=0; i<NY; ++i) {
+        //std::pair<size_t,size_t> newuj{i,0};
+        //first_users_y.push_back(newuj);
+        //bool found = false;
+        //size_t grp = 0;
+        //while (!found && grp<groups[block].size()) {
+        //  auto elemindex = groups[block][grp]->localElemID;
+        //  size_type e=0;
+        //  while (!found && e<elemindex.extent(0)) {
+        //    if (elemindex(e) == (i)*NX) {
+        //      std::pair<size_t,size_t> newuj{grp,e};
+        //      first_users_y.push_back(newuj);
+        //      found = true;
+        //    }++e;
+        //  }
+        //  ++grp;
+        //}
+        //first_users_y.push_back((i-1)*NX);
+      //}
+
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        size_t numElem = groups[block][grp]->numElem;
+        auto elemindex = groups[block][grp]->localElemID;
+          
+        {
+          Kokkos::View<LO*,AssemblyDevice> index("ip x database index",numElem);
+          for (size_type e=0; e<elemindex.extent(0); ++e) {
+            index(e) = elemindex(e) % NX;
+          }
+          groups[block][grp]->ip_x_index = index;
+        }
+        {
+          Kokkos::View<LO*,AssemblyDevice> index("ip y database index",numElem);
+          for (size_type e=0; e<elemindex.extent(0); ++e) {
+            index(e) = std::floor(elemindex(e)/NX);
+          }
+          groups[block][grp]->ip_y_index = index;
+        }
+      }
+    }
+  }
+  else {
   for (size_t grp=0; grp<groups[block].size(); ++grp) {
     size_t numElem = groups[block][grp]->numElem;
     
-    View_Sc2 tmpwts("temp physical wts",numElem, numip);
     vector<View_Sc2> newip;
     if (groups[block][grp]->have_nodes) {
-      disc->getPhysicalIntegrationData(groupData[block], groups[block][grp]->nodes, newip, tmpwts);
+      disc->getPhysicalIntegrationPts(groupData[block], groups[block][grp]->nodes, newip);
     }
     else {
-      disc->getPhysicalIntegrationData(groupData[block], groups[block][grp]->localElemID, newip, tmpwts);
+      disc->getPhysicalIntegrationPts(groupData[block], groups[block][grp]->localElemID, newip);
     }
     
     // Identify database for x
@@ -4894,6 +5004,7 @@ void AssemblyManager<Node>::identifyVolumetricIPDatabase(const size_t & block, v
     }
 
 
+  }
   }
 }
 

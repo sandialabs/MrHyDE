@@ -192,14 +192,12 @@ void Group::computeBasis(const bool & keepnodes) {
       }
     }
     else {
-      size_type numip = group_data->ref_ip.extent(0);
-      View_Sc2 tmpwts("temp physical wts",numElem, numip);
       vector<View_Sc2> newip;
       if (have_nodes) {
-        disc->getPhysicalIntegrationData(group_data, nodes, newip, tmpwts);
+        disc->getPhysicalIntegrationPts(group_data, nodes, newip);
       }
       else {
-        disc->getPhysicalIntegrationData(group_data, localElemID, newip, tmpwts);
+        disc->getPhysicalIntegrationPts(group_data, localElemID, newip);
       }
       CompressedView<View_Sc2> ip_x(newip[0]);
       ip.push_back(ip_x);

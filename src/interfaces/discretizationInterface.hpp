@@ -99,6 +99,12 @@ namespace MrHyDE {
     void getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
                                     DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts);
 
+    void getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                                    Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip);
+
+    void getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                                    DRV nodes, vector<View_Sc2> & ip);
+
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
@@ -401,6 +407,9 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> set_dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::setDirichletData()");
     Teuchos::RCP<Teuchos::Time> dofmgr_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::buildDOFManagers()");
     
+    Teuchos::RCP<Teuchos::Time> phys_vol_IP_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalIntegrationData()");
+    Teuchos::RCP<Teuchos::Time> get_nodes_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getMyNodes()");
+
     Teuchos::RCP<Teuchos::Time> phys_vol_data_total_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - total");
     Teuchos::RCP<Teuchos::Time> phys_vol_data_IP_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - ip");
     Teuchos::RCP<Teuchos::Time> phys_vol_data_set_jac_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface::getPhysicalVolumetricData - set Jac");
