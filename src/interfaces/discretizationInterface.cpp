@@ -103,7 +103,7 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     topo_RCP cellTopo = mesh->getCellTopology(blockID);
     string shape = cellTopo->getName();
     
-    if(mesh->use_stk_mesh) {
+    if (mesh->use_stk_mesh) {
       vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blockID);
       
       // list of all elements on this processor
@@ -295,7 +295,8 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
 
     }
     
-    panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",mesh->simple_mesh->getNumCells());
+    //panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",mesh->simple_mesh->getNumCells());
+    panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",1);
 
   }
   
@@ -1227,7 +1228,12 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
     if (use_block) {
       elemID = my_elements[groupData->my_block](host_eIndex(i));
     }
-    orientation_host(i) = panzer_orientations(elemID);
+    if (panzer_orientations.extent(0) > elemID) {
+      orientation_host(i) = panzer_orientations(elemID);
+    }
+    else { // account for simple mesh, which only needs 1 orientation
+      orientation_host(i) = panzer_orientations(0);
+    }
   }
   deep_copy(orientation,orientation_host);
 }
@@ -2331,30 +2337,6 @@ void DiscretizationInterface::buildDOFManagers() {
       dof_owned_and_shared.push_back(ownedas_kv);
     }
 
-    /*
-    int maxE = 0; 
-    for (size_t block=0; block<block_names.size(); ++block) {
-      for (size_t elem=0; elem<my_elements[block].size(); ++elem) {
-        maxE = std::max(maxE,my_elements[block][elem]);
-      }
-    }
-    Kokkos::View<GO**,HostDevice> set_GIDs("set gids", maxE+1, setLIDs.extent(1));
-    
-    for (size_t block=0; block<block_names.size(); ++block) {
-      
-      for (size_t elem=0; elem<my_elements[block].size(); ++elem) {
-        vector<GO> gids;
-        setDOF->getElementGIDs(my_elements[block][elem], gids, block_names[block]);
-        for (size_t j=0; j<gids.size(); ++j) {
-          set_GIDs(my_elements[block][elem],j) = gids[j];
-        }
-      }
-      //set_GIDs.push_back(block_GIDs);
-      
-    }
-    dof_gids.push_back(set_GIDs);
-    */
-   
     vector<vector<string> > varlist = physics->var_list[set];
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
     for (size_t block=0; block<block_names.size(); ++block) {
@@ -2625,6 +2607,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
               size_t localid = localelemmap[local_elem_Ids[i]];
               for (size_t k=0; k<dof_lids[set].extent(1); ++k) {
                 GO gid = dof_owned_and_shared[set](dof_lids[set](localid,k));
+                //GO gid = dof_owned_and_shared[set][dof_lids[set](localid,k)];
                 elemGIDs.push_back(gid);
                 //elemGIDs.push_back(dof_gids[set](localid,k));
               }
@@ -2684,6 +2667,11 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
         set_intersection(all_dbcs.begin(),all_dbcs.end(),
                          ownedAndShared.begin(),ownedAndShared.end(),
                          back_inserter(dbc_final));
+        
+        //sort(dof_owned_and_shared[set].begin(),dof_owned_and_shared[set].end());
+        //set_intersection(all_dbcs.begin(),all_dbcs.end(),
+        //                 dof_owned_and_shared[set].begin(),dof_owned_and_shared[set].end(),
+        //                 back_inserter(dbc_final));
       
         set_point_dofs.push_back(dbc_final);
       }
@@ -2887,6 +2875,7 @@ vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & b
   vector<GO> gids;
   for (size_t k=0; k<dof_lids[set].extent(1); ++k) {
     GO gid = dof_owned_and_shared[set](dof_lids[set](elem,k));
+    //GO gid = dof_owned_and_shared[set][dof_lids[set](elem,k)];
     gids.push_back(gid);
     //gids.push_back(dof_gids[set](elem,k));
   }
@@ -3002,6 +2991,7 @@ Kokkos::View<string**,HostDevice> DiscretizationInterface::getVarBCs(const size_
 
 void DiscretizationInterface::purgeLIDs() {
   dof_lids.clear();
+  //mesh->purgeMaps();
 }
 
 void DiscretizationInterface::purgeMemory() {
@@ -3015,5 +3005,6 @@ void DiscretizationInterface::purgeMemory() {
 void DiscretizationInterface::purgeOrientations() {
   
   panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orients",1);
+  my_elements.clear();
 
 }

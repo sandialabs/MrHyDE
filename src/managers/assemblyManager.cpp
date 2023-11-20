@@ -698,6 +698,11 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     if (groupData[block]->use_basis_database) {
       this->buildDatabase(block);
     }
+    else {
+      for (size_t grp=0; grp<groups[block].size(); ++grp) {
+        groups[block][grp]->initializeBasisIndex();
+      }
+    }
   }
   
   for (size_t block=0; block<groups.size(); ++block) {

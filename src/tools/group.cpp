@@ -58,7 +58,7 @@ group_data(group_data_), localElemID(localID_), disc(disc_)
     this->computeFaceSize();   
   }
 
-  this->initializeBasisIndex();
+  //this->initializeBasisIndex();
   
 }
 
@@ -107,7 +107,7 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
     this->computeFaceSize();   
   }
 
-  this->initializeBasisIndex();
+  //this->initializeBasisIndex();
   
 }
 

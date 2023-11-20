@@ -1257,3 +1257,15 @@ void MeshInterface::getSTKNodeElements(string & blockname, vector<stk::mesh::Ent
     panzer_stk::workset_utils::getNodeElements(*stk_mesh, blockname, nodeEntities, local_node_Ids, side_output);
   }
 }
+
+void MeshInterface::allocateMeshDataStructures() {
+  if (use_simple_mesh) {
+    simple_mesh->allocateDataStructures();
+  }
+}
+
+void MeshInterface::purgeMaps(){
+  if (use_simple_mesh) {
+    simple_mesh->deallocateMaps();
+  }
+}

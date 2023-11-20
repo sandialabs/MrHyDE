@@ -1286,7 +1286,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
   }
   
   vector<vector_RCP> zero_vec(initial.size());
-  //vector<vector<vector_RCP> > zero_step_vec(initial.size());
   
   current_time = start_time;
   if (!is_adjoint) { // forward solve - adaptive time stepping
@@ -1300,22 +1299,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       }
     }
     
-    //assembler->performGather(sol, 0, 0);
-
-    //for (size_t set=0; set<initial.size(); ++set) {
-    //  assembler->updatePhysicsSet(set);
-    //  assembler->performGather(set,sol[set],0,0);
-    //}
-    
     postproc->record(sol,current_time,true,obj);
     
-
-    //for (size_t set=0; set<initial.size(); ++set) {
-    //  assembler->updatePhysicsSet(set);
-    //  for (int s=0; s<numsteps[set]; s++) {
-    //    assembler->resetPrevSoln(set);
-    //  }
-    //}
     vector<vector<vector_RCP> > sol_prev;
     for (size_t set=0; set<sol.size(); ++set) {
       vector<vector_RCP> c_prev;
@@ -1355,11 +1340,17 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
 
           assembler->updatePhysicsSet(set);
     
-          //assembler->resetPrevSoln(set); 
+          // if num_stages = 1, the sol_stage = sol
+          //
           vector<vector_RCP> sol_stage;
-          for (size_t stage=0; stage<maxnumstages[set]; ++stage) {
-            sol_stage.push_back(linalg->getNewOverlappedVector(set));
-            sol_stage[stage]->assign(*(sol[set]));
+          if (maxnumstages[set] == 1) {
+            sol_stage.push_back(sol[set]);
+          }
+          else {
+            for (size_t stage=0; stage<maxnumstages[set]; ++stage) {
+              sol_stage.push_back(linalg->getNewOverlappedVector(set));
+              sol_stage[stage]->assign(*(sol[set]));
+            }
           }
     
           // Increment the previous step solutions (shift history and moves u into first spot)
@@ -1369,18 +1360,12 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
           }
           sol_prev[set][0]->assign(*(sol[set]));
       
-          // Reset the stage solutions (sets all to zero)
-          //assembler->resetStageSoln(set);
-          
           ////////////////////////////////////////////////////////////////////////
           // Allow the groups to change subgrid model
           ////////////////////////////////////////////////////////////////////////
           
           vector<vector<int> > sgmodels = assembler->identifySubgridModels();
           multiscale_manager->update(sgmodels);
-          //vector_RCP u_stage = linalg->getNewOverlappedVector(set);
-
-          //u_prev[set]->assign(*(u[set]));
           
           for (int stage=0; stage<numstages[set]; stage++) {
             // Need a stage solution
@@ -1403,9 +1388,11 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
 
             // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
             
-            sol[set]->update(1.0, *(sol_stage[stage]), 1.0);
-            sol[set]->update(-1.0, *(sol_prev[set][0]), 1.0);
-            //assembler->updateStageSoln(set); // moves the stage solution into u_stage
+            // if num_stages = 1, then we might be able to skip this 
+            if (maxnumstages[set] > 1) {
+              sol[set]->update(1.0, *(sol_stage[stage]), 1.0);
+              sol[set]->update(-1.0, *(sol_prev[set][0]), 1.0);
+            }
             multiscale_manager->completeStage();
           }
         }
@@ -1813,23 +1800,18 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
     this->setDirichlet(set,sol_stage[stage]);
   }
   
-  vector_RCP current_res, current_res_over, current_du, current_du_over;
+  vector_RCP current_res, current_res_over;
   if (store_vectors) {
     current_res = res[set];
     current_res_over = res_over[set];
-    current_du = du[set];
-    current_du_over = du_over[set];
   }
   else {
     current_res = linalg->getNewVector(set);
-    current_du = linalg->getNewVector(set);
     if (linalg->getHaveOverlapped()) {
       current_res_over = linalg->getNewOverlappedVector(set);
-      current_du_over = linalg->getNewOverlappedVector(set);
     }
     else {
       current_res_over = current_res;
-      current_du_over = current_du;
     }
   }
 
@@ -1858,12 +1840,28 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
     
     ScalarT wt = deltat*butcher_b(stage);
     
-    current_du_over->putScalar(0.0);
-    if (linalg->getHaveOverlapped()) {
-      current_du->putScalar(0.0);
-    }
-
+    
     if (!assembler->lump_mass) {
+      vector_RCP current_du, current_du_over;
+      if (store_vectors) {
+        current_du = du[set];
+        current_du_over = du_over[set];
+      }
+      else {
+        current_du = linalg->getNewVector(set);
+        if (linalg->getHaveOverlapped()) {
+          current_du_over = linalg->getNewOverlappedVector(set);
+        }
+        else {
+          current_du_over = current_du;
+        }
+      }
+
+      current_du_over->putScalar(0.0);
+      if (linalg->getHaveOverlapped()) {
+        current_du->putScalar(0.0);
+      }
+
       current_res->scale(wt);
       if (assembler->matrix_free) {
         this->matrixFreePCG(set, current_res, current_du, diagMass[set],
@@ -1880,25 +1878,42 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
           linalg->linearSolverL2(set, explicitMass[set], current_res, current_du);
         }
       }
+      if (linalg->getHaveOverlapped()) {
+        linalg->importVectorToOverlapped(set, current_du_over, current_du);
+      }
+    
+      sol_stage[stage]->update(1.0, *(current_du_over), 1.0);
+    
     }
     else {
       typedef typename Node::execution_space LA_exec;
       
-      auto du_view = current_du->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      // can probably avoid du in this case
+      // sol += sol + wt*res/dm
+      vector_RCP current_sol;
+      if (linalg->getHaveOverlapped()) {
+        current_sol = linalg->getNewVector(set);
+        linalg->exportVectorFromOverlapped(set, current_sol, sol_stage[stage]);
+      }
+      else {
+        current_sol = sol_stage[stage];
+      }
+
+      //auto du_view = current_du->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+      auto sol_view = current_sol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       auto res_view = current_res->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       auto dm_view = diagMass[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
       
       parallel_for("explicit solver apply invdiag",
-                   RangePolicy<LA_exec>(0,du_view.extent(0)),
+                   RangePolicy<LA_exec>(0,sol_view.extent(0)),
                    KOKKOS_LAMBDA (const int k ) {
-        du_view(k,0) = wt*res_view(k,0)/dm_view(k,0);
+        sol_view(k,0) += wt*res_view(k,0)/dm_view(k,0);
       });
+
+      if (linalg->getHaveOverlapped()) {
+        linalg->importVectorToOverlapped(set, sol_stage[stage], current_sol);
+      }
     }
-    if (linalg->getHaveOverlapped()) {
-      linalg->importVectorToOverlapped(set, current_du_over, current_du);
-    }
-    
-    sol_stage[stage]->update(1.0, *(current_du_over), 1.0);
     
   }
   

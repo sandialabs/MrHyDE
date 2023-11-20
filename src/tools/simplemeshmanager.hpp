@@ -138,6 +138,9 @@ public:
     return 0; // default due to lack of faces in 1D and 2D
   }
 
+  virtual void allocateDataStructures();
+  virtual void deallocateMaps();
+
   //void
   //mesh->getElementBlockNames(blocknames);
 
@@ -552,6 +555,17 @@ public:
     computeSideSets();
   }
 
+  void allocateDataStructures() {
+    //computeNodes();
+    //computeCellToNodeMap();
+    //computeCellToEdgeMap();
+    //computeSideSets();
+  }
+
+  void deallocateMaps(){
+    //meshCellToNodeMap_ = LIDView_host("deallocated cell to node map",1,1);
+    //meshCellToEdgeMap_ = LIDView_host("deallocated cell to edge map",1,1);
+  }
 
   NodeView_host getNodes() const {
     return meshNodes_;
