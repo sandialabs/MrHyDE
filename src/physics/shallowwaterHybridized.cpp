@@ -314,7 +314,7 @@ void shallowwaterHybridized<EvalT>::computeFlux() {
       parallel_for("Shallow water boundary flux copy",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    KOKKOS_LAMBDA (const int elem ) {
-        for (int ieqn=0; ieqn<nVar; ++ieqn) {
+        for (size_t ieqn=0; ieqn<nVar; ++ieqn) {
           for (size_type pt=0; pt<bound.extent(1); ++pt) {
             interfaceFlux(elem,ieqn,pt) = bound(elem,pt,ieqn);
           }
@@ -564,7 +564,7 @@ void shallowwaterHybridized<EvalT>::computeStabilizationTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the absolute value of the diagonal matrix
-        for (int i=0; i<nVar; ++i) {
+        for (size_t i=0; i<nVar; ++i) {
           tmp(i) *= abs( Lambda(i) );
         }
         // R tmp = R AbsLambda L deltaS --> stab_sub 
@@ -579,7 +579,7 @@ void shallowwaterHybridized<EvalT>::computeStabilizationTerm() {
         // a = sqrt{gh}
         EvalT lambdaMax = max(abs(vn + a),abs(vn - a));
 
-        for (int i=0; i<nVar; ++i) {
+        for (size_t i=0; i<nVar; ++i) {
           stab_sub(i) = deltaS(i) * lambdaMax;
         }
       }
@@ -702,7 +702,7 @@ void shallowwaterHybridized<EvalT>::computeBoundaryTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the diagonal matrix
-        for (int i=0; i<nVar; ++i) {
+        for (size_t i=0; i<nVar; ++i) {
           tmp(i) *= ( Lambda(i) + abs( Lambda(i) ) ) / 2.;
         }
         // R tmp = A^+ deltaS --> bound_sub 
@@ -722,7 +722,7 @@ void shallowwaterHybridized<EvalT>::computeBoundaryTerm() {
 
         this->matVec(leftEV,deltaS,tmp); // L deltaS --> tmp
         // hit with the diagonal matrix
-        for (int i=0; i<nVar; ++i) {
+        for (size_t i=0; i<nVar; ++i) {
           tmp(i) *= ( Lambda(i) - abs( Lambda(i) ) ) / 2.;
         }
         // R tmp = A^- deltaS --> deltaS
@@ -730,7 +730,7 @@ void shallowwaterHybridized<EvalT>::computeBoundaryTerm() {
 
         // finalize
         
-        for (int i=0; i<nVar; ++i) {
+        for (size_t i=0; i<nVar; ++i) {
           bound_sub(i) -= deltaS(i);
         }
 

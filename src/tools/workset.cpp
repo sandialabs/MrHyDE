@@ -2687,7 +2687,7 @@ View_Sc1 Workset<EvalT>::getSideElementSize() {
     for (size_type i=0; i<wts_side.extent(1); i++) {
       vol += wts_side(elem,i);
     }
-    ScalarT dimscl = 1.0/(ScalarT)dimension;
+    ScalarT dimscl = 1.0/((ScalarT)dimension-1.0);
     hsize(elem) = std::pow(vol,dimscl);
   });
   return hsize;

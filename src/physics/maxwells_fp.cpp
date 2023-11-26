@@ -474,18 +474,18 @@ void maxwells_fp<EvalT>::boundaryResidual() {
   EvalT rhosr = 0.0, rhosi = 0.0; //electric charge (i*omega*rho_s = surface divergence of J_s
   
   EvalT omega = 0.0; //frequency
-  EvalT invmur = 0.0, invmui = 0.0; //inverse permeability
+  //EvalT invmur = 0.0, invmui = 0.0; //inverse permeability
   EvalT epsr = 0.0, epsi = 0.0; //permittivity
   
   //states and their gradients
-  EvalT Axr = 0.0, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0;
-  EvalT Axi = 0.0, dAxidx = 0.0, dAxidy = 0.0, dAxidz = 0.0;
-  EvalT Ayr = 0.0, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0;
-  EvalT Ayi = 0.0, dAyidx = 0.0, dAyidy = 0.0, dAyidz = 0.0;
-  EvalT Azr = 0.0, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0;
-  EvalT Azi = 0.0, dAzidx = 0.0, dAzidy = 0.0, dAzidz = 0.0;
-  EvalT phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0;
-  EvalT phii = 0.0, dphiidx = 0.0, dphiidy = 0.0, dphiidz = 0.0;
+  EvalT Axr = 0.0;//, dAxrdx = 0.0, dAxrdy = 0.0, dAxrdz = 0.0;
+  EvalT Axi = 0.0;//, dAxidx = 0.0, dAxidy = 0.0, dAxidz = 0.0;
+  EvalT Ayr = 0.0;//, dAyrdx = 0.0, dAyrdy = 0.0, dAyrdz = 0.0;
+  EvalT Ayi = 0.0;//, dAyidx = 0.0, dAyidy = 0.0, dAyidz = 0.0;
+  EvalT Azr = 0.0;//, dAzrdx = 0.0, dAzrdy = 0.0, dAzrdz = 0.0;
+  EvalT Azi = 0.0;//, dAzidx = 0.0, dAzidy = 0.0, dAzidz = 0.0;
+  //EvalT phir = 0.0, dphirdx = 0.0, dphirdy = 0.0, dphirdz = 0.0;
+  //EvalT phii = 0.0, dphiidx = 0.0, dphiidy = 0.0, dphiidz = 0.0;
   
   ScalarT nx = 0.0, ny = 0.0, nz = 0.0; //components of normal
   
@@ -581,55 +581,55 @@ void maxwells_fp<EvalT>::boundaryResidual() {
       nx = n_x(e,k);
       
       Axr = Ax_r(e,k);
-      dAxrdx = dAxr_dx(e,k);
+      //dAxrdx = dAxr_dx(e,k);
       Axi = Ax_i(e,k);
-      dAxidx = dAxi_dx(e,k);
+      //dAxidx = dAxi_dx(e,k);
       
-      phir = phi_r(e,k);
-      phii = phi_i(e,k);
+      //phir = phi_r(e,k);
+      //phii = phi_i(e,k);
       
-      dphirdx = dphir_dx(e,k);
-      dphiidx = dphii_dx(e,k);
+      //dphirdx = dphir_dx(e,k);
+      //dphiidx = dphii_dx(e,k);
       
       if(spaceDim > 1){
         y = ip_y(e,k);
         ny = n_y(e,k);
         
-        dAxrdy = dAxr_dy(e,k);
-        dAxidy = dAxi_dy(e,k);
+        //dAxrdy = dAxr_dy(e,k);
+        //dAxidy = dAxi_dy(e,k);
         
         Ayr = Ay_r(e,k);
-        dAyrdx = dAyr_dx(e,k);
-        dAyrdy = dAyr_dy(e,k);
+        //dAyrdx = dAyr_dx(e,k);
+        //dAyrdy = dAyr_dy(e,k);
         
         Ayi = Ay_i(e,k);
-        dAyidx = dAyi_dx(e,k);
-        dAyidy = dAyi_dy(e,k);
+        //dAyidx = dAyi_dx(e,k);
+        //dAyidy = dAyi_dy(e,k);
         
-        dphirdy = dphir_dy(e,k);
-        dphiidy = dphii_dy(e,k);
+        //dphirdy = dphir_dy(e,k);
+        //dphiidy = dphii_dy(e,k);
       }
       if(spaceDim > 2){
         z = ip_z(e,k);
         nz = n_z(e,k);
         
-        dAxrdz = dAxr_dz(e,k);
-        dAxidz = dAxi_dz(e,k);
+        //dAxrdz = dAxr_dz(e,k);
+        //dAxidz = dAxi_dz(e,k);
         
-        dAyrdz = dAyr_dz(e,k);
-        dAyidz = dAyi_dz(e,k);
+        //dAyrdz = dAyr_dz(e,k);
+        //dAyidz = dAyi_dz(e,k);
         
         Azr = Az_r(e,k);
-        dAzrdx = dAzr_dx(e,k);
-        dAzrdy = dAzr_dy(e,k);
-        dAzrdz = dAzr_dz(e,k);
+        //dAzrdx = dAzr_dx(e,k);
+        //dAzrdy = dAzr_dy(e,k);
+        //dAzrdz = dAzr_dz(e,k);
         
         Azi = Az_i(e,k);
-        dAzidx = dAzi_dx(e,k);
-        dAzidy = dAzi_dy(e,k);
-        dAzidz = dAzi_dz(e,k);
-        dphirdz = dphir_dz(e,k);
-        dphiidz = dphii_dz(e,k);
+        //dAzidx = dAzi_dx(e,k);
+        //dAzidy = dAzi_dy(e,k);
+        //dAzidz = dAzi_dz(e,k);
+        //dphirdz = dphir_dz(e,k);
+        //dphiidz = dphii_dz(e,k);
       }
       
       
@@ -645,7 +645,7 @@ void maxwells_fp<EvalT>::boundaryResidual() {
         vector<EvalT> permit = getPermittivity(x, y, z, current_time);
         epsr = permit[0]; epsi = permit[1];
         vector<EvalT> invperm = getInvPermeability(x, y, z, current_time);
-        invmur = invperm[0]; invmui = invperm[1];
+        //invmur = invperm[0]; invmui = invperm[1];
         
         if(boundary_type == 1){
           Msxr = bound_current[0][0]; Msxi = bound_current[1][0];

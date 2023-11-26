@@ -1359,7 +1359,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
 
                 ScalarT val = 0.0;
                 if (use_jacobi) {
-                  for (int k=0; k<nnz(eindex,localrow); k++ ) {
+                  for (size_type k=0; k<nnz(eindex,localrow); k++ ) {
                     LO localcol = offsets(n,local_columns(eindex,localrow,k));
                     LO globalcol = LIDs(elem,localcol);
                     if (globalrow == globalcol) {
@@ -1368,7 +1368,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
                   }
                 }
                 else {
-                  for (int k=0; k<nnz(eindex,localrow); k++ ) {
+                  for (size_type k=0; k<nnz(eindex,localrow); k++ ) {
                     val += values(eindex,localrow,k);
                   }
                 }
@@ -1672,7 +1672,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP &
                 for (int i=0; i<numDOF(var); i++ ) {
                   LO localrow = offsets(var,i);
                   LO globalrow = cLIDs(elem,localrow);
-                  for (int k=0; k<nnz(eindex,localrow); k++ ) {
+                  for (size_type k=0; k<nnz(eindex,localrow); k++ ) {
                     LO localcol = offsets(var,local_columns(eindex,localrow,k));
                     LO globalcol = cLIDs(elem,localcol);
                     ScalarT matrixval = values(eindex,localrow,k);
@@ -4742,7 +4742,7 @@ void AssemblyManager<Node>::identifyVolumetricIPDatabase(const size_t & block, v
   if (use_simple_mesh) {
     if (dimension == 2) {
       int NX = settings->sublist("Mesh").get("NX",20);
-      size_t prog = 0;
+      int prog = 0;
       size_t grp = 0;
       while (prog<NX && grp<groups[block].size()) {
         auto elems = groups[block][grp]->localElemID;
@@ -4756,25 +4756,7 @@ void AssemblyManager<Node>::identifyVolumetricIPDatabase(const size_t & block, v
         }
         ++grp;
       }
-      //for (int i=0; i<NX; ++i) {
-        //std::pair<size_t,size_t> newuj{0,i};
-        //first_users_x.push_back(newuj);
-        //bool found = false;
-        //size_t grp = 0;
-        //while (!found && grp<groups[block].size()) {
-        //  auto elemindex = groups[block][grp]->localElemID;
-          //size_type e=0;
-          //while (!found && e<elemindex.extent(0)) {
-          //  if (elemindex(e) == i) {
-          //    std::pair<size_t,size_t> newuj{grp,e};
-          //    first_users_x.push_back(newuj);
-          //    found = true;
-          //  }
-          //  ++e;
-          //}
-          //++grp;
-        //}
-      //}
+      
 
       int NY = settings->sublist("Mesh").get("NY",20);
       prog = 0;
@@ -4796,25 +4778,6 @@ void AssemblyManager<Node>::identifyVolumetricIPDatabase(const size_t & block, v
         }
       }
       
-      //for (int i=0; i<NY; ++i) {
-        //std::pair<size_t,size_t> newuj{i,0};
-        //first_users_y.push_back(newuj);
-        //bool found = false;
-        //size_t grp = 0;
-        //while (!found && grp<groups[block].size()) {
-        //  auto elemindex = groups[block][grp]->localElemID;
-        //  size_type e=0;
-        //  while (!found && e<elemindex.extent(0)) {
-        //    if (elemindex(e) == (i)*NX) {
-        //      std::pair<size_t,size_t> newuj{grp,e};
-        //      first_users_y.push_back(newuj);
-        //      found = true;
-        //    }++e;
-        //  }
-        //  ++grp;
-        //}
-        //first_users_y.push_back((i-1)*NX);
-      //}
 
       for (size_t grp=0; grp<groups[block].size(); ++grp) {
         size_t numElem = groups[block][grp]->numElem;
@@ -5784,10 +5747,18 @@ void AssemblyManager<Node>::updateWorksetBoundary(Teuchos::RCP<Workset<EvalT> > 
   // Map the gathered solution to seeded version in workset
   if (groupData[block]->requires_transient && !override_transient) {
     for (size_t set=0; set<groupData[block]->num_sets; ++set) {
-      wset->computeSolnTransientSeeded(set, groupData[block]->sol[set], 
-                                        groupData[block]->sol_prev[set], 
-                                        groupData[block]->sol_stage[set], 
-                                        seedwhat, seedindex);
+      if (boundary_groups[block][grp]->have_sols) {
+        wset->computeSolnTransientSeeded(set, boundary_groups[block][grp]->sol[set], 
+                                          boundary_groups[block][grp]->sol_prev[set], 
+                                          boundary_groups[block][grp]->sol_stage[set], 
+                                          seedwhat, seedindex);
+      }
+      else {
+        wset->computeSolnTransientSeeded(set, groupData[block]->sol[set], 
+                                          groupData[block]->sol_prev[set], 
+                                          groupData[block]->sol_stage[set], 
+                                          seedwhat, seedindex);
+      }
     }
   }
   else { // steady-state
@@ -8554,7 +8525,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   size_type num_seeds = seeds.extent(0);
   std::uniform_int_distribution<int> idistribution(0,100);
   Kokkos::View<int*,HostDevice> seedIndex("seed index",num_seeds);
-  for (int i=0; i<num_seeds; i++) {
+  for (size_type i=0; i<num_seeds; i++) {
     int ci = idistribution(generator);
     seedIndex(i) = ci;
   }
@@ -8569,7 +8540,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   
   std::normal_distribution<ScalarT> ndistribution(0.0,1.0);
   Kokkos::View<ScalarT**,HostDevice> rotation_data("cell_data",num_seeds,numdata);
-  for (int k=0; k<num_seeds; k++) {
+  for (size_type k=0; k<num_seeds; k++) {
     ScalarT x = ndistribution(generator);
     ScalarT y = ndistribution(generator);
     ScalarT z = ndistribution(generator);

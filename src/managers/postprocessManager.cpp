@@ -707,7 +707,7 @@ void PostprocessManager<Node>::report() {
                 }
                 respOUT.precision(8);
                 Teuchos::Array<ScalarT> time_data(max_numtimes+dimension,0.0);
-                for (size_t dim=0; dim<dimension; ++dim) {
+                for (int dim=0; dim<dimension; ++dim) {
                   time_data[dim] = 0.0;
                 }
 
@@ -732,7 +732,7 @@ void PostprocessManager<Node>::report() {
                       sindex++;
                     }
                   }
-                  for (size_t dim=0; dim<dimension; ++dim) {
+                  for (int dim=0; dim<dimension; ++dim) {
                     series_data[dim] = spts(sindex,dim);  
                   }
                   
@@ -5541,7 +5541,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       Kokkos::deep_copy(cpt_sub,pp_sub);
       
       Kokkos::View<LO*,AssemblyDevice> cids("current local elem ids",1);
-      cids(0) = assembler->groups[block][sowners(pt,0)]->localElemID(sowners(pt,0));
+      cids(0) = assembler->groups[block][sowners(pt,0)]->localElemID(sowners(pt,1));
       //auto nodes = mesh->getMyNodes(block, assembler->groups[block][sowners(pt,0)]->localElemID);
       //auto nodes_sv = subview(nodes,sowners(pt,1),ALL(),ALL());
       //DRV cnodes("subnodes",1,nodes.extent(1),nodes.extent(2));
@@ -5552,14 +5552,12 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("curr orient",1);
       
       DRV refpt_tmp = assembler->disc->mapPointsToReference(cpt, cids, block, assembler->groupData[block]->cell_topo);
-      
       for (size_type d=0; d<refpt_tmp.extent(2); ++d) {
         refpt(0,d) = refpt_tmp(0,0,d);
       }
  
       auto orient = assembler->groups[block][sowners(pt,0)]->orientation;
       corientation(0) = orient(sowners(pt,1));
-
       for (size_t k=0; k<assembler->disc->basis_pointers[block].size(); k++) {
         auto basis_ptr = assembler->disc->basis_pointers[block][k];
         string basis_type = assembler->disc->basis_types[block][k];
@@ -6248,14 +6246,14 @@ Teuchos::Array<ScalarT> PostprocessManager<Node>::collectResponses() {
           }
 
           if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
-            for (size_type sens=0; sens<numsensors; ++sens) {
+            for (int sens=0; sens<numsensors; ++sens) {
               size_t numtimes = objectives[obj].sensor_solution_data.size(); 
               int numsols = objectives[obj].sensor_solution_data[0].extent_int(1);
               int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
               int sensnum = sensorIDs(sens);
               size_t startind = overallprog + sensnum*(numsols*numdims*numtimes);
               size_t cprog = 0;
-              for (int tt=0; tt<numtimes; ++tt) {
+              for (size_t tt=0; tt<numtimes; ++tt) {
                 for (int ss=0; ss<numsols; ++ss) {
                   for (int dd=0; dd<numdims; ++dd) {
                     localarraydata[startind+cprog] = objectives[obj].sensor_solution_data[tt](sens,ss,dd);
@@ -6266,12 +6264,12 @@ Teuchos::Array<ScalarT> PostprocessManager<Node>::collectResponses() {
             }
           }
           else {
-            for (size_type sens=0; sens<numsensors; ++sens) {
+            for (int sens=0; sens<numsensors; ++sens) {
               size_t numtimes = objectives[obj].response_data.size(); 
               int sensnum = sensorIDs(sens);
               size_t startind = overallprog + sensnum*(numtimes);
               size_t cprog = 0;
-              for (int tt=0; tt<numtimes; ++tt) {
+              for (size_t tt=0; tt<numtimes; ++tt) {
                 localarraydata[startind+cprog] = objectives[obj].response_data[tt](sens);
                 cprog++;
               }

@@ -596,7 +596,7 @@ void Group::updateStageSoln(const size_t & set) {
     
     // add u into the current stage soln (done after stage solution is computed)
     auto stage = group_data->current_stage;
-    if (stage < csol_stage.extent_int(3)) {
+    if (stage < csol_stage.extent(3)) {
       parallel_for("wkset transient sol seedwhat 1",
                    TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VECTORSIZE),
                    KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {

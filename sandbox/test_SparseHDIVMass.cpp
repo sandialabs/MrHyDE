@@ -202,10 +202,10 @@ int main(int argc, char * argv[]) {
       Kokkos::parallel_for("testSparseMass construct mass",
                            Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
-        for (auto i=0; i<basis_vals.extent(1); i++ ) {
-          for (auto j=0; j<basis_vals.extent(1); j++ ) {
-            for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
-              for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
+        for (size_type i=0; i<basis_vals.extent(1); i++ ) {
+          for (size_type j=0; j<basis_vals.extent(1); j++ ) {
+            for (size_type pt=0; pt<basis_vals.extent(2); pt++ ) {
+              for (size_type dim=0; dim<basis_vals.extent(3); dim++ ) {
                 //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
                 newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
@@ -277,10 +277,10 @@ int main(int argc, char * argv[]) {
       Kokkos::parallel_for("testSparseMass construct mass",
                            Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
-        for (auto i=0; i<basis_vals.extent(1); i++ ) {
-          for (auto j=0; j<basis_vals.extent(1); j++ ) {
-            for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
-              for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
+        for (size_type i=0; i<basis_vals.extent(1); i++ ) {
+          for (size_type j=0; j<basis_vals.extent(1); j++ ) {
+            for (size_type pt=0; pt<basis_vals.extent(2); pt++ ) {
+              for (size_type dim=0; dim<basis_vals.extent(3); dim++ ) {
                 //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
                 newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
@@ -352,10 +352,10 @@ int main(int argc, char * argv[]) {
       Kokkos::parallel_for("testSparseMass construct mass",
                            Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
-        for (auto i=0; i<basis_vals.extent(1); i++ ) {
-          for (auto j=0; j<basis_vals.extent(1); j++ ) {
-            for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
-              for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
+        for (size_type i=0; i<basis_vals.extent(1); i++ ) {
+          for (size_type j=0; j<basis_vals.extent(1); j++ ) {
+            for (size_type pt=0; pt<basis_vals.extent(2); pt++ ) {
+              for (size_type dim=0; dim<basis_vals.extent(3); dim++ ) {
                 //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
                 newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
@@ -427,10 +427,10 @@ int main(int argc, char * argv[]) {
       Kokkos::parallel_for("testSparseMass construct mass",
                            Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
-        for (auto i=0; i<basis_vals.extent(1); i++ ) {
-          for (auto j=0; j<basis_vals.extent(1); j++ ) {
-            for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
-              for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
+        for (size_type i=0; i<basis_vals.extent(1); i++ ) {
+          for (size_type j=0; j<basis_vals.extent(1); j++ ) {
+            for (size_type pt=0; pt<basis_vals.extent(2); pt++ ) {
+              for (size_type dim=0; dim<basis_vals.extent(3); dim++ ) {
                 //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
                 newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }
@@ -503,10 +503,10 @@ int main(int argc, char * argv[]) {
       Kokkos::parallel_for("testSparseMass construct mass",
                            Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
-        for (auto i=0; i<basis_vals.extent(1); i++ ) {
-          for (auto j=0; j<basis_vals.extent(1); j++ ) {
-            for (auto pt=0; pt<basis_vals.extent(2); pt++ ) {
-              for (auto dim=0; dim<basis_vals.extent(3); dim++ ) {
+        for (size_type i=0; i<basis_vals.extent(1); i++ ) {
+          for (size_type j=0; j<basis_vals.extent(1); j++ ) {
+            for (size_type pt=0; pt<basis_vals.extent(2); pt++ ) {
+              for (size_type dim=0; dim<basis_vals.extent(3); dim++ ) {
                 //newmass(elem,off(i),off(j)) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
                 newmass(elem,i,j) += basis_vals(elem,i,pt,dim)*basis_vals(elem,j,pt,dim)*wts(elem,pt)*mwt;
               }

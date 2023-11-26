@@ -139,9 +139,9 @@ namespace MrHyDE {
         for (size_type var=0; var<numDOF.extent(0); var++) {
           for (int i=0; i<numDOF(var); i++ ) {
             LO localrow = offsets(var,i);
-            for (int k=0; k<nnz_row_(elem,localrow); ++k ) {
+            for (size_type k=0; k<nnz_row_(elem,localrow); ++k ) {
               for (int j=0; j<numDOF(var); j++ ) {                    
-                LO localcol = offsets(var,j);
+                size_type localcol = offsets(var,j);
                 if (columns_(elem,localrow,k) == localcol) {
                   local_columns_(elem,localrow,k) = j;
                 }

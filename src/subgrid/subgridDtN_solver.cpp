@@ -207,7 +207,6 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
   res->putScalar(0.0);
   d_sol_prev_saved[0]->putScalar(0.0);
   
-  // TMW: ToDo - why isn't this necessary?
   Kokkos::deep_copy(assembler->wkset_AD[0]->flux,0.0);
 
   ScalarT fluxwt = 1.0;
@@ -956,7 +955,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sol,
     else {
       J = J_over;
     }
-    //(J);
+    //KokkosTools::print(J);
     
     
     if (solver->Comm->getSize() > 1) {

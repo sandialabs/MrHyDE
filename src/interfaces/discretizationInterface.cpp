@@ -1228,7 +1228,7 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
     if (use_block) {
       elemID = my_elements[groupData->my_block](host_eIndex(i));
     }
-    if (panzer_orientations.extent(0) > elemID) {
+    if ((int)panzer_orientations.extent(0) > elemID) {
       orientation_host(i) = panzer_orientations(elemID);
     }
     else { // account for simple mesh, which only needs 1 orientation
@@ -2834,6 +2834,10 @@ DRV DiscretizationInterface::mapPointsToReference(DRV phys_pts, Kokkos::View<LO*
   return ref_pts;
 
 }
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
 DRV DiscretizationInterface::mapPointsToReference(DRV phys_pts, DRV nodes,
                                                   topo_RCP & cellTopo) {
   DRV ref_pts("reference cell points",phys_pts.extent(0), phys_pts.extent(1), phys_pts.extent(2));

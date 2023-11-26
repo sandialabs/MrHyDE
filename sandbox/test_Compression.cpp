@@ -263,9 +263,9 @@ class Compressor {
               ScalarT diff2 = 0.0;
               size_type pt=0;
               while (pt<numip[block] && diff2<database_TOL) {
-                size_type d0=0;
+                int d0=0;
                 while (d0<dimension && diff2<database_TOL) {
-                  size_type d1=0;
+                  int d1=0;
                   while (d1<dimension && diff2<database_TOL) { 
                     diff2 += std::abs(jacobian(0,pt,d0,d1) - db_jacobians[prog](pt,d0,d1));
                     d1++;
