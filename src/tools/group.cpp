@@ -26,19 +26,8 @@ group_data(group_data_), localElemID(localID_), disc(disc_)
   storeAll = storeAll_;
   haveBasis = false;
   storeMass = true;
-  have_nodes = false;
-
-  // Even if we don't store the basis or integration info, we still store
-  // the orientations since these are small, but expensive to recompute (for some reason)
-  //orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",numElem);
-  //disc->getPhysicalOrientations(group_data, localElemID,
-    //                            orientation, true);
-  //nodes = disc->mesh->getMyNodes(group_data->my_block, localElemID);
-  //View_Sc2 twts = this->getWts();
-  //hsize = View_Sc1("physical hsize",numElem);
+  have_nodes = false; // specific to this constructor
   
-  //this->computeSize(twts);
-
   if (group_data->build_face_terms) {
     for (size_type side=0; side<group_data->num_sides; side++) {
       int numfip = group_data->ref_side_ip[side].extent(0);
@@ -57,8 +46,6 @@ group_data(group_data_), localElemID(localID_), disc(disc_)
     }
     this->computeFaceSize();   
   }
-
-  //this->initializeBasisIndex();
   
 }
 
@@ -75,7 +62,7 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
   storeAll = storeAll_;
   haveBasis = false;
   storeMass = true;
-  have_nodes = true;
+  have_nodes = true; // specific to this constructor
 
   // Even if we don't store the basis or integration info, we still store
   // the orientations since these are small, but expensive to recompute (for some reason)
@@ -83,11 +70,6 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
   disc->getPhysicalOrientations(group_data, localElemID,
                                 orientation, true);
   
-  //View_Sc2 twts = this->getWts();
-  //hsize = View_Sc1("physical hsize",numElem);
-  
-  //this->computeSize(twts);
-
   if (group_data->build_face_terms) {
     for (size_type side=0; side<group_data->num_sides; side++) {
       int numfip = group_data->ref_side_ip[side].extent(0);
@@ -107,31 +89,6 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
     this->computeFaceSize();   
   }
 
-  //this->initializeBasisIndex();
-  
-}
-
-///////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////
-
-void Group::computeSize(View_Sc2 twts) {
-  /*
-  // -------------------------------------------------
-  // Compute the element sizes (h = vol^(1/dimension))
-  // -------------------------------------------------
-  size_t dimension = group_data->dimension;
-
-  parallel_for("elem size",
-               RangePolicy<AssemblyExec>(0,twts.extent(0)),
-               KOKKOS_LAMBDA (const size_type elem ) {
-    ScalarT vol = 0.0;
-    for (size_type i=0; i<twts.extent(1); i++) {
-      vol += twts(elem,i);
-    }
-    ScalarT dimscl = 1.0/(ScalarT)dimension;
-    hsize(elem) = std::pow(vol,dimscl);
-  });
-  */
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////

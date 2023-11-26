@@ -1304,7 +1304,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     vector<vector<vector_RCP> > sol_prev;
     for (size_t set=0; set<sol.size(); ++set) {
       vector<vector_RCP> c_prev;
-      for (size_t step=0; step<maxnumsteps[set]; ++step) {
+      for (int step=0; step<maxnumsteps[set]; ++step) {
         c_prev.push_back(linalg->getNewOverlappedVector(set));
       }
       sol_prev.push_back(c_prev);
@@ -1347,7 +1347,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
             sol_stage.push_back(sol[set]);
           }
           else {
-            for (size_t stage=0; stage<maxnumstages[set]; ++stage) {
+            for (int stage=0; stage<maxnumstages[set]; ++stage) {
               sol_stage.push_back(linalg->getNewOverlappedVector(set));
               sol_stage[stage]->assign(*(sol[set]));
             }

@@ -210,7 +210,7 @@ void AssemblyManager<Node>::createFixedDOFs() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Create the groups
+// Create the groups of elements/cells
 ////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
@@ -252,8 +252,7 @@ void AssemblyManager<Node>::createGroups() {
     vector<stk::mesh::Entity> stk_meshElems = mesh->getMySTKElements(blocknames[block]);
     
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
-    //int numNodesPerElem = cellTopo->getNodeCount();
-    //int dimension = physics->dimension;
+    
     size_t numTotalElem;
     if(mesh->use_stk_mesh)
       numTotalElem = stk_meshElems.size();
@@ -262,10 +261,6 @@ void AssemblyManager<Node>::createGroups() {
     size_t processedElem = 0;
     
     if (numTotalElem>0) {
-      
-      //vector<size_t> localIds;
-      //Kokkos::DynRankView<ScalarT,HostDevice> blocknodes;
-      //panzer_stk::workset_utils::getIdsAndVertices(*(mesh->stk_mesh), blocknames[block], localIds, blocknodes); // fill on host
       
       auto myElem = disc->my_elements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
@@ -395,12 +390,10 @@ void AssemblyManager<Node>::createGroups() {
                   currElem = group.size()-prog;
                 }
                 Kokkos::View<LO*,AssemblyDevice> eIndex("element indices",currElem);
-                //Kokkos::View<LO*,AssemblyDevice> sideIndex("local side indices",currElem);
                 DRV currnodes("currnodes", currElem, mesh->num_nodes_per_elem, mesh->dimension);
                 
                 auto host_eIndex = Kokkos::create_mirror_view(eIndex); // mirror on host
                 Kokkos::View<LO*,HostDevice> host_eIndex2("element indices",currElem);
-                //auto host_sideIndex = Kokkos::create_mirror_view(sideIndex); // mirror on host
                 auto host_currnodes = Kokkos::create_mirror_view(currnodes); // mirror on host
                 LO sideIndex;
                 
@@ -416,7 +409,6 @@ void AssemblyManager<Node>::createGroups() {
                 Kokkos::deep_copy(currnodes,host_currnodes);
                 Kokkos::deep_copy(eIndex,host_eIndex);
                 Kokkos::deep_copy(host_eIndex2,host_eIndex);
-                //Kokkos::deep_copy(sideIndex,host_sideIndex);
                 
                 // Build the Kokkos View of the group LIDs ------
                 vector<LIDView> set_LIDs;

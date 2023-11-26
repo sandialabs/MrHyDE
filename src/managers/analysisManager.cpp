@@ -84,7 +84,7 @@ void AnalysisManager::run() {
       std::ofstream respOUT(sname.c_str());
       respOUT.precision(12);
       for (size_t r=0; r<response_values.size(); r++) {
-        for (size_type s=0; s<response_values[r].size(); s++) {
+        for (size_t s=0; s<response_values[r].size(); s++) {
           respOUT << response_values[r][s] << "  ";
         }
         respOUT << endl;

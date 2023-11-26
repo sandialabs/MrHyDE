@@ -533,8 +533,8 @@ int main(int argc, char * argv[]) {
       Kokkos::parallel_for("testSparseMass construct mass",
                            Kokkos::RangePolicy<PHX::Device::execution_space>(0,num_elems),
                            KOKKOS_LAMBDA (const int elem ) {
-        for (auto i=0; i<newmass.extent(1); i++ ) {
-          for (auto j=0; j<newmass.extent(1); j++ ) {
+        for (size_type i=0; i<newmass.extent(1); i++ ) {
+          for (size_type j=0; j<newmass.extent(1); j++ ) {
             newmass(elem,off(i),off(j))  = BBB_mass(elem,i,j);
           }
         }
