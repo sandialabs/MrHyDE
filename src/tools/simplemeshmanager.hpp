@@ -49,6 +49,7 @@
 #define SIMPLEMESHMANAGER_HPP
 
 #include "Teuchos_ParameterList.hpp"
+#include "preferences.hpp"
 
 // TODO: GH fix documentation
 /** \class  SimpleMeshManager

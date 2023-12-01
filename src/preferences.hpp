@@ -12,6 +12,7 @@
 #include "PanzerCore_config.hpp"
 #include "Intrepid2_Basis.hpp"
 #include "Phalanx_DataLayout.hpp"
+#include "Sacado.hpp"
 
 using Kokkos::parallel_for;
 using Kokkos::parallel_reduce;

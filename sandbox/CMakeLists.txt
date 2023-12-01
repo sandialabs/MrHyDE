@@ -85,6 +85,10 @@ ADD_EXECUTABLE(test_scaling_reduction
 test_scaling_reduction.cpp)
 TARGET_LINK_LIBRARIES(test_scaling_reduction ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
+ADD_EXECUTABLE(test_SimpleMesh
+test_SimpleMesh.cpp)
+TARGET_LINK_LIBRARIES(test_SimpleMesh ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
+
 #ADD_EXECUTABLE(test_ioss
 #tIOSSConnManager.cpp)
 #TARGET_LINK_LIBRARIES(test_ioss ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
