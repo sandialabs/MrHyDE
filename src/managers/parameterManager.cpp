@@ -239,7 +239,7 @@ void ParameterManager<Node>::setupParameters() {
     
 #ifndef MrHyDE_NO_AD
     for (size_t block=0; block<blocknames.size(); ++block) {
-      if (num_active_params>disc->num_derivs_required[block]) {
+      if ((int)num_active_params>disc->num_derivs_required[block]) {
         disc->num_derivs_required[block] = num_active_params;
       } 
     }
