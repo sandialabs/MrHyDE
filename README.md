@@ -1,7 +1,5 @@
 # Multi-resolution Hybridized Differential Equations (MrHyDE)
 
-[![pipeline status](https://gitlab-ex.sandia.gov/mrhyde/MrHyDE/badges/master/pipeline.svg)](https://gitlab-ex.sandia.gov/mrhyde/MrHyDE/-/commits/master)
-
 ## Configuring MrHyDE
 Configuring MrHyDE is done in CMake. 
 There are only a handful of necessary options, and there are plenty of example scripts in `scripts/configure-MrHyDE/`.
