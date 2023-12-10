@@ -50,6 +50,7 @@
 
 #include "Teuchos_ParameterList.hpp"
 #include "preferences.hpp"
+#include "trilinos.hpp"
 
 // TODO: GH fix documentation
 /** \class  SimpleMeshManager
@@ -498,7 +499,7 @@ template <class Real>
 class SimpleMeshManager_Rectangle : public SimpleMeshManager<Real> {
 
 /* Rectangle geometry.
- 
+
       ***********************
       *                     *   :
       *                     *   |
@@ -701,6 +702,290 @@ private:
 
 
 }; // SimpleMeshManager_Rectangle
+
+
+
+/** \class  SimpleMeshManager_Rectangle_Parallel
+    \brief  Mesh construction and mesh management for the
+            rectangle geometry, on quadrilateral grids,
+            for inter-node parallelism.
+*/
+template <class Real>
+class SimpleMeshManager_Rectangle_Parallel : public SimpleMeshManager<Real> {
+
+/* Rectangle geometry.
+
+      ***********************
+      *                     *   :
+      *                     *   |
+      *                     * height
+      *                     *   |
+      *                     *   :
+      *                     *
+      ***********************
+  (X0,Y0)   :--width--:
+
+*/
+
+typedef   long long   GO;
+
+private:
+  Real width_;   // rectangle height
+  Real height_;  // rectangle width
+  Real X0_;      // x coordinate of bottom left corner
+  Real Y0_;      // y coordinate of bottom left corner
+
+  int  procid_;  // processor id (zero-based)
+  int  xprocs_;  // number of processors in x direction
+  int  yprocs_;  // number of processors in y direction
+  int  nprocs_;  // number of processors
+  int  PX_;      // X id of the processor in the XY decomposition
+  int  PY_;      // Y id of the processor in the XY decomposition
+
+  int nx_;       // number of cells in x direction
+  int ny_;       // number of cells in y direction
+
+  int numCells_;
+  int numNodes_;
+  int numEdges_;
+
+  int nodesPerCell_;
+  int dimension_;
+
+  NodeView_host meshNodes_;
+  LIDView_host  meshCellToNodeMap_;
+  LIDView_host  meshCellToEdgeMap_;
+
+  Teuchos::RCP<std::vector<std::vector<std::vector<int> > > >  meshSideSets_;
+
+public:
+
+  SimpleMeshManager_Rectangle_Parallel(Teuchos::ParameterList &parlist,
+                                       int procid,
+                                       int xprocs,
+                                       int yprocs) : procid_(procid), xprocs_(xprocs), yprocs_(yprocs) {
+    // Geometry data.
+    width_  = parlist.sublist("Geometry").get( "Width", 3.0);
+    height_ = parlist.sublist("Geometry").get("Height", 1.0);
+    X0_     = parlist.sublist("Geometry").get(    "X0", 0.0);
+    Y0_     = parlist.sublist("Geometry").get(    "Y0", 0.0);
+
+
+    // Parallel decomposition data.
+    // Should xprocs and yprocs be read in from file?
+    nprocs_ = xprocs_ * yprocs_; // total number of processors
+    PX_     = procid_ % xprocs_; // X id of the processor
+    PY_     = procid_ / xprocs_; // Y id of the processor
+
+    // Processor ID checks.
+    if (xprocs_ < 1)
+      throw std::out_of_range ("The number of X processors must be positive.");
+    if (yprocs_ < 1)
+      throw std::out_of_range ("The number of Y processors must be positive.");
+    if ((procid > nprocs_) || (procid < 0))
+      throw std::out_of_range ("The processor ID must be between 0 and the product of X and Y processor numbers minus 1.");
+
+    // Mesh data.
+    nx_ = parlist.sublist("Geometry").get("NX", 3);
+    ny_ = parlist.sublist("Geometry").get("NY", 1);
+    numCells_ = nx_ * ny_;
+    numNodes_ = (nx_+1) * (ny_+1);
+    numEdges_ = (nx_+1)*ny_ + (ny_+1)*nx_;
+    nodesPerCell_ = 4;
+    dimension_ = 2;
+    // Compute and store mesh data structures.
+    computeNodes();
+    computeCellToNodeMap();
+    //computeCellToEdgeMap();
+    computeSideSets();
+  }
+
+  void allocateDataStructures() {
+    //computeNodes();
+    //computeCellToNodeMap();
+    //computeCellToEdgeMap();
+    //computeSideSets();
+  }
+
+  void deallocateMaps(){
+    //meshCellToNodeMap_ = LIDView_host("deallocated cell to node map",1,1);
+    //meshCellToEdgeMap_ = LIDView_host("deallocated cell to edge map",1,1);
+  }
+
+  NodeView_host getNodes() const {
+    return meshNodes_;
+  }
+
+
+  DRV getCellNodes(std::vector<size_t> &indices) const {
+    DRV cellNodes("cell nodes", indices.size(), nodesPerCell_, dimension_);
+    for(unsigned int i=0; i<indices.size(); ++i)
+      for(unsigned int j=0; j<cellNodes.extent(1); ++j)
+        for(unsigned int k=0; k<cellNodes.extent(2); ++k)
+          cellNodes(i,j,k) = meshNodes_(meshCellToNodeMap_(indices[i],j),k);
+    return cellNodes;
+  }
+
+
+  LIDView_host getCellToNodeMap() const {
+    return meshCellToNodeMap_;
+  }
+
+
+  LIDView_host getCellToEdgeMap() const {
+    return meshCellToEdgeMap_;
+  }
+
+
+  virtual Teuchos::RCP<std::vector<std::vector<std::vector<int> > > > getSideSets(
+              const bool verbose = false,
+              std::ostream & outStream = std::cout) const { 
+    return meshSideSets_;
+  }
+
+
+  int getNumCells() const {
+    return numCells_;
+  } // getNumCells
+
+
+  int getNumNodes() const {
+    return numNodes_;
+  } // getNumNodes
+
+
+  int getNumEdges() const {
+    return numEdges_;
+  } // getNumEdges
+
+
+  GO localToGlobal(int lid) {
+    int xid = lid % (nx_+1); // nx_+1 is the number of nodes in x direction, locally
+    int yid = lid / (nx_+1);
+    int ystride = xprocs_*nx_ + 1; // number of nodes in x direction, globally
+
+    return xid + yid*ystride      + PX_*nx_   + PY_*ny_*ystride;
+    //     global cell template   X-offset    Y-offset
+  }
+
+
+  int globalToLocal(GO gid) {
+    // we may need to implement this
+    return -1;
+  }
+
+
+  bool isShared(int lid) {
+    bool shared = false;
+    if ( onRightBoundary(lid) || onTopBoundary(lid) )
+      shared = true;
+    if ( (onRightBoundary(lid) && (PX_==xprocs_-1)) || (onTopBoundary(lid) && (PY_==yprocs_-1)) )
+      shared = false;
+    return shared;
+  }
+
+
+private:
+
+  void computeNodes() {
+
+    meshNodes_ = NodeView_host("SimpleMeshManager::nodes", numNodes_, 2);
+
+    Real dx = width_ / nx_;
+    Real dy = height_ / ny_;
+    int nodeCt = 0;
+
+    Real xshift = X0_ + PX_*width_;
+    Real yshift = Y0_ + PY_*height_;
+
+    for (int j=0; j<=ny_; ++j) {
+      Real ycoord = yshift + j*dy;
+      for (int i=0; i<=nx_; ++i) {
+        meshNodes_(nodeCt, 0) = xshift + i*dx;
+        meshNodes_(nodeCt, 1) = ycoord;
+        ++nodeCt;
+      }
+    }
+
+  } // computeNodes
+
+
+  void computeCellToNodeMap() {
+
+    meshCellToNodeMap_ = LIDView_host("SimpleMeshManager::cellToNode", numCells_, 4);
+
+    int cellCt = 0;
+
+    for (int j=0; j<ny_; ++j) {
+      for (int i=0; i<nx_; ++i) {
+        meshCellToNodeMap_(cellCt, 0) = j*(nx_+1) + i;
+        meshCellToNodeMap_(cellCt, 1) = j*(nx_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 2) = (j+1)*(nx_+1) + (i+1);
+        meshCellToNodeMap_(cellCt, 3) = (j+1)*(nx_+1) + i;
+        ++cellCt;
+      }
+    }
+    // MrHyDE::KokkosTools::print(meshCellToNodeMap_);
+  } // computeCellToNodeMap
+
+
+  void computeCellToEdgeMap() {
+
+    meshCellToEdgeMap_ = LIDView_host("SimpleMeshManager::cellToEdge", numCells_, 4);
+
+    int cellCt = 0;
+
+    for (int j=0; j<ny_; ++j) {
+      for (int i=0; i<nx_; ++i) {
+        meshCellToEdgeMap_(cellCt, 0) = j*(2*nx_+1) + i;
+        meshCellToEdgeMap_(cellCt, 1) = j*(2*nx_+1) + nx_ + (i+1);
+        meshCellToEdgeMap_(cellCt, 2) = (j+1)*(2*nx_+1) + i;
+        meshCellToEdgeMap_(cellCt, 3) = j*(2*nx_+1) + nx_ + i;
+        ++cellCt;
+      }
+    }
+
+  } // computeCellToEdgeMap
+
+
+  virtual void computeSideSets() {
+
+    meshSideSets_ = Teuchos::rcp(new std::vector<std::vector<std::vector<int>>>(1));
+    int numSides = 4;
+    (*meshSideSets_)[0].resize(numSides);
+    (*meshSideSets_)[0][0].resize(nx_);
+    (*meshSideSets_)[0][1].resize(ny_);
+    (*meshSideSets_)[0][2].resize(nx_);
+    (*meshSideSets_)[0][3].resize(ny_);
+
+    for (int i=0; i<nx_; ++i) {
+      (*meshSideSets_)[0][0][i] = i;
+    }
+    for (int i=0; i<ny_; ++i) {
+      (*meshSideSets_)[0][1][i] = (i+1)*nx_-1;
+    }
+    for (int i=0; i<nx_; ++i) {
+      (*meshSideSets_)[0][2][i] = i + nx_*(ny_-1);
+    }
+    for (int i=0; i<ny_; ++i) {
+      (*meshSideSets_)[0][3][i] = i*nx_;
+    }
+
+  } // computeSideSets
+
+  bool onRightBoundary(int lid) {
+    int xid = lid % (nx_+1); // nx_+1 is the number of nodes in x direction
+    return (xid==nx_) ? true : false;
+  }
+
+  bool onTopBoundary(int lid) {
+    int yid = lid / (nx_+1); // nx_+1 is the number of nodes in x direction
+    return (yid==ny_) ? true : false;
+  }
+
+
+}; // SimpleMeshManager_Rectangle_Parallel
+
 
 
 template<class Real>
