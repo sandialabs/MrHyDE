@@ -132,13 +132,54 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   this->createGroups();
   
   params->setupDiscretizedParameters(groups, boundary_groups);
+
+  num_derivs_required = disc->num_derivs_required;
+  physics->num_derivs_required = disc->num_derivs_required;
+  
+  // Set the initial AD type to none, will get redefined below
+  type_AD = 0;
+  int max_ndr = 0;
+  for (size_t i=0; i<num_derivs_required.size(); ++i) {
+    max_ndr = std::max(max_ndr,num_derivs_required[i]);
+  }
+  
+  if (max_ndr > 0 && max_ndr <= 2 ) {
+    type_AD = 2;
+  }
+  else if (max_ndr > 2 && max_ndr <= 4 ) {
+    type_AD = 4;
+  }
+  else if (max_ndr > 4 && max_ndr <= 8 ) {
+    type_AD = 8;
+  }
+  else if (max_ndr>8 && max_ndr <= 16 ) {
+    type_AD = 16;
+  }
+  else if (max_ndr>16 && max_ndr <= 18 ) {
+    type_AD = 18;
+  }
+  else if (max_ndr>18 && max_ndr <= 24 ) {
+    type_AD = 24;
+  }
+  else if (max_ndr>24 && max_ndr <= 32 ) {
+    type_AD = 32;
+  }
+  else {
+    type_AD = -1;
+  }
+  
+  for (size_t block=0; block<blocknames.size(); ++block) {
+    if (groupData[block]->multiscale) {
+      type_AD = -1;
+    }
+  }
+  if (!allow_autotune) {
+    type_AD = -1;
+  }
   
   this->createFixedDOFs();
   
   this->createFunctions();
-
-  num_derivs_required = disc->num_derivs_required;
-  physics->num_derivs_required = disc->num_derivs_required;
 
   if (debug_level > 0) {
     if (comm->getRank() == 0) {
@@ -838,7 +879,7 @@ void AssemblyManager<Node>::createWorkset() {
         numVars.push_back(groupData[block]->set_num_dof[set].extent(0));
       }
       vector<Kokkos::View<string**,HostDevice> > bcs(physics->set_names.size());
-      if(mesh->use_stk_mesh) {
+      if (mesh->use_stk_mesh) {
         for (size_t set=0; set<physics->set_names.size(); ++set) {
           Kokkos::View<string**,HostDevice> vbcs = disc->getVarBCs(set,block);
           bcs[set] = vbcs;
@@ -866,9 +907,7 @@ void AssemblyManager<Node>::createWorkset() {
       
       bool found = false;
       
-      int ndr = num_derivs_required[block];
-  
-      if (requires_AD && !found && ndr>0 && ndr <= 2 ) {
+      if (requires_AD && !found && type_AD == 2 ) {
         // AD2 workset
         wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(info, numVars, isTransient,
                                                            disc->basis_types[block],
@@ -885,7 +924,7 @@ void AssemblyManager<Node>::createWorkset() {
         wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(block, physics->set_names.size())));  
       }
 
-      if (requires_AD && !found && ndr>2 && ndr <= 4 ) {
+      if (requires_AD && !found && type_AD == 4 ) {
         // AD4 workset
         wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(info, numVars, isTransient,
                                                              disc->basis_types[block],
@@ -902,7 +941,7 @@ void AssemblyManager<Node>::createWorkset() {
         wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(block, physics->set_names.size())));  
       }
 
-      if (requires_AD && !found && ndr>4 && ndr <= 8 ) {
+      if (requires_AD && !found && type_AD == 8 ) {
         // AD8 workset
         wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(info, numVars, isTransient,
                                                              disc->basis_types[block],
@@ -919,7 +958,7 @@ void AssemblyManager<Node>::createWorkset() {
         wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(block, physics->set_names.size())));  
       }
 
-      if (requires_AD && !found && ndr>8 && ndr <= 16 ) {
+      if (requires_AD && !found && type_AD == 16 ) {
         // AD16 workset
         wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(info, numVars, isTransient,
                                                                disc->basis_types[block],
@@ -936,7 +975,7 @@ void AssemblyManager<Node>::createWorkset() {
         wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(block, physics->set_names.size())));  
       }
 
-      if (requires_AD && !found && ndr>16 && ndr <= 18 ) {
+      if (requires_AD && !found && type_AD == 18 ) {
         // AD18 workset
         wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(info, numVars, isTransient,
                                                                disc->basis_types[block],
@@ -953,7 +992,7 @@ void AssemblyManager<Node>::createWorkset() {
         wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(block, physics->set_names.size())));  
       }
 
-      if (requires_AD && !found && ndr>18 && ndr <= 24 ) {
+      if (requires_AD && !found && type_AD == 24 ) {
         // AD24 workset
         wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(info, numVars, isTransient,
                                                                disc->basis_types[block], 
@@ -970,7 +1009,7 @@ void AssemblyManager<Node>::createWorkset() {
         wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(block, physics->set_names.size())));  
       }
 
-      if (requires_AD && !found && ndr>24 && ndr <= 32 ) {
+      if (requires_AD && !found && type_AD == 32 ) {
         // AD32 workset
         wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(info, numVars, isTransient,
                                                                disc->basis_types[block],
@@ -998,6 +1037,7 @@ void AssemblyManager<Node>::createWorkset() {
         wkset_AD[block]->blockname = blocknames[block];
         wkset_AD[block]->set_var_bcs = bcs;
         wkset_AD[block]->var_bcs = bcs[0];
+        
       }
       else {
         wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(block, physics->set_names.size())));  
@@ -1036,14 +1076,30 @@ template<class Node>
 void AssemblyManager<Node>::addFunction(const int & block, const string & name, const string & expression, const string & location) {
   function_managers[block]->addFunction(name, expression, location);
 #ifndef MrHyDE_NO_AD
-  function_managers_AD[block]->addFunction(name, expression, location);
-  function_managers_AD2[block]->addFunction(name, expression, location);
-  function_managers_AD4[block]->addFunction(name, expression, location);
-  function_managers_AD8[block]->addFunction(name, expression, location);
-  function_managers_AD16[block]->addFunction(name, expression, location);
-  function_managers_AD18[block]->addFunction(name, expression, location);
-  function_managers_AD24[block]->addFunction(name, expression, location);
-  function_managers_AD32[block]->addFunction(name, expression, location);
+  if (type_AD == -1) {
+    function_managers_AD[block]->addFunction(name, expression, location);
+  }
+  else if (type_AD == 2) {
+    function_managers_AD2[block]->addFunction(name, expression, location);
+  }
+  else if (type_AD == 4) {
+    function_managers_AD4[block]->addFunction(name, expression, location);
+  }
+  else if (type_AD == 8) {
+    function_managers_AD8[block]->addFunction(name, expression, location);
+  }
+  else if (type_AD == 16) {
+    function_managers_AD16[block]->addFunction(name, expression, location);
+  }
+  else if (type_AD == 18) {
+    function_managers_AD18[block]->addFunction(name, expression, location);
+  }
+  else if (type_AD == 24) {
+    function_managers_AD24[block]->addFunction(name, expression, location);
+  }
+  else if (type_AD == 32) {
+    function_managers_AD32[block]->addFunction(name, expression, location);
+  }
 #endif
 }
 
@@ -2068,50 +2124,50 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
                                  is_final_time, block, deltat);
       }
       else {
-        int ndr = num_derivs_required[block];
-        if (ndr == MAXDERIVS) {
+        //int ndr = num_derivs_required[block];
+        if (type_AD == -1) {
           this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                    compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                    current_time, useadjoint, store_adjPrev, num_active_params,
                                    is_final_time, block, deltat);
         }
-        else if (ndr>0 && ndr <= 2) {
+        else if (type_AD == 2) {
           this->assembleJacRes<AD2>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                     current_time, useadjoint, store_adjPrev, num_active_params,
                                     is_final_time, block, deltat);
         }
-        else if (ndr>2 && ndr <= 4) {
+        else if (type_AD == 4) {
           this->assembleJacRes<AD4>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                     current_time, useadjoint, store_adjPrev, num_active_params,
                                     is_final_time, block, deltat);
         }
-        else if (ndr>4 && ndr <= 8) {
+        else if (type_AD == 8) {
           this->assembleJacRes<AD8>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                     current_time, useadjoint, store_adjPrev, num_active_params,
                                     is_final_time, block, deltat);
         }
-        else if (ndr>8 && ndr <= 16) {
+        else if (type_AD == 16) {
           this->assembleJacRes<AD16>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
                                      is_final_time, block, deltat);
         }
-        else if (ndr>16 && ndr <= 18) {
+        else if (type_AD == 18) {
           this->assembleJacRes<AD18>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
                                      is_final_time, block, deltat);
         }
-        else if (ndr>18 && ndr <= 24) {
+        else if (type_AD == 24) {
           this->assembleJacRes<AD24>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
                                      is_final_time, block, deltat);
         }
-        else if (ndr>24 && ndr <= 32) {
+        else if (type_AD == 32) {
           this->assembleJacRes<AD32>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
@@ -2675,28 +2731,28 @@ void AssemblyManager<Node>::updateWorksetTime(const size_t & block, const bool &
     this->updateWorksetTime(wkset[block], isTransient, current_time, deltat);
   }
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorksetTime(wkset_AD[block], isTransient, current_time, deltat);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorksetTime(wkset_AD2[block], isTransient, current_time, deltat);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorksetTime(wkset_AD4[block], isTransient, current_time, deltat);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorksetTime(wkset_AD8[block], isTransient, current_time, deltat);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorksetTime(wkset_AD16[block], isTransient, current_time, deltat);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorksetTime(wkset_AD18[block], isTransient, current_time, deltat);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorksetTime(wkset_AD24[block], isTransient, current_time, deltat);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorksetTime(wkset_AD32[block], isTransient, current_time, deltat);
   }
 #endif
@@ -2738,28 +2794,28 @@ void AssemblyManager<Node>::updateWorksetAdjoint(const size_t & block, const boo
     this->updateWorksetAdjoint(wkset[block], isAdjoint);
   }
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorksetAdjoint(wkset_AD[block], isAdjoint);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorksetAdjoint(wkset_AD2[block], isAdjoint);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorksetAdjoint(wkset_AD4[block], isAdjoint);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorksetAdjoint(wkset_AD8[block], isAdjoint);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorksetAdjoint(wkset_AD16[block], isAdjoint);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorksetAdjoint(wkset_AD18[block], isAdjoint);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorksetAdjoint(wkset_AD24[block], isAdjoint);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorksetAdjoint(wkset_AD32[block], isAdjoint);
   }
 #endif
@@ -2783,28 +2839,28 @@ void AssemblyManager<Node>::updateWorksetEID(const size_t & block, const size_t 
     this->updateWorksetEID(wkset[block], eid);
   }
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorksetEID(wkset_AD[block], eid);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorksetEID(wkset_AD2[block], eid);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorksetEID(wkset_AD4[block], eid);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorksetEID(wkset_AD8[block], eid);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorksetEID(wkset_AD16[block], eid);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorksetEID(wkset_AD18[block], eid);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorksetEID(wkset_AD24[block], eid);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorksetEID(wkset_AD32[block], eid);
   }
 #endif
@@ -2824,32 +2880,30 @@ template<class Node>
 void AssemblyManager<Node>::updateWorksetOnSide(const size_t & block, const bool & on_side) {
                                                 
 
-  if (wkset[block]->isInitialized) {
-    this->updateWorksetOnSide(wkset[block], on_side);
-  }
+  this->updateWorksetOnSide(wkset[block], on_side);
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorksetOnSide(wkset_AD[block], on_side);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorksetOnSide(wkset_AD2[block], on_side);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorksetOnSide(wkset_AD4[block], on_side);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorksetOnSide(wkset_AD8[block], on_side);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorksetOnSide(wkset_AD16[block], on_side);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorksetOnSide(wkset_AD18[block], on_side);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorksetOnSide(wkset_AD24[block], on_side);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorksetOnSide(wkset_AD32[block], on_side);
   }
 #endif
@@ -2869,32 +2923,30 @@ template<class Node>
 void AssemblyManager<Node>::updateWorksetResidual(const size_t & block) {
                                                 
 
-  if (wkset[block]->isInitialized) {
-    this->updateWorksetResidual(wkset[block]);
-  }
+  this->updateWorksetResidual(wkset[block]);
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorksetResidual(wkset_AD[block]);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorksetResidual(wkset_AD2[block]);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorksetResidual(wkset_AD4[block]);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorksetResidual(wkset_AD8[block]);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorksetResidual(wkset_AD16[block]);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorksetResidual(wkset_AD18[block]);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorksetResidual(wkset_AD24[block]);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorksetResidual(wkset_AD32[block]);
   }
 #endif
@@ -3255,32 +3307,30 @@ void AssemblyManager<Node>::updateStage(const int & stage, const ScalarT & curre
 
   for (size_t block=0; block<wkset.size(); ++block) {
     groupData[block]->current_stage = stage;
-    if (wkset[block]->isInitialized) {
-      this->updateStage(wkset[block], stage, current_time, deltat);
-    }
+    this->updateStage(wkset[block], stage, current_time, deltat);
 #ifndef MrHyDE_NO_AD
-    if (wkset_AD[block]->isInitialized) {
+    if (type_AD == -1) {
       this->updateStage(wkset_AD[block], stage, current_time, deltat);
     }
-    if (wkset_AD2[block]->isInitialized) {
+    else if (type_AD == 2) {
       this->updateStage(wkset_AD2[block], stage, current_time, deltat);
     }
-    if (wkset_AD4[block]->isInitialized) {
+    else if (type_AD == 4) {
       this->updateStage(wkset_AD4[block], stage, current_time, deltat);
     }
-    if (wkset_AD8[block]->isInitialized) {
+    else if (type_AD == 8) {
       this->updateStage(wkset_AD8[block], stage, current_time, deltat);
     }
-    if (wkset_AD16[block]->isInitialized) {
+    else if (type_AD == 16) {
       this->updateStage(wkset_AD16[block], stage, current_time, deltat);
     }
-    if (wkset_AD18[block]->isInitialized) {
+    else if (type_AD == 18) {
       this->updateStage(wkset_AD18[block], stage, current_time, deltat);
     }
-    if (wkset_AD24[block]->isInitialized) {
+    else if (type_AD == 24) {
       this->updateStage(wkset_AD24[block], stage, current_time, deltat);
     }
-    if (wkset_AD32[block]->isInitialized) {
+    else if (type_AD == 32) {
       this->updateStage(wkset_AD32[block], stage, current_time, deltat);
     }
 #endif
@@ -3323,14 +3373,30 @@ void AssemblyManager<Node>::updateTimeStep(const int & timestep) {
   for (size_t block=0; block<wkset.size(); ++block) {
     wkset[block]->time_step = timestep;
 #ifndef MrHyDE_NO_AD
-    wkset_AD[block]->time_step = timestep;
-    wkset_AD2[block]->time_step = timestep;
-    wkset_AD4[block]->time_step = timestep;
-    wkset_AD8[block]->time_step = timestep;
-    wkset_AD16[block]->time_step = timestep;
-    wkset_AD18[block]->time_step = timestep;
-    wkset_AD24[block]->time_step = timestep;
-    wkset_AD32[block]->time_step = timestep;
+    if (type_AD == -1) {
+      wkset_AD[block]->time_step = timestep;
+    }
+    else if (type_AD == 2) {
+      wkset_AD2[block]->time_step = timestep;
+    }
+    else if (type_AD == 4) {
+      wkset_AD4[block]->time_step = timestep;
+    }
+    else if (type_AD == 8) {
+      wkset_AD8[block]->time_step = timestep;
+    }
+    else if (type_AD == 16) {
+      wkset_AD16[block]->time_step = timestep;
+    }
+    else if (type_AD == 18) {
+      wkset_AD18[block]->time_step = timestep;
+    }
+    else if (type_AD == 24) {
+      wkset_AD24[block]->time_step = timestep;
+    }
+    else if (type_AD == 32) {
+      wkset_AD32[block]->time_step = timestep;
+    }
 #endif
   }
 }
@@ -3342,32 +3408,30 @@ void AssemblyManager<Node>::setWorksetButcher(const size_t & set, const size_t &
                                         Kokkos::View<ScalarT*,AssemblyDevice> butcher_c) {
 
 
-  if (wkset[block]->isInitialized) {
-    this->setWorksetButcher(set, wkset[block],butcher_A, butcher_b, butcher_c);
-  }
+  this->setWorksetButcher(set, wkset[block],butcher_A, butcher_b, butcher_c);
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->setWorksetButcher(set, wkset_AD[block],butcher_A, butcher_b, butcher_c);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->setWorksetButcher(set, wkset_AD2[block],butcher_A, butcher_b, butcher_c);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->setWorksetButcher(set, wkset_AD4[block],butcher_A, butcher_b, butcher_c);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->setWorksetButcher(set, wkset_AD8[block],butcher_A, butcher_b, butcher_c);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->setWorksetButcher(set, wkset_AD16[block],butcher_A, butcher_b, butcher_c);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->setWorksetButcher(set, wkset_AD18[block],butcher_A, butcher_b, butcher_c);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->setWorksetButcher(set, wkset_AD24[block],butcher_A, butcher_b, butcher_c);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->setWorksetButcher(set, wkset_AD32[block],butcher_A, butcher_b, butcher_c);
   }
 #endif
@@ -3396,32 +3460,30 @@ void AssemblyManager<Node>::setWorksetBDF(const size_t & set, const size_t & blo
                                         Kokkos::View<ScalarT*,AssemblyDevice> BDF_wts) {
 
 
-  if (wkset[block]->isInitialized) {
-    this->setWorksetBDF(set, wkset[block], BDF_wts);
-  }
+  this->setWorksetBDF(set, wkset[block], BDF_wts);
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->setWorksetBDF(set, wkset_AD[block], BDF_wts);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->setWorksetBDF(set, wkset_AD2[block], BDF_wts);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->setWorksetBDF(set, wkset_AD4[block], BDF_wts);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->setWorksetBDF(set, wkset_AD8[block], BDF_wts);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->setWorksetBDF(set, wkset_AD16[block], BDF_wts);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->setWorksetBDF(set, wkset_AD18[block], BDF_wts);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->setWorksetBDF(set, wkset_AD24[block], BDF_wts);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->setWorksetBDF(set, wkset_AD32[block], BDF_wts);
   }
 #endif
@@ -4301,34 +4363,36 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
 
 template<class Node>
 void AssemblyManager<Node>::updatePhysicsSet(const size_t & set) {
+  
   for (size_t block=0; block<blocknames.size(); ++block) {
+    
     if (wkset[block]->isInitialized) {
       wkset[block]->updatePhysicsSet(set);
       groupData[block]->updatePhysicsSet(set);
     }
 #ifndef MrHyDE_NO_AD
-    if (wkset_AD[block]->isInitialized) {
+    if (type_AD == -1) {
       wkset_AD[block]->updatePhysicsSet(set);
     }
-    if (wkset_AD2[block]->isInitialized) {
+    else if (type_AD == 2) {
       wkset_AD2[block]->updatePhysicsSet(set);
     }
-    if (wkset_AD4[block]->isInitialized) {
+    else if (type_AD == 4) {
       wkset_AD4[block]->updatePhysicsSet(set);
     }
-    if (wkset_AD8[block]->isInitialized) {
+    else if (type_AD == 8) {
       wkset_AD8[block]->updatePhysicsSet(set);
     }
-    if (wkset_AD16[block]->isInitialized) {
+    else if (type_AD == 16) {
       wkset_AD16[block]->updatePhysicsSet(set);
     }
-    if (wkset_AD18[block]->isInitialized) {
+    else if (type_AD == 18) {
       wkset_AD18[block]->updatePhysicsSet(set);
     }
-    if (wkset_AD24[block]->isInitialized) {
+    else if (type_AD == 24) {
       wkset_AD24[block]->updatePhysicsSet(set);
     }
-    if (wkset_AD32[block]->isInitialized) {
+    else if (type_AD == 32) {
       wkset_AD32[block]->updatePhysicsSet(set);
     }
 #endif
@@ -5536,35 +5600,65 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
 
 template<class Node>
 void AssemblyManager<Node>::finalizeFunctions() {
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Starting AssemblyManager::finalizeFunctions()" << endl;
+    }
+  }
+  
+  
   for (size_t block=0; block<wkset.size(); ++block) {
     this->finalizeFunctions(function_managers[block], wkset[block]);
   }
+  
 #ifndef MrHyDE_NO_AD
-  for (size_t block=0; block<wkset_AD.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD[block], wkset_AD[block]);
+  if (type_AD == -1) {
+    for (size_t block=0; block<wkset_AD.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD[block], wkset_AD[block]);
+    }
   }
-  for (size_t block=0; block<wkset_AD2.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD2[block], wkset_AD2[block]);
+  else if (type_AD == 2) {
+    for (size_t block=0; block<wkset_AD2.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD2[block], wkset_AD2[block]);
+    }
   }
-  for (size_t block=0; block<wkset_AD4.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD4[block], wkset_AD4[block]);
+  else if (type_AD == 4) {
+    for (size_t block=0; block<wkset_AD4.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD4[block], wkset_AD4[block]);
+    }
   }
-  for (size_t block=0; block<wkset_AD8.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD8[block], wkset_AD8[block]);
+  else if (type_AD == 8) {
+    for (size_t block=0; block<wkset_AD8.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD8[block], wkset_AD8[block]);
+    }
   }
-  for (size_t block=0; block<wkset_AD16.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD16[block], wkset_AD16[block]);
+  else if (type_AD == 16) {
+    for (size_t block=0; block<wkset_AD16.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD16[block], wkset_AD16[block]);
+    }
   }
-  for (size_t block=0; block<wkset_AD18.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD18[block], wkset_AD18[block]);
+  else if (type_AD == 18) {
+    for (size_t block=0; block<wkset_AD18.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD18[block], wkset_AD18[block]);
+    }
   }
-  for (size_t block=0; block<wkset_AD24.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD24[block], wkset_AD24[block]);
+  else if (type_AD == 24) {
+    for (size_t block=0; block<wkset_AD24.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD24[block], wkset_AD24[block]);
+    }
   }
-  for (size_t block=0; block<wkset_AD32.size(); ++block) {
-    this->finalizeFunctions(function_managers_AD32[block], wkset_AD32[block]);
+  else if (type_AD == 32) {
+    for (size_t block=0; block<wkset_AD32.size(); ++block) {
+      this->finalizeFunctions(function_managers_AD32[block], wkset_AD32[block]);
+    }
   }
 #endif
+  if (debug_level > 0) {
+    if (comm->getRank() == 0) {
+      cout << "**** Finished AssemblyManager::finalizeFunctions()" << endl;
+    }
+  }
+  
 }
 
 template<class Node>
@@ -5646,28 +5740,28 @@ void AssemblyManager<Node>::updateWorksetBoundaryAD(const int & block, const siz
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorksetBoundary(wkset_AD[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorksetBoundary(wkset_AD2[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorksetBoundary(wkset_AD4[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorksetBoundary(wkset_AD8[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorksetBoundary(wkset_AD16[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorksetBoundary(wkset_AD18[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorksetBoundary(wkset_AD24[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorksetBoundary(wkset_AD32[block], block, grp, seedwhat, seedindex, override_transient);
   }
 #endif
@@ -5784,28 +5878,28 @@ template<class Node>
 void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat) {
 
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->computeBoundaryAux(block, grp, seedwhat, wkset_AD32[block]);
   }
 
@@ -5956,28 +6050,28 @@ void AssemblyManager<Node>::updateWorksetBasisBoundary(const int & block, const 
 template<class Node>
 void AssemblyManager<Node>::updateWorksetBasisBoundaryAD(const int & block, const size_t & grp) {
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorksetBasisBoundary(wkset_AD[block], block, grp);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorksetBasisBoundary(wkset_AD2[block], block, grp);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorksetBasisBoundary(wkset_AD4[block], block, grp);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorksetBasisBoundary(wkset_AD8[block], block, grp);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorksetBasisBoundary(wkset_AD16[block], block, grp);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorksetBasisBoundary(wkset_AD18[block], block, grp);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorksetBasisBoundary(wkset_AD24[block], block, grp);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorksetBasisBoundary(wkset_AD32[block], block, grp);
   }
 
@@ -6071,28 +6165,28 @@ void AssemblyManager<Node>::updateResBoundary(const int & block, const size_t & 
                                       const bool & compute_sens, View_Sc3 local_res) {
 
 #ifndef MrHyDE_NO_AD     
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateResBoundary(block, grp, compute_sens, local_res, wkset_AD32[block]);
   }
 #endif
@@ -6149,28 +6243,28 @@ void AssemblyManager<Node>::updateJacBoundary(const int & block, const size_t & 
                                       const bool & useadjoint, View_Sc3 local_J) {
 
 #ifndef MrHyDE_NO_AD     
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateJacBoundary(block, grp, useadjoint, local_J, wkset_AD32[block]);
   }
 #endif
@@ -6230,28 +6324,28 @@ template<class Node>
 void AssemblyManager<Node>::updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J) {
 
 #ifndef MrHyDE_NO_AD     
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateParamJacBoundary(block, grp, local_J, wkset_AD32[block]);
   }
 #endif
@@ -6294,28 +6388,28 @@ template<class Node>
 void AssemblyManager<Node>::updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J) {
 
 #ifndef MrHyDE_NO_AD     
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateAuxJacBoundary(block, grp, local_J, wkset_AD32[block]);
   }
 #endif
@@ -6510,28 +6604,28 @@ void AssemblyManager<Node>::updateWorksetAD(const int & block, const size_t & gr
                                           const int & seedwhat, const int & seedindex,
                                           const bool & override_transient) {
 #ifndef MrHyDE_NO_AD     
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateWorkset(wkset_AD[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateWorkset(wkset_AD2[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateWorkset(wkset_AD4[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateWorkset(wkset_AD8[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateWorkset(wkset_AD16[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateWorkset(wkset_AD18[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateWorkset(wkset_AD24[block], block, grp, seedwhat, seedindex, override_transient);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateWorkset(wkset_AD32[block], block, grp, seedwhat, seedindex, override_transient);
   }
 #endif
@@ -7155,28 +7249,28 @@ void AssemblyManager<Node>::updateRes(const int & block, const size_t & grp,
                                       const bool & compute_sens, View_Sc3 local_res) {
 
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateRes(block, grp, compute_sens, local_res, wkset_AD32[block]);
   }
 #endif
@@ -7235,35 +7329,35 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
                             Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
 
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD[block]);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD2[block]);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD4[block]);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD8[block]);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD16[block]);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD18[block]);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD24[block]);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
                            store_adjPrev, local_J, local_res, wkset_AD32[block]);
   }
@@ -7445,28 +7539,28 @@ void AssemblyManager<Node>::updateJac(const int & block, const size_t & grp,
                                       const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD[block]);
   }
-  if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD2[block]);
   }
-  if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD4[block]);
   }
-  if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD8[block]);
   }
-  if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD16[block]);
   }
-  if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD18[block]);
   }
-  if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD24[block]);
   }
-  if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateJac(block, grp, useadjoint, local_J, wkset_AD32[block]);
   }
   
@@ -7567,28 +7661,28 @@ template<class Node>
 void AssemblyManager<Node>::updateParamJac(const int & block, const size_t & grp,
                                            Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateParamJac(block, grp, local_J, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateParamJac(block, grp, local_J, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateParamJac(block, grp, local_J, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateParamJac(block, grp, local_J, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateParamJac(block, grp, local_J, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateParamJac(block, grp, local_J, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateParamJac(block, grp, local_J, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateParamJac(block, grp, local_J, wkset_AD32[block]);
   }
   #endif
@@ -7633,28 +7727,28 @@ void AssemblyManager<Node>::updateAuxJac(const int & block, const size_t & grp,
                                            Kokkos::View<ScalarT***,AssemblyDevice> local_J) {
 
 #ifndef MrHyDE_NO_AD
-  if (wkset_AD[block]->isInitialized) {
+  if (type_AD == -1) {
     this->updateAuxJac(block, grp, local_J, wkset_AD[block]);
   }
-  else if (wkset_AD2[block]->isInitialized) {
+  else if (type_AD == 2) {
     this->updateAuxJac(block, grp, local_J, wkset_AD2[block]);
   }
-  else if (wkset_AD4[block]->isInitialized) {
+  else if (type_AD == 4) {
     this->updateAuxJac(block, grp, local_J, wkset_AD4[block]);
   }
-  else if (wkset_AD8[block]->isInitialized) {
+  else if (type_AD == 8) {
     this->updateAuxJac(block, grp, local_J, wkset_AD8[block]);
   }
-  else if (wkset_AD16[block]->isInitialized) {
+  else if (type_AD == 16) {
     this->updateAuxJac(block, grp, local_J, wkset_AD16[block]);
   }
-  else if (wkset_AD18[block]->isInitialized) {
+  else if (type_AD == 18) {
     this->updateAuxJac(block, grp, local_J, wkset_AD18[block]);
   }
-  else if (wkset_AD24[block]->isInitialized) {
+  else if (type_AD == 24) {
     this->updateAuxJac(block, grp, local_J, wkset_AD24[block]);
   }
-  else if (wkset_AD32[block]->isInitialized) {
+  else if (type_AD == 32) {
     this->updateAuxJac(block, grp, local_J, wkset_AD32[block]);
   }
 #endif
@@ -8199,69 +8293,78 @@ void AssemblyManager<Node>::createFunctions() {
   physics->defineFunctions(function_managers);
 
 #ifndef MrHyDE_NO_AD
-  for (size_t block=0; block<blocknames.size(); ++block) {
-    function_managers_AD.push_back(Teuchos::rcp(new FunctionManager<AD>(blocknames[block],
-                                                                     groupData[block]->num_elem,
-                                                                     disc->numip[block],
-                                                                     disc->numip_side[block])));
+  if (type_AD == -1) {
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      function_managers_AD.push_back(Teuchos::rcp(new FunctionManager<AD>(blocknames[block],
+                                                                          groupData[block]->num_elem,
+                                                                          disc->numip[block],
+                                                                          disc->numip_side[block])));
+    }
+    physics->defineFunctions(function_managers_AD);
   }
-  physics->defineFunctions(function_managers_AD);
-
+  else if (type_AD == 2) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD2.push_back(Teuchos::rcp(new FunctionManager<AD2>(blocknames[block],
-                                                                       groupData[block]->num_elem,
-                                                                       disc->numip[block],
-                                                                       disc->numip_side[block])));
+                                                                            groupData[block]->num_elem,
+                                                                            disc->numip[block],
+                                                                            disc->numip_side[block])));
     }
     physics->defineFunctions(function_managers_AD2);
-  
+  }
+  else if (type_AD == 4) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD4.push_back(Teuchos::rcp(new FunctionManager<AD4>(blocknames[block],
-                                                                       groupData[block]->num_elem,
-                                                                       disc->numip[block],
-                                                                       disc->numip_side[block])));
+                                                                            groupData[block]->num_elem,
+                                                                            disc->numip[block],
+                                                                            disc->numip_side[block])));
     }
     physics->defineFunctions(function_managers_AD4);
-  
+  }
+  else if (type_AD == 8) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD8.push_back(Teuchos::rcp(new FunctionManager<AD8>(blocknames[block],
-                                                                       groupData[block]->num_elem,
-                                                                       disc->numip[block],
-                                                                       disc->numip_side[block])));
+                                                                            groupData[block]->num_elem,
+                                                                            disc->numip[block],
+                                                                            disc->numip_side[block])));
     }
     physics->defineFunctions(function_managers_AD8);
-  
+  }
+  else if (type_AD == 16) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD16.push_back(Teuchos::rcp(new FunctionManager<AD16>(blocknames[block],
-                                                                       groupData[block]->num_elem,
-                                                                       disc->numip[block],
-                                                                       disc->numip_side[block])));
+                                                                              groupData[block]->num_elem,
+                                                                              disc->numip[block],
+                                                                              disc->numip_side[block])));
     }
     physics->defineFunctions(function_managers_AD16);
-  
+  }
+  else if (type_AD == 18) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD18.push_back(Teuchos::rcp(new FunctionManager<AD18>(blocknames[block],
-                                                                       groupData[block]->num_elem,
-                                                                       disc->numip[block],
-                                                                       disc->numip_side[block])));
+                                                                              groupData[block]->num_elem,
+                                                                              disc->numip[block],
+                                                                              disc->numip_side[block])));
     }
     physics->defineFunctions(function_managers_AD18);
-  
+  }
+  else if (type_AD == 24) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD24.push_back(Teuchos::rcp(new FunctionManager<AD24>(blocknames[block],
-                                                                       groupData[block]->num_elem,
-                                                                       disc->numip[block],
-                                                                       disc->numip_side[block])));
+                                                                              groupData[block]->num_elem,
+                                                                              disc->numip[block],
+                                                                              disc->numip_side[block])));
     }
     physics->defineFunctions(function_managers_AD24);
-  
+  }
+  else if (type_AD == 32) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD32.push_back(Teuchos::rcp(new FunctionManager<AD32>(blocknames[block],
-                                                                       groupData[block]->num_elem,
-                                                                       disc->numip[block],
-                                                                       disc->numip_side[block])));
+                                                                              groupData[block]->num_elem,
+                                                                              disc->numip[block],
+                                                                              disc->numip_side[block])));
     }
     physics->defineFunctions(function_managers_AD32);
+  }
 #endif
 }
 

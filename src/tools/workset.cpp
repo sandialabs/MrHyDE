@@ -425,47 +425,49 @@ template<>
 void Workset<ScalarT>::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
   
-  size_t maxRes_ = maxRes;
-  parallel_for("wkset reset res",
-               TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
-               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-    int elem = team.league_rank();
-    for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
-      res(elem,dof) = 0.0;
-    }
-  });
-
+  if (isInitialized) {
+    size_t maxRes_ = maxRes;
+    parallel_for("wkset reset res",
+                 TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
+        res(elem,dof) = 0.0;
+      }
+    });
+  }
 }
 
 template<class EvalT>
 void Workset<EvalT>::resetResidual() {
   Teuchos::TimeMonitor resettimer(*worksetResetTimer);
   
-  size_t maxRes_ = maxRes;
-  ScalarT zero = 0.0;
+  if (isInitialized) {
+    size_t maxRes_ = maxRes;
+    ScalarT zero = 0.0;
 #ifndef MrHyDE_NO_AD
-  parallel_for("wkset reset res",
-               TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
-               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-    int elem = team.league_rank();
-    for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
-      res(elem,dof).val() = zero;
-      for (size_type d=0; d<maxRes_; ++d) {
-        res(elem,dof).fastAccessDx(d) = zero;
+    parallel_for("wkset reset res",
+                 TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
+        res(elem,dof).val() = zero;
+        for (size_type d=0; d<maxRes_; ++d) {
+          res(elem,dof).fastAccessDx(d) = zero;
+        }
       }
-    }
-  });
+    });
 #else
-  parallel_for("wkset reset res",
-               TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
-               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-    int elem = team.league_rank();
-    for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
-      res(elem,dof) = zero;
-    }
-  });
+    parallel_for("wkset reset res",
+                 TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
+                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
+        res(elem,dof) = zero;
+      }
+    });
 #endif
-
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

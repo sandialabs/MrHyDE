@@ -311,12 +311,23 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
 template<class Node>
 void SolverManager<Node>::completeSetup() {
 
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Starting SolverManager::completeSetup()" << endl;
+    }
+  }
   //---------------------------------------------------
   // Mass matrix (lumped and maybe full) for explicit
   //---------------------------------------------------
   
   if (fully_explicit) {
     this->setupExplicitMass();
+  }
+  
+  if (debug_level > 0) {
+    if (Comm->getRank() == 0) {
+      cout << "**** Finished SolverManager::completeSetup()" << endl;
+    }
   }
 }
 

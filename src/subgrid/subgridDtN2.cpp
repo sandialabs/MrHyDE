@@ -214,16 +214,6 @@ void SubGridDtN2::setUpSubgridModels() {
   size_t numSubElem = connectivity.size();
   
   settings->sublist("Solver").set<int>("workset size",(int)numSubElem);
-  //vector<Teuchos::RCP<FunctionManager> > functionManagers;
-  //functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID, numSubElem,
-  //                                                            sub_disc->numip[0],
-  //                                                            sub_disc->numip_side[0])));
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // Define the functions on each block
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  //sub_physics->defineFunctions(functionManagers);
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the parameter manager, the assembler and the solver
@@ -232,11 +222,10 @@ void SubGridDtN2::setUpSubgridModels() {
   sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                      sub_physics, sub_disc));
   
+  settings->sublist("Solver").set<bool>("enable autotune",false);
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                        sub_disc, sub_physics, sub_params));
   
-  //sub_assembler->allocateGroupStorage();
-  sub_assembler->allow_autotune = false;
   groups = sub_assembler->groups;
   
   Teuchos::RCP<GroupMetaData> group_data = sub_assembler->groupData[0];

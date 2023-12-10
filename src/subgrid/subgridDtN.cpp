@@ -197,31 +197,12 @@ void SubGridDtN::setUpSubgridModels() {
   size_t numSubElem = connectivity.size();
   
   settings->sublist("Solver").set<int>("workset size",(int)numSubElem);
-  //vector<Teuchos::RCP<FunctionManager> > functionManagers;
-  //functionManagers.push_back(Teuchos::rcp(new FunctionManager(blockID,
-  //                                                            numSubElem,
-  //                                                            sub_disc->numip[0],
-  //                                                            sub_disc->numip_side[0])));
-  
   
   ////////////////////////////////////////////////////////////////////////////////
   // Define the functions on each block
   ////////////////////////////////////////////////////////////////////////////////
   
   sub_physics->side_names = macrosidenames;
-  //sub_physics->defineFunctions(functionManagers);
-  
-  ////////////////////////////////////////////////////////////////////////////////
-  // The DOF-manager needs to be aware of the physics and the discretization(s)
-  ////////////////////////////////////////////////////////////////////////////////
-  
-  //Teuchos::RCP<panzer::DOFManager> DOF = sub_disc->buildDOF(sub_mesh->stk_mesh,
-  //                                                          sub_physics->varlist,
-  //                                                          sub_physics->types,
-  //                                                          sub_physics->orders,
-  //                                                          sub_physics->useDG);
-  
-  //sub_physics->setBCData(settings, sub_mesh->stk_mesh, DOF, sub_disc->cards);
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the parameter manager, the assembler and the solver
@@ -230,11 +211,11 @@ void SubGridDtN::setUpSubgridModels() {
   sub_params = Teuchos::rcp( new ParameterManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                      sub_physics, sub_disc));
   
+  settings->sublist("Solver").set<bool>("enable autotune",false);
   sub_assembler = Teuchos::rcp( new AssemblyManager<SubgridSolverNode>(LocalComm, settings, sub_mesh,
                                                                        sub_disc, sub_physics, sub_params));
   
   sub_assembler->allocateGroupStorage();
-  sub_assembler->allow_autotune = false;
   
   groups = sub_assembler->groups;
   

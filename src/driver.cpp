@@ -47,9 +47,9 @@ int main(int argc,char * argv[]) {
   }
   if (input_file_name == "--version") {
     std::cout << std::endl << "MrHyDE - A framework for Multi-resolution Hybridized Differential Equations -- Version " << MRHYDE_VERSION << std::endl << std::endl;
-    std::cout << "Copyright 2018 National Technology & Engineering Solutions of Sandia, LLC (NTESS)." << std::endl;
+    std::cout << "Copyright 2023 National Technology & Engineering Solutions of Sandia, LLC (NTESS)." << std::endl;
     std::cout << "Under the terms of Contract DE-NA0003525 with NTESS, the U.S. Government retains certain rights in this software." << std::endl << std::endl;
-    std::cout << "Questions? Contact Tim Wildey (tmwilde@sandia.gov) and/or Bart van Bloemen Waanders (bartv@sandia.gov)" << std::endl << std::endl;
+    std::cout << "Questions? Contact Tim Wildey (tmwilde@sandia.gov)" << std::endl << std::endl;
   }
   else {
     

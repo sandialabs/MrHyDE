@@ -96,7 +96,7 @@ settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 // Add the functions to the function managers
-// Function managers are set up in the assmelby manager
+// Function managers are set up in the assembly manager
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 // Externally called functions that need to be specialized for each evaluation type

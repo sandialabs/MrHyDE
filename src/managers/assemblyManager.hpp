@@ -885,6 +885,8 @@ namespace MrHyDE {
     Teuchos::RCP<ParameterManager<Node> > params;
       
     vector<int> num_derivs_required;
+    int type_AD;
+    
   private:
 
     Teuchos::RCP<Teuchos::Time> assembly_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AssemblyManager::computeJacRes() - total assembly");
