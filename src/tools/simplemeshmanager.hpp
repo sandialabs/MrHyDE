@@ -862,7 +862,7 @@ public:
   GO localToGlobal(int lid) {
     int xid = lid % (nx_+1); // nx_+1 is the number of nodes in x direction, locally
     int yid = lid / (nx_+1);
-    int ystride = xprocs_*nx_ + 1; // number of nodes in x direction, globally
+    GO ystride = xprocs_*nx_ + 1; // number of nodes in x direction, globally
 
     return xid + yid*ystride      + PX_*nx_   + PY_*ny_*ystride;
     //     global cell template   X-offset    Y-offset
@@ -870,8 +870,17 @@ public:
 
 
   int globalToLocal(GO gid) {
-    // we may need to implement this
-    return -1;
+    // number of nodes in x direction, globally
+    GO ystride = xprocs_*nx_ + 1;
+
+    // subtract X-offset and Y-offset
+    GO lgi = gid - PX_*nx_ - PY_*ny_*ystride;
+
+    // recover x and y indices based on the "extended" local/global template
+    int yid = lgi / ystride;
+    int xid = lgi % ystride;
+
+    return xid + yid*(nx_+1); // nx_+1 is the number of nodes in x direction, locally
   }
 
 
