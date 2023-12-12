@@ -513,8 +513,8 @@ class SimpleMeshManager_Rectangle : public SimpleMeshManager<Real> {
 */
 
 private:
-  Real width_;   // rectangle height
-  Real height_;  // rectangle width
+  Real width_;   // rectangle width
+  Real height_;  // rectangle height
   Real X0_;      // x coordinate of bottom left corner
   Real Y0_;      // y coordinate of bottom left corner
 
@@ -730,10 +730,10 @@ class SimpleMeshManager_Rectangle_Parallel : public SimpleMeshManager<Real> {
 typedef   long long   GO;
 
 private:
-  Real width_;   // rectangle height
-  Real height_;  // rectangle width
-  Real X0_;      // x coordinate of bottom left corner
-  Real Y0_;      // y coordinate of bottom left corner
+  Real W_;       // rectangle width of global mesh
+  Real H_;       // rectangle height of global mesh
+  Real X0_;      // x coordinate of bottom left corner, global mesh
+  Real Y0_;      // y coordinate of bottom left corner, global mesh
 
   int  procid_;  // processor id (zero-based)
   int  xprocs_;  // number of processors in x direction
@@ -742,8 +742,13 @@ private:
   int  PX_;      // X id of the processor in the XY decomposition
   int  PY_;      // Y id of the processor in the XY decomposition
 
-  int nx_;       // number of cells in x direction
-  int ny_;       // number of cells in y direction
+  int NX_;       // number of cells in x direction, global mesh
+  int NY_;       // number of cells in y direction, global mesh
+
+  int nx_;       // number of cells in x direction, local mesh
+  int ny_;       // number of cells in y direction, local mesh
+  Real width_;   // rectangle width of local mesh
+  Real height_;  // rectangle height of local mesh
 
   int numCells_;
   int numNodes_;
@@ -765,10 +770,10 @@ public:
                                        int xprocs,
                                        int yprocs) : procid_(procid), xprocs_(xprocs), yprocs_(yprocs) {
     // Geometry data.
-    width_  = parlist.sublist("Geometry").get( "Width", 3.0);
-    height_ = parlist.sublist("Geometry").get("Height", 1.0);
-    X0_     = parlist.sublist("Geometry").get(    "X0", 0.0);
-    Y0_     = parlist.sublist("Geometry").get(    "Y0", 0.0);
+    W_  = parlist.sublist("Geometry").get( "Width", 3.0);
+    H_  = parlist.sublist("Geometry").get("Height", 1.0);
+    X0_ = parlist.sublist("Geometry").get(    "X0", 0.0);
+    Y0_ = parlist.sublist("Geometry").get(    "Y0", 0.0);
 
 
     // Parallel decomposition data.
@@ -786,13 +791,19 @@ public:
       throw std::out_of_range ("The processor ID must be between 0 and the product of X and Y processor numbers minus 1.");
 
     // Mesh data.
-    nx_ = parlist.sublist("Geometry").get("NX", 3);
-    ny_ = parlist.sublist("Geometry").get("NY", 1);
+    NX_     = parlist.sublist("Geometry").get("NX", 3);
+    NY_     = parlist.sublist("Geometry").get("NY", 1);
+    nx_     = NX_ / xprocs_;
+    ny_     = NY_ / yprocs_;
+    width_  = W_ / NX_;
+    height_ = H_ / NY_;
+
     numCells_ = nx_ * ny_;
     numNodes_ = (nx_+1) * (ny_+1);
     numEdges_ = (nx_+1)*ny_ + (ny_+1)*nx_;
     nodesPerCell_ = 4;
     dimension_ = 2;
+
     // Compute and store mesh data structures.
     computeNodes();
     computeCellToNodeMap();

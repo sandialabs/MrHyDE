@@ -48,7 +48,7 @@ int main(int argc, char * argv[]) {
     // Create the parallel version of a simple mesh
     // ==========================================================
     {
-      int NX = 2, NY = 3;
+      int NX = 6, NY = 6;
       double xmin = 0.0, ymin = 0.0;
       double xmax = 1.0, ymax = 1.0;
       Teuchos::ParameterList pl;
