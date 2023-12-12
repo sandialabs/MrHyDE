@@ -63,6 +63,7 @@ int main(int argc, char * argv[]) {
       int yprocs = 2;
 
       int procid = -1;
+      int lid = -1;
       long long gid = -1;
 
       procid = 1;
@@ -70,6 +71,8 @@ int main(int argc, char * argv[]) {
                            new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
       gid = simple_mesh->localToGlobal(11);
       std::cout << "LID 11 on proc 1 is GID " << gid << std::endl; // 25
+      lid = simple_mesh->globalToLocal(25);
+      std::cout << "GID 25 on proc 1 is LID " << lid << std::endl; // 11
       std::cout << "LID 11 is " << ( simple_mesh->isShared(11) ? "" : "not " ) << "shared" << std::endl; // is
       std::cout << "LID  6 is " << (  simple_mesh->isShared(6) ? "" : "not " ) << "shared" << std::endl << std::endl; // is not
 
@@ -78,6 +81,8 @@ int main(int argc, char * argv[]) {
                       new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
       gid = simple_mesh->localToGlobal(9);
       std::cout << "LID  9 on proc 2 is GID " << gid << std::endl; // 25
+      lid = simple_mesh->globalToLocal(25);
+      std::cout << "GID 25 on proc 2 is LID " << lid << std::endl; // 9
       std::cout << "LID 11 is " << ( simple_mesh->isShared(11) ? "" : "not " ) << "shared" << std::endl; // is not
       std::cout << "LID  6 is " << (  simple_mesh->isShared(6) ? "" : "not " ) << "shared" << std::endl << std::endl; // is not
 
@@ -86,6 +91,8 @@ int main(int argc, char * argv[]) {
                       new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
       gid = simple_mesh->localToGlobal(2);
       std::cout << "LID  2 on proc 4 is GID " << gid << std::endl; // 25
+      lid = simple_mesh->globalToLocal(25);
+      std::cout << "GID 25 on proc 4 is LID " << lid << std::endl; // 2
       std::cout << "LID 11 is " << ( simple_mesh->isShared(11) ? "" : "not " ) << "shared" << std::endl; // is not
       std::cout << "LID  6 is " << (  simple_mesh->isShared(6) ? "" : "not " ) << "shared" << std::endl << std::endl; // is not
 
@@ -94,6 +101,8 @@ int main(int argc, char * argv[]) {
                       new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
       gid = simple_mesh->localToGlobal(0);
       std::cout << "LID  0 on proc 5 is GID " << gid << std::endl; // 25
+      lid = simple_mesh->globalToLocal(25);
+      std::cout << "GID 25 on proc 5 is LID " << lid << std::endl; // 0
       std::cout << "LID 11 is " << ( simple_mesh->isShared(11) ? "" : "not " ) << "shared" << std::endl; // is not
       std::cout << "LID  6 is " << (  simple_mesh->isShared(6) ? "" : "not " ) << "shared" << std::endl << std::endl; // is not
 
@@ -101,7 +110,9 @@ int main(int argc, char * argv[]) {
       simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(
                       new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
       gid = simple_mesh->localToGlobal(9);
-      std::cout << "LID  9 on proc 5 is GID " << gid << std::endl; // 42
+      std::cout << "LID  9 on proc 3 is GID " << gid << std::endl; // 42
+      lid = simple_mesh->globalToLocal(42);
+      std::cout << "GID 42 on proc 3 is LID " << lid << std::endl; // 9
       std::cout << "LID 11 is " << ( simple_mesh->isShared(11) ? "" : "not " ) << "shared" << std::endl; // is not
       std::cout << "LID  5 is " << (  simple_mesh->isShared(5) ? "" : "not " ) << "shared" << std::endl << std::endl; // is
 
