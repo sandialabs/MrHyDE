@@ -50,7 +50,17 @@ settings(settings_), comm(comm_) {
     pl.sublist("Geometry").set("Depth",  settings->sublist("Mesh").get("zmax",1.0)-settings->sublist("Mesh").get("zmin",0.0));
     pl.sublist("Geometry").set("NZ",     settings->sublist("Mesh").get("NZ",20));
 
-    simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+    if (comm->getSize() == 1) {
+      simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+    }
+    else {
+      int xprocs = settings->sublist("Mesh").get("Xprocs",comm->getSize());
+      int yprocs = settings->sublist("Mesh").get("Yprocs",1);
+      if (xprocs*yprocs != comm->getSize()) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: number of xprocs*yprocs not equal to MPI Comm size");
+      }
+      simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, comm->getRank(), xprocs, yprocs));
+    }
   }
   shape = settings->sublist("Mesh").get<string>("shape","none");
   if (shape == "none") { // new keywords, but allowing BWDS compat.

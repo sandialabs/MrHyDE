@@ -117,6 +117,8 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
       for(unsigned int i=0; i<blockmy_elements.size(); ++i)
         blockmy_elements(i) = i;
       my_elements.push_back(blockmy_elements);
+      //cout << blockmy_elements.size() << endl;
+      
     }
     
     vector<int> blockcards;
