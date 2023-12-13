@@ -143,6 +143,12 @@ public:
   virtual void allocateDataStructures();
   virtual void deallocateMaps();
 
+  virtual GO localToGlobal(int lid);
+  
+  virtual int globalToLocal(GO gid);
+  
+  virtual bool isShared(int lid);
+  
   //void
   //mesh->getElementBlockNames(blocknames);
 
@@ -614,6 +620,18 @@ public:
   int getNumEdges() const {
     return numEdges_;
   } // getNumEdges
+  
+  GO localToGlobal(int lid) {
+    return (GO)lid;
+  }
+  
+  int globalToLocal(GO gid) {
+    return (int)gid;
+  }
+  
+  bool isShared(int lid) {
+    return false;
+  }
 
 private:
 
