@@ -915,10 +915,21 @@ public:
 
   bool isShared(int lid) {
     bool shared = false;
-    if ( onRightBoundary(lid) || onTopBoundary(lid) )
-      shared = true;
-    if ( (onRightBoundary(lid) && (PX_==xprocs_-1)) || (onTopBoundary(lid) && (PY_==yprocs_-1)) )
-      shared = false;
+
+    if ((PX_ < xprocs_-1) && (PY_ < yprocs_-1)) {           // Majority of procs.
+      if ( onRightBoundary(lid) || onTopBoundary(lid) )
+        shared = true;
+    }
+    else if ((PX_ < xprocs_-1) && (PY_ == yprocs_-1)) {     // Top-row procs.
+      if (onRightBoundary(lid))
+        shared = true;
+    }
+    else if ((PY_ < yprocs_-1) && (PX_ == xprocs_-1)) {     // Right-column procs.
+      if (onTopBoundary(lid))
+        shared = true;
+    }
+    // Top-right corner proc shares nothing.
+
     return shared;
   }
 
