@@ -243,12 +243,39 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     //vector<GO> owned;
     //for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
     //  owned.push_back(((GO) i));
-    Kokkos::View<GO*,HostDevice> owned("owned dofs",mesh->simple_mesh->getNumNodes());
-    for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
-      owned(i) = (GO) i;
+    size_t num_owned = 0;
+    for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+      bool isshared = mesh->simple_mesh->isShared(i);
+      if (!isshared) {
+        num_owned++;
+      }
+    }
     
+    Kokkos::View<GO*,HostDevice> owned("owned dofs",num_owned);
+    size_t prog = 0;
+    for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+      bool isshared = mesh->simple_mesh->isShared(i);
+      if (!isshared) {
+        owned(prog) = mesh->simple_mesh->localToGlobal(i);
+        ++prog;
+      }
+    }
     dof_owned.push_back(owned);
-    dof_owned_and_shared.push_back(owned);
+    
+    //for (size_type i=0; i<owned.extent(0); ++i) {
+    //  cout << comm->getRank() << "  " << owned(i) << endl;
+    //}
+    
+    Kokkos::View<GO*,HostDevice> owned_shared("owned and shared dofs",mesh->simple_mesh->getNumNodes());
+    for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+      owned_shared(i) = mesh->simple_mesh->localToGlobal(i);
+    }
+    
+    //for (size_type i=0; i<owned_shared.extent(0); ++i) {
+    //  cout << comm->getRank() << "  " << owned_shared(i) << endl;
+    //}
+    
+    dof_owned_and_shared.push_back(owned_shared);
 
     dof_lids.push_back(mesh->simple_mesh->getCellToNodeMap()); // [set](elem, dof)
     
@@ -287,7 +314,7 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
       std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
       std::vector<std::vector<LO> > block_dbc_dofs;
       std::vector<LO> var_dofs;
-      var_dofs.push_back(0);
+      //var_dofs.push_back(0);
       block_dbc_dofs.push_back(var_dofs);
       set_dbc_dofs.push_back(block_dbc_dofs);
       dbc_dofs.push_back(set_dbc_dofs);
@@ -301,6 +328,14 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",1);
 
   }
+  
+  //for (size_type i=0; i<dof_lids[0].extent(0); ++i) {
+  //  cout << i << "  ";
+  //  for (size_type j=0; j<dof_lids[0].extent(1); ++j) {
+  //    cout << dof_lids[0](i,j) << " ";
+  //  }
+  //  cout << endl;
+  //}
   
   if (debug_level > 0) {
     if (comm->getRank() == 0) {
@@ -834,6 +869,7 @@ DRV DiscretizationInterface::getMyNodes(const size_t & block, Kokkos::View<LO*,A
     localIds[e] = my_elements[block](elemIDs_host(e));
   }
   DRV nodes = mesh->getMyNodes(block, localIds);
+  
   return nodes;
 }
 

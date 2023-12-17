@@ -813,8 +813,8 @@ public:
     NY_     = parlist.sublist("Geometry").get("NY", 1);
     nx_     = NX_ / xprocs_;
     ny_     = NY_ / yprocs_;
-    width_  = W_ / NX_;
-    height_ = H_ / NY_;
+    width_  = W_ / xprocs_;
+    height_ = H_ / yprocs_;
 
     numCells_ = nx_ * ny_;
     numNodes_ = (nx_+1) * (ny_+1);
@@ -943,7 +943,7 @@ private:
     Real dx = width_ / nx_;
     Real dy = height_ / ny_;
     int nodeCt = 0;
-
+    
     Real xshift = X0_ + PX_*width_;
     Real yshift = Y0_ + PY_*height_;
 

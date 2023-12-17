@@ -1840,7 +1840,8 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
 
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> rnorm(1);
   current_res->norm2(rnorm);
-
+  //KokkosTools::print(current_res);
+  
   // *********************** SOLVE THE LINEAR SYSTEM **************************
   
   if (rnorm[0]>1.0e-100) {
@@ -1933,7 +1934,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
     sol_stage[set]->norm2(unorm);
     if (Comm->getRank() == 0) {
       cout << endl << "*********************************************************" << endl;
-      cout << "***** Explicit integrator: L2 norm of solution: " << unorm[0] << endl;
+      cout << "***** Explicit integrator: L2 norm of (overlapped/ghosted) solution: " << unorm[0] << endl;
       cout << "*********************************************************" << endl;
     }
   }

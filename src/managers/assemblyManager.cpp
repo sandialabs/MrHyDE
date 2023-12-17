@@ -204,6 +204,7 @@ void AssemblyManager<Node>::createFixedDOFs() {
   
   // create fixedDOF View of bools
   vector<vector<vector<vector<LO> > > > dbc_dofs = disc->dbc_dofs; // [set][block][var][dof]
+  
   for (size_t set=0; set<dbc_dofs.size(); ++set) {
     vector<vector<Kokkos::View<LO*,LA_device> > > set_fixedDOF;
     
@@ -4344,14 +4345,14 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
         row = offsets(n,j);
         rowIndex = LIDs(elem,row);
         if (!fixedDOF(rowIndex)) {
-            ScalarT val = -res(elem,row);
-            if (use_atomics_) {
-              Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
-            }
-            else {
-              res_view(rowIndex,0) += val;
-            }
+          ScalarT val = -res(elem,row);
           
+          if (use_atomics_) {
+            Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+          }
+          else {
+            res_view(rowIndex,0) += val;
+          }
         }
       }
     }
