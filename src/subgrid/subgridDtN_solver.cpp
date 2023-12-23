@@ -52,6 +52,8 @@ settings(settings_), assembler(assembler_) {
   solver = Teuchos::rcp( new SolverManager<SubgridSolverNode>(LocalComm, settings, mesh, disc,
                                                               physics, assembler, params) );
   
+  solver->completeSetup();
+  
   res = solver->linalg->getNewVector(0);
   J = solver->linalg->getNewOverlappedMatrix(0);
   J_alt = solver->linalg->getNewOverlappedMatrix(0);

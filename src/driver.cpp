@@ -133,15 +133,11 @@ int main(int argc,char * argv[]) {
       
     Teuchos::RCP<SolverManager<SolverNode> > solve = Teuchos::rcp( new SolverManager<SolverNode>(Comm, settings, mesh,
                                                                                                  disc, physics, assembler, params) );
-    if (settings->get<bool>("enable memory purge",false)) {
-      disc->purgeLIDs();
-      disc->purgeMemory();
-    }
+    
 
     solve->multiscale_manager = multiscale_manager;
     assembler->multiscale_manager = multiscale_manager;
     solve->postproc = postproc;
-    postproc->linalg = solve->linalg;
     
     ////////////////////////////////////////////////////////////////////////////////
     // Allocate most of the per-element memory usage
@@ -165,6 +161,7 @@ int main(int argc,char * argv[]) {
         params->mesh = Teuchos::null;
       }
       disc->purgeOrientations();
+      disc->purgeLIDs();
       mesh->purgeMemory();
       assembler->purgeMemory();
       params->purgeMemory();
@@ -176,6 +173,11 @@ int main(int argc,char * argv[]) {
     }
     
     solve->completeSetup();
+    postproc->linalg = solve->linalg;
+    
+    if (settings->get<bool>("enable memory purge",false)) {
+      disc->purgeMemory();
+    }
 
     ////////////////////////////////////////////////////////////////////////////////
     // Finalize the function and multiscale managers

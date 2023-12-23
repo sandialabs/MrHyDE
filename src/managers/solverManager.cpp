@@ -205,7 +205,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   // Create linear algebra interface
   /////////////////////////////////////////////////////////////////////////////
   
-  linalg = Teuchos::rcp( new LinearAlgebraInterface<Node>(Comm, settings, disc, params) );
+  //linalg = Teuchos::rcp( new LinearAlgebraInterface<Node>(Comm, settings, disc, params) );
     
   /////////////////////////////////////////////////////////////////////////////
   // Worksets
@@ -242,14 +242,14 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   physics->setWorkset(assembler->wkset_AD32);
 #endif
   
-  if (store_vectors) {
-    for (size_t set=0; set<numSets; ++set) {
-      res.push_back(linalg->getNewVector(set));
-      res_over.push_back(linalg->getNewOverlappedVector(set));
-      du_over.push_back(linalg->getNewOverlappedVector(set));
-      du.push_back(linalg->getNewVector(set));
-    }
-  }
+  //if (store_vectors) {
+  //  for (size_t set=0; set<numSets; ++set) {
+  //    res.push_back(linalg->getNewVector(set));
+  //    res_over.push_back(linalg->getNewOverlappedVector(set));
+  //    du_over.push_back(linalg->getNewOverlappedVector(set));
+  //    du.push_back(linalg->getNewVector(set));
+  //  }
+  //}
 
   /////////////////////////////////////////////////////////////////////////////
   
@@ -257,7 +257,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   
   /////////////////////////////////////////////////////////////////////////////
   
-  this->setupFixedDOFs(settings);
+  //this->setupFixedDOFs(settings);
   
   /////////////////////////////////////////////////////////////////////////////
   
@@ -316,6 +316,23 @@ void SolverManager<Node>::completeSetup() {
       cout << "**** Starting SolverManager::completeSetup()" << endl;
     }
   }
+  
+  /////////////////////////////////////////////////////////////////////////////
+  // Create linear algebra interface
+  /////////////////////////////////////////////////////////////////////////////
+  
+  linalg = Teuchos::rcp( new LinearAlgebraInterface<Node>(Comm, settings, disc, params) );
+  
+  if (store_vectors) {
+    for (size_t set=0; set<setnames.size(); ++set) {
+      res.push_back(linalg->getNewVector(set));
+      res_over.push_back(linalg->getNewOverlappedVector(set));
+      du_over.push_back(linalg->getNewOverlappedVector(set));
+      du.push_back(linalg->getNewVector(set));
+    }
+  }
+  this->setupFixedDOFs(settings);
+
   //---------------------------------------------------
   // Mass matrix (lumped and maybe full) for explicit
   //---------------------------------------------------
@@ -1019,7 +1036,6 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
     for (size_t set=0; set<numSets; ++set) {
       fixedDOF_soln.push_back(linalg->getNewOverlappedVector(set));
     }
-    
     for (size_t set=0; set<numSets; ++set) {
     
       scalarDirichletData[set] = settings->sublist("Physics").sublist("Dirichlet conditions").get<bool>("scalar data", false);

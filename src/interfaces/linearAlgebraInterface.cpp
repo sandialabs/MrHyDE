@@ -168,18 +168,18 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   
   for (size_t set=0; set<setnames.size(); ++set) {
     
-    auto owned = disc->dof_owned[set];
-    auto ownedAndShared = disc->dof_owned_and_shared[set];
+    //auto owned = disc->dof_owned[set];
+    //auto ownedAndShared = disc->dof_owned_and_shared[set];
     
-    LO numUnknowns = (LO)owned.extent(0);
+    LO numUnknowns = (LO)disc->dof_owned[set].extent(0);
     //LO numUnknowns = (LO)owned.size();
     GO localNumUnknowns = numUnknowns;
     GO globalNumUnknowns = 0;
 
     Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
     
-    owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, owned, 0, comm)));
-
+    owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, disc->dof_owned[set], 0, comm)));
+    
     bool allocate_matrices = true;
     if (settings->sublist("Solver").get<bool>("fully explicit",false) ) {
       allocate_matrices = false;
@@ -189,11 +189,17 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       have_overlapped = false;
     }
     if (have_overlapped) {
-      overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, ownedAndShared, 0, comm)));
+      overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, disc->dof_owned_and_shared[set], 0, comm)));
+      if (!allocate_matrices) {
+        disc->dof_owned_and_shared[set] = Kokkos::View<GO*>("empty dof",1);  
+      }
       exporter.push_back(Teuchos::rcp(new LA_Export(overlapped_map[set], owned_map[set])));
       importer.push_back(Teuchos::rcp(new LA_Import(owned_map[set], overlapped_map[set])));
     }
-
+    if (!allocate_matrices) {
+      disc->dof_owned[set] = Kokkos::View<GO*>("empty dof",1);
+    }
+    
     if (allocate_matrices) {
       vector<size_t> max_entriesPerRow(overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
