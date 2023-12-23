@@ -50,7 +50,7 @@ int main(int argc, char * argv[]) {
     {
       int NX = 6, NY = 6;
       double xmin = 0.0, ymin = 0.0;
-      double xmax = 1.0, ymax = 1.0;
+      double xmax = 6.0, ymax = 6.0;
       Teuchos::ParameterList pl;
       pl.sublist("Geometry").set("X0",     xmin);
       pl.sublist("Geometry").set("Width",  xmax-xmin);
@@ -115,6 +115,104 @@ int main(int argc, char * argv[]) {
       std::cout << "GID 42 on proc 3 is LID " << lid << std::endl; // 9
       std::cout << "LID 11 is " << ( simple_mesh->isShared(11) ? "" : "not " ) << "shared" << std::endl; // is not
       std::cout << "LID  5 is " << (  simple_mesh->isShared(5) ? "" : "not " ) << "shared" << std::endl << std::endl; // is
+
+      // Loop over all procs and all nodes.
+      int nx = NX / xprocs;
+      int ny = NY / yprocs;
+      int nodeid = -1;
+      std::cout << std::endl;
+      std::cout << "Local to global:" << std::endl;
+      for (int j=yprocs-1; j>=0; --j) {
+        for (int jj=ny; jj>=-1; --jj) {
+          for (int i=0; i<xprocs; ++i) {
+            for (int ii=0; ii<=nx; ++ii) {
+              procid = j*xprocs + i;
+              simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(
+                              new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
+              if (jj>-1) {
+                nodeid = jj*(nx+1) + ii;
+                gid = simple_mesh->localToGlobal(nodeid);
+                std::cout << std::setw(2) << gid << " " << ( (ii==nx) ? "| " : "" );
+              }
+              else {
+                std::cout << std::setw(2) << "--" << " " << ( (ii==nx) ? "| " : "" );
+              }
+            }
+          }
+          std::cout << std::endl;
+        }
+      } // end outer for
+      std::cout << std::endl << std::endl;
+      std::cout << "Owned and shared:" << std::endl;
+      for (int j=yprocs-1; j>=0; --j) {
+        for (int jj=ny; jj>=-1; --jj) {
+          for (int i=0; i<xprocs; ++i) {
+            for (int ii=0; ii<=nx; ++ii) {
+              procid = j*xprocs + i;
+              simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(
+                              new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
+              if (jj>-1) {
+                nodeid = jj*(nx+1) + ii;
+                std::cout << std::setw(2) << (simple_mesh->isShared(nodeid) ? "s" : "o") << " " << ( (ii==nx) ? "| " : "" );
+              }
+              else {
+                std::cout << std::setw(2) << "--" << " " << ( (ii==nx) ? "| " : "" );
+              }
+            }
+          }
+          std::cout << std::endl;
+        }
+      } // end outer for
+
+      std::cout << std::endl << std::endl;
+      std::cout << "xmin=" << xmin << " xmax=" << xmax << std::endl;
+      std::cout << "ymin=" << ymin << " ymax=" << ymax;
+
+      std::cout << std::endl << std::endl;
+      std::cout << "X coords" << std::endl;
+      NodeView_host localNodes;
+      for (int j=yprocs-1; j>=0; --j) {
+        for (int jj=ny; jj>=-1; --jj) {
+          for (int i=0; i<xprocs; ++i) {
+            for (int ii=0; ii<=nx; ++ii) {
+              procid = j*xprocs + i;
+              simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(
+                              new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
+              localNodes = simple_mesh->getNodes();
+              if (jj>-1) {
+                nodeid = jj*(nx+1) + ii;
+                std::cout << std::setw(2) << localNodes(nodeid, 0) << " " << ( (ii==nx) ? "| " : "" );
+              }
+              else {
+                std::cout << std::setw(2) << "--" << " " << ( (ii==nx) ? "| " : "" );
+              }
+            }
+          }
+          std::cout << std::endl;
+        }
+      } // end outer for
+      std::cout << std::endl << std::endl;
+      std::cout << "Y coords" << std::endl;
+      for (int j=yprocs-1; j>=0; --j) {
+        for (int jj=ny; jj>=-1; --jj) {
+          for (int i=0; i<xprocs; ++i) {
+            for (int ii=0; ii<=nx; ++ii) {
+              procid = j*xprocs + i;
+              simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(
+                              new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, procid, xprocs, yprocs));
+              localNodes = simple_mesh->getNodes();
+              if (jj>-1) {
+                nodeid = jj*(nx+1) + ii;
+                std::cout << std::setw(2) << localNodes(nodeid, 1) << " " << ( (ii==nx) ? "| " : "" );
+              }
+              else {
+                std::cout << std::setw(2) << "--" << " " << ( (ii==nx) ? "| " : "" );
+              }
+            }
+          }
+          std::cout << std::endl;
+        }
+      } // end outer for
 
     }
   }
