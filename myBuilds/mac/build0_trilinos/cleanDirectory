@@ -1,0 +1,3 @@
+mv trilinos-configure-macos-clang ..
+ls | grep -xv "cleanDirectory" | xargs rm -fr
+mv ../trilinos-configure-macos-clang .

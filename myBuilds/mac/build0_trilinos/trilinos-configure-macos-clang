@@ -1,0 +1,65 @@
+#!/bin/bash
+rm -rf CMakeCache.txt
+rm -rf CMakeFiles
+
+EXTRA_ARGS=$@
+
+# Machine name: s1060545
+# Machine type: mac laptop OS Monterey
+# Build type: serial
+# Compiler: clang-14
+# Modules installed using Homebrew: open-mpi, boost, hdf5-mpi, netcdf, cmake, ninja
+# May also need to use Homebrew to install: zlib, pnetcdf, libx11
+
+TRILINOS_HOME='/Users/eeprude/work/trilinos/Trilinos'
+
+INSTALL_DIR='/Users/eeprude/install/trilinos/trilinos-clang'
+
+cmake \
+-D CMAKE_BUILD_TYPE:STRING=NONE \
+-D TPL_ENABLE_MPI:BOOL=ON \
+-D CMAKE_CXX_FLAGS:STRING="-O3 -ansi -pedantic -ftrapv -Wall -Wno-long-long -Wno-strict-aliasing -DBOOST_NO_HASH -DBOOST_STACKTRACE_GNU_SOURCE_NOT_REQUIRED" \
+-D CMAKE_C_FLAGS:STRING="-O3" \
+-D CMAKE_Fortran_COMPILER_FORCED=ON \
+-D CMAKE_Fortran_FLAGS:STRING="-O3" \
+-D Trilinos_ENABLE_CHECKED_STL:BOOL=OFF \
+-D Trilinos_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+-D Trilinos_ENABLE_INSTALL_CMAKE_CONFIG_FILES:BOOL=ON \
+-D Trilinos_SKIP_FORTRANCINTERFACE_VERIFY_TEST:BOOL=ON \
+-D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
+-D Trilinos_ENABLE_TESTS:BOOL=OFF \
+-D Trilinos_ENABLE_ALL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_ALL_OPTIONAL_PACKAGES:BOOL=OFF \
+-D Trilinos_ENABLE_Belos:BOOL=ON \
+-D Trilinos_ENABLE_ROL:BOOL=ON \
+-D Trilinos_ENABLE_PanzerCore=ON \
+-D Trilinos_ENABLE_PanzerDofMgr=ON \
+-D Trilinos_ENABLE_PanzerMiniEM=OFF \
+-D Trilinos_ENABLE_PanzerAdaptersSTK=ON \
+-D Trilinos_ENABLE_PanzerAdaptersIOSS=ON \
+-D Trilinos_ENABLE_Intrepid2:BOOL=ON \
+-D Trilinos_ENABLE_Shards:BOOL=ON \
+-D Trilinos_ENABLE_Amesos2:BOOL=ON \
+-D Trilinos_ENABLE_Belos:BOOL=ON \
+-D Trilinos_ENABLE_MueLu:BOOL=ON \
+-D Trilinos_ENABLE_Percept:BOOL=OFF \
+-D Trilinos_ENABLE_Compadre:BOOL=ON \
+-D PanzerAdaptersSTK_ENABLE_EXAMPLES=OFF \
+-D PanzerAdaptersSTK_ENABLE_TESTS=OFF \
+-D TPL_ENABLE_Matio=OFF \
+-D STK_ENABLE_TESTS:BOOL=OFF \
+-D Panzer_ENABLE_TESTS:BOOL=OFF \
+-D Panzer_ENABLE_EXAMPLES:BOOL=OFF \
+-D Panzer_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
+-D PANZER_HAVE_PERCEPT:BOOL=OFF \
+-D CMAKE_INSTALL_PREFIX:PATH=${INSTALL_DIR} \
+-D TPL_ENABLE_Boost:BOOL=ON \
+-D TPL_ENABLE_BoostLib:BOOL=ON \
+-D TPL_ENABLE_Netcdf:BOOL=ON \
+-D TPL_ENABLE_HDF5=ON \
+-D SEACASExodus_ENABLE_MPI:BOOL=OFF \
+-D TPL_ENABLE_GLM=OFF \
+-D Kokkos_ENABLE_SERIAL=ON \
+${EXTRA-ARGS} \
+${TRILINOS_HOME}
+
