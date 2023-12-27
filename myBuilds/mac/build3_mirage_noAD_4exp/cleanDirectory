@@ -1,0 +1,9 @@
+rm -fr Testing
+rm DartConfiguration.tcl
+rm CMakeCache.txt
+rm cmake_install.cmake
+rm CTestTestfile.cmake
+rm Makefile
+rm -fr src
+rm -fr sandbox
+rm -fr CMakeFiles
