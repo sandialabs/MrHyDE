@@ -11,13 +11,14 @@ MRHYDE_HOME='/Users/eeprude/work/mrhyde_github/MrHyDE'
 
 MRHYDE_INSTALL='/Users/eeprude/install/MrHyDE3_mirage_noAD_4exp'
 
-MIRAGE_EXTENSIONS='/Users/eeprude/work/mrhyde_github/mirage-extensions'
+MIRAGE_EXTENSIONS='/Users/eeprude/work/old_mrhyde_gitlab/mirage-extensions'
 
 cmake \
 -D Trilinos_SRC_DIR=${TRILINOS_HOME} \
 -D Trilinos_INSTALL_DIR=${TRILINOS_INSTALL} \
 -D CMAKE_INSTALL_PREFIX:PATH=${MRHYDE_INSTALL} \
 -D CMAKE_CXX_FLAGS:STRING="-Wall" \
+-D CMAKE_Fortran_COMPILER_FORCED=ON \
 -D MrHyDE_ENABLE_SANDBOX=ON \
 -D MrHyDE_MAX_DERIVS=64 \
 -D MrHyDE_BUILD_DOXYGEN=false \
