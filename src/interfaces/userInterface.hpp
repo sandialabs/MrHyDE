@@ -70,10 +70,20 @@ namespace MrHyDE {
     
     RCP<Teuchos::ParameterList> settings = rcp(new Teuchos::ParameterList("MrHyDE"));
         
-    // If called from Mirage, then the input file will be called FEM3.xml
+    // If called from Mirage, then the input file will be called "FEM3<ANYTHING>.xml",
+    // e.g. "FEM3.xml", or "FEM3_optimization.xml" or "FEM3_simulation.xml".
     // This required a special interpreter
     
-    if (filename == "FEM3.xml") {
+    size_t flen(filename.size());
+    if ((flen             >= 8  ) &&
+        (filename[0]      == 'F') &&
+        (filename[1]      == 'E') &&
+        (filename[2]      == 'M') &&
+        (filename[3]      == '3') &&
+        (filename[flen-4] == '.') &&
+        (filename[flen-3] == 'x') &&
+        (filename[flen-2] == 'm') &&
+        (filename[flen-1] == 'l')) {
       #if defined(MrHyDE_ENABLE_MIRAGE)
       MirageTranslator(settings, filename);
       #else
