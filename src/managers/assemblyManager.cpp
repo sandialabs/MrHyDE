@@ -1361,7 +1361,6 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   }
   
   auto diag_view = diagMass->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-  
   // Can the LA_device execution_space access the AssemblyDevice data?
   bool data_avail = true;
   if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {

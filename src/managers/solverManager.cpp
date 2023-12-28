@@ -434,20 +434,26 @@ void SolverManager<Node>::setupExplicitMass() {
       }
       overlapped_graph->fillComplete();
       
-      vector<GO> owned;
-      disc->dof_owned[set];
-      //vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getLocalNumElements(), 0);
-      vector<size_t> maxOwnedEntriesPerRow(linalg->getLocalNumElements(set), 0);
-      for (size_t i=0; i<owned.size(); ++i) {
-        LO ind1 = linalg->getOverlappedLID(set, owned[i]);//overlapped_map[set]->getLocalElement(owned[i]);
-        LO ind2 = linalg->getOwnedLID(set, owned[i]);//owned_map[set]->getLocalElement(owned[i]);
-        maxOwnedEntriesPerRow[ind2] = maxEntriesPerRow[ind1];
-      }
+      //vector<GO> owned;
+      //disc->dof_owned[set];
+      ////vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getLocalNumElements(), 0);
+      //vector<size_t> maxOwnedEntriesPerRow(linalg->getLocalNumElements(set), 0);
+      //for (size_t i=0; i<owned.size(); ++i) {
+      //  LO ind1 = linalg->getOverlappedLID(set, owned[i]);//overlapped_map[set]->getLocalElement(owned[i]);
+      //  LO ind2 = linalg->getOwnedLID(set, owned[i]);//owned_map[set]->getLocalElement(owned[i]);
+      //  maxOwnedEntriesPerRow[ind2] = maxEntriesPerRow[ind1];
+      //}
       
-      explicitMass.push_back(linalg->getNewMatrix(set, maxOwnedEntriesPerRow));
+      explicitMass.push_back(linalg->getNewMatrix(set));//, maxOwnedEntriesPerRow));
         //Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map[set], maxOwnedEntriesPerRow)));
       
-      mass = linalg->getNewOverlappedMatrix(set);//Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+      if (linalg->getHaveOverlapped()) {
+        mass = linalg->getNewOverlappedMatrix(set);//Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+      }
+      else {
+        mass = explicitMass[set];
+      }
+      
     }
     
     diagMass.push_back(linalg->getNewVector(set));
