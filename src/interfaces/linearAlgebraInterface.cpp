@@ -181,7 +181,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, disc->dof_owned[set], 0, comm)));
     
     bool allocate_matrices = true;
-    if (settings->sublist("Solver").get<bool>("fully explicit",false) ) {
+    if (settings->sublist("Solver").get<bool>("fully explicit",false) && settings->sublist("Solver").get<bool>("matrix free",false) ) {
       allocate_matrices = false;
     }
     have_overlapped = true;
