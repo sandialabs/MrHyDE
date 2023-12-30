@@ -1927,7 +1927,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
       vector_RCP current_sol;
       if (linalg->getHaveOverlapped()) {
         current_sol = linalg->getNewVector(set);
-        linalg->exportVectorFromOverlapped(set, current_sol, sol_stage[stage]);
+        linalg->exportVectorFromOverlappedReplace(set, current_sol, sol_stage[stage]);
       }
       else {
         current_sol = sol_stage[stage];

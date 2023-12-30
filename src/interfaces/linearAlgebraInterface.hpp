@@ -252,6 +252,17 @@ namespace MrHyDE {
       }
     }
   
+    void exportVectorFromOverlappedReplace(const size_t & set, vector_RCP & vec, vector_RCP & vec_over) {
+      Teuchos::TimeMonitor mattimer(*exporttimer);
+      if (comm->getSize() > 1) {
+        vec->putScalar(0.0);
+        vec->doExport(*vec_over, *(exporter[set]), Tpetra::REPLACE);
+      }
+      else {
+        vec->assign(*vec_over);
+      }
+    }
+  
     void exportParamVectorFromOverlapped(vector_RCP & vec, vector_RCP & vec_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       vec->putScalar(0.0);
