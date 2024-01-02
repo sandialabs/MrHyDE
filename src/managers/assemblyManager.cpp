@@ -902,7 +902,7 @@ void AssemblyManager<Node>::createWorkset() {
       bool fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
       string analysis_type = settings->sublist("Analysis").get<string>("analysis type","forward");
       bool requires_AD = true;
-      if (fully_explicit && (analysis_type == "forward" || analysis_type == "dry run")) {
+      if (fully_explicit && (analysis_type == "forward" || analysis_type == "dry-run")) {
         requires_AD = false;
       }
       
