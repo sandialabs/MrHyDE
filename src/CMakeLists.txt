@@ -56,6 +56,13 @@ ADD_EXECUTABLE(mrhyde
 
 TARGET_LINK_LIBRARIES(mrhyde ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
+add_library(mrhyde_lib SHARED
+    ${mrhyde-all}
+)
+target_include_directories(mrhyde_lib PUBLIC managers/*.hpp)
+target_link_libraries(mrhyde_lib ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
+install(TARGETS mrhyde_lib DESTINATION lib/)
+
 IF(MrHyDE_ENABLE_XML_to_YAML)
   ADD_EXECUTABLE(xml_to_yaml
   ../scripts/utils/xml_to_yaml.cpp)
