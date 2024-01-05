@@ -1,0 +1,46 @@
+# Building a MrHyDE Docker Container
+
+This folder contains a `Dockerfile` which builds all the _dependencies_ of MrHyDE (though, notably, currently _does not build MrHyDE itself_). This is intended to be used for working with a serial implementation of MrHyDE and, as such, does not compile Trilinos with OpenMP or other possible parallel bindings. The reason MrHyDE is not incorporated here is that any changes to the repository (which you have presumably already cloned) should be represented on the host and not lost in the docker container, i.e., this repository should be mounted as a docker volume.
+
+## How to use
+First, ensure that `docker engine` is installed (see instructions [here](https://docs.docker.com/engine/install/)).
+
+There is currently a built version that one can use via `docker pull dgsharp/mrhyde:serial_dev`. Then, assuming that your path to this repository (i.e., to the base directory of the repository) is set as `$MRHYDE_SRC`. Then, you can execute 
+
+```
+docker run -itd -v $MRHYDE_SRC:/git-repos/MrHyDE dgsharp/mrhyde:serial_dev
+```
+
+This command will echo out a long `SHA` string (`Digest: sha256:<YOUR SHA>`) and spawn a container (that will run until you `stop` it), which contains your git repository mounted at `/git-repos/MrHyDE`; any changes you make on your host at `$MRHYDE_SRC` will be reflected in real time in the container, and vice versa.
+
+## Using this image
+### Shell usage
+One possible workflow is to open up your preferred IDE and edit MrHyDE as needed. Then, when you want to test changes, run
+```
+docker exec -it <YOUR SHA> bash
+```
+where `<YOUR SHA>` should match the above (or just take the first four or so characters). This will open up a terminal *within* the container. Then, one can do, e.g.
+```
+$ mkdir /git-repos/MrHyDE/build
+$ cd /git-repos/MrHyDE/build
+$ cmake \
+    -D CMAKE_CXX_STANDARD=17 \
+    -GNinja \
+    -DTrilinos_SRC_DIR=/git-repos/Trilinos/ \
+    -DTrilinos_INSTALL_DIR=/usr/local \
+    -DCMAKE_CXX_FLAGS=" -Wall" \
+    ..
+$ cd ../regression
+$ ln -s ../build/src/mrhyde
+$ ./runtests.py
+```
+
+### VS Code
+If your preferred editor is VS Code, you can use the [`Dockerfile`](https://containers.dev/guide/dockerfile#dockerfile) or the [image on Docker Hub](https://code.visualstudio.com/docs/devcontainers/tutorial#:~:text=devcontainer.json,-The%20devcontainer.&text=The%20above%20example%20is%20extracted,we%20used%20in%20the%20tutorial.&text=The%20name%20of%20an%20image,to%20create%20the%20dev%20container.) to configure a dev container using the Remote: Dev Containers extension
+
+## Notes
+### Dev notes
+If you are interested in changing the dependencies (e.g., compiling using a version of Trilinos with OpenMP/GPU compatibility) then, assuming your shell is in this directory, you can change the Trilinos config in `config_trilinos.sh` and add any necessary dependencies in the `Dockerfile`. Then, run `docker build .`
+
+### TODO
+This Docker container is known to fail the `porous/Mixed_hybrid_highorder` test. The cause of this failure is currently unknown.
