@@ -4,8 +4,12 @@
 from __future__ import print_function
 import optparse
 import subprocess as sp
-import sys, os
+import sys, os, shutil
 import struct
+
+exec_sh = None
+if shutil.which("/bin/bash") is not None:
+  exec_sh = "/bin/bash"
 
 # ==============================================================================
 
@@ -15,7 +19,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
 
   # start the command
   if verbose: print(cmd)
-  p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+  p = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.PIPE, executable=exec_sh)
 
   stdout = ''
   stderr = ''
