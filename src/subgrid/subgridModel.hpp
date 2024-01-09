@@ -11,7 +11,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "solutionStorage.hpp"
+#include "tools/solutionStorage.hpp"
 
 namespace MrHyDE {
   

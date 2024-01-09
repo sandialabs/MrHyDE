@@ -11,20 +11,24 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "meshInterface.hpp"
-#include "physicsInterface.hpp"
-#include "discretizationInterface.hpp"
-//#include "functionManager.hpp"
-#include "assemblyManager.hpp"
-#include "parameterManager.hpp"
-#include "multiscaleManager.hpp"
-#include "linearAlgebraInterface.hpp"
-#include "MrHyDE_OptVector.hpp"
-#include "postprocessTools.hpp"
+
+#include "tools/postprocessTools.hpp"
+
+#include "interfaces/meshInterface.hpp"
+#include "interfaces/physicsInterface.hpp"
+#include "interfaces/discretizationInterface.hpp"
+#include "interfaces/linearAlgebraInterface.hpp"
 
 #if defined(MrHyDE_ENABLE_FFTW)
 #include "fftInterface.hpp"
 #endif
+
+//#include "functionManager.hpp"
+#include "assemblyManager.hpp"
+#include "parameterManager.hpp"
+#include "multiscaleManager.hpp"
+
+#include "optimization/MrHyDE_OptVector.hpp"
 
 namespace MrHyDE {
   

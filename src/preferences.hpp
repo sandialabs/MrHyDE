@@ -124,6 +124,9 @@ typedef Kokkos::HostSpace HostMem;
 #endif
 
 
+// TODO: Fix this
+// #define MrHyDE_HAVE_TRILINOS14
+
 // Trilinos 14 and later redefines the Kokkos::Compat wrappers in Tpetra to Tpetra::KokkosCompat
 // Define intermediate namespaces here to clean up the logic for the HostNode,AssemblyNode,SolverNode
 #ifdef MrHyDE_HAVE_TRILINOS14

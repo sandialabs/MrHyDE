@@ -12,7 +12,7 @@
 #include "trilinos.hpp"
 #include <iostream>     
 #include <iterator>     
-#include "CompadreInterface.hpp"
+#include "interfaces/CompadreInterface.hpp"
 
 namespace MrHyDE {
   

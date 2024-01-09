@@ -11,11 +11,11 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "group.hpp"
-#include "subgridModel.hpp"
+#include "tools/group.hpp"
+#include "subgrid/subgridModel.hpp"
 #include "Amesos2.hpp"
-#include "meshInterface.hpp"
-#include "workset.hpp"
+#include "interfaces/meshInterface.hpp"
+#include "tools/workset.hpp"
 
 namespace MrHyDE {
   

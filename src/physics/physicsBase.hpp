@@ -11,9 +11,9 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "workset.hpp"
-#include "functionManager.hpp"
-#include "compressedView.hpp"
+#include "tools/workset.hpp"
+#include "managers/functionManager.hpp"
+#include "tools/compressedView.hpp"
 
 namespace MrHyDE {
   

@@ -17,7 +17,7 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "discretizationInterface.hpp"
-#include "parameterManager.hpp"
+#include "managers/parameterManager.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>

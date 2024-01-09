@@ -12,9 +12,9 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "workset.hpp"
-#include "subgridModel.hpp"
+#include "subgrid/subgridModel.hpp"
 #include "groupMetaData.hpp"
-#include "discretizationInterface.hpp"
+#include "interfaces/discretizationInterface.hpp"
 #include "compressedView.hpp"
 
 #include <iostream>     
