@@ -21,18 +21,18 @@ project(mrhyde
 )
 
 # See https://gist.github.com/kprussing/db21614ca5b51cedff07dfb70059f280
-# use, i.e. don't skip full RPATH for the build tree
-set(CMAKE_SKIP_BUILD_RPATH FALSE)
+# # use, i.e. don't skip full RPATH for the build tree
+# set_target_properties(mrhyde_lib CMAKE_SKIP_BUILD_RPATH FALSE)
 
-# when building, don't use the install RPATH already
-# (but later on when installing)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+# # when building, don't use the install RPATH already
+# # (but later on when installing)
+# set_target_properties(mrhyde_lib CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
-set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+# set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-# add the automatically determined parts of the RPATH
-# which point to directories outside the build tree to the install RPATH
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+# # add the automatically determined parts of the RPATH
+# # which point to directories outside the build tree to the install RPATH
+# set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # the RPATH to be used when installing, but only if it's not a system directory
 list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX/lib}" isSystemDir)
@@ -278,39 +278,33 @@ IF(MrHyDE_ENABLE_UNIT_TESTS)
 ENDIF()
 
 install(TARGETS mrhyde_lib
-  EXPORT mrhydeTargets
+  EXPORT MrHyDETargets
   DESTINATION lib)
+
 include(CMakePackageConfigHelpers)
 configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/Config.cmake"
-    INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfig.cmake"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/MrHyDEcmake"
     NO_SET_AND_CHECK_MACRO
     NO_CHECK_REQUIRED_COMPONENTS_MACRO
 )
 
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/ConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfigVersion.cmake"
     VERSION "${PROJECT_VERSION}"
     COMPATIBILITY SameMajorVersion
 )
 
 install(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/Config.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/ConfigVersion.cmake
-    DESTINATION lib/cmake/mrhyde
+    ${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfigVersion.cmake
+    DESTINATION lib/cmake/MrHyDE
 )
 
-export(TARGETS mrhyde_lib ${KOKKOS_EXPORTS} NAMESPACE mrhyde:: FILE mrhydeTargets.cmake)
-export(PACKAGE mrhyde)
+export(TARGETS mrhyde_lib NAMESPACE MrHyDE:: FILE MrHyDETargets.cmake)
+export(PACKAGE MrHyDE)
 
-install(EXPORT mrhydeTargets NAMESPACE mrhyde:: DESTINATION lib/cmake/mrhyde)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/Config.cmake
-    ${CMAKE_CURRENT_BINARY_DIR}/ConfigVersion.cmake
-    DESTINATION lib/cmake/mrhyde_lib
-)
-
-export(TARGETS mrhyde_lib FILE Config.cmake)
+install(EXPORT MrHyDETargets NAMESPACE MrHyDE:: DESTINATION lib/cmake/MrHyDE)
 
 #INSTALL(
 #    DIRECTORY ""
