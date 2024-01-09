@@ -55,16 +55,18 @@ ADD_EXECUTABLE(mrhyde
 )
 TARGET_LINK_LIBRARIES(mrhyde ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
-add_library(mrhyde_lib SHARED
-    ${mrhyde-all}
-)
-target_include_directories(mrhyde_lib PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-  $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(mrhyde_lib ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
-install(TARGETS mrhyde_lib DESTINATION lib/)
-install(DIRECTORY . DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+IF(MrHyDE_BUILD_SHARED_LIBS)
+  add_library(mrhyde_lib SHARED
+      ${mrhyde-all}
+  )
+  target_include_directories(mrhyde_lib PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:include>
+  )
+  target_link_libraries(mrhyde_lib ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
+  install(TARGETS mrhyde_lib DESTINATION lib/)
+  install(DIRECTORY . DESTINATION include/ FILES_MATCHING PATTERN "*.hpp")
+ENDIF()
 
 IF(MrHyDE_ENABLE_XML_to_YAML)
   ADD_EXECUTABLE(xml_to_yaml
