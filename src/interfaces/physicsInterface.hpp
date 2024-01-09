@@ -17,8 +17,8 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 
-#include "physicsBase.hpp"
-#include "workset.hpp"
+#include "physics/physicsBase.hpp"
+#include "tools/workset.hpp"
 
 //#include "Panzer_STK_Interface.hpp"
 #include "Panzer_DOFManager.hpp"

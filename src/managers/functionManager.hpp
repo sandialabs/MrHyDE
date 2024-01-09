@@ -16,10 +16,10 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "dag.hpp"
-#include "interpreter.hpp"
-#include "workset.hpp"
-#include "vista.hpp"
+#include "tools/dag.hpp"
+#include "tools/interpreter.hpp"
+#include "tools/workset.hpp"
+#include "tools/vista.hpp"
 
 namespace MrHyDE {
   

@@ -11,15 +11,18 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "meshInterface.hpp"
-#include "physicsInterface.hpp"
+
+#include "interfaces/meshInterface.hpp"
+#include "interfaces/physicsInterface.hpp"
+#include "interfaces/discretizationInterface.hpp"
+#include "interfaces/linearAlgebraInterface.hpp"
+
 #include "multiscaleManager.hpp"
-#include "discretizationInterface.hpp"
 #include "assemblyManager.hpp"
 #include "parameterManager.hpp"
 #include "postprocessManager.hpp"
-#include "solutionStorage.hpp"
-#include "linearAlgebraInterface.hpp"
+
+#include "tools/solutionStorage.hpp"
 
 namespace MrHyDE {
   

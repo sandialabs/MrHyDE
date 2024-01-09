@@ -22,7 +22,7 @@
 #include "Panzer_STK_Interface.hpp"
 #include "physicsInterface.hpp"
 #include "meshInterface.hpp"
-#include "groupMetaData.hpp"
+#include "tools/groupMetaData.hpp"
 
 namespace MrHyDE {
   

@@ -11,13 +11,13 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "meshInterface.hpp"
-#include "physicsInterface.hpp"
-#include "group.hpp"
-#include "boundaryGroup.hpp"
+#include "interfaces/meshInterface.hpp"
+#include "interfaces/physicsInterface.hpp"
+#include "tools/group.hpp"
+#include "tools/boundaryGroup.hpp"
 #include "Panzer_STK_Interface.hpp"
-#include "discretizationInterface.hpp"
-#include "MrHyDE_OptVector.hpp"
+#include "interfaces/discretizationInterface.hpp"
+#include "optimization/MrHyDE_OptVector.hpp"
 
 namespace MrHyDE {
   
