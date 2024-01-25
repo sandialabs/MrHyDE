@@ -3503,35 +3503,6 @@ void AssemblyManager<Node>::setWorksetBDF(const size_t & set, Teuchos::RCP<Works
 // Gather local solutions on groups.
 // This intermediate function allows us to copy the data from LA_device to AssemblyDevice only once (if necessary)
 // ========================================================================================
-
-template<class Node>
-void AssemblyManager<Node>::performGather(const size_t & set, const vector_RCP & vec, const int & type, const size_t & entry) {
-  
-  typedef typename LA_device::memory_space LA_mem;
-  
-  auto vec_kv = vec->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-  
-  // Even if there are multiple vectors, we only use one at a time
-  auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), entry);
-  
-  // vector is on LA_device, but gather must happen on AssemblyDevice
-  if (Kokkos::SpaceAccessibility<AssemblyExec, LA_mem>::accessible) { // can we avoid a copy?
-    this->performGather(set, vec_slice, type);
-    this->performBoundaryGather(set, vec_slice, type);
-  }
-  else { // apparently not
-    auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
-    Kokkos::deep_copy(vec_dev,vec_slice);
-    this->performGather(set, vec_dev, type);
-    this->performBoundaryGather(set, vec_dev, type);
-  }
-  
-}
-
-// ========================================================================================
-// Gather local solutions on groups.
-// This intermediate function allows us to copy the data from LA_device to AssemblyDevice only once (if necessary)
-// ========================================================================================
     
 template<class Node>
 template<class ViewType>
@@ -3660,65 +3631,6 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & current_set, co
 // ========================================================================================
 
 template<class Node>
-template<class ViewType>
-void AssemblyManager<Node>::performGather(const size_t & set, ViewType vec_dev, const int & type) {
-  
-  /*
-  Kokkos::View<LO*,AssemblyDevice> numDOF;
-  Kokkos::View<ScalarT***,AssemblyDevice> data;
-  Kokkos::View<int**,AssemblyDevice> offsets;
-  LIDView LIDs;
-  
-  for (size_t block=0; block<groups.size(); ++block) {
-    for (size_t grp=0; grp<groups[block].size(); ++grp) {
-      switch(type) {
-        case 0 :
-          LIDs = groups[block][grp]->LIDs[set];
-          numDOF = groups[block][grp]->group_data->num_dof;
-          data = groups[block][grp]->sol[set];
-          offsets = wkset[block]->offsets;
-          break;
-        case 1 : // deprecated (u_dot)
-          break;
-        case 2 :
-          LIDs = groups[block][grp]->LIDs[set];
-          numDOF = groups[block][grp]->group_data->num_dof;
-          data = groups[block][grp]->phi[set];
-          offsets = wkset[block]->offsets;
-          break;
-        case 3 : // deprecated (phi_dot)
-          break;
-        case 4:
-          LIDs = groups[block][grp]->paramLIDs;
-          numDOF = groups[block][grp]->group_data->num_param_dof;
-          data = groups[block][grp]->param;
-          offsets = wkset[block]->paramoffsets;
-          break;
-        default :
-          cout << "ERROR - NOTHING WAS GATHERED" << endl;
-      }
-      
-      parallel_for("assembly gather",
-                   RangePolicy<AssemblyExec>(0,data.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
-        for (size_type var=0; var<offsets.extent(0); var++) {
-          for(int dof=0; dof<numDOF(var); dof++ ) {
-            data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));
-          }
-        }
-      });
-      
-    }
-  }
-  */
-}
-
-
-// ========================================================================================
-//
-// ========================================================================================
-
-template<class Node>
 void AssemblyManager<Node>::performGather(const size_t & set, const size_t & block, const size_t & grp, 
                                           vector_RCP & vec, const int & type, const size_t & local_entry) {
 
@@ -3741,7 +3653,6 @@ void AssemblyManager<Node>::performGather(const size_t & set, const size_t & blo
     auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),vec_slice);
     Kokkos::deep_copy(vec_dev,vec_slice);
     this->performGather(set, block, grp, vec_dev, type, local_entry);
-    
   }
   
 }
@@ -3800,7 +3711,7 @@ void AssemblyManager<Node>::performGather(const size_t & set, const size_t & blo
 }
 
 // ========================================================================================
-//
+// Specialized gather for 4D views, e.g., stage solutions
 // ========================================================================================
 
 template<class Node>
@@ -7133,8 +7044,6 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
   
   bool fixJacDiag = false;
   
-  //wkset[block]->resetResidual();
-  
   //////////////////////////////////////////////////////////////
   // Compute the AD-seeded solutions at integration points
   //////////////////////////////////////////////////////////////
@@ -7163,7 +7072,7 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
     if (groupData[block]->multiscale) {
       this->updateWorkset<AD>(block, grp, seedwhat, seedindex);
       if (groups[block][grp]->have_sols) {
-        groups[block][grp]->subgridModels[groups[block][grp]->subgrid_model_index]->subgridSolver(groups[block][grp]->sol[0], groups[block][grp]->sol_prev[0], 
+        groups[block][grp]->subgridModels[groups[block][grp]->subgrid_model_index]->subgridSolver(groups[block][grp]->sol[0], groups[block][grp]->sol_prev[0],
                                               groups[block][grp]->phi[0], wkset_AD[block]->time, isTransient, isAdjoint,
                                               compute_jacobian, compute_sens, num_active_params,
                                               compute_disc_sens, compute_aux_sens,
@@ -7241,7 +7150,7 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
 
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT res
+// Just compute the scalarT res
 ///////////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
@@ -7318,7 +7227,7 @@ void AssemblyManager<Node>::updateRes(const int & block, const size_t & grp,
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-// Use the AD res to update the scalarT res
+// Compute the residual for an adjoint solve
 ///////////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
@@ -7532,6 +7441,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT J
+// This is the wrapper function
 ///////////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
@@ -7567,6 +7477,10 @@ void AssemblyManager<Node>::updateJac(const int & block, const size_t & grp,
 #endif
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+// Use the AD res to update the scalarT J
+// This is the primary function
+///////////////////////////////////////////////////////////////////////////////////////
 
 template<class Node>
 template<class EvalT>

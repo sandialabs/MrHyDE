@@ -46,14 +46,14 @@ namespace MrHyDE {
      * @param[in]  settings_  Main Teuchos Parameter List for MrHyDE
      * @param[in]  Comm_ Global MPI communicator
      * @param[in]  mesh_ MrHyDE Mesh Interface
-     * @param[in]  phys_ MrHyDE Physics Interface
+     * @param[in]  physics_ MrHyDE Physics Interface
      *
      */
 
     DiscretizationInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                             Teuchos::RCP<MpiComm> & Comm_,
                             Teuchos::RCP<MeshInterface> & mesh_,
-                            Teuchos::RCP<PhysicsInterface> & phys_);
+                            Teuchos::RCP<PhysicsInterface> & physics_);
                    
     //////////////////////////////////////////////////////////////////////////////////////
     // Create a pointer to an Intrepid or Panzer basis
@@ -88,41 +88,122 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * @brief Sets up the quadrature and basis on the reference element
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     */
+
     void setReferenceData(Teuchos::RCP<GroupMetaData> & groupData);
     
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * @brief Computes the physical integration points and weights for a group of elements
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     * @param[in]  elemIDs        List of element IDs.  Used to compute nodes and then call function using nodes.
+     *
+     * @param[out]  ip       vector<Kokkos::View> containing quadrature points on physical element.
+     * @param[out]  wts     Kokkos::View containing quadrature weights on physical element.
+     */
+
     void getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
                                     Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip, View_Sc2 wts);
 
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * @brief Computes the physical integration points and weights for a group of elements
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     * @param[in]  nodes        Kokkos::DRV containing the current set of nodes for the physical elements
+     *
+     * @param[out]  ip       vector<Kokkos::View> containing quadrature points on physical element.
+     * @param[out]  wts     Kokkos::View containing quadrature weights on physical element.
+     */
+    
     void getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
                                     DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts);
+
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * @brief Computes the physical integration points (not weights) for a group of elements
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     * @param[in]  elemIDs        List of element IDs.  Used to compute nodes and then call function using nodes.
+     *
+     * @param[out]  ip       vector<Kokkos::View> containing quadrature points on physical element.
+     */
 
     void getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
                                     Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip);
 
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * @brief Computes the physical integration points (not weights) for a group of elements
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     * @param[in]  nodes        Kokkos::DRV containing the current set of nodes for the physical elements
+     *
+     * @param[out]  ip       vector<Kokkos::View> containing quadrature points on physical element.
+     */
+    
     void getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
                                     DRV nodes, vector<View_Sc2> & ip);
 
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * @brief Computes the physical Jacobian for a group of elements
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     * @param[in]  elemIDs        List of element IDs.  Used to compute nodes and then call function using nodes.
+     *
+     * @param[out]  jacobian     Kokkos::DRV containing the Jacobian for each element
+     */
+    
     void getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
                      Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian);
 
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
+    /**
+     * @brief Computes the physical Jacobian for a group of elements
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     * @param[in]  nodes        Kokkos::DRV containing the current set of nodes for the physical elements
+     *
+     * @param[out]  jacobian     Kokkos::DRV containing the Jacobian for each element
+     */
+    
     void getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
                      DRV nodes, DRV jacobian);
 
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
+    /**
+     * @brief Computes the physical Jacobian for a group of elements
+     *
+     * @param[in]  groupData    Group meta data object shared by all elements on a block
+     * @param[in]  elemIDs        List of element IDs.  Used to compute nodes and then call function using nodes.
+     *
+     * @param[out]  jacobian     Kokkos::DRV containing the Jacobian for each element
+     * @param[out]  wts     Kokkos::DRV containing quadrature weights on physical element.
+     */
+    
     void getPhysicalWts(Teuchos::RCP<GroupMetaData> & groupData,
                         Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian, DRV wts);
     
-    void getPhysicalWts(Teuchos::RCP<GroupMetaData> & groupData,
-                        DRV nodes, DRV jacobian, DRV wts);
-
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
@@ -144,6 +225,9 @@ namespace MrHyDE {
                                     vector<View_Sc4> & basis_nodes,
                                     const bool & apply_orientations = true);
     
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
     void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                     vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
@@ -156,6 +240,9 @@ namespace MrHyDE {
     
     void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, Kokkos::View<LO*,AssemblyDevice> elemIDs,
                                     vector<View_Sc4> & basis);                                    
+    
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
     
     void getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                     Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -175,6 +262,9 @@ namespace MrHyDE {
     void getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, Kokkos::View<LO*,AssemblyDevice> elemIDs, 
                                         vector<View_Sc2> & face_ip, View_Sc2 face_wts, vector<View_Sc2> & face_normals);
     
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
     void getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes,
                                         vector<View_Sc2> & face_ip, View_Sc2 face_wts, vector<View_Sc2> & face_normals);
     
@@ -184,6 +274,9 @@ namespace MrHyDE {
     void getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, Kokkos::View<LO*,AssemblyDevice> elemIDs, 
                               vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad);
 
+    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    
     void getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, DRV nodes,
                               Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                               vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad);
@@ -195,6 +288,9 @@ namespace MrHyDE {
                                             LO & localSideID,
                                             vector<View_Sc2> & ip, View_Sc2 wts, vector<View_Sc2> & normals,
                                             vector<View_Sc2> & tangents);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     void getPhysicalBoundaryIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                             LO & localSideID,
@@ -209,6 +305,9 @@ namespace MrHyDE {
                                   vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
                                   vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     void getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                   LO & localSideID,
                                   Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -229,9 +328,13 @@ namespace MrHyDE {
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
     
-    DRV evaluateBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & block, const int & basisID, const Kokkos::View<LO*,AssemblyDevice> elemIDs,
+    DRV evaluateBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & block, const int & basisID, 
+                      const Kokkos::View<LO*,AssemblyDevice> elemIDs,
                       const DRV & evalpts, topo_RCP & cellTopo);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     DRV evaluateBasis(const int & block, const int & basisID, DRV nodes,
                       const DRV & evalpts, topo_RCP & cellTopo,
                       Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation);
@@ -242,6 +345,9 @@ namespace MrHyDE {
     DRV evaluateBasisNewQuadrature(Teuchos::RCP<GroupMetaData> & groupData, const int & block, const int & basisID, vector<string> & quad_rules,
                                    Kokkos::View<LO*,AssemblyDevice> elemIDs, 
                                    DRV & wts);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     DRV evaluateBasisNewQuadrature(const int & block, const int & basisID, vector<string> & quad_rules,
                                    DRV nodes, 
@@ -254,6 +360,9 @@ namespace MrHyDE {
     DRV evaluateBasisGrads(const size_t & block, const basis_RCP & basis_pointer, const Kokkos::View<LO*,AssemblyDevice> elemIDs,
                            const DRV & evalpts, const topo_RCP & cellTopo);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     DRV evaluateBasisGrads(const basis_RCP & basis_pointer, DRV nodes,
                            const DRV & evalpts, const topo_RCP & cellTopo);
     
@@ -263,6 +372,9 @@ namespace MrHyDE {
     DRV evaluateBasisGrads2(Teuchos::RCP<GroupMetaData> & groupData, const size_t & block, const basis_RCP & basis_pointer, const Kokkos::View<LO*,AssemblyDevice> elemIDs,
                            const DRV & evalpts, const topo_RCP & cellTopo);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     DRV evaluateBasisGrads2(const basis_RCP & basis_pointer, DRV nodes,
                            const DRV & evalpts, const topo_RCP & cellTopo,
                            Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation);
@@ -306,6 +418,9 @@ namespace MrHyDE {
 
     DRV mapPointsToReference(DRV phys_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs, const size_t & block, topo_RCP & cellTopo);
 
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     DRV mapPointsToReference(DRV phys_pts, DRV nodes, topo_RCP & cellTopo);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
@@ -313,12 +428,18 @@ namespace MrHyDE {
 
     DRV getReferenceNodes(topo_RCP & cellTopo);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     DRV getMyNodes(const size_t & block, Kokkos::View<LO*,AssemblyDevice> elemIDs);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
 
     DRV mapPointsToPhysical(DRV ref_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs, const size_t & block, topo_RCP & cellTopo);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     DRV mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RCP & cellTopo);
 
@@ -329,6 +450,8 @@ namespace MrHyDE {
                                                                     topo_RCP & cellTopo, const size_t & block,
                                                                     const ScalarT & tol);
 
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     Kokkos::DynRankView<int,PHX::Device> checkInclusionPhysicalData(DRV phys_pts, DRV nodes,
                                                                     topo_RCP & cellTopo, 
@@ -384,9 +507,6 @@ namespace MrHyDE {
     // Purgable
     std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids;
     std::vector<Kokkos::View<GO*,HostDevice> > dof_owned, dof_owned_and_shared;
-    //std::vector<std::vector<GO> > dof_owned, dof_owned_and_shared;
-    //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][gid] may consider a different storage strategy
-    //std::vector<Kokkos::View<GO**,HostDevice> > dof_gids;
     Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations;
 
     vector<DRV> ref_ip, ref_wts, ref_side_ip, ref_side_wts;
@@ -396,7 +516,7 @@ namespace MrHyDE {
     vector<vector<int> > cards;
     vector<Kokkos::View<LO*,HostDevice> > my_elements;
         
-    vector<vector<Kokkos::View<int****,HostDevice> > > side_info;
+    vector<vector<Kokkos::View<int****,HostDevice> > > side_info; // rarely used
     vector<vector<vector<vector<string> > > > var_bcs; // [set][block][var][boundary]
     vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
     

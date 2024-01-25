@@ -1170,6 +1170,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   
   is_adjoint = false;
   params->sacadoizeParams(false);
+  postproc->resetObjectives();
   
   for (size_t set=0; set<setnames.size(); ++set) {
     if (!scalarDirichletData[set]) {

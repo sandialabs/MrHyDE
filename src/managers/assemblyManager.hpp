@@ -283,12 +283,6 @@ namespace MrHyDE {
     // Gather 
     // ========================================================================================
     
-    void performGather(const size_t & set, const vector_RCP & vec, const int & type, const size_t & index);
-    
-    template<class ViewType>
-    void performGather(const size_t & set, ViewType vec_dev, const int & type);
-        
-    
     template<class ViewType>
     void performGather(const size_t & block, const size_t & grp, const vector<ViewType> & vec, const int & type);
 
@@ -304,7 +298,8 @@ namespace MrHyDE {
                        vector_RCP & vec, const int & type, const size_t & local_entry);
 
     template<class ViewType>
-    void performGather(const size_t & current_set, const size_t & block, const size_t & grp, const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
+    void performGather(const size_t & current_set, const size_t & block, const size_t & grp, 
+                       const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
                        vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
                        vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
                        vector<ViewType> & params);
@@ -313,7 +308,8 @@ namespace MrHyDE {
     void performBoundaryGather(const size_t & set, ViewType vec_dev, const int & type);
     
     template<class ViewType>
-    void performBoundaryGather(const size_t & current_set, const size_t & block, const size_t & grp, const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
+    void performBoundaryGather(const size_t & current_set, const size_t & block, const size_t & grp, 
+                               const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
                                vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
                                vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
                                vector<ViewType> & params);
