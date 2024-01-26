@@ -71,6 +71,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   verbosity = settings->get<int>("verbosity",1);
   
   compute_response = settings->sublist("Postprocess").get<bool>("compute responses",false);
+  write_response = settings->sublist("Postprocess").get<bool>("write responses",compute_response);
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
   write_solution = settings->sublist("Postprocess").get("write solution",false);
   write_frequency = settings->sublist("Postprocess").get("write frequency",1);
@@ -655,7 +656,7 @@ void PostprocessManager<Node>::report() {
   // Report the responses
   ////////////////////////////////////////////////////////////////////////////
   
-  if (compute_response) {
+  if (compute_response && write_response) {
     
     if(Comm->getRank() == 0 ) {
       if (verbosity > 0) {
