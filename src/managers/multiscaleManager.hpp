@@ -42,7 +42,7 @@ namespace MrHyDE {
     
     ~MultiscaleManager() {};
 
-    /* @brief Constructor for MultiscaleManager
+    /** @brief Constructor for MultiscaleManager
      *
      * @param[in] MacroComm_  MpiCommunicator from the macroscale
      * @param[in] mesh_  Macroscopic mesh
@@ -51,7 +51,7 @@ namespace MrHyDE {
      * @param[in] macro_functionManagers_  Macroscale function managers
      */
     
-    /* @brief Constructor for MultiscaleManager
+    /** @brief Constructor for MultiscaleManager
      *
      * @param[in] MacroComm_  MpiCommunicator from the macroscale
      * @param[in] mesh_  Macroscopic mesh
@@ -67,8 +67,10 @@ namespace MrHyDE {
                       std::vector<Teuchos::RCP<FunctionManager<AD> > > macro_functionManagers_);
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Set the information from the macro-scale that does not depend on the specific group
     ////////////////////////////////////////////////////////////////////////////////
+    
+    /** @brief Set the information from the macro-scale that does not depend on the specific group
+     */
     
     void setMacroInfo(std::vector<std::vector<basis_RCP> > & macro_basis_pointers,
                       std::vector<std::vector<std::string> > & macro_basis_types,
@@ -80,59 +82,98 @@ namespace MrHyDE {
                       std::vector<std::string> & macro_disc_paramnames);
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Initial assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
+    
+    /** @brief Initial assignment of subgrid models to groups
+     */
     
     ScalarT initialize(vector<vector<int> > & sgmodels);
     
-    void evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & wkset, 
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    /** @brief Communicate macro information to subgrids, solve subgrid problem, communicate upscaled information to macro
+     */
+    
+    void evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & wkset,
                                     Teuchos::RCP<Group> & group,
                                     Teuchos::RCP<GroupMetaData> & groupData,
                                     const int & set, 
-                                    const bool & isTransient, const bool & isAdjoint,
-                                    const bool & compute_jacobian, const bool & compute_sens,
+                                    const bool & isTransient, 
+                                    const bool & isAdjoint,
+                                    const bool & compute_jacobian, 
+                                    const bool & compute_sens,
                                     const int & num_active_params,
-                                    const bool & compute_disc_sens, const bool & compute_aux_sens,
+                                    const bool & compute_disc_sens, 
+                                    const bool & compute_aux_sens,
                                     const bool & store_adjPrev);
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Re-assignment of subgrid models to groups
     ////////////////////////////////////////////////////////////////////////////////
+    
+    /** @brief   Re-assignment of subgrid models to groups
+     */
     
     void update(vector<vector<int> > & sgmodels);
     
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+
+    /** @brief   Reset the time step
+     */
+    
     void reset();
+    
+    /** @brief   Tell subgrid models to move to the next time step
+     */
     
     void completeTimeStep();
 
+    /** @brief   Tell subgrid models to move to the next time stage
+     */
+    
     void completeStage();
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Update parameters
     ////////////////////////////////////////////////////////////////////////////////
+    
+    /** @brief   Update parameters
+     */
     
     void updateParameters(std::vector<Teuchos::RCP<std::vector<AD> > > & params,
                           const std::vector<std::string> & paramnames);
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Get the mean subgrid cell fields
     ////////////////////////////////////////////////////////////////////////////////
     
+    /** @brief  Get the mean subgrid cell fields
+     */
     
     Kokkos::View<ScalarT**,HostDevice> getMeanCellFields(const size_t & block, const int & timeindex,
                                                          const ScalarT & time, const int & numfields);
     
     ////////////////////////////////////////////////////////////////////////////////
-    // Update the mesh data (for UQ studies)
     ////////////////////////////////////////////////////////////////////////////////
+    
+    /** @brief   Update the microstructure
+     */
     
     void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data);
     
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
+    /** @brief  Return the total number of subgrid models defined by the user
+     */
+    
     size_t getNumberSubgridModels();
 
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    /** @brief  Write to exodus
+     */
+    
     void writeSolution(const ScalarT & time, string & append);
 
     ////////////////////////////////////////////////////////////////////////////////

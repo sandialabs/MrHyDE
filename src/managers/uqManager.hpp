@@ -70,6 +70,15 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Generates ScalarT (double) samples from the user-specified distributions.
+     *
+     * @param[in]  numsamples   Number of samples to generate
+     * @param[in]  seed         Sets the seed for the random number generator
+     * @param[out] samplepts      The actual samples.
+     * @param[out] samplewts      The weights for each sample, typically 1/N
+     */
+    
     void generateSamples(const int & numsamples, int & seed,
                          Kokkos::View<ScalarT**,HostDevice> samplepts,
                          Kokkos::View<ScalarT*,HostDevice> samplewts);
@@ -77,26 +86,61 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Compute mean, variance, etc.
+     *
+     * @param[in]  values    Data to compute stats from.  Stats are output to screen.
+     */
+    
     void computeStatistics(const std::vector<ScalarT> & values);
     
     // ========================================================================================
     // ========================================================================================
+    
+    /**
+     * @brief Compute mean, variance, etc. for a collection of QofI..
+     *
+     * @param[in]  values    Data to compute stats from.  Stats are output to screen.
+     */
     
     void computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevice> > & values);
     
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief Standard Gaussian kernel density estimator.
+     *
+     * @param[in]  seedpts    Points to serve as centers for the kernels.
+     * @param[in]  evalpts    Points to evaluate KDE at.  May be the same as seedpts.
+     * @param[out]  output    Values of the density estimate at each eval pt.
+     */
+    
     View_Sc1 KDE(View_Sc2 seedpts, View_Sc2 evalpts);
 
     // ========================================================================================
     // ========================================================================================
 
+    /**
+     * @brief Just compute the variance for a collection of QofI.
+     *
+     * @param[in]  pts    2-dimensional Kokkos::View with all of the data.
+     * @param[out]  output    1-dimensional Kokkos::View with the variances for each QofI.
+     */
+    
     View_Sc1 computeVariance(View_Sc2 pts);
 
     // ========================================================================================
     // ========================================================================================
 
+    /**
+     * @brief Basis rejection sampling routine.
+     *
+     * @param[in]  ratios    1-dimensional Kokkos::View with the ratios of two densities (target/generated)
+     * @param[in]  seed    Optional bool to seed to random uniform numbers in [0,1] used in rejection sampling algorithm.
+     * @param[out]  output    1-dimensional Kokkos::View with the logicals on whether to keep each data point
+     */
+    
     Kokkos::View<bool*,HostDevice> rejectionSampling(View_Sc1 ratios, const int & seed = -1);
 
     // ========================================================================================
@@ -106,7 +150,6 @@ namespace MrHyDE {
 
     Teuchos::RCP<MpiComm> comm_;
     std::string surrogate_;
-    //std::vector<std::vector<ScalarT> > points_;
     int numstochparams_;
     bool use_user_defined_;
     Teuchos::ParameterList uqsettings_;
