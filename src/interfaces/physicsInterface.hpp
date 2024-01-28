@@ -16,6 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 #include "physicsBase.hpp"
 #include "workset.hpp"
@@ -246,7 +247,7 @@ namespace MrHyDE {
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> comm;    
-    int dimension, debug_level;
+    int dimension;
     vector<string> set_names, block_names, side_names;
     
     vector<vector<size_t> > num_vars; // [set][block]
@@ -297,6 +298,7 @@ namespace MrHyDE {
 
   private:
 
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     Teuchos::RCP<Teuchos::Time> bc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
     Teuchos::RCP<Teuchos::Time> dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
     Teuchos::RCP<Teuchos::Time> side_info_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");

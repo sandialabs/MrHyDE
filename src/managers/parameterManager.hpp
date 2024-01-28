@@ -18,6 +18,7 @@
 #include "Panzer_STK_Interface.hpp"
 #include "discretizationInterface.hpp"
 #include "MrHyDE_OptVector.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -301,6 +302,7 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> phys;
     Teuchos::RCP<Teuchos::ParameterList> settings;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
   };
   

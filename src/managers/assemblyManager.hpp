@@ -6,7 +6,7 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
 ************************************************************************/
 
-/** \file   analysisManager.hpp
+/** \file   assemblyManager.hpp
  \brief  Contains all of the assembly routines in MrHyDE.  Also creates the elements groups and the worksets.
  \author Created by T. Wildey
  */
@@ -29,6 +29,7 @@
 #include "multiscaleManager.hpp"
 #include "functionManager.hpp"
 #include "data.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -79,6 +80,9 @@ namespace MrHyDE {
     
     void createGroups();
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void allocateGroupStorage();
       
     // ========================================================================================
@@ -86,10 +90,19 @@ namespace MrHyDE {
     
     void createWorkset();
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void addFunction(const int & block, const string & name, const string & expression, const string & location);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     View_Sc2 evaluateFunction(const int & block, const string & name, const string & location);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     View_Sc3 evaluateFunctionWithSens(const int & block, const string & name, const string & location);
 
     // ========================================================================================
@@ -98,8 +111,13 @@ namespace MrHyDE {
     void updateJacDBC(matrix_RCP & J, const std::vector<std::vector<GO> > & dofs,
                       const size_t & block, const bool & compute_disc_sens);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateJacDBC(matrix_RCP & J, const std::vector<LO> & dofs, const bool & compute_disc_sens);
     
+    // ========================================================================================
+    // ========================================================================================
     
     void setDirichlet(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                       const ScalarT & time, const bool & lumpmass=false);
@@ -110,9 +128,15 @@ namespace MrHyDE {
     void setInitial(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                     const bool & lumpmass=false, const ScalarT & scale = 1.0);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void setInitial(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
                     const bool & lumpmass, const ScalarT & scale,
                     const size_t & block, const size_t & groupblock);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void setInitial(const size_t & set, vector_RCP & initial, const bool & useadjoint);
 
@@ -133,7 +157,13 @@ namespace MrHyDE {
     
     void setInitialFace(const size_t & set, vector_RCP & rhs, matrix_RCP & mass,const bool & lumpmass=false);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void getWeightedMass(const size_t & set, matrix_RCP & mass, vector_RCP & massdiag);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void getWeightVector(const size_t & set, vector_RCP & wts);
     
@@ -156,6 +186,9 @@ namespace MrHyDE {
                         const bool & is_final_time,
                         const ScalarT & deltat);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void assembleJacRes(const size_t & set, const size_t & stage,
                         vector<vector_RCP> & sol, 
@@ -174,6 +207,9 @@ namespace MrHyDE {
                         const bool & is_final_time, const int & block,
                         const ScalarT & deltat);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void assembleRes(const size_t & set, const size_t & stage,
                         vector<vector_RCP> & sol, 
                         vector<vector_RCP> & sol_stage,
@@ -185,6 +221,9 @@ namespace MrHyDE {
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                         const ScalarT & current_time, 
                         const ScalarT & deltat);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void assembleRes(const size_t & set, const size_t & stage,
                         vector<vector_RCP> & sol, 
@@ -206,28 +245,54 @@ namespace MrHyDE {
 
     void updateWorksetTime(const size_t & block, const bool & isTransient, const ScalarT & current_time, const ScalarT & deltat);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateWorksetTime(Teuchos::RCP<Workset<EvalT> > & wset, const bool & isTransient,
                            const ScalarT & current_time, const ScalarT & deltat);
 
-
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateWorksetAdjoint(const size_t & block, const bool & isAdjoint);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateWorksetAdjoint(Teuchos::RCP<Workset<EvalT> > & wset, const bool & isAdjoint);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateWorksetEID(const size_t & block, const size_t & eid);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateWorksetEID(Teuchos::RCP<Workset<EvalT> > & wset, const size_t & eid);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateWorksetOnSide(const size_t & block, const bool & on_side);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateWorksetOnSide(Teuchos::RCP<Workset<EvalT> > & wset, const bool & on_side);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateWorksetResidual(const size_t & block);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateWorksetResidual(Teuchos::RCP<Workset<EvalT> > & wset);
 
@@ -244,37 +309,69 @@ namespace MrHyDE {
     
     void resetPrevSoln(const size_t & set);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void revertSoln(const size_t & set);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void resetStageSoln(const size_t & set);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateStage(const int & stage, const ScalarT & current_time, const ScalarT & deltat);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     template<class EvalT>
     void updateStage(Teuchos::RCP<Workset<EvalT> > & wset, const int & stage, const ScalarT & current_time,
                      const ScalarT & deltat);
 
+    // ========================================================================================
+    // ========================================================================================
     
     void updateStageSoln(const size_t & set);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void updatePhysicsSet(const size_t & set);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void updateTimeStep(const int & timestep);
     
-    void setWorksetButcher(const size_t & set, const size_t & block, 
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setWorksetButcher(const size_t & set, const size_t & block,
                                         Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, 
                                         Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, 
                                         Kokkos::View<ScalarT*,AssemblyDevice> butcher_c);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void setWorksetButcher(const size_t & set, Teuchos::RCP<Workset<EvalT> > & wset, 
                                         Kokkos::View<ScalarT**,AssemblyDevice> butcher_A, 
                                         Kokkos::View<ScalarT*,AssemblyDevice> butcher_b, 
                                         Kokkos::View<ScalarT*,AssemblyDevice> butcher_c);
 
-    void setWorksetBDF(const size_t & set, const size_t & block,  
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setWorksetBDF(const size_t & set, const size_t & block,
                                         Kokkos::View<ScalarT*,AssemblyDevice> BDF_wts);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void setWorksetBDF(const size_t & set, Teuchos::RCP<Workset<EvalT> > & wset, 
                                         Kokkos::View<ScalarT*,AssemblyDevice> BDF_wts);
@@ -286,17 +383,29 @@ namespace MrHyDE {
     template<class ViewType>
     void performGather(const size_t & block, const size_t & grp, const vector<ViewType> & vec, const int & type);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class ViewType>
     void performGather(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
                        const int & type, const size_t & local_entry);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class ViewType>
     void performGather4D(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
                        const int & type, const size_t & local_entry);
 
-    void performGather(const size_t & set, const size_t & block, const size_t & grp, 
+    // ========================================================================================
+    // ========================================================================================
+    
+    void performGather(const size_t & set, const size_t & block, const size_t & grp,
                        vector_RCP & vec, const int & type, const size_t & local_entry);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class ViewType>
     void performGather(const size_t & current_set, const size_t & block, const size_t & grp, 
                        const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
@@ -304,8 +413,14 @@ namespace MrHyDE {
                        vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
                        vector<ViewType> & params);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class ViewType>
     void performBoundaryGather(const size_t & set, ViewType vec_dev, const int & type);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     template<class ViewType>
     void performBoundaryGather(const size_t & current_set, const size_t & block, const size_t & grp, 
@@ -314,10 +429,16 @@ namespace MrHyDE {
                                vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
                                vector<ViewType> & params);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class ViewType>
     void performBoundaryGather(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
                                const int & type, const size_t & local_entry);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class ViewType>
     void performBoundaryGather4D(const size_t & set, const size_t & block, const size_t & grp, ViewType vec_dev, 
                                  const int & type, const size_t & local_entry);
@@ -331,10 +452,16 @@ namespace MrHyDE {
                     LIDViewType LIDs, LIDViewType paramLIDs,
                     const bool & compute_disc_sens);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class VecViewType, class LocalViewType, class LIDViewType>
     void scatterRes(VecViewType res_view,
                     LocalViewType local_res, LIDViewType LIDs);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class MatType, class VecViewType, class LIDViewType, class EvalT>
     void scatter(const size_t & set,MatType J_kcrs, VecViewType res_view,
                  LIDViewType LIDs, LIDViewType paramLIDs,
@@ -343,6 +470,9 @@ namespace MrHyDE {
                  const bool & compute_sens,
                  const bool & compute_disc_sens,
                  const bool & isAdjoint, EvalT & dummyval);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     template<class MatType, class VecViewType, class LIDViewType, class EvalT>
     void scatter(Teuchos::RCP<Workset<EvalT> > & wset, const size_t & set, MatType J_kcrs, VecViewType res_view,
@@ -353,39 +483,70 @@ namespace MrHyDE {
                  const bool & compute_disc_sens,
                  const bool & isAdjoint);
     
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class VecViewType, class LIDViewType>
     void scatterRes(const size_t & set, VecViewType res_view,
                     LIDViewType LIDs, const int & block);
     
-    // Computes y = M*x
+    // ========================================================================================
+    // ========================================================================================
+    
     void applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y);
     
-
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-
+    // ========================================================================================
+    // ========================================================================================
+    
     void buildDatabase(const size_t & block);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void writeVolumetricData(const size_t & block, vector<vector<size_t>> & all_orients);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void identifyVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void identifyBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void identifyVolumetricIPDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users_x,
                                       vector<std::pair<size_t,size_t> > & first_users_y,
                                       vector<std::pair<size_t,size_t> > & first_users_z);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void buildBoundaryDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_boundary_users);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void buildVolumetricIPDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users_x,
                                    vector<std::pair<size_t,size_t> > & first_users_y,
                                    vector<std::pair<size_t,size_t> > & first_users_z);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void finalizeFunctions();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void finalizeFunctions(Teuchos::RCP<FunctionManager<EvalT> > & fman, Teuchos::RCP<Workset<EvalT> > & wset);
 
@@ -406,6 +567,9 @@ namespace MrHyDE {
 
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class ViewType, class EvalT>
     void computeFluxEvalT(EvalT & dummyval, const int & block, const int & grp,  
                           ViewType u_kv, ViewType du_kv, ViewType dp_kv, View_Sc3 lambda,
@@ -573,20 +737,32 @@ namespace MrHyDE {
                                                      const bool & compute_aux_sens, const bool & store_adjPrev,
                                                      View_Sc3 local_res, View_Sc3 local_J);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Calls fully templated version with ScalarT
     void updateWorksetBoundary(const int & block, const size_t & grp, const int & seedwhat, 
                                const int & seedindex=0, const bool & override_transient=false);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Calls fully templated version with AD
     void updateWorksetBoundaryAD(const int & block, const size_t & grp, const int & seedwhat, 
                                const int & seedindex=0, const bool & override_transient=false);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version
     template<class EvalT>
     void updateWorksetBoundary(const int & block, const size_t & grp, const int & seedwhat,
                                const int & seedindex=0, const bool & override_transient=false);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Fully templated version
     // Actually does the work
     template<class EvalT>
@@ -594,73 +770,134 @@ namespace MrHyDE {
                                const int & seedwhat, const int & seedindex,
                                const bool & override_transient);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void computeBoundaryAux(const int & block, const size_t & grp, const int & seedwhat,
                             Teuchos::RCP<Workset<EvalT> > & wset);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Backwards compatible function call
     // Calls fully templated version with AD
     void updateDataBoundary(const int & block, const size_t & grp);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateDataBoundaryAD(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version
     template<class EvalT>
     void updateDataBoundary(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Fully templated version
     // Actually does the work
     template<class EvalT>
     void updateDataBoundary(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Calls fully templated version with ScalarT
     void updateWorksetBasisBoundary(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Calls fully templated version with AD
     void updateWorksetBasisBoundaryAD(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version
     template<class EvalT>
     void updateWorksetBasisBoundary(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Fully templated version
     // Actually does the work
     template<class EvalT>
     void updateWorksetBasisBoundary(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateResBoundary(const int & block, const size_t & grp,
                            const bool & compute_sens, View_Sc3 local_res);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateResBoundary(const int & block, const size_t & grp,
                            const bool & compute_sens, View_Sc3 local_res,
                            Teuchos::RCP<Workset<EvalT> > & wset);
 
-    void updateJacBoundary(const int & block, const size_t & grp, 
+    // ========================================================================================
+    // ========================================================================================
+    
+    void updateJacBoundary(const int & block, const size_t & grp,
                            const bool & useadjoint, View_Sc3 local_J);           
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateJacBoundary(const int & block, const size_t & grp, 
                            const bool & useadjoint, View_Sc3 local_J,
                            Teuchos::RCP<Workset<EvalT> > & wset);           
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateParamJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J,
                                 Teuchos::RCP<Workset<EvalT> > & wset);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateAuxJacBoundary(const int & block, const size_t & grp, View_Sc3 local_J,
                               Teuchos::RCP<Workset<EvalT> > & wset);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     View_Sc2 getDirichletBoundary(const int & block, const size_t & grp, const size_t & set);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     View_Sc3 getMassBoundary(const int & block, const size_t & grp, const size_t & set);
         
     ////////////////////////////////////////////////////////////////////////////////
@@ -671,16 +908,25 @@ namespace MrHyDE {
     void updateWorkset(const int & block, const size_t & grp, const int & seedwhat,
                        const int & seedindex, const bool & override_transient=false);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Calls fully templated version with AD
     void updateWorksetAD(const int & block, const size_t & grp, const int & seedwhat,
                        const int & seedindex, const bool & override_transient=false);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version
     template<class EvalT>
     void updateWorkset(const int & block, const size_t & grp, const int & seedwhat,
                        const int & seedindex, const bool & override_transient=false);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Fully templated version
     // Actually does the work
     template<class EvalT>
@@ -688,31 +934,55 @@ namespace MrHyDE {
                        const int & seedwhat, const int & seedindex,
                        const bool & override_transient);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void computeSolAvg(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void computeSolutionAverage(const int & block, const size_t & grp,
                                 const string & var, View_Sc2 csol);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void computeParameterAverage(const int & block, const size_t & grp,
                                  const string & var, View_Sc2 sol);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Calls fully templated version with ScalarT
     void updateWorksetFace(const int & block, const size_t & grp, const size_t & facenum);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Calls fully templated version with ScalarT
     void updateWorksetFaceAD(const int & block, const size_t & grp, const size_t & facenum);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Partially templated version that pick the appropriate workset to use
     // and calls fully templated version
     template<class EvalT>
     void updateWorksetFace(const int & block, const size_t & grp, const size_t & facenum);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     // Fully templated version
     // Actually does the work
     template<class EvalT>
     void updateWorksetFace(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp, const size_t & facenum);
 
-    void computeJacRes(const int & block, const size_t & grp, 
+    // ========================================================================================
+    // ========================================================================================
+    
+    void computeJacRes(const int & block, const size_t & grp,
                          const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
                          const bool & compute_jacobian, const bool & compute_sens,
                          const int & num_active_params, const bool & compute_disc_sens,
@@ -722,20 +992,32 @@ namespace MrHyDE {
                          const bool & assemble_volume_terms,
                          const bool & assemble_face_terms);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateRes(const int & block, const size_t & grp,
                    const bool & compute_sens, View_Sc3 local_res);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateRes(const int & block, const size_t & grp,
                    const bool & compute_sens, View_Sc3 local_res,
                    Teuchos::RCP<Workset<EvalT> > & wset);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateAdjointRes(const int & block, const size_t & grp,
                             const bool & compute_jacobian, const bool & isTransient,
                             const bool & compute_aux_sens, const bool & store_adjPrev,
                             Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                             Kokkos::View<ScalarT***,AssemblyDevice> local_res);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateAdjointRes(const int & block, const size_t & grp,
                             const bool & compute_jacobian, const bool & isTransient,
@@ -744,48 +1026,89 @@ namespace MrHyDE {
                             Kokkos::View<ScalarT***,AssemblyDevice> local_res,
                             Teuchos::RCP<Workset<EvalT> > & wset);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateJac(const int & block, const size_t & grp,
                    const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateJac(const int & block, const size_t & grp,
                    const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                    Teuchos::RCP<Workset<EvalT> > & wset);
 
-    void fixDiagJac(const int & block, const size_t & grp, 
+    // ========================================================================================
+    // ========================================================================================
+    
+    void fixDiagJac(const int & block, const size_t & grp,
                       Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                       Kokkos::View<ScalarT***,AssemblyDevice> local_res);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateParamJac(const int & block, const size_t & grp,
                         Kokkos::View<ScalarT***,AssemblyDevice> local_J);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateParamJac(const int & block, const size_t & grp,
                         Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                         Teuchos::RCP<Workset<EvalT> > & wset);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateAuxJac(const int & block, const size_t & grp,
                       Kokkos::View<ScalarT***,AssemblyDevice> local_J);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateAuxJac(const int & block, const size_t & grp,
                       Kokkos::View<ScalarT***,AssemblyDevice> local_J,
                       Teuchos::RCP<Workset<EvalT> > & wset);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     View_Sc2 getInitial(const int & block, const size_t & grp,
                         const bool & project, const bool & isAdjoint);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     View_Sc2 getInitialFace(const int & block, const size_t & grp, const bool & project);
 
-
+    // ========================================================================================
+    // ========================================================================================
+    
     CompressedView<View_Sc3> getMass(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     CompressedView<View_Sc3> getWeightedMass(const int & block, const size_t & grp, vector<ScalarT> & masswts);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     CompressedView<View_Sc3> getMassFace(const int & block, const size_t & grp);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     Kokkos::View<ScalarT***,AssemblyDevice> getSolutionAtNodes(const int & block, const size_t & grp, const int & var);
 
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset, const int & block, const size_t & grp);
 
@@ -813,13 +1136,19 @@ namespace MrHyDE {
     
     void importNewMicrostructure(int & randSeed, View_Sc2 seeds);
 
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+    // ========================================================================================
+    // ========================================================================================
     
     vector<vector<int> > identifySubgridModels();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void createFunctions();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void purgeMemory();
     
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -838,6 +1167,7 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
 
     std::vector<Teuchos::RCP<FunctionManager<ScalarT> > > function_managers;
 #ifndef MrHyDE_NO_AD
@@ -852,7 +1182,7 @@ namespace MrHyDE {
 #endif
 
     size_t globalParamUnknowns;
-    int verbosity, debug_level;
+    int verbosity;
     
     // Groups and worksets are unique to each block, but span the physics sets
     std::vector<Teuchos::RCP<GroupMetaData> > groupData;

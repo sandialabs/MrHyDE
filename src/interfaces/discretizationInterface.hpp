@@ -23,6 +23,7 @@
 #include "physicsInterface.hpp"
 #include "meshInterface.hpp"
 #include "groupMetaData.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -490,13 +491,15 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
   //private:
-    int debug_level, verbosity, dimension, quadorder;
+    int verbosity, dimension, quadorder;
     double storage_proportion;
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> comm;
     Teuchos::RCP<MeshInterface> mesh;
     Teuchos::RCP<PhysicsInterface> physics;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
+    
     vector<vector<basis_RCP> > basis_pointers; // [block][basis]
     vector<vector<string> > basis_types; // [block][basis]
     

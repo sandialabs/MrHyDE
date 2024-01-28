@@ -21,6 +21,7 @@
 #include "linearAlgebraInterface.hpp"
 #include "MrHyDE_OptVector.hpp"
 #include "postprocessTools.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 #if defined(MrHyDE_ENABLE_FFTW)
 #include "fftInterface.hpp"
@@ -305,6 +306,7 @@ namespace MrHyDE {
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     Teuchos::RCP<LinearAlgebraInterface<Node> > linalg;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
     vector<objective> objectives;
     vector<regularization> regularizations;
@@ -346,7 +348,7 @@ namespace MrHyDE {
     std::string response_type, error_type, append;
     std::vector<ScalarT> plot_times, response_times, error_times; // probably always the same
     
-    int verbosity, debug_level;
+    int verbosity;
     
     std::vector<std::vector<std::pair<std::string,std::string> > > error_list; // [block][errors] <varname,type>
     std::vector<std::vector<std::vector<std::pair<std::string,std::string> > > > subgrid_error_lists; // [block][sgmodel][errors]

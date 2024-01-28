@@ -27,6 +27,7 @@
 #include "Panzer_STK_ExodusReaderFactory.hpp"
 #include "Panzer_STKConnManager.hpp"
 #include "simplemeshmanager.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 #include "preferences.hpp"
 //#include "physicsInterface.hpp"
@@ -223,7 +224,7 @@ namespace MrHyDE {
     
     bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
-    int dimension, verbosity, debug_level;
+    int dimension, verbosity;
     int num_nodes_per_elem, side_dim, num_sides, num_faces, num_seeds;
     vector<int> random_seeds;
     vector<topo_RCP> cell_topo, side_topo;
@@ -242,7 +243,7 @@ namespace MrHyDE {
   private:
     Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh; ///< RCP to the Panzer STK Mesh
     Teuchos::RCP<panzer_stk::STK_Interface> stk_optimization_mesh; ///< RCP to the Panzer STK Mesh used to visualize an optmization history.
-    
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
   };
   
 }

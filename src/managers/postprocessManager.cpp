@@ -58,12 +58,9 @@ assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_) 
 template<class Node>
 void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), Comm));
   
-  debug_level = settings->get<int>("debug level",0);
-  
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Starting PostprocessManager::setup()" << endl;
-  }
+  debugger->print("**** Starting PostprocessManager::setup()");
   
   ////////////////////////////////////////////
   // Grab flags from settings parameter list
@@ -337,11 +334,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
 #endif
 
 
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished PostprocessManager::setup()" << endl;
-    }
-  }
+  debugger->print("**** Finished PostprocessManager::setup()");
     
 }
 
@@ -1176,11 +1169,7 @@ void PostprocessManager<Node>::computeError(vector<vector_RCP> & current_soln, c
   
   Teuchos::TimeMonitor localtimer(*computeErrorTimer);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::computeError(time)" << endl;
-    }
-  }
+  debugger->print(1, "**** Starting PostprocessManager::computeError(time)");
   
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -1520,11 +1509,7 @@ void PostprocessManager<Node>::computeError(vector<vector_RCP> & current_soln, c
     }
   }
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished PostprocessManager::computeError(time)" << endl;
-    }
-  }
+  debugger->print(1, "**** Finished PostprocessManager::computeError(time)");
   
 }
 
@@ -1585,11 +1570,7 @@ void PostprocessManager<Node>::computeFluxResponse(vector<vector_RCP> & current_
 template<class Node>
 void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeIntegratedQuantities ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeIntegratedQuantities ...");
 
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -1771,11 +1752,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> & 
 template<class Node>
 void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_soln) {
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::computeWeightedNorm()" << endl;
-    }
-  }
+  debugger->print(1, "**** Starting PostprocessManager::computeWeightedNorm()");
   
   Teuchos::TimeMonitor localtimer(*computeWeightedNormTimer);
   
@@ -1824,11 +1801,8 @@ void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_
     cout << "Weighted norm of solution: " << totalnorm << endl;
   }
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished PostprocessManager::computeWeightedNorm()" << endl;
-    }
-  }
+  debugger->print(1, "**** Finished PostprocessManager::computeWeightedNorm()");
+  
 }
 
 // ========================================================================================
@@ -1863,9 +1837,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   
   Teuchos::TimeMonitor localtimer(*objectiveTimer);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeObjective ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjective ...");
   
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -2321,9 +2293,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   
   DFAD fullobj(numParams,meep);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeObjective ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjective ...");
   
   objectiveval += fullobj;
   
@@ -2338,9 +2308,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                                                          const ScalarT & current_time,
                                                          DFAD & objectiveval) {
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeObjectiveGradParam ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradParam ...");
 
 #ifndef MrHyDE_NO_AD
   for (size_t r=0; r<objectives.size(); ++r) {
@@ -2393,9 +2361,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
   saveObjectiveData(objectiveval);
 #endif
 
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradParam ...");
 }
 
 // ========================================================================================
@@ -2410,9 +2376,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
 
   Teuchos::TimeMonitor localtimer(*objectiveTimer);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeObjectiveGradParam<EvalT> ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradParam<EvalT> ...");
   
   DFAD fullobj = 0.0;
   
@@ -3136,9 +3100,8 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
   
 #endif
 
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam<EvalT> ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradParam<EvalT> ...");
+  
   return fullobj;
 
 }
@@ -3152,9 +3115,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
   
   Teuchos::TimeMonitor localtimer(*sensorSolutionTimer);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeSensorSolution ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeSensorSolution ...");
   
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -3277,9 +3238,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
     
   }  
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeSensorSolutions ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeSensorSolutions ...");
   
 }
 
@@ -3294,11 +3253,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          vector_RCP & grad) {
   
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeObjectiveGradState ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradState ...");
 
 #ifndef MrHyDE_NO_AD
   for (size_t r=0; r<objectives.size(); ++r) {
@@ -3346,11 +3301,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   }
 #endif
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::computeObjectiveGradState ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradState ...");
 
 }
 
@@ -3381,11 +3332,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          Teuchos::RCP<FunctionManager<EvalT> > & fman) {
   
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeObjectiveGradState<EvalT> ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradState<EvalT> ...");
   
 #ifndef MrHyDE_NO_AD
 
@@ -4250,11 +4197,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
                                                     const ScalarT & deltat,
                                                     MrHyDE_OptVector & gradient) {
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeSensitivities ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeSensitivities ...");
   
   typedef typename Node::device_type LA_device;
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
@@ -4369,11 +4312,8 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
   }
   this->saveObjectiveGradientData(gradient);
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::computeSensitivities ..." << std::endl;
-    }
-  }
+  
+  debugger->print(1, "******** Finished PostprocessManager::computeSensitivities ...");
   
 }
 
@@ -4387,11 +4327,7 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
                                                               const int & tindex,
                                                               const ScalarT & deltat) {
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeDualWeightedResidual ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeDualWeightedResidual ...");
   
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
@@ -4421,11 +4357,8 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
     
   res->dot(*adj, dotprod);
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::computeDualWeightedResidual ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeDualWeightedResidual ...");
+  
   return dotprod[0];
 
 }
@@ -4483,11 +4416,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
   
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::writeSolution() ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::writeSolution() ...");
 
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -5125,11 +5054,8 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
     multiscale_manager->writeSolution(currenttime, append);
   }
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::writeSolution() ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Finished PostprocessManager::writeSolution() ...");
+  
 }
 
 // ========================================================================================
@@ -5407,9 +5333,8 @@ ScalarT PostprocessManager<Node>::makeSomeNoise(ScalarT stdev) {
 
 template<class Node>
 void PostprocessManager<Node>::addSensors() {
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Starting PostprocessManager::addSensors ..." << endl;
-  }
+  
+  debugger->print("**** Starting PostprocessManager::addSensors ...");
     
   // Reading in sensors from a mesh file only works on a single element block (for now)
   // There isn't any problem with multiple blocks, it just hasn't been generalized for sensors yet
@@ -5431,9 +5356,7 @@ void PostprocessManager<Node>::addSensors() {
     }
   }
   
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Finished PostprocessManager::addSensors ..." << endl;
-  }
+  debugger->print("**** Finished PostprocessManager::addSensors ...");
   
 }
 
@@ -5443,11 +5366,7 @@ void PostprocessManager<Node>::addSensors() {
 template<class Node>
 void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::importSensorsFromExodus() ..." << endl;
-    }
-  }
+  debugger->print("**** Starting PostprocessManager::importSensorsFromExodus() ...");
   
   //vector<string> mesh_response_names = mesh->efield_names;
   string cresp = objectives[objID].sensor_data_file;
@@ -5650,11 +5569,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SensorManager::importSensorsFromExodus() ..." << endl;
-    }
-  }
+  debugger->print("**** Finished SensorManager::importSensorsFromExodus() ...");
   
 }
 
@@ -5664,11 +5579,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
 template<class Node>
 void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::importSensorsFromFiles() ..." << endl;
-    }
-  }
+  debugger->print("**** Starting PostprocessManager::importSensorsFromFiles() ...");
   
   size_t block = objectives[objID].block;
     
@@ -5825,11 +5736,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SensorManager::importSensorsFromFiles() ..." << endl;
-    }
-  }
+  debugger->print("**** Finished SensorManager::importSensorsFromFiles() ...");
   
 }
 
@@ -5839,9 +5746,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
 template<class Node>
 void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Starting PostprocessManager::importSensorsOnGrid() ..." << endl;
-  }
+  debugger->print("**** Starting PostprocessManager::importSensorsOnGrid() ...");
   
   // Check that the data matches the expected format
   if (dimension != 3) {
@@ -5969,9 +5874,8 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     
     this->computeSensorBasis(objID);
   }
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Finished SensorManager::importSensorsOnGrid() ..." << endl;
-  }
+  
+  debugger->print("**** Finished SensorManager::importSensorsOnGrid() ...");
 
 }
 

@@ -16,6 +16,7 @@
 #include "Amesos2.hpp"
 #include "meshInterface.hpp"
 #include "workset.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -180,7 +181,7 @@ namespace MrHyDE {
     ////////////////////////////////////////////////////////////////////////////////
     
     bool subgrid_static, ml_training, have_ml_models;
-    int debug_level, verbosity, subgrid_model_selection;
+    int verbosity, subgrid_model_selection;
 
     size_t num_training_steps, max_training_steps, macro_nl_iter;
     ScalarT reltol, abstol;
@@ -188,6 +189,8 @@ namespace MrHyDE {
     Teuchos::RCP<MpiComm> Comm, MacroComm;
     Teuchos::RCP<MeshInterface> macro_mesh;
     Teuchos::RCP<Teuchos::ParameterList> settings;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
+    
     std::vector<std::vector<Teuchos::RCP<Group> > > groups;
     std::vector<Teuchos::RCP<Workset<AD> > > macro_wkset;
     std::vector<std::vector<Teuchos::RCP<SGLA_CrsMatrix> > > subgrid_projection_maps;

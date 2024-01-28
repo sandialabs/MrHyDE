@@ -28,13 +28,10 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   mesh = mesh_;
-  debug_level = settings->get<int>("debug level",0);
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting ParameterManager constructor ... " << endl;
-    }
-  }
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), Comm));
+  
+  debugger->print("**** Starting ParameterManager constructor ... ");
   
   /////////////////////////////////////////////////////////////////////////////
   // Parameters
@@ -73,11 +70,7 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
     }
   }
 
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished ParameterManager constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished ParameterManager constructor");
   
 }
 
@@ -89,11 +82,7 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
 template<class Node>
 void ParameterManager<Node>::setupParameters() {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting ParameterManager::setupParameters ... " << endl;
-    }
-  }
+  debugger->print("**** Starting ParameterManager::setupParameters ... ");
   
   Teuchos::ParameterList parameters;
   
@@ -267,11 +256,7 @@ void ParameterManager<Node>::setupParameters() {
 #endif
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished ParameterManager::setupParameters" << endl;
-    }
-  }
+  debugger->print("**** Finished ParameterManager::setupParameters");
   
 }
 
@@ -285,11 +270,7 @@ template<class Node>
 void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::RCP<Group> > > & groups,
                                                         vector<vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups) {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting ParameterManager::setupDiscretizedParameters ... " << endl;
-    }
-  }
+  debugger->print("**** Starting ParameterManager::setupDiscretizedParameters ... ");
   
   if (num_discretized_params > 0) {
     // determine the unique list of basis'
@@ -511,11 +492,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     this->setInitialParams(); 
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished ParameterManager::setupDiscretizedParameters" << endl;
-    }
-  }
+  debugger->print("**** Finished ParameterManager::setupDiscretizedParameters");
   
 }
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -635,12 +612,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > ParameterManager
 template<class Node>
 void ParameterManager<Node>::setInitialParams() {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting ParameterManager::setInitialParams ..." << endl;
-    }
-  }
-  
+  debugger->print("**** Starting ParameterManager::setInitialParams ...");
   
   Psol = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
   Psol_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
@@ -713,11 +685,8 @@ void ParameterManager<Node>::setInitialParams() {
     }
   }
   */
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished ParameterManager::setInitialParams ..." << endl;
-    }
-  }
+  
+  debugger->print("**** Finished ParameterManager::setInitialParams ...");
   
 }
 

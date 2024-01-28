@@ -18,6 +18,7 @@
 #include "preferences.hpp"
 #include "discretizationInterface.hpp"
 #include "parameterManager.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>
@@ -460,8 +461,9 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<ParameterManager<Node> > params;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
-    int verbosity, debug_level;
+    int verbosity;
     vector<string> setnames;
     bool do_dump_jacobian, do_dump_residual, do_dump_solution;
     bool have_overlapped;

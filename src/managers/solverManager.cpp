@@ -27,13 +27,9 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
-  debug_level = settings->get<int>("debug level",0);
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), Comm));
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager constructor ..." << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager constructor ...");
   
   numEvaluations = 0;
   setnames = physics->set_names;
@@ -297,11 +293,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
     
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished SolverManager constructor");
   
 }
 
@@ -311,11 +303,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
 template<class Node>
 void SolverManager<Node>::completeSetup() {
 
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::completeSetup()" << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::completeSetup()");
   
   /////////////////////////////////////////////////////////////////////////////
   // Create linear algebra interface
@@ -341,11 +329,8 @@ void SolverManager<Node>::completeSetup() {
     this->setupExplicitMass();
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::completeSetup()" << endl;
-    }
-  }
+  debugger->print("**** Finished SolverManager::completeSetup()");
+  
 }
 
 // ========================================================================================
@@ -354,11 +339,7 @@ void SolverManager<Node>::completeSetup() {
 template<class Node>
 void SolverManager<Node>::setupExplicitMass() {
 
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::setupExplicitMass()" << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::setupExplicitMass()");
   
   bool compute_matrix = true;
   if (assembler->lump_mass || assembler->matrix_free) {
@@ -478,11 +459,7 @@ void SolverManager<Node>::setupExplicitMass() {
     //}
   }
 
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::setupExplicitMass() - fillComplete" << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::setupExplicitMass() - fillComplete");
   
   for (size_t set=0; set<useBasis.size(); ++set) {
     
@@ -502,11 +479,7 @@ void SolverManager<Node>::setupExplicitMass() {
     }
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::setupExplicitMass()" << endl;
-    }
-  }
+  debugger->print("**** Finished SolverManager::setupExplicitMass()");
   
 }
 
@@ -859,11 +832,7 @@ void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const
 template<class Node>
 void SolverManager<Node>::finalizeWorkset() {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::finalizeWorkset ..." << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::finalizeWorkset ...");
   
   this->finalizeWorkset(assembler->wkset, params->paramvals_KV, params->paramvals_Sc);
 #ifndef MrHyDE_NO_AD
@@ -876,11 +845,9 @@ void SolverManager<Node>::finalizeWorkset() {
   this->finalizeWorkset(assembler->wkset_AD24, params->paramvals_KVAD24, params->paramvals_AD24);
   this->finalizeWorkset(assembler->wkset_AD32, params->paramvals_KVAD32, params->paramvals_AD32);
 #endif
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::finalizeWorkset" << endl;
-    }
-  }
+  
+  debugger->print("**** Finished SolverManager::finalizeWorkset");
+  
   
 }
 
@@ -1023,11 +990,7 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
   
   Teuchos::TimeMonitor localtimer(*fixeddofsetuptimer);
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::setupFixedDOFs()" << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::setupFixedDOFs()");
   
   if (!disc->have_dirichlet) {
     usestrongDBCs = false;
@@ -1085,11 +1048,7 @@ void SolverManager<Node>::setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & 
     }
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::setupFixedDOFs()" << endl;
-    }
-  }
+  debugger->print("**** Finished SolverManager::setupFixedDOFs()");
   
 }
 
@@ -1102,11 +1061,7 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
   
   Teuchos::TimeMonitor localtimer(*dbcprojtimer);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::projectDirichlet()" << endl;
-    }
-  }
+  debugger->print(1, "**** Starting SolverManager::projectDirichlet()");
   
   assembler->updatePhysicsSet(set);
   
@@ -1132,12 +1087,6 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
     linalg->exportVectorFromOverlapped(set, glrhs, rhs);
     linalg->fillComplete(glmass);
     
-    if (debug_level>2) {
-      //KokkosTools::print(glmass,"L2-projection matrix for DBCs");
-      //KokkosTools::print(glrhs,"L2-projections RHS for DBCs");
-      //KokkosTools::print(glfixedDOF_soln,"L2-projections sol for DBCs");
-    }
-    
     // TODO BWR -- couldn't think of a good way to protect against
     // the preconditioner failing for HFACE, will need to be handled
     // explicitly in the input file for now (State boundary L2 linear solver)
@@ -1145,11 +1094,8 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
     linalg->importVectorToOverlapped(set, fixedDOF_soln[set], glfixedDOF_soln);
     
   }
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::projectDirichlet()" << endl;
-    }
-  }
+  
+  debugger->print(1, "**** Finished SolverManager::projectDirichlet()");
   
 }
 
@@ -1162,11 +1108,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   
   current_time = initial_time;
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::forwardModel ..." << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::forwardModel ...");
   
   is_adjoint = false;
   params->sacadoizeParams(false);
@@ -1203,11 +1145,8 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   
   numEvaluations++;
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::forwardModel" << endl;
-    }
-  }
+  debugger->print("**** Finished SolverManager::forwardModel");
+  
 }
 
 // ========================================================================================
@@ -1216,11 +1155,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
 template<class Node>
 void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & sol) {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::steadySolver ..." << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::steadySolver ...");
   
   for (int ss=0; ss<subcycles; ++ss) {
     for (size_t set=0; set<setnames.size(); ++set) {
@@ -1235,11 +1170,8 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & so
   }
   postproc->record(sol,current_time,1,objective);
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::steadySolver" << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::steadySolver");
+  
 }
 
 // ========================================================================================
@@ -1248,16 +1180,10 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & so
 template<class Node>
 void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::adjointModel ..." << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::adjointModel ...");
   
-  if (setnames.size()>1) {
-    if (Comm->getRank() == 0) {
-      cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl;
-    }
+  if (setnames.size()>1 && Comm->getRank() == 0) {
+    cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl;
   }
   else {
     
@@ -1290,11 +1216,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     is_adjoint = false;
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::adjointModel" << endl;
-    }
-  }
+  debugger->print("**** Finished SolverManager::adjointModel");
   
 }
 
@@ -1310,14 +1232,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
   
   Teuchos::TimeMonitor localtimer(*transientsolvertimer);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Starting SolverManager::transientSolver ..." << endl;
-      cout << "******** Start time = " << start_time << endl;
-      cout << "******** End time = " << end_time << endl;
-      cout << "******** Time step size = " << deltat << endl;
-    }
-  }
+  debugger->print(1, "******** Starting SolverManager::transientSolver ...");
   
   vector<vector_RCP> zero_vec(initial.size());
   
@@ -1539,11 +1454,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     
   }
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Finished SolverManager::transientSolver" << endl;
-    }
-  }
+  debugger->print(1, "******** Finished SolverManager::transientSolver");
   
 }
 
@@ -1563,11 +1474,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
 
   Teuchos::TimeMonitor localtimer(*nonlinearsolvertimer);
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Starting SolverManager::nonlinearSolver ..." << endl;
-    }
-  }
+  debugger->print(1, "******** Starting SolverManager::nonlinearSolver ...");
 
   int status = 0;
   int NLiter = 0;
@@ -1772,7 +1679,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       proceed = false;
     }
   } // while loop
-  if (debug_level>1) {
+  if (verbosity>1) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> normu(1);
     if (sol_stage.size() > 0) {
       sol_stage[stage]->norm2(normu);
@@ -1795,11 +1702,9 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       }
     }
   }
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Finished SolverManager::nonlinearSolver" << endl;
-    }
-  }
+  
+  debugger->print(1, "******** Finished SolverManager::nonlinearSolver");
+  
   return status;
 }
 
@@ -1821,11 +1726,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
 
   Teuchos::TimeMonitor localtimer(*explicitsolvertimer);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Starting SolverManager::explicitSolver ..." << endl;
-    }
-  }
+  debugger->print(1, "******** Starting SolverManager::explicitSolver ...");
   
   int status = 0;
   assembler->updatePhysicsSet(set);
@@ -1962,14 +1863,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
     }
   }
   
-  
-  //assembler->performGather(set,sol[set],0,0);
-  
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "******** Finished SolverManager::explicitSolver" << endl;
-    }
-  }
+  debugger->print(1, "******** Finished SolverManager::explicitSolver");
   
   return status;
 }
@@ -1981,11 +1875,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
 template<class Node>
 void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::setDirichlet ..." << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::setDirichlet ...");
   
   Teuchos::TimeMonitor localtimer(*dbcsettimer);
   
@@ -2062,11 +1952,8 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
     }
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::setDirichlet" << endl;
-    }
-  }
+  debugger->print("**** Finished SolverManager::setDirichlet");
+  
 }
 
 // ========================================================================================
@@ -2089,11 +1976,8 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
   Teuchos::TimeMonitor localtimer(*initsettimer);
   typedef typename Node::execution_space LA_exec;
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting SolverManager::setInitial ..." << endl;
-    }
-  }
+  debugger->print("**** Starting SolverManager::setInitial ...");
+  
   vector<vector_RCP> initial_solns;
   
   if (use_restart) {
@@ -2103,145 +1987,143 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
   }
   else {
 
-  for (size_t set=0; set<setnames.size(); ++set) {
-    assembler->updatePhysicsSet(set);
-    
-    vector_RCP initial = linalg->getNewOverlappedVector(set);
-    initial->putScalar(0.0);
-    
-    bool samedevice = true;
-    bool usehost = false;
-    if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyMem>::accessible) {
-      samedevice = false;
-      if (!Kokkos::SpaceAccessibility<LA_exec, HostMem>::accessible) {
-        usehost = true;
+    for (size_t set=0; set<setnames.size(); ++set) {
+      assembler->updatePhysicsSet(set);
+      
+      vector_RCP initial = linalg->getNewOverlappedVector(set);
+      initial->putScalar(0.0);
+      
+      bool samedevice = true;
+      bool usehost = false;
+      if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyMem>::accessible) {
+        samedevice = false;
+        if (!Kokkos::SpaceAccessibility<LA_exec, HostMem>::accessible) {
+          usehost = true;
+        }
+        else {
+          // output an error
+        }
       }
-      else {
-        // output an error
-      }
-    }
-    
-    if (have_initial_conditions[set]) {
-      if (scalarInitialData[set]) {
-        
-        auto initial_kv = initial->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-        
-        for (size_t block=0; block<assembler->groupData.size(); block++) {
+      
+      if (have_initial_conditions[set]) {
+        if (scalarInitialData[set]) {
           
-          assembler->updatePhysicsSet(set);
+          auto initial_kv = initial->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
           
-          if (assembler->groupData[block]->num_elem > 0) {
+          for (size_t block=0; block<assembler->groupData.size(); block++) {
             
-            Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[set][block].size());
-            auto idata_host = Kokkos::create_mirror_view(idata);
-            for (size_t i=0; i<scalarInitialValues[set][block].size(); i++) {
-              idata_host(i) = scalarInitialValues[set][block][i];
-            }
-            Kokkos::deep_copy(idata,idata_host);
+            assembler->updatePhysicsSet(set);
             
-            if (samedevice) {
-              auto offsets = assembler->wkset[block]->offsets;
-              auto numDOF = assembler->groupData[block]->num_dof;
-              for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
-                auto LIDs = assembler->groups[block][cell]->LIDs[set];
-                parallel_for("solver initial scalar",
-                             RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                             KOKKOS_LAMBDA (const int e ) {
-                  for (size_type n=0; n<numDOF.extent(0); n++) {
-                    for (int i=0; i<numDOF(n); i++ ) {
-                      initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
-                    }
-                  }
-                });
+            if (assembler->groupData[block]->num_elem > 0) {
+              
+              Kokkos::View<ScalarT*,LA_device> idata("scalar initial data",scalarInitialValues[set][block].size());
+              auto idata_host = Kokkos::create_mirror_view(idata);
+              for (size_t i=0; i<scalarInitialValues[set][block].size(); i++) {
+                idata_host(i) = scalarInitialValues[set][block][i];
               }
-            }
-            else if (usehost) {
-              auto offsets = assembler->wkset[block]->offsets;
-              auto host_offsets = Kokkos::create_mirror_view(offsets);
-              Kokkos::deep_copy(host_offsets,offsets);
-              auto numDOF = assembler->groupData[block]->num_dof_host;
-              for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
-                auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
-                parallel_for("solver initial scalar",
-                             RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                             KOKKOS_LAMBDA (const int e ) {
-                  for (size_type n=0; n<numDOF.extent(0); n++) {
-                    for (int i=0; i<numDOF(n); i++ ) {
-                      initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+              Kokkos::deep_copy(idata,idata_host);
+              
+              if (samedevice) {
+                auto offsets = assembler->wkset[block]->offsets;
+                auto numDOF = assembler->groupData[block]->num_dof;
+                for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
+                  auto LIDs = assembler->groups[block][cell]->LIDs[set];
+                  parallel_for("solver initial scalar",
+                               RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                               KOKKOS_LAMBDA (const int e ) {
+                    for (size_type n=0; n<numDOF.extent(0); n++) {
+                      for (int i=0; i<numDOF(n); i++ ) {
+                        initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
+                      }
                     }
-                  }
-                });
+                  });
+                }
               }
+              else if (usehost) {
+                auto offsets = assembler->wkset[block]->offsets;
+                auto host_offsets = Kokkos::create_mirror_view(offsets);
+                Kokkos::deep_copy(host_offsets,offsets);
+                auto numDOF = assembler->groupData[block]->num_dof_host;
+                for (size_t cell=0; cell<assembler->groups[block].size(); cell++) {
+                  auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
+                  parallel_for("solver initial scalar",
+                               RangePolicy<LA_exec>(0,LIDs.extent(0)),
+                               KOKKOS_LAMBDA (const int e ) {
+                    for (size_type n=0; n<numDOF.extent(0); n++) {
+                      for (int i=0; i<numDOF(n); i++ ) {
+                        initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
+                      }
+                    }
+                  });
+                }
+              }
+              
             }
+          }
+        }
+        else {
+          
+          vector_RCP glinitial = linalg->getNewVector(set);
+          
+          if (initial_type == "L2-projection") {
+            // Compute the L2 projection of the initial data into the discrete space
+            vector_RCP rhs = linalg->getNewOverlappedVector(set);
+            matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
+            vector_RCP glrhs = linalg->getNewVector(set);
+            matrix_RCP glmass = linalg->getNewMatrix(set);
+            
+            assembler->setInitial(set, rhs, mass, is_adjoint);
+            
+            linalg->exportMatrixFromOverlapped(set, glmass, mass);
+            linalg->exportVectorFromOverlapped(set, glrhs, rhs);
+            
+            linalg->fillComplete(glmass);
+            linalg->linearSolverL2(set, glmass, glrhs, glinitial);
+            linalg->importVectorToOverlapped(set, initial, glinitial);
+            linalg->resetJacobian(set);
+          }
+          else if (initial_type == "L2-projection-HFACE") {
+            // Similar to above, but the basis support only exists on the mesh skeleton
+            // The use case is setting the IC at the coarse-scale
+            vector_RCP rhs = linalg->getNewOverlappedVector(set);
+            matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
+            vector_RCP glrhs = linalg->getNewVector(set);
+            matrix_RCP glmass = linalg->getNewMatrix(set);
+            
+            assembler->setInitialFace(set, rhs, mass, is_adjoint);
+            
+            linalg->exportMatrixFromOverlapped(set, glmass, mass);
+            linalg->exportVectorFromOverlapped(set, glrhs, rhs);
+            linalg->fillComplete(glmass);
+            
+            // With HFACE we ensure the preconditioner is not
+            // used for this projection (mass matrix is nearly the identity
+            // and can cause issues)
+            auto origPreconFlag = linalg->options_L2[set]->use_preconditioner;
+            linalg->options_L2[set]->use_preconditioner = false;
+            // do the solve
+            linalg->linearSolverL2(set, glmass, glrhs, glinitial);
+            // set back to original
+            linalg->options_L2[set]->use_preconditioner = origPreconFlag;
+            
+            linalg->importVectorToOverlapped(set, initial, glinitial);
+            linalg->resetJacobian(set); // TODO not sure of this
+            
+          }
+          else if (initial_type == "interpolation") {
+            
+            assembler->setInitial(set, initial, is_adjoint);
             
           }
         }
       }
-      else {
-        
-        vector_RCP glinitial = linalg->getNewVector(set);
-        
-        if (initial_type == "L2-projection") {
-          // Compute the L2 projection of the initial data into the discrete space
-          vector_RCP rhs = linalg->getNewOverlappedVector(set);
-          matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
-          vector_RCP glrhs = linalg->getNewVector(set);
-          matrix_RCP glmass = linalg->getNewMatrix(set);
-          
-          assembler->setInitial(set, rhs, mass, is_adjoint);
-          
-          linalg->exportMatrixFromOverlapped(set, glmass, mass);
-          linalg->exportVectorFromOverlapped(set, glrhs, rhs);
-          
-          linalg->fillComplete(glmass);
-          linalg->linearSolverL2(set, glmass, glrhs, glinitial);
-          linalg->importVectorToOverlapped(set, initial, glinitial);
-          linalg->resetJacobian(set);
-        }
-        else if (initial_type == "L2-projection-HFACE") {
-          // Similar to above, but the basis support only exists on the mesh skeleton
-          // The use case is setting the IC at the coarse-scale
-          vector_RCP rhs = linalg->getNewOverlappedVector(set);
-          matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
-          vector_RCP glrhs = linalg->getNewVector(set);
-          matrix_RCP glmass = linalg->getNewMatrix(set);
-          
-          assembler->setInitialFace(set, rhs, mass, is_adjoint);
-          
-          linalg->exportMatrixFromOverlapped(set, glmass, mass);
-          linalg->exportVectorFromOverlapped(set, glrhs, rhs);
-          linalg->fillComplete(glmass);
-          
-          // With HFACE we ensure the preconditioner is not
-          // used for this projection (mass matrix is nearly the identity
-          // and can cause issues)
-          auto origPreconFlag = linalg->options_L2[set]->use_preconditioner;
-          linalg->options_L2[set]->use_preconditioner = false;
-          // do the solve
-          linalg->linearSolverL2(set, glmass, glrhs, glinitial);
-          // set back to original
-          linalg->options_L2[set]->use_preconditioner = origPreconFlag;
-          
-          linalg->importVectorToOverlapped(set, initial, glinitial);
-          linalg->resetJacobian(set); // TODO not sure of this
-          
-        }
-        else if (initial_type == "interpolation") {
-          
-          assembler->setInitial(set, initial, is_adjoint);
-          
-        }
-      }
-    }
-    
-    initial_solns.push_back(initial);
-  }
-  }
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SolverManager::setInitial ..." << endl;
+      
+      initial_solns.push_back(initial);
     }
   }
+  
+  debugger->print("**** Finished SolverManager::setInitial ...");
+  
   
   return initial_solns;
 }

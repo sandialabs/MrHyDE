@@ -19,6 +19,7 @@
 #include "solverManager.hpp"
 #include "postprocessManager.hpp"
 #include "parameterManager.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -137,10 +138,9 @@ namespace MrHyDE {
     Teuchos::RCP<SolverManager<SolverNode> > solver_;
     Teuchos::RCP<PostprocessManager<SolverNode> > postproc_;
     Teuchos::RCP<ParameterManager<SolverNode> > params_;
+    Teuchos::RCP<MrHyDE_Debugger> debugger_;
     
-    ScalarT response_;
-    int verbosity_, debug_level_;
-    bool sensIC_;
+    int verbosity_;
   };
   
 }

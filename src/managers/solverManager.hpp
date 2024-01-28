@@ -20,6 +20,7 @@
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
 #include "linearAlgebraInterface.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -212,8 +213,9 @@ namespace MrHyDE {
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
-    int verbosity, batchID, dimension, gNLiter, debug_level, maxNLiter, subcycles;
+    int verbosity, batchID, dimension, gNLiter, maxNLiter, subcycles;
     
     // numsteps of BDF scheme
     // numstages of RK

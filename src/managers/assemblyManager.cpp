@@ -8,10 +8,6 @@
 
 #include "assemblyManager.hpp"
 
-// Remove this when done testing
-#include "Intrepid2_CellTools.hpp"
-
-
 using namespace MrHyDE;
 
 // ========================================================================================
@@ -31,13 +27,8 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   Teuchos::TimeMonitor constructor_timer(*constructor_time);
   
   // Get the required information from the settings
-  debug_level = settings->get<int>("debug level",0);
-  
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting assembly manager constructor ..." << endl;
-    }
-  }
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), comm));
+  debugger->print("**** Starting assembly manager constructor ...");
   
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
@@ -181,11 +172,8 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   
   this->createFunctions();
 
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished assembly manager constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished assembly manager constructor");
+  
   
 }
 
@@ -196,22 +184,27 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
 template<class Node>
 void AssemblyManager<Node>::createFixedDOFs() {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::createFixedDOFs ... " << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::createFixedDOFs ... ");
   
-  // create fixedDOF View of bools
+  // Grab the Dirichlet DOFs from discretization interface
   vector<vector<vector<vector<LO> > > > dbc_dofs = disc->dbc_dofs; // [set][block][var][dof]
   
+  // Data is stored per physics set
   for (size_t set=0; set<dbc_dofs.size(); ++set) {
+    
+    // create a View of bools indicating if a DOF is fixed
     vector<vector<Kokkos::View<LO*,LA_device> > > set_fixedDOF;
     
-    int numLocalDof = disc->dof_owned_and_shared[set].size();//
-    //int numLocalDof = disc->DOF[set]->getNumOwnedAndGhosted();
+    // Get the number of DOFs on this set/proc
+    int numLocalDof = disc->dof_owned_and_shared[set].size();
+    
+    // Create storage for logicals (on device)
     Kokkos::View<bool*,LA_device> set_isFixedDOF("logicals for fixed DOFs",numLocalDof);
+    
+    // Storage on host
     auto fixed_host = Kokkos::create_mirror_view(set_isFixedDOF);
+    
+    // Fill on host
     for (size_t block=0; block<dbc_dofs[set].size(); block++) {
       for (size_t var=0; var<dbc_dofs[set][block].size(); var++) {
         for (size_t i=0; i<dbc_dofs[set][block][var].size(); i++) {
@@ -220,34 +213,54 @@ void AssemblyManager<Node>::createFixedDOFs() {
         }
       }
     }
+    
+    // Copy to device
     Kokkos::deep_copy(set_isFixedDOF,fixed_host);
+    
+    // Store
     isFixedDOF.push_back(set_isFixedDOF);
     
+    // Loop over blocks
     for (size_t block=0; block<dbc_dofs[set].size(); block++) {
+      
+      // Create a View to store DBC DOFs
       vector<Kokkos::View<LO*,LA_device> > block_dofs;
+      
+      // Loop over variables
       for (size_t var=0; var<dbc_dofs[set][block].size(); var++) {
+        
+        // Create empty array (var may not have any DBC DOFs)
         Kokkos::View<LO*,LA_device> cfixed;
+        
+        // Fill array if var has DBC DOFs
         if (dbc_dofs[set][block][var].size()>0) {
+          
+          // Storage for DOFs (on device)
           cfixed = Kokkos::View<LO*,LA_device>("fixed DOFs",dbc_dofs[set][block][var].size());
+          
+          // Storage on host
           auto cfixed_host = Kokkos::create_mirror_view(cfixed);
+          
+          // Fill on host
           for (size_t i=0; i<dbc_dofs[set][block][var].size(); i++) {
             LO dof = dbc_dofs[set][block][var][i];
             cfixed_host(i) = dof;
           }
+          
+          // Copy to device
           Kokkos::deep_copy(cfixed,cfixed_host);
         }
+        // Store var DOFs
         block_dofs.push_back(cfixed);
       }
+      // Store block DOFs
       set_fixedDOF.push_back(block_dofs);
     }
+    // Store set DOFs
     fixedDOF.push_back(set_fixedDOF);
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::createFixedDOFs" << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::createFixedDOFs");
   
 }
 
@@ -260,11 +273,7 @@ void AssemblyManager<Node>::createGroups() {
   
   Teuchos::TimeMonitor localtimer(*group_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::createGroups ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::createGroups ...");
   
   double storageProportion = settings->sublist("Solver").get<double>("storage proportion",1.0);
   
@@ -710,11 +719,7 @@ void AssemblyManager<Node>::createGroups() {
 template<class Node>
 void AssemblyManager<Node>::allocateGroupStorage() {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::allocateGroupStorage" << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::allocateGroupStorage");
   
   bool keepnodes = false;
   // There are a few scenarios where we want the groups to keep their nodes
@@ -844,11 +849,8 @@ void AssemblyManager<Node>::allocateGroupStorage() {
     totalstorage = static_cast<double>(boundarystorage)/1.0e6;
     cout << " - Processor " << comm->getRank() << " is using " << totalstorage << " MB to store boundary data" << endl;
   }
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::allocategroupstorage" << endl;
-    }
-  }
+  
+  debugger->print("**** Finished AssemblyManager::allocategroupstorage");
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -860,11 +862,7 @@ void AssemblyManager<Node>::createWorkset() {
   
   Teuchos::TimeMonitor localtimer(*wkset_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::createWorkset ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::createWorkset ...");
   
   for (size_t block=0; block<groups.size(); ++block) {
     if (groups[block].size() > 0) {
@@ -1062,11 +1060,7 @@ void AssemblyManager<Node>::createWorkset() {
     
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::createWorkset" << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::createWorkset");
   
 }
 
@@ -1193,11 +1187,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   
   Teuchos::TimeMonitor localtimer(*set_init_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::setInitial ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::setInitial ...");
   
   for (size_t block=0; block<groups.size(); block++) {
     if (wkset[block]->isInitialized) {
@@ -1207,11 +1197,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   
   mass->fillComplete();
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::setInitial ..." << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::setInitial ...");
   
 }
 
@@ -1331,11 +1317,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   
   using namespace std;
 
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::getWeightedMass ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::getWeightedMass ...");
   
   typedef typename Node::execution_space LA_exec;
   bool use_atomics_ = false;
@@ -1589,11 +1571,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     mass->fillComplete();
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::getWeightedMass ..." << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::getWeightedMass ...");
   
 }
 
@@ -1805,11 +1783,7 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
   
   typedef typename Node::execution_space LA_exec;
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::getWeightVector ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::getWeightVector ...");
   
   auto wts_view = wts->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
@@ -1845,11 +1819,7 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
     }
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::getWeightVector ..." << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::getWeightVector ...");
   
 }
 
@@ -1889,11 +1859,7 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
   
   Teuchos::TimeMonitor localtimer(*set_dbc_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::setDirichlet ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::setDirichlet ...");
   
   // TMW TODO: The Dirichlet BCs are being applied on the host
   //           This is expensive and unnecessary if the LA_Device is not the host device
@@ -1974,11 +1940,7 @@ void AssemblyManager<Node>::setDirichlet(const size_t & set, vector_RCP & rhs, m
   
   mass->fillComplete();
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::setDirichlet ..." << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::setDirichlet ...");
   
 }
 
@@ -1992,11 +1954,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   Teuchos::TimeMonitor localtimer(*set_init_timer);
   
   using namespace std;
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::setInitialFace ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::setInitialFace ...");
   
   auto localMatrix = mass->getLocalMatrixHost();
   
@@ -2075,11 +2033,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   
   mass->fillComplete();
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::setInitialFace ..." << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::setInitialFace ...");
   
 }
 
@@ -2104,11 +2058,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
                                            vector_RCP & Psol, const bool & is_final_time,
                                            const ScalarT & deltat) {
   
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Starting AssemblyManager::assembleJacRes ..." << endl;
-    }
-  }
+  debugger->print("******** Starting AssemblyManager::assembleJacRes ...");
+  
 #ifndef MrHyDE_NO_AD
     
   for (size_t block=0; block<groups.size(); ++block) {
@@ -2184,11 +2135,8 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
   }
   #endif
 
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Finished AssemblyManager::assembleJacRes" << endl;
-    }
-  }
+  debugger->print("******** Finished AssemblyManager::assembleJacRes");
+  
 }
 
 // ========================================================================================
@@ -2976,11 +2924,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
                                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                                         const ScalarT & current_time, const ScalarT & deltat) {
   
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Starting AssemblyManager::assembleRes ..." << endl;
-    }
-  }
+  debugger->print("******** Starting AssemblyManager::assembleRes ...");
     
   for (size_t block=0; block<groups.size(); ++block) {
     if (groups[block].size() > 0) {
@@ -2991,11 +2935,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
     }
   }
   
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Finished AssemblyManager::assembleRes" << endl;
-    }
-  }
+  debugger->print("******** Finished AssemblyManager::assembleRes");
 }
 
 // ========================================================================================
@@ -3220,11 +3160,7 @@ void AssemblyManager<Node>::dofConstraints(const size_t & set, matrix_RCP & J, v
                                            const bool & compute_jacobian,
                                            const bool & compute_disc_sens) {
   
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Starting AssemblyManager::dofConstraints" << endl;
-    }
-  }
+  debugger->print("******** Starting AssemblyManager::dofConstraints");
   
   Teuchos::TimeMonitor localtimer(*dbc_timer);
   
@@ -3246,11 +3182,7 @@ void AssemblyManager<Node>::dofConstraints(const size_t & set, matrix_RCP & J, v
     }
   }
   
-  if (debug_level > 1) {
-    if (comm->getRank() == 0) {
-      cout << "******** Finished AssemblyManager::dofConstraints" << endl;
-    }
-  }
+  debugger->print("******** Finished AssemblyManager::dofConstraints");
   
 }
 
@@ -5511,12 +5443,8 @@ void AssemblyManager<Node>::writeVolumetricData(const size_t & block, vector<vec
 
 template<class Node>
 void AssemblyManager<Node>::finalizeFunctions() {
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::finalizeFunctions()" << endl;
-    }
-  }
   
+  debugger->print("**** Starting AssemblyManager::finalizeFunctions()");
   
   for (size_t block=0; block<wkset.size(); ++block) {
     this->finalizeFunctions(function_managers[block], wkset[block]);
@@ -5564,11 +5492,8 @@ void AssemblyManager<Node>::finalizeFunctions() {
     }
   }
 #endif
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::finalizeFunctions()" << endl;
-    }
-  }
+  
+  debugger->print("**** Finished AssemblyManager::finalizeFunctions()");
   
 }
 
@@ -8288,11 +8213,7 @@ void AssemblyManager<Node>::createFunctions() {
 template<class Node>
 void AssemblyManager<Node>::setMeshData() {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting assembly manager setMeshData" << endl;
-    }
-  }
+  debugger->print("**** Starting assembly manager setMeshData");
   
   if (mesh->have_mesh_data) {
     this->importMeshData();
@@ -8303,11 +8224,7 @@ void AssemblyManager<Node>::setMeshData() {
     this->importNewMicrostructure(randSeed, seeds);
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh interface setMeshData" << endl;
-    }
-  }
+  debugger->print("**** Finished mesh interface setMeshData");
   
 }
 
@@ -8317,11 +8234,7 @@ void AssemblyManager<Node>::setMeshData() {
 template<class Node>
 void AssemblyManager<Node>::importMeshData() {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::importMeshData ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::importMeshData ...");
   
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
@@ -8508,11 +8421,8 @@ void AssemblyManager<Node>::importMeshData() {
     cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::meshDataImport" << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::meshDataImport");
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -8521,11 +8431,8 @@ void AssemblyManager<Node>::importMeshData() {
 template<class Node>
 void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 seeds) {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting AssemblyManager::importNewMicrostructure ..." << endl;
-    }
-  }
+  debugger->print("**** Starting AssemblyManager::importNewMicrostructure ...");
+  
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
   
@@ -8768,11 +8675,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
     cout << "microstructure import time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished AssemblyManager::importNewMicrostructure" << endl;
-    }
-  }
+  debugger->print("**** Finished AssemblyManager::importNewMicrostructure");
   
 }
 

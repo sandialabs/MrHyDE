@@ -72,15 +72,12 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   RCP<Teuchos::Time> constructor_time = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface - constructor");
   Teuchos::TimeMonitor constructor_timer(*constructor_time);
     
-  debug_level = settings->get<int>("debug level",0);
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), comm));
+  
   verbosity = settings->get<int>("verbosity",0);
   minimize_memory = settings->sublist("Solver").get<bool>("minimize memory",false);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface constructor..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface constructor...");
   
   ////////////////////////////////////////////////////////////////////////////////
   // Collect some information
@@ -337,11 +334,8 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   //  cout << endl;
   //}
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface constructor");
+  
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -2117,11 +2111,7 @@ DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const
 
   Teuchos::TimeMonitor localtimer(*phys_basis_new_quad_timer);
 
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface::evaluateBasisNewQuadrature() ..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface::evaluateBasisNewQuadrature() ...");
 
   DRV finalbasis;
   
@@ -2238,11 +2228,7 @@ DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const
     }
   }
 
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface::evaluateBasisNewQuadrature()" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface::evaluateBasisNewQuadrature()");
 
   return finalbasis;
 }
@@ -2339,11 +2325,7 @@ void DiscretizationInterface::buildDOFManagers() {
   
   Teuchos::TimeMonitor localtimer(*dofmgr_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting physics::buildDOF ..." << endl;
-    }
-  }
+  debugger->print("**** Starting discretization::buildDOF ...");
   
   Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
   
@@ -2489,11 +2471,7 @@ void DiscretizationInterface::buildDOFManagers() {
     }
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished physics::buildDOF" << endl;
-    }
-  }
+  debugger->print("**** Finished discretization::buildDOF");
   
 }
 
@@ -2504,11 +2482,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
   
   Teuchos::TimeMonitor localtimer(*set_bc_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface::setBCData ..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface::setBCData ...");
   
   bool requires_sideinfo = false;
   if (settings->isSublist("Subgrid")) {
@@ -2761,11 +2735,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
     
   //} // sets
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface::setBCData" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface::setBCData");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -2775,11 +2745,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
   
   Teuchos::TimeMonitor localtimer(*set_dbc_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface::setDirichletData ..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface::setDirichletData ...");
   
   //vector<string> side_names;
   //mesh->getSidesetNames(side_names);
@@ -2852,11 +2818,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
     
   //}
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface::setDirichletData" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface::setDirichletData");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

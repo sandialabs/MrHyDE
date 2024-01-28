@@ -28,13 +28,10 @@ MacroComm(MacroComm_), macro_mesh(mesh_), settings(settings_), groups(groups_), 
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::MultiscaleManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
-  debug_level = settings->get<int>("debug level",0);
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), MacroComm));
+  
   verbosity = settings->get<int>("verbosity",0);
-  if (debug_level > 0) {
-    if (MacroComm->getRank() == 0) {
-      cout << "**** Starting MultiscaleManager manager constructor ..." << endl;
-    }
-  }
+  debugger->print("**** Starting MultiscaleManager manager constructor ...");\
   
   // Create subcommunicators for the subgrid models (this isn't really used much)
   Teuchos::RCP<MpiComm> unusedComm;
@@ -172,11 +169,8 @@ MacroComm(MacroComm_), macro_mesh(mesh_), settings(settings_), groups(groups_), 
     subgrid_static = true;
   }
   
-  if (debug_level > 0) {
-    if (MacroComm->getRank() == 0) {
-      cout << "**** Finished MultiscaleManager manager constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished MultiscaleManager manager constructor");
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -234,11 +228,8 @@ ScalarT MultiscaleManager::initialize(vector<vector<int> > & sgmodels) {
   
   Teuchos::TimeMonitor localtimer(*initializetimer);
   
-  if (debug_level > 0) {
-    if (MacroComm->getRank() == 0) {
-      cout << "**** Starting MultiscaleManager manager initialize" << endl;
-    }
-  }
+  debugger->print("**** Starting MultiscaleManager manager initialize");
+  
   ScalarT my_cost = 0.0;
   size_t numusers = 0;
   for (size_t block=0; block<groups.size(); ++block) {
@@ -363,11 +354,7 @@ ScalarT MultiscaleManager::initialize(vector<vector<int> > & sgmodels) {
     subgridModels[s]->addMeshData();
   }
   
-  if (debug_level > 0) {
-    if (MacroComm->getRank() == 0) {
-      cout << "**** Finished MultiscaleManager manager initialize" << endl;
-    }
-  }
+  debugger->print("**** Finished MultiscaleManager manager initialize");
   
   //subgrid_static = true;
   return my_cost;
