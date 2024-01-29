@@ -7,6 +7,7 @@
 ************************************************************************/
 
 #include "MrHyDE_Debugger.hpp"
+#include "kokkosTools.hpp"
 
 using namespace MrHyDE;
 
@@ -33,5 +34,25 @@ void MrHyDE_Debugger::print(const std::string & message){
 void MrHyDE_Debugger::print(const int & threshhold, const std::string & message){
   if (debug_level_ > threshhold && comm_->getRank() == 0) {
     std::cout << message << std::endl;
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+template<class T>
+void MrHyDE_Debugger::print(T data, const std::string & message){
+  if (debug_level_ > 2 && comm_->getRank() == 0) {
+    KokkosTools::print(data, message);
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////
+
+template<class T>
+void MrHyDE_Debugger::print(const int & threshhold, T data, const std::string & message){
+  if (debug_level_ > threshhold && comm_->getRank() == 0) {
+    KokkosTools::print(data, message);
   }
 }

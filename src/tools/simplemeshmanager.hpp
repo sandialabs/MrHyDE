@@ -141,6 +141,7 @@ public:
   }
 
   virtual void allocateDataStructures();
+  
   virtual void deallocateMaps();
 
   virtual GO localToGlobal(int lid);

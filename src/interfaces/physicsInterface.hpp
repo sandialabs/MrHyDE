@@ -52,18 +52,26 @@ namespace MrHyDE {
     
     PhysicsInterface() {} ;
     
+    // ========================================================================================
+    // ========================================================================================
+    
     ~PhysicsInterface() {} ;
+    
+    // ========================================================================================
+    // ========================================================================================
     
     PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
                      std::vector<string> block_names_, std::vector<string> side_names_,
                      int dimension_);
-                     //Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Add the requested physics modules, variables, discretization types 
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     void importPhysics();
+    
+    // ========================================================================================
+    // ========================================================================================
     
     vector<string> breakupList(const string & list, const string & delimiter);
     
@@ -73,6 +81,9 @@ namespace MrHyDE {
     
     template<class EvalT>
     void defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & functionManagers_);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     template<class EvalT>
     void defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & func_managers,
@@ -215,10 +226,16 @@ namespace MrHyDE {
       return var_list;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     vector<vector<vector<string> > > getVarTypes() {
       return types;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     vector<vector<vector<vector<string> > > > getDerivedList() {
       vector<vector<vector<vector<string> > > > dlist;
       for (size_t set=0; set<modules.size(); ++set) {
