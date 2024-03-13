@@ -793,7 +793,12 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active,
       if (paramtypes[i] == 1) { // active parameters
         for (size_t j=0; j<paramvals[i].size(); j++) {
           EvalT dummyval = 0.0;
-          currparams.push_back(EvalT(dummyval.size(),pprog,paramvals[i][j]));
+          if (dummyval.size() > pprog) {
+            currparams.push_back(EvalT(dummyval.size(),pprog,paramvals[i][j]));
+          }
+          else {
+            currparams.push_back(EvalT(paramvals[i][j]));
+          }
           pprog++;
         }
         }
@@ -810,7 +815,12 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active,
       if (ptypes(i) == 1) { // active params
         for (size_t j=0; j<plengths(i); j++) {
           EvalT dummyval = 0.0;
-          kv_pvals(i,j) = EvalT(dummyval.size(), pseed(i,j), pvals(i,j));
+          if (dummyval.size() > pseed(i,j)) {
+            kv_pvals(i,j) = EvalT(dummyval.size(), pseed(i,j), pvals(i,j));
+          }
+          else {
+            kv_pvals(i,j) = EvalT(pvals(i,j));
+          }
         }
       }
       else {
