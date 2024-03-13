@@ -512,7 +512,7 @@ namespace MrHyDE {
     vector<vector<vector<vector<LO> > > > dbc_dofs; // [set][block][dof]
     vector<string> block_names, side_names;
     
-    // Purgable
+    // Purgeable
     std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids;
     std::vector<Kokkos::View<GO*,HostDevice> > dof_owned, dof_owned_and_shared;
     Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations;
