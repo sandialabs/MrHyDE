@@ -2137,25 +2137,33 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               for (size_type var=0; var<numParamDOF.extent(0); var++) {
                 int bnum = assembler->wkset[block]->paramusebasis[var];
+                auto btype = assembler->wkset[block]->basis_types[bnum];
                 auto cbasis = objectives[r].sensor_basis[bnum];
-                auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
                 auto p_sv = subview(p_ip, var, ALL());
                 auto p_dof_sv = subview(p_dof, var, ALL());
-                auto pgrad_sv = subview(pgrad_ip, var, ALL());
                 
                 parallel_for("grp response sensor uip",
                             RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                             KOKKOS_LAMBDA (const int dof ) {
                   p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                  }
                 });
-              }
+                assembler->wkset[block]->setParamPoint(p_ip);
               
-              assembler->wkset[block]->setParamPoint(p_ip);
-              
-              assembler->wkset[block]->setParamGradPoint(pgrad_ip);
+
+                if (btype == "HGRAD") {
+                  auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
+                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                
+                  parallel_for("grp response sensor uip",
+                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                              KOKKOS_LAMBDA (const int dof ) {
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    }
+                  });
+                  assembler->wkset[block]->setParamGradPoint(pgrad_ip);
+                }
+              }  
             }
             
             // Evaluate the response
@@ -2828,25 +2836,35 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
               
               for (size_type var=0; var<numParamDOF.extent(0); var++) {
                 int bnum = wset->paramusebasis[var];
+                auto btype = wset->basis_types[bnum];
+
                 auto cbasis = objectives[obj].sensor_basis[bnum];
-                auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
                 auto p_sv = subview(p_ip, var, ALL());
                 auto p_dof_sv = subview(p_dof, var, ALL());
-                auto pgrad_sv = subview(pgrad_ip, var, ALL());
                 
                 parallel_for("grp response sensor uip",
                             RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                             KOKKOS_LAMBDA (const int dof ) {
                   p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                  }
                 });
+                wset->setParamPoint(p_ip);
+
+                if (btype == "HGRAD") {
+                  auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                  auto p_dof_sv = subview(p_dof, var, ALL());
+                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                
+                  parallel_for("grp response sensor uip",
+                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                              KOKKOS_LAMBDA (const int dof ) {
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    }
+                  });
+                  wset->setParamGradPoint(pgrad_ip);
+                }
               }
               
-              wset->setParamPoint(p_ip);
-              
-              wset->setParamGradPoint(pgrad_ip);
             }
             
             // Evaluate the response
@@ -2897,24 +2915,37 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 
                 for (size_type var=0; var<numParamDOF.extent(0); var++) {
                   int bnum = wset->paramusebasis[var];
+                  auto btype = wset->basis_types[bnum];
+
                   auto cbasis = objectives[obj].sensor_basis[bnum];
-                  auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
                   auto p_sv = subview(p_ip, var, ALL());
                   auto p_dof_sv = subview(p_dof, var, ALL());
-                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
                   
                   parallel_for("grp response sensor uip",
                               RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                               KOKKOS_LAMBDA (const int dof ) {
                     p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                    }
                   });
+                  wset->setParamPoint(p_ip);
+
+                  if (btype == "HGRAD") {
+                    auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                    auto p_dof_sv = subview(p_dof, var, ALL());
+                    auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                  
+                    parallel_for("grp response sensor uip",
+                                RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                                KOKKOS_LAMBDA (const int dof ) {
+                      for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                        pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                      }
+                    });
+                    wset->setParamGradPoint(pgrad_ip);
+                  }
                 }
                 
-                wset->setParamPoint(p_ip);
-                wset->setParamGradPoint(pgrad_ip);
+                
+                
                 
                 // Evaluate the response
                 auto rdata = fman->evaluate(objectives[obj].name+" response","point");
@@ -2989,11 +3020,11 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 }
               }
             });
-            
             auto regvals_sc_host = create_mirror_view(regvals_sc);
             deep_copy(regvals_sc_host,regvals_sc);
             
             auto poffs = params->paramoffsets;
+            auto cbasis = wset->basis[0];
             for (size_t elem=0; elem<assembler->groups[block][grp]->numElem; ++elem) {
                             
               vector<GO> paramGIDs;
@@ -3006,7 +3037,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                   for (size_t row=0; row<poffs[pp].size(); row++) {
                     GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
                     int poffset = poffs[pp][row];
-                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
+                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);//*cbasis(elem,row,pt,0);
                   }
                 }
               }
@@ -4046,24 +4077,37 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             
             for (size_type var=0; var<numParamDOF.extent(0); var++) {
               int bnum = wset->paramusebasis[var];
+              auto btype = wset->basis_types[bnum];
+
               auto cbasis = objectives[obj].sensor_basis[bnum];
-              auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
               auto p_sv = subview(p_ip, var, ALL());
               auto p_dof_sv = subview(p_dof, var, ALL());
-              auto pgrad_sv = subview(pgrad_ip, var, ALL());
               
               parallel_for("grp response sensor uip",
                            RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                            KOKKOS_LAMBDA (const int dof ) {
                 p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                  pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                }
               });
+              wset->setParamPoint(p_ip);
+
+              if (btype == "HGRAD") {
+                auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                auto p_dof_sv = subview(p_dof, var, ALL());
+                auto pgrad_sv = subview(pgrad_ip, var, ALL());
+              
+                parallel_for("grp response sensor uip",
+                             RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                             KOKKOS_LAMBDA (const int dof ) {
+                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                  }
+                });
+                wset->setParamGradPoint(pgrad_ip);
+              }
             }
             
-            wset->setParamPoint(p_ip);
-            wset->setParamGradPoint(pgrad_ip);
+            
+            
           }
           
           
@@ -4832,6 +4876,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
           auto eID = assembler->groups[block][grp]->localElemID;
           int set = 0; // TMW: why is this hard-coded?
           assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+          assembler->performGather(0, block, grp, params_kv[0], 4, 0);
           assembler->updateWorkset(block, grp, 0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
