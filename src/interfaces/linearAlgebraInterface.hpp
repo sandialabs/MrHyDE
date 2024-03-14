@@ -18,6 +18,7 @@
 #include "preferences.hpp"
 #include "discretizationInterface.hpp"
 #include "managers/parameterManager.hpp"
+#include "tools/MrHyDE_Debugger.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>
@@ -56,7 +57,13 @@ namespace MrHyDE {
     
     LinearSolverOptions() {};
     
+    // ========================================================================================
+    // ========================================================================================
+    
     ~LinearSolverOptions() {};
+    
+    // ========================================================================================
+    // ========================================================================================
     
     LinearSolverOptions(Teuchos::ParameterList & settings) {
       amesos_type = settings.get<string>("Amesos solver","KLU2");
@@ -75,6 +82,9 @@ namespace MrHyDE {
       have_symb_factor = false;
       have_jacobian = false;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     // This is basically just a struct storing data, so all data members are public
     
@@ -120,12 +130,21 @@ namespace MrHyDE {
     
     LinearAlgebraInterface() {};
     
+    // ========================================================================================
+    // ========================================================================================
+    
     ~LinearAlgebraInterface() {};
+    
+    // ========================================================================================
+    // ========================================================================================
     
     LinearAlgebraInterface(const Teuchos::RCP<MpiComm> & Comm_,
                            Teuchos::RCP<Teuchos::ParameterList> & settings_,
                            Teuchos::RCP<DiscretizationInterface> & disc_,
                            Teuchos::RCP<ParameterManager<Node> > & params_);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void setupLinearAlgebra();
     
@@ -139,6 +158,9 @@ namespace MrHyDE {
       return newvec;
     }
     
+    // ========================================================================================
+    // ========================================================================================
+    
     vector_RCP getNewOverlappedVector(const size_t & set, const int & numvecs = 1) {
       Teuchos::TimeMonitor vectimer(*newovervectortimer);
       vector_RCP newvec;
@@ -150,6 +172,9 @@ namespace MrHyDE {
       }
       return newvec;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     matrix_RCP getNewMatrix(const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
@@ -171,11 +196,17 @@ namespace MrHyDE {
       return newmat;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     matrix_RCP getNewMatrix(const size_t & set, vector<size_t> & maxent) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
       matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], maxent));
       return newmat;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     bool getJacobianReuse(const size_t & set) {
       bool reuse = false;
@@ -185,9 +216,15 @@ namespace MrHyDE {
       return reuse;
     }
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void resetJacobian(const size_t & set) {
       options[set]->have_jacobian = false;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     matrix_RCP getNewOverlappedMatrix(const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
@@ -195,11 +232,17 @@ namespace MrHyDE {
       return newmat;
     }
     
+    // ========================================================================================
+    // ========================================================================================
+    
     matrix_RCP getNewOverlappedRectangularMatrix(Teuchos::RCP<const LA_Map> & colmap, const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
       matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(overlapped_map[set], colmap, 64));
       return newmat;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     matrix_RCP getNewRectangularMatrix(Teuchos::RCP<const LA_Map> & colmap, const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
@@ -217,11 +260,17 @@ namespace MrHyDE {
       return newvec;
     }
     
+    // ========================================================================================
+    // ========================================================================================
+    
     vector_RCP getNewParamOverlappedVector(const int & numvecs = 1) {
       Teuchos::TimeMonitor vectimer(*newvectortimer);
       vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,numvecs));
       return newvec;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     matrix_RCP getNewParamMatrix() {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
@@ -229,6 +278,9 @@ namespace MrHyDE {
       return newmat;
       //return matrix;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     matrix_RCP getNewParamOverlappedMatrix() {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
@@ -252,6 +304,9 @@ namespace MrHyDE {
       }
     }
   
+    // ========================================================================================
+    // ========================================================================================
+    
     void exportVectorFromOverlappedReplace(const size_t & set, vector_RCP & vec, vector_RCP & vec_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       if (comm->getSize() > 1) {
@@ -263,18 +318,27 @@ namespace MrHyDE {
       }
     }
   
+    // ========================================================================================
+    // ========================================================================================
+    
     void exportParamVectorFromOverlapped(vector_RCP & vec, vector_RCP & vec_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       vec->putScalar(0.0);
       vec->doExport(*vec_over, *param_exporter, Tpetra::ADD);
     }
   
+    // ========================================================================================
+    // ========================================================================================
+    
     void exportMatrixFromOverlapped(const size_t & set, matrix_RCP & mat, matrix_RCP & mat_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       mat->setAllToScalar(0.0);
       mat->doExport(*mat_over, *(exporter[set]), Tpetra::ADD);
     }
   
+    // ========================================================================================
+    // ========================================================================================
+    
     void exportParamMatrixFromOverlapped(matrix_RCP & mat, matrix_RCP & mat_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       mat->setAllToScalar(0.0);
@@ -301,6 +365,9 @@ namespace MrHyDE {
       //mat->fillComplete(param_owned_map, owned_map[set]);
     }
   
+    // ========================================================================================
+    // ========================================================================================
+    
     void fillComplete(matrix_RCP & mat) {
       Teuchos::TimeMonitor mattimer(*fillcompletetimer);
       mat->fillComplete();
@@ -321,6 +388,9 @@ namespace MrHyDE {
       return numElem;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     Teuchos::RCP<LA_CrsGraph> getNewOverlappedGraph(const size_t & set, vector<size_t> & maxEntriesPerRow) {
       Teuchos::RCP<LA_CrsGraph> newgraph;
       if (have_overlapped) {
@@ -331,6 +401,9 @@ namespace MrHyDE {
       }
       return newgraph;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
     
     GO getGlobalElement(const size_t & set, const LO & lid) {
       GO gid = 0;
@@ -343,10 +416,16 @@ namespace MrHyDE {
       return gid;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     bool getHaveOverlapped() {
       return have_overlapped;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     LO getOverlappedLID(const size_t & set, const GO & gid) {
       LO lid = 0;
       if (have_overlapped) {
@@ -358,6 +437,9 @@ namespace MrHyDE {
       return lid;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     LO getOwnedLID(const size_t & set, const GO & gid) {
       return owned_map[set]->getLocalElement(gid);
     }
@@ -402,6 +484,9 @@ namespace MrHyDE {
     void linearSolver(Teuchos::RCP<LinearSolverOptions<Node> > & opt,
                       matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void linearSolver(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
     
@@ -460,8 +545,9 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<ParameterManager<Node> > params;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
-    int verbosity, debug_level;
+    int verbosity;
     vector<string> setnames;
     bool do_dump_jacobian, do_dump_residual, do_dump_solution;
     bool have_overlapped;

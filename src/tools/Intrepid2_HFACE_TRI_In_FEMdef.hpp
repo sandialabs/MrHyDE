@@ -61,9 +61,9 @@ namespace Intrepid2 {
     typename vinvViewType>
     KOKKOS_INLINE_FUNCTION
     void Basis_HFACE_TRI_In_FEM::Serial<opType>::getValues(OutputViewType output,
-                                                            const inputViewType  input,
-                                                            workViewType   work,
-                                                            const vinvViewType   vinvLine) {
+                                                           const inputViewType  input,
+                                                           workViewType   work,
+                                                           const vinvViewType   vinvLine) {
       const ordinal_type cardLine = vinvLine.extent(0);
       
       const ordinal_type npts = input.extent(0);
@@ -190,9 +190,9 @@ namespace Intrepid2 {
     typename inputPointValueType,  class ...inputPointProperties,
     typename vinvValueType,        class ...vinvProperties>
     void Basis_HFACE_TRI_In_FEM::getValues(Kokkos::DynRankView<outputValueValueType,outputValueProperties...> outputValues,
-                                            const Kokkos::DynRankView<inputPointValueType, inputPointProperties...>  inputPoints,
-                                            const Kokkos::DynRankView<vinvValueType,       vinvProperties...>        vinvLine,
-                                            const EOperator operatorType ) {
+                                           const Kokkos::DynRankView<inputPointValueType, inputPointProperties...>  inputPoints,
+                                           const Kokkos::DynRankView<vinvValueType,       vinvProperties...>        vinvLine,
+                                           const EOperator operatorType ) {
       typedef          Kokkos::DynRankView<outputValueValueType,outputValueProperties...>         outputValueViewType;
       typedef          Kokkos::DynRankView<inputPointValueType, inputPointProperties...>          inputPointViewType;
       typedef          Kokkos::DynRankView<vinvValueType,       vinvProperties...>                vinvViewType;
@@ -242,7 +242,7 @@ namespace Intrepid2 {
   template<typename DT, typename OT, typename PT>
   Basis_HFACE_TRI_In_FEM<DT,OT,PT>::
   Basis_HFACE_TRI_In_FEM( const ordinal_type order,
-                          const EPointType   pointType ) {
+                         const EPointType   pointType ) {
     
     INTREPID2_TEST_FOR_EXCEPTION( !(pointType == POINTTYPE_EQUISPACED ||
                                     pointType == POINTTYPE_WARPBLEND), std::invalid_argument,

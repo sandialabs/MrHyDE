@@ -16,6 +16,7 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 #include "physics/physicsBase.hpp"
 #include "tools/workset.hpp"
@@ -51,18 +52,26 @@ namespace MrHyDE {
     
     PhysicsInterface() {} ;
     
+    // ========================================================================================
+    // ========================================================================================
+    
     ~PhysicsInterface() {} ;
+    
+    // ========================================================================================
+    // ========================================================================================
     
     PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings, Teuchos::RCP<MpiComm> & Comm_,
                      std::vector<string> block_names_, std::vector<string> side_names_,
                      int dimension_);
-                     //Teuchos::RCP<panzer_stk::STK_Interface> & mesh);
     
     /////////////////////////////////////////////////////////////////////////////////////////////
     // Add the requested physics modules, variables, discretization types 
     /////////////////////////////////////////////////////////////////////////////////////////////
     
     void importPhysics();
+    
+    // ========================================================================================
+    // ========================================================================================
     
     vector<string> breakupList(const string & list, const string & delimiter);
     
@@ -72,6 +81,9 @@ namespace MrHyDE {
     
     template<class EvalT>
     void defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & functionManagers_);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     template<class EvalT>
     void defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & func_managers,
@@ -214,10 +226,16 @@ namespace MrHyDE {
       return var_list;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     vector<vector<vector<string> > > getVarTypes() {
       return types;
     }
 
+    // ========================================================================================
+    // ========================================================================================
+    
     vector<vector<vector<vector<string> > > > getDerivedList() {
       vector<vector<vector<vector<string> > > > dlist;
       for (size_t set=0; set<modules.size(); ++set) {
@@ -246,7 +264,7 @@ namespace MrHyDE {
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> comm;    
-    int dimension, debug_level;
+    int dimension;
     vector<string> set_names, block_names, side_names;
     
     vector<vector<size_t> > num_vars; // [set][block]
@@ -297,6 +315,7 @@ namespace MrHyDE {
 
   private:
 
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     Teuchos::RCP<Teuchos::Time> bc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setBCData()");
     Teuchos::RCP<Teuchos::Time> dbc_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::setDirichletData()");
     Teuchos::RCP<Teuchos::Time> side_info_timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface::getSideInfo()");

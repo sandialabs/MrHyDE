@@ -25,12 +25,9 @@ settings(settings_), comm(comm_) {
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::meshInterface - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
-  debug_level = settings->get<int>("debug level",0);
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh interface constructor ..." << endl;
-    }
-  }
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), comm));
+  
+  debugger->print("**** Starting mesh interface constructor ...");
   
   use_stk_mesh = settings->sublist("Mesh").get<bool>("use STK mesh",true);
   use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
@@ -234,11 +231,7 @@ settings(settings_), comm(comm_) {
     }
   }
 
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh interface constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished mesh interface constructor");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -254,12 +247,9 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
   using Teuchos::RCP;
   using Teuchos::rcp;
   
-  debug_level = settings->get<int>("debug level",0);
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh interface constructor ..." << endl;
-    }
-  }
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), comm));
+  
+  debugger->print("**** Starting mesh interface constructor ...");
   
   shape = settings->sublist("Mesh").get<string>("shape","none");
   if (shape == "none") { // new keywords, but allowing BWDS compat.
@@ -328,11 +318,7 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
     
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh interface constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished mesh interface constructor");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -341,11 +327,8 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
 void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > varlist,
                              std::vector<std::vector<std::vector<string> > > vartypes,
                              std::vector<std::vector<std::vector<std::vector<string> > > > derivedList) {
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh interface finalize ..." << endl;
-    }
-  }
+  
+  debugger->print("**** Starting mesh interface finalize ...");
   
   ////////////////////////////////////////////////////////////////////////////////
   // Add fields to the mesh
@@ -542,11 +525,8 @@ void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > var
     this->readExodusData();
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh interface finalize" << endl;
-    }
-  }
+  debugger->print("**** Finished mesh interface finalize");
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -685,11 +665,8 @@ View_Sc2 MeshInterface::getElementCenters(DRV nodes, topo_RCP & reftopo) {
 
 View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh::generateNewMicrostructure ..." << endl;
-    }
-  }
+  debugger->print("**** Starting mesh::generateNewMicrostructure ...");
+  
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
   
@@ -848,11 +825,7 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     cout << "microstructure regeneration time: " << meshimporttimer.totalElapsedTime(false) << endl;
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh::generateNewMicrostructure ..." << endl;
-    }
-  }
+  debugger->print("**** Finished mesh::generateNewMicrostructure ...");
   
   return seeds;
 }
@@ -921,11 +894,7 @@ vector<string> MeshInterface::breakupList(const string & list, const string & de
 
 void MeshInterface::readExodusData() {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting mesh::readExodusData ..." << endl;
-    }
-  }
+  debugger->print("**** Starting mesh::readExodusData ...");
   
   string exofile;
   string fname;
@@ -1077,11 +1046,7 @@ void MeshInterface::readExodusData() {
    */
   exo_error = ex_close(exoid);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished mesh::readExodusData" << endl;
-    }
-  }
+  debugger->print("**** Finished mesh::readExodusData");
   
 }
 

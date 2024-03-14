@@ -64,16 +64,16 @@ namespace Intrepid2 {
     typename vinvViewType>
     KOKKOS_INLINE_FUNCTION
     void Basis_HFACE_TET_In_FEM::Serial<opType>::getValues(OutputViewType output,
-                                                            const inputViewType  input,
-                                                            workViewType   work,
-                                                            const vinvViewType   vinvTri) {
+                                                           const inputViewType  input,
+                                                           workViewType   work,
+                                                           const vinvViewType   vinvTri) {
       const ordinal_type cardTri = vinvTri.extent(0);
       const ordinal_type npts = input.extent(0);
       
       typedef typename Kokkos::DynRankView<typename workViewType::value_type, typename workViewType::memory_space> viewType;
       auto vcprop = Kokkos::common_view_alloc_prop(work);
       auto ptr = work.data();
-
+      
       // compute order
       ordinal_type order = 0;
       for (ordinal_type p=0;p<=Parameters::MaxOrder;++p) {
@@ -243,7 +243,7 @@ namespace Intrepid2 {
   template<typename DT, typename OT, typename PT>
   Basis_HFACE_TET_In_FEM<DT,OT,PT>::
   Basis_HFACE_TET_In_FEM( const ordinal_type order,
-                          const EPointType   pointType ) {
+                         const EPointType   pointType ) {
     
     INTREPID2_TEST_FOR_EXCEPTION( !(pointType == POINTTYPE_EQUISPACED ||
                                     pointType == POINTTYPE_WARPBLEND), std::invalid_argument,

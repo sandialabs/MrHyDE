@@ -168,7 +168,7 @@ namespace Intrepid2 {
     /** \brief  Constructor.
      */
     Basis_HFACE_HEX_In_FEM(const ordinal_type order,
-                            const EPointType   pointType = POINTTYPE_EQUISPACED);
+                           const EPointType   pointType = POINTTYPE_EQUISPACED);
     
     using OutputViewType = typename Basis<DeviceType,outputValueType,pointValueType>::OutputViewType;
     using PointViewType  = typename Basis<DeviceType,outputValueType,pointValueType>::PointViewType;
@@ -191,9 +191,9 @@ namespace Intrepid2 {
       constexpr ordinal_type numPtsPerEval = Parameters::MaxNumPtsPerBasisEval;
       Impl::Basis_HFACE_HEX_In_FEM::
       getValues<DeviceType,numPtsPerEval>( outputValues,
-                                           inputPoints,
-                                           this->vinvLine_,
-                                           operatorType );
+                                          inputPoints,
+                                          this->vinvLine_,
+                                          operatorType );
     }
     virtual
     void
@@ -250,39 +250,39 @@ namespace Intrepid2 {
     
     /** \brief inverse of Generalized Vandermonde matrix (isotropic order) */
     Kokkos::DynRankView<typename ScalarViewType::value_type,DeviceType> vinvLine_;
-
+    
     /** \brief type of lattice used for creating the DoF coordinates  */
     EPointType pointType_;
-
+    
   public:
-
+    
     /** \brief returns the basis associated to a subCell.
-
-        The bases of the subCell are the restriction to the subCell
-        of the bases of the parent cell.
-        \param [in] subCellDim - dimension of subCell
-        \param [in] subCellOrd - position of the subCell among of the subCells having the same dimension
-        \return pointer to the subCell basis of dimension subCellDim and position subCellOrd
+     
+     The bases of the subCell are the restriction to the subCell
+     of the bases of the parent cell.
+     \param [in] subCellDim - dimension of subCell
+     \param [in] subCellOrd - position of the subCell among of the subCells having the same dimension
+     \return pointer to the subCell basis of dimension subCellDim and position subCellOrd
      */
     BasisPtr<DeviceType,outputValueType,pointValueType>
-      getSubCellRefBasis(const ordinal_type subCellDim, const ordinal_type subCellOrd) const override{
+    getSubCellRefBasis(const ordinal_type subCellDim, const ordinal_type subCellOrd) const override{
       if(subCellDim == 1) {
         return Teuchos::rcp(new
-            Basis_HGRAD_LINE_Cn_FEM<DeviceType,outputValueType,pointValueType>
-            (this->basisDegree_, POINTTYPE_EQUISPACED));
+                            Basis_HGRAD_LINE_Cn_FEM<DeviceType,outputValueType,pointValueType>
+                            (this->basisDegree_, POINTTYPE_EQUISPACED));
       } else if(subCellDim == 2) {
         return Teuchos::rcp(new
-            Basis_HGRAD_QUAD_Cn_FEM<DeviceType,outputValueType,pointValueType>
-            (this->basisDegree_, POINTTYPE_EQUISPACED));
+                            Basis_HGRAD_QUAD_Cn_FEM<DeviceType,outputValueType,pointValueType>
+                            (this->basisDegree_, POINTTYPE_EQUISPACED));
       }
       INTREPID2_TEST_FOR_EXCEPTION(true,std::invalid_argument,"Input parameters out of bounds");
     }
-
+    
     BasisPtr<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>
     getHostBasis() const override{
       return Teuchos::rcp(new Basis_HFACE_HEX_In_FEM<typename Kokkos::HostSpace::device_type,outputValueType,pointValueType>(this->basisDegree_, POINTTYPE_EQUISPACED));
     }
-
+    
   };
   
 }// namespace Intrepid2

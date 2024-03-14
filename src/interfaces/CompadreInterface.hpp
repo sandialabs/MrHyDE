@@ -18,6 +18,7 @@
 #include "Compadre_PointCloudSearch.hpp"
 #include "Compadre_KokkosParser.hpp"
 #include "Compadre_NeighborLists.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 #include <iostream>
 #include <iterator>
@@ -54,24 +55,10 @@ CompadreInterface_constructNeighborLists(const view_type &points_in,
   Kokkos::View<ScalarT**, CompadreDevice> points("points Compadre device", points_in.extent(0), points_in.extent(1));
   Kokkos::View<ScalarT**, CompadreDevice> tstpts("tst pts", tstpts_assembly.extent(0), tstpts_assembly.extent(1));
 
-  // GH: Probably don't need this since Kokkos is smart
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
-  // We need host accessible versions of the input views
-  //auto tstpts_mirror = Kokkos::create_mirror_view(tstpts_assembly);
-  //Kokkos::deep_copy(tstpts_mirror, tstpts_assembly);
-
-  // TMW: This should work ... still need to test though
   deep_copy(tstpts, tstpts_assembly);
   deep_copy(points, points_in);
-  
-  //for(unsigned int i=0; i<points.extent(0); ++i)
-  //  for(unsigned int d=0; d<points.extent(1); ++d)
-  //    sensor_coords(i,d) = sensor_coords_in(i,d);
-
-  //for(unsigned int i=0; i<cell_coords.extent(0); ++i)
-  //  for(unsigned int d=0; d<cell_coords.extent(1); ++d)
-  //    cell_coords(i,d) = cell_coords_mirror(i,d);
-#else 
+#else
   points = points_in;
   tstpts = tstpts_assembly;
 #endif
@@ -103,10 +90,6 @@ CompadreInterface_constructNeighborLists(const view_type &points_in,
   size_t storage_size = point_cloud_search.generateCRNeighborListsFromKNNSearch(true /*dry run*/, tstpts, neighbor_lists, number_of_neighbors_list, epsilon, min_neighbors, epsilon_mult);
 
   Kokkos::resize(neighbor_lists, storage_size);
-
-  // GH: fixing this next
-  // TMW: this has been fixed within data.cpp
-  //TEUCHOS_ASSERT(neighbor_lists.extent(0)==cell_coords.extent(0)); // if this assert fails, some points have multiple neighbors of equal distance, which requires some updates in implementation
 
   point_cloud_search.generateCRNeighborListsFromKNNSearch(false /*not dry run*/, tstpts, neighbor_lists, number_of_neighbors_list, epsilon, min_neighbors, epsilon_mult);
   
