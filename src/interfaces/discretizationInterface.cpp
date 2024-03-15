@@ -72,15 +72,12 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   RCP<Teuchos::Time> constructor_time = Teuchos::TimeMonitor::getNewCounter("MrHyDE::DiscretizationInterface - constructor");
   Teuchos::TimeMonitor constructor_timer(*constructor_time);
     
-  debug_level = settings->get<int>("debug level",0);
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), comm));
+  
   verbosity = settings->get<int>("verbosity",0);
   minimize_memory = settings->sublist("Solver").get<bool>("minimize memory",false);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface constructor..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface constructor...");
   
   ////////////////////////////////////////////////////////////////////////////////
   // Collect some information
@@ -337,11 +334,8 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   //  cout << endl;
   //}
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface constructor");
+  
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -680,6 +674,9 @@ void DiscretizationInterface::getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaDa
   this->getPhysicalIntegrationPts(groupData, nodes, ip);
 }
 
+// ========================================================================================
+// ========================================================================================
+
 void DiscretizationInterface::getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
                                                          DRV nodes, vector<View_Sc2> & ip) {
   
@@ -716,6 +713,9 @@ void DiscretizationInterface::getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaDa
     
   }
 }
+
+// ========================================================================================
+// ========================================================================================
 
 void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
                                                          Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip, View_Sc2 wts) {
@@ -783,6 +783,9 @@ void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupDat
   DRV nodes = this->getMyNodes(groupData->my_block, elemIDs);
   this->getJacobian(groupData, nodes, jacobian);
 }
+
+// ========================================================================================
+// ========================================================================================
 
 void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
                                           DRV nodes, DRV jacobian) {
@@ -888,6 +891,9 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
   this->getPhysicalVolumetricBasis(groupData, nodes, orientation, basis, basis_grad,
                                    basis_curl, basis_div, basis_nodes, apply_orientations);
 }
+
+// ========================================================================================
+// ========================================================================================
 
 void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData,
                                                          DRV nodes,
@@ -1136,7 +1142,10 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
   this->getPhysicalVolumetricBasis(groupData, nodes, orientation, basis);                                       
 }
 
-void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, 
+// ========================================================================================
+// ========================================================================================
+
+void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData,
                                                          DRV nodes,
                                                          Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                          vector<View_Sc4> & basis) {
@@ -1289,7 +1298,10 @@ void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupM
   this->getPhysicalFaceIntegrationData(groupData, side, nodes, face_ip, face_wts, face_normals);
 }
 
-void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side, 
+// ========================================================================================
+// ========================================================================================
+
+void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, const int & side,
                                                              DRV nodes,
                                                              vector<View_Sc2> & face_ip, View_Sc2 face_wts,
                                                              vector<View_Sc2> & face_normals) {
@@ -1414,7 +1426,8 @@ void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupM
   }
 }
 
-
+// ========================================================================================
+// ========================================================================================
 
 void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, 
                                                    Kokkos::View<LO*,AssemblyDevice> elemIDs,
@@ -1427,7 +1440,10 @@ void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> &
 
 }
 
-void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side, 
+// ========================================================================================
+// ========================================================================================
+
+void DiscretizationInterface::getPhysicalFaceBasis(Teuchos::RCP<GroupMetaData> & groupData, const int & side,
                                                    DRV nodes,
                                                    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                                    vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad) {
@@ -1585,6 +1601,9 @@ void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<Gr
   this->getPhysicalBoundaryIntegrationData(groupData, nodes, localSideID, ip, wts, normals, tangents);
 
 }
+
+// ========================================================================================
+// ========================================================================================
 
 void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                                                  LO & localSideID,
@@ -1785,6 +1804,9 @@ void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaDat
 
 }
 
+// ========================================================================================
+// ========================================================================================
+
 void DiscretizationInterface::getPhysicalBoundaryBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
                                                        LO & localSideID,
                                                        Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -1983,6 +2005,9 @@ DRV DiscretizationInterface::evaluateBasis(Teuchos::RCP<GroupMetaData> & groupDa
 
 }
 
+// ========================================================================================
+// ========================================================================================
+
 DRV DiscretizationInterface::evaluateBasis(const int & block, const int & basisID, DRV nodes,
                                            const DRV & evalpts, topo_RCP & cellTopo,
                                            Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> & orientation) {
@@ -2075,6 +2100,9 @@ DRV DiscretizationInterface::evaluateBasisNewQuadrature(Teuchos::RCP<GroupMetaDa
   return basis;
 }
 
+// ========================================================================================
+// ========================================================================================
+
 DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const int & basisID, vector<string> & quad_rules,
                                                         DRV nodes,
                                                         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
@@ -2083,11 +2111,7 @@ DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const
 
   Teuchos::TimeMonitor localtimer(*phys_basis_new_quad_timer);
 
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface::evaluateBasisNewQuadrature() ..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface::evaluateBasisNewQuadrature() ...");
 
   DRV finalbasis;
   
@@ -2204,11 +2228,7 @@ DRV DiscretizationInterface::evaluateBasisNewQuadrature(const int & block, const
     }
   }
 
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface::evaluateBasisNewQuadrature()" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface::evaluateBasisNewQuadrature()");
 
   return finalbasis;
 }
@@ -2222,6 +2242,9 @@ DRV DiscretizationInterface::evaluateBasisGrads(const size_t & block, const basi
   DRV basisgrads = this->evaluateBasisGrads(basis_pointer, nodes, evalpts, cellTopo);
   return basisgrads;
 }
+
+// ========================================================================================
+// ========================================================================================
 
 DRV DiscretizationInterface::evaluateBasisGrads(const basis_RCP & basis_pointer, DRV nodes,
                                                 const DRV & evalpts, const topo_RCP & cellTopo) {
@@ -2258,6 +2281,9 @@ DRV DiscretizationInterface::evaluateBasisGrads2(Teuchos::RCP<GroupMetaData> & g
   return basisgrads;
 
 }
+
+// ========================================================================================
+// ========================================================================================
 
 DRV DiscretizationInterface::evaluateBasisGrads2(const basis_RCP & basis_pointer, DRV nodes,
                                                 const DRV & evalpts, const topo_RCP & cellTopo,
@@ -2299,11 +2325,7 @@ void DiscretizationInterface::buildDOFManagers() {
   
   Teuchos::TimeMonitor localtimer(*dofmgr_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting physics::buildDOF ..." << endl;
-    }
-  }
+  debugger->print("**** Starting discretization::buildDOF ...");
   
   Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
   
@@ -2449,11 +2471,7 @@ void DiscretizationInterface::buildDOFManagers() {
     }
   }
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished physics::buildDOF" << endl;
-    }
-  }
+  debugger->print("**** Finished discretization::buildDOF");
   
 }
 
@@ -2464,11 +2482,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
   
   Teuchos::TimeMonitor localtimer(*set_bc_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface::setBCData ..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface::setBCData ...");
   
   bool requires_sideinfo = false;
   if (settings->isSublist("Subgrid")) {
@@ -2721,11 +2735,7 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
     
   //} // sets
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface::setBCData" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface::setBCData");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -2735,11 +2745,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
   
   Teuchos::TimeMonitor localtimer(*set_dbc_timer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting DiscretizationInterface::setDirichletData ..." << endl;
-    }
-  }
+  debugger->print("**** Starting DiscretizationInterface::setDirichletData ...");
   
   //vector<string> side_names;
   //mesh->getSidesetNames(side_names);
@@ -2812,11 +2818,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
     
   //}
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished DiscretizationInterface::setDirichletData" << endl;
-    }
-  }
+  debugger->print("**** Finished DiscretizationInterface::setDirichletData");
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -2904,6 +2906,9 @@ DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, Kokkos::View<LO*,A
   return phys_pts;
 }
 
+// ========================================================================================
+// ========================================================================================
+
 DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RCP & cellTopo) {
   DRV phys_pts("reference cell points",nodes.extent(0), ref_pts.extent(0), ref_pts.extent(1));
   CellTools::mapToPhysicalFrame(phys_pts, ref_pts, nodes, *cellTopo);
@@ -2934,6 +2939,9 @@ Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhys
   Kokkos::DynRankView<int,PHX::Device> check = this->checkInclusionPhysicalData(phys_pts, nodes, cellTopo, tol);
   return check;
 }
+
+// ========================================================================================
+// ========================================================================================
 
 Kokkos::DynRankView<int,PHX::Device> DiscretizationInterface::checkInclusionPhysicalData(DRV phys_pts, DRV nodes,
                                                                                          topo_RCP & cellTopo, 
@@ -3028,13 +3036,16 @@ Kokkos::View<string**,HostDevice> DiscretizationInterface::getVarBCs(const size_
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////
-// After the setup phase, we can get rid of a few things
+// After the lin. alg. setup, we can get rid of the dof_lids
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 void DiscretizationInterface::purgeLIDs() {
   dof_lids.clear();
-  //mesh->purgeMaps();
 }
+
+// ========================================================================================
+// After the setup phase, we can get rid of a few things
+// ========================================================================================
 
 void DiscretizationInterface::purgeMemory() {
   
@@ -3043,6 +3054,9 @@ void DiscretizationInterface::purgeMemory() {
   side_info.clear();
   
 }
+
+// ========================================================================================
+// ========================================================================================
 
 void DiscretizationInterface::purgeOrientations() {
   

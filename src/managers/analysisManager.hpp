@@ -19,6 +19,7 @@
 #include "solverManager.hpp"
 #include "postprocessManager.hpp"
 #include "parameterManager.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -45,6 +46,16 @@ namespace MrHyDE {
     /* Constructor to set up the problem */
     // ========================================================================================
     
+    /**
+     * @brief Constructor that actually sets everything up.
+     *
+     * @param[in]  comm        Teuchos MPI Communicator
+     * @param[in]  settings  Teuchos ParameterList containing .all of the user-specified settings
+     * @param[in]  solver      MrHyDE solver manager
+     * @param[in]  postproc      MrHyDE postprocessing manager
+     * @param[in]  param      MrHyDE parameter (including discretized parameters) manager
+     */
+    
     AnalysisManager(const Teuchos::RCP<MpiComm> & comm,
                     Teuchos::RCP<Teuchos::ParameterList> & settings,
                     Teuchos::RCP<SolverManager<SolverNode> > & solver,
@@ -54,25 +65,69 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    /**
+     * @brief 
+     */
+    
     void run();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    /**
+     * @brief
+     */
+    
+    void run(std::string & analysis_type);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     DFAD forwardSolve();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     MrHyDE_OptVector adjointSolve();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     vector<Teuchos::Array<ScalarT> > UQSolve();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void ROLSolve();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     void ROL2Solve();
     
-    void recoverSolution(vector_RCP & solution, string & data_type, 
+    // ========================================================================================
+    // ========================================================================================
+    
+    void DCISolve();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void restartSolve();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void recoverSolution(vector_RCP & solution, string & data_type,
                          string & plist_filename, string & file_name);
  
     // ========================================================================================
     // ========================================================================================
     
     void updateRotationData(const int & newrandseed);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln);
 
@@ -83,10 +138,9 @@ namespace MrHyDE {
     Teuchos::RCP<SolverManager<SolverNode> > solver_;
     Teuchos::RCP<PostprocessManager<SolverNode> > postproc_;
     Teuchos::RCP<ParameterManager<SolverNode> > params_;
+    Teuchos::RCP<MrHyDE_Debugger> debugger_;
     
-    ScalarT response_;
-    int verbosity_, debug_level_;
-    bool sensIC_;
+    int verbosity_;
   };
   
 }

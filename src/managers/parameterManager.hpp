@@ -18,6 +18,7 @@
 #include "Panzer_STK_Interface.hpp"
 #include "discretizationInterface.hpp"
 #include "MrHyDE_OptVector.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -55,6 +56,9 @@ namespace MrHyDE {
     
     void setupParameters();
     
+    // ========================================================================================
+    // ========================================================================================
+
     void setupDiscretizedParameters(std::vector<std::vector<Teuchos::RCP<Group> > > & groups,
                                     std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > & boundary_groups);
     
@@ -74,8 +78,14 @@ namespace MrHyDE {
     
     std::vector<ScalarT> getDiscretizedParamsVector();
     
+    // ========================================================================================
+    // ========================================================================================
+
     vector_RCP getDiscretizedParams();
-    
+
+    // ========================================================================================
+    // ========================================================================================
+
     std::vector<vector_RCP> getDynamicDiscretizedParams();
     
     // ========================================================================================
@@ -83,6 +93,9 @@ namespace MrHyDE {
     
     void sacadoizeParams(const bool & seed_active);
     
+    // ========================================================================================
+    // ========================================================================================
+
     void sacadoizeParamsSc(const bool & seed_active,
                          Kokkos::View<int*,AssemblyDevice> ptypes,
                          Kokkos::View<size_t*,AssemblyDevice> plengths,
@@ -90,6 +103,9 @@ namespace MrHyDE {
                          Kokkos::View<ScalarT**,AssemblyDevice> pvals,
                          vector<Teuchos::RCP<vector<ScalarT> > > & v_pvals,
                          Kokkos::View<ScalarT**,AssemblyDevice> kv_pvals);
+
+    // ========================================================================================
+    // ========================================================================================
 
     template<class EvalT>
     void sacadoizeParams(const bool & seed_active,
@@ -105,8 +121,14 @@ namespace MrHyDE {
     
     void updateParams(MrHyDE_OptVector & newparams);
 
+    // ========================================================================================
+    // ========================================================================================
+
     void updateParams(const std::vector<ScalarT> & newparams, const int & type);
-    
+
+    // ========================================================================================
+    // ========================================================================================
+
     void updateDynamicParams(const int & timestep);
     
     // ========================================================================================
@@ -144,12 +166,18 @@ namespace MrHyDE {
     
     std::vector<ScalarT> getParams(const std::string & stype);
     
+    // ========================================================================================
+    // ========================================================================================
+
     MrHyDE_OptVector getCurrentVector();
     
     // ========================================================================================
     // ========================================================================================
     
     std::vector<Teuchos::RCP<std::vector<ScalarT> > > getActiveParamBounds();
+
+    // ========================================================================================
+    // ========================================================================================
 
     std::vector<vector_RCP> getDiscretizedParamBounds();
     
@@ -274,6 +302,7 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     Teuchos::RCP<PhysicsInterface> phys;
     Teuchos::RCP<Teuchos::ParameterList> settings;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
   };
   

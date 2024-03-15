@@ -21,6 +21,7 @@
 #include "linearAlgebraInterface.hpp"
 #include "MrHyDE_OptVector.hpp"
 #include "postprocessTools.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 #if defined(MrHyDE_ENABLE_FFTW)
 #include "fftInterface.hpp"
@@ -48,7 +49,6 @@ namespace MrHyDE {
                        Teuchos::RCP<MeshInterface> & mesh_,
                        Teuchos::RCP<DiscretizationInterface> & disc_,
                        Teuchos::RCP<PhysicsInterface> & phys_,
-                       //std::vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_);
     
     // ========================================================================================
@@ -60,7 +60,6 @@ namespace MrHyDE {
                        Teuchos::RCP<MeshInterface> & mesh_,
                        Teuchos::RCP<DiscretizationInterface> & disc_,
                        Teuchos::RCP<PhysicsInterface> & phys_,
-                       //std::vector<Teuchos::RCP<FunctionManager<AD> > > & functionManagers,
                        Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
                        Teuchos::RCP<AssemblyManager<Node> > & assembler_,
                        Teuchos::RCP<ParameterManager<Node> > & params_);
@@ -96,11 +95,6 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void computeResponse(vector<vector_RCP> & current_soln, const ScalarT & current_time);
-    
-    // ========================================================================================
-    // ========================================================================================
-    
     void computeFluxResponse(vector<vector_RCP> & current_soln, const ScalarT & current_time);
     
     // ========================================================================================
@@ -120,8 +114,16 @@ namespace MrHyDE {
     void computeObjective(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                           DFAD & objectiveval);
 
+    void resetObjectives();
+    
+    // ========================================================================================
+    // ========================================================================================
+
     void computeObjectiveGradParam(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                                    DFAD & objectiveval);
+
+    // ========================================================================================
+    // ========================================================================================
 
     template<class EvalT>
     DFAD computeObjectiveGradParam(const size_t & obj, vector<vector_RCP> & current_soln,
@@ -129,9 +131,14 @@ namespace MrHyDE {
                                                          Teuchos::RCP<Workset<EvalT> > & wset,
                                                          Teuchos::RCP<FunctionManager<EvalT> > & fman);
 
+    // ========================================================================================
+    // ========================================================================================
 
     void computeObjectiveGradState(const size_t & set, vector_RCP & current_soln, const ScalarT & current_time,
                                    const ScalarT & deltat, vector_RCP & grad);
+
+    // ========================================================================================
+    // ========================================================================================
 
     template<class EvalT>
     void computeObjectiveGradState(const size_t & set, const size_t & obj, vector_RCP & current_soln,
@@ -139,8 +146,14 @@ namespace MrHyDE {
                                    Teuchos::RCP<Workset<EvalT> > & wset,
                                    Teuchos::RCP<FunctionManager<EvalT> > & fman);
 
+    // ========================================================================================
+    // ========================================================================================
+
     void computeWeightedNorm(vector<vector_RCP> & current_soln);
     
+    // ========================================================================================
+    // ========================================================================================
+
     void computeSensorSolution(vector<vector_RCP> & current_soln, const ScalarT & current_time);
 
     // ========================================================================================
@@ -262,11 +275,24 @@ namespace MrHyDE {
                             Kokkos::View<int*[2],HostDevice> spts_owners, 
                             Kokkos::View<bool*,HostDevice> spts_found);
 
+    // ========================================================================================
+    // ========================================================================================
+
     void setNewExodusFile(string & newfile);
 
+    // ========================================================================================
+    // ========================================================================================
+
     void saveObjectiveData(const DFAD& objVal);
+
+    // ========================================================================================
+    // ========================================================================================
+
     void saveObjectiveGradientData(const MrHyDE_OptVector& gradient);
     
+    // ========================================================================================
+    // ========================================================================================
+
     Teuchos::Array<ScalarT> collectResponses();
 
     // ========================================================================================
@@ -278,9 +304,9 @@ namespace MrHyDE {
     Teuchos::RCP<PhysicsInterface> physics;
     Teuchos::RCP<AssemblyManager<Node> > assembler;
     Teuchos::RCP<ParameterManager<Node> > params;
-    //std::vector<Teuchos::RCP<FunctionManager<AD> > > functionManagers;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     Teuchos::RCP<LinearAlgebraInterface<Node> > linalg;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
     vector<objective> objectives;
     vector<regularization> regularizations;
@@ -297,7 +323,7 @@ namespace MrHyDE {
     vector<vector_RCP> norm_wts;
     bool have_norm_weights = false;
     
-    bool compute_response, compute_error, compute_subgrid_error, compute_weighted_norm;
+    bool compute_response, write_response, compute_error, compute_subgrid_error, compute_weighted_norm;
     bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution, write_subgrid_model;
     int write_frequency, exodus_write_frequency, write_group_number, write_database_id;  ///< Solution write frequency (1/timesteps) 
     std::string exodus_filename, cellfield_reduction;
@@ -322,7 +348,7 @@ namespace MrHyDE {
     std::string response_type, error_type, append;
     std::vector<ScalarT> plot_times, response_times, error_times; // probably always the same
     
-    int verbosity, debug_level;
+    int verbosity;
     
     std::vector<std::vector<std::pair<std::string,std::string> > > error_list; // [block][errors] <varname,type>
     std::vector<std::vector<std::vector<std::pair<std::string,std::string> > > > subgrid_error_lists; // [block][sgmodel][errors]

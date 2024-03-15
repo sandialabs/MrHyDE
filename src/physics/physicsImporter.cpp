@@ -25,6 +25,7 @@
 #include "maxwells_fp.hpp"
 #include "shallowwater.hpp"
 #include "maxwell.hpp"
+#include "maxwell_control.hpp"
 #include "ode.hpp"
 #include "burgers.hpp"
 #include "kuramotoSivashinsky.hpp"
@@ -108,6 +109,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Maxwell
     if (modname == "maxwell") {
       modules.push_back(Teuchos::rcp(new maxwell<EvalT>(settings, dimension) ) );
+    }
+    
+    // Maxwell for optimal control
+    if (modname == "maxwell control") {
+      modules.push_back(Teuchos::rcp(new maxwell_control<EvalT>(settings, dimension) ) );
     }
     
     // Multiple Species PhaseField

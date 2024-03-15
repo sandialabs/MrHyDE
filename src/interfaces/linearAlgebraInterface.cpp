@@ -35,13 +35,9 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
-  debug_level = settings->get<int>("debug level",0);
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), comm));
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting linear algebra interface constructor ..." << endl;
-    }
-  }
+  debugger->print("**** Starting linear algebra interface constructor ...");
   
   verbosity = settings->get<int>("verbosity",0);
   
@@ -135,11 +131,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
   
   this->setupLinearAlgebra();
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished linear algebra interface constructor" << endl;
-    }
-  }
+  debugger->print("**** Finished linear algebra interface constructor");
   
 }
 
@@ -153,11 +145,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   
   Teuchos::TimeMonitor localtimer(*setupLAtimer);
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting solver::setupLinearAlgebraInterface..." << endl;
-    }
-  }
+  debugger->print("**** Starting solver::setupLinearAlgebraInterface...");
   
   std::vector<string> blocknames = disc->block_names;
   
@@ -317,11 +305,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   }
 
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished solver::setupLinearAlgebraInterface" << endl;
-    }
-  }
+  debugger->print("**** Finished solver::setupLinearAlgebraInterface");
   
 }
 

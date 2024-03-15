@@ -58,18 +58,17 @@ assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_) 
 template<class Node>
 void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
   
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), Comm));
   
-  debug_level = settings->get<int>("debug level",0);
+  debugger->print("**** Starting PostprocessManager::setup()");
   
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Starting PostprocessManager::setup()" << endl;
-  }
-  
-  //objectiveval = 0.0;
+  ////////////////////////////////////////////
+  // Grab flags from settings parameter list
   
   verbosity = settings->get<int>("verbosity",1);
   
   compute_response = settings->sublist("Postprocess").get<bool>("compute responses",false);
+  write_response = settings->sublist("Postprocess").get<bool>("write responses",compute_response);
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors",false);
   write_solution = settings->sublist("Postprocess").get("write solution",false);
   write_frequency = settings->sublist("Postprocess").get("write frequency",1);
@@ -104,7 +103,25 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
  
   compute_weighted_norm = settings->sublist("Postprocess").get<bool>("compute weighted norm",false);
   
+  numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
+  dimension = physics->dimension;
+    
+  response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
+  have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
+  save_sensor_data = settings->sublist("Analysis").get("save sensor data",false);
+  sname = settings->sublist("Analysis").get("sensor prefix","sensor");
+    
+  stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
+  write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
+  
+  // Get a few lists of strings for easy references
+  varlist = physics->var_list;
+  blocknames = physics->block_names;
+  sideSets = physics->side_names;
   setnames = physics->set_names;
+  
+  ///////////////////////////////////////////////////
+  // Create solution storage objects (if required)
   
   for (size_t set=0; set<setnames.size(); ++set) {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
@@ -127,8 +144,16 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     }
   }
   
+  ///////////////////////////////////////////////////
+  // Default append string for output
   append = "";
   
+  ///////////////////////////////////////////////////
+  // Writing HFACE variables to exodus requires a fair bit of overhead
+  // This is due to the fact that they have no volumetric support, just face/edge
+  // So projections or interpolations are required
+  // This just warns the user if exodus is enabled and HFACE variables are used,
+  // then they need to turn on an extra flag to visualize these
   if (verbosity > 0 && Comm->getRank() == 0) {
     if (write_solution && !write_HFACE_variables) {
       bool have_HFACE_vars = false;
@@ -147,6 +172,10 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
       }
     }
   }
+  ///////////////////////////////////////////////////
+  
+  ///////////////////////////////////////////////////
+  // Set up the exodus file and informuser what file name is
   
   if (write_solution && Comm->getRank() == 0) {
     cout << endl << "*********************************************************" << endl;
@@ -166,21 +195,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     mesh->setupOptimizationExodusFile("optimization_"+exodus_filename);
   }
   
-  blocknames = physics->block_names;
-  sideSets = physics->side_names;
-  
-  numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem",4); // actually set by mesh interface
-  dimension = physics->dimension;
-    
-  response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
-  have_sensor_data = settings->sublist("Analysis").get("have sensor data", false); // or "global"
-  save_sensor_data = settings->sublist("Analysis").get("save sensor data",false);
-  sname = settings->sublist("Analysis").get("sensor prefix","sensor");
-    
-  stddev = settings->sublist("Analysis").get("additive normal noise standard dev",0.0);
-  write_dakota_output = settings->sublist("Postprocess").get("write Dakota output",false);
-  
-  varlist = physics->var_list;
+  ///////////////////////////////////////////////////
+  // Create the lists of postprocessing features that are enabled
   
   for (size_t block=0; block<blocknames.size(); ++block) {
         
@@ -307,7 +323,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
     if (block_IQs.size() > 0) integratedQuantities.push_back(block_IQs);
 
   } // end block loop
-
+  ///////////////////////////////////////////////////
+  
   // Add sensor data to objectives
   this->addSensors();
   
@@ -317,26 +334,32 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
 #endif
 
 
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished PostprocessManager::setup()" << endl;
-    }
-  }
+  debugger->print("**** Finished PostprocessManager::setup()");
     
 }
 
 // ========================================================================================
+// For verification studies with analytical solutions, set up true solutions
 // ========================================================================================
 
 template<class Node>
 vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teuchos::ParameterList & true_solns,
                                                                              vector<vector<vector<string> > > & types,
                                                                              const int & block) {
+  // Note: errors can be measured in various norms/seminorms: L2, L2-VECTOR, L2-FACE, HGRAD, HDIV, HCURL
+  // true_solns is a sublist from settings that just contains the expression for the given analytical solutions
+  
+  // Each block can have different physics, so this needs to be done per block
   vector<std::pair<string,string> > block_error_list;
+  
+  // Loop over physics sets
   for (size_t set=0; set<varlist.size(); ++set) {
     vector<string> vars = varlist[set][block];
     vector<string> ctypes = types[set][block];
+    
     for (size_t j=0; j<vars.size(); j++) {
+      
+      // Different types (scalar versus vector) have different forms
       if (true_solns.isParameter(vars[j])) { // solution at volumetric ip
         if (ctypes[j] == "HGRAD" || ctypes[j] == "HVOL") {
           std::pair<string,string> newerr(vars[j],"L2");
@@ -427,9 +450,15 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
 template<class Node>
 void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & obj_funs,
                                                      const size_t & block) {
+  
+  // obj_funs is a sublist of settings that just contains the objective functions
+  // Note that objective functions can be defined only on certain blocks
+  
   Teuchos::ParameterList::ConstIterator obj_itr = obj_funs.begin();
   while (obj_itr != obj_funs.end()) {
     Teuchos::ParameterList objsettings = obj_funs.sublist(obj_itr->first);
+    
+    // Determine if we need to add this obj fun on this block
     bool addobj = true;
     if (objsettings.isParameter("blocks")) {
       string blocklist = objsettings.get<string>("blocks");
@@ -438,6 +467,8 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
         addobj = false;
       }
     }
+    
+    // If so, then add it and the necessary functions to the function manager
     if (addobj) {
       objective newobj(objsettings,obj_itr->first,block);
       objectives.push_back(newobj);
@@ -452,7 +483,7 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
         assembler->addFunction(block, newobj.name, newobj.function, "ip");
       }
 
-      // regularizations
+      // Each objective can be associated with various types of regularizations
       for (size_t r=0; r<newobj.regularizations.size(); ++r) {
         if (newobj.regularizations[r].type == "integrated") {
           if (newobj.regularizations[r].location == "volume") {
@@ -470,6 +501,7 @@ void PostprocessManager<Node>::addObjectiveFunctions(Teuchos::ParameterList & ob
 }
 
 // ========================================================================================
+// Create a vector of flux response objects on each block
 // ========================================================================================
 
 template<class Node>
@@ -487,6 +519,8 @@ void PostprocessManager<Node>::addFluxResponses(Teuchos::ParameterList & flux_re
 }
 
 // ========================================================================================
+// Create a vector of integrated quantities objects on each block
+// This version uses a parameter list
 // ========================================================================================
 
 template<class Node>
@@ -513,6 +547,8 @@ vector<integratedQuantity> PostprocessManager<Node>::addIntegratedQuantities(Teu
 }
 
 // ========================================================================================
+// Create a vector of integrated quantities objects on each block
+// This version uses a vector of vector of strings
 // ========================================================================================
 
 template<class Node>
@@ -543,27 +579,34 @@ PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & int
 }
 
 // ========================================================================================
+// Called after each time step from the solver manager
+// Checks if output is required at this time, and write to file or saves for output later
 // ========================================================================================
 
 template<class Node>
 void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
                                       const int & stepnum, DFAD & objectiveval) {
   
+  // Determine if we want to collect QoI, objectives, etc.
   bool write_this_step = false;
   if (stepnum % write_frequency == 0) {
     write_this_step = true;
   }
 
+  // Determine if we want to write to exodus on this time step
   bool write_exodus_this_step = false;
   if (stepnum % exodus_write_frequency == 0) {
     write_exodus_this_step = true;
   }
   
+  // Write to exodus if requested and within user-defined time window for output
   if (write_exodus_this_step && current_time+1.0e-100 >= exodus_record_start && current_time-1.0e-100 <= exodus_record_stop) {
     if (write_solution) {
       this->writeSolution(current_soln, current_time);
     }
   }
+  
+  // Write all other output if requested and within user-defined time window for output
   if (write_this_step && current_time+1.0e-100 >= record_start && current_time-1.0e-100 <= record_stop) {
     if (compute_error) {
       this->computeError(current_soln, current_time);
@@ -584,6 +627,8 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
       this->computeSensorSolution(current_soln, current_time);
     }
   }
+  
+  // We only store the full forward state if running optimization, or if user requested it
   if (save_solution) {
     for (size_t set=0; set<soln.size(); ++set) {
       soln[set]->store(current_soln[set], current_time, 0);
@@ -592,6 +637,7 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
 }
 
 // ========================================================================================
+// After simulation has completed, write to file or screen output all data saved
 // ========================================================================================
 
 template<class Node>
@@ -603,28 +649,25 @@ void PostprocessManager<Node>::report() {
   // Report the responses
   ////////////////////////////////////////////////////////////////////////////
   
-  if (compute_response) {
+  if (compute_response && write_response) {
     
     if(Comm->getRank() == 0 ) {
       if (verbosity > 0) {
         cout << endl << "*********************************************************" << endl;
-        cout << "***** Computing Responses ******" << endl;
+        cout << "***** Writing responses ******" << endl;
         cout << "*********************************************************" << endl;
       }
     }
-    //Kokkos::Timer timer;
-    //timer.reset();
-
     for (size_t obj=0; obj<objectives.size(); ++obj) {
       if (objectives[obj].type == "sensors") {
+        // First case: sensors just computed states (faster than other case)
         if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
         
           Kokkos::View<ScalarT***,HostDevice> sensor_data;
           Kokkos::View<int*,HostDevice> sensorIDs;
           size_t numtimes = 0;
           int numfields = 0;
-
-          //timer.reset();
+          
           int numsensors = objectives[obj].numSensors;
            
           if (numsensors>0) {
@@ -833,7 +876,7 @@ void PostprocessManager<Node>::report() {
           }
 #endif // MrHyDE_USE_HDF5
         }
-        else {
+        else { // Second case: sensors computed response functions
           string respfile = objectives[obj].response_file+".out";
           std::ofstream respOUT;
           if (Comm->getRank() == 0) {
@@ -1059,7 +1102,6 @@ void PostprocessManager<Node>::report() {
           
           for (size_t etype=0; etype<gnerrs; etype++) {
             for (size_t time=0; time<error_times.size(); time++) {
-              //for (int n=0; n<gnvars; n++) {
               // Get the local contribution (if processor uses subgrid model)
               ScalarT lerr = 0.0;
               if (subgrid_errors[time][0][m].extent(0)>0) {
@@ -1077,7 +1119,6 @@ void PostprocessManager<Node>::report() {
               Teuchos::reduceAll(*Comm,Teuchos::REDUCE_MIN,1,&myID,&gID);
               
               if(Comm->getRank() == gID) {
-                //cout << "***** Subgrid" << m << ": " << subgrid_error_types[etype] << " norm of the error for " << sgvars[n] << " = " << sqrt(gerr) << "  (time = " << error_times[t] << ")" <<  endl;
                 
                 string varname = sg_error_list[etype].first;
                 if (sg_error_list[etype].second == "L2" || sg_error_list[etype].second == "L2 VECTOR") {
@@ -1120,16 +1161,15 @@ void PostprocessManager<Node>::report() {
 }
 
 // ========================================================================================
+// Compute the error in various requested norms given a user-defined true solution and the current state
 // ========================================================================================
 
 template<class Node>
 void PostprocessManager<Node>::computeError(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::computeError(time)" << endl;
-    }
-  }
+  Teuchos::TimeMonitor localtimer(*computeErrorTimer);
+  
+  debugger->print(1, "**** Starting PostprocessManager::computeError(time)");
   
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -1155,8 +1195,6 @@ void PostprocessManager<Node>::computeError(vector<vector_RCP> & current_soln, c
     }
   }
 
-  Teuchos::TimeMonitor localtimer(*computeErrorTimer);
-  
   error_times.push_back(currenttime);
   
   vector<Kokkos::View<ScalarT*,HostDevice> > currerror;
@@ -1466,85 +1504,13 @@ void PostprocessManager<Node>::computeError(vector<vector_RCP> & current_soln, c
         }
         blocksgerrs.push_back(sgerrs);
       }
-      /*
-      vector<vector<Kokkos::View<ScalarT*,HostDevice> > > host_blocksgerrs;
-      for (size_t k=0; k<blocksgerrs.size(); k++) {
-        vector<Kokkos::View<ScalarT*,HostDevice> > host_sgerrs;
-        for (size_t j=0; j<blocksgerrs[k].size(); j++) {
-          Kokkos::View<ScalarT*,HostDevice> host_err("subgrid error on host",blocksgerrs[k][j].extent(0));
-          Kokkos::deep_copy(host_err,blocksgerrs[k][j]);
-        }
-        host_blocksgerrs.push_back(host_sgerrs);
-      }*/
+      
       subgrid_errors.push_back(blocksgerrs);
     }
   }
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished PostprocessManager::computeError(time)" << endl;
-    }
-  }
+  debugger->print(1, "**** Finished PostprocessManager::computeError(time)");
   
-}
-
-// ========================================================================================
-// TMW: I don't know if the following function is actually used for anything
-// ========================================================================================
-
-template<class Node>
-void PostprocessManager<Node>::computeResponse(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
-  
-  /*
-  response_times.push_back(currenttime);
-  params->sacadoizeParams(false);
-  
-  // TMW: may not work for multi-block
-  int numresponses = phys->getNumResponses(0);
-  int numSensors = 1;
-  if (response_type == "pointwise" ) {
-    numSensors = sensors->numSensors;
-  }
-  
-  Kokkos::View<ScalarT**,HostDevice> curr_response("current response",
-                                                   numSensors, numresponses);
-  for (size_t b=0; b<assembler->groups.size(); b++) {
-    for (size_t e=0; e<assembler->groups[block].size(); e++) {
-  
-      auto responsevals = assembler->groups[block][grp]->computeResponse(0);
-      
-      //auto host_response = Kokkos::create_mirror_view(responsevals);
-      Kokkos::View<AD***,HostDevice> host_response("response on host",responsevals.extent(0),
-                                                   responsevals.extent(1), responsevals.extent(2));
-      Kokkos::deep_copy(host_response,responsevals);
-      
-      for (int r=0; r<numresponses; r++) {
-        if (response_type == "global" ) {
-          auto wts = assembler->groups[block][grp]->wts;
-          auto host_wts = Kokkos::create_mirror_view(wts);
-          Kokkos::deep_copy(host_wts,wts);
-          
-          for (size_type p=0; p<host_response.extent(0); p++) {
-            for (size_t j=0; j<host_wts.extent(1); j++) {
-              curr_response(0,r) += host_response(p,r,j).val() * host_wts(p,j);
-            }
-          }
-        }
-        else if (response_type == "pointwise" ) {
-          if (host_response.extent(1) > 0) {
-            vector<int> sensIDs = assembler->groups[block][grp]->mySensorIDs;
-            for (size_type p=0; p<host_response.extent(0); p++) {
-              for (size_t j=0; j<host_response.extent(2); j++) {
-                curr_response(sensIDs[j],r) += host_response(p,r,j).val();
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  responses.push_back(curr_response);
-  */
 }
 
 // ========================================================================================
@@ -1604,11 +1570,7 @@ void PostprocessManager<Node>::computeFluxResponse(vector<vector_RCP> & current_
 template<class Node>
 void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> & current_soln, const ScalarT & currenttime) {
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeIntegratedQuantities ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeIntegratedQuantities ...");
 
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -1790,11 +1752,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> & 
 template<class Node>
 void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_soln) {
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::computeWeightedNorm()" << endl;
-    }
-  }
+  debugger->print(1, "**** Starting PostprocessManager::computeWeightedNorm()");
   
   Teuchos::TimeMonitor localtimer(*computeWeightedNormTimer);
   
@@ -1843,11 +1801,8 @@ void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_
     cout << "Weighted norm of solution: " << totalnorm << endl;
   }
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished PostprocessManager::computeWeightedNorm()" << endl;
-    }
-  }
+  debugger->print(1, "**** Finished PostprocessManager::computeWeightedNorm()");
+  
 }
 
 // ========================================================================================
@@ -1882,9 +1837,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   
   Teuchos::TimeMonitor localtimer(*objectiveTimer);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeObjective ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjective ...");
   
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -2051,7 +2004,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
         
           // Update the objective function value
           totaldiff[r] += objsum_host(0);
-        
+          
         }
       
         if (compute_response) {
@@ -2184,25 +2137,33 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
               
               for (size_type var=0; var<numParamDOF.extent(0); var++) {
                 int bnum = assembler->wkset[block]->paramusebasis[var];
+                auto btype = assembler->wkset[block]->basis_types[bnum];
                 auto cbasis = objectives[r].sensor_basis[bnum];
-                auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
                 auto p_sv = subview(p_ip, var, ALL());
                 auto p_dof_sv = subview(p_dof, var, ALL());
-                auto pgrad_sv = subview(pgrad_ip, var, ALL());
                 
                 parallel_for("grp response sensor uip",
                             RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                             KOKKOS_LAMBDA (const int dof ) {
                   p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                  }
                 });
-              }
+                assembler->wkset[block]->setParamPoint(p_ip);
               
-              assembler->wkset[block]->setParamPoint(p_ip);
-              
-              assembler->wkset[block]->setParamGradPoint(pgrad_ip);
+
+                if (btype == "HGRAD") {
+                  auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
+                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                
+                  parallel_for("grp response sensor uip",
+                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                              KOKKOS_LAMBDA (const int dof ) {
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    }
+                  });
+                  assembler->wkset[block]->setParamGradPoint(pgrad_ip);
+                }
+              }  
             }
             
             // Evaluate the response
@@ -2340,9 +2301,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   
   DFAD fullobj(numParams,meep);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeObjective ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjective ...");
   
   objectiveval += fullobj;
   
@@ -2357,9 +2316,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
                                                          const ScalarT & current_time,
                                                          DFAD & objectiveval) {
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeObjectiveGradParam ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradParam ...");
 
 #ifndef MrHyDE_NO_AD
   for (size_t r=0; r<objectives.size(); ++r) {
@@ -2412,9 +2369,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
   saveObjectiveData(objectiveval);
 #endif
 
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradParam ...");
 }
 
 // ========================================================================================
@@ -2429,9 +2384,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
 
   Teuchos::TimeMonitor localtimer(*objectiveTimer);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeObjectiveGradParam<EvalT> ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradParam<EvalT> ...");
   
   DFAD fullobj = 0.0;
   
@@ -2883,25 +2836,35 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
               
               for (size_type var=0; var<numParamDOF.extent(0); var++) {
                 int bnum = wset->paramusebasis[var];
+                auto btype = wset->basis_types[bnum];
+
                 auto cbasis = objectives[obj].sensor_basis[bnum];
-                auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
                 auto p_sv = subview(p_ip, var, ALL());
                 auto p_dof_sv = subview(p_dof, var, ALL());
-                auto pgrad_sv = subview(pgrad_ip, var, ALL());
                 
                 parallel_for("grp response sensor uip",
                             RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                             KOKKOS_LAMBDA (const int dof ) {
                   p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                  }
                 });
+                wset->setParamPoint(p_ip);
+
+                if (btype == "HGRAD") {
+                  auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                  auto p_dof_sv = subview(p_dof, var, ALL());
+                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                
+                  parallel_for("grp response sensor uip",
+                              RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                              KOKKOS_LAMBDA (const int dof ) {
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    }
+                  });
+                  wset->setParamGradPoint(pgrad_ip);
+                }
               }
               
-              wset->setParamPoint(p_ip);
-              
-              wset->setParamGradPoint(pgrad_ip);
             }
             
             // Evaluate the response
@@ -2952,24 +2915,37 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 
                 for (size_type var=0; var<numParamDOF.extent(0); var++) {
                   int bnum = wset->paramusebasis[var];
+                  auto btype = wset->basis_types[bnum];
+
                   auto cbasis = objectives[obj].sensor_basis[bnum];
-                  auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
                   auto p_sv = subview(p_ip, var, ALL());
                   auto p_dof_sv = subview(p_dof, var, ALL());
-                  auto pgrad_sv = subview(pgrad_ip, var, ALL());
                   
                   parallel_for("grp response sensor uip",
                               RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                               KOKKOS_LAMBDA (const int dof ) {
                     p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                      pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                    }
                   });
+                  wset->setParamPoint(p_ip);
+
+                  if (btype == "HGRAD") {
+                    auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                    auto p_dof_sv = subview(p_dof, var, ALL());
+                    auto pgrad_sv = subview(pgrad_ip, var, ALL());
+                  
+                    parallel_for("grp response sensor uip",
+                                RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                                KOKKOS_LAMBDA (const int dof ) {
+                      for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                        pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                      }
+                    });
+                    wset->setParamGradPoint(pgrad_ip);
+                  }
                 }
                 
-                wset->setParamPoint(p_ip);
-                wset->setParamGradPoint(pgrad_ip);
+                
+                
                 
                 // Evaluate the response
                 auto rdata = fman->evaluate(objectives[obj].name+" response","point");
@@ -3044,11 +3020,11 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 }
               }
             });
-            
             auto regvals_sc_host = create_mirror_view(regvals_sc);
             deep_copy(regvals_sc_host,regvals_sc);
             
             auto poffs = params->paramoffsets;
+            auto cbasis = wset->basis[0];
             for (size_t elem=0; elem<assembler->groups[block][grp]->numElem; ++elem) {
                             
               vector<GO> paramGIDs;
@@ -3061,7 +3037,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                   for (size_t row=0; row<poffs[pp].size(); row++) {
                     GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
                     int poffset = poffs[pp][row];
-                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
+                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);//*cbasis(elem,row,pt,0);
                   }
                 }
               }
@@ -3129,57 +3105,8 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                   }
                 }
               }
-  
-              /*
-              auto obj_dev = functionManagers[block]->evaluate(objectives[r].regularizations[reg].name,"side ip");
-              
-              Kokkos::View<AD[1],AssemblyDevice> objsum("sum of objective");
-              parallel_for("grp objective",
-                           RangePolicy<AssemblyExec>(0,obj_dev.extent(0)),
-                           KOKKOS_LAMBDA (const size_type elem ) {
-                AD tmpval = 0.0;
-                for (size_type pt=0; pt<obj_dev.extent(1); pt++) {
-                  tmpval += obj_dev(elem,pt)*wts(elem,pt);
-                }
-                Kokkos::atomic_add(&(objsum(0)),tmpval);
-              });
-              
-              View_Sc1 objsum_dev("obj func sum as scalar on device",numParams+1);
-              
-              parallel_for("grp objective",
-                           RangePolicy<AssemblyExec>(0,objsum_dev.extent(0)),
-                           KOKKOS_LAMBDA (const size_type p ) {
-                size_t numder = static_cast<size_t>(objsum(0).size());
-                if (p==0) {
-                  objsum_dev(p) = objsum(0).val();
-                }
-                else if (p <= numder) {
-                  objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-                }
-              });
-              
-              auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
-              Kokkos::deep_copy(objsum_host,objsum_dev);
-              
-              totaldiff[r] += regwt*objsum_host(0);
-              auto poffs = params->paramoffsets;
-              for (size_t c=0; c<assembler->boundary_groups[block][grp]->numElem; c++) {
-                vector<GO> paramGIDs;
-                params->paramDOF->getElementGIDs(assembler->boundary_groups[block][grp]->localElemID(c),
-                                                 paramGIDs, blocknames[block]);
-                
-                for (size_t pp=0; pp<poffs.size(); ++pp) {
-                  for (size_t row=0; row<poffs[pp].size(); row++) {
-                    GO rowIndex = paramGIDs[poffs[pp][row]];
-                    int poffset = 1+poffs[pp][row];
-                    gradients[r][rowIndex+params->num_active_params] += regwt*objsum_host(poffset);
-                  }
-                }
-              }*/
-  
             }
           }
-          
           wset->isOnSide = false;
         }
         
@@ -3202,15 +3129,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
   
   params->sacadoizeParams(false);
   
-  //objectiveval += fullobj;
-  
-  
-
 #endif
 
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeObjectiveGradParam<EvalT> ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradParam<EvalT> ...");
+  
   return fullobj;
 
 }
@@ -3224,9 +3146,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
   
   Teuchos::TimeMonitor localtimer(*sensorSolutionTimer);
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Starting PostprocessManager::computeSensorSolution ..." << std::endl;
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeSensorSolution ...");
   
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -3349,9 +3269,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
     
   }  
   
-  if (debug_level > 1 && Comm->getRank() == 0) {
-    std::cout << "******** Finished PostprocessManager::computeSensorSolutions ..." << std::endl;
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeSensorSolutions ...");
   
 }
 
@@ -3366,11 +3284,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          vector_RCP & grad) {
   
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeObjectiveGradState ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradState ...");
 
 #ifndef MrHyDE_NO_AD
   for (size_t r=0; r<objectives.size(); ++r) {
@@ -3418,12 +3332,20 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   }
 #endif
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::computeObjectiveGradState ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradState ...");
 
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::resetObjectives() {
+  for (size_t r=0; r<objectives.size(); ++r) {
+    objectives[r].response_times.clear();
+    objectives[r].response_data.clear();
+    objectives[r].scalar_response_data.clear();
+  }
 }
 
 // ========================================================================================
@@ -3441,11 +3363,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          Teuchos::RCP<FunctionManager<EvalT> > & fman) {
   
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeObjectiveGradState<EvalT> ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradState<EvalT> ...");
   
 #ifndef MrHyDE_NO_AD
 
@@ -4159,24 +4077,37 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
             
             for (size_type var=0; var<numParamDOF.extent(0); var++) {
               int bnum = wset->paramusebasis[var];
+              auto btype = wset->basis_types[bnum];
+
               auto cbasis = objectives[obj].sensor_basis[bnum];
-              auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
               auto p_sv = subview(p_ip, var, ALL());
               auto p_dof_sv = subview(p_dof, var, ALL());
-              auto pgrad_sv = subview(pgrad_ip, var, ALL());
               
               parallel_for("grp response sensor uip",
                            RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
                            KOKKOS_LAMBDA (const int dof ) {
                 p_sv(0) += p_dof_sv(dof)*cbasis(pt,dof,0,0);
-                for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                  pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                }
               });
+              wset->setParamPoint(p_ip);
+
+              if (btype == "HGRAD") {
+                auto cbasis_grad = objectives[obj].sensor_basis_grad[bnum];
+                auto p_dof_sv = subview(p_dof, var, ALL());
+                auto pgrad_sv = subview(pgrad_ip, var, ALL());
+              
+                parallel_for("grp response sensor uip",
+                             RangePolicy<AssemblyExec>(0,cbasis.extent(1)),
+                             KOKKOS_LAMBDA (const int dof ) {
+                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                    pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                  }
+                });
+                wset->setParamGradPoint(pgrad_ip);
+              }
             }
             
-            wset->setParamPoint(p_ip);
-            wset->setParamGradPoint(pgrad_ip);
+            
+            
           }
           
           
@@ -4310,11 +4241,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
                                                     const ScalarT & deltat,
                                                     MrHyDE_OptVector & gradient) {
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeSensitivities ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeSensitivities ...");
   
   typedef typename Node::device_type LA_device;
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
@@ -4429,11 +4356,8 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
   }
   this->saveObjectiveGradientData(gradient);
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::computeSensitivities ..." << std::endl;
-    }
-  }
+  
+  debugger->print(1, "******** Finished PostprocessManager::computeSensitivities ...");
   
 }
 
@@ -4447,11 +4371,7 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
                                                               const int & tindex,
                                                               const ScalarT & deltat) {
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::computeDualWeightedResidual ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::computeDualWeightedResidual ...");
   
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
@@ -4481,11 +4401,8 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
     
   res->dot(*adj, dotprod);
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::computeDualWeightedResidual ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Finished PostprocessManager::computeDualWeightedResidual ...");
+  
   return dotprod[0];
 
 }
@@ -4535,6 +4452,7 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
 }
 
 // ========================================================================================
+// Main visualization routine - writes to an exodus file
 // ========================================================================================
 
 template<class Node>
@@ -4542,11 +4460,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
   
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
   
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Starting PostprocessManager::writeSolution() ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Starting PostprocessManager::writeSolution() ...");
 
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type     LA_device;
@@ -4557,7 +4471,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
     data_avail = false;
   }
   
-  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  // Grab slices of Kokkos Views and push to AssembleDevice one time for each state vector
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > sol_kv, params_kv;
   for (size_t s=0; s<current_soln.size(); ++s) {
     auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
@@ -4572,6 +4486,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
     }
   }
 
+  // Grab slices of Kokkos Views and push to AssembleDevice one time for each discretized parameter vector
   auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   if (data_avail) {
@@ -4583,53 +4498,84 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
     params_kv.push_back(p_dev);
   }
 
+  // Store the current vis time (subset of solve times)
   plot_times.push_back(currenttime);
   
+  // Loop over element blocks
+  // Easier to have this as the outer loop
   for (size_t block=0; block<blocknames.size(); ++block) {
+    
+    // Get the block name
     std::string blockID = blocknames[block];
+    
+    // Create a std::vector of element ids on this block
+    // Disc interface stores them as a Kokkos view to track memory
     auto myElements_tmp = disc->my_elements[block];
     vector<size_t> myElements(myElements_tmp.extent(0));
     for (size_t i=0; i<myElements_tmp.extent(0); ++i) {
       myElements[i] = myElements_tmp(i);
     }
+    
+    // Nothing is required if this processor does not own any elements on this block
+    // This happens all the time
     if (myElements.size() > 0) {
-        
+      
+      // Loop over physics sets
       for (size_t set=0; set<setnames.size(); ++set) {
     
+        // Make sure everything knows what set we are on
         assembler->updatePhysicsSet(set);
       
+        // Get a few lists from physics for this block/set
         vector<string> vartypes = physics->types[set][block];
         vector<int> varorders = physics->orders[set][block];
         int numVars = physics->num_vars[set][block]; // probably redundant
         
+        // Loop over the state variables
         for (int n = 0; n<numVars; n++) {
           
           if (vartypes[n] == "HGRAD") {
-            if(assembler->groups[block][0]->group_data->require_basis_at_nodes) {
-              std::string var = varlist[set][block][n];
+            if (assembler->groups[block][0]->group_data->require_basis_at_nodes) {
+              // The actual solution data (on device)
               Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
                                                                                                        numNodesPerElem);
+              // Solution data on host that will be written to the file
               auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+              
+              // Fill data on device
               for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
                 auto eID = assembler->groups[block][grp]->localElemID;
-                auto sol = Kokkos::subview(assembler->getSolutionAtNodes(block, grp, n), Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
-                parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+                auto tmpsol = assembler->getSolutionAtNodes(block, grp, n);
+                auto sol = Kokkos::subview(tmpsol, Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
+                parallel_for("postproc plot param HGRAD",
+                             RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                             KOKKOS_LAMBDA (const int elem ) {
                   for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                     soln_dev(eID(elem),i) = sol(elem,i);
                   }
                 });
               }
+              // Copy to host
               Kokkos::deep_copy(soln_computed, soln_dev);
-              mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
-            } else {
+              
+              // Write to file
+              mesh->setSolutionFieldData(varlist[set][block][n]+append, blockID, myElements, soln_computed);
+            }
+            else {
+              // The actual solution data (on device)
               Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(), numNodesPerElem);
+              
+              // Solution data on host that will be written to the file
               auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-              std::string var = varlist[set][block][n];
-              for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
+              
+              // Fill data on device
+              for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
                 auto eID = assembler->groups[block][grp]->localElemID;
-                if (!assembler->groups[block][grp]->have_sols) {
-                  assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
-                }
+                
+                // Gather is probably necessary (checks internally)
+                assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+                
+                // Fill data on device
                 auto sol = Kokkos::subview(assembler->groupData[block]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
                 parallel_for("postproc plot HGRAD",
                             RangePolicy<AssemblyExec>(0,eID.extent(0)),
@@ -4639,32 +4585,25 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
                   }
                 });
               }
+              
+              // Copy to host
               Kokkos::deep_copy(soln_computed, soln_dev);
               
-              /*
-              if (var == "dx") {
-              mesh->setSolutionFieldData("disp"+append+"x", blockID, myElements, soln_computed);
-              }
-              if (var == "dy") {
-              mesh->setSolutionFieldData("disp"+append+"y", blockID, myElements, soln_computed);
-              }
-              if (var == "dz" || var == "H") {
-              mesh->setSolutionFieldData("disp"+append+"z", blockID, myElements, soln_computed);
-              }
-              */
-              
-              mesh->setSolutionFieldData(var+append, blockID, myElements, soln_computed);
+              // Write to file
+              mesh->setSolutionFieldData(varlist[set][block][n]+append, blockID, myElements, soln_computed);
             }
           }
           else if (vartypes[n] == "HVOL") {
+            // The actual solution data (on device)
             Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
+            
+            // Solution data on host that will be written to the file
             auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-            std::string var = varlist[set][block][n];
+            
+            // Fill on device
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              if (!assembler->groups[block][grp]->have_sols) {
-                assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
-              }
+              assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
               auto sol = Kokkos::subview(assembler->groupData[block]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HVOL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
@@ -4672,23 +4611,32 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
                 soln_dev(eID(elem)) = sol(elem,0);//u_kv(pindex,0);
               });
             }
+            
+            // Copy to host
             Kokkos::deep_copy(soln_computed,soln_dev);
-            mesh->setCellFieldData(var+append, blockID, myElements, soln_computed);
+            
+            // Write to file
+            mesh->setCellFieldData(varlist[set][block][n]+append, blockID, myElements, soln_computed);
           }
           else if (vartypes[n] == "HDIV" || vartypes[n] == "HCURL") { // need to project each component onto PW-linear basis and PW constant basis
+            // The actual solution data (on device)
             Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
             Kokkos::View<ScalarT*,AssemblyDevice> soln_y_dev("solution",myElements.size());
             Kokkos::View<ScalarT*,AssemblyDevice> soln_z_dev("solution",myElements.size());
+            
+            // Solution data on host that will be written to the file
             auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
-            std::string var = varlist[set][block][n];
+            
+            // Storage on device for solution averages
             View_Sc2 sol("average solution",assembler->groupData[block]->num_elem,dimension);
             
+            // Fill on device
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              
-              assembler->computeSolutionAverage(block, grp, var,sol);
+              // Compute the element average
+              assembler->computeSolutionAverage(block, grp, varlist[set][block][n], sol);
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -4701,36 +4649,45 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
                 }
               });
             }
+            
+            // Copy to host
             Kokkos::deep_copy(soln_x, soln_x_dev);
             Kokkos::deep_copy(soln_y, soln_y_dev);
             Kokkos::deep_copy(soln_z, soln_z_dev);
-            mesh->setCellFieldData(var+append+"x", blockID, myElements, soln_x);
+            
+            // Write to file
+            mesh->setCellFieldData(varlist[set][block][n]+append+"x", blockID, myElements, soln_x);
             if (dimension > 1) {
-              mesh->setCellFieldData(var+append+"y", blockID, myElements, soln_y);
+              mesh->setCellFieldData(varlist[set][block][n]+append+"y", blockID, myElements, soln_y);
             }
             if (dimension > 2) {
-              mesh->setCellFieldData(var+append+"z", blockID, myElements, soln_z);
+              mesh->setCellFieldData(varlist[set][block][n]+append+"z", blockID, myElements, soln_z);
             }
             
           }
           else if (vartypes[n] == "HFACE" && write_HFACE_variables) {
             
+            // The actual solution data (on device)
             Kokkos::View<ScalarT*,AssemblyDevice> soln_faceavg_dev("solution",myElements.size());
+            
+            // Solution data on host that will be written to the file
             auto soln_faceavg = Kokkos::create_mirror_view(soln_faceavg_dev);
             
+            // Storage for the measure of each face (on device)
             Kokkos::View<ScalarT*,AssemblyDevice> face_measure_dev("face measure",myElements.size());
+            
+            // Convince the workset we are working with a side (temporarily)
             assembler->wkset[block]->isOnSide = true;
+            
+            // Fill on device
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               for (size_t face=0; face<assembler->groupData[block]->num_sides; face++) {
                 int seedwhat = 0;
                 for (size_t iset=0; iset<assembler->wkset[block]->numSets; ++iset) {
-                  if (!assembler->groups[block][grp]->have_sols) {
-                    assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
-                  }
+                  assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
                   assembler->wkset[block]->computeSolnSteadySeeded(iset, assembler->groupData[block]->sol[iset], seedwhat);
                 }
-                //assembler->groups[block][grp]->computeSolnFaceIP(face);
                 assembler->updateWorksetFace(block, grp, face);
                 auto wts = assembler->wkset[block]->wts_side;
                 auto sol = assembler->wkset[block]->getSolutionField(varlist[set][block][n]);
@@ -4739,23 +4696,26 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
                              KOKKOS_LAMBDA (const int elem ) {
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     face_measure_dev(eID(elem)) += wts(elem,pt);
-//#ifndef MrHyDE_NO_AD
-//                    soln_faceavg_dev(eID(elem)) += sol(elem,pt).val()*wts(elem,pt);
-//#else
                     soln_faceavg_dev(eID(elem)) += sol(elem,pt)*wts(elem,pt);
-//#endif
                   }
                 });
               }
             }
             
+            // Reset the workset to volume instead of side
             assembler->wkset[block]->isOnSide = false;
+            
+            // Compute the face average
             parallel_for("postproc plot HFACE 2",
                          RangePolicy<AssemblyExec>(0,soln_faceavg_dev.extent(0)),
                          KOKKOS_LAMBDA (const int elem ) {
               soln_faceavg_dev(elem) *= 1.0/face_measure_dev(elem);
             });
+            
+            // Copy to host
             Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
+            
+            // Write to file
             mesh->setCellFieldData(varlist[set][block][n]+append, blockID, myElements, soln_faceavg);
           }
         }
@@ -4765,63 +4725,97 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
       // Discretized Parameters
       ////////////////////////////////////////////////////////////////
       
+      // Grab the list of discretized parameters
       vector<string> dpnames = params->discretized_param_names;
-      vector<int> numParamBasis = params->paramNumBasis;
-      vector<int> dp_usebasis = params->discretized_param_usebasis;
-      vector<string> discParamTypes = params->discretized_param_basis_types;
+      
+      // Check if we actually have any
       if (dpnames.size() > 0) {
+        
+        // Grab the actual disc. param. basis information
+        vector<int> numParamBasis = params->paramNumBasis;
+        vector<int> dp_usebasis = params->discretized_param_usebasis;
+        vector<string> discParamTypes = params->discretized_param_basis_types;
+        
+        // Loop ove disc. params and add to mesh
         for (size_t n=0; n<dpnames.size(); n++) {
           int bnum = dp_usebasis[n];
           if (discParamTypes[bnum] == "HGRAD") {
+            
+            // The actual solution data (on device)
             Kokkos::View<ScalarT**,AssemblyDevice> soln_dev = Kokkos::View<ScalarT**,AssemblyDevice>("solution",myElements.size(),
                                                                                                      numNodesPerElem);
+            
+            // Solution data on host that will be written to the file
             auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            
+            // Fill on device
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              if (!assembler->groups[block][grp]->have_sols) {
-                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
-              }
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HGRAD",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              parallel_for("postproc plot param HGRAD",
+                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                           KOKKOS_LAMBDA (const int elem ) {
                 for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
                 }
               });
             }
+            
+            // Copy to host
             Kokkos::deep_copy(soln_computed, soln_dev);
+            
+            // Write to file
             mesh->setSolutionFieldData(dpnames[n]+append, blockID, myElements, soln_computed);
           }
           else if (discParamTypes[bnum] == "HVOL") {
+            
+            // The actual solution data (on device)
             Kokkos::View<ScalarT*,AssemblyDevice> soln_dev("solution",myElements.size());
+            
+            // Solution data on host that will be written to the file
             auto soln_computed = Kokkos::create_mirror_view(soln_dev);
-            //std::string var = varlist[block][n];
+            
+            // Fill on device
             for( size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              if (!assembler->groups[block][grp]->have_sols) {
-                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
-              }
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HVOL",RangePolicy<AssemblyExec>(0,eID.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+              parallel_for("postproc plot param HVOL",
+                           RangePolicy<AssemblyExec>(0,eID.extent(0)),
+                           KOKKOS_LAMBDA (const int elem ) {
                 soln_dev(eID(elem)) = sol(elem,0);
               });
             }
+            
+            // Copy to host
             Kokkos::deep_copy(soln_computed, soln_dev);
+            
+            // Write to file
             mesh->setCellFieldData(dpnames[n]+append, blockID, myElements, soln_computed);
           }
           else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL") {
+            
+            // The actual solution data (on device)
             Kokkos::View<ScalarT*,AssemblyDevice> soln_x_dev("solution",myElements.size());
             Kokkos::View<ScalarT*,AssemblyDevice> soln_y_dev("solution",myElements.size());
             Kokkos::View<ScalarT*,AssemblyDevice> soln_z_dev("solution",myElements.size());
+            
+            // Solution data on host that will be written to the file
             auto soln_x = Kokkos::create_mirror_view(soln_x_dev);
             auto soln_y = Kokkos::create_mirror_view(soln_y_dev);
             auto soln_z = Kokkos::create_mirror_view(soln_z_dev);
+            
+            // Solution average (on device)
             View_Sc2 sol("average solution",assembler->groupData[block]->num_elem,dimension);
             
+            // Fill on device
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
               
               assembler->computeParameterAverage(block, grp, dpnames[n],sol);
-              //auto sol = Kokkos::subview(assembler->groups[block][grp]->u_avg, Kokkos::ALL(), n, Kokkos::ALL());
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),
                            KOKKOS_LAMBDA (const int elem ) {
@@ -4834,9 +4828,13 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
                 }
               });
             }
+            
+            // Copy to host
             Kokkos::deep_copy(soln_x, soln_x_dev);
             Kokkos::deep_copy(soln_y, soln_y_dev);
             Kokkos::deep_copy(soln_z, soln_z_dev);
+            
+            // Write to file
             mesh->setCellFieldData(dpnames[n]+append+"x", blockID, myElements, soln_x);
             if (dimension > 1) {
               mesh->setCellFieldData(dpnames[n]+append+"y", blockID, myElements, soln_y);
@@ -4844,74 +4842,41 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             if (dimension > 2) {
               mesh->setCellFieldData(dpnames[n]+append+"z", blockID, myElements, soln_z);
             }
-            // TMW: this is not actually implemented yet ... not hard to do though
-            /*
-             Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
-             Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
-             Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
-             std::string var = varlist[block][n];
-             size_t eprog = 0;
-             for( size_t e=0; e<assembler->groups[block].size(); e++ ) {
-             Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->groups[block][grp]->param_avg;
-             auto host_sol = Kokkos::create_mirror_view(sol);
-             Kokkos::deep_copy(host_sol,sol);
-             for (int p=0; p<assembler->groups[block][grp]->numElem; p++) {
-             soln_x(eprog) = host_sol(p,n,0);
-             soln_y(eprog) = host_sol(p,n,1);
-             soln_z(eprog) = host_sol(p,n,2);
-             eprog++;
-             }
-             }
-             
-             mesh->setcellFieldData(var+"x", blockID, myElements, soln_x);
-             mesh->setcellFieldData(var+"y", blockID, myElements, soln_y);
-             mesh->setcellFieldData(var+"z", blockID, myElements, soln_z);
-             */
           }
         }
         
       }
       
       ////////////////////////////////////////////////////////////////
-      // Extra nodal fields
+      // Extra nodal fields (PW linear/bilinear/trilinear fields)
       ////////////////////////////////////////////////////////////////
       // TMW: This needs to be rewritten to actually use integration points
-      
+      //      Filling with all zeros for now
       vector<string> extrafieldnames = extrafields_list[block];
       for (size_t j=0; j<extrafieldnames.size(); j++) {
-        
         Kokkos::View<ScalarT**,HostDevice> efd("field data",myElements.size(), numNodesPerElem);
-        /*
-        for (size_t k=0; k<assembler->groups[block].size(); k++) {
-          auto nodes = assembler->groups[block][k]->nodes;
-          auto eID = assembler->groups[block][k]->localElemID;
-          auto host_eID = Kokkos::create_mirror_view(eID);
-          Kokkos::deep_copy(host_eID,eID);
-          
-          auto cfields = phys->getExtraFields(b, 0, nodes, currenttime, assembler->wkset_AD[block]);
-          auto host_cfields = Kokkos::create_mirror_view(cfields);
-          Kokkos::deep_copy(host_cfields,cfields);
-          for (size_type p=0; p<host_eID.extent(0); p++) {
-            for (size_t i=0; i<host_cfields.extent(1); i++) {
-              efd(host_eID(p),i) = host_cfields(p,i);
-            }
-          }
-        }
-         */
         mesh->setSolutionFieldData(extrafieldnames[j], blockID, myElements, efd);
       }
       
       ////////////////////////////////////////////////////////////////
-      // Extra grp fields
+      // Extra cell fields (PW constant fields)
       ////////////////////////////////////////////////////////////////
       
       if (extracellfields_list[block].size() > 0) {
+        
+        // Storage for field (on device)
         Kokkos::View<ScalarT**,AssemblyDevice> ecd_dev("grp data",myElements.size(),
                                                        extracellfields_list[block].size());
+        
+        // Storage for field (on host)
         auto ecd = Kokkos::create_mirror_view(ecd_dev);
+        
+        // Fill on device
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
-          
+          int set = 0; // TMW: why is this hard-coded?
+          assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+          assembler->performGather(0, block, grp, params_kv[0], 4, 0);
           assembler->updateWorkset(block, grp, 0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
@@ -4925,8 +4890,11 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             }
           });
         }
+        
+        // Copy to host
         Kokkos::deep_copy(ecd, ecd_dev);
         
+        // Write to file
         for (size_t j=0; j<extracellfields_list[block].size(); j++) {
           auto ccd = subview(ecd,ALL(),j);
           Kokkos::View<ScalarT*,HostDevice> tmpccd("temp dq",ccd.extent(0));
@@ -4938,15 +4906,23 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
       
       ////////////////////////////////////////////////////////////////
       // Derived quantities from physics modules
+      // Values averaged over each element
       ////////////////////////////////////////////////////////////////
       
       if (derivedquantities_list[block].size() > 0) {
+        
+        // Storage for field (on device)
         Kokkos::View<ScalarT**,AssemblyDevice> dq_dev("grp data",myElements.size(),
                                                       derivedquantities_list[block].size());
+        
+        // Storage for field (on host)
         auto dq = Kokkos::create_mirror_view(dq_dev);
+        
+        // Fill on device
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
-          
+          int set = 0; // TMW: why is this hard-coded?
+          assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
           assembler->updateWorkset(block, grp, 0,0,true);
           assembler->wkset[block]->setTime(currenttime);
           
@@ -4960,8 +4936,11 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             }
           });
         }
+        
+        // Copy to host
         Kokkos::deep_copy(dq, dq_dev);
         
+        // Write to file
         for (size_t j=0; j<derivedquantities_list[block].size(); j++) {
           auto cdq = subview(dq,ALL(),j);
           Kokkos::View<ScalarT*,HostDevice> tmpcdq("temp dq",cdq.extent(0));
@@ -4971,21 +4950,26 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
       }
       
       ////////////////////////////////////////////////////////////////
-      // Mesh data
+      // Seeds for crystal elasticity/plasticity
       ////////////////////////////////////////////////////////////////
-      // TMW This is slightly inefficient, but leaving until grp_data_seed is stored differently
       
+      // Check if this data is used
       if (assembler->groups[block][0]->group_data->have_phi ||
           assembler->groups[block][0]->group_data->have_rotation ||
           assembler->groups[block][0]->group_data->have_extra_data) {
         
+        // Allocate storage for elements data and seed (on host)
         Kokkos::View<ScalarT*,HostDevice> cdata("data",myElements.size());
         Kokkos::View<ScalarT*,HostDevice> cseed("data seed",myElements.size());
+        
+        // Fill on host
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           vector<size_t> data_seed = assembler->groups[block][grp]->data_seed;
           vector<size_t> data_seedindex = assembler->groups[block][grp]->data_seedindex;
           Kokkos::View<ScalarT**,AssemblyDevice> data = assembler->groups[block][grp]->data;
           Kokkos::View<LO*,AssemblyDevice> eID = assembler->groups[block][grp]->localElemID;
+          
+          // Copy element IDs to host
           auto host_eID = Kokkos::create_mirror_view(eID);
           Kokkos::deep_copy(host_eID,eID);
           
@@ -4996,6 +4980,8 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             cseed(host_eID(p)) = data_seedindex[p];
           }
         }
+        
+        // Write to file
         string name = "mesh_data_seed";
         mesh->setCellFieldData(name, blockID, myElements, cseed);
         name = "mesh_data";
@@ -5003,29 +4989,49 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
       }
       
       ////////////////////////////////////////////////////////////////
-      // grp number
+      // Group number
+      // Useful to see how elements get grouped together
       ////////////////////////////////////////////////////////////////
       
       if (write_group_number) {
+        
+        // Allocate storage (on device)
         Kokkos::View<ScalarT*,AssemblyDevice> grpnum_dev("grp number",myElements.size());
+        
+        // Storage on host
         auto grpnum = Kokkos::create_mirror_view(grpnum_dev);
         
+        // Fill on device
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto eID = assembler->groups[block][grp]->localElemID;
           parallel_for("postproc plot param HVOL",
                        RangePolicy<AssemblyExec>(0,eID.extent(0)),
                        KOKKOS_LAMBDA (const int elem ) {
-            grpnum_dev(eID(elem)) = grp; // TMW: is this what we want?
+            grpnum_dev(eID(elem)) = grp;
           });
         }
+        
+        // Copt to host
         Kokkos::deep_copy(grpnum, grpnum_dev);
+        
+        // Write to file
         mesh->setCellFieldData("group number", blockID, myElements, grpnum);
       }
       
+      ////////////////////////////////////////////////////////////////
+      // Database IDs
+      // Very useful to assess compression
+      ////////////////////////////////////////////////////////////////
+      
       if (write_database_id) {
+        
+        // Allocate storage on device
         Kokkos::View<ScalarT*,AssemblyDevice> jacnum_dev("unique jac ID",myElements.size());
+        
+        // Storage on host
         auto jacnum = Kokkos::create_mirror_view(jacnum_dev);
         
+        // Fill on device
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           auto index = assembler->groups[block][grp]->basis_index;
           auto eID = assembler->groups[block][grp]->localElemID;
@@ -5035,16 +5041,29 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             jacnum_dev(eID(elem)) = index(elem); // TMW: is this what we want?
           });
         }
+        
+        // Copy to host
         Kokkos::deep_copy(jacnum, jacnum_dev);
+        
+        // Write to file
         mesh->setCellFieldData("unique Jacobian ID", blockID, myElements, jacnum);
       }
 
+      ////////////////////////////////////////////////////////////////
+      // Subgrid model each coarse element uses
+      // Useful for dynamic adaptive subgrid modeling
+      ////////////////////////////////////////////////////////////////
+      
       if (write_subgrid_model) {
+        
+        // Allocate storage on device
         Kokkos::View<ScalarT*,AssemblyDevice> sgmodel_dev("subgrid model",myElements.size());
+        
+        // Storage on host
         auto sgmodel = Kokkos::create_mirror_view(sgmodel_dev);
         
+        // Fill on device
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          //auto index = assembler->groups[block][grp]->basis_index;
           int sgindex = assembler->groups[block][grp]->subgrid_model_index;
           auto eID = assembler->groups[block][grp]->localElemID;
           parallel_for("postproc plot param HVOL",
@@ -5053,7 +5072,11 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             sgmodel_dev(eID(elem)) = sgindex; 
           });
         }
+        
+        // Copy to host
         Kokkos::deep_copy(sgmodel,sgmodel_dev);
+        
+        // Write to file
         mesh->setCellFieldData("subgrid model", blockID, myElements, sgmodel);
       }
 
@@ -5071,15 +5094,13 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
     mesh->writeToExodus(exodus_filename);
   }
   
+  // Write the subgrid solutions if in multiscale mode
   if (write_subgrid_solution && multiscale_manager->getNumberSubgridModels() > 0) {
     multiscale_manager->writeSolution(currenttime, append);
   }
 
-  if (debug_level > 1) {
-    if (Comm->getRank() == 0) {
-      std::cout << "******** Finished PostprocessManager::writeSolution() ..." << std::endl;
-    }
-  }
+  debugger->print(1, "******** Finished PostprocessManager::writeSolution() ...");
+  
 }
 
 // ========================================================================================
@@ -5357,9 +5378,8 @@ ScalarT PostprocessManager<Node>::makeSomeNoise(ScalarT stdev) {
 
 template<class Node>
 void PostprocessManager<Node>::addSensors() {
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Starting PostprocessManager::addSensors ..." << endl;
-  }
+  
+  debugger->print("**** Starting PostprocessManager::addSensors ...");
     
   // Reading in sensors from a mesh file only works on a single element block (for now)
   // There isn't any problem with multiple blocks, it just hasn't been generalized for sensors yet
@@ -5381,9 +5401,7 @@ void PostprocessManager<Node>::addSensors() {
     }
   }
   
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Finished PostprocessManager::addSensors ..." << endl;
-  }
+  debugger->print("**** Finished PostprocessManager::addSensors ...");
   
 }
 
@@ -5393,11 +5411,7 @@ void PostprocessManager<Node>::addSensors() {
 template<class Node>
 void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::importSensorsFromExodus() ..." << endl;
-    }
-  }
+  debugger->print("**** Starting PostprocessManager::importSensorsFromExodus() ...");
   
   //vector<string> mesh_response_names = mesh->efield_names;
   string cresp = objectives[objID].sensor_data_file;
@@ -5600,11 +5614,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
       
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SensorManager::importSensorsFromExodus() ..." << endl;
-    }
-  }
+  debugger->print("**** Finished SensorManager::importSensorsFromExodus() ...");
   
 }
 
@@ -5614,11 +5624,7 @@ void PostprocessManager<Node>::importSensorsFromExodus(const int & objID) {
 template<class Node>
 void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Starting PostprocessManager::importSensorsFromFiles() ..." << endl;
-    }
-  }
+  debugger->print("**** Starting PostprocessManager::importSensorsFromFiles() ...");
   
   size_t block = objectives[objID].block;
     
@@ -5775,11 +5781,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
     
   }
   
-  if (debug_level > 0) {
-    if (Comm->getRank() == 0) {
-      cout << "**** Finished SensorManager::importSensorsFromFiles() ..." << endl;
-    }
-  }
+  debugger->print("**** Finished SensorManager::importSensorsFromFiles() ...");
   
 }
 
@@ -5789,9 +5791,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int & objID) {
 template<class Node>
 void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Starting PostprocessManager::importSensorsOnGrid() ..." << endl;
-  }
+  debugger->print("**** Starting PostprocessManager::importSensorsOnGrid() ...");
   
   // Check that the data matches the expected format
   if (dimension != 3) {
@@ -5919,9 +5919,8 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int & objID) {
     
     this->computeSensorBasis(objID);
   }
-  if (debug_level > 0 && Comm->getRank() == 0) {
-    cout << "**** Finished SensorManager::importSensorsOnGrid() ..." << endl;
-  }
+  
+  debugger->print("**** Finished SensorManager::importSensorsOnGrid() ...");
 
 }
 

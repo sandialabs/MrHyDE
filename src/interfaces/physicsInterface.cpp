@@ -26,11 +26,9 @@ settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
-  debug_level = settings->get<int>("debug level",0);
+  debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level",0), comm));
   
-  if (debug_level > 0 && comm->getRank() == 0) {
-    cout << "**** Starting PhysicsInterface constructor ..." << endl;
-  }
+  debugger->print("**** Starting PhysicsInterface constructor ...");
   
   //mesh->getElementBlockNames(block_names);
   //mesh->getSidesetNames(side_names);
@@ -88,9 +86,8 @@ settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names
     
   this->importPhysics();
   
-  if (debug_level > 0 && comm->getRank() == 0) {
-    cout << "**** Finished physics constructor" << endl;
-  }
+  debugger->print("**** Finished physics constructor");
+  
 }
 
 
@@ -494,11 +491,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
 
 void PhysicsInterface::importPhysics() {
   
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Starting PhysicsInterface::importPhysics ..." << endl;
-    }
-  }
+  debugger->print("**** Starting PhysicsInterface::importPhysics ...");
   
   //-----------------------------------------------------------------
   // Step 1: load the enabled modules
@@ -787,11 +780,8 @@ void PhysicsInterface::importPhysics() {
     unique_index.push_back(block_unique_index);
     
   }
-  if (debug_level > 0) {
-    if (comm->getRank() == 0) {
-      cout << "**** Finished PhysicsInterface::importPhysics ..." << endl;
-    }
-  }
+  
+  debugger->print("**** Finished PhysicsInterface::importPhysics ...");
   
 }
 
@@ -1240,9 +1230,7 @@ int PhysicsInterface::getUniqueIndex(const int & set, const int & block, const s
 template<class EvalT>
 void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
 
-  if (debug_level > 1 && comm->getRank() == 0) {
-    cout << "**** Starting PhysicsInterface volume residual ..." << endl;
-  }
+  debugger->print(1, "**** Starting PhysicsInterface volume residual ...");
 
   if (std::is_same<EvalT, ScalarT>::value) {
     for (size_t i=0; i<modules[set][block].size(); i++) {
@@ -1291,9 +1279,7 @@ void PhysicsInterface::volumeResidual(const size_t & set, const size_t block) {
     }
   }
 #endif
-  if (debug_level > 1 && comm->getRank() == 0) {
-    cout << "**** Finished PhysicsInterface volume residual" << endl;
-  }
+  debugger->print(1, "**** Finished PhysicsInterface volume residual");
 
 }
 
@@ -1314,9 +1300,8 @@ template void PhysicsInterface::volumeResidual<AD32>(const size_t & set, const s
 
 template<class EvalT>
 void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) {
-  if (debug_level > 1 && comm->getRank() == 0) {
-    cout << "**** Starting PhysicsInterface boundary residual ..." << endl;
-  }
+  debugger->print(1, "**** Starting PhysicsInterface boundary residual ...");
+  
   if (std::is_same<EvalT, ScalarT>::value) {
     for (size_t i=0; i<modules[set][block].size(); i++) {
       modules[set][block][i]->boundaryResidual();
@@ -1364,9 +1349,8 @@ void PhysicsInterface::boundaryResidual(const size_t & set, const size_t block) 
     }
   }
 #endif
-  if (debug_level > 1 && comm->getRank() == 0) {
-    cout << "**** Finished PhysicsInterface boundary residual" << endl;
-  }
+  debugger->print(1, "**** Finished PhysicsInterface boundary residual");
+  
 }
 
 template void PhysicsInterface::boundaryResidual<ScalarT>(const size_t & set, const size_t block);
@@ -1386,9 +1370,8 @@ template void PhysicsInterface::boundaryResidual<AD32>(const size_t & set, const
 
 template<class EvalT>
 void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
-  if (debug_level > 1 && comm->getRank() == 0) {
-    cout << "**** Starting PhysicsInterface compute flux ..." << endl;
-  }
+  debugger->print(1, "**** Starting PhysicsInterface compute flux ...");
+  
   if (std::is_same<EvalT, ScalarT>::value) {
     for (size_t i=0; i<modules[set][block].size(); i++) {
       modules[set][block][i]->computeFlux();
@@ -1436,9 +1419,8 @@ void PhysicsInterface::computeFlux(const size_t & set, const size_t block) {
     }
   }
 #endif
-  if (debug_level > 1 && comm->getRank() == 0) {
-    cout << "**** Finished PhysicsInterface compute flux" << endl;
-  }
+  debugger->print(1, "**** Finished PhysicsInterface compute flux");
+  
 }
 
 template void PhysicsInterface::computeFlux<ScalarT>(const size_t & set, const size_t block);

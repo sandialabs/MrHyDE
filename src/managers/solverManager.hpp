@@ -20,6 +20,7 @@
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
 #include "linearAlgebraInterface.hpp"
+#include "MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
@@ -40,7 +41,13 @@ namespace MrHyDE {
     
     SolverManager() {};
     
+    // ========================================================================================
+    // ========================================================================================
+    
     ~SolverManager() {};
+    
+    // ========================================================================================
+    // ========================================================================================
     
     SolverManager(const Teuchos::RCP<MpiComm> & Comm_,
                   Teuchos::RCP<Teuchos::ParameterList> & settings_,
@@ -104,6 +111,9 @@ namespace MrHyDE {
     
     void finalizeWorkset();
     
+    // ========================================================================================
+    // ========================================================================================
+    
     template<class EvalT>
     void finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > > & wkset, Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV,
                          std::vector<Teuchos::RCP<std::vector<EvalT> > > & paramvals);
@@ -141,6 +151,9 @@ namespace MrHyDE {
                         vector<vector_RCP> & phi, 
                         vector<vector_RCP> & phi_stage, 
                         vector<vector_RCP> & phi_prev);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     int explicitSolver(const size_t & set, const size_t & stage,
                        vector<vector_RCP> & sol, 
@@ -180,8 +193,14 @@ namespace MrHyDE {
     
     vector_RCP blankState();
     
+    // ========================================================================================
+    // ========================================================================================
+    
     vector<vector_RCP> getRestartSolution();
 
+    // ========================================================================================
+    // ========================================================================================
+    
     vector<vector_RCP> getRestartAdjointSolution();
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -189,11 +208,19 @@ namespace MrHyDE {
     
     void finalizeParams() ;
     
+    // ========================================================================================
+    // ========================================================================================
+    
     void finalizeMultiscale() ;
     
+    // ========================================================================================
+    // ========================================================================================
     
     void PCG(const size_t & set, matrix_RCP & J, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
              const ScalarT & tol, const int & maxiter);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void matrixFreePCG(const size_t & set, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
                        const ScalarT & tol, const int & maxiter);
@@ -212,8 +239,9 @@ namespace MrHyDE {
     Teuchos::RCP<ParameterManager<Node> > params;
     Teuchos::RCP<PostprocessManager<Node> > postproc;
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
+    Teuchos::RCP<MrHyDE_Debugger> debugger;
     
-    int verbosity, batchID, dimension, gNLiter, debug_level, maxNLiter, subcycles;
+    int verbosity, batchID, dimension, gNLiter, maxNLiter, subcycles;
     
     // numsteps of BDF scheme
     // numstages of RK

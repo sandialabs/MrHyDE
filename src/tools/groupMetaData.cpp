@@ -47,7 +47,8 @@ cell_topo(cellTopo_) {
   }
   
   requires_adjoint = true;
-  if (settings->sublist("Analysis").get<string>("analysis type","forward") == "forward") {
+  string atype = settings->sublist("Analysis").get<string>("analysis type","forward");
+  if (atype == "forward" || atype == "dry-run") {
     requires_adjoint = false;
   }
   
