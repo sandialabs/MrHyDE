@@ -1866,7 +1866,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
   
-  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto p_kv = params->Psol_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
   if (data_avail) {
@@ -2227,9 +2227,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
             auto poffs = params->paramoffsets;
             for (size_t elem=0; elem<assembler->groups[block][grp]->numElem; ++elem) {
                             
-              vector<GO> paramGIDs;
-              params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID(elem),
-                                               paramGIDs, blocknames[block]);
+              //vector<GO> paramGIDs;
+              //params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID(elem),
+              //                                 paramGIDs, blocknames[block]);
               
               for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
                 totaldiff[r] += regwt*regvals_sc_host(elem,pt);
@@ -2419,22 +2419,24 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
   
-  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+  if (params->num_discretized_params > 0) {
+    auto p_kv = params->Psol_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
-  if (data_avail) {
-    params_kv.push_back(pslice);
-  }
-  else {
-    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
-    Kokkos::deep_copy(p_dev,pslice);
-    params_kv.push_back(p_dev);
+    if (data_avail) {
+      params_kv.push_back(pslice);
+    }
+    else {
+      auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(),pslice);
+      Kokkos::deep_copy(p_dev,pslice);
+      params_kv.push_back(p_dev);
+    }
   }
 
   // Objective function values
   ScalarT objval = 0.0;
   
-  int numParams = params->num_active_params + params->globalParamUnknowns;
+  int numParams = params->num_active_params + params->numParamUnknownsOS;
   size_t block = objectives[obj].block;
 
   // Objective function gradients w.r.t params
@@ -2455,7 +2457,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
         
         if (!assembler->groups[block][grp]->have_sols) {
           assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
-          assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+          if (params->num_discretized_params > 0) {
+            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+          }
         }
         assembler->updateWorksetAD(block, grp, 0, 0, true);
         
@@ -2495,7 +2499,6 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
           gradient[p] += objectives[obj].weight*objsum_host(p+1);
         }
       }
-      
       
       // Next, deriv w.r.t discretized params
       if (params->globalParamUnknowns > 0) {
@@ -2542,15 +2545,17 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
           auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
           Kokkos::deep_copy(objsum_host,objsum_dev);
           auto poffs = params->paramoffsets;
-          
+          auto LIDs = assembler->groups[block][grp]->paramLIDs;
+
           for (size_t c=0; c<assembler->groups[block][grp]->numElem; c++) {
-            vector<GO> paramGIDs;
-            params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[c],
-                                             paramGIDs, blocknames[block]);
+            //vector<GO> paramGIDs;
+            //params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID[c],
+            //                                 paramGIDs, blocknames[block]);
             
             for (size_t pp=0; pp<poffs.size(); ++pp) {
               for (size_t row=0; row<poffs[pp].size(); row++) {
-                GO rowIndex = paramGIDs[poffs[pp][row]];
+                //GO rowIndex = paramGIDs[poffs[pp][row]];
+                LO rowIndex = LIDs(c,poffs[pp][row]);//paramGIDs[poffs[pp][row]];
                 int poffset = 1+poffs[pp][row];
                 gradient[rowIndex+params->num_active_params] += objectives[obj].weight*objsum_host(poffset);
               }
@@ -2596,7 +2601,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
             
           if (!assembler->groups[block][grp]->have_sols) {
             assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
-            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+            if (params->globalParamUnknowns > 0) {
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+            }
           }
           assembler->updateWorkset(block, grp, 0, 0, true);
         
@@ -2983,7 +2990,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
     // ========================================================================================
 
     for (size_t reg=0; reg<objectives[obj].regularizations.size(); ++reg) {
-      if (objectives[obj].regularizations[reg].type == "integrated") {
+      if (objectives[obj].regularizations[reg].type == "integrated" && params->num_discretized_params > 0) {
         if (objectives[obj].regularizations[reg].location == "volume") {
           params->sacadoizeParams(false);
           ScalarT regwt = objectives[obj].regularizations[reg].weight;
@@ -2999,7 +3006,6 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
             
             auto regvals_tmp = fman->evaluate(objectives[obj].regularizations[reg].name,"ip");
             View_EvalT2 regvals("regvals",wts.extent(0),wts.extent(1));
-            
             parallel_for("grp objective",
                          RangePolicy<AssemblyExec>(0,wts.extent(0)),
                          KOKKOS_LAMBDA (const size_type elem ) {
@@ -3020,24 +3026,21 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 }
               }
             });
+            
             auto regvals_sc_host = create_mirror_view(regvals_sc);
             deep_copy(regvals_sc_host,regvals_sc);
             
+            auto LIDs = assembler->groups[block][grp]->paramLIDs;
             auto poffs = params->paramoffsets;
-            auto cbasis = wset->basis[0];
             for (size_t elem=0; elem<assembler->groups[block][grp]->numElem; ++elem) {
                             
-              vector<GO> paramGIDs;
-              params->paramDOF->getElementGIDs(assembler->groups[block][grp]->localElemID(elem),
-                                               paramGIDs, blocknames[block]);
-              
               for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
                 objval += regwt*regvals_sc_host(elem,pt,0);
                 for (size_t pp=0; pp<poffs.size(); ++pp) {
                   for (size_t row=0; row<poffs[pp].size(); row++) {
-                    GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
-                    int poffset = poffs[pp][row];
-                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);//*cbasis(elem,row,pt,0);
+                    LO rowIndex = LIDs(elem,poffs[pp][row]) + params->num_active_params;
+                    int poffset = poffs[pp][row]+1;
+                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset);
                   }
                 }
               }
@@ -3088,17 +3091,16 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
               deep_copy(regvals_sc_host,regvals_sc);
               
               auto poffs = params->paramoffsets;
+              auto LIDs = assembler->boundary_groups[block][grp]->paramLIDs;
+
               for (size_t elem=0; elem<assembler->boundary_groups[block][grp]->numElem; ++elem) {
                               
-                vector<GO> paramGIDs;
-                params->paramDOF->getElementGIDs(assembler->boundary_groups[block][grp]->localElemID(elem),
-                                                 paramGIDs, blocknames[block]);
-                
                 for (size_type pt=0; pt<regvals_sc_host.extent(1); ++pt) {
                   objval += regwt*regvals_sc_host(elem,pt,0);
                   for (size_t pp=0; pp<poffs.size(); ++pp) {
-                    for (size_t row=0; row<poffs[pp].size(); row++) {
-                      GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
+                    for (size_t row=0; row<poffs[pp].size(); ++row) {
+                      //GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
+                      GO rowIndex = LIDs(elem,poffs[pp][row]) + params->num_active_params;
                       int poffset = poffs[pp][row];
                       gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
                     }
@@ -3121,10 +3123,10 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
   fullobj = DFAD(numParams,meep);
   
   for (int j=0; j<numParams; j++) {
-    ScalarT dval = 0.0;
+    //ScalarT dval = 0.0;
     ScalarT ldval = gradient[j];
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
-    fullobj.fastAccessDx(j) = dval;
+    //Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&ldval,&dval);
+    fullobj.fastAccessDx(j) = ldval;
   }
   
   params->sacadoizeParams(false);
@@ -4339,20 +4341,25 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       curr_grad = disc_grad[0]->getVector();
     }
     
-    
     auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, deltat);
-    
-    auto sens_kv = sens->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-
-    for (size_t i = 0; i < params->paramOwned.size(); i++) {
-      ScalarT cobj = 0.0;
-      if ((int)(i+params->num_active_params)<obj_sens.size()) {
-        cobj = obj_sens.fastAccessDx(i+params->num_active_params);
-      }
-      sens_kv(i,0) += cobj;
-    }
-    
     curr_grad->update(1.0, *sens, 1.0);
+
+    {
+      vector_RCP sens_over = linalg->getNewParamOverlappedVector();
+      auto sens_kv = sens_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+
+      for (size_t i = 0; i < params->paramOwnedAndShared.size(); i++) {
+        ScalarT cobj = 0.0;
+        if ((int)(i+params->num_active_params)<obj_sens.size()) {
+          cobj = obj_sens.fastAccessDx(i+params->num_active_params);
+        }
+        sens_kv(i,0) += cobj;
+      }
+    
+      vector_RCP sensr = linalg->getNewParamVector();
+      linalg->exportParamVectorFromOverlapped(sensr, sens_over);
+      curr_grad->update(1.0, *sensr, 1.0);
+    }
     
   }
   this->saveObjectiveGradientData(gradient);

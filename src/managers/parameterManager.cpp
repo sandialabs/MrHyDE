@@ -48,6 +48,8 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   num_discrete_params = 0;
   num_discretized_params = 0;
   globalParamUnknowns = 0;
+  numParamUnknowns = 0;
+  numParamUnknownsOS = 0;
   discretized_stochastic = false;
   
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
