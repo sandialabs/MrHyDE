@@ -1,0 +1,10 @@
+
+Truncated CG Trust-Region Solver with Limited-Memory BFGS Hessian Approximation
+  iter  value          gnorm          snorm          delta          #fval     #grad     tr_flag   iterCG    flagCG    
+  0     1.000000e+00   4.937500e-02                  1.000000e+01   
+  1     9.975636e-01   4.931432e-02   4.937500e-02   2.500000e+01   2         2         0         1         0         
+  2     1.487624e-01   1.867687e-02   2.500000e+01   6.250000e+01   3         3         0         1         3         
+  3     3.193990e-03   1.527302e-03   1.544271e+01   1.562500e+02   4         4         0         2         0         
+  4     1.585321e-03   1.031749e-03   1.293905e+00   3.906250e+02   5         5         0         3         0         
+  5     5.568564e-05   2.930801e-04   3.200482e+00   9.765625e+02   6         6         0         4         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
