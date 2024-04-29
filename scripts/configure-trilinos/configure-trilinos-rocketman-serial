@@ -32,12 +32,10 @@ cmake \
   -D CMAKE_C_FLAGS:STRING="-O3" \
   -D CMAKE_Fortran_FLAGS:STRING="-O3" \
   -D CMAKE_VERBOSE_MAKEFILE:BOOL=OFF \
-  -D CMAKE_SKIP_RULE_DEPENDENCY=ON \
   -D CMAKE_INSTALL_PREFIX:PATH=${BUILD_DIR} \
   -D Trilinos_ENABLE_CHECKED_STL:BOOL=OFF \
   -D Trilinos_ENABLE_EXPLICIT_INSTANTIATION:BOOL=ON \
   -D Trilinos_ENABLE_INSTALL_CMAKE_CONFIG_FILES:BOOL=ON \
-  -D Trilinos_SKIP_FORTRANCINTERFACE_VERIFY_TEST:BOOL=ON \
   -D Trilinos_ENABLE_Amesos:BOOL=ON \
   -D Trilinos_ENABLE_Amesos2:BOOL=ON \
   -D Trilinos_ENABLE_AztecOO:BOOL=ON \
@@ -45,8 +43,9 @@ cmake \
   -D Trilinos_ENABLE_Compadre:BOOL=ON \
   -D Trilinos_ENABLE_Epetra:BOOL=ON \
   -D Trilinos_ENABLE_Ifpack:BOOL=ON \
-  -D Trilinos_ENABLE_ML:BOOL=ON \
+  -D Trilinos_ENABLE_ML:BOOL=OFF \
   -D Trilinos_ENABLE_MueLu:BOOL=ON \
+    -D MueLu_ENABLE_EXPERIMENTAL:BOOL=ON \
   -D Trilinos_ENABLE_Panzer:BOOL=ON \
   -D Trilinos_ENABLE_ROL:BOOL=ON \
   -D Trilinos_ENABLE_SEACAS:BOOL=ON \
@@ -56,6 +55,7 @@ cmake \
   -D Trilinos_ENABLE_Stratimikos:BOOL=ON \
   -D Trilinos_ENABLE_Teko:BOOL=ON \
   -D Trilinos_ENABLE_Teuchos:BOOL=ON \
+  -D Trilinos_ENABLE_Thyra:BOOL=ON \
   -D Trilinos_ENABLE_Zoltan:BOOL=ON \
   -D TPL_ENABLE_Boost:BOOL=ON \
     -D TPL_Boost_INCLUDE_DIRS:FILEPATH=${BOOST_INCLUDE_DIR} \
@@ -71,7 +71,7 @@ cmake \
   -D Trilinos_EXTRA_LINK_FLAGS:STRING="-lpnetcdf -lhdf5_hl -lhdf5 -lz" \
   -D TPL_X11_INCLUDE_DIRS:PATH=/usr/include/X11 \
   ${EXTRA-ARGS} \
-  ${TRILINOS_SOURCE}
+  ${TRILINOS_SOURCE} 2>&1 | tee configure.log
 
 #  -D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
 #  -D Trilinos_ENABLE_TESTS:BOOL=OFF \

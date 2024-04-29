@@ -30,7 +30,7 @@ TRILINOS_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/Trilinos"
 MrHyDE_SOURCE_PREFIX="/ascldap/users/gbharpe/Programming/cpp/MrHyDE"
 
 TRILINOS_SOURCE="${TRILINOS_SOURCE_PREFIX}/Trilinos-source"
-TRILINOS_INSTALL="${TRILINOS_SOURCE_PREFIX}/Trilinos-build-MrHyDE/lib/cmake/Trilinos"
+TRILINOS_INSTALL="${TRILINOS_SOURCE_PREFIX}/Trilinos-build-MrHyDE/lib64/cmake/Trilinos"
 
 MrHyDE_SOURCE="${MrHyDE_SOURCE_PREFIX}/MrHyDE-source"
 MrHyDE_BUILD="${MrHyDE_SOURCE_PREFIX}/MrHyDE-build"
