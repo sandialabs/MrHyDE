@@ -566,6 +566,7 @@ namespace MrHyDE {
     int maxLinearIters, maxKrylovVectors;
     string belos_residual_scaling;
     ScalarT linearTOL;
+    bool doCondEst;
     
     Teuchos::RCP<Teuchos::Time> setupLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::setup");
     Teuchos::RCP<Teuchos::Time> newvectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNewVector()");

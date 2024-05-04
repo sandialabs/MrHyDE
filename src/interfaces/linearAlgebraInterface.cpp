@@ -45,6 +45,7 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
   
   // Generic Belos Settings - can be overridden by defining Belos sublists
   linearTOL = settings->sublist("Solver").get<double>("linear TOL",1.0E-7);
+  doCondEst = settings->sublist("Solver").get<bool>("Estimate Condition Number",false);
   maxLinearIters = settings->sublist("Solver").get<int>("max linear iters",100);
   maxKrylovVectors = settings->sublist("Solver").get<int>("krylov vectors",100);
   belos_residual_scaling = settings->sublist("Solver").get<string>("Belos implicit residual scaling","None");
@@ -319,6 +320,7 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
   belosList->set("Num Blocks", maxLinearIters);
   belosList->set("Convergence Tolerance", linearTOL);    // Relative convergence tolerance requested
+  belosList->set("Estimate Condition Number", doCondEst); // Only implemented in Belos for Pseudo Block CG, based on AztecOO
   if (verbosity > 9) {
     belosList->set("Verbosity", Belos::Errors + Belos::Warnings + Belos::StatusTestDetails);
   }
@@ -480,6 +482,13 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<LinearSolverOptions
     // Minres and LSQR fail a simple test
     
     solver->solve();
+
+    if(doCondEst && opt->belos_type == "Pseudo Block CG") {
+      Teuchos::RCP<Belos::PseudoBlockCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>> solver_cg = Teuchos::rcp_dynamic_cast<Belos::PseudoBlockCGSolMgr<ScalarT,LA_MultiVector,LA_Operator>>(solver);
+      if(comm->getRank() == 0) {
+        std::cout << "Belos condition number estimate = " << solver_cg->getConditionEstimate() << std::endl;
+      }
+    }
     
   }
   
