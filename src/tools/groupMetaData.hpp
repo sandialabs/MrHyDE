@@ -11,9 +11,9 @@
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
-#include "physicsBase.hpp"
-#include "physicsInterface.hpp"
-#include "sparse3DView.hpp"
+#include "physics/physicsBase.hpp"
+#include "interfaces/physicsInterface.hpp"
+#include "tools/sparse3DView.hpp"
 
 #include <iostream>     
 #include <iterator>     
