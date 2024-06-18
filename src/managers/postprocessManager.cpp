@@ -4642,6 +4642,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             // Fill on device
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
+              assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
               // Compute the element average
               assembler->computeSolutionAverage(block, grp, varlist[set][block][n], sol);
               parallel_for("postproc plot HDIV/HCURL",
@@ -4821,7 +4822,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
             // Fill on device
             for (size_t grp=0; grp<assembler->groups[block].size(); ++grp ) {
               auto eID = assembler->groups[block][grp]->localElemID;
-              
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
               assembler->computeParameterAverage(block, grp, dpnames[n],sol);
               parallel_for("postproc plot HDIV/HCURL",
                            RangePolicy<AssemblyExec>(0,eID.extent(0)),

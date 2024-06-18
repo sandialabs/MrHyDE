@@ -6736,7 +6736,6 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
 template<class Node>
 void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size_t & grp,
                                                   const string & var, View_Sc2 csol) {
-  /*
   // Figure out which basis we need
   int index;
   wkset[block]->isVar(var,index);
@@ -6770,7 +6769,8 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
   });
   
   size_t set = wkset[block]->current_set;
-  auto scsol = subview(groups[block][grp]->sol[set],ALL(),index,ALL());
+  
+  auto scsol = subview(groupData[block]->sol[set],ALL(),index,ALL());
   parallel_for("wkset[block] soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -6784,7 +6784,7 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
       csol(elem,dim) = avgval/avgwts(elem);
     }
   });
-  */
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -6795,7 +6795,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
                                                     const string & var, View_Sc2 sol) {
   
   //Teuchos::TimeMonitor localtimer(*computeSolAvgTimer);
-  /*
+  
   // Figure out which basis we need
   int index;
   wkset[block]->isParameter(var,index);
@@ -6828,7 +6828,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
     avgwts(elem) = avgwt;
   });
   
-  auto csol = subview(groups[block][grp]->param,ALL(),index,ALL());
+  auto csol = subview(groupData[block]->param,ALL(),index,ALL());
   parallel_for("wkset[block] soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                KOKKOS_LAMBDA (const size_type elem ) {
@@ -6842,7 +6842,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
       sol(elem,dim) = avgval/avgwts(elem);
     }
   });
-  */
+  
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
