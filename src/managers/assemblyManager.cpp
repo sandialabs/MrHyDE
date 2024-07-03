@@ -873,6 +873,7 @@ void AssemblyManager<Node>::createWorkset() {
       info.push_back(groupData[block]->num_ip);
       info.push_back(groupData[block]->num_side_ip);
       info.push_back(physics->set_names.size());
+      info.push_back(params->num_active_params);
       vector<size_t> numVars;
       for (size_t set=0; set<groupData[block]->set_num_dof.size(); ++set) {
         numVars.push_back(groupData[block]->set_num_dof[set].extent(0));
@@ -2507,6 +2508,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
         }
         
       }
+      
     }
     
   } // group loop
@@ -5693,7 +5695,7 @@ void AssemblyManager<Node>::updateWorksetBoundary(Teuchos::RCP<Workset<EvalT> > 
       }
     }
   }
-  if (wset->numParams > 0) {
+  if (wset->numDiscParams > 0) {
     if (boundary_groups[block][grp]->have_sols) {
       wset->computeParamSteadySeeded(boundary_groups[block][grp]->param, seedwhat);
     }
@@ -6584,7 +6586,7 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
       }
     }
   }
-  if (wset->numParams > 0) {
+  if (wset->numDiscParams > 0) {
     if (groups[block][grp]->have_sols) {
       wset->computeParamSteadySeeded(groups[block][grp]->param, seedwhat);
     }

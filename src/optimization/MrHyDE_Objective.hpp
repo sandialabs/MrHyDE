@@ -87,9 +87,8 @@ namespace ROL {
       MrHyDE_OptVector sens = 
       Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(g));
       sens.zero();
-      
       solver->adjointModel(sens);
-
+      
     }
     
     bool checkNewParams(const Vector<Real> &Params) {

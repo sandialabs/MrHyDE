@@ -1,10 +1,10 @@
 /***********************************************************************
  MrHyDE - a framework for solving Multi-resolution Hybridized
- Differential Equations and enabling beyond forward simulation for 
+ Differential Equations and enabling beyond forward simulation for
  large-scale multiphysics and multiscale systems.
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
-************************************************************************/
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
+ ************************************************************************/
 
 #ifndef MRHYDE_OPTVEC_HPP
 #define MRHYDE_OPTVEC_HPP
@@ -14,40 +14,52 @@
 
 #include "ROL_StdVector.hpp"
 #include "ROL_TpetraMultiVector.hpp"
-  
+
 class MrHyDE_OptVector : public ROL::Vector<ScalarT> {
-
+  
 private:
-
+  
   std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > field_vec; // vector for dynamics
-  ROL::Ptr<ROL::StdVector<ScalarT> > scalar_vec;
-
+  std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > scalar_vec;
+  
   const int mpirank;
-  bool have_scalar = true, have_field = false;
-
-  mutable vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > dual_field_vec;
-  mutable ROL::Ptr<ROL::StdVector<ScalarT> > dual_scalar_vec;
+  bool have_scalar, have_field, have_dynamic_scalar, have_dynamic_field;
+  double dyn_dt = 1.0;
+  
+  mutable std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > dual_field_vec;
+  mutable std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > dual_scalar_vec;
   mutable ROL::Ptr<MrHyDE_OptVector> dual_vec;
   mutable bool isDualInitialized;
-
+  
 public:
   
   ///////////////////////////////////////////////////
-  // Constructors for MrHyDE
+  // Constructors for MrHyDE_OptVector
   ///////////////////////////////////////////////////
   
-  MrHyDE_OptVector(const vector<ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
-                   const ROL::Ptr<std::vector<ScalarT> > & s_vec,
-                   const int mpirank_ = 0) 
-    : mpirank(mpirank_), isDualInitialized(false) {
-    if (s_vec == ROL::nullPtr) {
-      scalar_vec = ROL::nullPtr;
+  MrHyDE_OptVector(const std::vector<ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
+                   const std::vector<ROL::Ptr<std::vector<ScalarT> > > & s_vec,
+                   const double & dt,
+                   const int mpirank_ = 0)
+  : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+    if (s_vec.size() == 0) {
+      //scalar_vec = ROL::nullPtr;
       have_scalar = false;
+      have_dynamic_scalar = false;
     }
     else {
-      scalar_vec = ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec);
+      for (size_t k=0; k<s_vec.size(); ++k) {
+        scalar_vec.push_back(ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec[k]));
+      }
       have_scalar = true;
+      if (s_vec.size() > 1) {
+        have_dynamic_scalar = true;
+      }
+      else {
+        have_dynamic_scalar = false;
+      }
     }
+    
     have_field = true;
     if (f_vec.size() == 0) {
       have_field = false;
@@ -56,8 +68,94 @@ public:
       field_vec.push_back(ROL::makePtr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode>>(f_vec[k]));
       dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[k]->dual().clone()));
     }
+    
+    if (f_vec.size() > 1) {
+      have_dynamic_field = true;
+    }
+    else {
+      have_dynamic_field = false;
+    }
+    
     if (have_scalar) {
-      dual_scalar_vec = ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->dual().clone());
+      for (size_t k=0; k<s_vec.size(); ++k) {
+        dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[k]->dual().clone()));
+      }
+    }
+  }
+  
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+  
+  MrHyDE_OptVector(const std::vector<ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
+                   const ROL::Ptr<std::vector<ScalarT> > & s_vec,
+                   const double & dt,
+                   const int mpirank_ = 0)
+  : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+    have_dynamic_scalar = false;
+    if (s_vec == ROL::nullPtr) {
+      have_scalar = false;
+    }
+    else {
+      scalar_vec.push_back(ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec));
+      have_scalar = true;
+    }
+    have_field = true;
+    if (f_vec.size() == 0) {
+      have_field = false;
+    }
+    if (f_vec.size() > 1) {
+      have_dynamic_field = true;
+    }
+    else {
+      have_dynamic_field = false;
+    }
+      
+    for (size_t k=0; k<f_vec.size(); ++k) {
+      field_vec.push_back(ROL::makePtr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode>>(f_vec[k]));
+      dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[k]->dual().clone()));
+    }
+    if (have_scalar) {
+      dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[0]->dual().clone()));
+    }
+    
+  }
+  
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+  
+  MrHyDE_OptVector(const ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > & f_vec,
+                   const std::vector<ROL::Ptr<std::vector<ScalarT> > > & s_vec,
+                   const double & dt,
+                   const int mpirank_ = 0)
+  : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+    if (s_vec.size() == 0) {
+      //scalar_vec = ROL::nullPtr;
+      have_scalar = false;
+      have_dynamic_scalar = false;
+    }
+    else {
+      for (size_t k=0; k<s_vec.size(); ++k) {
+        scalar_vec.push_back(ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec[k]));
+      }
+      have_scalar = true;
+      if (s_vec.size() > 1) {
+        have_dynamic_scalar = true;
+      }
+      else {
+        have_dynamic_scalar = false;
+      }
+    }
+    
+    have_field = true;
+    field_vec.push_back(ROL::makePtr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode>>(f_vec));
+    dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[0]->dual().clone()));
+    
+    have_dynamic_field = false;
+    
+    if (have_scalar) {
+      for (size_t k=0; k<s_vec.size(); ++k) {
+        dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[k]->dual().clone()));
+      }
     }
   }
   
@@ -66,59 +164,74 @@ public:
   
   MrHyDE_OptVector(const ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > & f_vec,
                    const ROL::Ptr<std::vector<ScalarT> > & s_vec,
-                   const int mpirank_ = 0) 
-    : mpirank(mpirank_), isDualInitialized(false) {
-
-    scalar_vec = ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec);
+                   const int mpirank_ = 0)
+  : mpirank(mpirank_), isDualInitialized(false) {
+    
+    scalar_vec.push_back(ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec));
     field_vec.push_back(ROL::makePtr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec));
     
-    have_scalar = true;
-    if (s_vec->size() == 0) {
+    have_dynamic_scalar = false;
+    have_dynamic_field = false;
+    
+    if (s_vec->size() > 0) {
+      have_scalar = true;
+    }
+    else {//if (s_vec == ROL::nullPtr) {
       have_scalar = false;
     }
     
     have_field = true;
     
     dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[0]->dual().clone()));
-    dual_scalar_vec = ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->dual().clone());
+    dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[0]->dual().clone()));
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
-  MrHyDE_OptVector(const vector<ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec)
-    : scalar_vec(ROL::nullPtr), mpirank(0), isDualInitialized(false) {
+  MrHyDE_OptVector(const std::vector<ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
+                   const double & dt)
+  : scalar_vec(ROL::nullPtr), mpirank(0), dyn_dt(dt), isDualInitialized(false) {
     
     have_scalar = false;
     have_field = true;
+    have_dynamic_scalar = false;
     
     for (size_t k=0; k<f_vec.size(); ++k) {
       field_vec.push_back(ROL::makePtr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec[k]));
       dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[k]->dual().clone()));
     }
+    have_dynamic_field = false;
+    if (f_vec.size() > 1) {
+      have_dynamic_field = true;
+    }
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
   MrHyDE_OptVector(const ROL::Ptr<std::vector<ScalarT> > & s_vec,
                    const int & mpirank_ = 0)
-    : field_vec(ROL::nullPtr), mpirank(mpirank_), isDualInitialized(false) {
+  : field_vec(ROL::nullPtr), mpirank(mpirank_), isDualInitialized(false) {
     
     have_scalar = true;
     have_field = false;
-
-    scalar_vec = ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec);
-    dual_scalar_vec = ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->dual().clone());
+    have_dynamic_scalar = false;
+    have_dynamic_field = false;
+    
+    scalar_vec.push_back(ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec));
+    dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[0]->dual().clone()));
   }
   
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
   MrHyDE_OptVector()
-    : field_vec(ROL::nullPtr), scalar_vec(ROL::nullPtr),  mpirank(0), isDualInitialized(false) {
+  : mpirank(0), isDualInitialized(false) {
     have_scalar = false;
     have_field = false;
+    have_dynamic_scalar = false;
+    have_dynamic_field = false;
   }
   
   ///////////////////////////////////////////////////
@@ -127,91 +240,214 @@ public:
   // Constructors for cloning
   ///////////////////////////////////////////////////
   
-  MrHyDE_OptVector(const vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
-                   const ROL::Ptr<ROL::StdVector<ScalarT> > & s_vec,
-                   const int mpirank_ = 0) 
-    : field_vec(f_vec), scalar_vec(s_vec), mpirank(mpirank_), isDualInitialized(false) {
-
+  MrHyDE_OptVector(const std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
+                   const std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > & s_vec,
+                   const double & dt,
+                   const int mpirank_ = 0)
+  : field_vec(f_vec), scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+    
     have_scalar = true;
-    if (s_vec->getVector()->size() == 0) {
+    if (s_vec[0]->getVector()->size() == 0) {
       have_scalar = false;
+    }
+    if (s_vec.size() > 1) {
+      have_dynamic_scalar = true;
+    }
+    else {
+      have_dynamic_scalar = false;
     }
     
     have_field = true;
     if (f_vec.size() == 0) {
       have_field = false;
     }
+    if (f_vec.size() > 1) {
+      have_dynamic_field = true;
+    }
+    else {
+      have_dynamic_field = false;
+    }
     
     for (size_t k=0; k<f_vec.size(); ++k) {
       dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[k]->dual().clone()));
     }
-    dual_scalar_vec = ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->dual().clone());
+    
+    for (size_t k=0; k<s_vec.size(); ++k) {
+      dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[k]->dual().clone()));
+    }
   }
-
-  ///////////////////////////////////////////////////
-  ///////////////////////////////////////////////////
   
-  MrHyDE_OptVector(const ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > & f_vec,
-                   const ROL::Ptr<ROL::StdVector<ScalarT> > & s_vec,
-                   const int mpirank_ = 0) 
-    : scalar_vec(s_vec), mpirank(mpirank_), isDualInitialized(false) {
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
 
+  MrHyDE_OptVector(const std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
+                   const ROL::Ptr<ROL::StdVector<ScalarT> > & s_vec,
+                   const double & dt,
+                   const int mpirank_ = 0)
+  : field_vec(f_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+    
+    scalar_vec.push_back(s_vec);//ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec));
     have_scalar = true;
     if (s_vec->getVector()->size() == 0) {
       have_scalar = false;
     }
+    have_dynamic_scalar = false;
     
     have_field = true;
+    if (f_vec.size() == 0) {
+      have_field = false;
+    }
+    if (f_vec.size() > 1) {
+      have_dynamic_field = true;
+    }
+    else {
+      have_dynamic_field = false;
+    }
     
-    field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec));
-    dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[0]->dual().clone()));
-    dual_scalar_vec = ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->dual().clone());
+    for (size_t k=0; k<f_vec.size(); ++k) {
+      dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[k]->dual().clone()));
+    }
+    dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[0]->dual().clone()));
   }
 
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-  
-  MrHyDE_OptVector(const vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
-                   const int & mpirank_ = 0)
-    : field_vec(f_vec), scalar_vec(ROL::nullPtr), mpirank(mpirank_), isDualInitialized(false) {
 
+  MrHyDE_OptVector(const ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > & f_vec,
+                   const std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > & s_vec,
+                   const double & dt,
+                   const int mpirank_ = 0)
+  : scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+  
+    have_scalar = true;
+    if (s_vec[0]->getVector()->size() == 0) {
+      have_scalar = false;
+    }
+    if (s_vec.size() > 1) {
+      have_dynamic_scalar = true;
+    }
+    else {
+      have_dynamic_scalar = false;
+    }
+  
+    have_field = true;
+    have_dynamic_field = false;
+  
+    field_vec.push_back(f_vec);//ROL::makePtr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec));
+    
+    dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[0]->dual().clone()));
+  
+    for (size_t k=0; k<s_vec.size(); ++k) {
+      dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[k]->dual().clone()));
+    }
+  }
+
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+
+  MrHyDE_OptVector(const ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > & f_vec,
+                   const ROL::Ptr<ROL::StdVector<ScalarT> > & s_vec,
+                   const int mpirank_ = 0)
+  : mpirank(mpirank_), isDualInitialized(false) {
+    
+    have_scalar = true;
+    if (s_vec->getVector()->size() == 0) {
+      have_scalar = false;
+    }
+    have_dynamic_scalar = false;
+    
+    have_field = true;
+    have_dynamic_field = false;
+    
+    scalar_vec.push_back(s_vec);//ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec));
+    field_vec.push_back(f_vec);//ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec));
+    dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[0]->dual().clone()));
+    dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[0]->dual().clone()));
+  }
+  
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+  
+  MrHyDE_OptVector(const std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > & f_vec,
+                   const double & dt,
+                   const int & mpirank_ = 0)
+  : field_vec(f_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+    
     have_scalar = false;
     have_field = true;
+    scalar_vec.push_back(ROL::nullPtr);
+    
+    if (f_vec.size() > 1) {
+      have_dynamic_field = true;
+    }
+    else {
+      have_dynamic_field = false;
+    }
+    have_dynamic_scalar = false;
     
     for (size_t k=0; k<f_vec.size(); ++k) {
       //field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec[k]->clone()));
       dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec[k]->dual().clone()));
     }
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
   MrHyDE_OptVector(const ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > & f_vec,
                    const int & mpirank_ = 0)
-    : scalar_vec(ROL::nullPtr), mpirank(mpirank_), isDualInitialized(false) {
-
+  : mpirank(mpirank_), isDualInitialized(false) {
+    
     have_scalar = false;
+    scalar_vec.push_back(ROL::nullPtr);
+    have_dynamic_scalar = false;
+    
     have_field = true;
     
     field_vec.push_back(f_vec);
-
+    have_dynamic_field = false;
+    
     for (size_t k=0; k<field_vec.size(); ++k) {
       dual_field_vec.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[k]->dual().clone()));
     }
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
   MrHyDE_OptVector(const ROL::Ptr<ROL::StdVector<ScalarT> > & s_vec,
                    const int & mpirank_ = 0)
-    : scalar_vec(s_vec), mpirank(mpirank_), isDualInitialized(false) {
+  : mpirank(mpirank_), isDualInitialized(false) {
+    
+    scalar_vec.push_back(s_vec);
+    have_scalar = true;
+    have_dynamic_scalar = false;
+    have_field = false;
+    have_dynamic_field = false;
+    
+    dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[0]->dual().clone()));
+  }
+  
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+  
+  MrHyDE_OptVector(const std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > & s_vec,
+                   const double & dt,
+                   const int & mpirank_ = 0)
+  : scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
     
     have_scalar = true;
+    have_dynamic_scalar = false;
+    if (s_vec.size() > 1) {
+      have_dynamic_scalar = true;
+    }
     have_field = false;
+    have_dynamic_field = false;
     
-    dual_scalar_vec = ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->dual().clone());
+    for (size_t k=0; k<s_vec.size(); ++k) {
+      dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[k]->dual().clone()));
+    }
+    
   }
   
   ///////////////////////////////////////////////////
@@ -222,7 +458,7 @@ public:
   ///////////////////////////////////////////////////
   
   void set( const ROL::Vector<ScalarT> &x ) {
-    //cout << "called set" << endl;
+    
     const MrHyDE_OptVector &xs = dynamic_cast<const MrHyDE_OptVector&>(x);
     if (field_vec.size() > 0) {
       auto xs_f = xs.getField();
@@ -232,8 +468,14 @@ public:
         }
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->set(*(xs.getParameter()));
+    
+    if (scalar_vec.size() > 0) {
+      auto xs_s = xs.getParameter();
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          scalar_vec[i]->set(*(xs_s[i]));
+        }
+      }
     }
   }
   
@@ -241,7 +483,7 @@ public:
   ///////////////////////////////////////////////////
   
   void plus( const ROL::Vector<ScalarT> &x ) {
-    //cout << "called plus" << endl;
+    
     const MrHyDE_OptVector &xs = dynamic_cast<const MrHyDE_OptVector&>(x);
     if (field_vec.size() > 0) {
       auto xs_f = xs.getField();
@@ -252,16 +494,22 @@ public:
       }
     }
     
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->plus(*(xs.getParameter()));
+    if (scalar_vec.size() > 0) {
+      auto xs_s = xs.getParameter();
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          scalar_vec[i]->plus(*(xs_s[i]));
+        }
+      }
     }
+    
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
   void scale( const ScalarT alpha ) {
-    //cout << "called scale: " << alpha << endl;
+    
     if (field_vec.size() > 0) {
       for (size_t i=0; i<field_vec.size(); ++i) {
         if ( field_vec[i] != ROL::nullPtr ) {
@@ -269,11 +517,17 @@ public:
         }
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->scale(alpha);
+    
+    if (scalar_vec.size() > 0) {
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          scalar_vec[i]->scale(alpha);
+        }
+      }
     }
+    
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
@@ -286,11 +540,17 @@ public:
         }
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->zero();
+    
+    if (scalar_vec.size() > 0) {
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          scalar_vec[i]->zero();
+        }
+      }
     }
+    
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
@@ -303,16 +563,22 @@ public:
         }
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->getVector()->assign(scalar_vec->dimension(),alpha);
+    
+    if (scalar_vec.size() > 0) {
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          scalar_vec[i]->getVector()->assign(scalar_vec[i]->dimension(),alpha);
+        }
+      }
     }
+    
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
   void axpy( const ScalarT alpha, const ROL::Vector<ScalarT> &x ) {
-    //cout << "called axpy alpha = " << alpha << endl;
+    
     const MrHyDE_OptVector &xs = dynamic_cast<const MrHyDE_OptVector&>(x);
     if (field_vec.size() > 0) {
       auto xs_f = xs.getField();
@@ -322,16 +588,23 @@ public:
         }
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->axpy(alpha,*(xs.getParameter()));
+    
+    if (scalar_vec.size() > 0) {
+      auto xs_s = xs.getParameter();
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          scalar_vec[i]->axpy(alpha,*(xs_s[i]));
+        }
+      }
     }
+    
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-
+  
   ScalarT dot( const ROL::Vector<ScalarT> &x ) const {
-    //cout << "called dot" << endl;
+    
     const MrHyDE_OptVector &xs = dynamic_cast<const MrHyDE_OptVector&>(x);
     ScalarT val(0);
     if (field_vec.size() > 0) {
@@ -342,17 +615,24 @@ public:
         }
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      val += scalar_vec->dot(*(xs.getParameter()));
+    
+    if (scalar_vec.size() > 0) {
+      auto xs_s = xs.getParameter();
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          val += scalar_vec[i]->dot(*(xs_s[i]));
+        }
+      }
     }
+    
     return val;
   }
   
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-
+  
   ScalarT norm() const {
-    //cout << "called norm" << endl;
+    
     ScalarT val(0);
     if (field_vec.size() > 0) {
       for (size_t i=0; i<field_vec.size(); ++i) {
@@ -362,74 +642,70 @@ public:
         }
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      ScalarT norm2 = scalar_vec->norm();
-      val += norm2*norm2;
+    
+    if (scalar_vec.size() > 0) {
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if ( scalar_vec[i] != ROL::nullPtr ) {
+          ScalarT norm1 = scalar_vec[i]->norm();
+          val += norm1*norm1;
+        }
+      }
     }
+    
     return std::sqrt(val);
-  } 
-
+  }
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-
+  
   ROL::Ptr<ROL::Vector<ScalarT> > clone(void) const {
-    //cout << "called clone" << endl;
+    
+    ROL::Ptr<ROL::Vector<ScalarT> > clonevec;
     if ( !have_scalar ) {
-      vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > fvecs;
+      std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > fvecs;
       
       for (size_t i=0; i<field_vec.size(); ++i) {
         fvecs.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[i]->clone()));
       }
-      return ROL::makePtr<MrHyDE_OptVector>(fvecs, mpirank);
-
-      //vector<ROL::Vector<ScalarT>> fvecs;
-      //for (size_t i=0; i<field_vec.size(); ++i) {
-      //  fvecs.push_back(field_vec[i]->clone());
-      //}
-      //return ROL::makePtr<MrHyDE_OptVector>(fvecs, mpirank); 
-      /*
-      typedef Vector<Real>                  V;
-      typedef ROL::Ptr<V>                   Vp;
-      typedef PartitionedVector<Real>       PV;
-
-      Vp clone() const {
-      std::vector<Vp> clonevec;
-      for( size_type i=0; i<vecs_.size(); ++i ) {
-        clonevec.push_back(vecs_[i]->clone());
+      clonevec = ROL::makePtr<MrHyDE_OptVector>(fvecs, dyn_dt, mpirank);
+      
+    }
+    else if ( !have_field) {
+      std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > svecs;
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        svecs.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[i]->clone()));
       }
-      return ROL::makePtr<PV>(clonevec);
-      */
-    
-
+      clonevec = ROL::makePtr<MrHyDE_OptVector>(svecs, dyn_dt, mpirank);
     }
-    if ( !have_field) {
-      return ROL::makePtr<MrHyDE_OptVector>(
-             ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->clone()), mpirank);
+    else {
+      std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > fvecs;
+      for (size_t i=0; i<field_vec.size(); ++i) {
+        fvecs.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[i]->clone()));
+      }
+      std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > svecs;
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        svecs.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[i]->clone()));
+      }
+      
+      clonevec = ROL::makePtr<MrHyDE_OptVector>(fvecs, svecs, dyn_dt, mpirank);
     }
-    vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > fvecs;
-    for (size_t i=0; i<field_vec.size(); ++i) {
-      fvecs.push_back(ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(field_vec[i]->clone()));
-    }
-    return ROL::makePtr<MrHyDE_OptVector>(fvecs,
-                                          ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec->clone()),
-                                          mpirank);
+    return clonevec;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-
+  
   const ROL::Vector<ScalarT> & dual(void) const {
-    //cout << "called dual" << endl;
+    
     if ( !isDualInitialized ) {
       if ( !have_field) {
-        //if ( field_vec == ROL::nullPtr ) {
-        dual_vec = ROL::makePtr<MrHyDE_OptVector>(dual_scalar_vec);
+        dual_vec = ROL::makePtr<MrHyDE_OptVector>(dual_scalar_vec, dyn_dt);
       }
       else if ( !have_scalar ) {
-        dual_vec = ROL::makePtr<MrHyDE_OptVector>(dual_field_vec);
+        dual_vec = ROL::makePtr<MrHyDE_OptVector>(dual_field_vec, dyn_dt);
       }
       else {
-        dual_vec = ROL::makePtr<MrHyDE_OptVector>(dual_field_vec,dual_scalar_vec);
+        dual_vec = ROL::makePtr<MrHyDE_OptVector>(dual_field_vec, dual_scalar_vec, dyn_dt);
       }
       isDualInitialized = true;
     }
@@ -438,87 +714,98 @@ public:
         dual_field_vec[i]->set(field_vec[i]->dual());
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      dual_scalar_vec->set(scalar_vec->dual());
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        dual_scalar_vec[i]->set(scalar_vec[i]->dual());
+      }
     }
     return *dual_vec;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-
+  
   ScalarT apply(const ROL::Vector<ScalarT> &x) const {
     const MrHyDE_OptVector &xs = dynamic_cast<const MrHyDE_OptVector&>(x);
     ScalarT val(0);
     auto xs_f = xs.getField();
     for (size_t i=0; i<field_vec.size(); ++i) {
-      if ( field_vec[i] != ROL::nullPtr ) val += field_vec[i]->apply(*(xs_f[i]));
+      if ( field_vec[i] != ROL::nullPtr ) {
+        val += field_vec[i]->apply(*(xs_f[i]));
+      }
     }
-    if ( scalar_vec != ROL::nullPtr ) val += scalar_vec->apply(*(xs.getParameter()));
+    auto xs_s = xs.getParameter();
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        val += scalar_vec[i]->apply(*(xs_s[i]));
+      }
+    }
     return val;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-
+  
   ROL::Ptr<ROL::Vector<ScalarT> > basis( const int i )  const {
     ROL::Ptr<ROL::Vector<ScalarT> > e;
     std::cout << "Basis got called" << std::endl;
-
+    
     /*
-    if ( field_vec != ROL::nullPtr && scalar_vec != ROL::nullPtr ) {
-      int n1 = field_vec->dimension();
-      ROL::Ptr<ROL::Vector<ScalarT> > e1, e2;
-      if ( i < n1 ) {
-        e1 = field_vec->basis(i);
-        e2 = scalar_vec->clone(); e2->zero();
-      }
-      else {
-        e1 = field_vec->clone(); e1->zero();
-        e2 = scalar_vec->basis(i-n1);
-      }
-      e = ROL::makePtr<MrHyDE_OptVector>(
-        ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT> >(e1),
-        ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(e2));
-    }
-    if ( field_vec != ROL::nullPtr && scalar_vec == ROL::nullPtr ) {
-      int n1 = field_vec->dimension();
-      ROL::Ptr<ROL::Vector<ScalarT> > e1;
-      if ( i < n1 ) {
-        e1 = field_vec->basis(i);
-      }
-      else {
-        e1->zero();
-      }
-      e = ROL::makePtr<MrHyDE_OptVector>(
-        ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT> >(e1));
-    }
-    if ( field_vec == ROL::nullPtr && scalar_vec != ROL::nullPtr ) {
-      int n2 = scalar_vec->dimension();
-      ROL::Ptr<ROL::Vector<ScalarT> > e2;
-      if ( i < n2 ) {
-        e2 = scalar_vec->basis(i);
-      }
-      else {
-        e2->zero();
-      }
-      e = ROL::makePtr<MrHyDE_OptVector>(
-        ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(e2));
-    }*/
+     if ( field_vec != ROL::nullPtr && scalar_vec != ROL::nullPtr ) {
+     int n1 = field_vec->dimension();
+     ROL::Ptr<ROL::Vector<ScalarT> > e1, e2;
+     if ( i < n1 ) {
+     e1 = field_vec->basis(i);
+     e2 = scalar_vec->clone(); e2->zero();
+     }
+     else {
+     e1 = field_vec->clone(); e1->zero();
+     e2 = scalar_vec->basis(i-n1);
+     }
+     e = ROL::makePtr<MrHyDE_OptVector>(
+     ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT> >(e1),
+     ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(e2));
+     }
+     if ( field_vec != ROL::nullPtr && scalar_vec == ROL::nullPtr ) {
+     int n1 = field_vec->dimension();
+     ROL::Ptr<ROL::Vector<ScalarT> > e1;
+     if ( i < n1 ) {
+     e1 = field_vec->basis(i);
+     }
+     else {
+     e1->zero();
+     }
+     e = ROL::makePtr<MrHyDE_OptVector>(
+     ROL::dynamicPtrCast<ROL::TpetraMultiVector<ScalarT> >(e1));
+     }
+     if ( field_vec == ROL::nullPtr && scalar_vec != ROL::nullPtr ) {
+     int n2 = scalar_vec->dimension();
+     ROL::Ptr<ROL::Vector<ScalarT> > e2;
+     if ( i < n2 ) {
+     e2 = scalar_vec->basis(i);
+     }
+     else {
+     e2->zero();
+     }
+     e = ROL::makePtr<MrHyDE_OptVector>(
+     ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(e2));
+     }*/
     return e;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
-
+  
   void applyUnary( const ROL::Elementwise::UnaryFunction<ScalarT> &f ) {
     for (size_t i=0; i<field_vec.size(); ++i) {
       if ( field_vec[i] != ROL::nullPtr ) {
         field_vec[i]->applyUnary(f);
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->applyUnary(f);
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        scalar_vec[i]->applyUnary(f);
+      }
     }
   }
   
@@ -533,11 +820,15 @@ public:
         field_vec[i]->applyBinary(f,*(xs_f[i]));
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      scalar_vec->applyBinary(f,*xs.getParameter());
+    
+    auto xs_s = xs.getParameter();
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        scalar_vec[i]->applyBinary(f,*xs_s[i]);
+      }
     }
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
@@ -548,12 +839,14 @@ public:
         r.reduce(field_vec[i]->reduce(r),result);
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      r.reduce(scalar_vec->reduce(r),result);
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        r.reduce(scalar_vec[i]->reduce(r),result);
+      }
     }
     return result;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
@@ -564,12 +857,14 @@ public:
         dim += field_vec[i]->dimension();
       }
     }
-    if ( scalar_vec != ROL::nullPtr ) {
-      dim += scalar_vec->dimension();
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        dim += scalar_vec[i]->dimension();
+      }
     }
     return dim;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
@@ -579,11 +874,13 @@ public:
         field_vec[i]->randomize(l,u);
       }
     }
-    if (scalar_vec != ROL::nullPtr) {
-      scalar_vec->randomize(l,u);
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if (scalar_vec[i] != ROL::nullPtr) {
+        scalar_vec[i]->randomize(l,u);
+      }
     }
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
@@ -596,45 +893,47 @@ public:
       }
     }
     if (have_scalar) {
-      if (mpirank == 0) {
-        scalar_vec->print(outStream);
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if (mpirank == 0 && scalar_vec[i] != ROL::nullPtr) {
+          scalar_vec[i]->print(outStream);
+        }
       }
     }
   }
-
+  
   ///////////////////////////////////////////////////
   // Extra functions
   ///////////////////////////////////////////////////
   
-  std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > > getField(void) const { 
+  std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > > getField(void) const {
     return field_vec;
   }
   
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
-  ROL::Ptr<const ROL::StdVector<ScalarT> > getParameter(void) const { 
-    return scalar_vec; 
+  std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > getParameter(void) const {
+    return scalar_vec;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
-  vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > > getField(void) { 
+  std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > > getField(void) {
     return field_vec;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
-  ROL::Ptr<ROL::StdVector<ScalarT> > getParameter(void) { 
-    return scalar_vec; 
+  std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > getParameter(void) {
+    return scalar_vec;
   }
-
+  
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
-  void setField(const ROL::Vector<ScalarT>& vec) { 
+  void setField(const ROL::Vector<ScalarT>& vec) {
     for (size_t i=0; i<field_vec.size(); ++i) {
       if ( field_vec[i] != ROL::nullPtr ) {
         field_vec[i]->set(vec);
@@ -645,21 +944,39 @@ public:
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
-  void setParameter(const ROL::Vector<ScalarT>& vec) { 
-    scalar_vec->set(vec); 
-  }
-  
-  ///////////////////////////////////////////////////
-  ///////////////////////////////////////////////////
-  
-  bool isDynamic() {
-    bool isdy = false;
-    if (have_field && field_vec.size() > 1) {
-      isdy = true;
+  void setParameter(const ROL::Vector<ScalarT>& vec) {
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        scalar_vec[i]->set(vec);
+      }
     }
-    return isdy;
   }
   
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+
+  void setParameter(const std::vector<ROL::Vector<ScalarT> >& vec) {
+    for (size_t i=0; i<scalar_vec.size(); ++i) {
+      if ( scalar_vec[i] != ROL::nullPtr ) {
+        scalar_vec[i]->set(vec[i]);
+      }
+    }
+  }
+
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+  
+  bool haveDynamicField() {
+    return have_dynamic_field;
+  }
+  
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+
+  bool haveDynamicScalar() {
+    return have_dynamic_scalar;
+  }
+
   ///////////////////////////////////////////////////
   ///////////////////////////////////////////////////
   
@@ -673,7 +990,7 @@ public:
   bool haveField() {
     return have_field;
   }
-
+  
 }; // class MrHyDE_OptVector
 
 #endif

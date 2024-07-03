@@ -1599,7 +1599,8 @@ void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> & 
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
   
-  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto Psol = params->getDiscretizedParams();
+  auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
   if (data_avail) {
@@ -1866,7 +1867,8 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
   
-  auto p_kv = params->Psol_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto Psol = params->getDiscretizedParamsOver();
+  auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
   if (data_avail) {
@@ -2420,7 +2422,8 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
   
   if (params->num_discretized_params > 0) {
-    auto p_kv = params->Psol_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto Psol = params->getDiscretizedParamsOver();
+    auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
     if (data_avail) {
@@ -3176,8 +3179,8 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
 
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
-  
-  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto Psol = params->getDiscretizedParams();
+  auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
   if (data_avail) {
@@ -3419,7 +3422,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
   
-  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto Psol = params->getDiscretizedParams();
+  auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
   if (data_avail) {
@@ -4269,8 +4273,14 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     params->sacadoizeParams(true);
     
     //vector<ScalarT> localsens(params->num_active_params);
-    auto scalar_grad = gradient.getParameter()->getVector();
-
+    auto sgrad = gradient.getParameter();
+    ROL::Ptr<std::vector<ScalarT> > scalar_grad;
+    if (gradient.haveDynamicScalar()) {
+      scalar_grad = sgrad[tindex-1]->getVector();
+    }
+    else {
+      scalar_grad = sgrad[0]->getVector();
+    }
     vector<ScalarT> local_grad(scalar_grad->size(),0.0);
     vector_RCP res = linalg->getNewVector(set,params->num_active_params);
     matrix_RCP J = linalg->getNewMatrix(set);
@@ -4281,9 +4291,10 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
     res_over->putScalar(0.0);
     vector<vector_RCP> zero_vec;
+    auto paramvec = params->getDiscretizedParamsOver();
     assembler->assembleJacRes(set, 0, u, u_stage, u_prev, u, zero_vec, zero_vec, false, true, false,
                               res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                              params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
+                              params->num_active_params, paramvec, false, deltat); //is_final_time, deltat);
     
     linalg->exportVectorFromOverlapped(set, res, res_over);
     
@@ -4309,7 +4320,6 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       
     }
     
-    
     ScalarT localval = 0.0;
     ScalarT globalval = 0.0;
     int numderivs = (int)obj_sens.size();
@@ -4334,7 +4344,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     
     auto disc_grad = gradient.getField();
     vector_RCP curr_grad;
-    if (gradient.isDynamic()) {
+    if (gradient.haveDynamicField()) {
       curr_grad = disc_grad[tindex-1]->getVector();
     }
     else {
@@ -4399,10 +4409,10 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
     
     res_over->putScalar(0.0);
     vector<vector_RCP> zero_vec;
-
+    auto Psol = params->getDiscretizedParamsOver();
     assembler->assembleJacRes(set, stage, u, zero_vec, zero_vec, u, zero_vec, zero_vec, false, false, false,
                               res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                              params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
+                              params->num_active_params, Psol, false, deltat); //is_final_time, deltat);
     
     linalg->exportVectorFromOverlapped(set, res, res_over);
     
@@ -4438,9 +4448,10 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
   J->setAllToScalar(0.0);
   J_over->setAllToScalar(0.0);
   vector<vector_RCP> zero_vec;
+  auto Psol = params->getDiscretizedParamsOver();
   assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true,
                             res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                            params->num_active_params, params->Psol_over, false, deltat); //is_final_time, deltat);
+                            params->num_active_params, Psol, false, deltat); //is_final_time, deltat);
     
   linalg->fillCompleteParam(set, J_over);
   
@@ -4494,7 +4505,8 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
   }
 
   // Grab slices of Kokkos Views and push to AssembleDevice one time for each discretized parameter vector
-  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto Psol = params->getDiscretizedParams();
+  auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   if (data_avail) {
     params_kv.push_back(pslice);
@@ -5254,7 +5266,8 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int & numEvaluati
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
   
-  auto p_kv = params->Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto Psol = params->getDiscretizedParams();
+  auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   
   if (data_avail) {

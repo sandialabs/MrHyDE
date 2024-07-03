@@ -213,7 +213,11 @@ void GroupMetaData::setSolutionFields(vector<int> & maxnumsteps, vector<int> & m
     }
   }
   param = View_Sc3("param", num_elem, num_param_dof.extent(0), maxnbasis);
-
+  if (requires_transient) {
+    param_prev = View_Sc4("param previous", num_elem, num_param_dof.extent(0), maxnbasis, maxnumsteps[0]); // hard coded to set 0
+    param_stage = View_Sc4("param stages", num_elem, num_param_dof.extent(0), maxnbasis, maxnumstages[0]-1);
+  }
+  
   maxnbasis = 0;
   for (size_type i=0; i<num_aux_dof.extent(0); i++) {
     if (num_aux_dof(i) > maxnbasis) {

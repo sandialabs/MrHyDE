@@ -50,6 +50,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
     int numTimesteps = settings->sublist("Solver").get<int>("number of steps",1);
     deltat = (final_time - initial_time)/numTimesteps;
   }
+  
   verbosity = settings->get<int>("verbosity",0);
   usestrongDBCs = settings->sublist("Solver").get<bool>("use strong DBCs",true);
   use_meas_as_dbcs = settings->sublist("Mesh").get<bool>("use measurements as DBCs", false);
@@ -1276,7 +1277,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       params->updateDynamicParams(stepProg);
       assembler->updateTimeStep(stepProg);
       
-      
       //for (int ss=0; ss<subcycles; ++ss) {
         for (size_t set=0; set<sol.size(); ++set) {
           // this needs to come first now, so that updatePhysicsSet can pick out the
@@ -1542,15 +1542,15 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       use_autotune = false;
     }
 
-      
-    if (!use_autotune) { 
+    auto paramvec = params->getDiscretizedParamsOver();
+    if (!use_autotune) {
       assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
                                 current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                                params->num_active_params, params->Psol_over, is_final_time, deltat);
+                                params->num_active_params, paramvec, is_final_time, deltat);
     }
     else {
       assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, 
-                             params->Psol_over, current_res_over, J_over, isTransient, current_time, deltat);
+                             paramvec, current_res_over, J_over, isTransient, current_time, deltat);
     }
 
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
@@ -1637,9 +1637,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       
       if (build_jacobian) {
         if (use_autotune) {
+          auto paramvec = params->getDiscretizedParamsOver();
           assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
                                     current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                                    params->num_active_params, params->Psol_over, is_final_time, deltat);
+                                    params->num_active_params, paramvec, is_final_time, deltat);
         }
         linalg->fillComplete(J_over);
         J->resumeFill();
@@ -1755,8 +1756,9 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
   current_res_over->putScalar(0.0);
   matrix_RCP J_over;
   
-  assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, 
-                         params->Psol_over, current_res_over, J_over, isTransient, current_time, deltat);
+  auto paramvec = params->getDiscretizedParamsOver();
+  assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev,
+                         paramvec, current_res_over, J_over, isTransient, current_time, deltat);
   
   if (linalg->getHaveOverlapped()) {
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);

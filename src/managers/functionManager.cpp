@@ -285,7 +285,7 @@ void FunctionManager<EvalT>::decomposeFunctions() {
                   forests_[fiter].trees_[titer].branches_[k].param_data_ = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
                   
                 }
-                else { // look for param(*) or param(**)
+                else { // look for param(*) or param(**) this does mean that over 100 scalar parameters is not supported
                   bool found = true;
                   int sindex = 0;
                   size_t nexp = expr.length();
@@ -350,6 +350,94 @@ void FunctionManager<EvalT>::decomposeFunctions() {
                     decompose = false;
                     
                     forests_[fiter].trees_[titer].branches_[k].param_data_ = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                  }
+                }
+              }
+            }
+            
+            // check if it is the time-derivative of a parameter
+            if (decompose) {
+              
+              for (unsigned int j=0; j<parameters_.size(); j++) {
+                
+                if (expr == parameters_[j]+"_t") {
+                  forests_[fiter].trees_[titer].branches_[k].is_leaf_ = true;
+                  forests_[fiter].trees_[titer].branches_[k].is_view_ = true;
+                  forests_[fiter].trees_[titer].branches_[k].is_AD_ = true;
+                  forests_[fiter].trees_[titer].branches_[k].is_decomposed_ = true;
+                  forests_[fiter].trees_[titer].branches_[k].is_parameter_ = true;
+                  forests_[fiter].trees_[titer].branches_[k].param_index_ = 0;
+                  
+                  decompose = false;
+                  
+                  forests_[fiter].trees_[titer].branches_[k].param_data_ = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                  
+                }
+                else { // look for param_t(*) or param_t(**) this does mean that over 100 scalar parameters is not supported
+                  bool found = true;
+                  int sindex = 0;
+                  size_t nexp = expr.length();
+                  if (nexp == parameters_[j].length()+5) {
+                    for (size_t n=0; n<parameters_[j].length(); n++) {
+                      if (expr[n] != parameters_[j][n]) {
+                        found = false;
+                      }
+                    }
+                    if (found) {
+                      if (expr[nexp-5] == '_' && expr[nexp-4] == 't' && expr[nexp-3] == '(' && expr[nexp-1] == ')') {
+                        string check = "";
+                        check += expr[nexp-2];
+                        if (isdigit(check[0])) {
+                          sindex = std::stoi(check);
+                        }
+                        else {
+                          found = false;
+                        }
+                      }
+                      else {
+                        found = false;
+                      }
+                    }
+                  }
+                  else if (nexp == parameters_[j].length()+6) {
+                    for (size_t n=0; n<parameters_[j].length(); n++) {
+                      if (expr[n] != parameters_[j][n]) {
+                        found = false;
+                      }
+                    }
+                    if (found) {
+                      if (expr[nexp-6] == '_' && expr[nexp-5] == 't' && expr[nexp-4] == '(' && expr[nexp-1] == ')') {
+                        string check = "";
+                        check += expr[nexp-3];
+                        check += expr[nexp-2];
+                        if (isdigit(check[0]) && isdigit(check[1])) {
+                          sindex = std::stoi(check);
+                        }
+                        else {
+                          found = false;
+                        }
+                      }
+                      else {
+                        found = false;
+                      }
+                    }
+                  }
+                  else {
+                    found = false;
+                  }
+                  
+                  if (found) {
+                    forests_[fiter].trees_[titer].branches_[k].is_leaf_ = true;
+                    forests_[fiter].trees_[titer].branches_[k].is_view_ = true;
+                    forests_[fiter].trees_[titer].branches_[k].is_AD_ = true;
+                    forests_[fiter].trees_[titer].branches_[k].is_decomposed_ = true;
+                    forests_[fiter].trees_[titer].branches_[k].is_parameter_ = true;
+                    
+                    forests_[fiter].trees_[titer].branches_[k].param_index_ = sindex;
+                    
+                    decompose = false;
+                    
+                    forests_[fiter].trees_[titer].branches_[k].param_data_ = Kokkos::subview(wkset->params_dot_AD, j, Kokkos::ALL());
                   }
                 }
               }

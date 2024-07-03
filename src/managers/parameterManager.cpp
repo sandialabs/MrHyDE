@@ -51,27 +51,39 @@ Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   numParamUnknowns = 0;
   numParamUnknownsOS = 0;
   discretized_stochastic = false;
+  have_dynamic_scalar = false;
+  have_dynamic_discretized = false;
   
   use_custom_initial_param_guess = settings->sublist("Physics").get<bool>("use custom initial param guess",false);
   
+  if (settings->sublist("Solver").isParameter("delta t")) {
+    dynamic_dt = settings->sublist("Solver").get<double>("delta t");
+  }
+  else {
+    dynamic_dt = 1.0;
+  }
+  dynamic_timeindex = 0; // starting point
+  
+  // Need number of time steps
   if (settings->sublist("Solver").isParameter("number of steps")) {
     numTimeSteps = settings->sublist("Solver").get<int>("number of steps",1);
   }
   else {
-    double deltat = settings->sublist("Solver").get<double>("delta t",1.0);
+    double initial_time = settings->sublist("Solver").get<double>("initial time",0.0);
     double final_time = settings->sublist("Solver").get<double>("final time",1.0);
-    numTimeSteps = (int)final_time/deltat;
+    double deltat = settings->sublist("Solver").get<double>("delta t",1.0);
+    
+    numTimeSteps = 0;
+    double ctime = initial_time;
+    while (ctime < final_time) {
+      numTimeSteps++;
+      ctime += deltat;
+    }
+    
   }
   
   this->setupParameters();
   
-  have_dynamic = false;
-  for (size_t dp=0; dp<discretized_param_dynamic.size(); ++dp) {
-    if (discretized_param_dynamic[dp]) {
-      have_dynamic = true;
-    }
-  }
-
   debugger->print("**** Finished ParameterManager constructor");
   
 }
@@ -87,7 +99,7 @@ void ParameterManager<Node>::setupParameters() {
   debugger->print("**** Starting ParameterManager::setupParameters ... ");
   
   Teuchos::ParameterList parameters;
-  
+  vector<vector<ScalarT> > tmp_paramvals;
   if (settings->isSublist("Parameters")) {
     parameters = settings->sublist("Parameters");
     Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
@@ -117,7 +129,7 @@ void ParameterManager<Node>::setupParameters() {
       }
       
       paramnames.push_back(pl_itr->first);
-      paramvals.push_back(newparamvals);
+      tmp_paramvals.push_back(newparamvals);
       
       Teuchos::RCP<vector<ScalarT> > newparam_Sc = Teuchos::rcp(new vector<ScalarT>(newparamvals.size()));
       paramvals_Sc.push_back(newparam_Sc);
@@ -158,9 +170,14 @@ void ParameterManager<Node>::setupParameters() {
       else if (newparam.get<string>("usage") == "active") {
         paramtypes.push_back(1);
         num_active_params += newparamvals.size();
+        bool is_dynamic = newparam.get<bool>("dynamic",false);
+        scalar_param_dynamic.push_back(is_dynamic);
+        if (is_dynamic) {
+          have_dynamic_scalar = true;
+        }
         
         //if active, look for actual bounds
-        if(newparam.isParameter("bounds")){
+        if (newparam.isParameter("bounds")) {
           std::string filename = newparam.get<string>("bounds");
           FILE* BoundsFile = fopen(filename.c_str(),"r");
           float a,b;
@@ -201,25 +218,19 @@ void ParameterManager<Node>::setupParameters() {
         discretized_param_basis_types.push_back(newparam.get<string>("type","HGRAD"));
         discretized_param_basis_orders.push_back(newparam.get<int>("order",1));
         discretized_param_names.push_back(pl_itr->first);
-        discretized_param_dynamic.push_back(newparam.get<bool>("dynamic",false));
+        
+        bool is_dynamic = newparam.get<bool>("dynamic",false);
+        discretized_param_dynamic.push_back(is_dynamic);
+        if (is_dynamic) {
+          have_dynamic_discretized = true;
+        }
 
         initialParamValues.push_back(newparam.get<ScalarT>("initial_value",1.0));
         lowerParamBounds.push_back(newparam.get<ScalarT>("lower_bound",-1.0));
         upperParamBounds.push_back(newparam.get<ScalarT>("upper_bound",1.0));
         discparam_distribution.push_back(newparam.get<string>("distribution","uniform"));
         discparamVariance.push_back(newparam.get<ScalarT>("variance",1.0));
-        /*
-        if (newparam.get<bool>("isDomainParam",true)) {
-          domainRegTypes.push_back(newparam.get<int>("reg_type",0));
-          domainRegConstants.push_back(newparam.get<ScalarT>("reg_constant",0.0));
-          domainRegIndices.push_back(num_discretized_params - 1);
-        }
-        else {
-          boundaryRegTypes.push_back(newparam.get<int>("reg_type",0));
-          boundaryRegConstants.push_back(newparam.get<ScalarT>("reg_constant",0.0));
-          boundaryRegSides.push_back(newparam.get<string>("sides"," "));
-          boundaryRegIndices.push_back(num_discretized_params - 1);
-        }*/
+        
       }
       
       paramLowerBounds.push_back(lo);
@@ -228,6 +239,14 @@ void ParameterManager<Node>::setupParameters() {
       pl_itr++;
     }
     
+    if (have_dynamic_scalar) {
+      for (size_t i=0; i<numTimeSteps; ++i) {
+        paramvals.push_back(tmp_paramvals);
+      }
+    }
+    else {
+      paramvals.push_back(tmp_paramvals);
+    }
 #ifndef MrHyDE_NO_AD
     for (size_t block=0; block<blocknames.size(); ++block) {
       if ((int)num_active_params>disc->num_derivs_required[block]) {
@@ -236,25 +255,30 @@ void ParameterManager<Node>::setupParameters() {
     }
     TEUCHOS_TEST_FOR_EXCEPTION(num_active_params > MAXDERIVS,std::runtime_error,"Error: MAXDERIVS is not large enough to support the number of parameters.");
 #endif
-    size_t maxcomp = 0;
+    
+    size_t maxcomp = 1;
     for (size_t k=0; k<paramvals.size(); k++) {
-      if (paramvals[k].size() > maxcomp) {
-        maxcomp = paramvals[k].size();
+      for (size_t j=0; j<paramvals[k].size(); j++) {
+        if (paramvals[k][j].size() > maxcomp) {
+          maxcomp = paramvals[k][j].size();
+        }
       }
     }
 
-    Kokkos::View<ScalarT**,AssemblyDevice> test("parameter values (AD)", paramvals.size(), maxcomp);
- 
-    paramvals_KV = Kokkos::View<ScalarT**,AssemblyDevice>("parameter values (ScalarT)", paramvals.size(), maxcomp);
+    size_t nump = 1;
+    if (paramvals.size() > 0) {
+      nump = paramvals[0].size();
+    }
+    paramvals_KV = Kokkos::View<ScalarT**,AssemblyDevice>("parameter values (ScalarT)", nump, maxcomp);
 #ifndef MrHyDE_NO_AD
-    paramvals_KVAD = Kokkos::View<AD**,AssemblyDevice>("parameter values (AD)", paramvals.size(), maxcomp);
-    paramvals_KVAD2 = Kokkos::View<AD2**,AssemblyDevice>("parameter values (AD2)", paramvals.size(), maxcomp);
-    paramvals_KVAD4 = Kokkos::View<AD4**,AssemblyDevice>("parameter values (AD4)", paramvals.size(), maxcomp);
-    paramvals_KVAD8 = Kokkos::View<AD8**,AssemblyDevice>("parameter values (AD8)", paramvals.size(), maxcomp);
-    paramvals_KVAD16 = Kokkos::View<AD16**,AssemblyDevice>("parameter values (AD16)", paramvals.size(), maxcomp);
-    paramvals_KVAD18 = Kokkos::View<AD18**,AssemblyDevice>("parameter values (AD18)", paramvals.size(), maxcomp);
-    paramvals_KVAD24 = Kokkos::View<AD24**,AssemblyDevice>("parameter values (AD24)", paramvals.size(), maxcomp);
-    paramvals_KVAD32 = Kokkos::View<AD32**,AssemblyDevice>("parameter values (AD32)", paramvals.size(), maxcomp);
+    paramvals_KVAD = Kokkos::View<AD**,AssemblyDevice>("parameter values (AD)", nump, maxcomp);
+    paramvals_KVAD2 = Kokkos::View<AD2**,AssemblyDevice>("parameter values (AD2)", nump, maxcomp);
+    paramvals_KVAD4 = Kokkos::View<AD4**,AssemblyDevice>("parameter values (AD4)", nump, maxcomp);
+    paramvals_KVAD8 = Kokkos::View<AD8**,AssemblyDevice>("parameter values (AD8)", nump, maxcomp);
+    paramvals_KVAD16 = Kokkos::View<AD16**,AssemblyDevice>("parameter values (AD16)", nump, maxcomp);
+    paramvals_KVAD18 = Kokkos::View<AD18**,AssemblyDevice>("parameter values (AD18)", nump, maxcomp);
+    paramvals_KVAD24 = Kokkos::View<AD24**,AssemblyDevice>("parameter values (AD24)", nump, maxcomp);
+    paramvals_KVAD32 = Kokkos::View<AD32**,AssemblyDevice>("parameter values (AD32)", nump, maxcomp);
 #endif
   }
   
@@ -464,23 +488,23 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
     for (size_t n = 0; n < num_discretized_params; n++) {
       if (!use_custom_initial_param_guess) {
         for (size_t i = 0; i < param_dofs_OS[n].size(); i++) {
-          if (have_dynamic) {
-            for (size_t j=0; j<dynamic_Psol_over.size(); ++j) {
-              dynamic_Psol_over[j]->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
+          //if (have_dynamic_discretized) {
+            for (size_t j=0; j<discretized_params_over.size(); ++j) {
+              discretized_params_over[j]->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
             }
-          }
-          Psol_over->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
+          //}
+          //discretized_params_over->replaceGlobalValue(param_dofs_OS[n][i],0,initialParamValues[n]);
         }
       }
       paramNodesOS.push_back(param_dofs_OS[n]); // store for later use
       paramNodes.push_back(param_dofs[n]); // store for later use
     }
-    Psol->doExport(*Psol_over, *param_exporter, Tpetra::REPLACE);
-    if (have_dynamic) {
-      for (size_t i=0; i<dynamic_Psol_over.size(); ++i) {
-        dynamic_Psol[i]->doExport(*(dynamic_Psol_over[i]), *param_exporter, Tpetra::REPLACE);
+    //discretized_params->doExport(*discretized_params_over, *param_exporter, Tpetra::REPLACE);
+    //if (have_dynamic_discretized) {
+      for (size_t i=0; i<discretized_params_over.size(); ++i) {
+        discretized_params[i]->doExport(*(discretized_params_over[i]), *param_exporter, Tpetra::REPLACE);
       }
-    }
+    //}
   }
   else {
     // set up a dummy parameter vector
@@ -538,22 +562,22 @@ int ParameterManager<Node>::getNumParams(const std::string & type) {
 }
 
 // ========================================================================================
-// return the discretized parameters as vector for use with ROL
+// return the discretized parameters as vector for use with ROL (deprecated)
 // ========================================================================================
 
 template<class Node>
 vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
-  int numParams = this->getNumParams(4);
-  vector<ScalarT> discLocalParams(numParams);
-  vector<ScalarT> discParams(numParams);
-  auto Psol_2d = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  int numDParams = this->getNumParams(4);
+  vector<ScalarT> discLocalParams(numDParams);
+  vector<ScalarT> discParams(numDParams);
+  auto Psol_2d = discretized_params[0]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto Psol_host = Kokkos::create_mirror_view(Psol_2d);
   for (size_t i = 0; i < paramOwned.size(); i++) {
     int gid = paramOwned[i];
     discLocalParams[gid] = Psol_host(i,0);
     //cout << gid << " " << Psol_2d(i,0) << endl;
   }
-  for (int i = 0; i < numParams; i++) {
+  for (int i = 0; i < numDParams; i++) {
     ScalarT globalval = 0.0;
     ScalarT localval = discLocalParams[i];
     Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&localval,&globalval);
@@ -572,27 +596,51 @@ vector<ScalarT> ParameterManager<Node>::getDiscretizedParamsVector() {
 
 template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::getDiscretizedParams() {
-  return Psol;
+  Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > cparams;
+  int index = 0;
+  if (have_dynamic_discretized) {
+    index = dynamic_timeindex;
+  }
+  if (discretized_params.size() > index) {
+    cparams = discretized_params[index];
+  }
+  return cparams;
 }
+
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::getDiscretizedParamsOver() {
+  Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > cparams;
+  int index = 0;
+  if (have_dynamic_discretized) {
+    index = dynamic_timeindex;
+  }
+  if (discretized_params_over.size() > index) {
+    cparams = discretized_params_over[index];
+  }
+  return cparams;
+}
+
+// ========================================================================================
+// ========================================================================================
 
 template<class Node>
 MrHyDE_OptVector ParameterManager<Node>::getCurrentVector() {
   
-  Teuchos::RCP<vector<ScalarT> > new_active_params;
+  vector<Teuchos::RCP<vector<ScalarT> > > new_active_params;
   vector<vector_RCP> new_disc_params;
   if (num_active_params > 0) {
     new_active_params = this->getParams(1);
   }
-  else {
-    new_active_params = Teuchos::null;
-  }
+  //else {
+    //new_active_params = Teuchos::null;
+  //}
   if (globalParamUnknowns > 0) {
-    if (have_dynamic) {
-      new_disc_params = dynamic_Psol;
-    }
-    else {
-      new_disc_params.push_back(Psol);
-    }
+    //if (have_dynamic_discretized) {
+      new_disc_params = discretized_params;
+    //}
+    //else {
+    //  new_disc_params.push_back(Psol);
+    //}
   }
     
   MrHyDE_OptVector newvec(new_disc_params, new_active_params, Comm->getRank());
@@ -605,7 +653,7 @@ MrHyDE_OptVector ParameterManager<Node>::getCurrentVector() {
 
 template<class Node>
 vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > ParameterManager<Node>::getDynamicDiscretizedParams() {
-  return dynamic_Psol;
+  return discretized_params;
 }
 
 // ========================================================================================
@@ -616,20 +664,25 @@ void ParameterManager<Node>::setInitialParams() {
   
   debugger->print("**** Starting ParameterManager::setInitialParams ...");
   
-  Psol = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
-  Psol_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
-  Psol->putScalar(0.0); 
-  Psol_over->putScalar(0.0); // TMW: why is this hard-coded??? 
-  if (have_dynamic) {
-    for (int i=0; i<numTimeSteps; ++i) {
-      vector_RCP dyninit = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
-      vector_RCP dyninit_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
-      dyninit->putScalar(0.0); // TMW: why is this hard-coded??? 
-      dyninit_over->putScalar(0.0); // TMW: why is this hard-coded??? 
-      dynamic_Psol.push_back(dyninit);
-      dynamic_Psol_over.push_back(dyninit_over);
-    }
+  //auto Psol = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+  //auto Psol_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+  //Psol->putScalar(0.0);
+  //Psol_over->putScalar(0.0); // TMW: why is this hard-coded???
+  
+  int numsols = 1;
+  if (have_dynamic_discretized) {
+    numsols = numTimeSteps;
   }
+  
+  for (int i=0; i<numsols; ++i) {
+    vector_RCP dyninit = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+    vector_RCP dyninit_over = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+    dyninit->putScalar(0.0); // TMW: why is this hard-coded???
+    dyninit_over->putScalar(0.0); // TMW: why is this hard-coded???
+    discretized_params.push_back(dyninit);
+    discretized_params_over.push_back(dyninit_over);
+  }
+  
   /*
   if (scalarInitialData) {
     // This will be done on the host for now
@@ -698,59 +751,64 @@ void ParameterManager<Node>::setInitialParams() {
 template<class Node>
 void ParameterManager<Node>::sacadoizeParams(const bool & seed_active) {
   
+  int index = 0;
+  if (have_dynamic_scalar) {
+    index = dynamic_timeindex;
+  }
   
-  if (paramvals.size()>0) {
-    
-    size_t maxlength = paramvals_KV.extent(1);
-    
-    Kokkos::View<int*,AssemblyDevice> ptypes("parameter types",paramtypes.size());
-    auto host_ptypes = Kokkos::create_mirror_view(ptypes);
-    for (size_t i=0; i<paramtypes.size(); i++) {
-      host_ptypes(i) = paramtypes[i];
-    }
-    Kokkos::deep_copy(ptypes, host_ptypes);
-    
-    Kokkos::View<size_t*,AssemblyDevice> plengths("parameter lengths",paramvals.size());
-    auto host_plengths = Kokkos::create_mirror_view(plengths);
-    for (size_t i=0; i<paramvals.size(); i++) {
-      host_plengths(i) = paramvals[i].size();
-    }
-    Kokkos::deep_copy(plengths, host_plengths);
-    
-    size_t prog = 0;
-    Kokkos::View<size_t**,AssemblyDevice> pseed("parameter seed index",paramvals.size(),maxlength);
-    auto host_pseed = Kokkos::create_mirror_view(pseed);
-    for (size_t i=0; i<paramvals.size(); i++) {
-      if (paramtypes[i] == 1) {
-        for (size_t j=0; j<paramvals[i].size(); j++) {
-          host_pseed(i,j) = prog;
-          prog++;
+  if (paramvals.size() > index) {
+    if (paramvals[index].size()>0) {
+      
+      size_t maxlength = paramvals_KV.extent(1);
+      
+      Kokkos::View<int*,AssemblyDevice> ptypes("parameter types",paramtypes.size());
+      auto host_ptypes = Kokkos::create_mirror_view(ptypes);
+      for (size_t i=0; i<paramtypes.size(); i++) {
+        host_ptypes(i) = paramtypes[i];
+      }
+      Kokkos::deep_copy(ptypes, host_ptypes);
+      
+      Kokkos::View<size_t*,AssemblyDevice> plengths("parameter lengths",paramvals[index].size());
+      auto host_plengths = Kokkos::create_mirror_view(plengths);
+      for (size_t i=0; i<paramvals[index].size(); i++) {
+        host_plengths(i) = paramvals[index][i].size();
+      }
+      Kokkos::deep_copy(plengths, host_plengths);
+      
+      size_t prog = 0;
+      Kokkos::View<size_t**,AssemblyDevice> pseed("parameter seed index",paramvals[index].size(),maxlength);
+      auto host_pseed = Kokkos::create_mirror_view(pseed);
+      for (size_t i=0; i<paramvals[index].size(); i++) {
+        if (paramtypes[i] == 1) {
+          for (size_t j=0; j<paramvals[index][i].size(); j++) {
+            host_pseed(i,j) = prog;
+            prog++;
+          }
         }
       }
-    }
-
-    Kokkos::deep_copy(pseed,host_pseed);
-    
-    Kokkos::View<ScalarT**,AssemblyDevice> pvals("parameter values",paramvals.size(), maxlength);
-    auto host_pvals = Kokkos::create_mirror_view(pvals);
-    for (size_t i=0; i<paramvals.size(); i++) {
-      for (size_t j=0; j<paramvals[i].size(); j++) {
-        host_pvals(i,j) = paramvals[i][j];
+      Kokkos::deep_copy(pseed,host_pseed);
+      
+      Kokkos::View<ScalarT**,AssemblyDevice> pvals("parameter values",paramvals[index].size(), maxlength);
+      auto host_pvals = Kokkos::create_mirror_view(pvals);
+      for (size_t i=0; i<paramvals[index].size(); i++) {
+        for (size_t j=0; j<paramvals[index][i].size(); j++) {
+          host_pvals(i,j) = paramvals[index][i][j];
+        }
       }
-    }
-    Kokkos::deep_copy(pvals, host_pvals);
-  
-    this->sacadoizeParamsSc(seed_active, ptypes, plengths, pseed, pvals, paramvals_Sc, paramvals_KV);
+      Kokkos::deep_copy(pvals, host_pvals);
+      
+      this->sacadoizeParamsSc(seed_active, ptypes, plengths, pseed, pvals, paramvals_Sc, paramvals_KV);
 #ifndef MrHyDE_NO_AD
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD, paramvals_KVAD);
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD2, paramvals_KVAD2);
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD4, paramvals_KVAD4);
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD8, paramvals_KVAD8);
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD16, paramvals_KVAD16);
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD18, paramvals_KVAD18);
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD24, paramvals_KVAD24);
-    this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD32, paramvals_KVAD32);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD, paramvals_KVAD);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD2, paramvals_KVAD2);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD4, paramvals_KVAD4);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD8, paramvals_KVAD8);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD16, paramvals_KVAD16);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD18, paramvals_KVAD18);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD24, paramvals_KVAD24);
+      this->sacadoizeParams(seed_active, ptypes, plengths, pseed, pvals, paramvals_AD32, paramvals_KVAD32);
 #endif
+    }
   }
 }
 
@@ -762,21 +820,28 @@ void ParameterManager<Node>::sacadoizeParamsSc(const bool & seed_active,
                                              Kokkos::View<ScalarT**,AssemblyDevice> pvals,
                                              vector<Teuchos::RCP<vector<ScalarT> > > & v_pvals,
                                              Kokkos::View<ScalarT**,AssemblyDevice> kv_pvals) {
-  for (size_t i=0; i<paramvals.size(); i++) {
-    vector<ScalarT> currparams;
-    for (size_t j=0; j<paramvals[i].size(); j++) {
-      currparams.push_back(paramvals[i][j]);
-    }
-    *(v_pvals[i]) = currparams;
+  int index = 0;
+  if (have_dynamic_scalar) {
+    index = dynamic_timeindex;
   }
-  parallel_for("parameter manager sacadoize - no seeding",
-               RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-               KOKKOS_LAMBDA (const size_type i ) {
-    for (size_t j=0; j<plengths(i); j++) {
-      kv_pvals(i,j) = pvals(i,j);
+  
+  if (paramvals.size() > index) {
+    for (size_t i=0; i<paramvals[index].size(); i++) {
+      vector<ScalarT> currparams;
+      for (size_t j=0; j<paramvals[index][i].size(); j++) {
+        currparams.push_back(paramvals[index][i][j]);
+      }
+      *(v_pvals[i]) = currparams;
     }
-  });
-  phys->updateParameters(v_pvals, paramnames);
+    parallel_for("parameter manager sacadoize - no seeding",
+                 RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+                 KOKKOS_LAMBDA (const size_type i ) {
+      for (size_t j=0; j<plengths(i); j++) {
+        kv_pvals(i,j) = pvals(i,j);
+      }
+    });
+    phys->updateParameters(v_pvals, paramnames);
+  }
 }
 
 template<class Node>
@@ -788,67 +853,75 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active,
                                              Kokkos::View<ScalarT**,AssemblyDevice> pvals,
                                              vector<Teuchos::RCP<vector<EvalT> > > & v_pvals,
                                              Kokkos::View<EvalT**,AssemblyDevice> kv_pvals) {
-  if (seed_active) {
-    size_t pprog = 0;
-    for (size_t i=0; i<pvals.extent(0); i++) {
-      vector<EvalT> currparams;
-      if (paramtypes[i] == 1) { // active parameters
-        for (size_t j=0; j<paramvals[i].size(); j++) {
-          EvalT dummyval = 0.0;
-          if (dummyval.size() > pprog) {
-            currparams.push_back(EvalT(dummyval.size(),pprog,paramvals[i][j]));
+  
+  int index = 0;
+  if (have_dynamic_scalar) {
+    index = dynamic_timeindex;
+  }
+  
+  if (paramvals.size() > index) {
+    if (seed_active) {
+      size_t pprog = 0;
+      for (size_t i=0; i<pvals.extent(0); i++) {
+        vector<EvalT> currparams;
+        if (paramtypes[i] == 1) { // active parameters
+          for (size_t j=0; j<paramvals[index][i].size(); j++) {
+            EvalT dummyval = 0.0;
+            if (dummyval.size() > pprog) {
+              currparams.push_back(EvalT(dummyval.size(),pprog,paramvals[index][i][j]));
+            }
+            else {
+              currparams.push_back(EvalT(paramvals[index][i][j]));
+            }
+            pprog++;
           }
-          else {
-            currparams.push_back(EvalT(paramvals[i][j]));
+        }
+        else { // inactive, stochastic, or discrete parameters
+          for (size_t j=0; j<paramvals[index][i].size(); j++) {
+            currparams.push_back(EvalT(paramvals[index][i][j]));
           }
-          pprog++;
         }
-        }
-      else { // inactive, stochastic, or discrete parameters
-        for (size_t j=0; j<paramvals[i].size(); j++) {
-          currparams.push_back(EvalT(paramvals[i][j]));
-        }
+        *(v_pvals[i]) = currparams;
       }
-      *(v_pvals[i]) = currparams;
-    }
-    parallel_for("parameter manager sacadoize - seed active",
-                 RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-                 KOKKOS_LAMBDA (const size_type i ) {
-      if (ptypes(i) == 1) { // active params
-        for (size_t j=0; j<plengths(i); j++) {
-          EvalT dummyval = 0.0;
-          if (dummyval.size() > pseed(i,j)) {
-            kv_pvals(i,j) = EvalT(dummyval.size(), pseed(i,j), pvals(i,j));
+      parallel_for("parameter manager sacadoize - seed active",
+                   RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+                   KOKKOS_LAMBDA (const size_type i ) {
+        if (ptypes(i) == 1) { // active params
+          for (size_t j=0; j<plengths(i); j++) {
+            EvalT dummyval = 0.0;
+            if (dummyval.size() > pseed(i,j)) {
+              kv_pvals(i,j) = EvalT(dummyval.size(), pseed(i,j), pvals(i,j));
+            }
+            else {
+              kv_pvals(i,j) = EvalT(pvals(i,j));
+            }
           }
-          else {
+        }
+        else {
+          for (size_t j=0; j<plengths(i); j++) {
             kv_pvals(i,j) = EvalT(pvals(i,j));
           }
         }
+      });
+    }
+    else {
+      for (size_t i=0; i<paramvals[index].size(); i++) {
+        vector<EvalT> currparams;
+        for (size_t j=0; j<paramvals[index][i].size(); j++) {
+          currparams.push_back(EvalT(paramvals[index][i][j]));
+        }
+        *(v_pvals[i]) = currparams;
       }
-      else {
+      parallel_for("parameter manager sacadoize - no seeding",
+                   RangePolicy<AssemblyExec>(0,pvals.extent(0)),
+                   KOKKOS_LAMBDA (const size_type i ) {
         for (size_t j=0; j<plengths(i); j++) {
           kv_pvals(i,j) = EvalT(pvals(i,j));
         }
-      }
-    });
-  }
-  else {
-    for (size_t i=0; i<paramvals.size(); i++) {
-      vector<EvalT> currparams;
-      for (size_t j=0; j<paramvals[i].size(); j++) {
-        currparams.push_back(EvalT(paramvals[i][j]));
-      }
-      *(v_pvals[i]) = currparams;
+      });
     }
-    parallel_for("parameter manager sacadoize - no seeding",
-                 RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-                 KOKKOS_LAMBDA (const size_type i ) {
-      for (size_t j=0; j<plengths(i); j++) {
-        kv_pvals(i,j) = EvalT(pvals(i,j));
-      }
-    });
+    phys->updateParameters(v_pvals, paramnames);
   }
-  phys->updateParameters(v_pvals, paramnames);
 }
 
 // ========================================================================================
@@ -859,42 +932,45 @@ void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
   
   if (newparams.haveScalar()) {
     auto scalar_params = newparams.getParameter();
-
-    size_t pprog = 0;
-    // perhaps add a check that the size of newparams equals the number of parameters of the
-    // requested type
-  
-    for (size_t i=0; i<paramvals.size(); i++) {
-      if (paramtypes[i] == 1) {
-        for (size_t j=0; j<paramvals[i].size(); j++) {
-          if (Comm->getRank() == 0 && verbosity > 0) {
-            cout << "Updated Params: " << paramvals[i][j] << " (old value)   " << (*scalar_params)[pprog] << " (new value)" << endl;
+    
+    //if (newparams.haveDynamicScalar()) {
+      for (size_t i=0; i<paramvals.size(); i++) {
+        size_t pprog = 0;
+        
+        for (size_t k=0; k<paramvals[i].size(); k++) {
+          if (paramtypes[k] == 1) {
+            auto cparams = scalar_params[i];
+            for (size_t j=0; j<paramvals[i][k].size(); j++) {
+              if (Comm->getRank() == 0 && verbosity > 0) {
+                cout << "Updated Params: " << paramvals[i][k][j] << " (old value)   " << (*cparams)[pprog] << " (new value)" << endl;
+              }
+              paramvals[i][k][j] = (*cparams)[pprog];
+              pprog++;
+            }
           }
-          paramvals[i][j] = (*scalar_params)[pprog];
-          pprog++;
         }
       }
-    }
+    //}
   }
-
+  
   if (newparams.haveField()) {
     auto disc_params = newparams.getField();
     
-    if (have_dynamic) {
+    //if (newparams.haveDynamicField()) {
       for (size_t i=0; i<disc_params.size(); ++i) {
         auto owned_vec = disc_params[i]->getVector();
-        dynamic_Psol[i]->assign(*owned_vec);
-        dynamic_Psol_over[i]->putScalar(0.0);
-        dynamic_Psol_over[i]->doImport(*owned_vec, *param_importer, Tpetra::ADD);
+        discretized_params[i]->assign(*owned_vec);
+        discretized_params_over[i]->putScalar(0.0);
+        discretized_params_over[i]->doImport(*owned_vec, *param_importer, Tpetra::ADD);
       }
-    }
-    else {
-      auto owned_vec = disc_params[0]->getVector();
-      Psol->assign(*owned_vec);
-      Psol_over->putScalar(0.0);
-      Psol_over->doImport(*owned_vec, *param_importer, Tpetra::ADD);
+    //}
+    //else {
+    //  auto owned_vec = disc_params[0]->getVector();
+    //  discretized_params[0]->assign(*owned_vec);
+    //  discretized_params_over[0]->putScalar(0.0);
+    //  discretized_params_over[0]->doImport(*owned_vec, *param_importer, Tpetra::ADD);
       //Psol->assign(*(disc_params[0]->getVector()));
-    }
+    //}
   }
 
 }
@@ -905,7 +981,7 @@ void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
 
 template<class Node>
 void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, const int & type) {
-  size_t pprog = 0;
+  /*size_t pprog = 0;
   // perhaps add a check that the size of newparams equals the number of parameters of the
   // requested type
   
@@ -935,7 +1011,7 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
       Psol->replaceGlobalValue(gid,0,newparams[i+numClassicParams]);
     }
   }
-  
+  */
 }
 
 // ========================================================================================
@@ -944,9 +1020,10 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
 template<class Node>
 void ParameterManager<Node>::updateDynamicParams(const int & timestep) {
   
-  if ((int)dynamic_Psol.size() > timestep) {
-    Psol_over->assign(*dynamic_Psol_over[timestep]);
-  }
+  dynamic_timeindex = timestep;
+  //if ((int)dynamic_Psol.size() > timestep) {
+  //  Psol_over->assign(*dynamic_Psol_over[timestep]);
+  //}
 }
 
 // ========================================================================================
@@ -958,14 +1035,21 @@ void ParameterManager<Node>::setParam(const vector<ScalarT> & newparams, const s
   // perhaps add a check that the size of newparams equals the number of parameters of the
   // requested type
   
-  for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramnames[i] == name) {
-      for (size_t j=0; j<paramvals[i].size(); j++) {
-        if (Comm->getRank() == 0 && verbosity > 0) {
-          cout << "Updated Params: " << paramvals[i][j] << " (old value)   " << newparams[pprog] << " (new value)" << endl;
+  int index = 0;
+  if (have_dynamic_scalar) {
+    index = dynamic_timeindex;
+  }
+  
+  if (paramvals.size() > index) {
+    for (size_t i=0; i<paramvals[index].size(); i++) {
+      if (paramnames[i] == name) {
+        for (size_t j=0; j<paramvals[index][i].size(); j++) {
+          if (Comm->getRank() == 0 && verbosity > 0) {
+            cout << "Updated Params: " << paramvals[index][i][j] << " (old value)   " << newparams[pprog] << " (new value)" << endl;
+          }
+          paramvals[index][i][j] = newparams[pprog];
+          pprog++;
         }
-        paramvals[i][j] = newparams[pprog];
-        pprog++;
       }
     }
   }
@@ -988,11 +1072,19 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
   else {
     //complain
   }
-  for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramtypes[i] == type) {
-      for (size_t j=0; j<paramvals[i].size(); j++) {
-        paramvals[i][j] = newparams[pprog];
-        pprog++;
+  
+  int index = 0;
+  if (have_dynamic_scalar) {
+    index = dynamic_timeindex;
+  }
+  
+  if (paramvals.size() > index) {
+    for (size_t i=0; i<paramvals[index].size(); i++) {
+      if (paramtypes[i] == type) {
+        for (size_t j=0; j<paramvals[index][i].size(); j++) {
+          paramvals[index][i][j] = newparams[pprog];
+          pprog++;
+        }
       }
     }
   }
@@ -1002,14 +1094,18 @@ void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, con
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<vector<ScalarT> > ParameterManager<Node>::getParams(const int & type) {
-  Teuchos::RCP<vector<ScalarT> > reqparams = Teuchos::rcp(new std::vector<ScalarT>());
+vector<Teuchos::RCP<vector<ScalarT> > > ParameterManager<Node>::getParams(const int & type) {
+  vector<Teuchos::RCP<vector<ScalarT> > > reqparams;// = Teuchos::rcp(new std::vector<ScalarT>());
   for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramtypes[i] == type) {
-      for (size_t j=0; j<paramvals[i].size(); j++) {
-        reqparams->push_back(paramvals[i][j]);
+    Teuchos::RCP<vector<ScalarT> > tmpparams = Teuchos::rcp(new std::vector<ScalarT>());
+    for (size_t k=0; k<paramvals[i].size(); k++) {
+      if (paramtypes[k] == type) {
+        for (size_t j=0; j<paramvals[i][k].size(); j++) {
+          tmpparams->push_back(paramvals[i][k][j]);
+        }
       }
     }
+    reqparams.push_back(tmpparams);
   }
   return reqparams;
 }
@@ -1020,9 +1116,11 @@ Teuchos::RCP<vector<ScalarT> > ParameterManager<Node>::getParams(const int & typ
 template<class Node>
 vector<string> ParameterManager<Node>::getParamsNames(const int & type) {
   vector<string> reqparams;
-  for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramtypes[i] == type) {
-      reqparams.push_back(paramnames[i]);
+  if (paramvals.size() > 0) {
+    for (size_t i=0; i<paramvals[0].size(); i++) { // just first is fine
+      if (paramtypes[i] == type) {
+        reqparams.push_back(paramnames[i]);
+      }
     }
   }
   return reqparams;
@@ -1031,9 +1129,11 @@ vector<string> ParameterManager<Node>::getParamsNames(const int & type) {
 template<class Node>
 bool ParameterManager<Node>::isParameter(const string & name) {
   bool isparam = false;
-  for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramnames[i] == name) {
-      isparam = true;
+  if (paramvals.size() > 0) {
+    for (size_t i=0; i<paramvals[0].size(); i++) { // just first is fine
+      if (paramnames[i] == name) {
+        isparam = true;
+      }
     }
   }
   return isparam;
@@ -1045,9 +1145,11 @@ bool ParameterManager<Node>::isParameter(const string & name) {
 template<class Node>
 vector<size_t> ParameterManager<Node>::getParamsLengths(const int & type) {
   vector<size_t> reqparams;
-  for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramtypes[i] == type) {
-      reqparams.push_back(paramvals[i].size());
+  if (paramvals.size() > 0) {
+    for (size_t i=0; i<paramvals[0].size(); i++) { // first is fine
+      if (paramtypes[i] == type) {
+        reqparams.push_back(paramvals[0][i].size());
+      }
     }
   }
   return reqparams;
@@ -1072,9 +1174,11 @@ vector<ScalarT> ParameterManager<Node>::getParams(const std::string & stype) {
   //complain
   
   for (size_t i=0; i<paramvals.size(); i++) {
-    if (paramtypes[i] == type) {
-      for (size_t j=0; j<paramvals[i].size(); j++) {
-        reqparams.push_back(paramvals[i][j]);
+    for (size_t k=0; k<paramvals[i].size(); k++) {
+      if (paramtypes[k] == type) {
+        for (size_t j=0; j<paramvals[i][k].size(); j++) {
+          reqparams.push_back(paramvals[i][k][j]);
+        }
       }
     }
   }
@@ -1091,9 +1195,9 @@ vector<Teuchos::RCP<vector<ScalarT> > > ParameterManager<Node>::getActiveParamBo
   Teuchos::RCP<vector<ScalarT> > requp = Teuchos::rcp( new vector<ScalarT> (num_active_params, 0.0) );
 
   size_t prog = 0;
-  for (size_t i=0; i<paramvals.size(); i++) {
+  for (size_t i=0; i<paramvals[0].size(); i++) {
     if (paramtypes[i] == 1) {
-      for (size_t j=0; j<paramvals[i].size(); j++) {
+      for (size_t j=0; j<paramvals[0][i].size(); j++) {
         (*reqlo)[prog] = paramLowerBounds[i][j];
         (*requp)[prog] = paramUpperBounds[i][j];
         prog++;
@@ -1186,9 +1290,11 @@ void ParameterManager<Node>::stashParams(){
     std::ofstream respOUT(outname);
     respOUT.precision(16);
     for (size_t i=0; i<paramvals.size(); i++) {
-      if (paramtypes[i] == 1) {
-        for (size_t j=0; j<paramvals[i].size(); j++) {
-          respOUT << paramvals[i][j] << endl;
+      for (size_t k=0; k<paramvals[i].size(); k++) {
+        if (paramtypes[k] == 1) {
+          for (size_t j=0; j<paramvals[i][k].size(); j++) {
+            respOUT << paramvals[i][k][j] << endl;
+          }
         }
       }
     }

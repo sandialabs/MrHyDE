@@ -82,6 +82,8 @@ namespace MrHyDE {
     // ========================================================================================
 
     vector_RCP getDiscretizedParams();
+    
+    vector_RCP getDiscretizedParamsOver();
 
     // ========================================================================================
     // ========================================================================================
@@ -144,7 +146,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    Teuchos::RCP<std::vector<ScalarT> > getParams(const int & type);
+    std::vector<Teuchos::RCP<std::vector<ScalarT> > > getParams(const int & type);
     
     // ========================================================================================
     // ========================================================================================
@@ -221,7 +223,7 @@ namespace MrHyDE {
     Teuchos::RCP<LA_Import> param_importer;
     
     std::vector<std::string> paramnames;
-    std::vector<std::vector<ScalarT> > paramvals;
+    std::vector<std::vector<std::vector<ScalarT> > > paramvals; // [dynamic_index][param_num][param_index]
 
     std::vector<Teuchos::RCP<std::vector<ScalarT> > > paramvals_Sc;
 #ifndef MrHyDE_NO_AD
@@ -247,10 +249,12 @@ namespace MrHyDE {
     Kokkos::View<AD32**,AssemblyDevice> paramvals_KVAD32;
 #endif
     
-    vector_RCP Psol, Psol_over;
-    std::vector<vector_RCP> dynamic_Psol, dynamic_Psol_over;
+    //vector_RCP Psol, Psol_over;
+    std::vector<vector_RCP> discretized_params, discretized_params_over;
     //std::vector<vector_RCP> auxsol;
-    bool have_dynamic;
+    bool have_dynamic_discretized, have_dynamic_scalar;
+    int dynamic_timeindex;
+    ScalarT dynamic_dt;
     
     Teuchos::RCP<const panzer::DOFManager> discparamDOF;
     std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> DOF_LIDs;
@@ -264,15 +268,15 @@ namespace MrHyDE {
     std::vector<int> discretized_param_basis_orders, discretized_param_usebasis;
     std::vector<std::string> discretized_param_names;
     std::vector<basis_RCP> discretized_param_basis;
-    std::vector<bool> discretized_param_dynamic;
+    std::vector<bool> discretized_param_dynamic, scalar_param_dynamic;
     Teuchos::RCP<panzer::DOFManager> paramDOF;
     std::vector<std::vector<int> > paramoffsets;
     std::vector<int> paramNumBasis;
     int numParamUnknowns;     					 // total number of unknowns
-    int numParamUnknownsOS;     					 // total number of unknowns
-    int globalParamUnknowns; // total number of unknowns across all processors
+    int numParamUnknownsOS;     				 // total number of unknowns
+    int globalParamUnknowns;             // total number of unknowns across all processors
     std::vector<GO> paramOwned;					 // GIDs that live on the local processor.
-    std::vector<GO> paramOwnedAndShared;				 // GIDs that live or are shared on the local processor.
+    std::vector<GO> paramOwnedAndShared; // GIDs that live or are shared on the local processor.
     
     std::vector<int> paramtypes;
     std::vector<std::vector<GO>> paramNodes;  // for distinguishing between parameter fields when setting initial

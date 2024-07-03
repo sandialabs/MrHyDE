@@ -28,13 +28,14 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   // Settings that should not change
   dimension = cellinfo[0];
   numVars = numVars_;
-  numParams = cellinfo[1];
+  numDiscParams = cellinfo[1];
   numAux = 0;
   numElem = cellinfo[2];
   usebcs = true;
   numip = cellinfo[3];
   numsideip = cellinfo[4];
   numSets = cellinfo[5];
+  numScalarParams = cellinfo[6];
   
   isOnSide = false;
   isOnPoint = false;
@@ -121,7 +122,7 @@ void Workset<EvalT>::createSolutionFields() {
   // This is the largest view in the code (due to the AD) so we are careful with the size
   
   // Start with the number of active scalar parameters (typically small)
-  maxRes = numParams;
+  maxRes = numScalarParams;
   
   // Check the number of DOF for each variable
   for (size_t set=0; set<numSets; ++set) {
@@ -866,7 +867,7 @@ template<>
 void Workset<ScalarT>::computeParamSteadySeeded(View_Sc3 param,
                                       const int & seedwhat) {
   
-  if (numParams>0) {
+  if (numDiscParams>0) {
     Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
     for (size_type var=0; var<param.extent(1); var++ ) {
@@ -892,7 +893,7 @@ template<class EvalT>
 void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
                                       const int & seedwhat) {
   
-  if (numParams>0) {
+  if (numDiscParams>0) {
     Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
     for (size_type var=0; var<param.extent(1); var++ ) {

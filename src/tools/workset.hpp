@@ -494,7 +494,7 @@ namespace MrHyDE {
     bool isAdjoint, onlyTransient, isTransient, only_scalar=false;
     bool isInitialized, usebcs, isOnSide, isOnPoint;
     topo_RCP celltopo;
-    size_t numsides, numip, numsideip, numParams, maxRes, maxTeamSize, current_set, numSets;
+    size_t numsides, numip, numsideip, numScalarParams, numDiscParams, maxRes, maxTeamSize, current_set, numSets;
     int dimension, numElem, current_stage;
     size_type maxElem;
     
@@ -503,7 +503,7 @@ namespace MrHyDE {
     vector<basis_RCP> basis_pointers;
     
     vector<Teuchos::RCP<vector<EvalT> > > params;
-    Kokkos::View<EvalT**,AssemblyDevice> params_AD;
+    Kokkos::View<EvalT**,AssemblyDevice> params_AD, params_dot_AD;
     vector<string> paramnames;
     
     ScalarT time, alpha, deltat;
@@ -515,7 +515,7 @@ namespace MrHyDE {
     
     // Actual DOFs for current group or boundary
     vector<View_Sc3> sol, phi;
-    View_Sc3 param, aux; // (elem,var,numdof)
+    View_Sc3 param, param_dot, aux; // (elem,var,numdof)
     vector<View_Sc3> sol_avg, sol_alt;
     View_Sc3 param_avg, aux_avg; // (elem,var,dim)
     vector<View_Sc4> sol_prev, phi_prev, aux_prev, sol_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)
