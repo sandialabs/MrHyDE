@@ -52,7 +52,7 @@ ANONYMOUS:
     thermal_diff:
       type: scalar
       value: 2.0
-      usage: inactive
+      usage: active
     L:
       type: scalar
       value: 2.0
@@ -60,7 +60,7 @@ ANONYMOUS:
     A:
       type: scalar
       value: 2.0e-01
-      usage: inactive
+      usage: active
   Analysis:
     analysis type: forward
   Functions:

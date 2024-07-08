@@ -100,8 +100,6 @@ namespace MrHyDE {
     
     virtual LIDView getCellLIDs(const int & cellnum) = 0;
     
-    virtual void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) = 0;
-    
     virtual void addMeshData() = 0;
     
     virtual void updateMeshData(Kokkos::View<ScalarT**,HostDevice> & rotation_data) = 0;
@@ -112,8 +110,6 @@ namespace MrHyDE {
 
     virtual void updateActive(vector<bool> & new_active) = 0;
 
-    //virtual SG_Map getLinearAlgebraMap() = 0;
-    
     Teuchos::RCP<MpiComm> LocalComm;
     Teuchos::RCP<SolutionStorage<SubgridSolverNode> > soln, solndot, adjsoln;
     vector<Teuchos::RCP<SG_MultiVector> > prev_soln, curr_soln, stage_soln;

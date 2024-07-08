@@ -234,6 +234,33 @@ void msphasefield<EvalT>::volumeResidual() {
   auto res = wkset->res;
   auto wts = wkset->wts;
   
+  bool fnddiff = false;
+  auto diff_KV = wkset->getParameter("thermal_diff", fnddiff);
+  if (fnddiff) {
+    diff_FAD = diff_KV(0);
+  }
+  else {
+    diff_FAD = 1.0;
+  }
+  
+  bool fndL = false;
+  auto L_KV = wkset->getParameter("L", fndL);
+  if (fndL) {
+    L = L_KV(0);
+  }
+  else {
+    L = 1.0;
+  }
+  
+  bool fndA = false;
+  auto A_KV = wkset->getParameter("A", fndA);
+  if (fndA) {
+    A = A_KV(0);
+  }
+  else {
+    A = 1.0;
+  }
+  
   for (size_type e=0; e<basis.extent(0); e++) {
     for(size_type k=0; k<basis.extent(2); k++ ) {
       //x = ip(e,k,0);
@@ -264,7 +291,8 @@ void msphasefield<EvalT>::volumeResidual() {
         for(int i=0; i<numphases; i++) {
           for(int j=0; j<numphases; j++) {
             //	    ScalarT Lij = dis(gen);
-            Lnum += L[i*numphases+j] * phi[i] * phi[i] * phi[j] * phi[j];
+            //Lnum += L[i*numphases+j] * phi[i] * phi[i] * phi[j] * phi[j];
+            Lnum += L * phi[i] * phi[i] * phi[j] * phi[j];
             Lden +=           phi[i] * phi[i] * phi[j] * phi[j];
           }
         }
@@ -297,19 +325,19 @@ void msphasefield<EvalT>::volumeResidual() {
           if (spaceDim == 2) {
             //	    if(variableMobility) L[0] = Lvar[j];
             if(variableMobility) {
-              res(e,resindex) += (mobility*(16.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
-                                           diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy )))*wts(e,k);
+              res(e,resindex) += (mobility*(16.0*A*phi[j]*(-phi[j]+ sumphi)*v +
+                                           diff_FAD*diff_FAD*(dphidx[j]*dvdx + dphidy[j]*dvdy )))*wts(e,k);
             }else {
-              res(e,resindex) += (L[0]*(16.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
-                                       diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy )))*wts(e,k);
+              res(e,resindex) += (L*(16.0*A*phi[j]*(-phi[j]+ sumphi)*v +
+                                       diff_FAD*diff_FAD*(dphidx[j]*dvdx + dphidy[j]*dvdy )))*wts(e,k);
             }
             //	      wkset->res(resindex) += L[0]*(4.0*A[0]*(-phi[j]+ phi[j]*phi[j]*phi[j])*v +
             //					   diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy ));
             
           }
           if (spaceDim == 3) {
-            res(e,resindex) += (L[0]*(4.0*A[0]*phi[j]*(-phi[j]+ sumphi)*v +
-                                     diff_FAD[0]*diff_FAD[0]*(dphidx[j]*dvdx + dphidy[j]*dvdy + dphidz[j]*dvdz )))*wts(e,k);
+            res(e,resindex) += (L*(4.0*A*phi[j]*(-phi[j]+ sumphi)*v +
+                                     diff_FAD*diff_FAD*(dphidx[j]*dvdx + dphidy[j]*dvdy + dphidz[j]*dvdz )))*wts(e,k);
           }
           res(e,resindex) += phi_dot[j]*v*wts(e,k);
         }
@@ -488,7 +516,7 @@ ScalarT msphasefield<EvalT>::boundarySource(const ScalarT & x, const ScalarT & y
 template<class EvalT>
 EvalT msphasefield<EvalT>::DiffusionCoeff(const ScalarT & x, const ScalarT & y, const ScalarT & z) const {
   EvalT diff = 0.0;
-  diff = diff_FAD[0];
+  diff = diff_FAD;
   return diff;
 }
 
@@ -501,28 +529,6 @@ ScalarT msphasefield<EvalT>::robinAlpha(const ScalarT & x, const ScalarT & y, co
                                  const string & side) const {
   return 0.0;
 }
-
-// ========================================================================================
-// TMW: this is deprecated
-// ========================================================================================
-
-template<class EvalT>
-void msphasefield<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
-                                    const vector<string> & paramnames) {
-  
-  for (size_t p=0; p<paramnames.size(); p++) {
-    if (paramnames[p] == "thermal_diff")
-      diff_FAD = *(params[p]);
-    else if (paramnames[p] == "L")
-      L = *(params[p]);
-    else if (paramnames[p] == "A")
-      A = *(params[p]);
-    
-    //else
-    //  cout << "Parameter not used: " << paramnames[p] << endl;
-  }
-}
-
 
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations

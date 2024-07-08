@@ -835,16 +835,16 @@ void SolverManager<Node>::finalizeWorkset() {
   
   debugger->print("**** Starting SolverManager::finalizeWorkset ...");
   
-  this->finalizeWorkset(assembler->wkset, params->paramvals_KV, params->paramvals_Sc);
+  this->finalizeWorkset(assembler->wkset, params->paramvals_KV);
 #ifndef MrHyDE_NO_AD
-  this->finalizeWorkset(assembler->wkset_AD, params->paramvals_KVAD, params->paramvals_AD);
-  this->finalizeWorkset(assembler->wkset_AD2, params->paramvals_KVAD2, params->paramvals_AD2);
-  this->finalizeWorkset(assembler->wkset_AD4, params->paramvals_KVAD4, params->paramvals_AD4);
-  this->finalizeWorkset(assembler->wkset_AD8, params->paramvals_KVAD8, params->paramvals_AD8);
-  this->finalizeWorkset(assembler->wkset_AD16, params->paramvals_KVAD16, params->paramvals_AD16);
-  this->finalizeWorkset(assembler->wkset_AD18, params->paramvals_KVAD18, params->paramvals_AD18);
-  this->finalizeWorkset(assembler->wkset_AD24, params->paramvals_KVAD24, params->paramvals_AD24);
-  this->finalizeWorkset(assembler->wkset_AD32, params->paramvals_KVAD32, params->paramvals_AD32);
+  this->finalizeWorkset(assembler->wkset_AD, params->paramvals_KVAD);
+  this->finalizeWorkset(assembler->wkset_AD2, params->paramvals_KVAD2);
+  this->finalizeWorkset(assembler->wkset_AD4, params->paramvals_KVAD4);
+  this->finalizeWorkset(assembler->wkset_AD8, params->paramvals_KVAD8);
+  this->finalizeWorkset(assembler->wkset_AD16, params->paramvals_KVAD16);
+  this->finalizeWorkset(assembler->wkset_AD18, params->paramvals_KVAD18);
+  this->finalizeWorkset(assembler->wkset_AD24, params->paramvals_KVAD24);
+  this->finalizeWorkset(assembler->wkset_AD32, params->paramvals_KVAD32);
 #endif
   
   debugger->print("**** Finished SolverManager::finalizeWorkset");
@@ -855,8 +855,7 @@ void SolverManager<Node>::finalizeWorkset() {
 template<class Node>
 template<class EvalT>
 void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > > & wkset,
-                                          Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV,
-                                          std::vector<Teuchos::RCP<std::vector<EvalT> > > & paramvals) {
+                                          Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV) {
 
   // Determine the offsets for each set as a Kokkos View
   for (size_t block=0; block<wkset.size(); ++block) {
@@ -958,13 +957,11 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
       }
       assembler->groupData[block]->setSolutionFields(maxnumsteps, maxnumstages);
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-        //assembler->groups[block][grp]->setWorkset(assembler->wkset[block]);
         assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages, false);
         assembler->groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
         assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
       }
       
-      wkset[block]->params = paramvals;
       wkset[block]->params_AD = paramvals_KV;
       wkset[block]->paramnames = params->paramnames;
       wkset[block]->setTime(current_time);
@@ -1165,7 +1162,8 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & so
       if (usestrongDBCs) {
         this->setDirichlet(set, sol[set]);
       }
-      this->nonlinearSolver(set, 0, sol, zero_soln, zero_soln, 
+      params->updateDynamicParams(0);
+      this->nonlinearSolver(set, 0, sol, zero_soln, zero_soln,
                             zero_soln, zero_soln, zero_soln);
     }
   }
@@ -1201,7 +1199,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
       if (!fnd) {
         cout << "UNABLE TO FIND FORWARD SOLUTION" << endl;
       }
-      
+      params->updateDynamicParams(0);
       this->nonlinearSolver(0, 0, sol, sol, zero_vec, phi, phi, zero_vec);
       postproc->computeSensitivities(sol, zero_vec, zero_vec, phi, 0, current_time, deltat, gradient);
       
@@ -1408,7 +1406,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       size_t cindex = numFwdSteps-timeiter;
       phi_prev[set] = linalg->getNewOverlappedVector(set);
       phi_prev[set]->update(1.0,*(phi[0]),0.0);
-      if(Comm->getRank() == 0 && verbosity > 0) {
+      if (Comm->getRank() == 0 && verbosity > 0) {
         cout << endl << endl << "*******************************************************" << endl;
         cout << endl << "**** Beginning Adjoint Time Step " << timeiter << endl;
         cout << "**** Current time is " << current_time << endl << endl;
@@ -1426,8 +1424,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       if (!fndup) {
         // throw error
       }
+      //params->updateDynamicParams(cindex-1);
       params->updateDynamicParams(cindex-1);
-
       //assembler->performGather(set,u_prev[set],0,0);
       //assembler->resetPrevSoln(set);
       

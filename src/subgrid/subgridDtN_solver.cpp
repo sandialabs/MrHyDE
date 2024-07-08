@@ -1930,20 +1930,6 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,SubgridSolverNode> >  SubGridDtN_So
   return map;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Update the subgrid parameters (will be depracated)
-////////////////////////////////////////////////////////////////////////////////
-
-void SubGridDtN_Solver::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
-#ifndef MrHyDE_NO_AD
-  for (size_t block=0; block<assembler->wkset_AD.size(); ++block) {
-    assembler->wkset_AD[block]->params = params;
-    assembler->wkset_AD[block]->paramnames = paramnames;
-  }
-  solver->physics->updateParameters(params, paramnames);
-#endif  
-}
-
 // ========================================================================================
 //
 // ========================================================================================

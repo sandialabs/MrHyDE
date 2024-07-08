@@ -99,14 +99,14 @@ using namespace MrHyDE;
      * \note This will likely be deprecated, as this is used in few cases.
      */
     //virtual 
-    template<class EvalT>
-    void PhysicsBase<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
-                                  const std::vector<string> & paramnames) {
-      if (verbosity > 10) {
-        std::cout << "Warning: physicsBase::updateParameters called!" << std::endl;
-        std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
-      }
-    }
+    //template<class EvalT>
+    //void PhysicsBase<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
+    //                              const std::vector<string> & paramnames) {
+    //  if (verbosity > 10) {
+    //    std::cout << "Warning: physicsBase::updateParameters called!" << std::endl;
+    //    std::cout << "*** This probably means the functionality requested is not implemented in the physics module." << std::endl;
+    //  }
+    //}
     
     // ========================================================================================
     // ========================================================================================

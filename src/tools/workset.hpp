@@ -157,12 +157,6 @@ namespace MrHyDE {
     void addAux(const vector<string> & auxlist, Kokkos::View<int**,AssemblyDevice> aoffs);
     
     //////////////////////////////////////////////////////////////
-    // Get a pointer to vector of parameters
-    //////////////////////////////////////////////////////////////
-    
-    vector<EvalT> getParam(const string & name, bool & found);
-    
-    //////////////////////////////////////////////////////////////
     // Get a subview associated with a vector of parameters
     //////////////////////////////////////////////////////////////
 
@@ -502,7 +496,6 @@ namespace MrHyDE {
     vector<int> numbasis;
     vector<basis_RCP> basis_pointers;
     
-    vector<Teuchos::RCP<vector<EvalT> > > params;
     Kokkos::View<EvalT**,AssemblyDevice> params_AD, params_dot_AD;
     vector<string> paramnames;
     

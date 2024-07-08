@@ -111,19 +111,12 @@ namespace MrHyDE {
                        const string & side) const;
     
     // ========================================================================================
-    // TMW: this is deprecated
-    // ========================================================================================
-    
-    void updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
-                          const vector<string> & paramnames);
-    
-    // ========================================================================================
     // ========================================================================================
     
   private:
     
     Teuchos::RCP<MpiComm> Comm;      
-    std::vector<EvalT> diff_FAD, L, A;   
+    EvalT diff_FAD, L, A;   
     int spaceDim, numphases, numdisks;
     vector<string> varlist;
     std::vector<int> phi_num;

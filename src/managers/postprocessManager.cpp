@@ -4271,6 +4271,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   if (params->num_active_params > 0) {
   
     params->sacadoizeParams(true);
+    params->updateDynamicParams(tindex-1);
     
     //vector<ScalarT> localsens(params->num_active_params);
     auto sgrad = gradient.getParameter();
@@ -4336,6 +4337,8 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       (*scalar_grad)[paramiter] += globalval;
     }
     params->sacadoizeParams(false);
+    params->updateDynamicParams(tindex-1);
+    
   }
   
   int numDiscParams = params->getNumParams(4);
@@ -4449,6 +4452,7 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
   J_over->setAllToScalar(0.0);
   vector<vector_RCP> zero_vec;
   auto Psol = params->getDiscretizedParamsOver();
+  
   assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true,
                             res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
                             params->num_active_params, Psol, false, deltat); //is_final_time, deltat);

@@ -49,7 +49,7 @@ namespace MrHyDE {
 
     //----------------------------------------------------------------------------
 
-    void updateParams(Teuchos::RCP<Workset<EvalT> > & wkset);
+    void updateParams();
     
     //----------------------------------------------------------------------------
     
@@ -60,6 +60,10 @@ namespace MrHyDE {
     
     void computeRotatedTensor(Teuchos::RCP<Workset<EvalT> > & wkset);
     
+    //----------------------------------------------------------------------------
+    
+    void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
+    
   private:
   
     int dimension;
@@ -68,6 +72,7 @@ namespace MrHyDE {
     View_EvalT4 C; // lattice stiffness tensor (does not depend on elements)
     View_EvalT5 Cr; // rotated stiffness tensor
     EvalT lambda, mu, e_ref, alpha_T;
+    Teuchos::RCP<Workset<EvalT> > wkset;
     
     Teuchos::RCP<Teuchos::Time> computeRotatedTensorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::CrystalElasticity::computeRotatedTensor");
     Teuchos::RCP<Teuchos::Time> computeStressTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::CrystalElasticity::computeStress");

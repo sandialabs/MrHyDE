@@ -42,6 +42,7 @@ public:
                    const double & dt,
                    const int mpirank_ = 0)
   : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false) {
+    
     if (s_vec.size() == 0) {
       //scalar_vec = ROL::nullPtr;
       have_scalar = false;
@@ -81,6 +82,7 @@ public:
         dual_scalar_vec.push_back(ROL::dynamicPtrCast<ROL::StdVector<ScalarT> >(scalar_vec[k]->dual().clone()));
       }
     }
+    
   }
   
   ///////////////////////////////////////////////////

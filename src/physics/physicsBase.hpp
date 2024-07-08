@@ -94,9 +94,9 @@ namespace MrHyDE {
      * \param[in] paramnames The names of the input parameters
      * \note This will likely be deprecated, as this is used in few cases.
      */
-    virtual 
-    void updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
-                                  const std::vector<string> & paramnames);
+    //virtual
+    //void updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
+    //                              const std::vector<string> & paramnames);
     
     // ========================================================================================
     // ========================================================================================

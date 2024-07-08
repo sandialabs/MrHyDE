@@ -145,22 +145,6 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void updateParameters(vector<Teuchos::RCP<vector<ScalarT> > > & params, const vector<string> & paramnames);
-    
-#ifndef MrHyDE_NO_AD
-    void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames);
-    void updateParameters(vector<Teuchos::RCP<vector<AD2> > > & params, const vector<string> & paramnames);
-    void updateParameters(vector<Teuchos::RCP<vector<AD4> > > & params, const vector<string> & paramnames);
-    void updateParameters(vector<Teuchos::RCP<vector<AD8> > > & params, const vector<string> & paramnames);
-    void updateParameters(vector<Teuchos::RCP<vector<AD16> > > & params, const vector<string> & paramnames);
-    void updateParameters(vector<Teuchos::RCP<vector<AD18> > > & params, const vector<string> & paramnames);
-    void updateParameters(vector<Teuchos::RCP<vector<AD24> > > & params, const vector<string> & paramnames);
-    void updateParameters(vector<Teuchos::RCP<vector<AD32> > > & params, const vector<string> & paramnames);
-#endif
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    
     int getUniqueIndex(const int & set, const int & block, const std::string & var);
     
     /////////////////////////////////////////////////////////////////////////////////////////////

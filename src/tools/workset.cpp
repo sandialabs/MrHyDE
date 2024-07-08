@@ -1377,30 +1377,6 @@ void Workset<EvalT>::addAux(const vector<string> & auxvars, Kokkos::View<int**,A
 }
 
 //////////////////////////////////////////////////////////////
-// Get a pointer to vector of parameters
-//////////////////////////////////////////////////////////////
-
-template<class EvalT>
-vector<EvalT> Workset<EvalT>::getParam(const string & name, bool & found) {
-  found = false;
-  size_t iter=0;
-  vector<EvalT> pvec;
-  while (!found && iter<paramnames.size()) {
-    if (paramnames[iter] == name) {
-      found  = true;
-      pvec = *(params[iter]);
-    }
-    else {
-      iter++;
-    }
-  }
-  if (!found) {
-    pvec = vector<EvalT>(1);
-  }
-  return pvec;
-}
-
-//////////////////////////////////////////////////////////////
 // Get a subview associated with a vector of parameters
 //////////////////////////////////////////////////////////////
 

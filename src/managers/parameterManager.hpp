@@ -102,9 +102,8 @@ namespace MrHyDE {
                          Kokkos::View<int*,AssemblyDevice> ptypes,
                          Kokkos::View<size_t*,AssemblyDevice> plengths,
                          Kokkos::View<size_t**,AssemblyDevice> pseed,
-                         Kokkos::View<ScalarT**,AssemblyDevice> pvals,
-                         vector<Teuchos::RCP<vector<ScalarT> > > & v_pvals,
-                         Kokkos::View<ScalarT**,AssemblyDevice> kv_pvals);
+                         Kokkos::View<ScalarT***,AssemblyDevice> pvals,
+                         Kokkos::View<ScalarT***,AssemblyDevice> kv_pvals);
 
     // ========================================================================================
     // ========================================================================================
@@ -114,9 +113,8 @@ namespace MrHyDE {
                          Kokkos::View<int*,AssemblyDevice> ptypes,
                          Kokkos::View<size_t*,AssemblyDevice> plengths,
                          Kokkos::View<size_t**,AssemblyDevice> pseed,
-                         Kokkos::View<ScalarT**,AssemblyDevice> pvals,
-                         vector<Teuchos::RCP<vector<EvalT> > > & v_pvals,
-                         Kokkos::View<EvalT**,AssemblyDevice> kv_pvals);
+                         Kokkos::View<ScalarT***,AssemblyDevice> pvals,
+                         Kokkos::View<EvalT***,AssemblyDevice> kv_pvals);
 
     // ========================================================================================
     // ========================================================================================
@@ -225,18 +223,6 @@ namespace MrHyDE {
     std::vector<std::string> paramnames;
     std::vector<std::vector<std::vector<ScalarT> > > paramvals; // [dynamic_index][param_num][param_index]
 
-    std::vector<Teuchos::RCP<std::vector<ScalarT> > > paramvals_Sc;
-#ifndef MrHyDE_NO_AD
-    std::vector<Teuchos::RCP<std::vector<AD> > > paramvals_AD;
-    std::vector<Teuchos::RCP<std::vector<AD2> > > paramvals_AD2;
-    std::vector<Teuchos::RCP<std::vector<AD4> > > paramvals_AD4;
-    std::vector<Teuchos::RCP<std::vector<AD8> > > paramvals_AD8;
-    std::vector<Teuchos::RCP<std::vector<AD16> > > paramvals_AD16;
-    std::vector<Teuchos::RCP<std::vector<AD18> > > paramvals_AD18;
-    std::vector<Teuchos::RCP<std::vector<AD24> > > paramvals_AD24;
-    std::vector<Teuchos::RCP<std::vector<AD32> > > paramvals_AD32;
-#endif
-    
     Kokkos::View<ScalarT**,AssemblyDevice> paramvals_KV;
 #ifndef MrHyDE_NO_AD
     Kokkos::View<AD**,AssemblyDevice> paramvals_KVAD;
@@ -249,6 +235,18 @@ namespace MrHyDE {
     Kokkos::View<AD32**,AssemblyDevice> paramvals_KVAD32;
 #endif
     
+    // Redundant, but used for dynamic parameters
+    Kokkos::View<ScalarT***,AssemblyDevice> paramvals_KV_ALL;
+#ifndef MrHyDE_NO_AD
+    Kokkos::View<AD***,AssemblyDevice> paramvals_KVAD_ALL;
+    Kokkos::View<AD2***,AssemblyDevice> paramvals_KVAD2_ALL;
+    Kokkos::View<AD4***,AssemblyDevice> paramvals_KVAD4_ALL;
+    Kokkos::View<AD8***,AssemblyDevice> paramvals_KVAD8_ALL;
+    Kokkos::View<AD16***,AssemblyDevice> paramvals_KVAD16_ALL;
+    Kokkos::View<AD18***,AssemblyDevice> paramvals_KVAD18_ALL;
+    Kokkos::View<AD24***,AssemblyDevice> paramvals_KVAD24_ALL;
+    Kokkos::View<AD32***,AssemblyDevice> paramvals_KVAD32_ALL;
+#endif
     //vector_RCP Psol, Psol_over;
     std::vector<vector_RCP> discretized_params, discretized_params_over;
     //std::vector<vector_RCP> auxsol;

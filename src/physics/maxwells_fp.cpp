@@ -801,7 +801,12 @@ void maxwells_fp<EvalT>::computeFlux() {
 
 template<class EvalT>
 EvalT maxwells_fp<EvalT>::getFreq(const ScalarT & x, const ScalarT & y, const ScalarT & z, const ScalarT & time) const{
-  EvalT omega = freq_params[0];
+  bool fndom = false;
+  auto omvals = wkset->getParameter("maxwells_fp_freq", fndom);
+  EvalT omega = 0.0;
+  if (fndom) {
+    omega = omvals(0);//freq_params[0];
+  }
   
   return omega;
 }
@@ -1063,6 +1068,7 @@ void maxwells_fp<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 // TMW: this needs to be deprecated
 // ========================================================================================
 
+/*
 template<class EvalT>
 void maxwells_fp<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params, const std::vector<string> & paramnames) {
   for (size_t p=0; p<paramnames.size(); p++) {
@@ -1078,7 +1084,7 @@ void maxwells_fp<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT
       boundary_params = *(params[p]);
   }
 }
-
+*/
 
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations

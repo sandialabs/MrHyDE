@@ -80,6 +80,13 @@ CrystalElastic<EvalT>::CrystalElastic(Teuchos::ParameterList & settings,
 //=====================================================
 
 template<class EvalT>
+void CrystalElastic<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
+  wkset = wkset_;
+}
+
+//----------------------------------------------------------------------------
+
+template<class EvalT>
 void CrystalElastic<EvalT>::computeLatticeTensor() {
   
   auto C_host = create_mirror_view(C);
@@ -134,37 +141,37 @@ void CrystalElastic<EvalT>::computeLatticeTensor() {
 //----------------------------------------------------------------------------
 
 template<class EvalT>
-void CrystalElastic<EvalT>::updateParams(Teuchos::RCP<Workset<EvalT> > & wkset) {
+void CrystalElastic<EvalT>::updateParams() {
   
   EvalT c11 = c11_;
   EvalT c12 = c12_;
   EvalT c44 = c44_;
   
   bool foundlam = false;
-  vector<EvalT> lvals = wkset->getParam("lambda", foundlam);
+  auto lamvals = wkset->getParameter("lambda", foundlam);
   if (foundlam) {
-    lambda = lvals[0];
+    lambda = lamvals(0);
   }
   
   bool foundmu = false;
-  vector<EvalT> muvals = wkset->getParam("mu", foundmu);
+  auto muvals = wkset->getParameter("mu", foundlam);
   if (foundmu) {
-    mu = muvals[0];
+    mu = muvals(0);
   }
   
   if (!foundlam || !foundmu) {
     EvalT E = 0.0;
     bool foundym = false;
-    vector<EvalT> ymvals = wkset->getParam("youngs_mod", foundym);
+    auto ymvals = wkset->getParameter("youngs_mod", foundym);
     if (foundym) {
-      E = ymvals[0];
+      E = ymvals(0);
     }
     
     EvalT nu = 0.0;
     bool foundpr = false;
-    vector<EvalT> prvals = wkset->getParam("poisson_ratio", foundpr);
+    auto prvals = wkset->getParameter("poisson_ratio", foundpr);
     if (foundpr) {
-      nu = prvals[0];
+      nu = prvals(0);
     }
     
     if (foundym && foundpr) {
@@ -235,7 +242,8 @@ void CrystalElastic<EvalT>::computeStress(Teuchos::RCP<Workset<EvalT> > & wkset,
   Teuchos::TimeMonitor stimer(*computeStressTimer);
   
   //Kokkos::Timer timer;
-
+  this->updateParams();
+  
   //timer.reset();
   int e_num = indices[3];
   bool have_energy = false;

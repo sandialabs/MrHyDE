@@ -1989,19 +1989,6 @@ LIDView SubGridDtN::getCellLIDs(const int & cellnum) {
   return groups[0][cellnum]->LIDs[0];
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Update the subgrid parameters (will be depracated)
-////////////////////////////////////////////////////////////////////////////////
-
-void SubGridDtN::updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames) {
-  for (size_t block=0; block<wkset.size(); ++block) {
-    wkset[block]->params = params;
-    wkset[block]->paramnames = paramnames;
-  }
-  sub_physics->updateParameters(params, paramnames);
-  
-}
-
 // ========================================================================================
 //
 // ========================================================================================

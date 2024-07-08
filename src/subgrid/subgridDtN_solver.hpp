@@ -231,12 +231,6 @@ namespace MrHyDE {
     
     Teuchos::RCP<SG_CrsMatrix>  getEvaluationMatrix(const DRV & newip, Teuchos::RCP<SG_Map> & ip_map);
     
-    ////////////////////////////////////////////////////////////////////////////////
-    // Update the subgrid parameters (will be depracated)
-    ////////////////////////////////////////////////////////////////////////////////
-    
-    void updateParameters(vector<Teuchos::RCP<vector<AD> > > & params, const vector<string> & paramnames);
-    
     // ========================================================================================
     //
     // ========================================================================================

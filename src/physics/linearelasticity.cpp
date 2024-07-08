@@ -903,6 +903,9 @@ void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_)
       auxp_num = i;
     
   }
+  if (useCE) {
+    crystalelast->setWorkset(wkset);
+  }
 }
 
 // ========================================================================================
@@ -1274,14 +1277,16 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
 //      Need to update crystal elasticity to use function manager or wkset
 // ========================================================================================
 
+/*
 template<class EvalT>
 void linearelasticity<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<EvalT> > > & params,
                                         const vector<string> & paramnames) {
   if (useCE) {
-    crystalelast->updateParams(wkset);
+    //crystalelast->updateParams(wkset);
+    crystalelast->updateParams(params, paramnames);
   }
 }
-
+*/
 
 // ========================================================================================
 // ========================================================================================

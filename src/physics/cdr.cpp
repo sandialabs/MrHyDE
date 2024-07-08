@@ -81,6 +81,7 @@ void cdr<EvalT>::volumeResidual() {
     zvel = functionManager->evaluate("zvel","ip");
     tau = functionManager->evaluate("SUPG tau","ip");
   }
+  //cout << "src = " << source(0,0) << endl;
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   auto C = wkset->getSolutionField("c");
