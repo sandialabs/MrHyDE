@@ -22,8 +22,8 @@
 #include "Panzer_STK_Interface.hpp"
 #include "physicsInterface.hpp"
 #include "meshInterface.hpp"
-#include "groupMetaData.hpp"
-#include "MrHyDE_Debugger.hpp"
+#include "tools/groupMetaData.hpp"
+#include "tools/MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
   
