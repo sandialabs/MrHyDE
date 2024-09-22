@@ -129,7 +129,8 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln);
+    void writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln,
+                             const bool & only_write_final = false);
 
   private:
     

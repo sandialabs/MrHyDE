@@ -288,6 +288,7 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
   bool regenerate_grains = uqsettings_.get<bool>("regenerate grains",false);
   bool write_sol_text = uqsettings_.get<bool>("write solutions to text file",false);
   bool write_samples = uqsettings_.get<bool>("write samples",false);
+  bool only_write_final = uqsettings_.get<bool>("only write final time",false);
   bool compute_adjoint = uqsettings_.get<bool>("compute adjoint",false);
   bool write_adjoint_text = uqsettings_.get<bool>("write adjoint to text file",false);
   int output_freq = uqsettings_.get<int>("output frequency",1);
@@ -326,9 +327,12 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
     // Update stochastic parameters
     if (numstochparams_ > 0) {
       vector<ScalarT> currparams_;
+      cout << "New params: ";
       for (int i=0; i<numstochparams_; i++) {
         currparams_.push_back(samplepts(j,i));
+        cout << samplepts(j,i) << " ";
       }
+      cout << endl;
       params_->updateParams(currparams_,2);
       
     }
@@ -364,7 +368,7 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
       sfile << "solution." << j << "." << comm_->getRank() << ".dat";
       string filename = sfile.str();
       vector<vector<vector_RCP> > soln = postproc_->soln[0]->extractAllData();
-      this->writeSolutionToText(filename, soln);
+      this->writeSolutionToText(filename, soln, only_write_final);
     }
     if (compute_adjoint) {
       
@@ -889,7 +893,8 @@ void AnalysisManager::restartSolve() {
 // ========================================================================================
 // ========================================================================================
 
-void AnalysisManager::writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln) {
+void AnalysisManager::writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln,
+                                          const bool & only_write_final) {
   typedef typename SolverNode::device_type  LA_device;
   //vector<vector<vector_RCP> > soln = postproc_->soln[0]->extractAllData();
   int index = 0; // forget what this is for
@@ -904,9 +909,15 @@ void AnalysisManager::writeSolutionToText(string & filename, vector<vector<vecto
     }
   }
   std::ofstream solnOUT(filename.c_str());
+  solnOUT.precision(12);
   for (size_type i=0; i<numEnt; ++i) {
-    for (size_type v=0; v<numVecs; ++v) {
-      solnOUT << all_data(i,v) << "  ";
+    if (only_write_final) {
+      solnOUT << all_data(i,numVecs-1) << "  ";
+    }
+    else {
+      for (size_type v=0; v<numVecs; ++v) {
+        solnOUT << all_data(i,v) << "  ";
+      }
     }
     solnOUT << endl;
   }
