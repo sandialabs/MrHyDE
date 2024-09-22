@@ -45,16 +45,21 @@ int main(int argc, char * argv[]) {
     vector<string> scalars = {"x","y","z"};
     int numip = 4;
     vector<string> btypes = {"HGRAD"};
-    vector<int> usebasis = {0,0,0,0,0};
+    vector<int> usebasis = {0,0,0,0,0,0};
 
     // Set necessary parameters in workset
     wkset->usebasis = usebasis;
+    wkset->set_usebasis.push_back(usebasis);
+    wkset->set_varlist.push_back(variables);
     wkset->maxElem = numElem;
+    wkset->numSets = 1;
     wkset->numip = numip;
     wkset->isInitialized = true;
     wkset->addSolutionFields(variables, btypes, usebasis);
     wkset->addScalarFields(scalars);
-
+    
+    wkset->createSolutionFields();
+    
     // Create a function manager
     Teuchos::RCP<FunctionManager<AD> > functionManager = Teuchos::rcp(new FunctionManager<AD>("eblock",numElem,numip,numip));
     functionManager->wkset = wkset;
@@ -102,6 +107,8 @@ int main(int argc, char * argv[]) {
     auto c = wkset->getSolutionField("c",false);
     auto x = wkset->getScalarField("x");
     auto y = wkset->getScalarField("y");
+    auto gradax = wkset->getSolutionField("grad(a)[x]",false);
+    KokkosTools::print(a);
     
     {
       string name = "test1";
@@ -341,6 +348,25 @@ int main(int argc, char * argv[]) {
       ref_vals.push_back(ref);
       ref_funcs.push_back(test);
     }
+    
+    {
+      string name = "testgradsq";
+      string test = "grad(a)[x]";
+      functionManager->addFunction(name,test,"ip");
+      
+      View_AD2 ref("ref soln",numElem,numip);
+      parallel_for("sol vals",
+                   RangePolicy<AssemblyExec>(0,sol.extent(0)),
+                   KOKKOS_LAMBDA (const size_type elem ) {
+        for (size_type pt=0; pt<sol.extent(2); ++pt) {
+          ref(elem,pt) = 1.0+gradax(elem,pt);//*gradax(elem,pt);
+        }
+      });
+      ref_names.push_back(name);
+      ref_vals.push_back(ref);
+      ref_funcs.push_back(test);
+    }
+    
 
     {
       string name = "SW MS 1";

@@ -282,9 +282,11 @@ namespace Intrepid2 {
     
     lineBasis.getVandermondeInverse(this->vinvLine_);
     
+    constexpr ordinal_type spaceDim = 2;
+    
     this->basisCardinality_  = 4*cardLine;
     this->basisDegree_       = order;
-    this->basisCellTopology_ = shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<4> >() );
+    this->basisCellTopologyKey_ = shards::Quadrilateral<4>::key; //shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<4> >() );
     this->basisType_         = BASIS_FEM_LAGRANGIAN;
     this->basisCoordinates_  = COORDINATES_CARTESIAN;
     this->functionSpace_     = FUNCTION_SPACE_HGRAD;
@@ -367,7 +369,7 @@ namespace Intrepid2 {
     
     // dofCoords on host and create its mirror view to device
     Kokkos::DynRankView<typename ScalarViewType::value_type,typename DT::execution_space::array_layout,Kokkos::HostSpace>
-    dofCoordsHost("dofCoordsHost", this->basisCardinality_, this->basisCellTopology_.getDimension());
+    dofCoordsHost("dofCoordsHost", this->basisCardinality_, spaceDim);
     
     // dofCoeffs on host and create its mirror view to device
     //Kokkos::DynRankView<typename ScalarViewType::value_type,typename SpT::array_layout,Kokkos::HostSpace>

@@ -346,6 +346,8 @@ namespace Intrepid2 {
     // this should be in host
     Basis_HGRAD_LINE_Cn_FEM<DT,OT,PT> lineBasis( order, pointType );
     
+    constexpr ordinal_type spaceDim = 3;
+    
     const ordinal_type
     cardLine = lineBasis.getCardinality();
     
@@ -355,7 +357,7 @@ namespace Intrepid2 {
     
     this->basisCardinality_  = 6*cardLine*cardLine;
     this->basisDegree_       = order;
-    this->basisCellTopology_ = shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<8> >() );
+    this->basisCellTopologyKey_ = shards::Hexahedron<8>::key;//shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<8> >() );
     this->basisType_         = BASIS_FEM_LAGRANGIAN;
     this->basisCoordinates_  = COORDINATES_CARTESIAN;
     this->functionSpace_     = FUNCTION_SPACE_HGRAD;
@@ -473,7 +475,7 @@ namespace Intrepid2 {
     
     // dofCoords on host and create its mirror view to device
     Kokkos::DynRankView<typename ScalarViewType::value_type,typename DT::execution_space::array_layout,Kokkos::HostSpace>
-    dofCoordsHost("dofCoordsHost", this->basisCardinality_, this->basisCellTopology_.getDimension());
+    dofCoordsHost("dofCoordsHost", this->basisCardinality_, spaceDim);
     
     // dofCoeffs on host and create its mirror view to device
     //Kokkos::DynRankView<typename ScalarViewType::value_type,typename SpT::array_layout,Kokkos::HostSpace>

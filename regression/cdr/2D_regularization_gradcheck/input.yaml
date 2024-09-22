@@ -1,7 +1,7 @@
 %YAML 1.1
 ---
 ANONYMOUS:
-  verbosity: 1
+  verbosity: 0
   debug level: 0
   Mesh:
     dimension: 2
@@ -14,12 +14,13 @@ ANONYMOUS:
     NY: 40
   Functions:
     truesource: (8*(pi*pi)+0.5*sin(2*pi*x)*sin(2*pi*y))*sin(2*pi*x)*sin(2*pi*y) + 2.0*2*pi*cos(2*pi*x)*sin(2*pi*y) + 1.0*2*pi*sin(2*pi*x)*cos(2*pi*y)
-    source: sfield
+    source: strans
     xvel: '2.0'
     yvel: '1.0'
     reaction: '0.5*c*c'
     SUPG tau: '0.0'
-  Physics: 
+    sfgradx: 'grad(sfield)[x]'
+  Physics:
     modules: cdr
     Dirichlet conditions:
       c:
@@ -46,6 +47,12 @@ ANONYMOUS:
       order: 1
       usage: discretized
       initial_value: 1.0
+      dynamic: false
+    strans:
+      type: scalar
+      value: 0.1
+      usage: active
+      dynamic: false
   Postprocess:
     compute errors: false
     compute objective: true
@@ -61,6 +68,6 @@ ANONYMOUS:
           reg0:
             type: integrated
             location: volume
-            function: 'sfield^2'
+            function: '(grad(sfield)[x]+1.0e-6)^2'
             weight: 1.0
 ...
