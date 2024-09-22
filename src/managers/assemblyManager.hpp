@@ -182,7 +182,9 @@ namespace MrHyDE {
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                         const ScalarT & current_time, const bool & useadjoint,
                         const bool & store_adjPrev,
-                        const int & num_active_params, vector_RCP & Psol,
+                        const int & num_active_params, 
+                        vector_RCP & Psol,
+                        vector_RCP & Pdot,
                         const bool & is_final_time,
                         const ScalarT & deltat);
     
@@ -197,7 +199,8 @@ namespace MrHyDE {
                         vector<vector_RCP> & phi,
                         vector<vector_RCP> & phi_stage,
                         vector<vector_RCP> & phi_step,        
-                        vector_RCP & param_sol,           
+                        vector_RCP & param_sol,
+                        vector_RCP & param_dot,
                         const bool & compute_jacobian, const bool & compute_sens,
                         const bool & compute_disc_sens,
                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
@@ -211,32 +214,34 @@ namespace MrHyDE {
     // ========================================================================================
     
     void assembleRes(const size_t & set, const size_t & stage,
-                        vector<vector_RCP> & sol, 
-                        vector<vector_RCP> & sol_stage,
-                        vector<vector_RCP> & sol_prev, 
-                        vector<vector_RCP> & phi,
-                        vector<vector_RCP> & phi_stage,
-                        vector<vector_RCP> & phi_step,   
-                        vector_RCP & param_sol,                
-                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                        const ScalarT & current_time, 
-                        const ScalarT & deltat);
+                     vector<vector_RCP> & sol,
+                     vector<vector_RCP> & sol_stage,
+                     vector<vector_RCP> & sol_prev,
+                     vector<vector_RCP> & phi,
+                     vector<vector_RCP> & phi_stage,
+                     vector<vector_RCP> & phi_step,
+                     vector_RCP & param_sol,
+                     vector_RCP & param_dot,
+                     vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                     const ScalarT & current_time,
+                     const ScalarT & deltat);
     
     // ========================================================================================
     // ========================================================================================
     
     void assembleRes(const size_t & set, const size_t & stage,
-                        vector<vector_RCP> & sol, 
-                        vector<vector_RCP> & sol_stage,
-                        vector<vector_RCP> & sol_prev, 
-                        vector<vector_RCP> & phi,
-                        vector<vector_RCP> & phi_stage,
-                        vector<vector_RCP> & phi_step,   
-                        vector_RCP & param_sol,        
-                        vector_RCP & res, matrix_RCP & J, const bool & isTransient,
-                        const ScalarT & current_time, 
-                        const int & block,
-                        const ScalarT & deltat);
+                     vector<vector_RCP> & sol,
+                     vector<vector_RCP> & sol_stage,
+                     vector<vector_RCP> & sol_prev,
+                     vector<vector_RCP> & phi,
+                     vector<vector_RCP> & phi_stage,
+                     vector<vector_RCP> & phi_step,
+                     vector_RCP & param_sol,
+                     vector_RCP & param_dot,
+                     vector_RCP & res, matrix_RCP & J, const bool & isTransient,
+                     const ScalarT & current_time,
+                     const int & block,
+                     const ScalarT & deltat);
     
     
     // ========================================================================================
@@ -411,7 +416,7 @@ namespace MrHyDE {
                        const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
                        vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
                        vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
-                       vector<ViewType> & params);
+                       vector<ViewType> & params, vector<ViewType> & param_dot);
 
     // ========================================================================================
     // ========================================================================================
@@ -427,7 +432,7 @@ namespace MrHyDE {
                                const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
                                vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
                                vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
-                               vector<ViewType> & params);
+                               vector<ViewType> & params, vector<ViewType> & param_dot);
 
     // ========================================================================================
     // ========================================================================================
@@ -469,7 +474,8 @@ namespace MrHyDE {
                  const bool & compute_jacobian,
                  const bool & compute_sens,
                  const bool & compute_disc_sens,
-                 const bool & isAdjoint, EvalT & dummyval);
+                 const bool & isAdjoint, 
+                 EvalT & dummyval);
     
     // ========================================================================================
     // ========================================================================================

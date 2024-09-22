@@ -2056,7 +2056,9 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
                                            const ScalarT & current_time,
                                            const bool & useadjoint, const bool & store_adjPrev,
                                            const int & num_active_params,
-                                           vector_RCP & Psol, const bool & is_final_time,
+                                           vector_RCP & Psol,
+                                           vector_RCP & Pdot,
+                                           const bool & is_final_time,
                                            const ScalarT & deltat) {
   
   debugger->print("******** Starting AssemblyManager::assembleJacRes ...");
@@ -2070,7 +2072,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
         allow_autotune = false;
       }
       if (!allow_autotune) {
-        this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+        this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                  compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                  current_time, useadjoint, store_adjPrev, num_active_params,
                                  is_final_time, block, deltat);
@@ -2078,55 +2080,55 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
       else {
         //int ndr = num_derivs_required[block];
         if (type_AD == -1) {
-          this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                    compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                    current_time, useadjoint, store_adjPrev, num_active_params,
                                    is_final_time, block, deltat);
         }
         else if (type_AD == 2) {
-          this->assembleJacRes<AD2>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD2>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                     current_time, useadjoint, store_adjPrev, num_active_params,
                                     is_final_time, block, deltat);
         }
         else if (type_AD == 4) {
-          this->assembleJacRes<AD4>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD4>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                     current_time, useadjoint, store_adjPrev, num_active_params,
                                     is_final_time, block, deltat);
         }
         else if (type_AD == 8) {
-          this->assembleJacRes<AD8>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD8>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                     compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                     current_time, useadjoint, store_adjPrev, num_active_params,
                                     is_final_time, block, deltat);
         }
         else if (type_AD == 16) {
-          this->assembleJacRes<AD16>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD16>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
                                      is_final_time, block, deltat);
         }
         else if (type_AD == 18) {
-          this->assembleJacRes<AD18>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD18>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
                                      is_final_time, block, deltat);
         }
         else if (type_AD == 24) {
-          this->assembleJacRes<AD24>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD24>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
                                      is_final_time, block, deltat);
         }
         else if (type_AD == 32) {
-          this->assembleJacRes<AD32>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD32>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                      compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                      current_time, useadjoint, store_adjPrev, num_active_params,
                                      is_final_time, block, deltat);
         }
         else {
-          this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol,
+          this->assembleJacRes<AD>(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, Psol, Pdot,
                                    compute_jacobian, compute_sens, compute_disc_sens, res, J, isTransient,
                                    current_time, useadjoint, store_adjPrev, num_active_params,
                                    is_final_time, block, deltat);
@@ -2156,6 +2158,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
                                            vector<vector_RCP> & phi_stage,
                                            vector<vector_RCP> & phi_prev,
                                            vector_RCP & param_sol,
+                                           vector_RCP & param_dot,
                                            const bool & compute_jacobian, const bool & compute_sens,
                                            const bool & compute_disc_sens,
                                            vector_RCP & res, matrix_RCP & J, const bool & isTransient,
@@ -2299,7 +2302,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
   }
     
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
-  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv, params_dot_kv;
   
   auto p_kv = param_sol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
@@ -2373,7 +2376,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
     
       this->performGather(set, block, grp, useadjoint, stage, use_only_sol,
                           sol_kv, sol_stage_kv, sol_prev_kv, 
-                          phi_kv, phi_stage_kv, phi_prev_kv, params_kv);
+                          phi_kv, phi_stage_kv, phi_prev_kv, params_kv, params_dot_kv);
     }
 
     /////////////////////////////////////////////////////////////////////////////
@@ -2547,7 +2550,7 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
     
         this->performBoundaryGather(set, block, grp, useadjoint, stage, use_only_sol,
                                     sol_kv, sol_stage_kv, sol_prev_kv, 
-                                    phi_kv, phi_stage_kv, phi_prev_kv, params_kv);
+                                    phi_kv, phi_stage_kv, phi_prev_kv, params_kv, params_dot_kv);
     
         /////////////////////////////////////////////////////////////////////////////
         // Compute the local residual and Jacobian on this boundary group
@@ -2923,6 +2926,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
                                         vector<vector_RCP> & phi_stage,
                                         vector<vector_RCP> & phi_prev,  
                                         vector_RCP & param_sol,
+                                        vector_RCP & param_dot,
                                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                                         const ScalarT & current_time, const ScalarT & deltat) {
   
@@ -2932,7 +2936,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
     if (groups[block].size() > 0) {
       this->assembleRes(set, stage, 
                         sol, sol_stage, sol_prev, phi, phi_stage, phi_stage,
-                        param_sol, res, J, isTransient,
+                        param_sol, param_dot, res, J, isTransient,
                         current_time, block, deltat);
     }
   }
@@ -2953,6 +2957,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
                                         vector<vector_RCP> & phi_stage,
                                         vector<vector_RCP> & phi_prev,  
                                         vector_RCP & param_sol,
+                                        vector_RCP & param_dot,
                                         vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                                         const ScalarT & current_time,
                                         const int & block, const ScalarT & deltat) {
@@ -3018,7 +3023,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
   }
 
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
-  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv;
+  vector<Kokkos::View<ScalarT*,AssemblyDevice> > params_kv, param_dot_kv;
   
   auto p_kv = param_sol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
@@ -3070,7 +3075,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
       this->performGather(set, block, grp, false, stage, use_only_sol,
                           sol_kv, sol_stage_kv, sol_prev_kv, 
                           phi_kv, phi_stage_kv, phi_prev_kv, 
-                          params_kv);
+                          params_kv, param_dot_kv);
     }
 
     /////////////////////////////////////////////////////////////////////////////
@@ -3133,7 +3138,7 @@ void AssemblyManager<Node>::assembleRes(const size_t & set, const size_t & stage
         this->performBoundaryGather(set, block, grp, false, stage, use_only_sol,
                                     sol_kv, sol_stage_kv, sol_prev_kv, 
                                     phi_kv, phi_stage_kv, phi_prev_kv,
-                                    params_kv);
+                                    params_kv, param_dot_kv);
 
         this->updateWorksetBoundary<ScalarT>(block, grp, seedwhat);
         physics->boundaryResidual<ScalarT>(set,block);
@@ -3444,7 +3449,7 @@ void AssemblyManager<Node>::performGather(const size_t & current_set, const size
                                           const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
                                           vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
                                           vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
-                                          vector<ViewType> & param_sol) {
+                                          vector<ViewType> & param_sol, vector<ViewType> & param_dot) {
 
   if (use_only_sol) {
     for (size_t set=0; set<sol.size(); ++set) {
@@ -3493,7 +3498,12 @@ void AssemblyManager<Node>::performGather(const size_t & current_set, const size
     }
   }
   if (params->num_discretized_params > 0) {
-    this->performGather(current_set, block, grp, param_sol[0], 4, 0);
+    if (param_sol.size() > 0) {
+      this->performGather(current_set, block, grp, param_sol[0], 4, 0);
+    }
+    if (param_dot.size() > 0) {
+      this->performGather(current_set, block, grp, param_dot[0], 9, 0);
+    }
   }
 }
 
@@ -3508,7 +3518,7 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & current_set, co
                                                   const bool & include_adjoint, const size_t & stage, const bool & use_only_sol,
                                                   vector<ViewType> & sol, vector<ViewType> & sol_stage, vector<ViewType> & sol_prev,
                                                   vector<ViewType> & phi, vector<ViewType> & phi_stage, vector<ViewType> & phi_prev,
-                                                  vector<ViewType> & param_sol) {
+                                                  vector<ViewType> & param_sol, vector<ViewType> & param_dot) {
   if (use_only_sol) {
     for (size_t set=0; set<sol.size(); ++set) {
       this->performBoundaryGather(set, block, grp, sol[set], 0, 0);
@@ -3556,7 +3566,12 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & current_set, co
     }
   }
   if (params->num_discretized_params > 0) {
-    this->performBoundaryGather(current_set, block, grp, param_sol[0], 4, 0);
+    if (param_sol.size() > 0) {
+      this->performBoundaryGather(current_set, block, grp, param_sol[0], 4, 0);
+    }
+    if (param_dot.size() > 0) {
+      this->performBoundaryGather(current_set, block, grp, param_dot[0], 9, 0);
+    }
   }
 }
 
@@ -3626,6 +3641,12 @@ void AssemblyManager<Node>::performGather(const size_t & set, const size_t & blo
       LIDs = groups[block][grp]->paramLIDs;
       numDOF = groupData[block]->num_param_dof;
       data = groupData[block]->param;
+      offsets = wkset[block]->paramoffsets;
+      break;
+    case 9:
+      LIDs = groups[block][grp]->paramLIDs;
+      numDOF = groupData[block]->num_param_dof;
+      data = groupData[block]->param_dot;
       offsets = wkset[block]->paramoffsets;
       break;
     default :
@@ -3737,6 +3758,12 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & set, const size
       LIDs = boundary_groups[block][grp]->paramLIDs;
       numDOF = groupData[block]->num_param_dof;
       data = groupData[block]->param;
+      offsets = wkset[block]->paramoffsets;
+      break;
+    case 9:
+      LIDs = boundary_groups[block][grp]->paramLIDs;
+      numDOF = groupData[block]->num_param_dof;
+      data = groupData[block]->param_dot;
       offsets = wkset[block]->paramoffsets;
       break;
     default :

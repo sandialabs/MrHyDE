@@ -176,6 +176,7 @@ namespace MrHyDE {
     computeDiscreteSensitivities(vector<vector_RCP> & u,
                                  vector<vector_RCP> & adjoint,
                                  const ScalarT & current_time,
+                                 const int & tindex,
                                  const ScalarT & deltat);
 
     // ========================================================================================

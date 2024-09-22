@@ -4293,9 +4293,10 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
     res_over->putScalar(0.0);
     vector<vector_RCP> zero_vec;
     auto paramvec = params->getDiscretizedParamsOver();
+    auto paramdot = params->getDiscretizedParamsDotOver();
     assembler->assembleJacRes(set, 0, u, u_stage, u_prev, u, zero_vec, zero_vec, false, true, false,
                               res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                              params->num_active_params, paramvec, false, deltat); //is_final_time, deltat);
+                              params->num_active_params, paramvec, paramdot, false, deltat); //is_final_time, deltat);
     
     linalg->exportVectorFromOverlapped(set, res, res_over);
     
@@ -4354,7 +4355,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
       curr_grad = disc_grad[0]->getVector();
     }
     
-    auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, deltat);
+    auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, tindex, deltat);
     curr_grad->update(1.0, *sens, 1.0);
 
     {
@@ -4405,20 +4406,21 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
   //auto adjoint_kv = adj->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> dotprod(1);
   
-    vector_RCP res = linalg->getNewVector(set,params->num_active_params);
+  vector_RCP res = linalg->getNewVector(set,params->num_active_params);
   //  matrix_RCP J = linalg->getNewMatrix(set);
-    vector_RCP res_over = linalg->getNewOverlappedVector(set,params->num_active_params);
-    matrix_RCP J_over;// = linalg->getNewOverlappedMatrix(set);
-    
-    res_over->putScalar(0.0);
-    vector<vector_RCP> zero_vec;
-    auto Psol = params->getDiscretizedParamsOver();
-    assembler->assembleJacRes(set, stage, u, zero_vec, zero_vec, u, zero_vec, zero_vec, false, false, false,
-                              res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                              params->num_active_params, Psol, false, deltat); //is_final_time, deltat);
-    
-    linalg->exportVectorFromOverlapped(set, res, res_over);
-    
+  vector_RCP res_over = linalg->getNewOverlappedVector(set,params->num_active_params);
+  matrix_RCP J_over;// = linalg->getNewOverlappedMatrix(set);
+  
+  res_over->putScalar(0.0);
+  vector<vector_RCP> zero_vec;
+  auto Psol = params->getDiscretizedParamsOver();
+  auto Pdot = params->getDiscretizedParamsDotOver();
+  assembler->assembleJacRes(set, stage, u, zero_vec, zero_vec, u, zero_vec, zero_vec, false, false, false,
+                            res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
+                            params->num_active_params, Psol, Pdot, false, deltat); //is_final_time, deltat);
+  
+  linalg->exportVectorFromOverlapped(set, res, res_over);
+  
   res->dot(*adj, dotprod);
 
   debugger->print(1, "******** Finished PostprocessManager::computeDualWeightedResidual ...");
@@ -4437,6 +4439,7 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> >
 PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
                                                        vector<vector_RCP> & adjoint,
                                                        const ScalarT & current_time,
+                                                       const int & tindex,
                                                        const ScalarT & deltat) {
 
   int set = 0; // hard-coded for now
@@ -4451,11 +4454,15 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> & u,
   J->setAllToScalar(0.0);
   J_over->setAllToScalar(0.0);
   vector<vector_RCP> zero_vec;
+  params->sacadoizeParams(false);
+  params->updateDynamicParams(tindex-1);
+  
   auto Psol = params->getDiscretizedParamsOver();
+  auto Pdot = params->getDiscretizedParamsDotOver();
   
   assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true,
                             res_over, J_over, isTD, current_time, false, false, //store_adjPrev,
-                            params->num_active_params, Psol, false, deltat); //is_final_time, deltat);
+                            params->num_active_params, Psol, Pdot, false, deltat); //is_final_time, deltat);
     
   linalg->fillCompleteParam(set, J_over);
   
@@ -4901,7 +4908,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
           int set = 0; // TMW: why is this hard-coded?
           assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
           assembler->performGather(0, block, grp, params_kv[0], 4, 0);
-          assembler->updateWorkset(block, grp, 0,0,true);
+          assembler->updateWorkset(block, grp, 0, 0, true);
           assembler->wkset[block]->setTime(currenttime);
           
           auto cfields = this->getExtraCellFields(block, assembler->groups[block][grp]->wts);

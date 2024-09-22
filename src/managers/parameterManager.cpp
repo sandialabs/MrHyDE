@@ -115,7 +115,7 @@ void ParameterManager<Node>::setupParameters() {
       }
       else if (newparam.get<string>("type") == "vector") {
         if (newparam.isParameter("number of components")) {
-
+          
         }
         else {
           std::string filename = newparam.get<string>("source");
@@ -196,7 +196,7 @@ void ParameterManager<Node>::setupParameters() {
         if (is_dynamic) {
           have_dynamic_discretized = true;
         }
-
+        
         initialParamValues.push_back(newparam.get<ScalarT>("initial_value",1.0));
         lowerParamBounds.push_back(newparam.get<ScalarT>("lower_bound",-1.0));
         upperParamBounds.push_back(newparam.get<ScalarT>("upper_bound",1.0));
@@ -224,7 +224,7 @@ void ParameterManager<Node>::setupParameters() {
     for (size_t block=0; block<blocknames.size(); ++block) {
       if ((int)num_active_params>disc->num_derivs_required[block]) {
         disc->num_derivs_required[block] = num_active_params;
-      } 
+      }
     }
     TEUCHOS_TEST_FOR_EXCEPTION(num_active_params > MAXDERIVS,std::runtime_error,"Error: MAXDERIVS is not large enough to support the number of parameters.");
 #endif
@@ -237,7 +237,7 @@ void ParameterManager<Node>::setupParameters() {
         }
       }
     }
-
+    
     size_t nump = 1;
     if (paramvals.size() > 0) {
       nump = paramvals[0].size();
@@ -254,32 +254,33 @@ void ParameterManager<Node>::setupParameters() {
     paramvals_KVAD32 = Kokkos::View<AD32**,AssemblyDevice>("parameter values (AD32)", nump, maxcomp);
 #endif
     
+    int numind = 1;
     if (have_dynamic_scalar) {
-      paramvals_KV_ALL = Kokkos::View<ScalarT***,AssemblyDevice>("parameter values (ScalarT)", numTimeSteps, nump, maxcomp);
-  #ifndef MrHyDE_NO_AD
-      paramvals_KVAD_ALL = Kokkos::View<AD***,AssemblyDevice>("parameter values (AD)", numTimeSteps, nump, maxcomp);
-      paramvals_KVAD2_ALL = Kokkos::View<AD2***,AssemblyDevice>("parameter values (AD2)", numTimeSteps, nump, maxcomp);
-      paramvals_KVAD4_ALL = Kokkos::View<AD4***,AssemblyDevice>("parameter values (AD4)", numTimeSteps, nump, maxcomp);
-      paramvals_KVAD8_ALL = Kokkos::View<AD8***,AssemblyDevice>("parameter values (AD8)", numTimeSteps, nump, maxcomp);
-      paramvals_KVAD16_ALL = Kokkos::View<AD16***,AssemblyDevice>("parameter values (AD16)", numTimeSteps, nump, maxcomp);
-      paramvals_KVAD18_ALL = Kokkos::View<AD18***,AssemblyDevice>("parameter values (AD18)", numTimeSteps, nump, maxcomp);
-      paramvals_KVAD24_ALL = Kokkos::View<AD24***,AssemblyDevice>("parameter values (AD24)", numTimeSteps, nump, maxcomp);
-      paramvals_KVAD32_ALL = Kokkos::View<AD32***,AssemblyDevice>("parameter values (AD32)", numTimeSteps, nump, maxcomp);
-  #endif
+      numind = numTimeSteps;
     }
-    else {
-      paramvals_KV_ALL = Kokkos::View<ScalarT***,AssemblyDevice>("parameter values (ScalarT)", 1, nump, maxcomp);
-  #ifndef MrHyDE_NO_AD
-      paramvals_KVAD_ALL = Kokkos::View<AD***,AssemblyDevice>("parameter values (AD)", 1, nump, maxcomp);
-      paramvals_KVAD2_ALL = Kokkos::View<AD2***,AssemblyDevice>("parameter values (AD2)", 1, nump, maxcomp);
-      paramvals_KVAD4_ALL = Kokkos::View<AD4***,AssemblyDevice>("parameter values (AD4)", 1, nump, maxcomp);
-      paramvals_KVAD8_ALL = Kokkos::View<AD8***,AssemblyDevice>("parameter values (AD8)", 1, nump, maxcomp);
-      paramvals_KVAD16_ALL = Kokkos::View<AD16***,AssemblyDevice>("parameter values (AD16)", 1, nump, maxcomp);
-      paramvals_KVAD18_ALL = Kokkos::View<AD18***,AssemblyDevice>("parameter values (AD18)", 1, nump, maxcomp);
-      paramvals_KVAD24_ALL = Kokkos::View<AD24***,AssemblyDevice>("parameter values (AD24)", 1, nump, maxcomp);
-      paramvals_KVAD32_ALL = Kokkos::View<AD32***,AssemblyDevice>("parameter values (AD32)", 1, nump, maxcomp);
-  #endif
-    }
+    paramvals_KV_ALL = Kokkos::View<ScalarT***,AssemblyDevice>("parameter values (ScalarT)", numind, nump, maxcomp);
+#ifndef MrHyDE_NO_AD
+    paramvals_KVAD_ALL = Kokkos::View<AD***,AssemblyDevice>("parameter values (AD)", numind, nump, maxcomp);
+    paramvals_KVAD2_ALL = Kokkos::View<AD2***,AssemblyDevice>("parameter values (AD2)", numind, nump, maxcomp);
+    paramvals_KVAD4_ALL = Kokkos::View<AD4***,AssemblyDevice>("parameter values (AD4)", numind, nump, maxcomp);
+    paramvals_KVAD8_ALL = Kokkos::View<AD8***,AssemblyDevice>("parameter values (AD8)", numind, nump, maxcomp);
+    paramvals_KVAD16_ALL = Kokkos::View<AD16***,AssemblyDevice>("parameter values (AD16)", numind, nump, maxcomp);
+    paramvals_KVAD18_ALL = Kokkos::View<AD18***,AssemblyDevice>("parameter values (AD18)", numind, nump, maxcomp);
+    paramvals_KVAD24_ALL = Kokkos::View<AD24***,AssemblyDevice>("parameter values (AD24)", numind, nump, maxcomp);
+    paramvals_KVAD32_ALL = Kokkos::View<AD32***,AssemblyDevice>("parameter values (AD32)", numind, nump, maxcomp);
+#endif
+    
+    paramvals_KV = Kokkos::View<ScalarT**,AssemblyDevice>("parameter values (ScalarT)", nump, maxcomp);
+#ifndef MrHyDE_NO_AD
+    paramvals_KVAD = Kokkos::View<AD**,AssemblyDevice>("parameter values (AD)", nump, maxcomp);
+    paramvals_KVAD2 = Kokkos::View<AD2**,AssemblyDevice>("parameter values (AD2)", nump, maxcomp);
+    paramvals_KVAD4 = Kokkos::View<AD4**,AssemblyDevice>("parameter values (AD4)", nump, maxcomp);
+    paramvals_KVAD8 = Kokkos::View<AD8**,AssemblyDevice>("parameter values (AD8)", nump, maxcomp);
+    paramvals_KVAD16 = Kokkos::View<AD16**,AssemblyDevice>("parameter values (AD16)", nump, maxcomp);
+    paramvals_KVAD18 = Kokkos::View<AD18**,AssemblyDevice>("parameter values (AD18)", nump, maxcomp);
+    paramvals_KVAD24 = Kokkos::View<AD24**,AssemblyDevice>("parameter values (AD24)", nump, maxcomp);
+    paramvals_KVAD32 = Kokkos::View<AD32**,AssemblyDevice>("parameter values (AD32)", nump, maxcomp);
+#endif
   }
   
   debugger->print("**** Finished ParameterManager::setupParameters");
@@ -621,6 +622,41 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::g
   return cparams;
 }
 
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::getDiscretizedParamsDot() {
+  Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > cparamsdot = Teuchos::rcp(new LA_MultiVector(param_owned_map,1));
+  cparamsdot->putScalar(0.0);
+  
+  int index = 0;
+  if (have_dynamic_discretized) {
+    index = dynamic_timeindex;
+  }
+  
+  if (index > 0 && discretized_params.size() > index+1) {
+    cparamsdot->update(1.0/dynamic_dt,*(discretized_params[index]),1.0);
+    cparamsdot->update(-1.0/dynamic_dt,*(discretized_params[index-1]),1.0);
+  }
+  return cparamsdot;
+}
+
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::getDiscretizedParamsDotOver() {
+  Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > cparamsdot = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,1));
+  
+  cparamsdot->putScalar(0.0);
+  
+  int index = 0;
+  if (have_dynamic_discretized) {
+    index = dynamic_timeindex;
+  }
+  
+  if (index > 0 && discretized_params_over.size() > index+1) {
+    cparamsdot->update(1.0/dynamic_dt,*(discretized_params_over[index]),1.0);
+    cparamsdot->update(-1.0/dynamic_dt,*(discretized_params_over[index-1]),1.0);
+  }
+  return cparamsdot;
+}
+
 // ========================================================================================
 // ========================================================================================
 
@@ -890,43 +926,34 @@ void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
   if (newparams.haveScalar()) {
     auto scalar_params = newparams.getParameter();
     
-    //if (newparams.haveDynamicScalar()) {
-      for (size_t i=0; i<paramvals.size(); i++) {
-        size_t pprog = 0;
-        for (size_t k=0; k<paramvals[i].size(); k++) {
-          if (paramtypes[k] == 1) {
-            auto cparams = scalar_params[i];
-            for (size_t j=0; j<paramvals[i][k].size(); j++) {
-              if (Comm->getRank() == 0 && verbosity > 0) {
-                cout << "Updated Params: " << paramvals[i][k][j] << " (old value)   " << (*cparams)[pprog] << " (new value)" << endl;
-              }
-              paramvals[i][k][j] = (*cparams)[pprog];
-              pprog++;
+    for (size_t i=0; i<paramvals.size(); i++) {
+      size_t pprog = 0;
+      for (size_t k=0; k<paramvals[i].size(); k++) {
+        if (paramtypes[k] == 1) {
+          auto cparams = scalar_params[i];
+          for (size_t j=0; j<paramvals[i][k].size(); j++) {
+            if (Comm->getRank() == 0 && verbosity > 0) {
+              cout << "Updated Params: " << paramvals[i][k][j] << " (old value)   " << (*cparams)[pprog] << " (new value)" << endl;
             }
+            paramvals[i][k][j] = (*cparams)[pprog];
+            pprog++;
           }
         }
       }
-    //}
+    }
+    
   }
   
   if (newparams.haveField()) {
     auto disc_params = newparams.getField();
     
-    //if (newparams.haveDynamicField()) {
-      for (size_t i=0; i<disc_params.size(); ++i) {
-        auto owned_vec = disc_params[i]->getVector();
-        discretized_params[i]->assign(*owned_vec);
-        discretized_params_over[i]->putScalar(0.0);
-        discretized_params_over[i]->doImport(*owned_vec, *param_importer, Tpetra::ADD);
-      }
-    //}
-    //else {
-    //  auto owned_vec = disc_params[0]->getVector();
-    //  discretized_params[0]->assign(*owned_vec);
-    //  discretized_params_over[0]->putScalar(0.0);
-    //  discretized_params_over[0]->doImport(*owned_vec, *param_importer, Tpetra::ADD);
-      //Psol->assign(*(disc_params[0]->getVector()));
-    //}
+    for (size_t i=0; i<disc_params.size(); ++i) {
+      auto owned_vec = disc_params[i]->getVector();
+      discretized_params[i]->assign(*owned_vec);
+      discretized_params_over[i]->putScalar(0.0);
+      discretized_params_over[i]->doImport(*owned_vec, *param_importer, Tpetra::ADD);
+    }
+    
   }
 
 }
@@ -937,22 +964,23 @@ void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
 
 template<class Node>
 void ParameterManager<Node>::updateParams(const vector<ScalarT> & newparams, const int & type) {
-  /*size_t pprog = 0;
+  size_t pprog = 0;
   // perhaps add a check that the size of newparams equals the number of parameters of the
   // requested type
   
-  for (size_t i=0; i<paramvals.size(); i++) {
+  for (size_t i=0; i<paramvals[0].size(); i++) {
     if (paramtypes[i] == type) {
-      for (size_t j=0; j<paramvals[i].size(); j++) {
+      for (size_t j=0; j<paramvals[0][i].size(); j++) {
         if (Comm->getRank() == 0 && verbosity > 0) {
-          cout << "Updated Params: " << paramvals[i][j] << " (old value)   " << newparams[pprog] << " (new value)" << endl;
+          cout << "Updated Params: " << paramvals[0][i][j] << " (old value)   " << newparams[pprog] << " (new value)" << endl;
         }
-        paramvals[i][j] = newparams[pprog];
+        paramvals[0][i][j] = newparams[pprog];
         pprog++;
       }
     }
   }
   
+  /*
   if ((type == 4) && (globalParamUnknowns > 0)) {
     int numClassicParams = this->getNumParams(1); // offset for ROL param vector
     for (size_t i = 0; i < paramOwnedAndShared.size(); i++) {
@@ -1004,6 +1032,44 @@ void ParameterManager<Node>::updateDynamicParams(const int & timestep) {
   deep_copy(paramvals_KVAD32, pslice_AD32);
 #endif
   
+  if (index == 0) {
+    parallel_for("paramman copy zero",
+                 RangePolicy<AssemblyExec>(0,paramdot_KV.extent(0)),
+                 KOKKOS_LAMBDA (const int c ) {
+      for (size_type j=0; j<paramdot_KV.extent(1); j++) {
+        paramdot_KV(c,j) = 0.0;
+#ifndef MrHyDE_NO_AD
+        paramdot_KVAD(c,j) = 0.0;
+        paramdot_KVAD2(c,j) = 0.0;
+        paramdot_KVAD4(c,j) = 0.0;
+        paramdot_KVAD8(c,j) = 0.0;
+        paramdot_KVAD16(c,j) = 0.0;
+        paramdot_KVAD18(c,j) = 0.0;
+        paramdot_KVAD24(c,j) = 0.0;
+        paramdot_KVAD32(c,j) = 0.0;
+#endif
+      }
+    });
+  }
+  else {
+    parallel_for("paramman copy zero",
+                 RangePolicy<AssemblyExec>(0,paramdot_KV.extent(0)),
+                 KOKKOS_LAMBDA (const int c ) {
+      for (size_type j=0; j<paramdot_KV.extent(1); j++) {
+        paramdot_KV(c,j) = (paramvals_KV_ALL(index,c,j) - paramvals_KV_ALL(index-1,c,j))/dynamic_dt;
+#ifndef MrHyDE_NO_AD
+        paramdot_KVAD(c,j) = (paramvals_KVAD_ALL(index,c,j) - paramvals_KVAD_ALL(index-1,c,j).val())/dynamic_dt;
+        paramdot_KVAD2(c,j) = (paramvals_KVAD2_ALL(index,c,j) - paramvals_KVAD2_ALL(index-1,c,j).val())/dynamic_dt;
+        paramdot_KVAD4(c,j) = (paramvals_KVAD4_ALL(index,c,j) - paramvals_KVAD4_ALL(index-1,c,j).val())/dynamic_dt;
+        paramdot_KVAD8(c,j) = (paramvals_KVAD8_ALL(index,c,j) - paramvals_KVAD8_ALL(index-1,c,j).val())/dynamic_dt;
+        paramdot_KVAD16(c,j) = (paramvals_KVAD16_ALL(index,c,j) - paramvals_KVAD16_ALL(index-1,c,j).val())/dynamic_dt;
+        paramdot_KVAD18(c,j) = (paramvals_KVAD18_ALL(index,c,j) - paramvals_KVAD18_ALL(index-1,c,j).val())/dynamic_dt;
+        paramdot_KVAD24(c,j) = (paramvals_KVAD24_ALL(index,c,j) - paramvals_KVAD24_ALL(index-1,c,j).val())/dynamic_dt;
+        paramdot_KVAD32(c,j) = (paramvals_KVAD32_ALL(index,c,j) - paramvals_KVAD32_ALL(index-1,c,j).val())/dynamic_dt;
+#endif
+      }
+    });
+  }
 }
 
 // ========================================================================================

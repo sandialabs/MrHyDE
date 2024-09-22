@@ -120,7 +120,7 @@ namespace MrHyDE {
     Kokkos::View<int*,HostDevice> num_dof_host, num_param_dof_host, num_aux_dof_host;
     
     vector<View_Sc3> sol, phi;
-    View_Sc3 param, aux; // (elem,var,numdof)
+    View_Sc3 param, param_dot, aux; // (elem,var,numdof)
     vector<View_Sc3> sol_avg, sol_alt;
     View_Sc3 param_avg, aux_avg; // (elem,var,dim)
     vector<View_Sc4> sol_prev, phi_prev, aux_prev, sol_stage, phi_stage, aux_stage; // (elem,var,numdof,step or stage)

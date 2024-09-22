@@ -115,7 +115,9 @@ namespace MrHyDE {
     // ========================================================================================
     
     template<class EvalT>
-    void finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > > & wkset, Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV);
+    void finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > > & wkset, 
+                         Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV,
+                         Kokkos::View<EvalT**,AssemblyDevice> paramdot_KV);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////

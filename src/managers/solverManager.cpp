@@ -835,16 +835,16 @@ void SolverManager<Node>::finalizeWorkset() {
   
   debugger->print("**** Starting SolverManager::finalizeWorkset ...");
   
-  this->finalizeWorkset(assembler->wkset, params->paramvals_KV);
+  this->finalizeWorkset(assembler->wkset, params->paramvals_KV, params->paramdot_KV);
 #ifndef MrHyDE_NO_AD
-  this->finalizeWorkset(assembler->wkset_AD, params->paramvals_KVAD);
-  this->finalizeWorkset(assembler->wkset_AD2, params->paramvals_KVAD2);
-  this->finalizeWorkset(assembler->wkset_AD4, params->paramvals_KVAD4);
-  this->finalizeWorkset(assembler->wkset_AD8, params->paramvals_KVAD8);
-  this->finalizeWorkset(assembler->wkset_AD16, params->paramvals_KVAD16);
-  this->finalizeWorkset(assembler->wkset_AD18, params->paramvals_KVAD18);
-  this->finalizeWorkset(assembler->wkset_AD24, params->paramvals_KVAD24);
-  this->finalizeWorkset(assembler->wkset_AD32, params->paramvals_KVAD32);
+  this->finalizeWorkset(assembler->wkset_AD, params->paramvals_KVAD, params->paramdot_KVAD);
+  this->finalizeWorkset(assembler->wkset_AD2, params->paramvals_KVAD2, params->paramdot_KVAD2);
+  this->finalizeWorkset(assembler->wkset_AD4, params->paramvals_KVAD4, params->paramdot_KVAD4);
+  this->finalizeWorkset(assembler->wkset_AD8, params->paramvals_KVAD8, params->paramdot_KVAD8);
+  this->finalizeWorkset(assembler->wkset_AD16, params->paramvals_KVAD16, params->paramdot_KVAD16);
+  this->finalizeWorkset(assembler->wkset_AD18, params->paramvals_KVAD18, params->paramdot_KVAD18);
+  this->finalizeWorkset(assembler->wkset_AD24, params->paramvals_KVAD24, params->paramdot_KVAD24);
+  this->finalizeWorkset(assembler->wkset_AD32, params->paramvals_KVAD32, params->paramdot_KVAD32);
 #endif
   
   debugger->print("**** Finished SolverManager::finalizeWorkset");
@@ -855,7 +855,8 @@ void SolverManager<Node>::finalizeWorkset() {
 template<class Node>
 template<class EvalT>
 void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > > & wkset,
-                                          Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV) {
+                                          Kokkos::View<EvalT**,AssemblyDevice> paramvals_KV,
+                                          Kokkos::View<EvalT**,AssemblyDevice> paramdot_KV) {
 
   // Determine the offsets for each set as a Kokkos View
   for (size_t block=0; block<wkset.size(); ++block) {
@@ -963,6 +964,7 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
       }
       
       wkset[block]->params_AD = paramvals_KV;
+      wkset[block]->params_dot_AD = paramdot_KV;
       wkset[block]->paramnames = params->paramnames;
       wkset[block]->setTime(current_time);
 
@@ -1541,14 +1543,15 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
     }
 
     auto paramvec = params->getDiscretizedParamsOver();
+    auto paramdot = params->getDiscretizedParamsDotOver();
     if (!use_autotune) {
       assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
                                 current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                                params->num_active_params, paramvec, is_final_time, deltat);
+                                params->num_active_params, paramvec, paramdot, is_final_time, deltat);
     }
     else {
       assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, 
-                             paramvec, current_res_over, J_over, isTransient, current_time, deltat);
+                             paramvec, paramdot, current_res_over, J_over, isTransient, current_time, deltat);
     }
 
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
@@ -1636,9 +1639,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       if (build_jacobian) {
         if (use_autotune) {
           auto paramvec = params->getDiscretizedParamsOver();
+          auto paramdot = params->getDiscretizedParamsDotOver();
           assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
                                     current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                                    params->num_active_params, paramvec, is_final_time, deltat);
+                                    params->num_active_params, paramvec, paramdot, is_final_time, deltat);
         }
         linalg->fillComplete(J_over);
         J->resumeFill();
@@ -1755,8 +1759,9 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
   matrix_RCP J_over;
   
   auto paramvec = params->getDiscretizedParamsOver();
+  auto paramdot = params->getDiscretizedParamsDotOver();
   assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev,
-                         paramvec, current_res_over, J_over, isTransient, current_time, deltat);
+                         paramvec, paramdot, current_res_over, J_over, isTransient, current_time, deltat);
   
   if (linalg->getHaveOverlapped()) {
     linalg->exportVectorFromOverlapped(set, current_res, current_res_over);

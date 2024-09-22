@@ -936,7 +936,7 @@ void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
 
 template<class EvalT>
 void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
-  
+
   auto fielddata = soln_fields[fieldnum].data_;
 
   bool proceed = true;

@@ -370,7 +370,7 @@ void FunctionManager<EvalT>::decomposeFunctions() {
                   
                   decompose = false;
                   
-                  forests_[fiter].trees_[titer].branches_[k].param_data_ = Kokkos::subview(wkset->params_AD, j, Kokkos::ALL());
+                  forests_[fiter].trees_[titer].branches_[k].param_data_ = Kokkos::subview(wkset->params_dot_AD, j, Kokkos::ALL());
                   
                 }
                 else { // look for param_t(*) or param_t(**) this does mean that over 100 scalar parameters is not supported
@@ -724,7 +724,6 @@ void FunctionManager<EvalT>::evaluate( const size_t & findex, const size_t & tin
     else if (forests_[findex].trees_[tindex].branches_[bindex].is_func_) {
       int funcIndex = forests_[findex].trees_[tindex].branches_[bindex].func_index_;
       this->evaluate(findex,funcIndex, 0);
-      
       if (forests_[findex].trees_[tindex].branches_[bindex].is_AD_) {
         if (forests_[findex].trees_[tindex].branches_[bindex].is_view_) { // use viewdata
           forests_[findex].trees_[tindex].branches_[bindex].viewdata_ = forests_[findex].trees_[funcIndex].branches_[0].viewdata_;

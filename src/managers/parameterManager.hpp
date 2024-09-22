@@ -85,6 +85,10 @@ namespace MrHyDE {
     
     vector_RCP getDiscretizedParamsOver();
 
+    vector_RCP getDiscretizedParamsDot();
+    
+    vector_RCP getDiscretizedParamsDotOver();
+
     // ========================================================================================
     // ========================================================================================
 
@@ -246,6 +250,18 @@ namespace MrHyDE {
     Kokkos::View<AD18***,AssemblyDevice> paramvals_KVAD18_ALL;
     Kokkos::View<AD24***,AssemblyDevice> paramvals_KVAD24_ALL;
     Kokkos::View<AD32***,AssemblyDevice> paramvals_KVAD32_ALL;
+#endif
+    
+    Kokkos::View<ScalarT**,AssemblyDevice> paramdot_KV;
+#ifndef MrHyDE_NO_AD
+    Kokkos::View<AD**,AssemblyDevice> paramdot_KVAD;
+    Kokkos::View<AD2**,AssemblyDevice> paramdot_KVAD2;
+    Kokkos::View<AD4**,AssemblyDevice> paramdot_KVAD4;
+    Kokkos::View<AD8**,AssemblyDevice> paramdot_KVAD8;
+    Kokkos::View<AD16**,AssemblyDevice> paramdot_KVAD16;
+    Kokkos::View<AD18**,AssemblyDevice> paramdot_KVAD18;
+    Kokkos::View<AD24**,AssemblyDevice> paramdot_KVAD24;
+    Kokkos::View<AD32**,AssemblyDevice> paramdot_KVAD32;
 #endif
     //vector_RCP Psol, Psol_over;
     std::vector<vector_RCP> discretized_params, discretized_params_over;
