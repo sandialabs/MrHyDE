@@ -574,8 +574,6 @@ void AnalysisManager::run() {
   else if (analysis_type == "HDSA") {
     typedef ScalarT RealT;
 
-    //Teuchos::RCP< HDSA::Objective_Mrhyde<RealT> > obj;  //bvbw needs new obj fcn
-    
     // Turn off visualization while optimizing
     bool postproc_plot = postproc_->write_solution;
     postproc_->write_solution = false;
@@ -587,9 +585,9 @@ void AnalysisManager::run() {
     HDSA::Ptr<HDSA::Model_Discrepancy_Interface<RealT> > md_interface = HDSA::makePtr<Model_Discrepancy_Interface_Mrhyde<RealT> >(solver_,postproc_,params_);
     HDSA::Ptr<HDSA::Model_Discrepancy_Update<RealT> > md_update = HDSA::makePtr<HDSA::Model_Discrepancy_Update<RealT> >(md_interface);
   
-  RealT alpha = 1.e-3;
-  md_update->Compute_Posterior_Data(alpha);
-  HDSA::Ptr<HDSA::Vector<RealT> > z_update = md_update->Posterior_Update_Mean();
+    RealT alpha = 1.e-3;
+    md_update->Compute_Posterior_Data(alpha);
+    HDSA::Ptr<HDSA::Vector<RealT> > z_update = md_update->Posterior_Update_Mean();
 
   // const Std_Vector<RealT> z_update_std = dynamic_cast<const Std_Vector<RealT>&>(*z_update);
   // std::string name = "z_update.txt";
