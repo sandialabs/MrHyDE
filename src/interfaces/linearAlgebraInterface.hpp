@@ -17,8 +17,8 @@
 #include "trilinos.hpp"
 #include "preferences.hpp"
 #include "discretizationInterface.hpp"
-#include "parameterManager.hpp"
-#include "MrHyDE_Debugger.hpp"
+#include "managers/parameterManager.hpp"
+#include "tools/MrHyDE_Debugger.hpp"
 
 // Belos
 #include <BelosConfigDefs.hpp>
