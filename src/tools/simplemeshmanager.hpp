@@ -111,6 +111,7 @@ public:
     // where this functionality is bypassed
   }
 
+
   /** \brief Returns sideset information.
              Format: The std::vector components are indexed by the local side number (0, 1, 2, ...);
                      the FieldConTainer is a 1D array of cell indices.
@@ -140,15 +141,15 @@ public:
     return 0; // default due to lack of faces in 1D and 2D
   }
 
-  virtual void allocateDataStructures();
+  virtual void allocateDataStructures() const = 0;
   
-  virtual void deallocateMaps();
+  virtual void deallocateMaps() const = 0;
 
-  virtual GO localToGlobal(int lid);
+  virtual GO localToGlobal(int lid) const = 0;
   
-  virtual int globalToLocal(GO gid);
-  
-  virtual bool isShared(int lid);
+  virtual int globalToLocal(GO gid) const = 0;
+
+  virtual bool isShared(int lid) const = 0;
   
   //void
   //mesh->getElementBlockNames(blocknames);
@@ -564,14 +565,14 @@ public:
     computeSideSets();
   }
 
-  void allocateDataStructures() {
+  void allocateDataStructures() const {
     //computeNodes();
     //computeCellToNodeMap();
     //computeCellToEdgeMap();
     //computeSideSets();
   }
 
-  void deallocateMaps(){
+  void deallocateMaps() const {
     //meshCellToNodeMap_ = LIDView_host("deallocated cell to node map",1,1);
     //meshCellToEdgeMap_ = LIDView_host("deallocated cell to edge map",1,1);
   }
@@ -622,15 +623,15 @@ public:
     return numEdges_;
   } // getNumEdges
   
-  GO localToGlobal(int lid) {
+  GO localToGlobal(int lid) const {
     return (GO)lid;
   }
   
-  int globalToLocal(GO gid) {
+  int globalToLocal(GO gid) const {
     return (int)gid;
   }
   
-  bool isShared(int lid) {
+  bool isShared(int lid) const {
     return false;
   }
 
@@ -830,14 +831,14 @@ public:
     computeSideSets();
   }
 
-  void allocateDataStructures() {
+  void allocateDataStructures() const {
     //computeNodes();
     //computeCellToNodeMap();
     //computeCellToEdgeMap();
     //computeSideSets();
   }
 
-  void deallocateMaps(){
+  void deallocateMaps() const {
     //meshCellToNodeMap_ = LIDView_host("deallocated cell to node map",1,1);
     //meshCellToEdgeMap_ = LIDView_host("deallocated cell to edge map",1,1);
   }
@@ -889,7 +890,7 @@ public:
   } // getNumEdges
 
 
-  GO localToGlobal(int lid) {
+  GO localToGlobal(int lid) const {
     int xid = lid % (nx_+1); // nx_+1 is the number of nodes in x direction, locally
     int yid = lid / (nx_+1);
     GO ystride = xprocs_*nx_ + 1; // number of nodes in x direction, globally
@@ -899,7 +900,7 @@ public:
   }
 
 
-  int globalToLocal(GO gid) {
+  int globalToLocal(GO gid) const {
     // number of nodes in x direction, globally
     GO ystride = xprocs_*nx_ + 1;
 
@@ -914,7 +915,7 @@ public:
   }
 
 
-  bool isShared(int lid) {
+  bool isShared(int lid) const {
     bool shared = false;
 
     if ((PX_ < xprocs_-1) && (PY_ < yprocs_-1)) {           // Majority of procs.
@@ -1023,12 +1024,12 @@ private:
 
   } // computeSideSets
 
-  bool onRightBoundary(int lid) {
+  bool onRightBoundary(int lid) const {
     int xid = lid % (nx_+1); // nx_+1 is the number of nodes in x direction
     return (xid==nx_) ? true : false;
   }
 
-  bool onTopBoundary(int lid) {
+  bool onTopBoundary(int lid) const {
     int yid = lid / (nx_+1); // nx_+1 is the number of nodes in x direction
     return (yid==ny_) ? true : false;
   }

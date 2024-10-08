@@ -1236,12 +1236,12 @@ void MeshInterface::getSTKNodeElements(string & blockname, vector<stk::mesh::Ent
 
 void MeshInterface::allocateMeshDataStructures() {
   if (use_simple_mesh) {
-    simple_mesh->allocateDataStructures();
+       simple_mesh->allocateDataStructures();
   }
 }
 
 void MeshInterface::purgeMaps(){
   if (use_simple_mesh) {
-    simple_mesh->deallocateMaps();
+       simple_mesh->deallocateMaps();
   }
 }
