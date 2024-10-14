@@ -17,6 +17,7 @@
 #include "porousWeakGalerkin.hpp"
 #include "cdr.hpp"
 #include "thermal.hpp"
+#include "ellipticPrior.hpp"  // bvbw need to ifdef HDSA
 #include "msphasefield.hpp"
 #include "stokes.hpp"
 #include "navierstokes.hpp"
@@ -89,6 +90,12 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Thermal
     if (modname == "thermal") {
       modules.push_back(Teuchos::rcp(new thermal<EvalT>(settings, dimension) ) );
+    }
+
+    // bvbw might not wrap with ifdef
+    // ellipticPrior
+    if (modname == "ellipticPrior") {
+      modules.push_back(Teuchos::rcp(new ellipticPrior<EvalT>(settings, dimension) ) );
     }
     
     // Shallow Water
