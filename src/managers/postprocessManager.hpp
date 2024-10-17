@@ -134,14 +134,14 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
-    void computeObjectiveGradState(const size_t & set, vector_RCP & current_soln, const ScalarT & current_time,
+    void computeObjectiveGradState(const size_t & set, const vector_RCP & current_soln, const ScalarT & current_time,
                                    const ScalarT & deltat, vector_RCP & grad);
 
     // ========================================================================================
     // ========================================================================================
 
     template<class EvalT>
-    void computeObjectiveGradState(const size_t & set, const size_t & obj, vector_RCP & current_soln,
+    void computeObjectiveGradState(const size_t & set, const size_t & obj, const vector_RCP & current_soln,
                                    const ScalarT & current_time, const ScalarT & deltat, vector_RCP & grad,
                                    Teuchos::RCP<Workset<EvalT> > & wset,
                                    Teuchos::RCP<FunctionManager<EvalT> > & fman);
@@ -358,6 +358,11 @@ namespace MrHyDE {
     Teuchos::RCP<fftInterface> fft;
 #endif
 
+#if defined(MrHyDE_ENABLE_HDSA)    
+    bool hdsa_solop;
+    vector<Teuchos::RCP<SolutionStorage<Node> > > hdsa_solop_data;
+#endif
+    
   private:
 
     // Timers

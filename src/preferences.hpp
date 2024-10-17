@@ -36,7 +36,6 @@ using std::endl;
 
 #define MRHYDE_VERSION "1.0"
 
-
 #if defined(MrHyDE_SINGLE_PRECISION)
 typedef float ScalarT;
 #else

@@ -49,6 +49,9 @@ assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_) 
   Teuchos::TimeMonitor constructortimer(*constructortime);
   
   this->setup(settings);
+#if defined(MrHyDE_ENABLE_HDSA)
+  hdsa_solop = false;
+#endif
 }
 
 // ========================================================================================
@@ -131,7 +134,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> & sett
   save_solution = false;
   save_adjoint_solution = false; // very rarely is this true
 
-  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROL_SIMOPT") {
+  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROL_SIMOPT" ||       analysis_type == "HDSA") {
     save_solution = true; // default is false
     string rolVersion = "ROL";
     if (analysis_type == "ROL2") {
@@ -1884,9 +1887,34 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
   
   // Objective function values
   vector<ScalarT> totaldiff(objectives.size(), 0.0);
-  
-  
-  for (size_t r=0; r<objectives.size(); ++r) {
+
+#if defined(MrHyDE_ENABLE_HDSA)  
+  if (hdsa_solop) {
+    // Objective function values
+    totaldiff.resize(1);
+    for (size_t set=0; set<current_soln.size(); ++set) { 
+      vector_RCP D_soln; 
+      bool fnd = hdsa_solop_data[set]->extract(D_soln, 0, current_time);
+      if (fnd) {
+        vector_RCP F_no = linalg->getNewVector(set);
+        vector_RCP D_no = linalg->getNewVector(set);
+        F_no->doExport(*(current_soln[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
+        D_no->doExport(*D_soln, *(linalg->exporter[set]), Tpetra::REPLACE);
+        
+        Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> obj(1);
+	//F_no->norm2(obj); // Test to check if state solution is 0
+        D_no->dot( *F_no, obj );
+        if (Comm->getRank() == 0) {
+          totaldiff[0] += obj[0];
+        } 
+      } 
+      else {  
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: did not find a data-generating solution");
+      } 
+    }     
+  } else {
+#endif
+    for (size_t r=0; r<objectives.size(); ++r) {
     if (objectives[r].type == "integrated control"){
       
       size_t block = objectives[r].block;
@@ -2289,8 +2317,9 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
       }
     }
   }
-  
-  
+#if defined(MrHyDE_ENABLE_HDSA)
+  } 
+#endif  
   // For now, we scalarize the objective functions by summing them
   ScalarT totalobj = 0.0;
   for (size_t r=0; r<totaldiff.size(); ++r) {
@@ -3283,7 +3312,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
 
 template<class Node>
 void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
-                                                         vector_RCP & current_soln,
+                                                         const vector_RCP & current_soln,
                                                          const ScalarT & current_time,
                                                          const ScalarT & deltat,
                                                          vector_RCP & grad) {
@@ -3360,7 +3389,7 @@ template<class Node>
 template<class EvalT>
 void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
                                                          const size_t & obj,
-                                                         vector_RCP & current_soln,
+                                                         const vector_RCP & current_soln,
                                                          const ScalarT & current_time,
                                                          const ScalarT & deltat,
                                                          vector_RCP & grad,

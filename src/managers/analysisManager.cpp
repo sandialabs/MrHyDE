@@ -19,6 +19,10 @@
 #include "ROL_TrustRegionStep.hpp"
 #include "ROL_Solver.hpp"
 
+#if defined(MrHyDE_ENABLE_HDSA)
+#include "../../../hdsalib/src/source_file.hpp"
+#endif
+
 using namespace MrHyDE;
 
 // ========================================================================================
@@ -85,7 +89,12 @@ void AnalysisManager::run(std::string & analysis_type) {
   else if (analysis_type == "ROL2") {
     this->ROL2Solve();
   }
-  else if (analysis_type == "DCI") {
+#if defined(MrHyDE_ENABLE_HDSA)
+    else if (analysis_type == "HDSA") {
+    this->HDSASolve();
+  }
+#endif
+    else if (analysis_type == "DCI") {
     this->DCISolve();
   }
   else if (analysis_type == "restart") {
@@ -467,6 +476,15 @@ void AnalysisManager::ROLSolve() {
   
   Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
   x->set(xtmp);
+
+  #if defined(MrHyDE_ENABLE_HDSA)
+  Teuchos::RCP<ROL::Vector<ScalarT>> gtmp = xtmp.clone();
+  x->setScalar(1.0);
+  ScalarT tol=1.0E-6;
+  ScalarT val = obj->value(*x,tol);
+  std::cout << "val = " << val << std::endl;
+  obj->gradient(*gtmp,*x,tol);
+  #endif
   
   //testing objective
   //ScalarT roltol = 1e-8;
@@ -795,6 +813,35 @@ void AnalysisManager::ROL2Solve() {
     
   }
 }
+
+// ========================================================================================
+// ========================================================================================
+
+#if defined(MrHyDE_ENABLE_HDSA)
+void AnalysisManager::HDSASolve() {
+  vector<string> blockNames = solver_->mesh->getBlockNames();
+  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(solver_);
+  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_);
+
+  HDSA::Ptr<HDSA::Vector<ScalarT> > u = data_interface->get_u_opt()->clone();  
+  u->set(*data_interface->get_u_opt());
+  HDSA::Ptr<HDSA::Vector<ScalarT> > z = data_interface->get_z_opt()->clone();  
+  z->set(*data_interface->get_z_opt());
+
+  HDSA::Ptr<HDSA::Vector<ScalarT> > uin = data_interface->get_u_opt()->clone();  
+  uin->setScalar(1.0);
+  HDSA::Ptr<HDSA::Vector<ScalarT> > zout = data_interface->get_z_opt()->clone();  
+
+  opt_prob_interface->Apply_Solution_Operator_z_Jacobian_Transpose(*zout, *uin, *z); 
+  std::cout << zout->norm() << std::endl;
+
+
+  ScalarT alpha_u = 1.0;
+  HDSA::Ptr<HDSA::MD_Elliptic_u_Prior_Interface<ScalarT> > u_prior_interface = HDSA::makePtr<MD_Elliptic_u_Prior_Interface_MrHyDE<ScalarT> >(alpha_u,comm_,settings_,blockNames,solver_);
+  ScalarT alpha_z = 1.0;
+  HDSA::Ptr<HDSA::MD_Elliptic_z_Prior_Interface<ScalarT> > z_prior_interface = HDSA::makePtr<MD_Elliptic_z_Prior_Interface_MrHyDE<ScalarT> >(alpha_z);
+}
+#endif
 
 // ========================================================================================
 // ========================================================================================

@@ -919,6 +919,18 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active,
 
 // ========================================================================================
 // ========================================================================================
+#if defined(MrHyDE_ENABLE_HDSA)
+template<class Node>
+void ParameterManager<Node>::updateParams(const vector_RCP & newparams) {
+
+        // only for steady state
+        discretized_params[0]->assign(*newparams);
+        discretized_params_over[0]->putScalar(0.0);
+        discretized_params_over[0]->doImport(*newparams, *param_importer, Tpetra::ADD);
+}
+#endif
+// ========================================================================================
+// ========================================================================================
 
 template<class Node>
 void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
