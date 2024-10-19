@@ -3,12 +3,12 @@
 ANONYMOUS:
   Analysis: 
     analysis type: ROL
-        ROL:
+    ROL:
       General:
         Variable Objective Function: false
         Scale for Epsilon Active Sets: 1.0
         Use Scaling For Epsilon-Active Sets: false
-        Do grad+hessvec check: false
+        Do grad+hessvec check: true
         Bound Optimization Variables: true
         Inexact Objective Function: false
         Inexact Gradient: false
