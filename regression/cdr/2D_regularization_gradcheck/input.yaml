@@ -68,6 +68,6 @@ ANONYMOUS:
           reg0:
             type: integrated
             location: volume
-            function: '(grad(sfield)[x]+1.0e-6)^2'
+            function: '(sfield)^2'
             weight: 1.0
 ...
