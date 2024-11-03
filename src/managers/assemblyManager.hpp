@@ -1035,6 +1035,24 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    void updateAdjointBoundaryRes(const int & block, const size_t & grp,
+                                  const bool & compute_jacobian,
+                                  Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                  Kokkos::View<ScalarT***,AssemblyDevice> local_res);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    template<class EvalT>
+    void updateAdjointBoundaryRes(const int & block, const size_t & grp,
+                                  const bool & compute_jacobian,
+                                  Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                  Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                                  Teuchos::RCP<Workset<EvalT> > & wset);
+
+    // ========================================================================================
+    // ========================================================================================
+    
     void updateJac(const int & block, const size_t & grp,
                    const bool & useadjoint, Kokkos::View<ScalarT***,AssemblyDevice> local_J);
 

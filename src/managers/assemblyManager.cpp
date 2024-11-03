@@ -2599,6 +2599,9 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
           if (!useadjoint) {
             this->updateResBoundary(block, grp, compute_sens, local_res);
           }
+          else {
+            this->updateAdjointBoundaryRes(block, grp, compute_jacobian, local_J, local_res);
+          }
           
           if (data_avail) {
             this->scatterRes(res_view, local_res, boundary_groups[block][grp]->LIDs[set]);
@@ -7392,6 +7395,91 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
   #endif
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+// Compute the residual for an adjoint solve
+///////////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::updateAdjointBoundaryRes(const int & block, const size_t & grp,
+                                                     const bool & compute_jacobian,
+                                                     Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                                     Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+
+#ifndef MrHyDE_NO_AD
+  if (type_AD == -1) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD[block]);
+  }
+  else if (type_AD == 2) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD2[block]);
+  }
+  else if (type_AD == 4) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD4[block]);
+  }
+  else if (type_AD == 8) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD8[block]);
+  }
+  else if (type_AD == 16) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD16[block]);
+  }
+  else if (type_AD == 18) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD18[block]);
+  }
+  else if (type_AD == 24) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD24[block]);
+  }
+  else if (type_AD == 32) {
+    this->updateAdjointBoundaryRes(block, grp, compute_jacobian,
+                                   local_J, local_res, wkset_AD32[block]);
+  }
+#endif
+}
+
+template<class Node>
+template<class EvalT>
+void AssemblyManager<Node>::updateAdjointBoundaryRes(const int & block, const size_t & grp,
+                                                     const bool & compute_jacobian, 
+                                                     Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                                     Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                                                     Teuchos::RCP<Workset<EvalT> > & wset) {
+  
+#ifndef MrHyDE_NO_AD
+  
+  // Update residual (adjoint mode)
+  // Adjoint residual: -dobj/du - J^T * phi + 1/dt*M^T * phi_prev
+  // J = 1/dtM + A
+  // adj_prev stores 1/dt*M^T * phi_prev where M is evaluated at appropriate time
+  
+  // TMW: This will not work on a GPU
+  auto offsets = wset->offsets;
+  auto numDOF = groupData[block]->num_dof;
+  
+  size_t set = wset->current_set;
+  auto cphi = groupData[block]->phi[set];
+  
+  if (compute_jacobian) {
+    parallel_for("Group adjust adjoint jac",
+                 RangePolicy<AssemblyExec>(0,local_res.extent(0)),
+                 KOKKOS_LAMBDA (const size_type e ) {
+      for (size_type n=0; n<numDOF.extent(0); n++) {
+        for (int j=0; j<numDOF(n); j++) {
+          for (size_type m=0; m<numDOF.extent(0); m++) {
+            for (int k=0; k<numDOF(m); k++) {
+              local_res(e,offsets(n,j),0) += -local_J(e,offsets(n,j),offsets(m,k))*cphi(e,m,k);
+            }
+          }
+        }
+      }
+    });
+  }
+#endif
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////
 // Use the AD res to update the scalarT J
