@@ -54,12 +54,13 @@ void ellipticPrior<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   
   functionManager->addFunction("ellipticPrior source",fs.get<string>("ellipticPrior source","0.0"),"ip");
   functionManager->addFunction("ellipticPrior diffusion",fs.get<string>("ellipticPrior diffusion","1.0"),"ip");
+  functionManager->addFunction("ellipticPrior reaction",fs.get<string>("ellipticPrior reaction","1.0"),"ip");
+  functionManager->addFunction("ellipticPrior diffusion",fs.get<string>("ellipticPrior diffusion","1.0"),"side ip");
   functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),"ip");
   functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
   functionManager->addFunction("bx",fs.get<string>("advection x","0.0"),"ip");
   functionManager->addFunction("by",fs.get<string>("advection y","0.0"),"ip");
   functionManager->addFunction("bz",fs.get<string>("advection z","0.0"),"ip");
-  functionManager->addFunction("ellipticPrior diffusion",fs.get<string>("ellipticPrior diffusion","1.0"),"side ip");
   functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
   
 }
@@ -74,12 +75,13 @@ void ellipticPrior<EvalT>::volumeResidual() {
   auto basis = wkset->basis[e_basis_num];
   auto basis_grad = wkset->basis_grad[e_basis_num];
   
-  Vista<EvalT> source, diff, cp, rho, bx, by, bz;
+  Vista<EvalT> source, diff, react, cp, rho, bx, by, bz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
     source = functionManager->evaluate("ellipticPrior source","ip");
     diff = functionManager->evaluate("ellipticPrior diffusion","ip");
+    react = functionManager->evaluate("ellipticPrior reaction","ip");
     cp = functionManager->evaluate("specific heat","ip");
     rho = functionManager->evaluate("density","ip");
     if (have_advection) {
@@ -129,7 +131,7 @@ void ellipticPrior<EvalT>::volumeResidual() {
     for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
       for (size_type pt=0; pt<basis.extent(2); ++pt ) {
         res(elem,off(dof)) += (rho(elem,pt)*cp(elem,pt)*dTdt(elem,pt) - source(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
-        res(elem,off(dof)) += diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,0) + T(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
+        res(elem,off(dof)) += diff(elem,pt)*dTdx(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,0) + react(elem,pt)*T(elem,pt)*wts(elem,pt)*basis(elem,dof,pt,0);
         if (spaceDim > 1) {
           res(elem,off(dof)) += diff(elem,pt)*dTdy(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,1);
         }

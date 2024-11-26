@@ -349,7 +349,7 @@ namespace MrHyDE {
     // Importers from owned to overlapped
     // ========================================================================================
     
-    void importVectorToOverlapped(const size_t & set, vector_RCP & vec_over, vector_RCP & vec) {
+    void importVectorToOverlapped(const size_t & set, vector_RCP & vec_over, const vector_RCP & vec) {
       Teuchos::TimeMonitor mattimer(*importtimer);
       vec_over->putScalar(0.0);
       vec_over->doImport(*vec, *(importer[set]), Tpetra::ADD);

@@ -205,7 +205,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
-    void store(Teuchos::RCP<V> & newvec, const ScalarT & currtime, const size_t & index) {
+    void store(const Teuchos::RCP<V> & newvec, const ScalarT & currtime, const size_t & index) {
       
       Teuchos::TimeMonitor localtimer(*soln_storage_store_timer_);
       
@@ -251,7 +251,7 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     
-    Teuchos::RCP<V> copyData(Teuchos::RCP<V> & src) {
+    Teuchos::RCP<V> copyData(const Teuchos::RCP<V> & src) {
       
       Teuchos::RCP<V> dest = Teuchos::rcp( new V(src->getMap(),1));
       

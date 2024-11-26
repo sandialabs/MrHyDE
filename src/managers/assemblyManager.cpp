@@ -1580,7 +1580,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
 // ========================================================================================
 
 template<class Node>
-void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, vector_RCP & x, vector_RCP & y) {
+void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, const vector_RCP & x, vector_RCP & y) {
   
   typedef typename Node::execution_space LA_exec;
   bool use_atomics_ = false;
