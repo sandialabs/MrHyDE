@@ -3406,8 +3406,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
   
   DFAD totaldiff = 0.0;
-  //AD regDomain = 0.0;
-  //AD regBoundary = 0.0;
   
   params->sacadoizeParams(false);
   
@@ -4257,6 +4255,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       
     }
   
+  //KokkosTools::print(grad,"dres/dstate");
   
 #endif
   
@@ -4297,6 +4296,8 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   auto u_kv = u[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto adjoint_kv = adjoint[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   
+  //KokkosTools::print(adjoint[0],"adjoint");
+  
   if (params->num_active_params > 0) {
   
     params->sacadoizeParams(true);
@@ -4328,6 +4329,11 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
                               params->num_active_params, paramvec, paramdot, false, deltat); //is_final_time, deltat);
     
     linalg->exportVectorFromOverlapped(set, res, res_over);
+    
+    //KokkosTools::print(res,"dres/dp");
+    
+    linalg->writeToFile(J_over, res, u[0], "sens_jacobian.mm",
+                        "sens_residual.mm","sens_solution.mm");
     
     for (size_t paramiter=0; paramiter<params->num_active_params; paramiter++) {
       // fine-scale

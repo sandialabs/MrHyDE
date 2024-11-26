@@ -1539,7 +1539,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
   
   int maxiter = maxNLiter;
   if (is_adjoint) {
-    maxiter = 2;
+    maxiter = 2;//2;
   }
   
   bool proceed = true;
@@ -1705,7 +1705,13 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
       linalg->linearSolver(set, J, current_res, current_du);
-      linalg->writeToFile(J, current_res, current_du);
+      if (is_adjoint) {
+        linalg->writeToFile(J, current_res, current_du, "adjoint_jacobian.mm",
+                            "adjoint_residual.mm","adjoint_solution.mm");
+      }
+      else {
+        linalg->writeToFile(J, current_res, current_du);
+      }
       linalg->importVectorToOverlapped(set, current_du_over, current_du);
       
       alpha = 1.0;
