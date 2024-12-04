@@ -2397,6 +2397,12 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
     objectiveval += newobj;
   }
 
+#if defined(MrHyDE_ENABLE_HDSA)
+  if(hdsa_solop) {
+    objectiveval = 0.0;
+  }
+#endif
+  
   saveObjectiveData(objectiveval);
 #endif
 
@@ -3319,7 +3325,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   
   
   debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradState ...");
-
+  
 #ifndef MrHyDE_NO_AD
   for (size_t r=0; r<objectives.size(); ++r) {
     size_t block = objectives[r].block;
@@ -3366,6 +3372,14 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   }
 #endif
 
+#if defined(MrHyDE_ENABLE_HDSA)
+  if(hdsa_solop) {
+    vector_RCP D_soln; 
+    hdsa_solop_data[set]->extract(D_soln, 0, current_time);
+    grad->update(1.0,*D_soln,0.0);
+  }
+#endif
+  
   debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradState ...");
 
 }

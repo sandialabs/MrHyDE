@@ -1256,7 +1256,6 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
       params->updateDynamicParams(0);
       this->nonlinearSolver(0, 0, sol, sol, zero_vec, phi, phi, zero_vec);
       postproc->computeSensitivities(sol, zero_vec, zero_vec, phi, 0, current_time, deltat, gradient);
-      
     }
     else if (solver_type == "transient") {
       DFAD obj = 0.0;
@@ -1541,6 +1540,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
   if (is_adjoint) {
     maxiter = 2;//2;
   }
+
+#if defined(MrHyDE_ENABLE_HDSA)
+  if(postproc->hdsa_solop && is_adjoint) {
+    maxiter = 1;
+  }
+#endif
   
   bool proceed = true;
   ScalarT alpha = 1.0;

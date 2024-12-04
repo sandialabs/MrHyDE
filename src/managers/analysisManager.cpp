@@ -813,29 +813,43 @@ void AnalysisManager::HDSASolve() {
 
   HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(solver_,random_number_generator);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_,random_number_generator);
+  HDSA::Ptr<HDSA::Vector<ScalarT> > z_tmp1 = data_interface->get_z_opt()->clone();
+  HDSA::Ptr<HDSA::Vector<ScalarT> > u_tmp1 = data_interface->get_u_opt()->clone();
+  //u_tmp1->setScalar(1.0);
+  u_tmp1->set(*data_interface->get_u_opt());
+  opt_prob_interface->Apply_Solution_Operator_z_Jacobian_Transpose(*z_tmp1,*u_tmp1,*data_interface->get_z_opt());
+
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > z_tmp1 = data_interface->get_z_opt()->clone();
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > z_tmp2 = data_interface->get_z_opt()->clone();
+  // z_tmp1->setScalar(1.0);
+  // opt_prob_interface->Apply_RS_Hessian(*z_tmp2,*z_tmp1,*data_interface->get_z_opt());
+
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > u_tmp1 = data_interface->get_u_opt()->clone();
+  // u_tmp1->setScalar(1.0);
+  // opt_prob_interface->Apply_Solution_Operator_z_Jacobian_Transpose(*z_tmp1,*u_tmp1,*data_interface->get_z_opt());
 
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr< HDSA_Prior_FE_Op_MrHyDE_Interface<ScalarT>> prior_fe_op = HDSA::makePtr<HDSA_Prior_FE_Op_MrHyDE_Interface<ScalarT>>(comm_,settings_,blockNames) ;
   
   //bvbw move alpha_u and beta_u to yaml
-  ScalarT alpha_u = 4.0;
-  ScalarT beta_u = 2.0E-2;
-  HDSA::Ptr<HDSA::Vector<ScalarT> > uvec = HDSA::makePtr<HDSA::Vector_MrHyDE_Steady_State<ScalarT> >(solver_,random_number_generator);
+  ScalarT alpha_u = 1.0/4.0; // 4.0; 
+  ScalarT beta_u = 1.0E-2; //2.0E-2; 
+  HDSA::Ptr<HDSA::Vector<ScalarT> > uvec = HDSA::makePtr<HDSA::Vector_MrHyDE_State<ScalarT> >(solver_,random_number_generator,true);
   HDSA::Ptr<HDSA::MD_Elliptic_u_Prior_Interface<ScalarT> > u_prior_interface = HDSA::makePtr<MD_Elliptic_u_Prior_Interface_MrHyDE<ScalarT> >(alpha_u,beta_u,prior_fe_op,uvec,random_number_generator);
 
-  ScalarT alpha_z = 1.0/(600.0*600.0);
-  ScalarT beta_z = 1.0E-3;
+  ScalarT alpha_z = 1.0/(600.0*600.0); //1.0E-10; 
+  ScalarT beta_z =  1.0E-3; // 3.0E-2;
   HDSA::Ptr<HDSA::MD_Elliptic_z_Prior_Interface<ScalarT> > z_prior_interface = HDSA::makePtr<MD_Elliptic_z_Prior_Interface_MrHyDE<ScalarT> >(alpha_z,beta_z,prior_fe_op);
   
   HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT> > post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT> >(data_interface,u_prior_interface,z_prior_interface);
-  ScalarT alpha_d = 1.e-5;
+  ScalarT alpha_d = 1.e-5; //1.0E-4; 
   int num_post_samples = 0;
   post_sampling->Compute_Posterior_Data(alpha_d,num_post_samples);
 
   HDSA::Ptr<HDSA::MD_Hessian_Analysis<ScalarT> > hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<ScalarT> >(opt_prob_interface,z_prior_interface);
   
-  int num_evals = 20;
-  int oversampling = 10;
+  int num_evals = 10; //4;
+  int oversampling = 10 ; // 2; 
   hessian_analysis->Compute_Hessian_GEVP(*data_interface->get_z_opt(),num_evals,oversampling);
 
   HDSA::Ptr<HDSA::MD_Update<ScalarT> > update = HDSA::makePtr<HDSA::MD_Update<ScalarT> >(data_interface,u_prior_interface,z_prior_interface,opt_prob_interface,post_sampling,hessian_analysis);
