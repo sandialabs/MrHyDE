@@ -1152,58 +1152,6 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
 // ========================================================================================
 // ========================================================================================
 
-#if defined(MrHyDE_ENABLE_HDSA)
-
-template<class Node>
-void SolverManager<Node>::stateSolve(vector<vector_RCP> &sol,const vector<vector_RCP> &forcing) {
-  
-  DFAD objective = 0.0;
-  current_time = initial_time;
-  
-  params->updateParams(forcing[0]);
-  debugger->print("**** Starting SolverManager::forwardModel ...");
-  
-  is_adjoint = false;
-  params->sacadoizeParams(false);
-  postproc->resetObjectives();
-  
-  for (size_t set=0; set<setnames.size(); ++set) {
-    if (!scalarDirichletData[set]) {
-      if (!staticDirichletData[set]) {
-        this->projectDirichlet(set);
-      }    
-      else if (!have_static_Dirichlet_data[set]) {
-        this->projectDirichlet(set);
-        have_static_Dirichlet_data[set] = true;
-      }    
-    }    
-  }
-  
-  if (solver_type == "steady-state") {
-    this->steadySolver(objective, sol);
-  }
-  else if (solver_type == "transient") {
-    MrHyDE_OptVector gradient; // not really used here 
-    this->transientSolver(sol, objective, gradient, initial_time, final_time);
-  }
-  else {
-    // print out an error message
-  }
-    
-  if (postproc->write_optimization_solution) {
-    postproc->writeOptimizationSolution(numEvaluations);
-  }
-  
-  numEvaluations++;
-  
-  debugger->print("**** Finished SolverManager::forwardModel");
-  
-}
-#endif
-
-// ========================================================================================
-// ========================================================================================
-
 template<class Node>
 void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & sol) {
   
