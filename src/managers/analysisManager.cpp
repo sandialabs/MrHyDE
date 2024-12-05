@@ -826,7 +826,7 @@ void AnalysisManager::HDSASolve() {
   int prior_num_subspace_iter = HDSAsettings.sublist("HyperParameters").get<int>("prior_num_subspace_iter",1);
   int hessian_num_eig_vals = HDSAsettings.sublist("HyperParameters").get<int>("hessian_num_eig_vals",5);
   int hessian_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("hessian_oversampling",0);
-  int num_prior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_prior_samples", 0);
+  //  int num_prior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_prior_samples", 0);
   int num_posterior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_posterior_samples", 0);
 
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
@@ -835,9 +835,9 @@ void AnalysisManager::HDSASolve() {
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_,random_number_generator);
 
   vector<string> blockNames = solver_->mesh->getBlockNames();
-  HDSA::Ptr< HDSA_Prior_FE_Op_MrHyDE_Interface<ScalarT>> prior_fe_op = HDSA::makePtr<HDSA_Prior_FE_Op_MrHyDE_Interface<ScalarT>>(comm_,settings_,blockNames) ;
+  HDSA::Ptr< Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_,settings_,blockNames) ;
   
-  HDSA::Ptr<HDSA::Vector<ScalarT> > uvec = HDSA::makePtr<Vector_MrHyDE_State<ScalarT> >(solver_,random_number_generator,true);
+  HDSA::Ptr<HDSA::Vector<ScalarT> > uvec = HDSA::makePtr<State_Vector_MrHyDE<ScalarT> >(solver_,random_number_generator,true);
   HDSA::Ptr<HDSA::MD_Elliptic_u_Prior_Interface<ScalarT> > u_prior_interface = HDSA::makePtr<MD_Elliptic_u_Prior_Interface_MrHyDE<ScalarT> >(alpha_u,beta_u,prior_fe_op,uvec,prior_num_sing_vals,prior_oversampling,prior_num_subspace_iter, random_number_generator);
 
   HDSA::Ptr<HDSA::MD_Elliptic_z_Prior_Interface<ScalarT> > z_prior_interface = HDSA::makePtr<MD_Elliptic_z_Prior_Interface_MrHyDE<ScalarT> >(alpha_z,beta_z,prior_fe_op);
