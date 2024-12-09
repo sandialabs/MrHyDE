@@ -810,6 +810,11 @@ void AnalysisManager::ROL2Solve() {
 #if defined(MrHyDE_ENABLE_HDSA)
 void AnalysisManager::HDSASolve() {
   Teuchos::ParameterList HDSAsettings;
+
+  //  std::string exofile = "input_mesh_dp1_n2.exo";
+  std::string exofile = "output.exo";
+  HDSA::Ptr<Data_Reader_MrHyDE<ScalarT> > data_reader = HDSA::makePtr<Data_Reader_MrHyDE<ScalarT> >(comm_);
+  data_reader->Read_Exodus_Data(exofile);
   
   if (settings_->sublist("Analysis").isSublist("HDSA"))
     HDSAsettings = settings_->sublist("Analysis").sublist("HDSA");
