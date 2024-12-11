@@ -1833,9 +1833,9 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
       if (linalg->getHaveOverlapped()) {
         linalg->importVectorToOverlapped(set, current_du_over, current_du);
       }
-    
+      
       sol_stage[stage]->update(1.0, *(current_du_over), 1.0);
-    
+      
     }
     else {
       typedef typename Node::execution_space LA_exec;
@@ -1871,7 +1871,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
   
   if (verbosity>=10) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> unorm(1);
-    sol_stage[set]->norm2(unorm);
+    sol_stage[stage]->norm2(unorm);
     if (Comm->getRank() == 0) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Explicit integrator: L2 norm of (overlapped/ghosted) solution: " << unorm[0] << endl;
