@@ -17,17 +17,39 @@ maxwell<EvalT>::maxwell(Teuchos::ParameterList & settings, const int & dimension
   label = "maxwell";
   
   spaceDim = dimension_;
-  myvars.push_back("E");
-  myvars.push_back("B");
-  
-  mybasistypes.push_back("HCURL");
-  if (spaceDim == 2) {
-    mybasistypes.push_back("HVOL");
+  include_Beqn = false;
+  include_Eeqn = false;
+    
+  if (settings.isParameter("active variables")) {
+    string active = settings.get<string>("active variables");
+    std::size_t foundE = active.find("E");
+    if (foundE!=std::string::npos) {
+      include_Eeqn = true;
+    }
+    std::size_t foundB = active.find("B");
+    if (foundB!=std::string::npos) {
+      include_Beqn = true;
+    }
   }
-  else if (spaceDim == 3) {
-    mybasistypes.push_back("HDIV");
+  else {
+    include_Beqn = true;
+    include_Eeqn = true;
   }
   
+  if (include_Eeqn) {
+    myvars.push_back("E");
+    mybasistypes.push_back("HCURL");
+  }
+  if (include_Beqn) {
+    myvars.push_back("B");
+    if (spaceDim == 2) {
+      mybasistypes.push_back("HVOL");
+    }
+    else if (spaceDim == 3) {
+      mybasistypes.push_back("HDIV");
+    }
+  }
+    
   useLeapFrog = settings.get<bool>("use leap frog",false);
 }
 
@@ -56,31 +78,13 @@ void maxwell<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
 template<class EvalT>
 void maxwell<EvalT>::volumeResidual() {
   
-  
-  int E_basis = wkset->usebasis[Enum];
-  int B_basis = wkset->usebasis[Bnum];
-  
-  Vista<EvalT> mu, epsilon, sigma, rindex;
-  Vista<EvalT> current_x, current_y, current_z;
-  
-  {
-    Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    current_x = functionManager->evaluate("current x","ip");
-    current_y = functionManager->evaluate("current y","ip");
-    if (spaceDim > 2) {
-      current_z = functionManager->evaluate("current z","ip");
-    }
-    mu = functionManager->evaluate("mu","ip");
-    epsilon = functionManager->evaluate("epsilon","ip");
-    rindex = functionManager->evaluate("refractive index","ip");
-    sigma = functionManager->evaluate("sigma","ip");
-  }
-  
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   
   int stage = wkset->current_stage;
   
-  {
+  if (include_Beqn) {
+    int B_basis = wkset->usebasis[Bnum];
+    
     if (spaceDim == 2) {
       // (dB/dt + curl E,V) = 0
       
@@ -119,6 +123,7 @@ void maxwell<EvalT>::volumeResidual() {
         }
       }
       else {
+        
         auto curlE = wkset->getSolutionField("curl(E)[x]");
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -130,6 +135,7 @@ void maxwell<EvalT>::volumeResidual() {
             }
           }
         });
+        
       }
     }
     else if (spaceDim == 3) {
@@ -166,6 +172,7 @@ void maxwell<EvalT>::volumeResidual() {
           });
         }
         else {
+          
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
@@ -180,6 +187,7 @@ void maxwell<EvalT>::volumeResidual() {
               }
             }
           });
+          
         }
       }
       else {
@@ -201,13 +209,32 @@ void maxwell<EvalT>::volumeResidual() {
             }
           }
         });
+        
       }
     }
   }
   
-  {
+  if (include_Eeqn) {
     // (eps*dE/dt,V) - (1/mu B, curl V) + (sigma E,V) = -(current,V)
     // Rewritten as: (eps*dEdt + sigma E + current, V) - (1/mu B, curl V) = 0
+    
+    int E_basis = wkset->usebasis[Enum];
+    
+    Vista<EvalT> mu, epsilon, sigma, rindex;
+    Vista<EvalT> current_x, current_y, current_z;
+    
+    {
+      Teuchos::TimeMonitor funceval(*volumeResidualFunc);
+      current_x = functionManager->evaluate("current x","ip");
+      current_y = functionManager->evaluate("current y","ip");
+      if (spaceDim > 2) {
+        current_z = functionManager->evaluate("current z","ip");
+      }
+      mu = functionManager->evaluate("mu","ip");
+      epsilon = functionManager->evaluate("epsilon","ip");
+      rindex = functionManager->evaluate("refractive index","ip");
+      sigma = functionManager->evaluate("sigma","ip");
+    }
     
     if (spaceDim == 2) {
       if (!useLeapFrog || stage == 1) {
