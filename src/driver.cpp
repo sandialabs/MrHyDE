@@ -35,6 +35,7 @@ int main(int argc,char * argv[]) {
   int verbosity = 0;
   int debug_level = 0;
   bool profile = false;
+  bool print_timers = false;
   
   Kokkos::initialize();
   
@@ -65,7 +66,11 @@ int main(int argc,char * argv[]) {
     verbosity = settings->get<int>("verbosity",0);
     debug_level = settings->get<int>("debug level",0);
     profile = settings->get<bool>("profile",false);
-    
+    print_timers = settings->get<bool>("print timers",false);
+    if (verbosity >= 10) {
+        print_timers = true;
+    }
+      
     ////////////////////////////////////////////////////////////////////////////////
     // Create the mesh
     ////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +220,7 @@ int main(int argc,char * argv[]) {
     
   }
   
-  if (verbosity >= 10) {
+  if (print_timers) {
     Teuchos::TimeMonitor::summarize();
   }
   else if (profile) {
