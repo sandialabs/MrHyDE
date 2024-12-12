@@ -813,7 +813,7 @@ void AnalysisManager::HDSASolve() {
 
   //  std::string exofile = "input_mesh_dp1_n2.exo";
   std::string exofile = "output.exo";
-  HDSA::Ptr<Data_Reader_MrHyDE<ScalarT> > data_reader = HDSA::makePtr<Data_Reader_MrHyDE<ScalarT> >(comm_);
+  HDSA::Ptr<Data_Reader_MrHyDE<ScalarT> > data_reader = HDSA::makePtr<Data_Reader_MrHyDE<ScalarT> >(comm_,solver_);
   data_reader->Read_Exodus_Data(exofile);
   
   if (settings_->sublist("Analysis").isSublist("HDSA"))
