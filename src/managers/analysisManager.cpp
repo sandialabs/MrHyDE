@@ -811,11 +811,6 @@ void AnalysisManager::ROL2Solve() {
 void AnalysisManager::HDSASolve() {
   Teuchos::ParameterList HDSAsettings;
 
-  //  std::string exofile = "input_mesh_dp1_n2.exo";
-  std::string exofile = "output.exo";
-  HDSA::Ptr<Data_Reader_MrHyDE<ScalarT> > data_reader = HDSA::makePtr<Data_Reader_MrHyDE<ScalarT> >(comm_,solver_);
-  data_reader->Read_Exodus_Data(exofile);
-  
   if (settings_->sublist("Analysis").isSublist("HDSA"))
     HDSAsettings = settings_->sublist("Analysis").sublist("HDSA");
   else
@@ -836,7 +831,7 @@ void AnalysisManager::HDSASolve() {
 
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
 
-  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(solver_,random_number_generator);
+  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_,random_number_generator);
 
   vector<string> blockNames = solver_->mesh->getBlockNames();
