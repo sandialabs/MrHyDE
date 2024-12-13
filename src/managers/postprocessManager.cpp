@@ -2353,42 +2353,42 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
   for (size_t r=0; r<objectives.size(); ++r) {
     DFAD newobj = 0.0;
     size_t block = objectives[r].block;
-    if (assembler->wkset_AD[block]->isInitialized) {
+    if (assembler->type_AD == -1) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD[block],
                                                assembler->function_managers_AD[block]);
     }
-    else if (assembler->wkset_AD2[block]->isInitialized) {
+    else if (assembler->type_AD == 2) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD2[block],
                                                assembler->function_managers_AD2[block]);
     }
-    else if (assembler->wkset_AD4[block]->isInitialized) {
+    else if (assembler->type_AD == 4) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD4[block],
                                                assembler->function_managers_AD4[block]);
     }
-    else if (assembler->wkset_AD8[block]->isInitialized) {
+    else if (assembler->type_AD == 8) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD8[block],
                                                assembler->function_managers_AD8[block]);
     }
-    else if (assembler->wkset_AD16[block]->isInitialized) {
+    else if (assembler->type_AD == 16) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD16[block],
                                                assembler->function_managers_AD16[block]);
     }
-    else if (assembler->wkset_AD18[block]->isInitialized) {
+    else if (assembler->type_AD == 18) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD18[block],
                                                assembler->function_managers_AD18[block]);
     }
-    else if (assembler->wkset_AD24[block]->isInitialized) {
+    else if (assembler->type_AD == 24) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD24[block],
                                                assembler->function_managers_AD24[block]);
     }
-    else if (assembler->wkset_AD32[block]->isInitialized) {
+    else if (assembler->type_AD == 32) {
       newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
                                                assembler->wkset_AD32[block],
                                                assembler->function_managers_AD32[block]);
@@ -3329,42 +3329,42 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
 #ifndef MrHyDE_NO_AD
   for (size_t r=0; r<objectives.size(); ++r) {
     size_t block = objectives[r].block;
-    if (assembler->wkset_AD[block]->isInitialized) {
+    if (assembler->type_AD == -1) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD[block],
                                       assembler->function_managers_AD[block]);
     }
-    else if (assembler->wkset_AD2[block]->isInitialized) {
+    else if (assembler->type_AD == 2) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD2[block],
                                       assembler->function_managers_AD2[block]);
     }
-    else if (assembler->wkset_AD4[block]->isInitialized) {
+    else if (assembler->type_AD == 4) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD4[block],
                                       assembler->function_managers_AD4[block]);
     }
-    else if (assembler->wkset_AD8[block]->isInitialized) {
+    else if (assembler->type_AD == 8) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD8[block],
                                       assembler->function_managers_AD8[block]);
     }
-    else if (assembler->wkset_AD16[block]->isInitialized) {
+    else if (assembler->type_AD == 16) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD16[block],
                                       assembler->function_managers_AD16[block]);
     }
-    else if (assembler->wkset_AD18[block]->isInitialized) {
+    else if (assembler->type_AD == 18) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD18[block],
                                       assembler->function_managers_AD18[block]);
     }
-    else if (assembler->wkset_AD24[block]->isInitialized) {
+    else if (assembler->type_AD == 24) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD24[block],
                                       assembler->function_managers_AD24[block]);
     }
-    else if (assembler->wkset_AD32[block]->isInitialized) {
+    else if (assembler->type_AD == 32) {
       this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
                                       assembler->wkset_AD32[block],
                                       assembler->function_managers_AD32[block]);

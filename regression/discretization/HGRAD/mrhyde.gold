@@ -6,34 +6,6 @@ Using the following physicsTest settings:
 description = ProjectionQuadDeg1Quadr2   [unused]
 discretization = HGRAD
 operator = projection
-Using the following physicsTest settings: 
-description = ProjectionQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
 dof 0, point 0: 0.0446582
 dof 0, point 1: 0.166667
 dof 0, point 2: 0.166667
@@ -50,34 +22,6 @@ dof 3, point 0: 0.622008
 dof 3, point 1: 0.166667
 dof 3, point 2: 0.166667
 dof 3, point 3: 0.0446582
-Using the following physicsTest settings: 
-description = LaplaceQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceQuadDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
 Using the following physicsTest settings: 
 description = LaplaceQuadDeg1Quadr2   [unused]
 discretization = HGRAD
@@ -106,39 +50,11 @@ Using the following physicsTest settings:
 description = ProjectionHexDeg1Quadr2   [unused]
 discretization = HGRAD
 operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
-Using the following physicsTest settings: 
-description = ProjectionHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = projection
 p=0 | CubeHexMesh: Building sub cells
+Using the following physicsTest settings: 
+description = ProjectionHexDeg1Quadr2   [unused]
+discretization = HGRAD
+operator = projection
 dof 0, point 0: 0.00943739
 dof 0, point 1: 0.0352208
 dof 0, point 2: 0.0352208
@@ -207,39 +123,11 @@ Using the following physicsTest settings:
 description = LaplaceHexDeg1Quadr2   [unused]
 discretization = HGRAD
 operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
-Using the following physicsTest settings: 
-description = LaplaceHexDeg1Quadr2   [unused]
-discretization = HGRAD
-operator = Laplace
 p=0 | CubeHexMesh: Building sub cells
+Using the following physicsTest settings: 
+description = LaplaceHexDeg1Quadr2   [unused]
+discretization = HGRAD
+operator = Laplace
 dof 0, point 0 grad: (-0.0446582,-0.0446582,-0.0446582)
 dof 0, point 1 grad: (-0.0446582,-0.166667,-0.166667)
 dof 0, point 2 grad: (-0.166667,-0.0446582,-0.166667)

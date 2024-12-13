@@ -20,7 +20,6 @@ PhysicsInterface::PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settin
                                    std::vector<string> block_names_,
                                    std::vector<string> side_names_,
                                    int dimension_) :
-                                   //Teuchos::RCP<panzer_stk::STK_Interface> & mesh) :
 settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names_), side_names(side_names_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface - constructor");
@@ -30,10 +29,7 @@ settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names
   
   debugger->print("**** Starting PhysicsInterface constructor ...");
   
-  //mesh->getElementBlockNames(block_names);
-  //mesh->getSidesetNames(side_names);
-  
-  //dimension = mesh->getDimension();
+  type_AD = 0; // Will get redefined later
   
   if (settings->sublist("Physics").isParameter("physics set names")) {
     string names = settings->sublist("Physics").get<string>("physics set names");
@@ -505,16 +501,6 @@ void PhysicsInterface::importPhysics() {
     vector<vector<int> > set_var_owned;
     
     vector<vector<Teuchos::RCP<PhysicsBase<ScalarT> > > > set_modules;
-#ifndef MrHyDE_NO_AD
-    vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules_AD;
-    vector<vector<Teuchos::RCP<PhysicsBase<AD2> > > > set_modules_AD2;
-    vector<vector<Teuchos::RCP<PhysicsBase<AD4> > > > set_modules_AD4;
-    vector<vector<Teuchos::RCP<PhysicsBase<AD8> > > > set_modules_AD8;
-    vector<vector<Teuchos::RCP<PhysicsBase<AD16> > > > set_modules_AD16;
-    vector<vector<Teuchos::RCP<PhysicsBase<AD18> > > > set_modules_AD18;
-    vector<vector<Teuchos::RCP<PhysicsBase<AD24> > > > set_modules_AD24;
-    vector<vector<Teuchos::RCP<PhysicsBase<AD32> > > > set_modules_AD32;
-#endif
 
     vector<vector<bool> > set_use_subgrid, set_use_DG;
     
@@ -542,84 +528,8 @@ void PhysicsInterface::importPhysics() {
       
         set_modules.push_back(block_modules);
       }
-#ifndef MrHyDE_NO_AD
-      { 
-        vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules_AD;
-        PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
-        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD.push_back(block_modules_AD);
-      }
-      {
-        vector<Teuchos::RCP<PhysicsBase<AD2> > > block_modules_AD2;
-        PhysicsImporter<AD2> physimp = PhysicsImporter<AD2>();
-        block_modules_AD2 = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD2.push_back(block_modules_AD2);
-      }
-      {
-        vector<Teuchos::RCP<PhysicsBase<AD4> > > block_modules_AD4;
-        PhysicsImporter<AD4> physimp = PhysicsImporter<AD4>();
-        block_modules_AD4 = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD4.push_back(block_modules_AD4);
-      }
-      {
-        vector<Teuchos::RCP<PhysicsBase<AD8> > > block_modules_AD8;
-        PhysicsImporter<AD8> physimp = PhysicsImporter<AD8>();
-        block_modules_AD8 = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD8.push_back(block_modules_AD8);
-      }
-      {
-        vector<Teuchos::RCP<PhysicsBase<AD16> > > block_modules_AD16;
-        PhysicsImporter<AD16> physimp = PhysicsImporter<AD16>();
-        block_modules_AD16 = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD16.push_back(block_modules_AD16);
-      }
-      {
-        vector<Teuchos::RCP<PhysicsBase<AD18> > > block_modules_AD18;
-        PhysicsImporter<AD18> physimp = PhysicsImporter<AD18>();
-        block_modules_AD18 = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD18.push_back(block_modules_AD18);
-      }
-      {
-        vector<Teuchos::RCP<PhysicsBase<AD24> > > block_modules_AD24;
-        PhysicsImporter<AD24> physimp = PhysicsImporter<AD24>();
-        block_modules_AD24 = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD24.push_back(block_modules_AD24);
-      }
-      {
-        vector<Teuchos::RCP<PhysicsBase<AD32> > > block_modules_AD32;
-        PhysicsImporter<AD32> physimp = PhysicsImporter<AD32>();
-        block_modules_AD32 = physimp.import(enabled_modules, physics_settings[set][block],
-                                          dimension, comm);
-      
-        set_modules_AD32.push_back(block_modules_AD32);
-      }
-#endif
     }
     modules.push_back(set_modules);
-#ifndef MrHyDE_NO_AD
-    modules_AD.push_back(set_modules_AD);
-    modules_AD2.push_back(set_modules_AD2);
-    modules_AD4.push_back(set_modules_AD4);
-    modules_AD8.push_back(set_modules_AD8);
-    modules_AD16.push_back(set_modules_AD16);
-    modules_AD18.push_back(set_modules_AD18);
-    modules_AD24.push_back(set_modules_AD24);
-    modules_AD32.push_back(set_modules_AD32);
-#endif
   }
   
   //-----------------------------------------------------------------
@@ -783,6 +693,163 @@ void PhysicsInterface::importPhysics() {
   
   debugger->print("**** Finished PhysicsInterface::importPhysics ...");
   
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+void PhysicsInterface::importPhysicsAD(int & type_AD_) {
+
+  type_AD = type_AD_;
+  
+#ifndef MrHyDE_NO_AD
+
+  if (type_AD == -1) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD> > > block_modules_AD;
+        PhysicsImporter<AD> physimp = PhysicsImporter<AD>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD.push_back(set_modules_AD);
+    }
+  }
+  else if (type_AD == 2) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD2> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD2> > > block_modules_AD;
+        PhysicsImporter<AD2> physimp = PhysicsImporter<AD2>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD2.push_back(set_modules_AD);
+    }
+  }
+  else if (type_AD == 4) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD4> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD4> > > block_modules_AD;
+        PhysicsImporter<AD4> physimp = PhysicsImporter<AD4>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD4.push_back(set_modules_AD);
+    }
+  }
+  else if (type_AD == 8) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD8> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD8> > > block_modules_AD;
+        PhysicsImporter<AD8> physimp = PhysicsImporter<AD8>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD8.push_back(set_modules_AD);
+    }
+  }
+  else if (type_AD == 16) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD16> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD16> > > block_modules_AD;
+        PhysicsImporter<AD16> physimp = PhysicsImporter<AD16>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD16.push_back(set_modules_AD);
+    }
+  }
+  else if (type_AD == 18) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD18> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD18> > > block_modules_AD;
+        PhysicsImporter<AD18> physimp = PhysicsImporter<AD18>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD18.push_back(set_modules_AD);
+    }
+  }
+  else if (type_AD == 24) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD24> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD24> > > block_modules_AD;
+        PhysicsImporter<AD24> physimp = PhysicsImporter<AD24>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD24.push_back(set_modules_AD);
+    }
+  }
+  else if (type_AD == 32) {
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      vector<vector<Teuchos::RCP<PhysicsBase<AD32> > > > set_modules_AD;
+      for (size_t block=0; block<block_names.size(); ++block) { // element blocks
+        string module_list = physics_settings[set][block].get<string>("modules","");
+        vector<string> enabled_modules = this->breakupList(module_list, ", ");
+        
+        vector<Teuchos::RCP<PhysicsBase<AD32> > > block_modules_AD;
+        PhysicsImporter<AD32> physimp = PhysicsImporter<AD32>();
+        block_modules_AD = physimp.import(enabled_modules, physics_settings[set][block],
+                                          dimension, comm);
+        
+        set_modules_AD.push_back(block_modules_AD);
+        
+      }
+      modules_AD32.push_back(set_modules_AD);
+    }
+  }
+  
+#endif
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

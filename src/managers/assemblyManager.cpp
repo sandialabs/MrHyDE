@@ -167,6 +167,11 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   if (!allow_autotune) {
     type_AD = -1;
   }
+  bool fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
+  if (fully_explicit) {
+    type_AD = 0;
+  }
+  physics->importPhysicsAD(type_AD);
   
   this->createFixedDOFs();
   
@@ -921,7 +926,7 @@ void AssemblyManager<Node>::createWorkset() {
         found = true;
       }
       else {
-        wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(block, physics->set_names.size())));  
+        //wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(block, physics->set_names.size())));
       }
 
       if (requires_AD && !found && type_AD == 4 ) {
@@ -938,7 +943,7 @@ void AssemblyManager<Node>::createWorkset() {
         found = true;
       }
       else {
-        wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(block, physics->set_names.size())));  
+        //wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(block, physics->set_names.size())));
       }
 
       if (requires_AD && !found && type_AD == 8 ) {
@@ -955,7 +960,7 @@ void AssemblyManager<Node>::createWorkset() {
         found = true;
       }
       else {
-        wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(block, physics->set_names.size())));  
+        //wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(block, physics->set_names.size())));
       }
 
       if (requires_AD && !found && type_AD == 16 ) {
@@ -972,7 +977,7 @@ void AssemblyManager<Node>::createWorkset() {
         found = true;
       }
       else {
-        wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(block, physics->set_names.size())));  
+        //wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(block, physics->set_names.size())));
       }
 
       if (requires_AD && !found && type_AD == 18 ) {
@@ -989,7 +994,7 @@ void AssemblyManager<Node>::createWorkset() {
         found = true;
       }
       else {
-        wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(block, physics->set_names.size())));  
+        //wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(block, physics->set_names.size())));
       }
 
       if (requires_AD && !found && type_AD == 24 ) {
@@ -1006,7 +1011,7 @@ void AssemblyManager<Node>::createWorkset() {
         found = true;
       }
       else {
-        wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(block, physics->set_names.size())));  
+        //wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(block, physics->set_names.size())));
       }
 
       if (requires_AD && !found && type_AD == 32 ) {
@@ -1023,7 +1028,7 @@ void AssemblyManager<Node>::createWorkset() {
         found = true;
       }
       else {
-        wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(block, physics->set_names.size())));  
+        //wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(block, physics->set_names.size())));
       }
 
       if ((requires_AD && !found) || groupData[block]->multiscale || !allow_autotune) {
@@ -1040,7 +1045,7 @@ void AssemblyManager<Node>::createWorkset() {
         
       }
       else {
-        wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(block, physics->set_names.size())));  
+        //wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(block, physics->set_names.size())));
       }
      
 #endif
@@ -1048,14 +1053,30 @@ void AssemblyManager<Node>::createWorkset() {
     else {
       wkset.push_back(Teuchos::rcp( new Workset<ScalarT>(block, physics->set_names.size())));
 #ifndef MrHyDE_NO_AD
-      wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(block, physics->set_names.size())));
-      wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(block, physics->set_names.size())));
-      wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(block, physics->set_names.size())));
-      wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(block, physics->set_names.size())));
-      wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(block, physics->set_names.size())));
-      wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(block, physics->set_names.size())));
-      wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(block, physics->set_names.size())));
-      wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(block, physics->set_names.size())));
+      if (type_AD == -1) {
+        wkset_AD.push_back(Teuchos::rcp( new Workset<AD>(block, physics->set_names.size())));
+      }
+      else if (type_AD == 2) {
+        wkset_AD2.push_back(Teuchos::rcp( new Workset<AD2>(block, physics->set_names.size())));
+      }
+      else if (type_AD == 4) {
+        wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(block, physics->set_names.size())));
+      }
+      else if (type_AD == 8) {
+        wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(block, physics->set_names.size())));
+      }
+      else if (type_AD == 16) {
+        wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(block, physics->set_names.size())));
+      }
+      else if (type_AD == 18) {
+        wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(block, physics->set_names.size())));
+      }
+      else if (type_AD == 24) {
+        wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(block, physics->set_names.size())));
+      }
+      else if (type_AD == 32) {
+        wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(block, physics->set_names.size())));
+      }
 #endif
     }
     

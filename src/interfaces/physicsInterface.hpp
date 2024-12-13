@@ -70,6 +70,13 @@ namespace MrHyDE {
     
     void importPhysics();
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    // Add the requested physics modules, variables, discretization types
+    // Specialized to the type_AD flag
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    
+    void importPhysicsAD(int & type_AD_);
+    
     // ========================================================================================
     // ========================================================================================
     
@@ -248,7 +255,7 @@ namespace MrHyDE {
     
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MpiComm> comm;    
-    int dimension;
+    int dimension, type_AD;
     vector<string> set_names, block_names, side_names;
     
     vector<vector<size_t> > num_vars; // [set][block]
