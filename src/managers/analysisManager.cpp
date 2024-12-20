@@ -91,9 +91,13 @@ void AnalysisManager::run(std::string & analysis_type) {
   }
 #if defined(MrHyDE_ENABLE_HDSA)
     else if (analysis_type == "HDSA") {
-    this->HDSASolve();
+      this->HDSASolve();
+  }
+    else if (analysis_type == "readExo+forward") {
+      this->readExoForwardSolve();
   }
 #endif
+  
     else if (analysis_type == "DCI") {
     this->DCISolve();
   }
@@ -829,9 +833,12 @@ void AnalysisManager::HDSASolve() {
   //  int num_prior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_prior_samples", 0);
   int num_posterior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_posterior_samples", 0);
 
+
+  Teuchos::ParameterList data_load_list =  HDSAsettings.sublist("DataLoadParameters");
+  
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
 
-  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator);
+  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator,data_load_list);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_,random_number_generator);
 
   vector<string> blockNames = solver_->mesh->getBlockNames();
@@ -856,6 +863,30 @@ void AnalysisManager::HDSASolve() {
   HDSA::Ptr<HDSA::Vector<ScalarT> > mean_update = update->Posterior_Update_Mean();
   std::cout << "norm update " << mean_update->norm() << std::endl;
 }
+
+void AnalysisManager::readExoForwardSolve() {
+  Teuchos::ParameterList read_exo_settings;
+
+  if (settings_->sublist("Analysis").isSublist("readExo+forward"))
+    read_exo_settings = settings_->sublist("Analysis").sublist("readExo+forward");
+  else
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the readExo+forward sublist in the input file!  Abort!");
+
+  std::string exo_file = read_exo_settings.sublist("DataLoadParameters").get<std::string>("ExoFile", "error");
+  std::string opt_var_physics = read_exo_settings.sublist("DataLoadParameters").get<std::string>("OptVariablePhysics", "error");
+  bool overwrite = read_exo_settings.sublist("DataLoadParameters").get<bool>("OverWriteParams", true);
+ 
+  HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
+  HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator, read_exo_settings);
+  Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
+  if(!overwrite) {
+    Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > current_vec = params_->getDiscretizedParams();
+    tpetra_vec->update(1.0,*current_vec,1.0);
+  }
+  params_->updateParams(tpetra_vec);
+  this->forwardSolve();
+}
+
 #endif
 
 // ========================================================================================
