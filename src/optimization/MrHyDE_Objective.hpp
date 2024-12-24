@@ -66,7 +66,6 @@ namespace ROL {
       solver->forwardModel(val);
       
       params->stashParams(); //dumping to file, for long runs...
-      
       return val.val();
     }
     
@@ -76,7 +75,7 @@ namespace ROL {
       bool newparams = this->checkNewParams(Params);
 
       if (newparams) {
-        MrHyDE_OptVector Paramsp = 
+        MrHyDE_OptVector Paramsp =
         Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
       
         params->updateParams(Paramsp);

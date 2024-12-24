@@ -1568,6 +1568,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       }
       
       postproc->computeObjectiveGradState(set, sol[set], current_time+cdt, deltat, current_res);
+      
     }
     
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
