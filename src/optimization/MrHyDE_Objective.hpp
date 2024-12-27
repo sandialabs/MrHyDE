@@ -55,18 +55,18 @@ namespace ROL {
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     
-    Real value(const Vector<Real> &Params, Real &tol){
+    Real value(const Vector<Real> & Params, Real & tol){
       
       MrHyDE_OptVector Paramsp = 
       Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
       
       params->updateParams(Paramsp);
       
-      DFAD val = 0.0;
+      ScalarT val = 0.0;
       solver->forwardModel(val);
       
       params->stashParams(); //dumping to file, for long runs...
-      return val.val();
+      return val;
     }
     
     //! Compute gradient of objective function with respect to parameters
@@ -79,7 +79,7 @@ namespace ROL {
         Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
       
         params->updateParams(Paramsp);
-        DFAD val = 0.0;
+        ScalarT val = 0.0;
         solver->forwardModel(val);
 
       }

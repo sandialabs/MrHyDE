@@ -588,7 +588,7 @@ PostprocessManager<Node>::addIntegratedQuantities(vector< vector<string> > & int
 
 template<class Node>
 void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
-                                      const int & stepnum, DFAD & objectiveval) {
+                                      const int & stepnum) {
   
   // Determine if we want to collect QoI, objectives, etc.
   bool write_this_step = false;
@@ -615,7 +615,7 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
       this->computeError(current_soln, current_time);
     }
     if (compute_response || compute_objective) {
-      this->computeObjective(current_soln, current_time, objectiveval);
+      this->computeObjective(current_soln, current_time);
     }
     if (compute_flux_response) {
       this->computeFluxResponse(current_soln, current_time);
@@ -1814,12 +1814,12 @@ void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> & current_
 
 // Helper function to save data
 template<class Node>
-void PostprocessManager<Node>::saveObjectiveData(const DFAD& obj) {
+void PostprocessManager<Node>::saveObjectiveData(const ScalarT & obj) {
   if(Comm->getRank() != 0) return;
   if(objective_file.length() > 0) {
     std::ofstream obj_out {objective_file};
     TEUCHOS_TEST_FOR_EXCEPTION(!obj_out.is_open(), std::runtime_error, "Could not open file to print objective value");
-    obj_out << obj.val();
+    obj_out << obj;
   }
 }
 
@@ -1842,8 +1842,7 @@ void PostprocessManager<Node>::saveObjectiveGradientData(const MrHyDE_OptVector&
 
 template<class Node>
 void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_soln,
-                                                const ScalarT & current_time,
-                                                DFAD & objectiveval) {
+                                                const ScalarT & current_time) {
   
   Teuchos::TimeMonitor localtimer(*objectiveTimer);
   
@@ -2060,7 +2059,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
           }
         }
         //}
-                
+        
       }
       else if (objectives[r].type == "sensors" || objectives[r].type == "sensor response" || objectives[r].type == "pointwise response") {
         if (objectives[r].compute_sensor_soln || objectives[r].compute_sensor_average_soln) {
@@ -2320,33 +2319,67 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> & current_sol
 #if defined(MrHyDE_ENABLE_HDSA)
   }
 #endif
+  
+  for (size_t r=0; r<totaldiff.size(); ++r) {
+    objectives[r].objective_values.push_back(totaldiff[r]);
+    objectives[r].objective_times.push_back(current_time);
+  }
+  
+  debugger->print(1, "******** Finished PostprocessManager::computeObjective ...");
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::reportObjective(ScalarT & objectiveval) {
+
+  debugger->print(1, "******** Starting PostprocessManager::reportObjective ...");
+  
   // For now, we scalarize the objective functions by summing them
   // Also, need to gather contributions across processors
   
   ScalarT totalobj = 0.0;
-  for (size_t r=0; r<totaldiff.size(); ++r) {
-    ScalarT gcontrib = 0.0;
-    ScalarT lcontrib = totaldiff[r];
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lcontrib,&gcontrib);
-    totaldiff[r] = gcontrib;
+  
+  for (size_t r=0; r<objectives.size(); ++r) {
+    ScalarT value = 0.0;
+    if (objectives[r].objective_times.size() == 1) { // implies steady-state
+      ScalarT gcontrib = 0.0;
+      ScalarT lcontrib = objectives[r].objective_values[0];
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lcontrib,&gcontrib);
+      value += gcontrib;
+    }
+    else {
+      // Start with t=1 to ignore initial condition
+      for (size_t t=1; t<objectives[r].objective_times.size(); ++t) {
+        ScalarT gcontrib = 0.0;
+        ScalarT lcontrib = objectives[r].objective_values[t];
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lcontrib,&gcontrib);
+        
+        ScalarT dt = 1.0;
+        
+        dt = objectives[r].objective_times[t] - objectives[r].objective_times[t-1];
+        if (objectives[r].type != "sensors") {
+          gcontrib *= dt;
+        }
+        value += gcontrib;
+      }
+      
+    }
     if (objectives[r].type == "integrated response") {
       // Right now, totaldiff = response
-      //             gradient = dresponse / dp
       // We want    totaldiff = wt*(response-target)^2
-      //             gradient = 2*wt*(response-target)*dresponse/dp
-      
-      ScalarT diff = totaldiff[r] - objectives[r].target;
-      totaldiff[r] = objectives[r].weight*diff*diff;
+      ScalarT diff = value - objectives[r].target;
+      value = objectives[r].weight*diff*diff;
     }
-    totalobj += totaldiff[r];
+    
+    totalobj += value;
   }
     
-  DFAD fullobj(numParams,totalobj);
+  objectiveval += totalobj;
   
-  debugger->print(1, "******** Finished PostprocessManager::computeObjective ...");
-  
-  objectiveval += fullobj;
-  
+  debugger->print(1, "******** Finished PostprocessManager::reportObjective ...");
   
 }
 
@@ -2414,7 +2447,7 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
   }
 #endif
   
-  saveObjectiveData(objectiveval);
+  saveObjectiveData(objectiveval.val());
 #endif
   
   debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradParam ...");
@@ -2482,6 +2515,17 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
     }
   }
   
+  // We are on a given time step
+  // Need to find the appropriate dt to scale the objective value and gradient
+  ScalarT dt = 1.0;
+  if (objectives[obj].objective_times.size() > 1) {
+    for (size_t t=1; t<objectives[obj].objective_times.size(); ++t) {
+      if (std::abs(objectives[obj].objective_times[t]-current_time)/current_time < 1.0e-12) {
+        dt = objectives[obj].objective_times[t] - objectives[obj].objective_times[t-1];
+      }
+    }
+  }
+  
   // Objective function values
   ScalarT objval = 0.0;
   
@@ -2493,7 +2537,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
   
   //for (size_t r=0; r<objectives.size(); ++r) {
   if (objectives[obj].type == "integrated control"){
-    
+  
     // First, compute objective value and deriv. w.r.t scalar params
     params->sacadoizeParams(true);
     
@@ -2613,6 +2657,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
       }
       
     }
+    for (size_t i=0; i<gradient.size(); ++i) {
+      gradient[i] *= dt;
+    }
   }
   else if (objectives[obj].type == "discrete control") {
     for (size_t set=0; set<current_soln.size(); ++set) {
@@ -2630,7 +2677,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
         Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> objn(1);
         diff->norm2(objn);
         if (Comm->getRank() == 0) {
-          objval += objectives[obj].weight*objn[0]*objn[0];
+          objval += objectives[obj].weight*dt*objn[0]*objn[0];
         }
       }
       else {
@@ -2639,6 +2686,26 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
     }
   }
   else if (objectives[obj].type == "integrated response") {
+    
+    ScalarT value = 0.0;
+    if (objectives[obj].objective_times.size() == 1) { // implies steady-state
+      ScalarT gcontrib = 0.0;
+      ScalarT lcontrib = objectives[obj].objective_values[0];
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lcontrib,&gcontrib);
+      value += gcontrib;
+    }
+    else {
+      // Start with t=1 to ignore initial condition
+      for (size_t t=1; t<objectives[obj].objective_times.size(); ++t) {
+        ScalarT gcontrib = 0.0;
+        ScalarT lcontrib = objectives[obj].objective_values[t];
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lcontrib,&gcontrib);
+        
+        ScalarT dt = objectives[obj].objective_times[t] - objectives[obj].objective_times[t-1];
+        gcontrib *= dt;
+        value += gcontrib;
+      }
+    }
     
     // First, compute objective value and deriv. w.r.t scalar params
     //if (params->num_active_params > 0) {
@@ -2780,15 +2847,13 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
     // We want    totaldiff = wt*(response-target)^2
     //             gradient = 2*wt*(response-target)*dresponse/dp
     
-    ScalarT diff = objval - objectives[obj].target;
-    objval = objectives[obj].weight*diff*diff;
+    ScalarT diff = value - objectives[obj].target;
     for (size_t g=0; g<gradient.size(); ++g) {
-      gradient[g] = 2.0*objectives[obj].weight*diff*gradient[g];
+      gradient[g] = 2.0*dt*objectives[obj].weight*diff*gradient[g];
     }
     
-    
   }
-  else if (objectives[obj].type == "sensors" || objectives[obj].type == "sensor response" || objectives[obj].type == "pointwise response") {
+  else if (objectives[obj].type == "sensors") {
     if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
       // don't do anything for this use case
     }
@@ -3240,7 +3305,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> & curren
   
   for (size_t r=0; r<objectives.size(); ++r) {
     
-    if (objectives[r].type == "sensors" || objectives[r].type == "sensor response" || objectives[r].type == "pointwise response") {
+    if (objectives[r].type == "sensors") {
       if (objectives[r].compute_sensor_soln || objectives[r].compute_sensor_average_soln) {
         
         size_t block = objectives[r].block;
@@ -3404,6 +3469,8 @@ void PostprocessManager<Node>::resetObjectives() {
     objectives[r].response_times.clear();
     objectives[r].response_data.clear();
     objectives[r].scalar_response_data.clear();
+    objectives[r].objective_times.clear();
+    objectives[r].objective_values.clear();
   }
 }
 
@@ -3485,6 +3552,16 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     params_kv.push_back(p_dev);
   }
   
+  // We are on a given time step
+  // Need to find the appropriate dt to scale the objective value and gradient
+  ScalarT dt = 1.0;
+  if (objectives[obj].objective_times.size() > 1) {
+    for (size_t t=1; t<objectives[obj].objective_times.size(); ++t) {
+      if (std::abs(objectives[obj].objective_times[t]-current_time)/current_time < 1.0e-12) {
+        dt = objectives[obj].objective_times[t] - objectives[obj].objective_times[t-1];
+      }
+    }
+  }
   
   if (objectives[obj].type == "integrated control"){
     auto grad_over = linalg->getNewOverlappedVector(set);
@@ -3548,7 +3625,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     }
     
     linalg->exportVectorFromOverlapped(set, grad_tmp, grad_over);
-    grad->update(1.0, *grad_tmp, 1.0);
+    grad->update(dt, *grad_tmp, 1.0);
     
   }
   else if (objectives[obj].type == "integrated response") {
@@ -3560,6 +3637,27 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     auto numDOF = assembler->groupData[block]->num_dof;
     
     ScalarT intresp = 0.0;
+    
+    ScalarT value = 0.0;
+    if (objectives[obj].objective_times.size() == 1) { // implies steady-state
+      ScalarT gcontrib = 0.0;
+      ScalarT lcontrib = objectives[obj].objective_values[0];
+      Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lcontrib,&gcontrib);
+      value += gcontrib;
+    }
+    else {
+      // Start with t=1 to ignore initial condition
+      for (size_t t=1; t<objectives[obj].objective_times.size(); ++t) {
+        ScalarT gcontrib = 0.0;
+        ScalarT lcontrib = objectives[obj].objective_values[t];
+        Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&lcontrib,&gcontrib);
+        
+        ScalarT dt = objectives[obj].objective_times[t] - objectives[obj].objective_times[t-1];
+        gcontrib *= dt;
+        value += gcontrib;
+      }
+    }
+    
     for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
       
       View_Sc3 local_grad("local contrib to dobj/dstate",
@@ -3647,15 +3745,15 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       }
     }
     
-    ScalarT gresp = 0.0;
-    Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&intresp,&gresp);
+    //ScalarT gresp = 0.0;
+    //Teuchos::reduceAll(*Comm,Teuchos::REDUCE_SUM,1,&intresp,&gresp);
     
     // Right now grad_over = dresponse/du
     // We want   grad_over = 2.0*wt*(response - target)*dresponse/du
-    grad_over->scale(2.0*objectives[obj].weight*(gresp - objectives[obj].target));
+    grad_over->scale(2.0*objectives[obj].weight*(value - objectives[obj].target));
     
     linalg->exportVectorFromOverlapped(set, grad_tmp, grad_over);
-    grad->update(1.0, *grad_tmp, 1.0);
+    grad->update(dt, *grad_tmp, 1.0);
     //KokkosTools::print(grad);
     
   }
@@ -3671,7 +3769,7 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
       D_no->doExport(*D_soln, *(linalg->exporter[set]), Tpetra::REPLACE);
       diff->update(1.0, *u_no, 0.0);
       diff->update(-1.0, *D_no, 1.0);
-      grad->update(-2.0*objectives[obj].weight,*diff,1.0);
+      grad->update(-2.0*dt*objectives[obj].weight,*diff,1.0);
     }
     else {
       TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: did not find a data-generating solution");

@@ -122,7 +122,7 @@ namespace MrHyDE {
     /////////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////////
     
-    void forwardModel(DFAD & objective);
+    void forwardModel(ScalarT & objective);
     
     // ========================================================================================
     // ========================================================================================
@@ -133,12 +133,12 @@ namespace MrHyDE {
     /* solve the problem */
     // ========================================================================================
     
-    void steadySolver(DFAD & objective, vector<vector_RCP> & u);
+    void steadySolver(vector<vector_RCP> & u);
     
     // ========================================================================================
     // ========================================================================================
     
-    void transientSolver(vector<vector_RCP> & initial, DFAD & obj, 
+    void transientSolver(vector<vector_RCP> & initial,  
                          MrHyDE_OptVector & gradient,
                          ScalarT & start_time, ScalarT & end_time);
     

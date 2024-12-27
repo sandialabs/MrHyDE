@@ -75,7 +75,7 @@ namespace MrHyDE {
     // ========================================================================================
   
     objective(Teuchos::ParameterList & objsettings, const string name_,
-              const size_t & block_) { //, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
+              const size_t & block_) {
       name = name_;
       block = block_;
       type = objsettings.get<string>("type","none");
@@ -86,9 +86,11 @@ namespace MrHyDE {
       save_data = false;
       response = "";
       target = 0.0;
+      current_response = 0.0; // useful for space-time integrated responses
       function = "";
       use_sensor_grid = false;
       output_type = "";
+      is_transient = false;
 
       if (type == "sensors") {
         sensor_points_file = objsettings.get<string>("sensor points file","sensor_points.dat");
@@ -108,7 +110,6 @@ namespace MrHyDE {
           sensor_grid_zmax = objsettings.get<double>("grid zmax");
         }
         response = objsettings.get<string>("response","0.0");
-        //functionManager_->addFunction(name+" response",response,"point");
         response_file = objsettings.get<string>("response file","sensor."+name);
         compute_sensor_soln = objsettings.get<bool>("compute sensor solution",false);
         compute_sensor_average_soln = objsettings.get<bool>("compute sensor average solution",false);
@@ -125,13 +126,11 @@ namespace MrHyDE {
       else if (type == "integrated response") {
         response = objsettings.get<string>("response","0.0");
         target = objsettings.get<double>("target",0.0);
-        //functionManager_->addFunction(name+" response",response,"ip");
         save_data = objsettings.get<bool>("save response data",false);
         response_file = objsettings.get<string>("response file","response."+name);
       }
       else if (type == "integrated control") {
         function = objsettings.get<string>("function","0.0");
-        //functionManager_->addFunction(name,function,"ip");
       }
       else if (type == "discrete control") {
         // nothing else is needed
@@ -142,7 +141,7 @@ namespace MrHyDE {
         Teuchos::ParameterList::ConstIterator reg_itr = reg_funs.begin();
         while (reg_itr != reg_funs.end()) {
           Teuchos::ParameterList regsettings = reg_funs.sublist(reg_itr->first);
-          regularization newreg(regsettings,reg_itr->first,block);//,functionManager_);
+          regularization newreg(regsettings,reg_itr->first,block);
           regularizations.push_back(newreg);
           reg_itr++;
         }
@@ -151,10 +150,10 @@ namespace MrHyDE {
     
     size_t block;
     string name, type, location, response, function, boundary_name, response_file;
-    ScalarT weight, target;
-    bool save_data;
+    ScalarT weight, target, current_response;
+    bool save_data, is_transient;
     vector<regularization> regularizations;
-    vector<ScalarT> response_times;
+    vector<ScalarT> response_times, objective_times, objective_values;
     vector<ScalarT> scalar_response_data; // [time] or [realization]
     vector<Kokkos::View<ScalarT*,HostDevice> > response_data; // [time](sensor) or [realization](sensor)
     
@@ -200,7 +199,7 @@ namespace MrHyDE {
     // ========================================================================================
   
     fluxResponse(Teuchos::ParameterList & frsettings, const string & name_,
-                 const size_t & block_ ) { //, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
+                 const size_t & block_ ) {
       name = name_;
       block = block_;
       
@@ -209,8 +208,6 @@ namespace MrHyDE {
       int numfluxes = frsettings.get<int>("number",1);
       
       vals = Kokkos::View<ScalarT*,HostDevice>("flux data",numfluxes);
-      
-      //functionManager_->addFunction("flux weight "+name,weight,"side ip");
       
     }
     
@@ -256,7 +253,8 @@ namespace MrHyDE {
     // ========================================================================================
   
     integratedQuantity(Teuchos::ParameterList & iqsettings, const string & name_,
-                 const size_t & block_) { //, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
+                 const size_t & block_) {
+      
       name = name_;
       block = block_;
       
@@ -269,13 +267,6 @@ namespace MrHyDE {
      
       integrand = iqsettings.get<string>("integrand","0.0");
       
-      // Integrand is kept at the appropriate integration points
-      //if (location == "volume") {
-      //  functionManager_->addFunction(name+" integrand",integrand,"ip"); 
-      //} else if (location == "boundary") {
-      //  functionManager_->addFunction(name+" integrand",integrand,"side ip");
-      //}
-
     }
     
     /**
@@ -291,7 +282,7 @@ namespace MrHyDE {
      */
     
     integratedQuantity(const string & integrand_, const string & name_, const string & integralType, 
-                 const size_t & block_) { //, Teuchos::RCP<FunctionManager<AD> > & functionManager_) {
+                 const size_t & block_) {
       integrand = integrand_;
       name = name_;
       block = block_;
@@ -302,15 +293,6 @@ namespace MrHyDE {
       
       val = Kokkos::View<ScalarT*,HostDevice>("integrated quantity data",1);
      
-      // Integrand is kept at the appropriate integration points
-      //if (location == "volume") {
-      //  functionManager_->addFunction(name+" integrand",integrand,"ip"); 
-      //} else if (location == "boundary") {
-      //  functionManager_->addFunction(name+" integrand",integrand,"side ip");
-      //} else {
-      //  // TODO add error message
-      //}
-
     }
 
     string name, boundarynames, integrand, location;

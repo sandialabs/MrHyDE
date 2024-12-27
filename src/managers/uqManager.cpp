@@ -60,6 +60,8 @@ Kokkos::View<ScalarT**,HostDevice> UQManager::generateSamples(const int & numsam
 
     samples_ = Kokkos::View<ScalarT**,HostDevice>("samples",numsamples, numstochparams_);
     std::default_random_engine generator(seed);
+    //std::mt19937 generator(seed);
+    
     for (int j=0; j<numstochparams_; j++) {
       if (param_types_[j] == "uniform") {
         std::uniform_real_distribution<ScalarT> distribution(param_mins_[j],param_maxs_[j]);

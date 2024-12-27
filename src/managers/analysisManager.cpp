@@ -67,12 +67,12 @@ void AnalysisManager::run(std::string & analysis_type) {
 
   if (analysis_type == "forward") {
     
-    DFAD objfun = this->forwardSolve();
+    this->forwardSolve();
     
   }
   else if (analysis_type == "forward+adjoint") {
     
-    DFAD objfun = this->forwardSolve();
+    this->forwardSolve();
     
     MrHyDE_OptVector sens = this->adjointSolve();
     
@@ -114,12 +114,12 @@ void AnalysisManager::run(std::string & analysis_type) {
 // ========================================================================================
 // ========================================================================================
 
-DFAD AnalysisManager::forwardSolve() {
+void AnalysisManager::forwardSolve() {
   
-  DFAD objfun = 0.0;
+  ScalarT objfun = 0.0;
   solver_->forwardModel(objfun);
   postproc_->report();
-  return objfun;
+  
 }
 
 
@@ -366,8 +366,7 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
     ////////////////////////////////////////////////////////
     // Evaluate the new realization
     
-    DFAD objfun = this->forwardSolve();
-    //postproc_->report();
+    this->forwardSolve();
     Teuchos::Array<ScalarT> newresp = postproc_->collectResponses();
     
     response_values.push_back(newresp);
@@ -480,7 +479,7 @@ void AnalysisManager::ROLSolve() {
   
   Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
   x->set(xtmp);
-
+  
   //ScalarT roltol = 1e-8;
   //*outStream << "\nTesting objective!!\n";
   //obj->value(*x, roltol);
@@ -495,6 +494,7 @@ void AnalysisManager::ROLSolve() {
     //read in bounds for parameters...
     vector<Teuchos::RCP<vector<ScalarT> > > activeBnds = params_->getActiveParamBounds();
     vector<vector_RCP> discBnds = params_->getDiscretizedParamBounds();
+    
     Teuchos::RCP<ROL::Vector<ScalarT> > lo = Teuchos::rcp( new MrHyDE_OptVector(discBnds[0], activeBnds[0], comm_->getRank()) );
     Teuchos::RCP<ROL::Vector<ScalarT> > up = Teuchos::rcp( new MrHyDE_OptVector(discBnds[1], activeBnds[1], comm_->getRank()) );
     
@@ -510,7 +510,7 @@ void AnalysisManager::ROLSolve() {
   // Recovering a data-generating solution
   if (ROLsettings.sublist("General").get("Generate data",false)) {
     //std::cout << "Generating data ... " << std::endl;
-    DFAD objfun = 0.0;
+    ScalarT objfun = 0.0;
     if (params_->isParameter("datagen")) {
       vector<ScalarT> pval = {1.0};
       params_->setParam(pval,"datagen");
@@ -540,7 +540,6 @@ void AnalysisManager::ROLSolve() {
     postproc_->compute_objective = true;
     //std::cout << "Finished generating data for inversion " << std::endl;
   }
-  
   
   // Comparing a gradient/Hessian with finite difference approximation
   if (ROLsettings.sublist("General").get("Do grad+hessvec check",true)) {
@@ -620,7 +619,7 @@ void AnalysisManager::ROLSolve() {
    obj->printHess(settings_->sublist("postproc_ess").get("Hessian output file","hess.dat"),x,comm_->getRank());
    }
    if (settings_->sublist("Analysis").get("write output",false)) {
-   DFAD val = 0.0;
+   ScalarT val = 0.0;
    solver_->forwardModel(val);
    //postproc_->writeSolution(settings_->sublist("postproc_ess").get<string>("Output File","output"));
    }
@@ -630,7 +629,7 @@ void AnalysisManager::ROLSolve() {
     postproc_->write_solution = true;
     string outfile = "output_after_optimization.exo";
     postproc_->setNewExodusFile(outfile);
-    DFAD objfun = 0.0;
+    ScalarT objfun = 0.0;
     solver_->forwardModel(objfun);
     if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
       vector<bool> newflags(1,false);
@@ -703,7 +702,7 @@ void AnalysisManager::ROL2Solve() {
   // Recovering a data-generating solution
   if (ROLsettings.sublist("General").get("Generate data",false)) {
     //std::cout << "Generating data ... " << std::endl;
-    DFAD objfun = 0.0;
+    ScalarT objfun = 0.0;
     if (params_->isParameter("datagen")) {
       vector<ScalarT> pval = {1.0};
       params_->setParam(pval,"datagen");
@@ -785,7 +784,7 @@ void AnalysisManager::ROL2Solve() {
    obj->printHess(settings_->sublist("postproc_ess").get("Hessian output file","hess.dat"),x,comm_->getRank());
    }
    if (settings_->sublist("Analysis").get("write output",false)) {
-   DFAD val = 0.0;
+   ScalarT val = 0.0;
    solver_->forwardModel(val);
    //postproc_->writeSolution(settings_->sublist("postproc_ess").get<string>("Output File","output"));
    }
@@ -795,7 +794,7 @@ void AnalysisManager::ROL2Solve() {
     postproc_->write_solution = true;
     string outfile = "output_after_optimization.exo";
     postproc_->setNewExodusFile(outfile);
-    DFAD objfun = 0.0;
+    ScalarT objfun = 0.0;
     solver_->forwardModel(objfun);
     if (ROLsettings.sublist("General").get("Disable source on final output",false) ) {
       vector<bool> newflags(1,false);

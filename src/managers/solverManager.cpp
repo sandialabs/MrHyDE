@@ -1104,7 +1104,7 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::forwardModel(DFAD & objective) {
+void SolverManager<Node>::forwardModel(ScalarT & objective) {
   
   current_time = initial_time;
   
@@ -1129,11 +1129,11 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   vector<vector_RCP> sol = this->setInitial();
     
   if (solver_type == "steady-state") {
-    this->steadySolver(objective, sol);
+    this->steadySolver(sol);
   }
   else if (solver_type == "transient") {
     MrHyDE_OptVector gradient; // not really used here
-    this->transientSolver(sol, objective, gradient, initial_time, final_time);
+    this->transientSolver(sol, gradient, initial_time, final_time);
   }
   else {
     // print out an error message
@@ -1142,6 +1142,8 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
   if (postproc->write_optimization_solution) {
     postproc->writeOptimizationSolution(numEvaluations);
   }
+  
+  postproc->reportObjective(objective);
   
   numEvaluations++;
   
@@ -1153,7 +1155,7 @@ void SolverManager<Node>::forwardModel(DFAD & objective) {
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & sol) {
+void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
   
   debugger->print("**** Starting SolverManager::steadySolver ...");
   
@@ -1169,9 +1171,9 @@ void SolverManager<Node>::steadySolver(DFAD & objective, vector<vector_RCP> & so
                             zero_soln, zero_soln, zero_soln);
     }
   }
-  postproc->record(sol,current_time,1,objective);
+  postproc->record(sol, current_time, 1);
   
-  debugger->print("**** Starting SolverManager::steadySolver");
+  debugger->print("**** Finished SolverManager::steadySolver");
   
 }
 
@@ -1207,7 +1209,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     }
     else if (solver_type == "transient") {
       DFAD obj = 0.0;
-      this->transientSolver(phi, obj, gradient, initial_time, final_time);
+      this->transientSolver(phi, gradient, initial_time, final_time);
     }
     else {
       // print out an error message
@@ -1226,7 +1228,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & obj, 
+void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, 
                                           MrHyDE_OptVector & gradient,
                                           ScalarT & start_time, ScalarT & end_time) {
   
@@ -1248,7 +1250,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
       }
     }
     
-    postproc->record(sol,current_time,true,obj);
+    postproc->record(sol,current_time,0);
     
     vector<vector<vector_RCP> > sol_prev;
     for (size_t set=0; set<sol.size(); ++set) {
@@ -1260,7 +1262,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
     }
            
     int stepProg = 0;
-    obj = 0.0;
     int numCuts = 0;
     int maxCuts = maxTimeStepCuts; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
@@ -1358,7 +1359,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial, DFAD & o
         //  assembler->performGather(set,u[set],0,0);
         //}
         multiscale_manager->completeTimeStep();
-        postproc->record(sol,current_time,stepProg,obj);
+        postproc->record(sol,current_time,stepProg);
         
       }
       else { // something went wrong, cut time step and try again
