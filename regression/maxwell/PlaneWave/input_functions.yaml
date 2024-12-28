@@ -3,7 +3,7 @@
 ANONYMOUS:
   Functions: 
     current x: 'exp(-1.0*timebub)*sin(-2.0*omega*t)*(z<zmax)*(z>zmin)'
-    permittivity: 'refperm*(1.0 + 10.5*(z>zt)'
+    permittivity: 'refperm*(1.0 + 10.5*(z>zt))'
     refperm: '1.0e-11'
     permeability: '1.25e-6'
     c: '2.83e8'
