@@ -364,7 +364,7 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
       
       // Different types (scalar versus vector) have different forms
       if (true_solns.isParameter(vars[j])) { // solution at volumetric ip
-        if (ctypes[j] == "HGRAD" || ctypes[j] == "HVOL") {
+        if (ctypes[j].substr(0,5) == "HGRAD" || ctypes[j].substr(0,5) == "HVOL") {
           std::pair<string,string> newerr(vars[j],"L2");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>(vars[j],"0.0");
@@ -372,33 +372,64 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
         }
       }
       if (true_solns.isParameter("grad("+vars[j]+")[x]") || true_solns.isParameter("grad("+vars[j]+")[y]") || true_solns.isParameter("grad("+vars[j]+")[z]")) { // GRAD of the solution at volumetric ip
-        if (ctypes[j] == "HGRAD") {
+        if (!true_solns.isParameter("grad("+vars[j]+")[x]")) {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the gradient of " + vars[j] + " but the [x] component is missing a true solution.");
+        }
+        if (dimension > 1) {
+          if (!true_solns.isParameter("grad("+vars[j]+")[y]")) {
+            TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the gradient of " + vars[j] + " but the [y] component is missing a true solution.");
+          }
+          if (dimension > 2) {
+            if (!true_solns.isParameter("grad("+vars[j]+")[z]")) {
+              TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the gradient of " + vars[j] + " but the [z] component is missing a true solution.");
+            }
+          }
+        }
+        if (ctypes[j].substr(0,5) == "HGRAD") {
           std::pair<string,string> newerr(vars[j],"GRAD");
           block_error_list.push_back(newerr);
           
           string expression = true_solns.get<string>("grad("+vars[j]+")[x]","0.0");
           assembler->addFunction(block, "true grad("+vars[j]+")[x]", expression, "ip");
-          if (dimension>1) {
+          if (dimension > 1) {
             expression = true_solns.get<string>("grad("+vars[j]+")[y]","0.0");
             assembler->addFunction(block, "true grad("+vars[j]+")[y]", expression, "ip");
           }
-          if (dimension>2) {
+          if (dimension > 2) {
             expression = true_solns.get<string>("grad("+vars[j]+")[z]","0.0");
             assembler->addFunction(block, "true grad("+vars[j]+")[z]", expression, "ip");
           }
         }
+        else {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the gradient of " + vars[j] + " which does not use an HGRAD basis.");
+        }
       }
       if (true_solns.isParameter(vars[j]+" face")) { // solution at face/side ip
-        if (ctypes[j] == "HGRAD" || ctypes[j] == "HFACE") {
+        if (ctypes[j].substr(0,5) == "HGRAD" || ctypes[j].substr(0,5) == "HFACE") {
           std::pair<string,string> newerr(vars[j],"L2 FACE");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>(vars[j]+" face","0.0");
           assembler->addFunction(block, "true "+vars[j], expression, "side ip");
-          
+        }
+        else {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the face norm of the error in " + vars[j] + " which does not use an HGRAD or HFACE basis.");
         }
       }
       if (true_solns.isParameter(vars[j]+"[x]") || true_solns.isParameter(vars[j]+"[y]") || true_solns.isParameter(vars[j]+"[z]")) { // vector solution at volumetric ip
-        if (ctypes[j] == "HDIV" || ctypes[j] == "HCURL") {
+        if (!true_solns.isParameter(vars[j]+"[x]")) {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error of " + vars[j] + " but the [x] component is missing a true solution.");
+        }
+        if (dimension > 1) {
+          if (!true_solns.isParameter(vars[j]+"[y]")) {
+            TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error of " + vars[j] + " but the [y] component is missing a true solution.");
+          }
+          if (dimension > 2) {
+            if (!true_solns.isParameter(vars[j]+"[z]")) {
+              TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error of " + vars[j] + " but the [z] component is missing a true solution.");
+            }
+          }
+        }
+        if (ctypes[j].substr(0,4) == "HDIV" || ctypes[j].substr(0,5) == "HCURL") {
           std::pair<string,string> newerr(vars[j],"L2 VECTOR");
           block_error_list.push_back(newerr);
           
@@ -414,18 +445,36 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
             assembler->addFunction(block, "true "+vars[j]+"[z]", expression, "ip");
           }
         }
+        else {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute a component of the norm of a error for " + vars[j] + " which does not use a vector basis.");
+        }
       }
       if (true_solns.isParameter("div("+vars[j]+")")) { // div of solution at volumetric ip
-        if (ctypes[j] == "HDIV") {
+        if (ctypes[j].substr(0,4) == "HDIV") {
           std::pair<string,string> newerr(vars[j],"DIV");
           block_error_list.push_back(newerr);
           string expression = true_solns.get<string>("div("+vars[j]+")","0.0");
           assembler->addFunction(block, "true div("+vars[j]+")", expression, "ip");
-          
+        }
+        else {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the divergence of " + vars[j] + " which does not use an HDIV basis.");
         }
       }
       if (true_solns.isParameter("curl("+vars[j]+")[x]") || true_solns.isParameter("curl("+vars[j]+")[y]") || true_solns.isParameter("curl("+vars[j]+")[z]")) { // vector solution at volumetric ip
-        if (ctypes[j] == "HCURL") {
+        if (!true_solns.isParameter("curl("+vars[j]+")[x]")) {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the curl of " + vars[j] + " but the [x] component is missing a true solution.");
+        }
+        if (dimension > 1) {
+          if (!true_solns.isParameter("curl("+vars[j]+")[y]")) {
+            TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the curl of " + vars[j] + " but the [y] component is missing a true solution.");
+          }
+          if (dimension > 2) {
+            if (!true_solns.isParameter("curl("+vars[j]+")[z]")) {
+              TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the curl of " + vars[j] + " but the [z] component is missing a true solution.");
+            }
+          }
+        }
+        if (ctypes[j].substr(0,5) == "HCURL") {
           std::pair<string,string> newerr(vars[j],"CURL");
           block_error_list.push_back(newerr);
           
@@ -440,6 +489,9 @@ vector<std::pair<string,string> > PostprocessManager<Node>::addTrueSolutions(Teu
             expression = true_solns.get<string>("curl("+vars[j]+")[z]","0.0");
             assembler->addFunction(block, "true curl("+vars[j]+")[z]", expression, "ip");
           }
+        }
+        else {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was asked to compute the norm of the error in the curl of " + vars[j] + " which does not use an HCURL basis.");
         }
       }
     }
