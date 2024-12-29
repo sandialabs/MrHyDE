@@ -67,7 +67,7 @@ int main(int argc,char * argv[]) {
     debug_level = settings->get<int>("debug level",0);
     profile = settings->get<bool>("profile",false);
     print_timers = settings->get<bool>("print timers",false);
-    if (verbosity >= 10) {
+    if (verbosity >= 10 && !settings->get<bool>("disable timers",false)) {
         print_timers = true;
     }
       
