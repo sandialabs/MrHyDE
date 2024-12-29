@@ -3636,8 +3636,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
     auto offsets = wset->offsets;
     auto numDOF = assembler->groupData[block]->num_dof;
     
-    ScalarT intresp = 0.0;
-    
     ScalarT value = 0.0;
     if (objectives[obj].objective_times.size() == 1) { // implies steady-state
       ScalarT gcontrib = 0.0;
@@ -3709,19 +3707,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
               }
             }
           });
-        
-          Kokkos::View<ScalarT[1],AssemblyDevice> ir("integral of response");
-          parallel_for("grp objective",
-                       RangePolicy<AssemblyExec>(0,wts.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
-            for (size_type pt=0; pt<wts.extent(1); pt++) {
-              ir(0) += obj_dev(elem,pt).val();
-            }
-          });
-          
-          auto ir_host = create_mirror_view(ir);
-          deep_copy(ir_host,ir);
-          intresp += ir_host(0);
         }
         
       }
