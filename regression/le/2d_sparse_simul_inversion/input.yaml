@@ -78,8 +78,8 @@ ANONYMOUS:
   Analysis input file: input_rol2.yaml
   Functions:
     mu: mufield
-    Neumann source dx: xtrac*ny
-    Neumann source dy: ytrac*ny
+    Neumann source dx: 'xtrac*n[y]'
+    Neumann source dy: 'ytrac*n[y]'
     source dx: '0.0'
     gradmus: 'grad(mufield)[x]*grad(mufield)[x] + grad(mufield)[y]*grad(mufield)[y]'
 ...

@@ -28,8 +28,8 @@ ANONYMOUS:
       e: 1
     quadrature: 2
   Functions:
-    thermal source: 8*pi*pi*sin(2*pi*x)*sin(2*pi*y)
-    thermal Neumann source: ny*2*pi*sin(2*pi*x)*cos(2*pi*y)
+    thermal source: '8*pi*pi*sin(2*pi*x)*sin(2*pi*y)'
+    thermal Neumann source: 'n[y]*2*pi*sin(2*pi*x)*cos(2*pi*y)'
   Solver:
     solver: steady-state
     nonlinear TOL: 1.0e-07
