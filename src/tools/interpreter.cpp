@@ -164,13 +164,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
         }
         
         if (i == s.length()-1 && currbranch.length()>0) {
-          if (paren>0) {
-            TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE found an unclosed parenthesis in: " + s);
-          }
-          else if (paren < 0) {
-            TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE found an extra parenthesis in: " + s);
-          }
-          else if (num_pm>0) {
+          if (num_pm>0) {
             bool found = false;
             if (!found) {
               auto nbranch = Branch<EvalT>(currbranch);
@@ -269,6 +263,7 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
           }
         } 
       }
+      
     }
     else if (num_pow > 0) {
       string currbranch = "";
@@ -345,6 +340,13 @@ void Interpreter<EvalT>::split(vector<Branch<EvalT> > & branches, const size_t &
         }
       }
     }
+    if (paren > 0) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE found an unclosed parenthesis in: " + s);
+    }
+    else if (paren < 0) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE found an extra parenthesis in: " + s);
+    }
+    
   }
 }
 

@@ -112,6 +112,8 @@ namespace MrHyDE {
     vector<int> dep_list_, dep_ops_int_;
     vector<string> dep_ops_;
     
+    // This flag is for checking for cyclic graphs
+    bool currently_checking_ = false;
   };
   
   // =================================================================

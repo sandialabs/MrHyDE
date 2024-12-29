@@ -500,8 +500,21 @@ void FunctionManager<EvalT>::decomposeFunctions() {
             }
             
             if (decompose) {
+              size_t cnumb = forests_[fiter].trees_[titer].branches_.size();
               interpreter_->split(forests_[fiter].trees_[titer].branches_,k);
               forests_[fiter].trees_[titer].branches_[k].is_decomposed_ = true;
+              if (cnumb == forests_[fiter].trees_[titer].branches_.size()) {
+                // This means that it didn't actually add anything
+                // Most likely due to leaf being undefined
+                // There are case where this is ok:
+                string expr = forests_[fiter].trees_[titer].branches_[k].expression_;
+                if (expr == "n[x]" || expr == "n[y]" || expr == "n[z]" || expr == "t[x]" || expr == "t[y]" || expr == "t[z]") {
+                  // this is fine
+                }
+                else {
+                  TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to decompose or find: " + forests_[fiter].trees_[titer].branches_[k].expression_);
+                }
+              }
             }
           }
           
@@ -575,6 +588,13 @@ void FunctionManager<EvalT>::decomposeFunctions() {
 
 template<class EvalT>
 bool FunctionManager<EvalT>::isScalarTerm(const int & findex, const int & tindex, const int & bindex) {
+  if (forests_[findex].trees_[tindex].branches_[bindex].currently_checking_) {
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE detected a cyclic graph in: " + forests_[findex].trees_[tindex].branches_[bindex].expression_);
+  }
+  else {
+    forests_[findex].trees_[tindex].branches_[bindex].currently_checking_ = true;
+  }
+  
   bool is_scalar = true;
   if (forests_[findex].trees_[tindex].branches_[bindex].is_leaf_) {
     if (forests_[findex].trees_[tindex].branches_[bindex].is_AD_) {
@@ -592,15 +612,21 @@ bool FunctionManager<EvalT>::isScalarTerm(const int & findex, const int & tindex
       }
     }
   }
+  forests_[findex].trees_[tindex].branches_[bindex].currently_checking_ = false;
   return is_scalar;
 }
 
 
 template<class EvalT>
 void FunctionManager<EvalT>::checkDepDataType(const int & findex, const int & tindex, const int & bindex,
-                                       bool & isConst, bool & isView, bool & isAD) {
+                                              bool & isConst, bool & isView, bool & isAD) {
   
-  
+  if (forests_[findex].trees_[tindex].branches_[bindex].currently_checking_) {
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE detected a cyclic graph in: " + forests_[findex].trees_[tindex].branches_[bindex].expression_);
+  }
+  else {
+    forests_[findex].trees_[tindex].branches_[bindex].currently_checking_ = true;
+  }
   if (forests_[findex].trees_[tindex].branches_[bindex].is_leaf_) {
     if (!forests_[findex].trees_[tindex].branches_[bindex].is_constant_) {
       isConst = false;
@@ -622,6 +648,7 @@ void FunctionManager<EvalT>::checkDepDataType(const int & findex, const int & ti
                              isConst, isView, isAD);
     }
   }
+  forests_[findex].trees_[tindex].branches_[bindex].currently_checking_ = false;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
