@@ -115,7 +115,7 @@ void FunctionManager<EvalT>::decomposeFunctions() {
     
     for (size_t fiter=0; fiter<forests_.size(); fiter++) {
       
-      int maxiter = 20; // maximum number of recursions
+      int maxiter = 50; // maximum number of recursions
       
       for (size_t titer=0; titer<forests_[fiter].trees_.size(); titer++) {
         
