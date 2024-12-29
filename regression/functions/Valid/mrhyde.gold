@@ -1,0 +1,1445 @@
+STK Meta data:
+   Element blocks = "eblock-0_0" 
+   Sidesets = "bottom" "left" "right" "top" 
+   Nodesets = "lower_left" "origin" 
+   Fields = "coordinates" "edges" "PROC_ID" "LOAD_BAL" 
+DOFManager Field Information: 
+   Element Block = eblock-0_0
+      "T" is field ID 0
+      "B" is field ID 1
+      "E" is field ID 2
+      "q" is field ID 3
+ - Processor 0 has 4 elements
+ - Processor 0 has 8 boundary elements
+ - Processor 0 is using 0.005736 MB to store volumetric data
+ - Processor 0 is using 0 MB to store face data
+ - Processor 0 is using 0.00496 MB to store boundary data
+
+===========================================================
+Printing functions on block: eblock-0_0
+-----------------------------------------------------------
+Forest Name:ip
+Number of Trees: 22
+    Tree: a
+    Number of branches: 1
+        1.0
+    Tree: b
+    Number of branches: 1
+        2.0
+    Tree: f0
+    Number of branches: 5
+        sin(x+y+t)
+        x+y+t
+        x
+        y
+        t
+    Tree: f1
+    Number of branches: 4
+        x+exp(y)
+        x
+        exp(y)
+        y
+    Tree: f2
+    Number of branches: 20
+        8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)
+        8
+        (pi^2)
+        sin(2*pi*x+1)
+        sin(2*pi*y+1)
+        pi^2
+        2*pi*x+1
+        2*pi*y+1
+        pi
+        2
+        2*pi*x
+        1
+        2*pi*y
+        1
+        2
+        pi
+        x
+        2
+        pi
+        y
+    Tree: f3
+    Number of branches: 4
+        -exp(x)
+        0.0
+        exp(x)
+        x
+    Tree: f4
+    Number of branches: 10
+        (a-sin(x))^(2+b)
+        (a-sin(x))
+        (2+b)
+        a-sin(x)
+        2+b
+        a
+        sin(x)
+        2
+        b
+        x
+    Tree: f5
+    Number of branches: 9
+        (a+2.0)*(b-pi)
+        (a+2.0)
+        (b-pi)
+        a+2.0
+        b-pi
+        a
+        2.0
+        b
+        pi
+    Tree: f6
+    Number of branches: 14
+        (a+b) + ((x+y)*a - 2.0)
+        (a+b)
+        ((x+y)*a-2.0)
+        a+b
+        (x+y)*a-2.0
+        a
+        b
+        (x+y)*a
+        2.0
+        (x+y)
+        a
+        x+y
+        x
+        y
+    Tree: f7
+    Number of branches: 9
+        exp(-(a+b)^2)
+        -(a+b)^2
+        0.0
+        (a+b)^2
+        (a+b)
+        2
+        a+b
+        a
+        b
+    Tree: f8
+    Number of branches: 2
+        sin(gtst)
+        gtst
+    Tree: gtst
+    Number of branches: 3
+        a+b
+        a
+        b
+    Tree: f9
+    Number of branches: 5
+        8*pi^2
+        8
+        pi^2
+        pi
+        2
+    Tree: f10
+    Number of branches: 3
+        min(a,b)
+        a
+        b
+    Tree: f11
+    Number of branches: 3
+        a <= b
+        a
+        b
+    Tree: f12
+    Number of branches: 3
+        grad(T)[x]+grad(T)[y]
+        grad(T)[x]
+        grad(T)[y]
+    Tree: f13
+    Number of branches: 19
+        (1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))
+        (1+exp(-2.0*Ha))
+        (2.0*exp(-1.0*Ha))
+        1+exp(-2.0*Ha)
+        2.0*exp(-1.0*Ha)
+        1
+        exp(-2.0*Ha)
+        2.0
+        exp(-1.0*Ha)
+        -2.0*Ha
+        -1.0*Ha
+        0.0
+        2.0*Ha
+        0.0
+        1.0*Ha
+        2.0
+        Ha
+        1.0
+        Ha
+    Tree: Ha
+    Number of branches: 1
+        1.0
+    Tree: f14
+    Number of branches: 7
+        T+B[x]+B[y]+E[x]+E[y]+q
+        T
+        B[x]
+        B[y]
+        E[x]
+        E[y]
+        q
+    Tree: f15
+    Number of branches: 3
+        div(B)+1.0
+        div(B)
+        1.0
+    Tree: f16
+    Number of branches: 3
+        curl(E)[x]+curl(E)[y]
+        curl(E)[x]
+        curl(E)[y]
+    Tree: f17
+    Number of branches: 7
+        emin(T) + emean(B[x]) + sinh(f14)
+        emin(T)
+        emean(B[x])
+        sinh(f14)
+        T
+        B[x]
+        f14
+-----------------------------------------------------------
+Forest Name:side ip
+Number of Trees: 22
+    Tree: a
+    Number of branches: 1
+        1.0
+    Tree: b
+    Number of branches: 1
+        2.0
+    Tree: f0
+    Number of branches: 5
+        sin(x+y+t)
+        x+y+t
+        x
+        y
+        t
+    Tree: f1
+    Number of branches: 4
+        x+exp(y)
+        x
+        exp(y)
+        y
+    Tree: f2
+    Number of branches: 20
+        8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)
+        8
+        (pi^2)
+        sin(2*pi*x+1)
+        sin(2*pi*y+1)
+        pi^2
+        2*pi*x+1
+        2*pi*y+1
+        pi
+        2
+        2*pi*x
+        1
+        2*pi*y
+        1
+        2
+        pi
+        x
+        2
+        pi
+        y
+    Tree: f3
+    Number of branches: 4
+        -exp(x)
+        0.0
+        exp(x)
+        x
+    Tree: f4
+    Number of branches: 10
+        (a-sin(x))^(2+b)
+        (a-sin(x))
+        (2+b)
+        a-sin(x)
+        2+b
+        a
+        sin(x)
+        2
+        b
+        x
+    Tree: f5
+    Number of branches: 9
+        (a+2.0)*(b-pi)
+        (a+2.0)
+        (b-pi)
+        a+2.0
+        b-pi
+        a
+        2.0
+        b
+        pi
+    Tree: f6
+    Number of branches: 14
+        (a+b) + ((x+y)*a - 2.0)
+        (a+b)
+        ((x+y)*a-2.0)
+        a+b
+        (x+y)*a-2.0
+        a
+        b
+        (x+y)*a
+        2.0
+        (x+y)
+        a
+        x+y
+        x
+        y
+    Tree: f7
+    Number of branches: 9
+        exp(-(a+b)^2)
+        -(a+b)^2
+        0.0
+        (a+b)^2
+        (a+b)
+        2
+        a+b
+        a
+        b
+    Tree: f8
+    Number of branches: 2
+        sin(gtst)
+        gtst
+    Tree: gtst
+    Number of branches: 3
+        a+b
+        a
+        b
+    Tree: f9
+    Number of branches: 5
+        8*pi^2
+        8
+        pi^2
+        pi
+        2
+    Tree: f10
+    Number of branches: 3
+        min(a,b)
+        a
+        b
+    Tree: f11
+    Number of branches: 3
+        a <= b
+        a
+        b
+    Tree: f12
+    Number of branches: 3
+        grad(T)[x]+grad(T)[y]
+        grad(T)[x]
+        grad(T)[y]
+    Tree: f13
+    Number of branches: 19
+        (1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))
+        (1+exp(-2.0*Ha))
+        (2.0*exp(-1.0*Ha))
+        1+exp(-2.0*Ha)
+        2.0*exp(-1.0*Ha)
+        1
+        exp(-2.0*Ha)
+        2.0
+        exp(-1.0*Ha)
+        -2.0*Ha
+        -1.0*Ha
+        0.0
+        2.0*Ha
+        0.0
+        1.0*Ha
+        2.0
+        Ha
+        1.0
+        Ha
+    Tree: Ha
+    Number of branches: 1
+        1.0
+    Tree: f14
+    Number of branches: 7
+        T+B[x]+B[y]+E[x]+E[y]+q
+        T
+        B[x]
+        B[y]
+        E[x]
+        E[y]
+        q
+    Tree: f15
+    Number of branches: 3
+        div(B)+1.0
+        div(B)
+        1.0
+    Tree: f16
+    Number of branches: 3
+        curl(E)[x]+curl(E)[y]
+        curl(E)[x]
+        curl(E)[y]
+    Tree: f17
+    Number of branches: 7
+        emin(T) + emean(B[x]) + sinh(f14)
+        emin(T)
+        emean(B[x])
+        sinh(f14)
+        T
+        B[x]
+        f14
+-----------------------------------------------------------
+Forest Name:point
+Number of Trees: 22
+    Tree: a
+    Number of branches: 1
+        1.0
+    Tree: b
+    Number of branches: 1
+        2.0
+    Tree: f0
+    Number of branches: 5
+        sin(x+y+t)
+        x+y+t
+        x
+        y
+        t
+    Tree: f1
+    Number of branches: 4
+        x+exp(y)
+        x
+        exp(y)
+        y
+    Tree: f2
+    Number of branches: 20
+        8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)
+        8
+        (pi^2)
+        sin(2*pi*x+1)
+        sin(2*pi*y+1)
+        pi^2
+        2*pi*x+1
+        2*pi*y+1
+        pi
+        2
+        2*pi*x
+        1
+        2*pi*y
+        1
+        2
+        pi
+        x
+        2
+        pi
+        y
+    Tree: f3
+    Number of branches: 4
+        -exp(x)
+        0.0
+        exp(x)
+        x
+    Tree: f4
+    Number of branches: 10
+        (a-sin(x))^(2+b)
+        (a-sin(x))
+        (2+b)
+        a-sin(x)
+        2+b
+        a
+        sin(x)
+        2
+        b
+        x
+    Tree: f5
+    Number of branches: 9
+        (a+2.0)*(b-pi)
+        (a+2.0)
+        (b-pi)
+        a+2.0
+        b-pi
+        a
+        2.0
+        b
+        pi
+    Tree: f6
+    Number of branches: 14
+        (a+b) + ((x+y)*a - 2.0)
+        (a+b)
+        ((x+y)*a-2.0)
+        a+b
+        (x+y)*a-2.0
+        a
+        b
+        (x+y)*a
+        2.0
+        (x+y)
+        a
+        x+y
+        x
+        y
+    Tree: f7
+    Number of branches: 9
+        exp(-(a+b)^2)
+        -(a+b)^2
+        0.0
+        (a+b)^2
+        (a+b)
+        2
+        a+b
+        a
+        b
+    Tree: f8
+    Number of branches: 2
+        sin(gtst)
+        gtst
+    Tree: gtst
+    Number of branches: 3
+        a+b
+        a
+        b
+    Tree: f9
+    Number of branches: 5
+        8*pi^2
+        8
+        pi^2
+        pi
+        2
+    Tree: f10
+    Number of branches: 3
+        min(a,b)
+        a
+        b
+    Tree: f11
+    Number of branches: 3
+        a <= b
+        a
+        b
+    Tree: f12
+    Number of branches: 3
+        grad(T)[x]+grad(T)[y]
+        grad(T)[x]
+        grad(T)[y]
+    Tree: f13
+    Number of branches: 19
+        (1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))
+        (1+exp(-2.0*Ha))
+        (2.0*exp(-1.0*Ha))
+        1+exp(-2.0*Ha)
+        2.0*exp(-1.0*Ha)
+        1
+        exp(-2.0*Ha)
+        2.0
+        exp(-1.0*Ha)
+        -2.0*Ha
+        -1.0*Ha
+        0.0
+        2.0*Ha
+        0.0
+        1.0*Ha
+        2.0
+        Ha
+        1.0
+        Ha
+    Tree: Ha
+    Number of branches: 1
+        1.0
+    Tree: f14
+    Number of branches: 7
+        T+B[x]+B[y]+E[x]+E[y]+q
+        T
+        B[x]
+        B[y]
+        E[x]
+        E[y]
+        q
+    Tree: f15
+    Number of branches: 3
+        div(B)+1.0
+        div(B)
+        1.0
+    Tree: f16
+    Number of branches: 3
+        curl(E)[x]+curl(E)[y]
+        curl(E)[x]
+        curl(E)[y]
+    Tree: f17
+    Number of branches: 7
+        emin(T) + emean(B[x]) + sinh(f14)
+        emin(T)
+        emean(B[x])
+        sinh(f14)
+        T
+        B[x]
+        f14
+-----------------------------------------------------------
+Currently defined solution fields are: 
+T
+grad(T)[x]
+grad(T)[y]
+grad(T)[z]
+T_t
+B[x]
+B[y]
+B[z]
+div(B)
+B_t[x]
+B_t[y]
+B_t[z]
+E[x]
+E[y]
+E[z]
+curl(E)[x]
+curl(E)[y]
+curl(E)[z]
+E_t[x]
+E_t[y]
+E_t[z]
+q
+q_t
+Currently defined side solution fields are: 
+T
+grad(T)[x]
+grad(T)[y]
+grad(T)[z]
+B[x]
+B[y]
+B[z]
+div(B)
+E[x]
+E[y]
+E[z]
+curl(E)[x]
+curl(E)[y]
+curl(E)[z]
+q
+Currently defined point solution fields are: 
+T
+grad(T)[x]
+grad(T)[y]
+grad(T)[z]
+B[x]
+B[y]
+B[z]
+div(B)
+E[x]
+E[y]
+E[z]
+curl(E)[x]
+curl(E)[y]
+curl(E)[z]
+q
+Currently defined side scalar fields are: 
+x
+y
+z
+n[x]
+n[y]
+n[z]
+t[x]
+t[y]
+t[z]
+Currently defined point scalar fields are: 
+x
+y
+z
+Currently defined scalar fields are: 
+x
+y
+z
+
+===========================================================
+Printing functions on block: eblock-0_0
+-----------------------------------------------------------
+Forest Name:ip
+Number of Trees: 22
+    Tree: a
+    Number of branches: 1
+        1.0
+    Tree: b
+    Number of branches: 1
+        2.0
+    Tree: f0
+    Number of branches: 5
+        sin(x+y+t)
+        x+y+t
+        x
+        y
+        t
+    Tree: f1
+    Number of branches: 4
+        x+exp(y)
+        x
+        exp(y)
+        y
+    Tree: f2
+    Number of branches: 20
+        8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)
+        8
+        (pi^2)
+        sin(2*pi*x+1)
+        sin(2*pi*y+1)
+        pi^2
+        2*pi*x+1
+        2*pi*y+1
+        pi
+        2
+        2*pi*x
+        1
+        2*pi*y
+        1
+        2
+        pi
+        x
+        2
+        pi
+        y
+    Tree: f3
+    Number of branches: 4
+        -exp(x)
+        0.0
+        exp(x)
+        x
+    Tree: f4
+    Number of branches: 10
+        (a-sin(x))^(2+b)
+        (a-sin(x))
+        (2+b)
+        a-sin(x)
+        2+b
+        a
+        sin(x)
+        2
+        b
+        x
+    Tree: f5
+    Number of branches: 9
+        (a+2.0)*(b-pi)
+        (a+2.0)
+        (b-pi)
+        a+2.0
+        b-pi
+        a
+        2.0
+        b
+        pi
+    Tree: f6
+    Number of branches: 14
+        (a+b) + ((x+y)*a - 2.0)
+        (a+b)
+        ((x+y)*a-2.0)
+        a+b
+        (x+y)*a-2.0
+        a
+        b
+        (x+y)*a
+        2.0
+        (x+y)
+        a
+        x+y
+        x
+        y
+    Tree: f7
+    Number of branches: 9
+        exp(-(a+b)^2)
+        -(a+b)^2
+        0.0
+        (a+b)^2
+        (a+b)
+        2
+        a+b
+        a
+        b
+    Tree: f8
+    Number of branches: 2
+        sin(gtst)
+        gtst
+    Tree: gtst
+    Number of branches: 3
+        a+b
+        a
+        b
+    Tree: f9
+    Number of branches: 5
+        8*pi^2
+        8
+        pi^2
+        pi
+        2
+    Tree: f10
+    Number of branches: 3
+        min(a,b)
+        a
+        b
+    Tree: f11
+    Number of branches: 3
+        a <= b
+        a
+        b
+    Tree: f12
+    Number of branches: 3
+        grad(T)[x]+grad(T)[y]
+        grad(T)[x]
+        grad(T)[y]
+    Tree: f13
+    Number of branches: 19
+        (1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))
+        (1+exp(-2.0*Ha))
+        (2.0*exp(-1.0*Ha))
+        1+exp(-2.0*Ha)
+        2.0*exp(-1.0*Ha)
+        1
+        exp(-2.0*Ha)
+        2.0
+        exp(-1.0*Ha)
+        -2.0*Ha
+        -1.0*Ha
+        0.0
+        2.0*Ha
+        0.0
+        1.0*Ha
+        2.0
+        Ha
+        1.0
+        Ha
+    Tree: Ha
+    Number of branches: 1
+        1.0
+    Tree: f14
+    Number of branches: 7
+        T+B[x]+B[y]+E[x]+E[y]+q
+        T
+        B[x]
+        B[y]
+        E[x]
+        E[y]
+        q
+    Tree: f15
+    Number of branches: 3
+        div(B)+1.0
+        div(B)
+        1.0
+    Tree: f16
+    Number of branches: 3
+        curl(E)[x]+curl(E)[y]
+        curl(E)[x]
+        curl(E)[y]
+    Tree: f17
+    Number of branches: 7
+        emin(T) + emean(B[x]) + sinh(f14)
+        emin(T)
+        emean(B[x])
+        sinh(f14)
+        T
+        B[x]
+        f14
+-----------------------------------------------------------
+Forest Name:side ip
+Number of Trees: 22
+    Tree: a
+    Number of branches: 1
+        1.0
+    Tree: b
+    Number of branches: 1
+        2.0
+    Tree: f0
+    Number of branches: 5
+        sin(x+y+t)
+        x+y+t
+        x
+        y
+        t
+    Tree: f1
+    Number of branches: 4
+        x+exp(y)
+        x
+        exp(y)
+        y
+    Tree: f2
+    Number of branches: 20
+        8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)
+        8
+        (pi^2)
+        sin(2*pi*x+1)
+        sin(2*pi*y+1)
+        pi^2
+        2*pi*x+1
+        2*pi*y+1
+        pi
+        2
+        2*pi*x
+        1
+        2*pi*y
+        1
+        2
+        pi
+        x
+        2
+        pi
+        y
+    Tree: f3
+    Number of branches: 4
+        -exp(x)
+        0.0
+        exp(x)
+        x
+    Tree: f4
+    Number of branches: 10
+        (a-sin(x))^(2+b)
+        (a-sin(x))
+        (2+b)
+        a-sin(x)
+        2+b
+        a
+        sin(x)
+        2
+        b
+        x
+    Tree: f5
+    Number of branches: 9
+        (a+2.0)*(b-pi)
+        (a+2.0)
+        (b-pi)
+        a+2.0
+        b-pi
+        a
+        2.0
+        b
+        pi
+    Tree: f6
+    Number of branches: 14
+        (a+b) + ((x+y)*a - 2.0)
+        (a+b)
+        ((x+y)*a-2.0)
+        a+b
+        (x+y)*a-2.0
+        a
+        b
+        (x+y)*a
+        2.0
+        (x+y)
+        a
+        x+y
+        x
+        y
+    Tree: f7
+    Number of branches: 9
+        exp(-(a+b)^2)
+        -(a+b)^2
+        0.0
+        (a+b)^2
+        (a+b)
+        2
+        a+b
+        a
+        b
+    Tree: f8
+    Number of branches: 2
+        sin(gtst)
+        gtst
+    Tree: gtst
+    Number of branches: 3
+        a+b
+        a
+        b
+    Tree: f9
+    Number of branches: 5
+        8*pi^2
+        8
+        pi^2
+        pi
+        2
+    Tree: f10
+    Number of branches: 3
+        min(a,b)
+        a
+        b
+    Tree: f11
+    Number of branches: 3
+        a <= b
+        a
+        b
+    Tree: f12
+    Number of branches: 3
+        grad(T)[x]+grad(T)[y]
+        grad(T)[x]
+        grad(T)[y]
+    Tree: f13
+    Number of branches: 19
+        (1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))
+        (1+exp(-2.0*Ha))
+        (2.0*exp(-1.0*Ha))
+        1+exp(-2.0*Ha)
+        2.0*exp(-1.0*Ha)
+        1
+        exp(-2.0*Ha)
+        2.0
+        exp(-1.0*Ha)
+        -2.0*Ha
+        -1.0*Ha
+        0.0
+        2.0*Ha
+        0.0
+        1.0*Ha
+        2.0
+        Ha
+        1.0
+        Ha
+    Tree: Ha
+    Number of branches: 1
+        1.0
+    Tree: f14
+    Number of branches: 7
+        T+B[x]+B[y]+E[x]+E[y]+q
+        T
+        B[x]
+        B[y]
+        E[x]
+        E[y]
+        q
+    Tree: f15
+    Number of branches: 3
+        div(B)+1.0
+        div(B)
+        1.0
+    Tree: f16
+    Number of branches: 3
+        curl(E)[x]+curl(E)[y]
+        curl(E)[x]
+        curl(E)[y]
+    Tree: f17
+    Number of branches: 7
+        emin(T) + emean(B[x]) + sinh(f14)
+        emin(T)
+        emean(B[x])
+        sinh(f14)
+        T
+        B[x]
+        f14
+-----------------------------------------------------------
+Forest Name:point
+Number of Trees: 22
+    Tree: a
+    Number of branches: 1
+        1.0
+    Tree: b
+    Number of branches: 1
+        2.0
+    Tree: f0
+    Number of branches: 5
+        sin(x+y+t)
+        x+y+t
+        x
+        y
+        t
+    Tree: f1
+    Number of branches: 4
+        x+exp(y)
+        x
+        exp(y)
+        y
+    Tree: f2
+    Number of branches: 20
+        8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)
+        8
+        (pi^2)
+        sin(2*pi*x+1)
+        sin(2*pi*y+1)
+        pi^2
+        2*pi*x+1
+        2*pi*y+1
+        pi
+        2
+        2*pi*x
+        1
+        2*pi*y
+        1
+        2
+        pi
+        x
+        2
+        pi
+        y
+    Tree: f3
+    Number of branches: 4
+        -exp(x)
+        0.0
+        exp(x)
+        x
+    Tree: f4
+    Number of branches: 10
+        (a-sin(x))^(2+b)
+        (a-sin(x))
+        (2+b)
+        a-sin(x)
+        2+b
+        a
+        sin(x)
+        2
+        b
+        x
+    Tree: f5
+    Number of branches: 9
+        (a+2.0)*(b-pi)
+        (a+2.0)
+        (b-pi)
+        a+2.0
+        b-pi
+        a
+        2.0
+        b
+        pi
+    Tree: f6
+    Number of branches: 14
+        (a+b) + ((x+y)*a - 2.0)
+        (a+b)
+        ((x+y)*a-2.0)
+        a+b
+        (x+y)*a-2.0
+        a
+        b
+        (x+y)*a
+        2.0
+        (x+y)
+        a
+        x+y
+        x
+        y
+    Tree: f7
+    Number of branches: 9
+        exp(-(a+b)^2)
+        -(a+b)^2
+        0.0
+        (a+b)^2
+        (a+b)
+        2
+        a+b
+        a
+        b
+    Tree: f8
+    Number of branches: 2
+        sin(gtst)
+        gtst
+    Tree: gtst
+    Number of branches: 3
+        a+b
+        a
+        b
+    Tree: f9
+    Number of branches: 5
+        8*pi^2
+        8
+        pi^2
+        pi
+        2
+    Tree: f10
+    Number of branches: 3
+        min(a,b)
+        a
+        b
+    Tree: f11
+    Number of branches: 3
+        a <= b
+        a
+        b
+    Tree: f12
+    Number of branches: 3
+        grad(T)[x]+grad(T)[y]
+        grad(T)[x]
+        grad(T)[y]
+    Tree: f13
+    Number of branches: 19
+        (1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))
+        (1+exp(-2.0*Ha))
+        (2.0*exp(-1.0*Ha))
+        1+exp(-2.0*Ha)
+        2.0*exp(-1.0*Ha)
+        1
+        exp(-2.0*Ha)
+        2.0
+        exp(-1.0*Ha)
+        -2.0*Ha
+        -1.0*Ha
+        0.0
+        2.0*Ha
+        0.0
+        1.0*Ha
+        2.0
+        Ha
+        1.0
+        Ha
+    Tree: Ha
+    Number of branches: 1
+        1.0
+    Tree: f14
+    Number of branches: 7
+        T+B[x]+B[y]+E[x]+E[y]+q
+        T
+        B[x]
+        B[y]
+        E[x]
+        E[y]
+        q
+    Tree: f15
+    Number of branches: 3
+        div(B)+1.0
+        div(B)
+        1.0
+    Tree: f16
+    Number of branches: 3
+        curl(E)[x]+curl(E)[y]
+        curl(E)[x]
+        curl(E)[y]
+    Tree: f17
+    Number of branches: 7
+        emin(T) + emean(B[x]) + sinh(f14)
+        emin(T)
+        emean(B[x])
+        sinh(f14)
+        T
+        B[x]
+        f14
+-----------------------------------------------------------
+Currently defined solution fields are: 
+T
+grad(T)[x]
+grad(T)[y]
+grad(T)[z]
+T_t
+B[x]
+B[y]
+B[z]
+div(B)
+B_t[x]
+B_t[y]
+B_t[z]
+E[x]
+E[y]
+E[z]
+curl(E)[x]
+curl(E)[y]
+curl(E)[z]
+E_t[x]
+E_t[y]
+E_t[z]
+q
+q_t
+Currently defined side solution fields are: 
+T
+grad(T)[x]
+grad(T)[y]
+grad(T)[z]
+B[x]
+B[y]
+B[z]
+div(B)
+E[x]
+E[y]
+E[z]
+curl(E)[x]
+curl(E)[y]
+curl(E)[z]
+q
+Currently defined point solution fields are: 
+T
+grad(T)[x]
+grad(T)[y]
+grad(T)[z]
+B[x]
+B[y]
+B[z]
+div(B)
+E[x]
+E[y]
+E[z]
+curl(E)[x]
+curl(E)[y]
+curl(E)[z]
+q
+Currently defined side scalar fields are: 
+x
+y
+z
+n[x]
+n[y]
+n[z]
+t[x]
+t[y]
+t[z]
+Currently defined point scalar fields are: 
+x
+y
+z
+Currently defined scalar fields are: 
+x
+y
+z
+
+*********************************************
+Printing settings used by MrHyDE (ignore unused keyword):
+verbosity = 100
+disable timers = 1
+debug level = 0
+profile = 0   [default]
+print timers = 0   [default]
+enable memory purge = 0   [default]
+Mesh -> 
+ dimension = 2
+ element type = quad
+ xmin = 0
+ xmax = 1
+ ymin = 0
+ ymax = 1
+ NX = 2
+ NY = 2
+ use STK mesh = 1   [default]
+ use simple mesh = 0   [default]
+ shape = none   [default]
+ dim = 0   [default]
+ compute mesh data = 0   [default]
+ data file = none   [default]
+ numNodesPerElem = 4
+ source = Internal   [default]
+ Xblocks = 1   [default]
+ Xprocs = 1   [default]
+ Yblocks = 1   [default]
+ Yprocs = 1   [default]
+ have element data = 0   [default]
+ have nodal data = 0   [default]
+ Periodic Boundaries =    [default]
+ use measurements as DBCs = 0   [default]
+Functions -> 
+ a = 1.0   [unused]
+ b = 2.0   [unused]
+ f0 = sin(x+y+t)   [unused]
+ f1 = x+exp(y)   [unused]
+ f2 = 8*(pi^2)*sin(2*pi*x+1)*sin(2*pi*y+1)   [unused]
+ f3 = -exp(x)   [unused]
+ f4 = (a-sin(x))^(2+b)   [unused]
+ f5 = (a+2.0)*(b-pi)   [unused]
+ f6 = (a+b) + ((x+y)*a - 2.0)   [unused]
+ f7 = exp(-(a+b)^2)   [unused]
+ f8 = sin(gtst)   [unused]
+ gtst = a+b   [unused]
+ f9 = 8*pi^2   [unused]
+ f10 = min(a,b)   [unused]
+ f11 = a <= b   [unused]
+ f12 = grad(T)[x]+grad(T)[y]   [unused]
+ f13 = (1+exp(-2.0*Ha))/(2.0*exp(-1.0*Ha))   [unused]
+ Ha = 1.0   [unused]
+ f14 = T+B[x]+B[y]+E[x]+E[y]+q   [unused]
+ f15 = div(B)+1.0   [unused]
+ f16 = curl(E)[x]+curl(E)[y]   [unused]
+ f17 = emin(T) + emean(B[x]) + sinh(f14)   [unused]
+Physics -> 
+ modules = none   [unused]
+ use custom initial param guess = 0   [default]
+ Extra variables -> 
+  T = HGRAD   [unused]
+  B = HDIV   [unused]
+  E = HCURL   [unused]
+  q = HVOL   [unused]
+Discretization -> 
+ quadrature = 2   [unused]
+ order -> 
+  T = 1   [unused]
+  B = 1   [unused]
+  E = 1   [unused]
+  q = 1   [unused]
+Solver -> 
+ solver = none
+ solution for x-mesh mod = -1   [default]
+ solution for y-mesh mod = -1   [default]
+ solution for z-mesh mod = -1   [default]
+ solution based mesh mod TOL = 1   [default]
+ solution based mesh mod smoother = 0   [default]
+ solution based mesh mod param = 0.1   [default]
+ solution based mesh mod layer thickness = 0.1   [default]
+ minimize memory = 0   [default]
+ initial time = 0   [default]
+ final time = 1   [default]
+ delta t = 1   [default]
+ use strong DBCs = 1   [default]
+ fix zero rows = 0   [default]
+ lump mass = 0   [default]
+ matrix free = 0   [default]
+ assembly partitioning = sequential   [default]
+ enable autotune = 1   [default]
+ store nodes = 1   [default]
+ storage proportion = 1   [default]
+ workset size = 100   [default]
+ Use Mortar Objective = 0   [default]
+ use basis database = 0   [default]
+ use mass database = 0   [default]
+ use ip database = 0   [default]
+ store mass = 1   [default]
+ have multidata = 0   [default]
+ fully explicit = 0   [default]
+ max subgrid ML training steps = 10   [default]
+ have ML models = 0   [default]
+ maximum storage = 100   [default]
+ storage time tol = 1e-10   [default]
+ use custom PCG = 0   [default]
+ nonlinear TOL = 1e-06   [default]
+ absolute nonlinear TOL = 1e-06   [default]
+ max nonlinear iters = 10   [default]
+ max subcycles = 1   [default]
+ use relative TOL = 1   [default]
+ use absolute TOL = 0   [default]
+ allow backtracking = 1   [default]
+ compute forward sensitivities = 0   [default]
+ maximum time step cuts = 5   [default]
+ explicit amplification factor = 10   [default]
+ initial type = L2-projection   [default]
+ transient Butcher tableau = BWE   [default]
+ transient BDF order = 1   [default]
+ transient startup Butcher tableau = BWE   [default]
+ transient startup BDF order = 1   [default]
+ transient startup steps = 1   [default]
+ keep nodes = 0   [default]
+ linear TOL = 1e-07   [default]
+ Estimate Condition Number = 0   [default]
+ max linear iters = 100   [default]
+ krylov vectors = 100   [default]
+ Belos implicit residual scaling = None   [default]
+ dump jacobian = 0   [default]
+ dump residual = 0   [default]
+ dump solution = 0   [default]
+Analysis -> 
+ analysis type = dry run
+ Load Sensor Files = 0   [default]
+ Write Sensor Files = 0   [default]
+ multiscale split comm = 0   [default]
+ have sensor data = 0   [default]
+ save sensor data = 0   [default]
+ sensor prefix = sensor   [default]
+ additive normal noise standard dev = 0   [default]
+Postprocess -> 
+ write solution = 0
+ create optimization movie = 0   [default]
+ Compute Difference in Objective = 1   [default]
+ Use fine scale sensors = 1   [default]
+ response type = pointwise   [default]
+ plot solution at nodes = 0   [default]
+ compute responses = 0   [default]
+ write responses = 0   [default]
+ compute errors = 0   [default]
+ write frequency = 1   [default]
+ exodus write frequency = 1   [default]
+ write group number = 0   [default]
+ write subgrid solution = 0   [default]
+ write HFACE variables = 0   [default]
+ output file = output   [default]
+ compute objective = 0   [default]
+ objective output file =    [default]
+ objective gradient output file =    [default]
+ scale factor for discrete objective = 1   [default]
+ extra grp field reduction = mean   [default]
+ compute flux response = 0   [default]
+ store sensor solution = 0   [default]
+ file output format = text   [default]
+ exodus record start time = -1.79769e+308   [default]
+ exodus record stop time = 1.79769e+308   [default]
+ record start time = -1.79769e+308   [default]
+ record stop time = 1.79769e+308   [default]
+ compute integrated quantities = 0   [default]
+ compute weighted norm = 0   [default]
+ write Dakota output = 0   [default]
+Parameters -> 
+ [empty list]
+*********************************************
+ **** MrHyDE has completed the dry run with verbosity: 100
