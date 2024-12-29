@@ -341,9 +341,11 @@ void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("div("+var+")", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("div("+var+")", set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,4) == "HVOL") {
@@ -368,9 +370,15 @@ void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
     
   }
   else if (basistype.substr(0,5) == "HFACE") {
@@ -1431,33 +1439,34 @@ int Workset<EvalT>::addIntegratedQuantities(const int & nRequested) {
 
 template<class EvalT>
 void Workset<EvalT>::printSolutionFields() {
-  cout << "Currently defined fields are: " << endl;
+  cout << "Currently defined solution fields are: " << endl;
   for (size_t f=0; f<soln_fields.size(); ++f) {
     cout << soln_fields[f].expression_ << endl;
+  }
+  cout << "Currently defined side solution fields are: " << endl;
+  for (size_t f=0; f<side_soln_fields.size(); ++f) {
+    cout << side_soln_fields[f].expression_ << endl;
+  }
+  cout << "Currently defined point solution fields are: " << endl;
+  for (size_t f=0; f<point_soln_fields.size(); ++f) {
+    cout << point_soln_fields[f].expression_ << endl;
   }
 }
 
 template<class EvalT>
 void Workset<EvalT>::printScalarFields() {
-  if (isOnSide) {
-    cout << "Currently defined side scalar fields are: " << endl;
-    for (size_t f=0; f<side_scalar_fields.size(); ++f) {
-      cout << side_scalar_fields[f].expression_ << endl;
-    }
+  cout << "Currently defined side scalar fields are: " << endl;
+  for (size_t f=0; f<side_scalar_fields.size(); ++f) {
+    cout << side_scalar_fields[f].expression_ << endl;
   }
-  else if (isOnPoint) {
-    cout << "Currently defined point scalar fields are: " << endl;
-    for (size_t f=0; f<point_scalar_fields.size(); ++f) {
-      cout << point_scalar_fields[f].expression_ << endl;
-    }
+  cout << "Currently defined point scalar fields are: " << endl;
+  for (size_t f=0; f<point_scalar_fields.size(); ++f) {
+    cout << point_scalar_fields[f].expression_ << endl;
   }
-  else {
-    cout << "Currently defined scalar fields are: " << endl;
-    for (size_t f=0; f<scalar_fields.size(); ++f) {
-      cout << scalar_fields[f].expression_ << endl;
-    }
+  cout << "Currently defined scalar fields are: " << endl;
+  for (size_t f=0; f<scalar_fields.size(); ++f) {
+    cout << scalar_fields[f].expression_ << endl;
   }
-  
 }
 
 //////////////////////////////////////////////////////////////

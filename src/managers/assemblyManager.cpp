@@ -5560,6 +5560,8 @@ void AssemblyManager<Node>::finalizeFunctions(Teuchos::RCP<FunctionManager<EvalT
     fman->decomposeFunctions();
     if (verbosity >= 20) {
       fman->printFunctions();
+      wset->printSolutionFields();
+      wset->printScalarFields();
     }
   }
 }
