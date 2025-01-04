@@ -262,10 +262,12 @@ View_Sc1 UQManager::KDE(View_Sc2 seedpts, View_Sc2 evalpts) {
   View_Sc1 variance = this->computeVariance(seedpts);
 
   ScalarT Nsc = static_cast<ScalarT>(Ns);
+  ScalarT dimsc = static_cast<ScalarT>(dim);
 
   vector<ScalarT> sigma(dim,0.0), coeff(dim,0.0);
+  ScalarT scale = std::pow(Nsc,-1.0/(4.0+dimsc));
   for (size_type d=0; d<dim; ++d) {
-    sigma[d] = 1.06*std::sqrt(variance(d))*std::pow(Ns,-1.0/5.0);
+    sigma[d] = 1.06*std::sqrt(variance(d))*scale;
     coeff[d] = 1.0/(std::sqrt(2.0*PI*sigma[d]*sigma[d]));
   }
 
@@ -306,7 +308,7 @@ View_Sc1 UQManager::computeVariance(View_Sc2 pts) {
     }
     ScalarT var = 0.0;
     for (size_type k=0; k<N; ++k) {
-      var += (pts_host(k,i)-mean)*(pts_host(k,i)-mean)/Nsc;
+      var += (pts_host(k,i)-mean)*(pts_host(k,i)-mean)/(Nsc-1.0);
     }
     vars(i) = var;
   }

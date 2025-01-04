@@ -892,33 +892,119 @@ void AnalysisManager::readExoForwardSolve() {
 // ========================================================================================
 
 void AnalysisManager::DCISolve() {
+  
   // Evaluate model or a surrogate at these samples
   vector<Teuchos::Array<ScalarT> > response_values = this->UQSolve();
+  size_t Nresp = response_values.size();
+  size_t resp_dim = response_values[0].size();
   
-  // Get the UQ sublist
-  Teuchos::ParameterList uqsettings_ = settings_->sublist("Analysis").sublist("UQ");
+  View_Sc2 predvals("predicted data", Nresp, resp_dim);
+  for (size_t i=0; i<Nresp; ++i) { // TMW: this is me being lazy - not careful about CPU vs GPU
+    for (size_t j=0; j<resp_dim; ++j) {
+      predvals(i,j) = response_values[i][j];
+    }
+  }
+  
+  // Create an empty UQ manager (just for the tools)
+  UQManager UQ;
   
   // Get the DCI sublist
   Teuchos::ParameterList dcisettings_ = settings_->sublist("Analysis").sublist("DCI");
   
-  // Need to evaluate the observed density at samples using either an analytic density or a KDE built from data2
+  // Need to evaluate the observed density at response samples using either an analytic density or a KDE built from data2
   string obs_type = dcisettings_.get<string>("observed type","Gaussian"); // other options: uniform or data
   
-  View_Sc1 obsdens("observed density values",response_values.size());
+  View_Sc1 obsdens("observed density values",Nresp);
   
-  if (obs_type == "Gaussian") {
-    
+  if (obs_type == "Gaussian") { // assumes 1D
+    ScalarT obs_mean = dcisettings_.get<ScalarT>("observed mean",0.0);
+    ScalarT obs_var = dcisettings_.get<ScalarT>("observed variance",1.0);
+    for (size_t i=0; i<obsdens.extent(0); ++i) {
+      ScalarT diff = predvals(i,0) - obs_mean;
+      obsdens(i) = 1.0/(std::sqrt(2.0*PI)*std::sqrt(obs_var))*std::exp(-1.0*diff*diff/(2.0*obs_var));
+    }
   }
-  else if (obs_type == "uniform") {
-    
+  else if (obs_type == "uniform") { // assumes 1D
+    ScalarT obs_min = dcisettings_.get<ScalarT>("observed min",0.0);
+    ScalarT obs_max = dcisettings_.get<ScalarT>("observed max",1.0);
+    ScalarT scale = 1.0/(obs_max-obs_min);
+    for (size_t i=0; i<obsdens.extent(0); ++i) {
+      if (predvals(i,0) > obs_min && predvals(i,0) < obs_max) {
+        obsdens(i) = scale;
+      }
+      else {
+        obsdens(i) = 0.0;
+      }
+    }
   }
   else if (obs_type == "data") {
-    // load in data
+    // load in data - should be given by a matrix of size Ndata x resp_dim
+    string obs_file = dcisettings_.get<string>("observed file","observed.dat");
+    Data obsdata = Data("observed data", obs_file);
     
-    // build KDE
+    // Data class is designed for unstructured data sets, but this is structured, so we can simplify
+    std::vector<Kokkos::View<ScalarT**,HostDevice> > datavec = obsdata.getData();
+    Kokkos::View<ScalarT**,HostDevice> datavals = datavec[0];
     
-    
+    // build KDE and evaluate at the response data points (this is where we need it)
+    View_Sc1 tmpdens = UQ.KDE(datavals, predvals);
+    obsdens = tmpdens; // change pointer rather than copying data
   }
+  
+  // Evaluate the predicted density
+  View_Sc1 preddens = UQ.KDE(predvals, predvals);
+  
+  // Compute the ratio of observed/predicted
+  View_Sc1 ratio("DCI ratio", Nresp);
+  
+  for (size_type i=0; i<ratio.extent(0); ++i) {
+    ratio(i) = obsdens(i)/preddens(i);
+  }
+  
+  // Diagnostics
+  ScalarT meanr = 0.0, KLdivr = 0.0;
+  ScalarT Nrespsc = static_cast<ScalarT>(Nresp);
+  for (size_type i=0; i<ratio.extent(0); ++i) {
+    meanr += ratio(i)/Nrespsc;
+    KLdivr += ratio(i)*std::log(ratio(i)+1.0e-13)/Nrespsc;
+  }
+  
+  cout << " DCI diagnostics:" << endl;
+  cout << "     Mean of ratio: " << meanr << endl;
+  cout << "     Information gained: " << KLdivr << endl;
+  
+  // Rejection sampling
+  bool reject = dcisettings_.get<bool>("rejection sampling",true);
+  if (reject) {
+    int seed = dcisettings_.get<int>("rejection seed",123);
+    Kokkos::View<bool*,HostDevice> accept = UQ.rejectionSampling(ratio, seed);
+    // Print out the accepted samples
+    string sname = "accepted_data.dat";
+    std::ofstream ACCOUT(sname.c_str());
+    ACCOUT.precision(12);
+    for (size_t r=0; r<ratio.extent(0); r++) {
+      if (accept(r)) {
+        for (size_t j=0; j<Nresp; ++j) {
+          ACCOUT << predvals(r,j) << " ";
+        }
+        ACCOUT << endl;
+      }
+    }
+    ACCOUT.close();
+  }
+  
+  // Print out the DCI data
+  string sname = "DCI_output.dat";
+  std::ofstream DCIOUT(sname.c_str());
+  DCIOUT.precision(12);
+  for (size_t r=0; r<ratio.extent(0); r++) {
+    for (size_t i=0; i<resp_dim; ++i) {
+      DCIOUT << predvals(r,i) << " ";
+    }
+    DCIOUT << preddens(r) << " " << obsdens(r) << " ";
+    DCIOUT << endl;
+  }
+  DCIOUT.close();
 }
 
 // ========================================================================================

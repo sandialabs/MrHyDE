@@ -35,6 +35,7 @@ Data::Data(const std::string & name_, const std::string & datafile) {
   is_timedep = false;
   is_stochastic = false;
   
+  this->importData(datafile);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -166,7 +167,7 @@ void Data::importPoints(const std::string & ptsfile, const int & spaceDim) {
   
   std::ifstream fnmast(ptsfile.c_str());
   if (!fnmast.good()) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: could not find the data point file: " + ptsfile);
+    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: MrHyDE could not find the data point file: " + ptsfile);
   }
   
   FILE* PointsFile = fopen(ptsfile.c_str(),"r");
