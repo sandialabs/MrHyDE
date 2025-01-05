@@ -199,6 +199,9 @@ New params: 1.77652 1.13971
 Finished evaluating sample number: 99 out of 100
 New params: 1.98345 -0.508836 
 Finished evaluating sample number: 100 out of 100
- DCI diagnostics:
-     Mean of ratio: 1.10113
-     Information gained: 0.650613
+DCI diagnostics:
+    Mean of ratio: 1.10113
+    Information gained: 0.650613
+    Acceptance rate: 43%
+    Mean of accepted responses: 0.000650611  
+    Variance of accepted responses: 8.78443e-05  
