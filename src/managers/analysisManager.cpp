@@ -97,9 +97,14 @@ void AnalysisManager::run(std::string & analysis_type) {
       this->readExoForwardSolve();
   }
 #endif
-  
-    else if (analysis_type == "DCI") {
+  else if (analysis_type == "DCI") {
     this->DCISolve();
+  }
+  else if (analysis_type == "Scalable DCI") {
+    this->ScalableDCISolve();
+  }
+  else if (analysis_type == "Scalable Bayes") { 
+    this->ScalableBayesSolve();
   }
   else if (analysis_type == "restart") {
     this->restartSolve();
@@ -1056,6 +1061,41 @@ void AnalysisManager::DCISolve() {
     }
     DCIOUT.close();
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void AnalysisManager::ScalableDCISolve() {
+  // This differs significantly from the sampling-based DCI solver
+  // We first find the Bayesian MAP point, and then the DCI MUD point
+  // This is meant for problems where the input parameters are a discretized field
+  
+  // Need to check and make sure the user defines everything properly
+  
+  // Find the Bayesian MAP point
+  
+  // If linear, find the MUD point and low-rank update of covariance
+  
+  // If nonlinear, apply partial linearization method
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void AnalysisManager::ScalableBayesSolve() {
+  
+  // This is meant for problems where the input parameters are a discretized field
+  
+  // Need to check and make sure the user defines everything properly
+  
+  // Solve for MAP point
+  
+  // Construct low-rank update to the covariance matrix
+  
+  // Develop some sort of diagnostic to assess validity of Laplace approximation of posterior
+  
 }
 
 // ========================================================================================
