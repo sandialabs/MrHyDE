@@ -327,16 +327,19 @@ class xml_document:
       elmt.appendChild(e)
     self.root.appendChild(elmt)
     self.skipped += test.skipped
+    fname = test.fname[0:-11]
+    if test.statusStr == 'FAIL':
+      fname = '*' + fname + '*'
     if self.opts.printKeywords :
       stmt2 = '%4i/%i %10s%8.2fs  np=%s    %75s    %s' \
               % (test.index+1, self.list_length, \
-                 test.statusStr, runtime, test.nprocs, test.fname[0:-11], test.include_keywords)
+                 test.statusStr, runtime, test.nprocs, fname, test.include_keywords)
       print(stmt2 + ' '*(max(0,len(test.stmt)-len(stmt2))))
     else :
       stmt2 = '%4i/%i %10s%8.2fs  np=%s    %75s' \
               % (test.index+1, self.list_length, \
-                 test.statusStr, runtime, test.nprocs, test.fname[0:-11])
-      print(stmt2) #+ ' '*(max(0,len(test.stmt)-len(stmt2)))
+                 test.statusStr, runtime, test.nprocs, fname)
+      print(stmt2)
     
 
 #===============================================================================
@@ -374,7 +377,7 @@ def serial_testing(opts,listOfTests,doc):
     # get completion status
     if test.status:
       failed += 1
-      test.statusStr = 'fail'
+      test.statusStr = 'FAIL'
     else:
       passed += 1
       test.statusStr = 'pass'
@@ -481,7 +484,7 @@ def smp_testing(opts,listOfTests,doc):
           if test.status:
             failed += 1
             doc.failed += 1
-            test.statusStr = 'fail'
+            test.statusStr = 'FAIL'
           else:
             passed += 1
             test.statusStr = 'pass'
@@ -670,19 +673,19 @@ def queue_results(opts, doc, listOfTests, hostname):
         statusStr = 'pass'
       elif ' F' == job_state:
         failed += 1
-        statusStr = 'fail'
+        statusStr = 'FAIL'
       elif 'CA' == job_state:
         # job was canceled
         failed += 1
-        statusStr = 'fail'
+        statusStr = 'FAIL'
       elif 'NF' == job_state:
         # node failed
         failed += 1
-        statusStr = 'fail'
+        statusStr = 'FAIL'
       elif 'TO' == job_state:
         # job timed out
         failed += 1
-        statusStr = 'fail'
+        statusStr = 'FAIL'
       if statusStr != '?':
         # read log file if present
         loc = Stail.find('.tst')
