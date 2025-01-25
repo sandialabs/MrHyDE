@@ -127,16 +127,17 @@ namespace MrHyDE {
     // ========================================================================================
 
     void computeObjectiveGradParam(vector<vector_RCP> & current_soln, const ScalarT & current_time,
-                                   DFAD & objectiveval);
+                                   const ScalarT & deltat, DFAD & objectiveval);
 
     // ========================================================================================
     // ========================================================================================
 
     template<class EvalT>
     DFAD computeObjectiveGradParam(const size_t & obj, vector<vector_RCP> & current_soln,
-                                                         const ScalarT & current_time,
-                                                         Teuchos::RCP<Workset<EvalT> > & wset,
-                                                         Teuchos::RCP<FunctionManager<EvalT> > & fman);
+                                   const ScalarT & current_time,
+                                   const ScalarT & deltat,
+                                   Teuchos::RCP<Workset<EvalT> > & wset,
+                                   Teuchos::RCP<FunctionManager<EvalT> > & fman);
 
     // ========================================================================================
     // ========================================================================================

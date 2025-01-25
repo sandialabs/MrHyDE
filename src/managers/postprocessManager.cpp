@@ -2441,6 +2441,7 @@ void PostprocessManager<Node>::reportObjective(ScalarT & objectiveval) {
 template<class Node>
 void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & current_soln,
                                                          const ScalarT & current_time,
+                                                         const ScalarT & dt,
                                                          DFAD & objectiveval) {
   
   debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradParam ...");
@@ -2450,42 +2451,42 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> & cu
     DFAD newobj = 0.0;
     size_t block = objectives[r].block;
     if (assembler->type_AD == -1) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD[block],
                                                assembler->function_managers_AD[block]);
     }
     else if (assembler->type_AD == 2) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD2[block],
                                                assembler->function_managers_AD2[block]);
     }
     else if (assembler->type_AD == 4) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD4[block],
                                                assembler->function_managers_AD4[block]);
     }
     else if (assembler->type_AD == 8) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD8[block],
                                                assembler->function_managers_AD8[block]);
     }
     else if (assembler->type_AD == 16) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD16[block],
                                                assembler->function_managers_AD16[block]);
     }
     else if (assembler->type_AD == 18) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD18[block],
                                                assembler->function_managers_AD18[block]);
     }
     else if (assembler->type_AD == 24) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD24[block],
                                                assembler->function_managers_AD24[block]);
     }
     else if (assembler->type_AD == 32) {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time,
+      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
                                                assembler->wkset_AD32[block],
                                                assembler->function_managers_AD32[block]);
     }
@@ -2512,6 +2513,7 @@ template<class Node>
 template<class EvalT>
 DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vector<vector_RCP> & current_soln,
                                                          const ScalarT & current_time,
+                                                         const ScalarT & dt,
                                                          Teuchos::RCP<Workset<EvalT> > & wset,
                                                          Teuchos::RCP<FunctionManager<EvalT> > & fman) {
   
@@ -2566,18 +2568,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
       params_kv.push_back(p_dev);
     }
   }
-  
-  // We are on a given time step
-  // Need to find the appropriate dt to scale the objective value and gradient
-  ScalarT dt = 1.0;
-  if (objectives[obj].objective_times.size() > 1) {
-    for (size_t t=1; t<objectives[obj].objective_times.size(); ++t) {
-      if (std::abs(objectives[obj].objective_times[t]-current_time)/current_time < 1.0e-12) {
-        dt = objectives[obj].objective_times[t] - objectives[obj].objective_times[t-1];
-      }
-    }
-  }
-  
+    
   // Objective function values
   ScalarT objval = 0.0;
   
@@ -3160,6 +3151,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
       if (objectives[obj].regularizations[reg].location == "volume") {
         params->sacadoizeParams(false);
         ScalarT regwt = objectives[obj].regularizations[reg].weight;
+        
         for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
           
           auto wts = assembler->groups[block][grp]->wts;
@@ -3206,7 +3198,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                 for (size_t row=0; row<poffs[pp].size(); row++) {
                   LO rowIndex = LIDs(elem,poffs[pp][row]) + params->num_active_params;
                   int poffset = poffs[pp][row]+1;
-                  gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset);
+                  gradient[rowIndex] += regwt*dt*regvals_sc_host(elem,pt,poffset);
                 }
               }
             }
@@ -3268,7 +3260,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t & obj, vec
                     //GO rowIndex = paramGIDs[poffs[pp][row]] + params->num_active_params;
                     GO rowIndex = LIDs(elem,poffs[pp][row]) + params->num_active_params;
                     int poffset = poffs[pp][row];
-                    gradient[rowIndex] += regwt*regvals_sc_host(elem,pt,poffset+1);
+                    gradient[rowIndex] += regwt*dt*regvals_sc_host(elem,pt,poffset+1);
                   }
                 }
               }
@@ -4004,7 +3996,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> & u,
   }
   DFAD obj_sens = 0.0;
   if (response_type != "discrete") {
-    this->computeObjectiveGradParam(u, current_time, obj_sens);
+    this->computeObjectiveGradParam(u, current_time, deltat, obj_sens);
   }
   
   size_t set = 0; // hard coded for now
