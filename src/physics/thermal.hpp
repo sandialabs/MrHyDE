@@ -96,9 +96,9 @@ namespace MrHyDE {
 
   private:
     
-    int e_num = -1, ux_num = -1, uy_num = -1, uz_num = -1;
-    int e_basis_num = -1;
-    int auxe_num = -1;
+    int T_num = -1, ux_num = -1, uy_num = -1, uz_num = -1;
+    int T_basis_num = -1;
+    int auxT_num = -1;
     int IQ_start;
     
     //View_AD2 e_vol, dedt_vol, dedx_vol, dedy_vol, dedz_vol;
