@@ -16,16 +16,16 @@ ANONYMOUS:
     modules: thermal
     assemble face terms: true
     Active variables:
-      e: HFACE
+      T: HFACE
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: '0.0'
     Initial conditions:
-      e: 'sin(2.0*pi*x)*sin(2.0*pi*y)'
+      T: 'sin(2.0*pi*x)*sin(2.0*pi*y)'
   Subgrid input file: subgrid_input.yaml
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Solver:
     solver: transient
@@ -40,6 +40,6 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     True solutions:
-      e: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
-      e face: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
+      T: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
+      T face: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
 ...

@@ -10,15 +10,15 @@ ANONYMOUS:
     Physics: 
       modules: thermal
       Initial conditions:
-        e: 'sin(2.0*pi*x)*sin(2.0*pi*y)'
+        T: 'sin(2.0*pi*x)*sin(2.0*pi*y)'
     Discretization:
       order:
-        e: 1
+        T: 1
       quadrature: 2
     Solver:
       solver: transient
     Postprocess:
       compute errors: true
       True solutions:
-        e: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
+        T: sin(2.0*pi*x)*sin(2.0*pi*y)*exp(-8.0*pi*pi*t)
 ...

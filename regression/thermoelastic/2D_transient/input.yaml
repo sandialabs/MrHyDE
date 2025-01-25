@@ -18,20 +18,20 @@ ANONYMOUS:
       assemble boundary terms: false
       Dirichlet conditions:
         scalar data: false
-        e:
+        T:
           all boundaries: '0.0'
         dx:
           all boundaries: '0.0'
         dy:
           all boundaries: '0.0'
       Initial conditions:
-        e: '0.0'
+        T: '0.0'
         dx: '0.0'
         dy: '0.0'
   Discretization:
     eblock-0_0:
       order:
-        e: 1
+        T: 1
         dx: 1
         dy: 1
       quadrature: 2
@@ -52,7 +52,7 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     True solutions:
-      e: '0.0'
+      T: '0.0'
       dx: '0.0'
       dy: '0.0'
 ...

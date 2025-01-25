@@ -874,7 +874,7 @@ void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_)
       dy_num = i;
     else if (varlist[i] == "dz")
       dz_num = i;
-    else if (varlist[i] == "e")
+    else if (varlist[i] == "T")
       e_num = i;
     else if (varlist[i] == "p")
       p_num = i;
@@ -893,7 +893,7 @@ void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_)
       auxdy_num = i;
     else if (auxvarlist[i] == "dz")
       auxdz_num = i;
-    else if (auxvarlist[i] == "e")
+    else if (auxvarlist[i] == "T")
       auxe_num = i;
     else if (auxvarlist[i] == "p")
       auxp_num = i;
@@ -944,7 +944,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1002,7 +1002,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1075,7 +1075,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           }
         });
         if (e_num>=0) { // include thermoelastic
-          auto T = wkset->getSolutionField("e");
+          auto T = wkset->getSolutionField("T");
           parallel_for("LE stress 3D TE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int e ) {
@@ -1132,7 +1132,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {
@@ -1194,7 +1194,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          KOKKOS_LAMBDA (const int e ) {

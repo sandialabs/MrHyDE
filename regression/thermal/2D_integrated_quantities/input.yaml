@@ -20,17 +20,17 @@ ANONYMOUS:
     test integrated quantities: true
     Dirichlet conditions:
       scalar data: true
-      e:
+      T:
         top: 0.0
         bottom: 0.0
         left: 0.0
         right: 0.0
     Initial conditions:
       scalar data: true
-      e: 0.0
+      T: 0.0
   Discretization:
     order:
-      e: 2
+      T: 2
     quadrature: 2
   Solver: 
     solver: steady-state
@@ -41,22 +41,22 @@ ANONYMOUS:
     compute integrated quantities: true
     compute errors: true
     True solutions:
-      e: sin(pi*x)*sin(pi*y)
+      T: sin(pi*x)*sin(pi*y)
     Integrated quantities:
       vol:
         integrand: '1.'
       total e:
-        integrand: 'e'
+        integrand: 'T'
         location: 'volume'
       bnd:
         integrand: '1.'
         location: 'boundary'
       left:
-        integrand: 'n[x]*grad(e)[x] + n[y]*grad(e)[y]'
+        integrand: 'n[x]*grad(T)[x] + n[y]*grad(T)[y]'
         location: 'boundary'
         boundary names: 'left'
       bnd e:
-        integrand: 'e'
+        integrand: 'T'
         location: 'boundary'
   Functions:
     thermal source: 2*(pi*pi)*sin(pi*x)*sin(pi*y)

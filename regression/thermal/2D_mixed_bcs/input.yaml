@@ -14,18 +14,18 @@ ANONYMOUS:
   Physics: 
     modules: thermal
     Dirichlet conditions:
-      e:
+      T:
         left: '0.0'
         right: '0.0'
     Neumann conditions:
-      e:
+      T:
         top: 2*pi*sin(2*pi*x)*cos(2*pi*y)
         bottom: -2*pi*sin(2*pi*x)*cos(2*pi*y)
     Initial conditions:
-      e: '0.0'
+      T: '0.0'
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Functions:
     thermal source: '8*pi*pi*sin(2*pi*x)*sin(2*pi*y)'
@@ -39,5 +39,5 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     True solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
+      T: sin(2*pi*x)*sin(2*pi*y)
 ...

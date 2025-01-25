@@ -20,13 +20,13 @@ ANONYMOUS:
     assemble boundary terms: false
     build face terms: true
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: sin(x)*sin(y)
     Initial conditions:
-      e: '0.0'
+      T: '0.0'
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Solver: 
     solver: steady-state
@@ -41,10 +41,10 @@ ANONYMOUS:
     compute errors: true
     compute response: true
     True solutions:
-      e: sin(x)*sin(y)
-      e face: sin(x)*sin(y)
-      'grad(e)[x]': cos(x)*sin(y)
-      'grad(e)[y]': sin(x)*cos(y)
+      T: sin(x)*sin(y)
+      T face: sin(x)*sin(y)
+      'grad(T)[x]': cos(x)*sin(y)
+      'grad(T)[y]': sin(x)*cos(y)
     Extra fields:
-      es: e*e
+      Ts: T*T
 ...

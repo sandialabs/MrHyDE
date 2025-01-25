@@ -2,8 +2,8 @@
 *********************************************************
 ****** Integrated Quantities on block : eblock-0_0 ******
 *********************************************************
-thermal vol total e : 0.101321
-thermal bnd total e : 0.636621
+thermal vol total T : 0.101321
+thermal bnd total T : 0.636621
 thermal bnd heat flux : -2.00378
 vol : 0.25
 total e : 0.101321
@@ -14,8 +14,8 @@ bnd e : 0.636621
 *********************************************************
 ****** Integrated Quantities on block : eblock-0_1 ******
 *********************************************************
-thermal vol total e : 0.101321
-thermal bnd total e : 0.636621
+thermal vol total T : 0.101321
+thermal bnd total T : 0.636621
 thermal bnd heat flux : -2.00378
 vol : 0.25
 total e : 0.101321
@@ -26,8 +26,8 @@ bnd e : 0.636621
 *********************************************************
 ****** Integrated Quantities on block : eblock-1_0 ******
 *********************************************************
-thermal vol total e : 0.101321
-thermal bnd total e : 0.636621
+thermal vol total T : 0.101321
+thermal bnd total T : 0.636621
 thermal bnd heat flux : -2.00378
 vol : 0.25
 total e : 0.101321
@@ -38,8 +38,8 @@ bnd e : 0.636621
 *********************************************************
 ****** Integrated Quantities on block : eblock-1_1 ******
 *********************************************************
-thermal vol total e : 0.101321
-thermal bnd total e : 0.636621
+thermal vol total T : 0.101321
+thermal bnd total T : 0.636621
 thermal bnd heat flux : -2.00378
 vol : 0.25
 total e : 0.101321
@@ -50,7 +50,7 @@ bnd e : 0.636621
 *********************************************************
 ***** Computing errors ******
 
-***** L2 norm of the error for e = 1.09691e-05  (time = 0)
-***** L2 norm of the error for e = 1.09691e-05  (time = 0)
-***** L2 norm of the error for e = 1.09691e-05  (time = 0)
-***** L2 norm of the error for e = 1.09691e-05  (time = 0)
+***** L2 norm of the error for T = 1.09691e-05  (time = 0)
+***** L2 norm of the error for T = 1.09691e-05  (time = 0)
+***** L2 norm of the error for T = 1.09691e-05  (time = 0)
+***** L2 norm of the error for T = 1.09691e-05  (time = 0)

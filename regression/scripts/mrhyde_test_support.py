@@ -50,7 +50,7 @@ def syscmd(cmd, status=0, logfile=None, verbose=False, ignore_status=False):
 # ==============================================================================
 class mrhyde_test_support:
   """Class to help support mrhyde tests"""
-  def __init__( self, description = 'MILO testing script.', \
+  def __init__( self, description = 'MrHyDE testing script.', \
                       number_spatial_dimensions = 2 ):
 
     p = optparse.OptionParser(description)

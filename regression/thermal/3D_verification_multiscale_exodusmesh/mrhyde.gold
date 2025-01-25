@@ -3,5 +3,5 @@ p=0 | CubeHexMesh: Building sub cells
 *********************************************************
 ***** Computing errors ******
 
-***** L2-face norm of the error for e = 1.1178  (time = 0)
-***** Subgrid 0: L2 norm of the error for e = 0.103055  (time = 0)
+***** L2-face norm of the error for T = 1.1178  (time = 0)
+***** Subgrid 0: L2 norm of the error for T = 0.103055  (time = 0)

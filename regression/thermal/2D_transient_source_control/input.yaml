@@ -14,11 +14,11 @@ ANONYMOUS:
   Physics: 
     modules: thermal
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: '0.0'
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Parameters input file: input_params.yaml
   Analysis input file: input_rol2.yaml
@@ -36,7 +36,7 @@ ANONYMOUS:
     Objective functions:
       obj0:
         type: integrated control
-        function: '1.0*(e-targ)^2'
+        function: '1.0*(T-targ)^2'
         weight: 0.05
   Functions: 
     thermal source: thermal_source(0)*(2*pi*pi*sin(pi*t)+pi*cos(pi*t))*sin(pi*x)*sin(pi*y)

@@ -15,12 +15,12 @@ ANONYMOUS:
     modules: thermal
     assemble face terms: true
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: '0.0'
   Subgrid input file: subgrid_input.yaml
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Solver:
     solver: steady-state
@@ -31,5 +31,5 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     True solutions:
-      e face: sin(2*pi*x)*sin(2*pi*y)
+      T face: sin(2*pi*x)*sin(2*pi*y)
 ...

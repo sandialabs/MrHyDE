@@ -15,7 +15,7 @@ ANONYMOUS:
   Physics: 
     modules: thermal
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: '0.0'
   Parameters:
     datagen:
@@ -29,7 +29,7 @@ ANONYMOUS:
       initial_value: 1.0
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Analysis input file: input_rol2.yaml
   Solver: 

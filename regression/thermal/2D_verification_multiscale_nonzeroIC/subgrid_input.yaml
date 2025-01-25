@@ -12,7 +12,7 @@ ANONYMOUS:
     Physics: 
       modules: thermal
       Initial conditions:
-        e: 'x + y'
+        T: 'x + y'
     Solver:
       verbosity: 0
       solver: steady-state
@@ -22,10 +22,10 @@ ANONYMOUS:
       thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
     Discretization:
       order:
-        e: 1
+        T: 1
       quadrature: 2
     Postprocess: 
       store aux and flux: false
       True solutions:
-        e: sin(2*pi*x)*sin(2*pi*y)
+        T: sin(2*pi*x)*sin(2*pi*y)
 ...

@@ -16,13 +16,13 @@ ANONYMOUS:
     modules: thermal
     Dirichlet conditions:
       static data: false
-      e:
+      T:
         all boundaries: 't'
     Initial conditions:
-      e: '0.0'
+      T: '0.0'
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Functions:
     thermal source: '1.0'
@@ -41,5 +41,5 @@ ANONYMOUS:
     compute errors: true
     write solution: false
     True solutions:
-      e: t
+      T: t
 ...

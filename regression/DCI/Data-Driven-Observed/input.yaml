@@ -21,14 +21,14 @@ ANONYMOUS:
     assemble boundary terms: false
     Dirichlet conditions:
       scalar data: true
-      e:
+      T:
         all boundaries: 0.0
     Initial conditions:
       scalar data: true
-      e: 0.0
+      T: 0.0
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Solver:
     solver: steady-state
@@ -66,7 +66,7 @@ ANONYMOUS:
     Objective functions:
       obj0:
         type: integrated response
-        response: 'e'
+        response: 'T'
         weight: 1.0
         save response data: true
 ...

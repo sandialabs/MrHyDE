@@ -14,10 +14,10 @@ ANONYMOUS:
   Physics: 
     modules: thermal
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: '0.0'
     Initial conditions:
-      e: '0.0'
+      T: '0.0'
   Parameters:
     thermal_diff:
       type: scalar
@@ -29,7 +29,7 @@ ANONYMOUS:
       usage: inactive
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Solver:
     solver: transient
@@ -50,7 +50,7 @@ ANONYMOUS:
     Objective functions:
       obj0:
         type: integrated control
-        function: '1.0*(e-targ)^2'
+        function: '1.0*(T-targ)^2'
         weight: 0.0625
   Functions:
     tcoeff: 8*pi*pi*sin(2*pi*t)+2*pi*cos(2*pi*t)

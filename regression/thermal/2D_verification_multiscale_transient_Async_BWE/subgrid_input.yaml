@@ -13,7 +13,7 @@ ANONYMOUS:
       modules: thermal
     Discretization:
       order:
-        e: 1
+        T: 1
       quadrature: 2
     Solver:
       solver: transient
@@ -23,7 +23,7 @@ ANONYMOUS:
       number of steps: 4
     Postprocess:
       True solutions:
-        e: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)
+        T: sin(2*pi*t)*sin(2.0*pi*x)*sin(2.0*pi*y)
     Functions:
       thermal source: (8*(pi*pi)*sin(2*pi*t)+2*pi*cos(2*pi*t))*sin(2*pi*x)*sin(2*pi*y)
 ...

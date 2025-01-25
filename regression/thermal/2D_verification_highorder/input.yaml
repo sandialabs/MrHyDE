@@ -16,14 +16,14 @@ ANONYMOUS:
     eblock-0_0: 
       modules: thermal
       Dirichlet conditions:
-        e:
+        T:
           all boundaries: '0.0'
       Initial conditions:
-        e: '0.0'
+        T: '0.0'
   Discretization:
     eblock-0_0:
       order:
-        e: 4
+        T: 4
       quadrature: 8
   Solver: 
     solver: steady-state
@@ -35,5 +35,5 @@ ANONYMOUS:
   Postprocess: 
     compute errors: true
     True solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
+      T: sin(2*pi*x)*sin(2*pi*y)
 ...

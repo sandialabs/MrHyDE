@@ -19,14 +19,14 @@ ANONYMOUS:
     eblock-0_0_0: 
       modules: thermal
       Dirichlet conditions:
-        e:
+        T:
           all boundaries: '0.0'
       Initial conditions:
-        e: '0.0'
+        T: '0.0'
   Discretization:
     eblock-0_0:
       order:
-        e: 1
+        T: 1
       quadrature: 2
   Functions:
     thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
@@ -38,5 +38,5 @@ ANONYMOUS:
     compute errors: true
     write solution: false
     True solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+      T: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
 ...

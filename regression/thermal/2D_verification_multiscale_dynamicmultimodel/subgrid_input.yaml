@@ -14,14 +14,14 @@ ANONYMOUS:
         modules: thermal
       Discretization:
         order:
-          e: 1
+          T: 1
         quadrature: 2
       Solver:
         solver: transient
         keep nodes: true
       Postprocess:
         True solutions:
-          e: sin(2.0*pi*x)*sin(2.0*pi*y)
+          T: sin(2.0*pi*x)*sin(2.0*pi*y)
       Functions:
         thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
     Model1:
@@ -34,14 +34,14 @@ ANONYMOUS:
         modules: thermal
       Discretization:
         order:
-          e: 1
+          T: 1
         quadrature: 2
       Solver:
         solver: transient
         keep nodes: true
       Postprocess:
         True solutions:
-          e: sin(2.0*pi*x)*sin(2.0*pi*y)
+          T: sin(2.0*pi*x)*sin(2.0*pi*y)
       Functions:
         thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
     Model2:
@@ -54,14 +54,14 @@ ANONYMOUS:
         modules: thermal
       Discretization:
         order:
-          e: 1
+          T: 1
         quadrature: 2
       Solver:
         solver: transient
         keep nodes: true
       Postprocess:
         True solutions:
-          e: sin(2.0*pi*x)*sin(2.0*pi*y)
+          T: sin(2.0*pi*x)*sin(2.0*pi*y)
       Functions:
         thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
 ...

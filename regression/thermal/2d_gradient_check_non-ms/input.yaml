@@ -15,7 +15,7 @@ ANONYMOUS:
   Physics: 
     modules: thermal
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: '0.0'
   Parameters:
     thermal_diff:
@@ -28,7 +28,7 @@ ANONYMOUS:
       usage: active
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Analysis input file: input_rol2.yaml
   Solver: 
@@ -40,7 +40,7 @@ ANONYMOUS:
     Objective functions:
       obj0:
         type: integrated control
-        function: '1.0*(e-sin(pi*x)*sin(pi*y))^2'
+        function: '1.0*(T-sin(pi*x)*sin(pi*y))^2'
         weight: 0.5
   Functions:
     thermal source: thermal_source(0)*2.0*pi*pi*sin(pi*x)*sin(pi*y)

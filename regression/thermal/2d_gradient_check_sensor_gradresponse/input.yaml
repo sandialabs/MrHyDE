@@ -14,11 +14,11 @@ ANONYMOUS:
   Physics: 
     modules: thermal
     Dirichlet conditions:
-      e:
+      T:
         all boundaries: '0.0'
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Analysis input file: input_rol2.yaml
   Solver:
@@ -36,7 +36,7 @@ ANONYMOUS:
         sensor points file: sensor_points.dat
         sensor data file: sensor_data.dat
         save sensor data: false
-        response: '(grad(e)[x])^2 + (grad(e)[y])^2'
+        response: '(grad(T)[x])^2 + (grad(T)[y])^2'
         weight: 1.0
   Functions:
     thermal diffusion: thermal_diff(0)

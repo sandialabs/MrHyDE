@@ -9,7 +9,7 @@ ANONYMOUS:
         Scale for Epsilon Active Sets: 1.0
         Use Scaling For Epsilon-Active Sets: false
         Do grad+hessvec check: true
-        Bound Optimization Variables: true
+        Bound Optimization Variables: false #true
         Inexact Objective Function: false
         Inexact Gradient: false
         Inexact Hessian-Times-A-Vector: false

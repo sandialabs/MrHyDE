@@ -21,14 +21,14 @@ ANONYMOUS:
     build face terms: true
     Dirichlet conditions:
       scalar data: true
-      e:
+      T:
         all boundaries: 0.0
     Initial conditions:
       scalar data: true
-      e: 0.0
+      T: 0.0
   Discretization:
     order:
-      e: 1
+      T: 1
     quadrature: 2
   Solver:
     solver: steady-state
@@ -43,12 +43,12 @@ ANONYMOUS:
     compute errors: true
     write solution: false
     True solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
-      e face: sin(2*pi*x)*sin(2*pi*y)
-      'grad(e)[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
-      'grad(e)[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
+      T: sin(2*pi*x)*sin(2*pi*y)
+      T face: sin(2*pi*x)*sin(2*pi*y)
+      'grad(T)[x]': 2*pi*cos(2*pi*x)*sin(2*pi*y)
+      'grad(T)[y]': 2*pi*sin(2*pi*x)*cos(2*pi*y)
     Extra cell fields:
-      es: e*e
+      Ts: T*T
   
     
 ...

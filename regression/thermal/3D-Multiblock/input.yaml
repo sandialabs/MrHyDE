@@ -14,31 +14,31 @@ ANONYMOUS:
     material_0:
       modules: thermal
       Dirichlet conditions:
-        e:
+        T:
           all boundaries: 0.0
     material_1:
       modules: thermal
       Dirichlet conditions:
-        e:
+        T:
           all boundaries: 0.0
   Discretization:
     material_0:
       order:
-        e: 1
+        T: 1
       quadrature: 2
     material_1:
       order:
-        e: 1
+        T: 1
       quadrature: 2
   Functions:
     material_0:
       thermal diffusion: '1.0'
       thermal source: '12*pi*pi*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
-      garbage: 'x+e^2'
+      garbage: 'x+T^2'
     material_1:
       thermal diffusion: '1.0'
       thermal source: '12*pi*pi*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
-      garbage: 'x+e^2'
+      garbage: 'x+T^2'
   Parameters:
   Solver: 
     solver: steady-state
@@ -48,6 +48,6 @@ ANONYMOUS:
   Postprocess:
     compute errors: true
     True solutions:
-      e: 'sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
+      T: 'sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)'
  
 ...

@@ -18,9 +18,9 @@ ANONYMOUS:
       thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
     Discretization:
       order:
-        e: 1
+        T: 1
       quadrature: 2
     Postprocess:
       True solutions:
-        e: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
+        T: sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
 ...

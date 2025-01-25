@@ -19,11 +19,11 @@ ANONYMOUS:
         thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
       Discretization:
         order:
-          e: 1
+          T: 1
         quadrature: 2
       Postprocess:
         True solutions:
-          e: sin(2*pi*x)*sin(2*pi*y)
+          T: sin(2*pi*x)*sin(2*pi*y)
     SG-R1:
       usage: '(x<0.5)*(y>0.5)'
       Mesh:
@@ -39,9 +39,9 @@ ANONYMOUS:
         thermal source: 8*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)
       Discretization:
         order:
-          e: 1
+          T: 1
         quadrature: 2
       Postprocess:
         True solutions:
-          e: sin(2*pi*x)*sin(2*pi*y)
+          T: sin(2*pi*x)*sin(2*pi*y)
 ...

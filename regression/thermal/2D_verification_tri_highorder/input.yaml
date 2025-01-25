@@ -19,17 +19,17 @@ ANONYMOUS:
       modules: thermal
       Dirichlet conditions:
         #use weak Dirichlet: true
-        e:
+        T:
           left: '0.0'
           right: '0.0'
           top: '0.0'
           bottom: '0.0'
       Initial conditions:
-        e: '0.0'
+        T: '0.0'
   Discretization:
     eblock-0_0:
       order:
-        e: 4
+        T: 4
       quadrature: 8
       side quadrature: 8
   Solver: 
@@ -43,5 +43,5 @@ ANONYMOUS:
     compute errors: true
     write solution: false
     True solutions:
-      e: sin(2*pi*x)*sin(2*pi*y)
+      T: sin(2*pi*x)*sin(2*pi*y)
 ...
