@@ -306,7 +306,9 @@ namespace MrHyDE {
 
     // ========================================================================================
     // ========================================================================================
-        
+
+    void setTimeIndex(const int & ctime);
+    
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<MeshInterface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
@@ -340,6 +342,7 @@ namespace MrHyDE {
     int numNodesPerElem;                                         // nodes on each element
     int numCells;                                                // number of domain cells (normall it is 1)
     size_t numBlocks;                                            // number of element blocks
+    int time_index;
     
     bool have_sensor_data, save_sensor_data, write_dakota_output, isTD, store_sensor_solution;
     std::string sname, fileoutput, objective_file, objective_grad_file;

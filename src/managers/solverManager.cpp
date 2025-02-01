@@ -1420,11 +1420,11 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       // Also, need to implement checkpoint/recovery
       bool fndu = postproc->soln[set]->extract(sol[set], cindex);
       if (!fndu) {
-        // throw error
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to find forward solution");
       }
       bool fndup = postproc->soln[set]->extract(sol_prev[set], cindex-1);
       if (!fndup) {
-        // throw error
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to find previous forward solution");
       }
       //params->updateDynamicParams(cindex-1);
       params->updateDynamicParams(cindex-1);
@@ -1433,6 +1433,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       
       int stime_index = cindex-1;
       current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
+      postproc->setTimeIndex(cindex);
       
       sol_stage[set]->assign(*sol[set]);
       // if multistage, recover forward solution at each stage

@@ -663,6 +663,7 @@ void PostprocessManager<Node>::record(vector<vector_RCP> & current_soln, const S
   
   // Write all other output if requested and within user-defined time window for output
   if (write_this_step && current_time+1.0e-100 >= record_start && current_time-1.0e-100 <= record_stop) {
+    
     if (compute_error) {
       this->computeError(current_soln, current_time);
     }
@@ -2412,6 +2413,7 @@ void PostprocessManager<Node>::reportObjective(ScalarT & objectiveval) {
         ScalarT dt = 1.0;
         
         dt = objectives[r].objective_times[t] - objectives[r].objective_times[t-1];
+                
         if (objectives[r].type != "sensors") {
           gcontrib *= dt;
         }
@@ -3446,48 +3448,57 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t & set,
   
   debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradState ...");
   
+  // Determine if we want to collect QoI, objectives, etc.
+  bool write_this_step = false;
+  if (time_index % write_frequency == 0) {
+    write_this_step = true;
+  }
+  
 #ifndef MrHyDE_NO_AD
-  for (size_t r=0; r<objectives.size(); ++r) {
-    size_t block = objectives[r].block;
-    if (assembler->type_AD == -1) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD[block],
-                                      assembler->function_managers_AD[block]);
-    }
-    else if (assembler->type_AD == 2) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD2[block],
-                                      assembler->function_managers_AD2[block]);
-    }
-    else if (assembler->type_AD == 4) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD4[block],
-                                      assembler->function_managers_AD4[block]);
-    }
-    else if (assembler->type_AD == 8) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD8[block],
-                                      assembler->function_managers_AD8[block]);
-    }
-    else if (assembler->type_AD == 16) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD16[block],
-                                      assembler->function_managers_AD16[block]);
-    }
-    else if (assembler->type_AD == 18) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD18[block],
-                                      assembler->function_managers_AD18[block]);
-    }
-    else if (assembler->type_AD == 24) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD24[block],
-                                      assembler->function_managers_AD24[block]);
-    }
-    else if (assembler->type_AD == 32) {
-      this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
-                                      assembler->wkset_AD32[block],
-                                      assembler->function_managers_AD32[block]);
+  if (write_this_step) {
+        
+    for (size_t r=0; r<objectives.size(); ++r) {
+      size_t block = objectives[r].block;
+      if (assembler->type_AD == -1) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD[block],
+                                        assembler->function_managers_AD[block]);
+      }
+      else if (assembler->type_AD == 2) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD2[block],
+                                        assembler->function_managers_AD2[block]);
+      }
+      else if (assembler->type_AD == 4) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD4[block],
+                                        assembler->function_managers_AD4[block]);
+      }
+      else if (assembler->type_AD == 8) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD8[block],
+                                        assembler->function_managers_AD8[block]);
+      }
+      else if (assembler->type_AD == 16) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD16[block],
+                                        assembler->function_managers_AD16[block]);
+      }
+      else if (assembler->type_AD == 18) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD18[block],
+                                        assembler->function_managers_AD18[block]);
+      }
+      else if (assembler->type_AD == 24) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD24[block],
+                                        assembler->function_managers_AD24[block]);
+      }
+      else if (assembler->type_AD == 32) {
+        this->computeObjectiveGradState(set, r, current_soln, current_time, deltat, grad,
+                                        assembler->wkset_AD32[block],
+                                        assembler->function_managers_AD32[block]);
+      }
     }
   }
 #endif
@@ -5944,6 +5955,14 @@ void PostprocessManager<Node>::setNewExodusFile(string & newfile) {
   if (isTD && write_solution) {
     mesh->setupExodusFile(newfile);
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void PostprocessManager<Node>::setTimeIndex(const int & cindex) {
+  time_index = cindex;
 }
 
 // ========================================================================================
