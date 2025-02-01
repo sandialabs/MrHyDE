@@ -34,7 +34,7 @@ ANONYMOUS:
     Ha: '1.0'
     f14: 'T+B[x]+B[y]+E[x]+E[y]+q'
     f15: 'div(B)+1.0'
-    f16: 'curl(E)[x]+curl(E)[y]'
+    f16: 'curl(E)'
     f17: 'emin(T) + emean(B[x]) + sinh(f14)'
   Physics:
     modules: 'none' # just for testing

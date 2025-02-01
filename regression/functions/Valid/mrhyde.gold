@@ -187,10 +187,8 @@ Number of Trees: 22
         div(B)
         1.0
     Tree: f16
-    Number of branches: 3
-        curl(E)[x]+curl(E)[y]
-        curl(E)[x]
-        curl(E)[y]
+    Number of branches: 1
+        curl(E)
     Tree: f17
     Number of branches: 7
         emin(T) + emean(B[x]) + sinh(f14)
@@ -370,10 +368,8 @@ Number of Trees: 22
         div(B)
         1.0
     Tree: f16
-    Number of branches: 3
-        curl(E)[x]+curl(E)[y]
-        curl(E)[x]
-        curl(E)[y]
+    Number of branches: 1
+        curl(E)
     Tree: f17
     Number of branches: 7
         emin(T) + emean(B[x]) + sinh(f14)
@@ -553,10 +549,8 @@ Number of Trees: 22
         div(B)
         1.0
     Tree: f16
-    Number of branches: 3
-        curl(E)[x]+curl(E)[y]
-        curl(E)[x]
-        curl(E)[y]
+    Number of branches: 1
+        curl(E)
     Tree: f17
     Number of branches: 7
         emin(T) + emean(B[x]) + sinh(f14)
@@ -583,9 +577,7 @@ B_t[z]
 E[x]
 E[y]
 E[z]
-curl(E)[x]
-curl(E)[y]
-curl(E)[z]
+curl(E)
 E_t[x]
 E_t[y]
 E_t[z]
@@ -603,9 +595,7 @@ div(B)
 E[x]
 E[y]
 E[z]
-curl(E)[x]
-curl(E)[y]
-curl(E)[z]
+curl(E)
 q
 Currently defined point solution fields are: 
 T
@@ -619,9 +609,7 @@ div(B)
 E[x]
 E[y]
 E[z]
-curl(E)[x]
-curl(E)[y]
-curl(E)[z]
+curl(E)
 q
 Currently defined side scalar fields are: 
 x
@@ -814,10 +802,8 @@ Number of Trees: 22
         div(B)
         1.0
     Tree: f16
-    Number of branches: 3
-        curl(E)[x]+curl(E)[y]
-        curl(E)[x]
-        curl(E)[y]
+    Number of branches: 1
+        curl(E)
     Tree: f17
     Number of branches: 7
         emin(T) + emean(B[x]) + sinh(f14)
@@ -997,10 +983,8 @@ Number of Trees: 22
         div(B)
         1.0
     Tree: f16
-    Number of branches: 3
-        curl(E)[x]+curl(E)[y]
-        curl(E)[x]
-        curl(E)[y]
+    Number of branches: 1
+        curl(E)
     Tree: f17
     Number of branches: 7
         emin(T) + emean(B[x]) + sinh(f14)
@@ -1180,10 +1164,8 @@ Number of Trees: 22
         div(B)
         1.0
     Tree: f16
-    Number of branches: 3
-        curl(E)[x]+curl(E)[y]
-        curl(E)[x]
-        curl(E)[y]
+    Number of branches: 1
+        curl(E)
     Tree: f17
     Number of branches: 7
         emin(T) + emean(B[x]) + sinh(f14)
@@ -1210,9 +1192,7 @@ B_t[z]
 E[x]
 E[y]
 E[z]
-curl(E)[x]
-curl(E)[y]
-curl(E)[z]
+curl(E)
 E_t[x]
 E_t[y]
 E_t[z]
@@ -1230,9 +1210,7 @@ div(B)
 E[x]
 E[y]
 E[z]
-curl(E)[x]
-curl(E)[y]
-curl(E)[z]
+curl(E)
 q
 Currently defined point solution fields are: 
 T
@@ -1246,9 +1224,7 @@ div(B)
 E[x]
 E[y]
 E[z]
-curl(E)[x]
-curl(E)[y]
-curl(E)[z]
+curl(E)
 q
 Currently defined side scalar fields are: 
 x
@@ -1323,7 +1299,7 @@ Functions ->
  Ha = 1.0   [unused]
  f14 = T+B[x]+B[y]+E[x]+E[y]+q   [unused]
  f15 = div(B)+1.0   [unused]
- f16 = curl(E)[x]+curl(E)[y]   [unused]
+ f16 = curl(E)   [unused]
  f17 = emin(T) + emean(B[x]) + sinh(f14)   [unused]
 Physics -> 
  modules = none   [unused]

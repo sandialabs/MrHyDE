@@ -361,25 +361,39 @@ void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
     soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
-    soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
+    if (dimension == 2) {
+      soln_fields.push_back(SolutionField<EvalT>("curl("+var+")", set_index, soltype, var_index));
+    }
+    else {
+      soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
+      soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
+      soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
+    }
     soln_fields.push_back(SolutionField<EvalT>(var+"_t[x]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField<EvalT>(var+"_t[y]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField<EvalT>(var+"_t[z]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
-    side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
+    if (dimension == 2) {
+      side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")", set_index, soltype, var_index));
+    }
+    else {
+      side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
+      side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
+      side_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
+    }
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[x]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[y]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var+"[z]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
-    point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
-    
+    if (dimension == 2) {
+      point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")", set_index, soltype, var_index));
+    }
+    else {
+      point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[x]", set_index, soltype, var_index));
+      point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
+      point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
+    }
   }
   else if (basistype.substr(0,5) == "HFACE") {
     
@@ -988,7 +1002,7 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
     
     int component = soln_fields[fieldnum].component_;
     
-    if (soln_fields[fieldnum].derivative_type_ == "div") {
+    if (soln_fields[fieldnum].derivative_type_ == "div" || (soln_fields[fieldnum].derivative_type_ == "div" && dimension == 2)) {
       auto sbasis = basis_div[basis_id];
       size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
       
