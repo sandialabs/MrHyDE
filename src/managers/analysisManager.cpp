@@ -311,6 +311,10 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
   bool write_adjoint_text = uqsettings_.get<bool>("write adjoint to text file",false);
   int output_freq = uqsettings_.get<int>("output frequency",1);
   
+  bool finite_difference = uqsettings_.get<bool>("compute finite difference",false);
+  int fd_component = uqsettings_.get<int>("finite difference component",0);
+  double fd_delta = uqsettings_.get<double>("finite difference delta",1.0e-5);
+  
   // Generate the samples (wastes memory if requires large number of samples in high-dim space)
   Kokkos::View<ScalarT**,HostDevice> samplepts = uq.generateSamples(maxsamples, seed);
   // Adjust the number of samples (if necessary)
@@ -321,6 +325,7 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
   if (write_samples && comm_->getRank() == 0) {
     string sample_file = uqsettings_.get<string>("samples output file","sample_inputs.dat");
     std::ofstream sampOUT(sample_file.c_str());
+    sampOUT.precision(12);
     for (size_type i=0; i<samplepts.extent(0); ++i) {
       for (size_type v=0; v<samplepts.extent(1); ++v) {
         sampOUT << samplepts(i,v) << "  ";
@@ -349,7 +354,12 @@ vector<Teuchos::Array<ScalarT> > AnalysisManager::UQSolve() {
         cout << "New params: ";
       }
       for (int i=0; i<numstochparams_; i++) {
-        currparams_.push_back(samplepts(j,i));
+        if (finite_difference && fd_component == i) {
+          currparams_.push_back(samplepts(j,i)+fd_delta);
+        }
+        else {
+          currparams_.push_back(samplepts(j,i));
+        }
         if (comm_->getRank() == 0) {
           cout << samplepts(j,i) << " ";
         }
