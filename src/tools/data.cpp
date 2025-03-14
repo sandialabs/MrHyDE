@@ -171,7 +171,7 @@ void Data::importPoints(const std::string & ptsfile, const int & spaceDim) {
   }
   
   FILE* PointsFile = fopen(ptsfile.c_str(),"r");
-  float x,y,z;
+  double x,y,z;
   
   std::vector<ScalarT> xvec,yvec,zvec;
   while( !feof(PointsFile) ) {
@@ -179,16 +179,16 @@ void Data::importPoints(const std::string & ptsfile, const int & spaceDim) {
     fgets(line,100,PointsFile);
     if( strcmp(line,"") ) {
       if (spaceDim == 1) {
-        sscanf(line, "%f", &x);
+        sscanf(line, "%lf", &x);
         xvec.push_back(x);
       }
       if (spaceDim == 2) {
-        sscanf(line, "%f %f", &x, &y);
+        sscanf(line, "%lf %lf", &x, &y);
         xvec.push_back(x);
         yvec.push_back(y);
       }
       if (spaceDim == 3) {
-        sscanf(line, "%f %f %f", &x, &y, &z);
+        sscanf(line, "%lf %lf %lf", &x, &y, &z);
         xvec.push_back(x);
         yvec.push_back(y);
         zvec.push_back(z);
