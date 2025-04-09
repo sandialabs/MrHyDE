@@ -4270,7 +4270,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> & current_soln, 
   }
   
   // Grab slices of Kokkos Views and push to AssembleDevice one time for each discretized parameter vector
-  auto Psol = params->getDiscretizedParams();
+  auto Psol = params->getDiscretizedParamsOver();
   auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
   if (data_avail) {
