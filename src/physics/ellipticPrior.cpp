@@ -22,13 +22,13 @@ ellipticPrior<EvalT>::ellipticPrior(Teuchos::ParameterList & settings, const int
   // Standard data
   label = "ellipticPrior";
   if (settings.isSublist("Active variables")) {
-    if (settings.sublist("Active variables").isParameter("e")) {
-      myvars.push_back("e");
-      mybasistypes.push_back(settings.sublist("Active variables").get<string>("e","HGRAD"));
+    if (settings.sublist("Active variables").isParameter("T")) {
+      myvars.push_back("T");
+      mybasistypes.push_back(settings.sublist("Active variables").get<string>("T","HGRAD"));
     }
   }
   else {
-    myvars.push_back("e");
+    myvars.push_back("T");
     mybasistypes.push_back("HGRAD");
   }
   // Extra data
@@ -72,8 +72,8 @@ template<class EvalT>
 void ellipticPrior<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  auto basis = wkset->basis[e_basis_num];
-  auto basis_grad = wkset->basis_grad[e_basis_num];
+  auto basis = wkset->basis[T_basis_num];
+  auto basis_grad = wkset->basis_grad[T_basis_num];
   
   Vista<EvalT> source, diff, react, cp, rho, bx, by, bz;
   
@@ -105,15 +105,15 @@ void ellipticPrior<EvalT>::volumeResidual() {
   auto wts = wkset->wts;
   auto res = wkset->res;
   
-  auto T = wkset->getSolutionField("e"); //e_vol;
-  auto dTdt = wkset->getSolutionField("e_t"); //dedt_vol;
+  auto T = wkset->getSolutionField("T"); //e_vol;
+  auto dTdt = wkset->getSolutionField("T_t"); //dedt_vol;
   
-  auto off = subview( wkset->offsets, e_num, ALL());
+  auto off = subview( wkset->offsets, T_num, ALL());
   bool have_nsvel_ = have_nsvel;
   
-  auto dTdx = wkset->getSolutionField("grad(e)[x]"); //dedx_vol;
-  auto dTdy = wkset->getSolutionField("grad(e)[y]"); //dedy_vol;
-  auto dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_vol;
+  auto dTdx = wkset->getSolutionField("grad(T)[x]"); //dedx_vol;
+  auto dTdy = wkset->getSolutionField("grad(T)[y]"); //dedy_vol;
+  auto dTdz = wkset->getSolutionField("grad(T)[z]"); //dedz_vol;
   
   View_EvalT2 Ux, Uy, Uz;
   if (have_nsvel) {
@@ -166,20 +166,20 @@ void ellipticPrior<EvalT>::boundaryResidual() {
   auto bcs = wkset->var_bcs;
   
   int cside = wkset->currentside;
-  string bctype = bcs(e_num,cside);
+  string bctype = bcs(T_num,cside);
 
-  auto basis = wkset->basis_side[e_basis_num];
-  auto basis_grad = wkset->basis_grad_side[e_basis_num];
+  auto basis = wkset->basis_side[T_basis_num];
+  auto basis_grad = wkset->basis_grad_side[T_basis_num];
   
   Vista<EvalT> nsource, diff_side, robin_alpha;
   {
     Teuchos::TimeMonitor localtime(*boundaryResidualFunc);
     
     if (bctype == "weak Dirichlet" ) {
-      nsource = functionManager->evaluate("Dirichlet e " + wkset->sidename,"side ip");
+      nsource = functionManager->evaluate("Dirichlet T " + wkset->sidename,"side ip");
     }
     else if (bctype == "Neumann") {
-      nsource = functionManager->evaluate("Neumann e " + wkset->sidename,"side ip");
+      nsource = functionManager->evaluate("Neumann T " + wkset->sidename,"side ip");
     }
     diff_side = functionManager->evaluate("ellipticPrior diffusion","side ip");
     robin_alpha = functionManager->evaluate("robin alpha","side ip");
@@ -197,14 +197,14 @@ void ellipticPrior<EvalT>::boundaryResidual() {
   auto wts = wkset->wts_side;
   auto h = wkset->getSideElementSize();
   auto res = wkset->res;
-  auto off = subview( wkset->offsets, e_num, ALL());
+  auto off = subview( wkset->offsets, T_num, ALL());
   int dim = wkset->dimension;
   
   // Contributes
   // <g(u),v> + <p(u),grad(v)\cdot n>
   
   
-  if (bcs(e_num,cside) == "Neumann") { // Neumann BCs
+  if (bcs(T_num,cside) == "Neumann") { // Neumann BCs
     parallel_for("ellipticPrior bndry resid part 1",
                  TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VECTORSIZE),
                  KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
@@ -216,20 +216,20 @@ void ellipticPrior<EvalT>::boundaryResidual() {
       }
     });
   }
-  else if (bcs(e_num,cside) == "weak Dirichlet" || bcs(e_num,cside) == "interface") {
-    auto T = wkset->getSolutionField("e"); //e_side;
-    auto dTdx = wkset->getSolutionField("grad(e)[x]"); //dedx_side;
-    auto dTdy = wkset->getSolutionField("grad(e)[y]"); //dedy_side;
-    auto dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_side;
+  else if (bcs(T_num,cside) == "weak Dirichlet" || bcs(T_num,cside) == "interface") {
+    auto T = wkset->getSolutionField("T"); //e_side;
+    auto dTdx = wkset->getSolutionField("grad(T)[x]"); //dedx_side;
+    auto dTdy = wkset->getSolutionField("grad(T)[y]"); //dedy_side;
+    auto dTdz = wkset->getSolutionField("grad(T)[z]"); //dedz_side;
     auto nx = wkset->getScalarField("n[x]");
     auto ny = wkset->getScalarField("n[y]");
     auto nz = wkset->getScalarField("n[z]");
     Vista<EvalT> bdata;
     
-    if (bcs(e_num,cside) == "weak Dirichlet") {
+    if (bcs(T_num,cside) == "weak Dirichlet") {
       bdata = nsource;
     }
-    else if (bcs(e_num,cside) == "interface") {
+    else if (bcs(T_num,cside) == "interface") {
       auto vbdata = wkset->getSolutionField("aux e");
       bdata = Vista<EvalT>(vbdata);
     }
@@ -295,15 +295,15 @@ void ellipticPrior<EvalT>::computeFlux() {
   View_Sc2 nx, ny, nz;
   View_EvalT2 T, dTdx, dTdy, dTdz;
   nx = wkset->getScalarField("n[x]");
-  T = wkset->getSolutionField("e");
-  dTdx = wkset->getSolutionField("grad(e)[x]"); //dedx_side;
+  T = wkset->getSolutionField("T");
+  dTdx = wkset->getSolutionField("grad(T)[x]"); //dedx_side;
   if (spaceDim > 1) {
     ny = wkset->getScalarField("n[y]");
-    dTdy = wkset->getSolutionField("grad(e)[y]"); //dedy_side;
+    dTdy = wkset->getSolutionField("grad(T)[y]"); //dedy_side;
   }
   if (spaceDim > 2) {
     nz = wkset->getScalarField("n[z]");
-    dTdz = wkset->getSolutionField("grad(e)[z]"); //dedz_side;
+    dTdz = wkset->getSolutionField("grad(T)[z]"); //dedz_side;
   }
   
   auto h = wkset->getSideElementSize();
@@ -312,7 +312,7 @@ void ellipticPrior<EvalT>::computeFlux() {
   {
     //Teuchos::TimeMonitor localtime(*fluxFill);
     
-    auto fluxT = subview(wkset->flux, ALL(), e_num, ALL());
+    auto fluxT = subview(wkset->flux, ALL(), T_num, ALL());
     auto lambda = wkset->getSolutionField("aux e");
     
     {
@@ -355,8 +355,8 @@ void ellipticPrior<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   vector<string> varlist = wkset->varlist;
   //if (!isaux) {
     for (size_t i=0; i<varlist.size(); i++) {
-      if (varlist[i] == "e")
-        e_num = i;
+      if (varlist[i] == "T")
+        T_num = i;
       if (varlist[i] == "ux")
         ux_num = i;
       if (varlist[i] == "uy")
@@ -365,7 +365,7 @@ void ellipticPrior<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
         uz_num = i;
     }
   if (wkset->isInitialized) { // safeguard against proc having no elem on block
-    e_basis_num = wkset->usebasis[e_num];
+    T_basis_num = wkset->usebasis[T_num];
   }
     if (ux_num >=0)
       have_nsvel = true;
@@ -373,15 +373,15 @@ void ellipticPrior<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
   
   vector<string> auxvarlist = wkset->aux_varlist;
   for (size_t i=0; i<auxvarlist.size(); i++) {
-    if (auxvarlist[i] == "e")
-      auxe_num = i;
+    if (auxvarlist[i] == "T")
+      auxT_num = i;
   }
   
   // Set these views so we don't need to search repeatedly
   
   /*
   if (mybasistypes[0] == "HGRAD") {
-    wkset->get("e",e_vol);
+    wkset->get("T",e_vol);
     wkset->get("e side",e_side);
     wkset->get("e_t",dedt_vol);
     
@@ -418,17 +418,17 @@ std::vector< std::vector<string> > ellipticPrior<EvalT>::setupIntegratedQuantiti
   // if not requested, be sure to return an empty vector
   if ( !(test_IQs) ) return integrandsNamesAndTypes;
 
-  std::vector<string> IQ = {"e","ellipticPrior vol total e","volume"};
+  std::vector<string> IQ = {"T","ellipticPrior vol total T","volume"};
   integrandsNamesAndTypes.push_back(IQ);
 
-  IQ = {"e","ellipticPrior bnd total e","boundary"};
+  IQ = {"T","ellipticPrior bnd total e","boundary"};
   integrandsNamesAndTypes.push_back(IQ);
 
   // TODO -- BWR assumes the diffusion coefficient is 1.
   // I was getting all zeroes if I used "diff"
-  string integrand = "(n[x]*grad(e)[x])";
-  if (spaceDim == 2) integrand = "(n[x]*grad(e)[x] + n[y]*grad(e)[y])";
-  if (spaceDim == 3) integrand = "(n[x]*grad(e)[x] + n[y]*grad(e)[y] + n[z]*grad(e)[z])";
+  string integrand = "(n[x]*grad(T)[x])";
+  if (spaceDim == 2) integrand = "(n[x]*grad(T)[x] + n[y]*grad(T)[y])";
+  if (spaceDim == 3) integrand = "(n[x]*grad(T)[x] + n[y]*grad(T)[y] + n[z]*grad(T)[z])";
 
   IQ = {integrand,"ellipticPrior bnd heat flux","boundary"};
   integrandsNamesAndTypes.push_back(IQ);
