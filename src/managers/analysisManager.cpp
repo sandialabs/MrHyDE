@@ -843,6 +843,7 @@ void AnalysisManager::HDSASolve() {
   ScalarT alpha_u = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_u",1.0);
   ScalarT alpha_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_z",1.0);
   ScalarT beta_u = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_u",1.0);
+  ScalarT beta_t = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_t",1.0);
   ScalarT beta_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_z",1.0);
   ScalarT alpha_d = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_d",1.0);
   int prior_num_sing_vals = HDSAsettings.sublist("HyperParameters").get<int>("prior_num_sing_vals",100);
@@ -853,7 +854,6 @@ void AnalysisManager::HDSASolve() {
   //  int num_prior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_prior_samples", 0);
   int num_posterior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_posterior_samples", 0);
 
-
   Teuchos::ParameterList data_load_list =  HDSAsettings.sublist("DataLoadParameters");
   
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
@@ -861,25 +861,56 @@ void AnalysisManager::HDSASolve() {
   HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator,data_load_list);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_,random_number_generator);
 
-  
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > z = data_interface->get_z_opt()->clone();
+  // z->setScalar(2.0);
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > u_in = data_interface->get_u_opt()->clone();
+  // u_in->setScalar(5.0);
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > z_out = data_interface->get_z_opt()->clone();
+  // opt_prob_interface->Apply_Solution_Operator_z_Jacobian_Transpose(*z_out,*u_in,*z);
+  // std::cout << "z out norm  " << z_out->norm() << std::endl;
 
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > z_in = data_interface->get_z_opt()->clone();
+  // z_in->setScalar(3.0);
+  // opt_prob_interface->Apply_RS_Hessian( *z_out, *z_in,*z);
+  // std::cout << "z out norm  " << z_out->norm() << std::endl;
+
+  // HDSA::Ptr<HDSA::Vector<ScalarT> > u_grad = data_interface->get_u_opt()->clone();
+  // opt_prob_interface->Misfit_Gradient(*u_grad, *u_in, *z);
+  // std::cout << "u grad norm  " << u_grad->norm() << std::endl;
+
+  // opt_prob_interface->Apply_Misfit_Hessian(*u_grad,*u_in,*u_in,*z);
+  // std::cout << "u out norm  " << u_grad->norm() << std::endl;
+  
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr< Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_,settings_,blockNames) ;
-
-  bool is_transient = false; 
-  HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>> u_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
-  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>>(random_number_generator,"spatial field");
-
-  u_hyperparam_interface->Set_alpha_u(alpha_u);
-  u_hyperparam_interface->Set_beta_u(beta_u);
-  u_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
-  z_hyperparam_interface->Set_alpha_z(alpha_z);
-  z_hyperparam_interface->Set_beta_z(beta_z);
-  
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->M[0]);
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> S = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->S[0]);
-
-  HDSA::Ptr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>> u_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface, random_number_generator);
+  
+  bool is_transient = solver_->isTransient;
+  HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> u_prior_interface; 
+  if(is_transient) {
+    HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>> u_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+    u_hyperparam_interface->Set_alpha_u(alpha_u);
+    u_hyperparam_interface->Set_beta_u(beta_u);
+    u_hyperparam_interface->Set_beta_t(beta_t);
+    u_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
+    HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT> > spatial_u_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface, random_number_generator);
+    ScalarT T = solver_->final_time;
+    int n_t = solver_->settings->sublist("Solver").get<int>("number of steps",0)+1;
+    int n_y = data_interface->get_u_opt()->dimension()/n_t;
+    HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface, T, n_t, n_y);
+    u_prior_interface = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface,transient_prior_cov);
+  } else {
+    HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>> u_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+    u_hyperparam_interface->Set_alpha_u(alpha_u);
+    u_hyperparam_interface->Set_beta_u(beta_u);
+    u_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
+    u_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface, random_number_generator);
+  }
+  
+  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>>(random_number_generator,"spatial field");
+  z_hyperparam_interface->Set_alpha_z(alpha_z);
+  z_hyperparam_interface->Set_beta_z(beta_z);
   HDSA::Ptr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>> z_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>>(S, M, data_interface, z_hyperparam_interface, u_prior_interface);
   
   HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT> > post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT> >(data_interface,u_prior_interface,z_prior_interface);
@@ -900,14 +931,14 @@ void AnalysisManager::HDSASolve() {
 void AnalysisManager::readExoForwardSolve() {
   Teuchos::ParameterList read_exo_settings;
 
-  if (settings_->sublist("Analysis").isSublist("readExo+forward"))
-    read_exo_settings = settings_->sublist("Analysis").sublist("readExo+forward");
+  if (settings_->sublist("Analysis").sublist("readExo+forward").isSublist("DataLoadParameters"))
+    read_exo_settings = settings_->sublist("Analysis").sublist("readExo+forward").sublist("DataLoadParameters");
   else
     TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE could not find the readExo+forward sublist in the input file!  Abort!");
 
-  std::string exo_file = read_exo_settings.sublist("DataLoadParameters").get<std::string>("ExoFile", "error");
-  std::string opt_var_physics = read_exo_settings.sublist("DataLoadParameters").get<std::string>("OptVariablePhysics", "error");
-  bool overwrite = read_exo_settings.sublist("DataLoadParameters").get<bool>("OverWriteParams", true);
+  std::string exo_file = read_exo_settings.get<std::string>("ExoFile", "error");
+  std::string opt_var_physics = read_exo_settings.get<std::string>("OptVariablePhysics", "error");
+  bool overwrite = read_exo_settings.get<bool>("OverWriteParams", true);
  
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
   HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator, read_exo_settings);
