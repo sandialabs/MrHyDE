@@ -868,15 +868,18 @@ void AnalysisManager::HDSASolve() {
   // HDSA::Ptr<HDSA::Vector<ScalarT> > z_out = data_interface->get_z_opt()->clone();
   // opt_prob_interface->Apply_Solution_Operator_z_Jacobian_Transpose(*z_out,*u_in,*z);
   // std::cout << "z out norm  " << z_out->norm() << std::endl;
+  // std::cout << "z out dotted with z  " << z_out->dot(*z) << std::endl;
 
   // HDSA::Ptr<HDSA::Vector<ScalarT> > z_in = data_interface->get_z_opt()->clone();
   // z_in->setScalar(3.0);
   // opt_prob_interface->Apply_RS_Hessian( *z_out, *z_in,*z);
   // std::cout << "z out norm  " << z_out->norm() << std::endl;
+  // std::cout << "z out dotted with z  " << z_out->dot(*z) << std::endl;
 
   // HDSA::Ptr<HDSA::Vector<ScalarT> > u_grad = data_interface->get_u_opt()->clone();
   // opt_prob_interface->Misfit_Gradient(*u_grad, *u_in, *z);
   // std::cout << "u grad norm  " << u_grad->norm() << std::endl;
+  // std::cout << "sum of grad  " << u_grad->dot(*u_in);
 
   // opt_prob_interface->Apply_Misfit_Hessian(*u_grad,*u_in,*u_in,*z);
   // std::cout << "u out norm  " << u_grad->norm() << std::endl;
@@ -885,6 +888,21 @@ void AnalysisManager::HDSASolve() {
   HDSA::Ptr< Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_,settings_,blockNames) ;
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->M[0]);
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> S = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->S[0]);
+
+  // HDSA::Ptr<HDSA::Vector<ScalarT>> vec_in = data_interface->get_u_opt()->clone();
+  // vec_in->setScalar(1.0);
+  // HDSA::Ptr<HDSA::Vector<ScalarT>> vec_out = data_interface->get_u_opt()->clone();
+  // M->Apply(*vec_out,*vec_in);
+
+  // // Get the column indices and values
+
+  // typename Tpetra::CrsMatrix<>::local_inds_host_view_type ind;
+  // typename Tpetra::CrsMatrix<>::values_host_view_type val;
+  // int i = 0;
+  // int j = 0;
+  // M->Get_Tpetra_Matrix()->getLocalRowView (i, ind, val);
+ 
+  // std::cout << val(j) << std::endl;
   
   bool is_transient = solver_->isTransient;
   HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> u_prior_interface; 
@@ -925,6 +943,7 @@ void AnalysisManager::HDSASolve() {
   HDSA::Ptr<HDSA::MD_Update<ScalarT> > update = HDSA::makePtr<HDSA::MD_Update<ScalarT> >(data_interface,u_prior_interface,z_prior_interface,opt_prob_interface,post_sampling,hessian_analysis);
  
   HDSA::Ptr<HDSA::Vector<ScalarT> > mean_update = update->Posterior_Update_Mean();
+  std::cout << "norm lofi opt  " << data_interface->get_z_opt()->norm() << std::endl;
   std::cout << "norm update " << mean_update->norm() << std::endl;
 }
 
