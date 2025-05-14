@@ -1432,8 +1432,10 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       //assembler->resetPrevSoln(set);
       
       int stime_index = cindex-1;
+      
       current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
       postproc->setTimeIndex(cindex);
+      assembler->updateStage(stage, current_time, deltat);
       
       sol_stage[set]->assign(*sol[set]);
       // if multistage, recover forward solution at each stage
