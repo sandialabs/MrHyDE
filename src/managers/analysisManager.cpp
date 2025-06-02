@@ -855,12 +855,30 @@ void AnalysisManager::HDSASolve() {
   int num_posterior_samples = HDSAsettings.sublist("HyperParameters").get<int>("num_posterior_samples", 0);
 
   Teuchos::ParameterList data_load_list =  HDSAsettings.sublist("DataLoadParameters");
+  std::string random_number_file = data_load_list.get<std::string>("random_number_file", "error");
+  int num_random_numbers = data_load_list.get<int>("num_random_numbers", 0);
+  HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator;
+  if(random_number_file == "error"){
+    random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
+  } else {
+    if(num_random_numbers == 0) {
+      std::cout << " Error: number of random numbers not specified" << std::endl;
+    }
+    random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >(num_random_numbers, random_number_file);
+  }
   
-  HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
-
   HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator,data_load_list);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_,random_number_generator);
 
+  std::cout << "norm of u opt  " << data_interface->get_u_opt()->norm() << std::endl;
+  std::cout << "norm of z opt  " << data_interface->get_z_opt()->norm() << std::endl;
+  std::vector<ScalarT> znorms = data_interface->get_Z()->norms();
+  std::cout << "norm of Z 0 " << znorms[0]  << std::endl;
+  std::cout << "norm of Z 1 " << znorms[1]  << std::endl;
+  std::vector<ScalarT> Dnorms = data_interface->get_D()->norms();
+  std::cout << "norm of D 0 " << Dnorms[0]  << std::endl;
+  std::cout << "norm of D 1 " << Dnorms[1]  << std::endl;
+  
   // HDSA::Ptr<HDSA::Vector<ScalarT> > z = data_interface->get_z_opt()->clone();
   // z->setScalar(2.0);
   // HDSA::Ptr<HDSA::Vector<ScalarT> > u_in = data_interface->get_u_opt()->clone();
