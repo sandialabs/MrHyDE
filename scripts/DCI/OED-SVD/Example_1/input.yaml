@@ -1,0 +1,58 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh:
+    dimension: 1
+    element type: interval
+    xmin: 0.0
+    xmax: 1.0
+    NX: 40
+  Physics:
+    modules: thermal
+    Initial conditions:
+      T: '0.0'
+  Discretization:
+    order:
+      T: 1
+    quadrature: 2
+  Functions:
+    thermal source: '50.0*exp(-(0.5-x)^2/0.05)'
+    thermal diffusion: '(x<0.5)*kappa + (x>0.5)*beta'
+    density: '1.5'
+    specific heat: '1.5'
+  Parameters:
+    kappa:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    beta:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+  Solver:
+    solver: transient
+    transient Butcher tableau: 'DIRK-1,2'
+    transient BDF order: 1
+    final time: 1.0
+    number of steps: 20
+    use direct solver: true
+  Analysis:
+    analysis type: UQ
+    UQ:
+      seed: 123 # also the default
+      samples: 10000
+      use user defined: true
+      source: input_dp2.dat
+      write solutions to text file: true
+      only write final time: true
+      write samples: true
+  Postprocess:
+...

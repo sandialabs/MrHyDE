@@ -1,0 +1,113 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    NX: 60
+    ymin: 0.0
+    ymax: 1.0
+    NY: 60
+  Physics:
+    modules: thermal
+    Initial conditions:
+      T: '0.0'
+  Discretization:
+    order:
+      T: 1
+    quadrature: 2
+  Functions:
+    thermal source: '50.0*exp(-(0.5-x)^2/0.05)*exp(-(0.5-y)^2/0.05)'
+    thermal diffusion: '(x<0.333)*(y>0.667)*kappa1 + (x>0.333)*(x<0.667)*(y>0.667)*kappa2 + (x>0.667)*(y>0.667)*kappa3 + (x<0.333)*(y<0.667)*(y>0.333)*kappa4 + (x>0.333)*(x<0.667)*(y>0.333)*(y<0.667)*kappa5 + (x>0.667)*(y<0.667)*(y>0.333)*kappa6 + (x<0.333)*(y<0.333)*kappa7 + (x>0.333)*(x<0.667)*(y<0.333)*kappa8 + (x>0.667)*(y<0.333)*kappa9'
+    density: '1.5'
+    specific heat: '1.5'
+  Parameters:
+    kappa1:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa2:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa3:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa4:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa5:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa6:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa7:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa8:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+    kappa9:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      distribution: uniform
+      min: 0.01
+      max: 0.2
+  Solver:
+    solver: transient
+    transient Butcher tableau: 'DIRK-1,2'
+    transient BDF order: 1
+    final time: 2.0
+    number of steps: 40
+    use direct solver: true
+  Analysis:
+    analysis type: UQ
+    UQ:
+      seed: 123 # also the default
+      samples: 1000
+      #use user defined: true
+      #source: input_dp1.dat
+      compute finite difference: true
+      finite difference component: 8
+      finite difference delta: 1.0e-5
+      write solutions to text file: true
+      only write final time: true
+      write samples: false #true
+  Postprocess:
+...
