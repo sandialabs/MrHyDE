@@ -1492,13 +1492,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
   if (is_adjoint) {
     maxiter = 2;//2;
   }
-
-#if defined(MrHyDE_ENABLE_HDSA)
-  if(postproc->hdsa_solop && is_adjoint) {
-    maxiter = 1;
-  }
-#endif
-  
+    
   bool proceed = true;
   ScalarT alpha = 1.0;
   
