@@ -868,7 +868,7 @@ void AnalysisManager::HDSASolve() {
   }
   
   HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator,data_load_list);
-  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_,random_number_generator);
+  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_, data_interface, random_number_generator);
   
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr< Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_,settings_,blockNames) ;
