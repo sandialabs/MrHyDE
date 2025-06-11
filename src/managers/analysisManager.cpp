@@ -868,7 +868,7 @@ void AnalysisManager::HDSASolve() {
     random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >(num_random_numbers, random_number_file);
   }
   
-  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator,data_load_list);
+  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,params_,random_number_generator,data_load_list);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_, data_interface, random_number_generator);
   
   vector<string> blockNames = solver_->mesh->getBlockNames();
@@ -982,7 +982,7 @@ void AnalysisManager::readExoForwardSolve() {
   bool overwrite = read_exo_settings.get<bool>("OverWriteParams", true);
  
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >();
-  HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,random_number_generator, read_exo_settings);
+  HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,params_,random_number_generator, read_exo_settings);
   Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
   if(!overwrite) {
     Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > current_vec = params_->getDiscretizedParams();
