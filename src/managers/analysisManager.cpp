@@ -909,7 +909,7 @@ void AnalysisManager::HDSASolve() {
     HDSA::Ptr<HDSA::MD_Prior_Sampling<ScalarT>> prior_sampling = HDSA::makePtr<HDSA::MD_Prior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
     HDSA::Ptr<HDSA::MultiVector<ScalarT>> spatial_coords = HDSA::makePtr<HDSA::MultiVector<ScalarT>>();
 
-    // This is a placeholder. TODO: Generalize to read nodal data
+    // JLH: This is a placeholder. TODO: Generalize to read nodal data
     Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> vec = solver_->linalg->getNewVector(0);
     HDSA::Ptr<HDSA::Vector<ScalarT> > x = HDSA::makePtr<HDSA_Tpetra_Vector<ScalarT>>(vec, random_number_generator);
     int spatialdim = vec->getGlobalLength();
@@ -924,6 +924,17 @@ void AnalysisManager::HDSASolve() {
     HDSA::Ptr<HDSA::MultiVector<ScalarT>> prior_delta_z_opt = prior_sampling->Get_prior_delta_z_opt();
     std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> prior_z_pert = prior_sampling->Get_prior_z_pert();
     std::vector<HDSA::Ptr<HDSA::MultiVector<ScalarT>>> prior_delta_z_pert = prior_sampling->Get_prior_delta_z_pert();
+
+    std::string name = "prior_delta_z_opt";
+    prior_delta_z_opt->Write_to_File(name);
+    name = "prior_z_pert_1.txt";
+    prior_z_pert[0]->Write_to_File(name);
+    name = "prior_z_pert_2.txt";
+    prior_z_pert[1]->Write_to_File(name);
+    name = "prior_delta_z_pert_1";
+    prior_delta_z_pert[0]->Write_to_File(name);
+    name = "prior_delta_z_pert_2";
+    prior_delta_z_pert[1]->Write_to_File(name);
   }
 
   HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT> > post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT> >(data_interface,u_prior_interface,z_prior_interface);
@@ -931,15 +942,31 @@ void AnalysisManager::HDSASolve() {
 
   HDSA::Ptr<HDSA::MD_Hessian_Analysis<ScalarT> > hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<ScalarT> >(opt_prob_interface,z_prior_interface);
 
-  if(hessian_num_eig_vals > 0) {
-    hessian_analysis->Compute_Hessian_GEVP(*data_interface->get_z_opt(),hessian_num_eig_vals,hessian_oversampling);
+  if (hessian_num_eig_vals > 0)
+  {
+    hessian_analysis->Compute_Hessian_GEVP(*data_interface->get_z_opt(), hessian_num_eig_vals, hessian_oversampling);
   }
-  
-  HDSA::Ptr<HDSA::MD_Update<ScalarT> > update = HDSA::makePtr<HDSA::MD_Update<ScalarT> >(data_interface,u_prior_interface,z_prior_interface,opt_prob_interface,post_sampling,hessian_analysis);
- 
-  HDSA::Ptr<HDSA::Vector<ScalarT> > mean_update = update->Posterior_Update_Mean();
-  std::cout << "norm lofi opt  " << data_interface->get_z_opt()->norm() << std::endl;
-  std::cout << "norm update " << mean_update->norm() << std::endl;
+
+  HDSA::Ptr<HDSA::MD_Update<ScalarT>> update = HDSA::makePtr<HDSA::MD_Update<ScalarT>>(data_interface, u_prior_interface, z_prior_interface, opt_prob_interface, post_sampling, hessian_analysis);
+
+  if (num_posterior_samples > 0)
+  {
+    HDSA::Ptr<HDSA::MD_Posterior_Vectors<ScalarT>> posterior_update_samples = update->Posterior_Update_Samples();
+    std::string name = "posterior_update_mean.txt";
+    posterior_update_samples->mean->Write_to_File(name);
+    name = "posterior_update_samples";
+    posterior_update_samples->samples->Write_to_File(name);
+
+    std::cout << "z_update_mean norm = " << posterior_update_samples->mean->norm() << std::endl;
+  }
+  else
+  {
+    HDSA::Ptr<HDSA::Vector<ScalarT>> z_update_mean = update->Posterior_Update_Mean();
+    std::string name = "posterior_update_mean.txt";
+    z_update_mean->Write_to_File(name);
+
+    std::cout << "z_update_mean norm = " << z_update_mean->norm() << std::endl;
+  }
 }
 
 void AnalysisManager::readExoForwardSolve() {
