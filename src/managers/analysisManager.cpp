@@ -870,7 +870,8 @@ void AnalysisManager::HDSASolve() {
   
   HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,params_,random_number_generator,data_load_list);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_, data_interface, random_number_generator);
-  
+  HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(data_interface);
+
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr< Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_,settings_,blockNames) ;
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->M[0]);
@@ -881,6 +882,7 @@ void AnalysisManager::HDSASolve() {
   HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> u_prior_interface; 
   if(is_transient) {
     u_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+    u_hyperparam_interface->Set_alpha_d(alpha_d);
     u_hyperparam_interface->Set_alpha_u(alpha_u);
     u_hyperparam_interface->Set_beta_u(beta_u);
     u_hyperparam_interface->Set_beta_t(beta_t);
@@ -893,6 +895,7 @@ void AnalysisManager::HDSASolve() {
     u_prior_interface = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface,transient_prior_cov);
   } else {
     u_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+        u_hyperparam_interface->Set_alpha_d(alpha_d);
     u_hyperparam_interface->Set_alpha_u(alpha_u);
     u_hyperparam_interface->Set_beta_u(beta_u);
     u_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
@@ -903,6 +906,8 @@ void AnalysisManager::HDSASolve() {
   z_hyperparam_interface->Set_alpha_z(alpha_z);
   z_hyperparam_interface->Set_beta_z(beta_z);
   HDSA::Ptr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>> z_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>>(S, M, data_interface, z_hyperparam_interface, u_prior_interface);
+
+  output_writer->Write_Hyperparameters(u_hyperparam_interface,z_hyperparam_interface);
 
   if (num_prior_samples > 0)
   {
@@ -926,7 +931,7 @@ void AnalysisManager::HDSASolve() {
   }
 
   HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT> > post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT> >(data_interface,u_prior_interface,z_prior_interface);
-  post_sampling->Compute_Posterior_Data(alpha_d,num_posterior_samples);
+  post_sampling->Compute_Posterior_Data(u_hyperparam_interface->Get_alpha_d(),num_posterior_samples);
 
   HDSA::Ptr<HDSA::MD_Hessian_Analysis<ScalarT> > hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<ScalarT> >(opt_prob_interface,z_prior_interface);
 
