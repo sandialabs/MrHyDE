@@ -868,7 +868,7 @@ void AnalysisManager::HDSASolve() {
     random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT> >(num_random_numbers, random_number_file);
   }
   
-  HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,params_,random_number_generator,data_load_list);
+  HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT> > data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT> >(comm_,solver_,params_,random_number_generator,data_load_list);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT> > opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT> >(solver_, postproc_, params_, data_interface, random_number_generator);
   
   vector<string> blockNames = solver_->mesh->getBlockNames();
@@ -899,7 +899,7 @@ void AnalysisManager::HDSASolve() {
     u_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface, random_number_generator);
   }
   
-  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(solver_,params_,random_number_generator,"spatial field",prior_num_state_solves);
+  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(data_interface,random_number_generator,"spatial field",prior_num_state_solves);
   z_hyperparam_interface->Set_alpha_z(alpha_z);
   z_hyperparam_interface->Set_beta_z(beta_z);
   HDSA::Ptr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>> z_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>>(S, M, data_interface, z_hyperparam_interface, u_prior_interface);
@@ -907,19 +907,7 @@ void AnalysisManager::HDSASolve() {
   if (num_prior_samples > 0)
   {
     HDSA::Ptr<HDSA::MD_Prior_Sampling<ScalarT>> prior_sampling = HDSA::makePtr<HDSA::MD_Prior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
-    HDSA::Ptr<HDSA::MultiVector<ScalarT>> spatial_coords = HDSA::makePtr<HDSA::MultiVector<ScalarT>>();
-
-    // JLH: This is a placeholder. TODO: Generalize to read nodal data
-    Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> vec = solver_->linalg->getNewVector(0);
-    HDSA::Ptr<HDSA::Vector<ScalarT> > x = HDSA::makePtr<HDSA_Tpetra_Vector<ScalarT>>(vec, random_number_generator);
-    int spatialdim = vec->getGlobalLength();
-    for (int j = 0; j < spatialdim; j++)
-    {
-      ScalarT val = double(j)/double(spatialdim-1);
-      vec->replaceGlobalValue(j, 0, val);
-    }
-
-    spatial_coords->push_back(x); 
+    HDSA::Ptr<HDSA::MultiVector<ScalarT>> spatial_coords = data_interface->Read_Spatial_Node_Data();
     prior_sampling->Generate_Prior_Discrepancy_Sample_Data(num_prior_samples, u_hyperparam_interface, z_hyperparam_interface, spatial_coords);
     HDSA::Ptr<HDSA::MultiVector<ScalarT>> prior_delta_z_opt = prior_sampling->Get_prior_delta_z_opt();
     std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> prior_z_pert = prior_sampling->Get_prior_z_pert();
