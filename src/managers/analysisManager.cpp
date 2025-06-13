@@ -914,20 +914,11 @@ void AnalysisManager::HDSASolve() {
     HDSA::Ptr<HDSA::MD_Prior_Sampling<ScalarT>> prior_sampling = HDSA::makePtr<HDSA::MD_Prior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
     HDSA::Ptr<HDSA::MultiVector<ScalarT>> spatial_coords = data_interface->Read_Spatial_Node_Data();
     prior_sampling->Generate_Prior_Discrepancy_Sample_Data(num_prior_samples, u_hyperparam_interface, z_hyperparam_interface, spatial_coords);
+    
     HDSA::Ptr<HDSA::MultiVector<ScalarT>> prior_delta_z_opt = prior_sampling->Get_prior_delta_z_opt();
     std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> prior_z_pert = prior_sampling->Get_prior_z_pert();
     std::vector<HDSA::Ptr<HDSA::MultiVector<ScalarT>>> prior_delta_z_pert = prior_sampling->Get_prior_delta_z_pert();
-
-    std::string name = "prior_delta_z_opt";
-    prior_delta_z_opt->Write_to_File(name);
-    name = "prior_z_pert_1.txt";
-    prior_z_pert[0]->Write_to_File(name);
-    name = "prior_z_pert_2.txt";
-    prior_z_pert[1]->Write_to_File(name);
-    name = "prior_delta_z_pert_1";
-    prior_delta_z_pert[0]->Write_to_File(name);
-    name = "prior_delta_z_pert_2";
-    prior_delta_z_pert[1]->Write_to_File(name);
+    output_writer->Write_Prior_Discrepancy_Samples(prior_delta_z_opt,prior_z_pert,prior_delta_z_pert);
   }
 
   HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT> > post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT> >(data_interface,u_prior_interface,z_prior_interface);
