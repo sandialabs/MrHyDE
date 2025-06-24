@@ -70,6 +70,15 @@ int main(int argc,char * argv[]) {
     if (verbosity >= 10 && !settings->get<bool>("disable timers",false)) {
         print_timers = true;
     }
+
+#if defined(MrHyDE_ENABLE_HDSA)
+    bool is_hdsa_analysis = (settings->sublist("Analysis").get("analysis type", "forward") == "HDSA");
+    if(is_hdsa_analysis)
+    {
+      settings->sublist("Postprocess").set("write solution", true);
+      settings->sublist("Postprocess").set("create optimization movie", true);
+    }
+#endif
       
     ////////////////////////////////////////////////////////////////////////////////
     // Create the mesh

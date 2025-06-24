@@ -196,7 +196,15 @@ namespace MrHyDE {
     // ========================================================================================
     
     void writeOptimizationSolution(const int & numEvaluations);
+
+#if defined(MrHyDE_ENABLE_HDSA) 
+    // ========================================================================================
+    // ========================================================================================
     
+    void writeOptimizationSolution(const string &filename);
+
+#endif
+
     // ========================================================================================
     // ========================================================================================
     
@@ -373,6 +381,7 @@ namespace MrHyDE {
     bool hdsa_solop;
     vector<Teuchos::RCP<SolutionStorage<Node> > > hdsa_solop_data;
 #endif
+    bool is_hdsa_analysis;
     
   private:
 

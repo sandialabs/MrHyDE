@@ -119,6 +119,8 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   stddev = settings->sublist("Analysis").get("additive normal noise standard dev", 0.0);
   write_dakota_output = settings->sublist("Postprocess").get("write Dakota output", false);
 
+  is_hdsa_analysis = (settings->sublist("Analysis").get("analysis type", "forward") == "HDSA");
+
   // Get a few lists of strings for easy references
   varlist = physics->var_list;
   blocknames = physics->block_names;
@@ -194,7 +196,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   ///////////////////////////////////////////////////
   // Set up the exodus file and informuser what file name is
 
-  if (write_solution && Comm->getRank() == 0)
+  if (write_solution && Comm->getRank() == 0 && !is_hdsa_analysis)
   {
     cout << endl
          << "*********************************************************" << endl;
@@ -208,11 +210,11 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
     isTD = true;
   }
 
-  if (isTD && write_solution)
+  if (isTD && write_solution && !is_hdsa_analysis)
   {
     mesh->setupExodusFile(exodus_filename);
   }
-  if (write_optimization_solution)
+  if (write_optimization_solution && !is_hdsa_analysis)
   {
     mesh->setupOptimizationExodusFile("optimization_" + exodus_filename);
   }
@@ -5499,6 +5501,145 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int &numEvaluatio
   double timestamp = static_cast<double>(numEvaluations);
   mesh->writeToOptimizationExodus(timestamp);
 }
+
+#if defined(MrHyDE_ENABLE_HDSA)
+template <class Node>
+void PostprocessManager<Node>::writeOptimizationSolution(const std::string &filename)
+{
+
+  Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
+
+  typedef typename Node::device_type LA_device;
+  typedef typename Node::execution_space LA_exec;
+
+  // Can the LA_device execution_space access the AseemblyDevice data?
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible)
+  {
+    data_avail = false;
+  }
+
+  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  vector<Kokkos::View<ScalarT *, AssemblyDevice>> params_kv;
+
+  auto Psol = params->getDiscretizedParams();
+  auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+  auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
+
+  if (data_avail)
+  {
+    params_kv.push_back(pslice);
+  }
+  else
+  {
+    auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(), pslice);
+    Kokkos::deep_copy(p_dev, pslice);
+    params_kv.push_back(p_dev);
+  }
+
+  for (size_t block = 0; block < assembler->groups.size(); ++block)
+  {
+    std::string blockID = blocknames[block];
+    auto myElements_tmp = disc->my_elements[block];
+    vector<size_t> myElements(myElements_tmp.extent(0));
+    for (size_t i = 0; i < myElements_tmp.extent(0); ++i)
+    {
+      myElements[i] = myElements_tmp(i);
+    }
+
+    if (myElements.size() > 0)
+    {
+
+      ////////////////////////////////////////////////////////////////
+      // Discretized Parameters
+      ////////////////////////////////////////////////////////////////
+
+      vector<string> dpnames = params->discretized_param_names;
+      vector<int> numParamBasis = params->paramNumBasis;
+      vector<int> dp_usebasis = params->discretized_param_usebasis;
+      vector<string> discParamTypes = params->discretized_param_basis_types;
+      if (dpnames.size() > 0)
+      {
+        for (size_t n = 0; n < dpnames.size(); n++)
+        {
+          int bnum = dp_usebasis[n];
+          if (discParamTypes[bnum] == "HGRAD")
+          {
+            Kokkos::View<ScalarT **, AssemblyDevice> soln_dev = Kokkos::View<ScalarT **, AssemblyDevice>("solution", myElements.size(), numNodesPerElem);
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp)
+            {
+              auto eID = assembler->groups[block][grp]->localElemID;
+              if (!assembler->groups[block][grp]->have_sols)
+              {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
+              auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_LAMBDA(const int elem) {
+                for( size_type i=0; i<soln_dev.extent(1); i++ ) {
+                  soln_dev(eID(elem),i) = sol(elem,i);
+                } });
+            }
+            Kokkos::deep_copy(soln_computed, soln_dev);
+            mesh->setOptimizationSolutionFieldData(dpnames[n], blockID, myElements, soln_computed);
+          }
+          else if (discParamTypes[bnum] == "HVOL")
+          {
+            Kokkos::View<ScalarT *, AssemblyDevice> soln_dev("solution", myElements.size());
+            auto soln_computed = Kokkos::create_mirror_view(soln_dev);
+            // std::string var = varlist[block][n];
+            for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp)
+            {
+              auto eID = assembler->groups[block][grp]->localElemID;
+              if (!assembler->groups[block][grp]->have_sols)
+              {
+                assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+              }
+              auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
+              parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_LAMBDA(const int elem) { soln_dev(eID(elem)) = sol(elem, 0); });
+            }
+            Kokkos::deep_copy(soln_computed, soln_dev);
+            mesh->setOptimizationCellFieldData(dpnames[n], blockID, myElements, soln_computed);
+          }
+          else if (discParamTypes[bnum] == "HDIV" || discParamTypes[n] == "HCURL")
+          {
+            // TMW: this is not actually implemented yet ... not hard to do though
+            /*
+             Kokkos::View<ScalarT*,HostDevice> soln_x("solution",myElements.size());
+             Kokkos::View<ScalarT*,HostDevice> soln_y("solution",myElements.size());
+             Kokkos::View<ScalarT*,HostDevice> soln_z("solution",myElements.size());
+             std::string var = varlist[block][n];
+             size_t eprog = 0;
+             for( size_t e=0; e<assembler->groups[block].size(); e++ ) {
+             Kokkos::View<ScalarT**,AssemblyDevice> sol = assembler->groups[block][grp]->param_avg;
+             auto host_sol = Kokkos::create_mirror_view(sol);
+             Kokkos::deep_copy(host_sol,sol);
+             for (int p=0; p<assembler->groups[block][grp]->numElem; p++) {
+             soln_x(eprog) = host_sol(p,n,0);
+             soln_y(eprog) = host_sol(p,n,1);
+             soln_z(eprog) = host_sol(p,n,2);
+             eprog++;
+             }
+             }
+
+             mesh->setcellFieldData(var+"x", blockID, myElements, soln_x);
+             mesh->setcellFieldData(var+"y", blockID, myElements, soln_y);
+             mesh->setcellFieldData(var+"z", blockID, myElements, soln_z);
+             */
+          }
+        }
+      }
+    }
+  }
+
+  ////////////////////////////////////////////////////////////////
+  // Write to Exodus
+  ////////////////////////////////////////////////////////////////
+
+  mesh->writeToOptimizationExodus(filename);
+}
+
+#endif
 
 // ========================================================================================
 // ========================================================================================
