@@ -1076,17 +1076,10 @@ void AnalysisManager::readExoForwardSolve()
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: MrHyDE could not find the readExo+forward sublist in the input file!  Abort!");
 
   std::string exo_file = read_exo_settings.get<std::string>("ExoFile", "error");
-  std::string opt_var_physics = read_exo_settings.get<std::string>("OptVariablePhysics", "error");
-  bool overwrite = read_exo_settings.get<bool>("OverWriteParams", true);
 
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
   HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, read_exo_settings);
   Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
-  if (!overwrite)
-  {
-    Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> current_vec = params_->getDiscretizedParams();
-    tpetra_vec->update(1.0, *current_vec, 1.0);
-  }
   params_->updateParams(tpetra_vec);
   this->forwardSolve();
 }
