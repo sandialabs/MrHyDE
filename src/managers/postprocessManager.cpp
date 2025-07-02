@@ -3826,19 +3826,6 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
   }
 #endif
 
-  // #if defined(MrHyDE_ENABLE_HDSA)
-  //   if(hdsa_solop) {
-  //     vector_RCP D_soln;
-  //     hdsa_solop_data[set]->extract(D_soln, 0, current_time);
-  //     double step = 1.0; //deltat;
-  //     if(abs(current_time - 1000.0) < 1.e-6)
-  //     {
-  //       step = 0.0;
-  //     }
-  //     grad->update(step,*D_soln,0.0);
-  //   }
-  // #endif
-
   debugger->print(1, "******** Finished PostprocessManager::computeObjectiveGradState ...");
 }
 
