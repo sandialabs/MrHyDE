@@ -24,13 +24,9 @@ namespace MrHyDE {
    * Where the unknown ___ is the ___.
    * The following functions may be specified in the input.yaml file:
    *   - "ellipticPrior source" is the ellipticPrior source.
-   *   - "advection z" is the advection z.
-   *   - "advection y" is the advection y.
-   *   - "density" is the density.
-   *   - "advection x" is the advection x.
    *   - "robin alpha" is the robin alpha.
    *   - "ellipticPrior diffusion" is the ellipticPrior diffusion.
-   *   - "specific heat" is the specific heat.
+   *   - "ellipticPrior reaction" is the ellipticPrior reaction.
    */
 
   template<class EvalT>
@@ -83,31 +79,12 @@ namespace MrHyDE {
     // ========================================================================================
     
     void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
-    
-    /**
-     * @brief Returns the integrands and their types (boundary/volume) for integrated quantities required
-     * by the ellipticPrior module. Currently, this is only used for testing purposes. 
-     *
-     * @return integrandsNamesAndTypes  Integrands, names, and type (boundary/volume) (matrix of strings).
-     */
-    
-    std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim);
-
 
   private:
     
-    int T_num = -1, ux_num = -1, uy_num = -1, uz_num = -1;
+    int T_num = -1; 
     int T_basis_num = -1;
     int auxT_num = -1;
-    int IQ_start;
-    
-    //View_AD2 e_vol, dedt_vol, dedx_vol, dedy_vol, dedz_vol;
-    //View_AD2 e_side, dedx_side, dedy_side, dedz_side;
-    //View_AD2 e_face, dedx_face, dedy_face, dedz_face;
-    //View_AD2 ux_vol, uy_vol, uz_vol;
-    
-    bool have_nsvel, test_IQs, have_advection;
-    ScalarT formparam;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ellipticPrior::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ellipticPrior::volumeResidual() - evaluation of residual");
