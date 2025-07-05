@@ -6021,7 +6021,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int &objID)
       numFound++;
     }
   }
-
+  
   objectives[objID].numSensors = numFound;
   objectives[objID].sensor_found = spts_found;
 
@@ -6481,31 +6481,20 @@ void PostprocessManager<Node>::locateSensorPoints(const int &block,
     } // pt
   } // elem
 
-  bool check_found = false;
-  if (check_found)
-  {
-    for (size_type pt = 0; pt < spts_found.extent(0); ++pt)
+  
+  for (size_type pt = 0; pt < spts_found.extent(0); ++pt) {
+    size_t fnd_flag = Comm->getSize()+1;
+    if (spts_found(pt))
     {
-      size_t fnd_flag = 0;
-      if (spts_found(pt))
-      {
-        fnd_flag = 1;
-      }
-      size_t globalFound = 0;
-      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1, &fnd_flag, &globalFound);
-      if (Comm->getRank() == 0)
-      {
-        if (globalFound == 0)
-        {
-          cout << " - Sensor " << pt << " was not found" << endl;
-        }
-        else if (globalFound > 1)
-        {
-          cout << " - Sensor " << pt << " was found " << globalFound << " times" << endl;
-        }
-      }
+      fnd_flag = Comm->getRank();
+    }
+    size_t globalFound = 0;
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MIN, 1, &fnd_flag, &globalFound);
+    if (Comm->getRank() != globalFound) {
+      spts_found(pt) = false;
     }
   }
+  
   if (verbosity >= 10)
   {
     size_t numFound = 0;
