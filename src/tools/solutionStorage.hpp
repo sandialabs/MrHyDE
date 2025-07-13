@@ -78,7 +78,7 @@ namespace MrHyDE {
     bool extract(Teuchos::RCP<V> & vec, const size_t & index, const ScalarT & currtime) {
       Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
-      if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
+      if (std::abs(currtime)>0.0) { // ok to use relative tolerance
         for (size_t j=0; j<times_[index].size(); j++) {
           if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
             vec = data_[index][j];
@@ -104,7 +104,7 @@ namespace MrHyDE {
       Teuchos::TimeMonitor localtimer(*soln_storage_extract_timer_);
       bool found = false;
       
-      if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
+      if (std::abs(currtime)>0.0) { // ok to use relative tolerance
         for (size_t j=0; j<times_[index].size(); j++) {
           if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
             vec = data_[index][j];
@@ -220,29 +220,8 @@ namespace MrHyDE {
         data_.push_back(newdata);
       }
       else {
-        size_t timeindex;
-        bool foundtime = false;
-        for (size_t j=0; j<times_[index].size(); j++) {
-          if (std::abs(currtime)>1.0e-16) { // ok to use relative tolerance
-            if (std::abs(times_[index][j] - currtime)/currtime < time_rel_TOL_) {
-              foundtime = true;
-              timeindex = j;
-            }
-          }
-          else { // use as absolute tolerance
-            if (std::abs(times_[index][j] - currtime) < time_rel_TOL_) {
-              foundtime = true;
-              timeindex = j;
-            }
-          }
-        }
-        if (foundtime) {
-          data_[index][timeindex] = vecstore;
-        }
-        else {
-          data_[index].push_back(vecstore);
-          times_[index].push_back(currtime);
-        }
+        data_[index].push_back(vecstore);
+        times_[index].push_back(currtime);
       }
       
     }
@@ -279,6 +258,15 @@ namespace MrHyDE {
       
     }
     
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
+    void reset() {
+      for (size_t index=0; index<times_.size(); index++) {
+        times_[index].clear();
+        data_[index].clear();
+      }
+    }
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     

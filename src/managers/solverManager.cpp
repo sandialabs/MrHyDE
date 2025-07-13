@@ -1113,6 +1113,7 @@ void SolverManager<Node>::forwardModel(ScalarT & objective) {
   is_adjoint = false;
   params->sacadoizeParams(false);
   postproc->resetObjectives();
+  postproc->resetSolutions();
   
   for (size_t set=0; set<setnames.size(); ++set) {
     if (!scalarDirichletData[set]) {

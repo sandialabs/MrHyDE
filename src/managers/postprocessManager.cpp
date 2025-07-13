@@ -6687,6 +6687,16 @@ Teuchos::Array<ScalarT> PostprocessManager<Node>::collectResponses()
 // ========================================================================================
 // ========================================================================================
 
+template <class Node>
+void PostprocessManager<Node>::resetSolutions() {
+  for (size_t set = 0; set < soln.size(); ++set) {
+    soln[set]->reset();
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
 // Explicit template instantiations
 template class MrHyDE::PostprocessManager<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
