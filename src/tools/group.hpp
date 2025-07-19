@@ -271,6 +271,7 @@ namespace MrHyDE {
     // basis information
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_nodes;
     vector<CompressedView<View_Sc3>> basis_div, local_mass, local_jacobian;
+    CompressedView<View_Sc3> local_param_mass;
     CompressedView<View_Sc2> wts;
 
     vector<vector<CompressedView<View_Sc4>>> basis_face, basis_grad_face;

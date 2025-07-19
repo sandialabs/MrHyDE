@@ -330,6 +330,10 @@ void SolverManager<Node>::completeSetup() {
     this->setupExplicitMass();
   }
   
+  if (params->num_discretized_params > 0) {
+    this->setupDiscretizedParamMass();
+  }
+  
   debugger->print("**** Finished SolverManager::completeSetup()");
   
 }
@@ -356,6 +360,7 @@ void SolverManager<Node>::setupExplicitMass() {
       //typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
       //typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
       
+      /*
       vector<size_t> maxEntriesPerRow(linalg->getLocalNumElements(set), 0);
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
@@ -385,9 +390,10 @@ void SolverManager<Node>::setupExplicitMass() {
       
       maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
                                                                             static_cast<int>(maxEntries)));
+      */
       
+      /*
       Teuchos::RCP<Tpetra::CrsGraph<LO,GO,Node> > overlapped_graph = linalg->getNewOverlappedGraph(set, maxEntriesPerRow);
-      //Teuchos::rcp(new LA_CrsGraph(linalg->overlapped_map[set], maxEntriesPerRow));
       
       for (size_t block=0; block<assembler->groups.size(); ++block) {
         auto offsets = assembler->wkset[block]->offsets;
@@ -402,10 +408,10 @@ void SolverManager<Node>::setupExplicitMass() {
               for (int j=0; j<numDOF(n); j++) {
                 vector<GO> cols;
                 int row = offsets(n,j);
-                GO rowIndex = linalg->getGlobalElement(set, LIDs(elem,row));//overlapped_map[set]->getGlobalElement(LIDs(elem,row));
+                GO rowIndex = linalg->getGlobalElement(set, LIDs(elem,row));
                 for (int k=0; k<numDOF(n); k++) {
                   int col = offsets(n,k);
-                  GO gcol = linalg->getGlobalElement(set, LIDs(elem,col));//overlapped_map[set]->getGlobalElement(LIDs(elem,col));
+                  GO gcol = linalg->getGlobalElement(set, LIDs(elem,col));
                   cols.push_back(gcol);
                 }
                 overlapped_graph->insertGlobalIndices(rowIndex,cols);
@@ -415,6 +421,7 @@ void SolverManager<Node>::setupExplicitMass() {
         }
       }
       overlapped_graph->fillComplete();
+      */
       
       //vector<GO> owned;
       //disc->dof_owned[set];
@@ -455,9 +462,7 @@ void SolverManager<Node>::setupExplicitMass() {
         linalg->exportMatrixFromOverlapped(set,explicitMass[set], mass);
       }
     }
-    //if (debug_level > 2) {
-    //  KokkosTools::print(diagMass[set]);
-    //}
+    
   }
 
   debugger->print("**** Starting SolverManager::setupExplicitMass() - fillComplete");
@@ -481,6 +486,61 @@ void SolverManager<Node>::setupExplicitMass() {
   }
   
   debugger->print("**** Finished SolverManager::setupExplicitMass()");
+  
+}
+
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::setupDiscretizedParamMass() {
+
+  debugger->print("**** Starting SolverManager::setupDiscretizedParamMass()");
+  
+  // Hard coding this to always assemble the matrix
+  // Can relax this and allow matrix-free later
+  bool compute_matrix = true;
+  
+  matrix_RCP pmass;
+  
+  if (compute_matrix) {
+    
+    paramMass = linalg->getNewParamMatrix();
+    
+    if (linalg->getHaveOverlapped()) {
+      pmass = linalg->getNewOverlappedParamMatrix();
+    }
+    else {
+      pmass = paramMass;
+    }
+    
+  }
+  
+  diagParamMass = linalg->getNewParamVector();
+  vector_RCP diagParamMass_over;
+  if (linalg->getHaveOverlapped()) {
+    diagParamMass_over = linalg->getNewOverlappedParamVector();
+  }
+  else { // squeeze out memory for single rank demos
+    diagParamMass_over = diagParamMass;
+  }
+  
+  assembler->getParamMass(pmass,diagParamMass_over);
+  
+  if (linalg->getHaveOverlapped()) {
+    linalg->exportParamVectorFromOverlapped(diagParamMass, diagParamMass_over);
+    if (compute_matrix) {
+      linalg->exportParamMatrixFromOverlapped(paramMass, pmass);
+    }
+  }
+  
+
+  if (compute_matrix) {
+    linalg->fillComplete(paramMass);
+  }
+  
+  debugger->print("**** Finished SolverManager::setupDiscretizedParamMass()");
   
 }
 
@@ -1977,7 +2037,7 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
 
 template<class Node>
 Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > SolverManager<Node>::setInitialParams() {
-  vector_RCP initial = linalg->getNewParamOverlappedVector();
+  vector_RCP initial = linalg->getNewOverlappedParamVector();
   ScalarT value = 2.0;
   initial->putScalar(value);
   return initial;

@@ -195,6 +195,24 @@ namespace MrHyDE {
       
       return newmat;
     }
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    matrix_RCP getNewParamMatrix() {
+      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, max_entries));
+      return newmat;
+    }
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    matrix_RCP getNewParamStateMatrix(const size_t & set) {
+      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, max_entries));
+      return newmat;
+    }
 
     // ========================================================================================
     // ========================================================================================
@@ -237,7 +255,7 @@ namespace MrHyDE {
     
     matrix_RCP getNewOverlappedRectangularMatrix(Teuchos::RCP<const LA_Map> & colmap, const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(overlapped_map[set], colmap, 64));
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(overlapped_map[set], colmap, max_entries));
       return newmat;
     }
     
@@ -246,7 +264,7 @@ namespace MrHyDE {
     
     matrix_RCP getNewRectangularMatrix(Teuchos::RCP<const LA_Map> & colmap, const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], colmap,  64));
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], colmap,  max_entries));
       return newmat;
     }
     
@@ -263,7 +281,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    vector_RCP getNewParamOverlappedVector(const int & numvecs = 1) {
+    vector_RCP getNewOverlappedParamVector(const int & numvecs = 1) {
       Teuchos::TimeMonitor vectimer(*newvectortimer);
       vector_RCP newvec = Teuchos::rcp(new LA_MultiVector(param_overlapped_map,numvecs));
       return newvec;
@@ -272,21 +290,19 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    matrix_RCP getNewParamMatrix() {
+    matrix_RCP getNewOverlappedParamMatrix() {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, max_entries));
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_overlapped_graph));
       return newmat;
-      //return matrix;
     }
     
     // ========================================================================================
     // ========================================================================================
     
-    matrix_RCP getNewParamOverlappedMatrix() {
+    matrix_RCP getNewOverlappedParamStateMatrix(const size_t & set) {
       Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_overlapped_graph));
+      matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(paramstate_overlapped_graph[set]));
       return newmat;
-      //return overlapped_matrix;
     }
     
     // ========================================================================================
@@ -339,6 +355,15 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    void exportParamStateMatrixFromOverlapped(const size_t & set, matrix_RCP & mat, matrix_RCP & mat_over) {
+      Teuchos::TimeMonitor mattimer(*exporttimer);
+      mat->setAllToScalar(0.0);
+      mat->doExport(*mat_over, *(param_exporter), Tpetra::ADD);
+    }
+    
+    // ========================================================================================
+    // ========================================================================================
+    
     void exportParamMatrixFromOverlapped(matrix_RCP & mat, matrix_RCP & mat_over) {
       Teuchos::TimeMonitor mattimer(*exporttimer);
       mat->setAllToScalar(0.0);
@@ -359,10 +384,9 @@ namespace MrHyDE {
     // Fill complete calls
     // ========================================================================================
     
-    void fillCompleteParam(const size_t & set, matrix_RCP & mat) {
+    void fillCompleteParamState(const size_t & set, matrix_RCP & mat) {
       Teuchos::TimeMonitor mattimer(*fillcompletetimer);
       mat->fillComplete(owned_map[set], param_owned_map);
-      //mat->fillComplete(param_owned_map, owned_map[set]);
     }
   
     // ========================================================================================
@@ -374,7 +398,6 @@ namespace MrHyDE {
     }
     
     // ========================================================================================
-    // Random access function
     // ========================================================================================
  
     size_t getLocalNumElements(const size_t & set) {
@@ -384,6 +407,20 @@ namespace MrHyDE {
       }
       else {
         numElem = owned_map[set]->getLocalNumElements();
+      }
+      return numElem;
+    }
+
+    // ========================================================================================
+    // ========================================================================================
+ 
+    size_t getLocalNumParamElements() {
+      size_t numElem = 0;
+      if (have_overlapped) {
+        numElem = param_overlapped_map->getLocalNumElements();
+      }
+      else {
+        numElem = param_owned_map->getLocalNumElements();
       }
       return numElem;
     }
@@ -405,6 +442,20 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
+    Teuchos::RCP<LA_CrsGraph> getNewParamOverlappedGraph(vector<size_t> & maxEntriesPerRow) {
+      Teuchos::RCP<LA_CrsGraph> newgraph;
+      if (have_overlapped) {
+        newgraph = Teuchos::rcp(new LA_CrsGraph(param_overlapped_map, maxEntriesPerRow));
+      }
+      else {
+        newgraph = Teuchos::rcp(new LA_CrsGraph(param_owned_map, maxEntriesPerRow));
+      }
+      return newgraph;
+    }
+    
+    // ========================================================================================
+    // ========================================================================================
+    
     GO getGlobalElement(const size_t & set, const LO & lid) {
       GO gid = 0;
       if (have_overlapped) {
@@ -412,6 +463,20 @@ namespace MrHyDE {
       }
       else {
         gid = owned_map[set]->getGlobalElement(lid);
+      }
+      return gid;
+    }
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    GO getGlobalParamElement(const LO & lid) {
+      GO gid = 0;
+      if (have_overlapped) {
+        gid = param_overlapped_map->getGlobalElement(lid);
+      }
+      else {
+        gid = param_owned_map->getGlobalElement(lid);
       }
       return gid;
     }
@@ -559,6 +624,11 @@ namespace MrHyDE {
     Teuchos::RCP<LA_CrsGraph> param_overlapped_graph;
     Teuchos::RCP<LA_Export> param_exporter;
     Teuchos::RCP<LA_Import> param_importer;
+    
+    vector<Teuchos::RCP<const LA_Map> > paramstate_owned_map, paramstate_overlapped_map;
+    vector<Teuchos::RCP<LA_CrsGraph> > paramstate_overlapped_graph;
+    //vector<Teuchos::RCP<LA_Export> > paramstate_exporter;
+    //vector<Teuchos::RCP<LA_Import> > paramstate_importer;
     
     vector<matrix_RCP> matrix, overlapped_matrix;
     

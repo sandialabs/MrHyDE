@@ -240,28 +240,31 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
   }
   
   // --------------------------------------------------
-  // discretized parameter LA objects
+  // discretized parameter/state LA objects
   // --------------------------------------------------
   
-  {
-    if (params->num_discretized_params > 0) {
-      
-      vector<GO> param_owned, param_ownedAndShared;
-      
-      params->paramDOF->getOwnedIndices(param_owned);
-      LO numUnknowns = (LO)param_owned.size();
-      params->paramDOF->getOwnedAndGhostedIndices(param_ownedAndShared);
-      GO localNumUnknowns = numUnknowns;
-      
-      GO globalNumUnknowns = 0;
-      Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
-      
-      param_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_owned, 0, comm));
-      param_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_ownedAndShared, 0, comm));
-      
-      param_exporter = Teuchos::rcp(new LA_Export(param_overlapped_map, param_owned_map));
-      param_importer = Teuchos::rcp(new LA_Import(param_owned_map, param_overlapped_map));
-      
+  if (params->num_discretized_params > 0) {
+    
+    // Maps, importers, and exporters
+    vector<GO> param_owned, param_ownedAndShared;
+    
+    params->paramDOF->getOwnedIndices(param_owned);
+    LO numUnknowns = (LO)param_owned.size();
+    params->paramDOF->getOwnedAndGhostedIndices(param_ownedAndShared);
+    GO localNumUnknowns = numUnknowns;
+    
+    GO globalNumUnknowns = 0;
+    Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
+    
+    param_owned_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_owned, 0, comm));
+    param_overlapped_map = Teuchos::rcp(new LA_Map(globalNumUnknowns, param_ownedAndShared, 0, comm));
+    
+    param_exporter = Teuchos::rcp(new LA_Export(param_overlapped_map, param_owned_map));
+    param_importer = Teuchos::rcp(new LA_Import(param_owned_map, param_overlapped_map));
+    
+    // Param/state LA objects
+    // TMW: warning - this is hard coded to one physics set
+    for (size_t set=0; set<setnames.size(); ++set) {
       vector<size_t> max_entriesPerRow(param_overlapped_map->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
         auto EIDs = disc->my_elements[b];
@@ -269,8 +272,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
           size_t elemID = EIDs(e);
           vector<GO> gids;
           params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
-          vector<GO> stategids = disc->getGIDs(0,b,elemID);
-          //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
+          vector<GO> stategids = disc->getGIDs(set,b,elemID);
           for (size_t i=0; i<gids.size(); i++) {
             LO ind1 = param_overlapped_map->getLocalElement(gids[i]);
             max_entriesPerRow[ind1] += stategids.size();
@@ -281,31 +283,65 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       for (size_t m=0; m<max_entriesPerRow.size(); ++m) {
         max_entries = std::max(max_entries, max_entriesPerRow[m]);
       }
-
-      param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(param_overlapped_map, overlapped_map[0], max_entries));
+      
+      paramstate_overlapped_graph.push_back(Teuchos::rcp( new LA_CrsGraph(param_overlapped_map, overlapped_map[set], max_entries)));
       for (size_t b=0; b<blocknames.size(); b++) {
         auto EIDs = disc->my_elements[b];
         for (size_t e=0; e<EIDs.extent(0); e++) {
           vector<GO> gids;
           size_t elemID = EIDs(e);
           params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
-          vector<GO> stategids = disc->getGIDs(0,b,elemID);
-          // TMW: warning - this is hard coded to one physics set
-          //disc->DOF[0]->getElementGIDs(elemID, stategids, blocknames[b]);
+          vector<GO> stategids = disc->getGIDs(set,b,elemID);
           for (size_t i=0; i<gids.size(); i++) {
             GO ind1 = gids[i];
-            param_overlapped_graph->insertGlobalIndices(ind1,stategids);
+            paramstate_overlapped_graph[set]->insertGlobalIndices(ind1,stategids);
           }
         }
       }
       
-      param_overlapped_graph->fillComplete(owned_map[0], param_owned_map); // hard coded
-      //param_overlapped_graph->fillComplete(overlapped_map[0], param_overlapped_map); // hard coded
-      
+      paramstate_overlapped_graph[set]->fillComplete(owned_map[set], param_owned_map); // hard coded
     }
+
+    // --------------------------------------------------
+    // discretized parameter LA objects
+    // --------------------------------------------------
+    
+    vector<size_t> max_entriesPerRow(param_overlapped_map->getLocalNumElements(), 0);
+    for (size_t b=0; b<blocknames.size(); b++) {
+      auto EIDs = disc->my_elements[b];
+      for (size_t e=0; e<EIDs.extent(0); e++) {
+        size_t elemID = EIDs(e);
+        vector<GO> gids;
+        params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
+        for (size_t i=0; i<gids.size(); i++) {
+          LO ind1 = param_overlapped_map->getLocalElement(gids[i]);
+          max_entriesPerRow[ind1] += gids.size();
+        }
+      }
+    }
+      
+    for (size_t m=0; m<max_entriesPerRow.size(); ++m) {
+      max_entries = std::max(max_entries, max_entriesPerRow[m]);
+    }
+    
+    param_overlapped_graph = Teuchos::rcp( new LA_CrsGraph(param_overlapped_map, max_entries));
+    for (size_t b=0; b<blocknames.size(); b++) {
+      auto EIDs = disc->my_elements[b];
+      for (size_t e=0; e<EIDs.extent(0); e++) {
+        vector<GO> gids;
+        size_t elemID = EIDs(e);
+        params->paramDOF->getElementGIDs(elemID, gids, blocknames[b]);
+        for (size_t i=0; i<gids.size(); i++) {
+          GO ind1 = gids[i];
+          param_overlapped_graph->insertGlobalIndices(ind1,gids);
+        }
+      }
+    }
+    
+    param_overlapped_graph->fillComplete(); // hard coded
+    
   }
 
-  
   debugger->print("**** Finished solver::setupLinearAlgebraInterface");
   
 }

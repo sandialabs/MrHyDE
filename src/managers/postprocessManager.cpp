@@ -4323,16 +4323,13 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
   typedef Tpetra::CrsMatrix<ScalarT, LO, GO, Node> LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix> matrix_RCP;
 
-  if (save_adjoint_solution)
-  {
-    for (size_t set = 0; set < soln.size(); ++set)
-    {
+  if (save_adjoint_solution) {
+    for (size_t set = 0; set < soln.size(); ++set) {
       adj_soln[set]->store(adjoint[set], current_time, 0);
     }
   }
   DFAD obj_sens = 0.0;
-  if (response_type != "discrete")
-  {
+  if (response_type != "discrete") {
     this->computeObjectiveGradParam(u, current_time, deltat, obj_sens);
   }
 
@@ -4343,8 +4340,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
 
   // KokkosTools::print(adjoint[0],"adjoint");
 
-  if (params->num_active_params > 0)
-  {
+  if (params->num_active_params > 0) {
 
     params->sacadoizeParams(true);
     params->updateDynamicParams(tindex - 1);
@@ -4352,12 +4348,10 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
     // vector<ScalarT> localsens(params->num_active_params);
     auto sgrad = gradient.getParameter();
     ROL::Ptr<std::vector<ScalarT>> scalar_grad;
-    if (gradient.haveDynamicScalar())
-    {
+    if (gradient.haveDynamicScalar()) {
       scalar_grad = sgrad[tindex - 1]->getVector();
     }
-    else
-    {
+    else {
       scalar_grad = sgrad[0]->getVector();
     }
     vector<ScalarT> local_grad(scalar_grad->size(), 0.0);
@@ -4383,27 +4377,21 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
     linalg->writeToFile(J_over, res, u[0], "sens_jacobian.mm",
                         "sens_residual.mm", "sens_solution.mm");
 
-    for (size_t paramiter = 0; paramiter < params->num_active_params; paramiter++)
-    {
+    for (size_t paramiter = 0; paramiter < params->num_active_params; paramiter++) {
       // fine-scale
-      if (assembler->groups[0][0]->group_data->multiscale)
-      {
+      if (assembler->groups[0][0]->group_data->multiscale) {
         ScalarT subsens = 0.0;
-        for (size_t block = 0; block < assembler->groups.size(); ++block)
-        {
-          for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp)
-          {
+        for (size_t block = 0; block < assembler->groups.size(); ++block) {
+          for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp) {
             subsens = -assembler->groups[block][grp]->subgradient(0, paramiter);
             local_grad[paramiter] += subsens;
           }
         }
       }
-      else
-      { // coarse-scale
+      else { // coarse-scale
 
         ScalarT currsens = 0.0;
-        for (size_t i = 0; i < res_kv.extent(0); i++)
-        {
+        for (size_t i = 0; i < res_kv.extent(0); i++) {
           currsens += adjoint_kv(i, 0) * res_kv(i, paramiter);
         }
         local_grad[paramiter] = -currsens;
@@ -4413,15 +4401,13 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
     ScalarT localval = 0.0;
     ScalarT globalval = 0.0;
     int numderivs = (int)obj_sens.size();
-    for (size_t paramiter = 0; paramiter < params->num_active_params; paramiter++)
-    {
+    for (size_t paramiter = 0; paramiter < params->num_active_params; paramiter++) {
       localval = local_grad[paramiter];
       Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1, &localval, &globalval);
       // Comm->SumAll(&localval, &globalval, 1);
       ScalarT cobj = 0.0;
 
-      if ((int)paramiter < numderivs)
-      {
+      if ((int)paramiter < numderivs) {
         cobj = obj_sens.fastAccessDx(paramiter);
       }
       globalval += cobj;
@@ -4433,41 +4419,35 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
 
   int numDiscParams = params->getNumParams(4);
 
-  if (numDiscParams > 0)
-  {
+  if (numDiscParams > 0) {
 
     auto disc_grad = gradient.getField();
     vector_RCP curr_grad;
-    if (gradient.haveDynamicField())
-    {
+    if (gradient.haveDynamicField()) {
       curr_grad = disc_grad[tindex - 1]->getVector();
     }
-    else
-    {
+    else {
       curr_grad = disc_grad[0]->getVector();
     }
-
+    
     auto sens = this->computeDiscreteSensitivities(u, adjoint, current_time, tindex, deltat);
     curr_grad->update(1.0, *sens, 1.0);
 
-    {
-      vector_RCP sens_over = linalg->getNewParamOverlappedVector();
-      auto sens_kv = sens_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-
-      for (size_t i = 0; i < params->paramOwnedAndShared.size(); i++)
-      {
-        ScalarT cobj = 0.0;
-        if ((int)(i + params->num_active_params) < obj_sens.size())
-        {
-          cobj = obj_sens.fastAccessDx(i + params->num_active_params);
-        }
-        sens_kv(i, 0) += cobj;
+    vector_RCP sens_over = linalg->getNewOverlappedParamVector();
+    auto sens_kv = sens_over->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    
+    for (size_t i = 0; i < params->paramOwnedAndShared.size(); i++) {
+      ScalarT cobj = 0.0;
+      if ((int)(i + params->num_active_params) < obj_sens.size()) {
+        cobj = obj_sens.fastAccessDx(i + params->num_active_params);
       }
-
-      vector_RCP sensr = linalg->getNewParamVector();
-      linalg->exportParamVectorFromOverlapped(sensr, sens_over);
-      curr_grad->update(1.0, *sensr, 1.0);
+      sens_kv(i, 0) += cobj;
     }
+    
+    vector_RCP sensr = linalg->getNewParamVector();
+    linalg->exportParamVectorFromOverlapped(sensr, sens_over);
+    curr_grad->update(1.0, *sensr, 1.0);
+
   }
   this->saveObjectiveGradientData(gradient);
 
@@ -4537,10 +4517,11 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> &u,
 
   typedef Tpetra::CrsMatrix<ScalarT, LO, GO, Node> LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix> matrix_RCP;
-
+  
   vector_RCP res_over = linalg->getNewOverlappedVector(set);
-  matrix_RCP J = linalg->getNewParamMatrix();
-  matrix_RCP J_over = linalg->getNewParamOverlappedMatrix();
+  matrix_RCP J = linalg->getNewParamStateMatrix(set);
+  matrix_RCP J_over = linalg->getNewOverlappedParamStateMatrix(set);
+  
   res_over->putScalar(0.0);
   J->setAllToScalar(0.0);
   J_over->setAllToScalar(0.0);
@@ -4555,14 +4536,15 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> &u,
                             res_over, J_over, isTD, current_time, false, false,    // store_adjPrev,
                             params->num_active_params, Psol, Pdot, false, deltat); // is_final_time, deltat);
 
-  linalg->fillCompleteParam(set, J_over);
-
+  
+  linalg->fillCompleteParamState(set, J_over);
+  
   vector_RCP gradient = linalg->getNewParamVector();
 
-  linalg->exportParamMatrixFromOverlapped(J, J_over);
-
-  linalg->fillCompleteParam(set, J);
-
+  linalg->exportParamStateMatrixFromOverlapped(set, J, J_over);
+  
+  linalg->fillCompleteParamState(set, J);
+  
   vector_RCP adj = linalg->getNewVector(set);
   adj->doExport(*(adjoint[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
   J->apply(*adj, *gradient);

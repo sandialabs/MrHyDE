@@ -471,7 +471,7 @@ void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > var
     }
   }
   
-  if(use_stk_mesh) {
+  if (use_stk_mesh) {
     mesh_factory->completeMeshConstruction(*stk_mesh,*(comm->getRawMpiComm()));
   }
 

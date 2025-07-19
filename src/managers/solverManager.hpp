@@ -74,6 +74,16 @@ namespace MrHyDE {
 
     // ========================================================================================
     // ========================================================================================
+    
+    /**
+     * @brief Set up the ability to either construct a mass matrix or apply the action of the mass matrix associated with a discretized field.
+     *  This is often required to obtain the propoer convergence behavior for optimal design/control when using discretized fields.
+     */
+    
+    void setupDiscretizedParamMass();
+    
+    // ========================================================================================
+    // ========================================================================================
 
     /**
      * @brief Set the RK Butcher tableau.
@@ -275,6 +285,8 @@ namespace MrHyDE {
     vector<vector<vector<ScalarT> > > scalarDirichletValues, scalarInitialValues; // [set][block][var]
     vector<Teuchos::RCP<LA_MultiVector> > fixedDOF_soln, invdiagMass, diagMass;
     vector<matrix_RCP> explicitMass;
+    Teuchos::RCP<LA_MultiVector> diagParamMass;
+    matrix_RCP paramMass;
     
     vector<string> blocknames, setnames;
     vector<vector<vector<string> > > varlist;
