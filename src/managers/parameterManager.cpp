@@ -680,7 +680,7 @@ MrHyDE_OptVector ParameterManager<Node>::getCurrentVector() {
     //}
   }
     
-  MrHyDE_OptVector newvec(new_disc_params, new_active_params, Comm->getRank());
+  MrHyDE_OptVector newvec(new_disc_params, new_active_params, 1.0, diagParamMass, paramMass, Comm->getRank());
   return newvec;
 }
 
@@ -1394,6 +1394,17 @@ vector<ScalarT> ParameterManager<Node>::getFractionalParams(const std::string & 
   }
 }
 
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void ParameterManager<Node>::setParamMass(Teuchos::RCP<LA_MultiVector> diag,
+                                          matrix_RCP mass) {
+  
+  paramMass = mass;
+  diagParamMass = diag;
+  
+}
 /////////////////////////////////////////////////////////////////////////////////////////////
 // After the setup phase, we can get rid of a few things
 /////////////////////////////////////////////////////////////////////////////////////////////

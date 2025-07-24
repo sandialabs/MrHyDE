@@ -281,7 +281,7 @@ namespace MrHyDE {
     bool compute_objective, use_custom_initial_param_guess, store_adjPrev, use_meas_as_dbcs, compute_fwd_sens;
     vector<bool> scalarDirichletData, staticDirichletData, scalarInitialData;
     vector<bool> have_initial_conditions, have_static_Dirichlet_data;
-    bool useRelativeTOL, useAbsoluteTOL, allowBacktracking, store_vectors;
+    bool useRelativeTOL, useAbsoluteTOL, allowBacktracking, store_vectors, use_param_mass;
     vector<vector<vector<ScalarT> > > scalarDirichletValues, scalarInitialValues; // [set][block][var]
     vector<Teuchos::RCP<LA_MultiVector> > fixedDOF_soln, invdiagMass, diagMass;
     vector<matrix_RCP> explicitMass;

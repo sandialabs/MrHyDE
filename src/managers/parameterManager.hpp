@@ -29,9 +29,12 @@ namespace MrHyDE {
     typedef Tpetra::Import<LO, GO, Node>            LA_Import;
     typedef Tpetra::Map<LO, GO, Node>               LA_Map;
     typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
+    typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
     typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
     typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
+    typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
     typedef typename Node::device_type              LA_device;
+    
     
   public:
     
@@ -209,8 +212,14 @@ namespace MrHyDE {
     
     std::vector<ScalarT> getFractionalParams(const std::string & whichparam);
     
-    /////////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////////
+    // ========================================================================================
+    // ========================================================================================
+    
+    void setParamMass(Teuchos::RCP<LA_MultiVector> diag,
+                      matrix_RCP mass);
+    
+    // ========================================================================================
+    // ========================================================================================
     
     void purgeMemory();
     
@@ -326,6 +335,8 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::ParameterList> settings;
     Teuchos::RCP<MrHyDE_Debugger> debugger;
     
+    Teuchos::RCP<LA_MultiVector> diagParamMass;
+    matrix_RCP paramMass;
   };
   
 }

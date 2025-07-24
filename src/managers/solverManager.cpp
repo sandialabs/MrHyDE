@@ -71,6 +71,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   maxTimeStepCuts = settings->sublist("Solver").get<int>("maximum time step cuts",5);
   amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
   
+  use_param_mass = settings->sublist("Solver").get<bool>("use parameter mass",false);
   
   line_search = false;//settings->sublist("Solver").get<bool>("Use Line Search","false");
   store_adjPrev = false;
@@ -330,7 +331,7 @@ void SolverManager<Node>::completeSetup() {
     this->setupExplicitMass();
   }
   
-  if (params->num_discretized_params > 0) {
+  if (use_param_mass && params->num_discretized_params > 0) {
     this->setupDiscretizedParamMass();
   }
   
@@ -356,93 +357,13 @@ void SolverManager<Node>::setupExplicitMass() {
     
     assembler->updatePhysicsSet(set);
     if (compute_matrix) {
-      
-      //typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
-      //typedef Tpetra::CrsGraph<LO,GO,Node>            LA_CrsGraph;
-      
-      /*
-      vector<size_t> maxEntriesPerRow(linalg->getLocalNumElements(set), 0);
-      for (size_t block=0; block<assembler->groups.size(); ++block) {
-        auto offsets = assembler->wkset[block]->offsets;
-        auto offsets_host = create_mirror_view(offsets);
-        deep_copy(offsets_host,offsets);
-
-        auto numDOF_host = assembler->groupData[block]->num_dof_host;
-        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          auto LIDs_host = assembler->groups[block][grp]->LIDs_host[set];
-          
-          for (size_type elem=0; elem<LIDs_host.extent(0); ++elem) {
-            for (size_type n=0; n<numDOF_host.extent(0); ++n) {
-              for (int j=0; j<numDOF_host(n); j++) {
-                int row = offsets_host(n,j);
-                LO rowIndex = LIDs_host(elem,row);
-                maxEntriesPerRow[rowIndex] += static_cast<size_t>(numDOF_host(n));
-              }
-            }
-          }
-        }
-      }
-      
-      size_t maxEntries = 0;
-      for (size_t m=0; m<maxEntriesPerRow.size(); ++m) {
-        maxEntries = std::max(maxEntries, maxEntriesPerRow[m]);
-      }
-      
-      maxEntries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
-                                                                            static_cast<int>(maxEntries)));
-      */
-      
-      /*
-      Teuchos::RCP<Tpetra::CrsGraph<LO,GO,Node> > overlapped_graph = linalg->getNewOverlappedGraph(set, maxEntriesPerRow);
-      
-      for (size_t block=0; block<assembler->groups.size(); ++block) {
-        auto offsets = assembler->wkset[block]->offsets;
-        auto numDOF = assembler->groupData[block]->num_dof;
-        for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
-          auto LIDs = assembler->groups[block][grp]->LIDs_host[set];
-          
-          parallel_for("assembly insert Jac",
-                       RangePolicy<HostExec>(0,LIDs.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
-            for (size_type n=0; n<numDOF.extent(0); ++n) {
-              for (int j=0; j<numDOF(n); j++) {
-                vector<GO> cols;
-                int row = offsets(n,j);
-                GO rowIndex = linalg->getGlobalElement(set, LIDs(elem,row));
-                for (int k=0; k<numDOF(n); k++) {
-                  int col = offsets(n,k);
-                  GO gcol = linalg->getGlobalElement(set, LIDs(elem,col));
-                  cols.push_back(gcol);
-                }
-                overlapped_graph->insertGlobalIndices(rowIndex,cols);
-              }
-            }
-          });
-        }
-      }
-      overlapped_graph->fillComplete();
-      */
-      
-      //vector<GO> owned;
-      //disc->dof_owned[set];
-      ////vector<size_t> maxOwnedEntriesPerRow(linalg->owned_map[set]->getLocalNumElements(), 0);
-      //vector<size_t> maxOwnedEntriesPerRow(linalg->getLocalNumElements(set), 0);
-      //for (size_t i=0; i<owned.size(); ++i) {
-      //  LO ind1 = linalg->getOverlappedLID(set, owned[i]);//overlapped_map[set]->getLocalElement(owned[i]);
-      //  LO ind2 = linalg->getOwnedLID(set, owned[i]);//owned_map[set]->getLocalElement(owned[i]);
-      //  maxOwnedEntriesPerRow[ind2] = maxEntriesPerRow[ind1];
-      //}
-      
-      explicitMass.push_back(linalg->getNewMatrix(set));//, maxOwnedEntriesPerRow));
-        //Teuchos::rcp(new LA_CrsMatrix(linalg->owned_map[set], maxOwnedEntriesPerRow)));
-      
+      explicitMass.push_back(linalg->getNewMatrix(set));
       if (linalg->getHaveOverlapped()) {
-        mass = linalg->getNewOverlappedMatrix(set);//Teuchos::rcp(new LA_CrsMatrix(overlapped_graph));
+        mass = linalg->getNewOverlappedMatrix(set);
       }
       else {
         mass = explicitMass[set];
       }
-      
     }
     
     diagMass.push_back(linalg->getNewVector(set));
@@ -539,6 +460,8 @@ void SolverManager<Node>::setupDiscretizedParamMass() {
   if (compute_matrix) {
     linalg->fillComplete(paramMass);
   }
+  
+  params->setParamMass(diagParamMass, paramMass);
   
   debugger->print("**** Finished SolverManager::setupDiscretizedParamMass()");
   

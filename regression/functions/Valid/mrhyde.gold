@@ -1360,6 +1360,7 @@ Solver ->
  compute forward sensitivities = 0   [default]
  maximum time step cuts = 5   [default]
  explicit amplification factor = 10   [default]
+ use parameter mass = 0   [default]
  initial type = L2-projection   [default]
  transient Butcher tableau = BWE   [default]
  transient BDF order = 1   [default]
