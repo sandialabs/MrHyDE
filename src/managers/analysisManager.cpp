@@ -502,6 +502,7 @@ void AnalysisManager::ROLSolve()
 {
 
   typedef ScalarT RealT;
+  Teuchos::TimeMonitor localtimer(*roltimer);
 
   Teuchos::RCP<ROL::Objective_MILO<RealT>> obj;
   Teuchos::ParameterList ROLsettings;
@@ -654,7 +655,7 @@ void AnalysisManager::ROLSolve()
     obj->checkGradient(*x, *d, (comm_->getRank() == 0));
   }
 
-  Teuchos::Time timer("Optimization Time", true);
+  //Teuchos::Time timer("Optimization Time", true);
 
   // Run algorithm.
   vector<std::string> output;
@@ -667,7 +668,7 @@ void AnalysisManager::ROLSolve()
     output = algo.run(*x, *obj, (comm_->getRank() == 0)); // only processor of rank 0 prints out
   }
 
-  ScalarT optTime = timer.stop();
+  ScalarT optTime = 0.0;//timer.stop();
 
   if (ROLsettings.sublist("General").get("Write Final Parameters", false))
   {
@@ -739,6 +740,8 @@ void AnalysisManager::ROL2Solve()
 {
 
   typedef ScalarT RealT;
+
+  Teuchos::TimeMonitor localtimer(*rol2timer);
 
   Teuchos::RCP<ROL::Objective_MILO<RealT>> obj;
   Teuchos::ParameterList ROLsettings;
@@ -867,7 +870,7 @@ void AnalysisManager::ROL2Solve()
     obj->checkGradient(*x, *d, (comm_->getRank() == 0));
   }
 
-  Teuchos::Time timer("Optimization Time", true);
+  //Teuchos::Time timer("Optimization Time", true);
 
   // Construct ROL problem.
   ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);

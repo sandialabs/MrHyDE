@@ -164,6 +164,10 @@ namespace MrHyDE {
     Teuchos::RCP<MrHyDE_Debugger> debugger_;
     
     int verbosity_;
+    
+    Teuchos::RCP<Teuchos::Time> roltimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AnalysisManager::ROLSolve()");
+    Teuchos::RCP<Teuchos::Time> rol2timer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::AnalysisManager::ROL2Solve()");
+    
   };
   
 }

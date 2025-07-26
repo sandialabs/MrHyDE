@@ -314,8 +314,11 @@ namespace MrHyDE {
     Teuchos::RCP<Teuchos::Time> normLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver() - norm LA");
     Teuchos::RCP<Teuchos::Time> updateLAtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::nonlinearSolver() - update LA");
     Teuchos::RCP<Teuchos::Time> PCGtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::PCG - total");
-    Teuchos::RCP<Teuchos::Time> PCGApplyOptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::PCG - apply Op");
-    Teuchos::RCP<Teuchos::Time> PCGApplyPrectimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::PCG - apply prec");
+    Teuchos::RCP<Teuchos::Time> PCGApplyOptimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::PCG - apply Op");
+    Teuchos::RCP<Teuchos::Time> PCGApplyPrectimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::PCG - apply prec");
+    
+    Teuchos::RCP<Teuchos::Time> forwardtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::forward()");
+    Teuchos::RCP<Teuchos::Time> adjointtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::adjoint()");
     
   };
   

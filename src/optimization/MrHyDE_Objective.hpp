@@ -40,6 +40,9 @@ namespace ROL {
     Teuchos::RCP<SolverManager<SolverNode> > solver;                                     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
     Teuchos::RCP<PostprocessManager<SolverNode> > postproc;                              // Postprocessing object for MILO (write solution, computes response, etc.)
     Teuchos::RCP<ParameterManager<SolverNode> > params;
+    Teuchos::RCP<Teuchos::Time> valuetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::value()");
+    Teuchos::RCP<Teuchos::Time> gradienttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::gradient()");
+    
   public:
     
     /*!
@@ -57,7 +60,9 @@ namespace ROL {
     
     Real value(const Vector<Real> & Params, Real & tol){
       
-      MrHyDE_OptVector Paramsp = 
+      Teuchos::TimeMonitor localtimer(*valuetimer);
+      
+      MrHyDE_OptVector Paramsp =
       Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(Params));
       
       params->updateParams(Paramsp);
@@ -65,13 +70,14 @@ namespace ROL {
       ScalarT val = 0.0;
       solver->forwardModel(val);
       
-      params->stashParams(); //dumping to file, for long runs...
+      //params->stashParams(); //dumping to file, for long runs...
       return val;
     }
     
     //! Compute gradient of objective function with respect to parameters
     void gradient(Vector<Real> &g, const Vector<Real> &Params, Real &tol){
 
+      Teuchos::TimeMonitor localtimer(*gradienttimer);
       bool newparams = this->checkNewParams(Params);
 
       if (newparams) {

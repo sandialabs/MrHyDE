@@ -1089,6 +1089,8 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
 template<class Node>
 void SolverManager<Node>::forwardModel(ScalarT & objective) {
   
+  Teuchos::TimeMonitor localtimer(*forwardtimer);
+  
   current_time = initial_time;
   
   debugger->print("**** Starting SolverManager::forwardModel ...");
@@ -1097,6 +1099,7 @@ void SolverManager<Node>::forwardModel(ScalarT & objective) {
   params->sacadoizeParams(false);
   postproc->resetObjectives();
   postproc->resetSolutions();
+  linalg->resetJacobian();
   
   for (size_t set=0; set<setnames.size(); ++set) {
     if (!scalarDirichletData[set]) {
@@ -1169,6 +1172,8 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
   debugger->print("**** Starting SolverManager::adjointModel ...");
   
+  Teuchos::TimeMonitor localtimer(*adjointtimer);
+  
   if (setnames.size()>1 && Comm->getRank() == 0) {
     cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl;
   }
@@ -1177,6 +1182,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     is_adjoint = true;
     
     params->sacadoizeParams(false);
+    linalg->resetJacobian();
     
     vector<vector_RCP> phi = setInitial();
     

@@ -337,6 +337,12 @@ namespace MrHyDE {
     
     Teuchos::RCP<LA_MultiVector> diagParamMass;
     matrix_RCP paramMass;
+    
+    Teuchos::RCP<Teuchos::Time> constructortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager::constructor()");
+    Teuchos::RCP<Teuchos::Time> updatetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager::updateParams()");
+    
+    Teuchos::RCP<Teuchos::Time> getcurrenttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager::getCurrentParams()");
+    
   };
   
 }

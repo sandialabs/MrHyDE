@@ -47,6 +47,9 @@ private:
   ROL::Elementwise::Multiply<ScalarT> mult_;
   ROL::Elementwise::Divide<ScalarT> div_;
   
+  Teuchos::RCP<Teuchos::Time> constructortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::OptVector::constructor()");
+  Teuchos::RCP<Teuchos::Time> clonetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::OptVector::clone()");
+  
 public:
   
   ///////////////////////////////////////////////////
@@ -63,6 +66,8 @@ public:
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale), paramMass(mass) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     if (s_vec.size() == 0) {
       have_scalar = false;
       have_dynamic_scalar = false;
@@ -129,6 +134,8 @@ public:
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     if (s_vec.size() == 0) {
       have_scalar = false;
       have_dynamic_scalar = false;
@@ -185,6 +192,9 @@ public:
                    bool isdual = false,
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
+    
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_dynamic_scalar = false;
     if (s_vec == ROL::nullPtr) {
       have_scalar = false;
@@ -230,6 +240,8 @@ public:
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     if (s_vec.size() == 0) {
       //scalar_vec = ROL::nullPtr;
       have_scalar = false;
@@ -277,6 +289,8 @@ public:
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     scalar_vec.push_back(ROL::makePtr<ROL::StdVector<ScalarT>>(s_vec));
     field_vec.push_back(ROL::makePtr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> >(f_vec));
     
@@ -311,6 +325,8 @@ public:
                    ScalarT scale = 1.0)
   : scalar_vec(ROL::nullPtr), mpirank(0), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = false;
     have_field = true;
     have_dynamic_scalar = false;
@@ -340,6 +356,8 @@ public:
                    ScalarT scale = 1.0)
   : field_vec(ROL::nullPtr), mpirank(mpirank_), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = true;
     have_field = false;
     have_dynamic_scalar = false;
@@ -360,6 +378,9 @@ public:
   
   MrHyDE_OptVector()
   : mpirank(0), isDualInitialized(false), isDual(false), dualityScale(1.0) {
+    
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = false;
     have_field = false;
     have_dynamic_scalar = false;
@@ -386,6 +407,8 @@ public:
                    ScalarT scale = 1.0)
   : field_vec(f_vec), scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = true;
     if (s_vec[0]->getVector()->size() == 0) {
       have_scalar = false;
@@ -436,6 +459,8 @@ public:
                    ScalarT scale = 1.0)
   : field_vec(f_vec), scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = true;
     if (s_vec[0]->getVector()->size() == 0) {
       have_scalar = false;
@@ -494,6 +519,8 @@ public:
                    ScalarT scale = 1.0)
   : field_vec(f_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     scalar_vec.push_back(s_vec);
     have_scalar = true;
     if (s_vec->getVector()->size() == 0) {
@@ -535,6 +562,8 @@ public:
                    ScalarT scale = 1.0)
   : scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
   
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = true;
     if (s_vec[0]->getVector()->size() == 0) {
       have_scalar = false;
@@ -574,6 +603,8 @@ public:
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = true;
     if (s_vec->getVector()->size() == 0) {
       have_scalar = false;
@@ -605,6 +636,8 @@ public:
                    ScalarT scale = 1.0)
   : field_vec(f_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = false;
     have_field = true;
     scalar_vec.push_back(ROL::nullPtr);
@@ -640,6 +673,8 @@ public:
                    ScalarT scale = 1.0)
   : field_vec(f_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = false;
     have_field = true;
     scalar_vec.push_back(ROL::nullPtr);
@@ -682,6 +717,8 @@ public:
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = false;
     scalar_vec.push_back(ROL::nullPtr);
     have_dynamic_scalar = false;
@@ -711,6 +748,8 @@ public:
                    ScalarT scale = 1.0)
   : mpirank(mpirank_), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     scalar_vec.push_back(s_vec);
     have_scalar = true;
     have_dynamic_scalar = false;
@@ -736,6 +775,8 @@ public:
                    ScalarT scale = 1.0)
   : scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = true;
     have_dynamic_scalar = false;
     if (s_vec.size() > 1) {
@@ -768,6 +809,8 @@ public:
                    ScalarT scale = 1.0)
   : scalar_vec(s_vec), mpirank(mpirank_), dyn_dt(dt), isDualInitialized(false), isDual(isdual), dualityScale(scale) {
     
+    Teuchos::TimeMonitor localtimer(*constructortimer);
+
     have_scalar = true;
     have_dynamic_scalar = false;
     if (s_vec.size() > 1) {
@@ -1063,6 +1106,8 @@ public:
   
   ROL::Ptr<ROL::Vector<ScalarT> > clone(void) const {
     
+    Teuchos::TimeMonitor localtimer(*clonetimer);
+
     ROL::Ptr<ROL::Vector<ScalarT> > clonevec;
     if ( !have_scalar ) {
       std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT,LO,GO,SolverNode> > > fvecs;

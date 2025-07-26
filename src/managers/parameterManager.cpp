@@ -25,6 +25,8 @@ ParameterManager<Node>::ParameterManager(const Teuchos::RCP<MpiComm> & Comm_,
                                    Teuchos::RCP<DiscretizationInterface> & disc_) :
 Comm(Comm_), disc(disc_), phys(phys_), settings(settings_) {
   
+  Teuchos::TimeMonitor localtimer(*constructortimer);
+
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::ParameterManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
   mesh = mesh_;
@@ -663,6 +665,8 @@ Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > ParameterManager<Node>::g
 template<class Node>
 MrHyDE_OptVector ParameterManager<Node>::getCurrentVector() {
   
+  Teuchos::TimeMonitor localtimer(*getcurrenttimer);
+
   vector<Teuchos::RCP<vector<ScalarT> > > new_active_params;
   vector<vector_RCP> new_disc_params;
   if (num_active_params > 0) {
@@ -935,6 +939,8 @@ void ParameterManager<Node>::updateParams(const vector_RCP & newparams) {
 template<class Node>
 void ParameterManager<Node>::updateParams(MrHyDE_OptVector & newparams) {
   
+  Teuchos::TimeMonitor localtimer(*updatetimer);
+
   if (newparams.haveScalar()) {
     auto scalar_params = newparams.getParameter();
     

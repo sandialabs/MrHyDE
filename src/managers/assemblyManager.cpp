@@ -7565,6 +7565,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
     
     if (isTransient) {
       
+      // adj_prev is usually 1/dt*M*phi_prev
       auto aprev = groups[block][grp]->adj_prev[set];
       
       // Previous step contributions for the residual
@@ -7600,12 +7601,14 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
         parallel_for("Group adjust transient adjoint jac",
                      RangePolicy<AssemblyExec>(0,aprev.extent(0)),
                      KOKKOS_LAMBDA (const size_type e ) {
-          for (size_type step=1; step<aprev.extent(2); step++) {
-            for (size_type n=0; n<aprev.extent(1); n++) {
-              aprev(e,n,step-1) = aprev(e,n,step);
+          size_type numsteps = aprev.extent(2);
+          if (numsteps > 1) {
+            for (size_type step=1; step<aprev.extent(2); step++) {
+              for (size_type n=0; n<aprev.extent(1); n++) {
+                aprev(e,n,step-1) = aprev(e,n,step);
+              }
             }
           }
-          size_type numsteps = aprev.extent(2);
           for (size_type n=0; n<aprev.extent(1); n++) {
             aprev(e,n,numsteps-1) = 0.0;
           }
