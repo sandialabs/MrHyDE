@@ -1,0 +1,24 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Mesh: 
+    dimension: 3
+    shape: hex
+    xmin: -10.0e-6
+    xmax: 10.0e-6
+    ymin: -10.0e-6
+    ymax: 10.0e-6
+    zmin: -40.0e-6
+    zmax: 40.0e-6
+    NX: 2
+    NY: 2
+    NZ: 100
+    Xprocs: 1
+    Yprocs: 1
+    Zprocs: 4
+    blocknames: eblock-0_0_0
+    Periodic BCs:
+      Count: 2
+      Periodic Condition 1: 'xz-all 1e-10: top;bottom'
+      Periodic Condition 2: 'yz-all 1e-10: left;right'
+...

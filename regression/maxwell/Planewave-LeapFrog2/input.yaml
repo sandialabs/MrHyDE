@@ -1,0 +1,65 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh input file: input_mesh.yaml
+  Physics:
+    physics set names: "Eeqn, Beqn"
+    Eeqn:
+      modules: maxwell
+      active variables: E
+      Initial conditions:
+        scalar data: true
+        E: 0.0
+    Beqn:
+      modules: maxwell
+      active variables: B
+      Initial conditions:
+        scalar data: true
+        B: 0.0
+  Discretization:
+    Eeqn:
+      order:
+        E: 1
+      quadrature: 2
+    Beqn:
+      order:
+        B: 1
+      quadrature: 2
+  Functions input file: input_functions.yaml
+  Solver: 
+    solver: 'transient'
+    transient BDF order: 1
+    transient Butcher tableau: FWE
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    linear TOL: 1.0e-05
+    max nonlinear iters: 1
+    max linear iters: 200
+    final time: 1.0e-15 #1.0e-14
+    number of steps: 10
+    Initial type: none
+    use basis database: true
+    use mass database: true
+    matrix free: true
+    use custom PCG: true
+    fully explicit: true
+    sparse mass format: false # only false because of test comp
+    store mass: false
+  Analysis:
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    write frequency: 1
+    compute errors: true
+    eblock-0_0_0:
+      True solutions:
+        'E[x]': '0.0'
+        'E[y]': '0.0'
+        'E[z]': '0.0'
+        'B[x]': '0.0'
+        'B[y]': '0.0'
+        'B[z]': '0.0'
+    
+...
