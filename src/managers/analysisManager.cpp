@@ -12,12 +12,17 @@
 #include "uqManager.hpp"
 #include "data.hpp"
 #include "MrHyDE_Objective.hpp"
+#include "MrHyDE_Stochastic_Objective.hpp"
 #include "MrHyDE_OptVector.hpp"
 #include "ROL_LineSearchStep.hpp"
 #include "ROL_Algorithm.hpp"
 #include "ROL_Bounds.hpp"
 #include "ROL_TrustRegionStep.hpp"
 #include "ROL_Solver.hpp"
+#include "ROL_StochasticProblem.hpp"
+#include "MrHyDE_TeuchosBatchManager.hpp"
+#include "ROL_MonteCarloGenerator.hpp"
+#include "ROL_DistributionFactory.hpp"
 
 #if defined(MrHyDE_ENABLE_HDSA)
 #include "../../../hdsalib/src/source_file.hpp"
@@ -92,6 +97,10 @@ void AnalysisManager::run(std::string &analysis_type)
   else if (analysis_type == "ROL2")
   {
     this->ROL2Solve();
+  }
+  else if (analysis_type == "ROLStoch")
+  {
+    this->ROLStochSolve();
   }
 #if defined(MrHyDE_ENABLE_HDSA)
   else if (analysis_type == "HDSA")
@@ -915,6 +924,110 @@ void AnalysisManager::ROL2Solve()
       solver_->forwardModel(objfun);
     }
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void AnalysisManager::ROLStochSolve()
+{
+  typedef ScalarT RealT;
+
+  Teuchos::TimeMonitor localtimer(*rol2timer);
+
+  Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj;
+  Teuchos::ParameterList ROLsettings;
+
+  if (settings_->sublist("Analysis").isSublist("ROL"))
+    ROLsettings = settings_->sublist("Analysis").sublist("ROL");
+  else
+    TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: MrHyDE could not find the ROL sublist in the input file!  Abort!");
+
+  // Turn off visualization while optimizing
+  bool postproc_plot = postproc_->write_solution;
+  postproc_->write_solution = false;
+
+  // Output stream.
+  ROL::Ptr<std::ostream> outStream;
+  ROL::nullstream bhs; // outputs nothing
+  if (comm_->getRank() == 0) {
+    outStream = ROL::makePtrFromRef(std::cout);
+  }
+  else {
+    outStream = ROL::makePtrFromRef(bhs);
+  }
+
+  // Generate data and get objective
+  obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_));
+
+  MrHyDE_OptVector xtmp = params_->getCurrentVector();
+
+  Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
+  x->set(xtmp);
+
+  /*************************************************************************/
+  /***************** BUILD SAMPLER *****************************************/
+  /*************************************************************************/
+  std::vector<ROL::Ptr<ROL::Distribution<RealT>>> dist;
+  Teuchos::ParameterList parameters = settings_->sublist("Parameters");
+  Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
+  while (pl_itr != parameters.end()) 
+   {
+      Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
+      if (newparam.get<string>("usage") == "inactive") 
+      {
+        if (newparam.get<string>("type") != "scalar") 
+        {
+          std::cout << "Error: the current stochastic optimization implementation only permits scalar inactive parameters to be sampled" << std::endl;
+        }
+        ROL::Ptr<ROL::Distribution<RealT>> tmp = ROL::DistributionFactory<RealT>(newparam);
+        dist.push_back(tmp);
+      }
+      pl_itr++;
+   }
+  ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT,int>>(comm_);
+  int nsamp = ROLsettings.sublist("SOL").get("Number of Samples",100);
+  ROL::Ptr<ROL::SampleGenerator<RealT>> sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp,dist,bman);
+
+  // Construct ROL problem.
+  ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj,x);
+  rolProblem->makeObjectiveStochastic(ROLsettings,sampler);
+  rolProblem->finalize(false,true,*outStream);
+
+  //ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
+
+  if (ROLsettings.sublist("General").get("Do grad+hessvec check", true))
+  {
+    Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
+    dx->randomize();
+    *outStream << "\n\nCheck Gradient of Reduced Objective Function\n";
+    obj->checkGradient(*x,*dx,true,*outStream);
+    *outStream << "\n\nCheck Hessian of Reduced Objective Function\n";
+    obj->checkHessVec(*x,*dx,true,*outStream);
+  }
+
+  // Construct ROL solver.
+  ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings);
+  // Run algorithm.
+  rolSolver.solve(*outStream);
+
+  if (postproc_plot)
+  {
+    postproc_->write_solution = true;
+    string outfile = "output_after_optimization.exo";
+    postproc_->setNewExodusFile(outfile);
+    ScalarT objfun = 0.0;
+    solver_->forwardModel(objfun);
+    if (ROLsettings.sublist("General").get("Disable source on final output", false))
+    {
+      vector<bool> newflags(1, false);
+      solver_->physics->updateFlags(newflags);
+      string outfile = "output_only_control.exo";
+      postproc_->setNewExodusFile(outfile);
+      solver_->forwardModel(objfun);
+    }
+  }
+
 }
 
 // ========================================================================================

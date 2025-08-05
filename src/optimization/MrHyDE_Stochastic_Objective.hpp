@@ -1,0 +1,133 @@
+/***********************************************************************
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for 
+ large-scale multiphysics and multiscale systems.
+ 
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
+************************************************************************/
+
+#ifndef ROL_MILO_STOCH_HPP
+#define ROL_MILO_STOCH_HPP
+
+#include "ROL_StdVector.hpp"
+#include "ROL_RiskVector.hpp"
+#include "ROL_Objective.hpp"
+#include "ROL_BoundConstraint.hpp"
+#include "Teuchos_ParameterList.hpp"
+
+#include "solverManager.hpp"
+#include "postprocessManager.hpp"
+#include "parameterManager.hpp"
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
+namespace ROL {
+
+  using namespace MrHyDE;
+  
+  template<class Real>
+  class Stochastic_Objective_MILO : public Objective<Real> {
+    
+  private:
+    
+    Teuchos::RCP<SolverManager<SolverNode> > solver;                                     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
+    Teuchos::RCP<PostprocessManager<SolverNode> > postproc;                              // Postprocessing object for MILO (write solution, computes response, etc.)
+    Teuchos::RCP<ParameterManager<SolverNode> > params;
+    Teuchos::RCP<Teuchos::Time> valuetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::value()");
+    Teuchos::RCP<Teuchos::Time> gradienttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::gradient()");
+    bool params_updated;
+    
+  public:
+    
+    /*!
+     \brief A constructor generating data
+     */
+    Stochastic_Objective_MILO(Teuchos::RCP<SolverManager<SolverNode> > solver_,
+                   Teuchos::RCP<PostprocessManager<SolverNode> > postproc_,
+                   Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
+    solver(solver_), postproc(postproc_), params(params_) {
+      params_updated = true;
+    } //end constructor
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    Real value(const Vector<Real> & x, Real & tol) override {
+      
+      Teuchos::TimeMonitor localtimer(*valuetimer);
+      
+      MrHyDE_OptVector xp =
+      Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(x));
+      
+      params->updateParams(xp);
+      
+      ScalarT val = 0.0;
+      solver->forwardModel(val);
+      params_updated = false;
+      
+      std::cout << "Objective value = " << val << std::endl;
+      return val;
+    }
+    
+    //! Compute gradient of objective function with respect to parameters
+    void gradient(Vector<Real> &g, const Vector<Real> &x, Real &tol) override {
+
+      Teuchos::TimeMonitor localtimer(*gradienttimer);
+      bool new_x = this->checkNewx(x);
+
+      if (new_x || params_updated) {
+        MrHyDE_OptVector xp =
+        Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(x));
+      
+        params->updateParams(xp);
+        ScalarT val = 0.0;
+        solver->forwardModel(val);
+        params_updated = false;
+      }
+      else
+      {
+        std::cout << "I am computing the gradient without repeating the state solve" << std::endl;
+        // The code can be improved by caching the state solution for each inactive parameter sample
+        // so that we avoid repeating the state solve when gradient is called
+      }
+      MrHyDE_OptVector sens = 
+      Teuchos::dyn_cast<MrHyDE_OptVector >(const_cast<Vector<Real> &>(g));
+      sens.zero();
+      solver->adjointModel(sens);
+      
+    }
+    
+    bool checkNewx(const Vector<Real> &x) {
+      MrHyDE_OptVector curr_x = params->getCurrentVector();
+      auto diff = curr_x.clone();
+      diff->zero();
+      diff->set(curr_x);
+      diff->axpy(-1.0,x);
+      ScalarT dnorm = diff->norm();
+      ScalarT refnorm = curr_x.norm();
+      dnorm = dnorm/refnorm;
+      ScalarT reltol = 1.0e-12;
+      bool new_x = false;
+      if (dnorm > reltol) {
+        new_x = true;
+      }
+      return new_x;
+    }
+    
+    void setParameter(const std::vector<Real> &param) override
+    {
+      // The code is designed to consider only inactive scalar parameters. 
+      // param.size() should be equal to the number of inactive scalar parameters
+      // Generalizing to include vector parameters should be easy, but we have not done it yet
+      params->updateParams(param, "inactive");
+      params_updated = true;
+    }
+
+  }; //end description of Objective class
+  
+}//end namespace ROL
+
+#endif
+
