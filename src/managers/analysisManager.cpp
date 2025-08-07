@@ -935,9 +935,7 @@ void AnalysisManager::ROLStochSolve()
 
   Teuchos::TimeMonitor localtimer(*rol2timer);
 
-  Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj;
   Teuchos::ParameterList ROLsettings;
-
   if (settings_->sublist("Analysis").isSublist("ROL"))
     ROLsettings = settings_->sublist("Analysis").sublist("ROL");
   else
@@ -958,7 +956,7 @@ void AnalysisManager::ROLStochSolve()
   }
 
   // Generate data and get objective
-  obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_));
+  Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_));
 
   MrHyDE_OptVector xtmp = params_->getCurrentVector();
 
@@ -992,18 +990,13 @@ void AnalysisManager::ROLStochSolve()
   // Construct ROL problem.
   ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj,x);
   rolProblem->makeObjectiveStochastic(ROLsettings,sampler);
-  rolProblem->finalize(false,true,*outStream);
+  rolProblem->finalize(false,false,*outStream);
 
-  //ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
-
-  if (ROLsettings.sublist("General").get("Do grad+hessvec check", true))
+  if (ROLsettings.sublist("General").get("Do grad check", true))
   {
     Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
     dx->randomize();
-    *outStream << "\n\nCheck Gradient of Reduced Objective Function\n";
     obj->checkGradient(*x,*dx,true,*outStream);
-    *outStream << "\n\nCheck Hessian of Reduced Objective Function\n";
-    obj->checkHessVec(*x,*dx,true,*outStream);
   }
 
   // Construct ROL solver.

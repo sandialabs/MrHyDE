@@ -67,7 +67,6 @@ namespace ROL {
       solver->forwardModel(val);
       params_updated = false;
       
-      std::cout << "Objective value = " << val << std::endl;
       return val;
     }
     
@@ -99,6 +98,11 @@ namespace ROL {
       
     }
     
+    //! Compute the Hessian-vector product of the objective function
+    void hessVec(Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &x, Real &tol ) override {
+      this->ROL::Objective<Real>::hessVec(hv,v,x,tol);
+    }
+
     bool checkNewx(const Vector<Real> &x) {
       MrHyDE_OptVector curr_x = params->getCurrentVector();
       auto diff = curr_x.clone();
