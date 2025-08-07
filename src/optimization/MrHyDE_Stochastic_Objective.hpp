@@ -13,6 +13,7 @@
 #include "ROL_RiskVector.hpp"
 #include "ROL_Objective.hpp"
 #include "ROL_BoundConstraint.hpp"
+#include "ROL_SampleGenerator.hpp"
 #include "Teuchos_ParameterList.hpp"
 
 #include "solverManager.hpp"
@@ -35,6 +36,7 @@ namespace ROL {
     Teuchos::RCP<SolverManager<SolverNode> > solver;                                     // Solver object for MILO (solves FWD, ADJ, computes gradient, etc.)
     Teuchos::RCP<PostprocessManager<SolverNode> > postproc;                              // Postprocessing object for MILO (write solution, computes response, etc.)
     Teuchos::RCP<ParameterManager<SolverNode> > params;
+    Teuchos::RCP<ROL::SampleGenerator<Real>> sampler;
     Teuchos::RCP<Teuchos::Time> valuetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::value()");
     Teuchos::RCP<Teuchos::Time> gradienttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::gradient()");
     bool params_updated;
@@ -45,9 +47,10 @@ namespace ROL {
      \brief A constructor generating data
      */
     Stochastic_Objective_MILO(Teuchos::RCP<SolverManager<SolverNode> > solver_,
-                   Teuchos::RCP<PostprocessManager<SolverNode> > postproc_,
-                   Teuchos::RCP<ParameterManager<SolverNode> > & params_) :
-    solver(solver_), postproc(postproc_), params(params_) {
+                              Teuchos::RCP<PostprocessManager<SolverNode> > postproc_,
+                              Teuchos::RCP<ParameterManager<SolverNode> > & params_,
+                              Teuchos::RCP<ROL::SampleGenerator<Real>> & sampler_) :
+    solver(solver_), postproc(postproc_), params(params_), sampler(sampler_) {
       params_updated = true;
     } //end constructor
     
@@ -67,6 +70,10 @@ namespace ROL {
       solver->forwardModel(val);
       params_updated = false;
       
+      int id = IdentifySample();
+      std::cout << "id = " << id << std::endl;
+      // create object to store state solution after forward solve
+
       return val;
     }
     
@@ -75,6 +82,9 @@ namespace ROL {
 
       Teuchos::TimeMonitor localtimer(*gradienttimer);
       bool new_x = this->checkNewx(x);
+
+      int id = IdentifySample();
+      // create object to access state solution after forward solve
 
       if (new_x || params_updated) {
         MrHyDE_OptVector xp =
@@ -101,6 +111,31 @@ namespace ROL {
     //! Compute the Hessian-vector product of the objective function
     void hessVec(Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &x, Real &tol ) override {
       this->ROL::Objective<Real>::hessVec(hv,v,x,tol);
+    }
+
+    int IdentifySample(void)
+    {
+      int id = -1;
+      std::vector<Real> param = params->getParams("inactive");
+      for(int i = 0; i < sampler->numMySamples(); i++)
+      {
+        std::vector<Real> pt_i = sampler->getMyPoint(i);
+        Real val = 0.0;
+        for(int k = 0; k < pt_i.size(); k++)
+        {
+          val += std::pow(pt_i[k] - param[k],2.0);
+        }
+        if(val < 1.e-14)
+        {
+          id = i;
+          break;
+        }
+      }
+      if(id == -1)
+      {
+        std::cout << "Error in Stochastic_Objective_MILO: Did not identify the sample" << std::endl;
+      }
+      return id;
     }
 
     bool checkNewx(const Vector<Real> &x) {

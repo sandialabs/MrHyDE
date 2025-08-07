@@ -955,9 +955,6 @@ void AnalysisManager::ROLStochSolve()
     outStream = ROL::makePtrFromRef(bhs);
   }
 
-  // Generate data and get objective
-  Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_));
-
   MrHyDE_OptVector xtmp = params_->getCurrentVector();
 
   Teuchos::RCP<ROL::Vector<ScalarT>> x = xtmp.clone();
@@ -986,6 +983,9 @@ void AnalysisManager::ROLStochSolve()
   ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT,int>>(comm_);
   int nsamp = ROLsettings.sublist("SOL").get("Number of Samples",100);
   ROL::Ptr<ROL::SampleGenerator<RealT>> sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp,dist,bman);
+
+  Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_, sampler));
+
 
   // Construct ROL problem.
   ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj,x);

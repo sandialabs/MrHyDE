@@ -1236,7 +1236,8 @@ vector<ScalarT> ParameterManager<Node>::getParams(const std::string & stype) {
   type = 3;
   else
   //complain
-  
+  cout << "Error in parameterManager::getParams: input stype is not valid" << std::endl;
+
   for (size_t i=0; i<paramvals.size(); i++) {
     for (size_t k=0; k<paramvals[i].size(); k++) {
       if (paramtypes[k] == type) {
