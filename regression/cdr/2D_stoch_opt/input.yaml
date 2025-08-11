@@ -31,7 +31,7 @@ ANONYMOUS:
     xv: 
       type: scalar
       value: 1.5
-      usage: inactive
+      usage: stochastic
       SOL:
         Distribution:
             Name: Uniform
@@ -41,7 +41,7 @@ ANONYMOUS:
     yv:
       type: scalar
       value: -1.5
-      usage: inactive
+      usage: stochastic
       SOL:
         Distribution:
           Name: Uniform

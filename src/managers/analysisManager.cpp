@@ -969,7 +969,7 @@ void AnalysisManager::ROLStochSolve()
   while (pl_itr != parameters.end()) 
    {
       Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
-      if (newparam.get<string>("usage") == "inactive") 
+      if (newparam.get<string>("usage") == "stochastic") 
       {
         if (newparam.get<string>("type") != "scalar") 
         {

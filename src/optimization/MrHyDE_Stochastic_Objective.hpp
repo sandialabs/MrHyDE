@@ -163,7 +163,7 @@ namespace ROL
     int IdentifySample(void)
     {
       int sample_id = -1;
-      std::vector<Real> param = params->getParams("inactive");
+      std::vector<Real> param = params->getParams("stochastic");
       for (int i = 0; i < sampler->numMySamples(); i++)
       {
         std::vector<Real> pt_i = sampler->getMyPoint(i);
@@ -206,10 +206,10 @@ namespace ROL
 
     void setParameter(const std::vector<Real> &param) override
     {
-      // The code is designed to consider only inactive scalar parameters.
-      // param.size() should be equal to the number of inactive scalar parameters
+      // The code is designed to consider only stochastic scalar parameters.
+      // param.size() should be equal to the number of stochastic scalar parameters
       // Generalizing to include vector parameters should be easy, but we have not done it yet
-      params->updateParams(param, "inactive");
+      params->updateParams(param, "stochastic");
     }
 
   }; // end description of Objective class
