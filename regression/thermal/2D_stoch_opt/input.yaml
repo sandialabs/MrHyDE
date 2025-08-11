@@ -1,0 +1,57 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 15
+    NY: 15
+  Physics: 
+    modules: thermal
+    Initial conditions:
+      T: '1.0 + x + y'
+    Neumann conditions:
+      T:
+        left: thermal_source_left(0)
+        right: thermal_source_right(0)
+        top: thermal_source_top(0)
+        bottom: thermal_source_bottom(0)
+  Discretization:
+    order:
+      T: 1
+    quadrature: 2
+  Parameters input file: input_params.yaml
+  #Analysis input file: input_rol2.yaml
+  Analysis input file: input_sol.yaml
+  Solver:
+    workset size: 1
+    solver: transient
+    nonlinear TOL: 1.0e-10
+    linear TOL: 1.0e-13
+    max nonlinear iters: 4
+    final time: 1.0
+    number of steps: 10
+  Postprocess: 
+    response type: pointwise
+    compute objective: true
+    write solution: true 
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: '1.0*(T-targ)^2'
+        weight: 0.5
+        Regularization functions:
+          reg0:
+            type: integrated
+            location: boundary
+            function: thermal_source_left(0)^2 + thermal_source_right(0)^2 +thermal_source_top(0)^2 + thermal_source_bottom(0)^2
+            weight: 5.0E-4
+  Functions: 
+    targ: '2.0'
+    thermal source: -thermal_source_1(0) * sin(2*pi*x)^2 - thermal_source_2(0) * cos(2*pi*y)^2
+...

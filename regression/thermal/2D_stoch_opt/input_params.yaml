@@ -1,0 +1,45 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters: 
+    thermal_diff: 
+      type: scalar
+      value: 1.0
+      usage: inactive
+    thermal_source_1:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      SOL:
+        Distribution:
+            Name: Uniform
+            Uniform:
+              Lower Bound: 0.5 #0.99
+              Upper Bound: 1.5 #1.01
+    thermal_source_2:
+      type: scalar
+      value: 1.0
+      usage: stochastic
+      SOL:
+        Distribution:
+            Name: Uniform
+            Uniform:
+              Lower Bound: 0.5 #0.99
+              Upper Bound: 1.5 #1.01
+    thermal_source_left: 
+      type: scalar
+      value: 1.0
+      usage: active
+    thermal_source_right: 
+      type: scalar
+      value: 1.0
+      usage: active
+    thermal_source_top: 
+      type: scalar
+      value: 1.0
+      usage: active
+    thermal_source_bottom: 
+      type: scalar
+      value: 1.0
+      usage: active
+...

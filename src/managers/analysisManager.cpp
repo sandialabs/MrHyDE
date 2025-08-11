@@ -1004,6 +1004,21 @@ void AnalysisManager::ROLStochSolve()
   // Run algorithm.
   rolSolver.solve(*outStream);
 
+  if (ROLsettings.sublist("General").get("Write Final Parameters", false))
+  {
+    string outname = ROLsettings.get("Output File Name", "ROL_out.txt");
+    std::ofstream respOUT(outname);
+    respOUT.precision(16);
+    Kokkos::fence();
+    x->print(respOUT);
+    respOUT.close();
+    string outname2 = "final_params_.dat";
+    std::ofstream respOUT2(outname2);
+    respOUT2.precision(16);
+    x->print(respOUT2);
+    respOUT2.close();
+  }
+
   if (postproc_plot)
   {
     postproc_->write_solution = true;

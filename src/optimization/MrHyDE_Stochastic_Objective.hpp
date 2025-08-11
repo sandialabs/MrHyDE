@@ -51,6 +51,9 @@ namespace ROL
                               Teuchos::RCP<ParameterManager<SolverNode>> &params_,
                               Teuchos::RCP<ROL::SampleGenerator<Real>> &sampler_) : solver(solver_), postproc(postproc_), params(params_), sampler(sampler_)
     {
+      // Initializing the parameter vector using the first sample
+      std::vector<Real> pt = sampler->getMyPoint(0); 
+      setParameter(pt);
     } // end constructor
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -150,12 +153,12 @@ namespace ROL
     {
       for (int set = 0; set < postproc->soln.size(); set++)
       {
+        postproc->soln[set]->reset();
         int numFwdSteps = state_soln[sample_id][set].size();
         for (int time_index = 0; time_index < numFwdSteps; time_index++)
         {
-          Real current_time = postproc->soln[set]->getSpecificTime(0, time_index);
-          postproc->soln[set]->reset();
-          postproc->soln[set]->store(state_soln[sample_id][set][time_index], current_time, time_index);
+          Real current_time = solver->initial_time + (double)time_index * solver->deltat;
+          postproc->soln[set]->store(state_soln[sample_id][set][time_index], current_time, 0);
         }
       }
     }

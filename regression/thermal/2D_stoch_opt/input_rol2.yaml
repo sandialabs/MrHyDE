@@ -2,105 +2,94 @@
 ---
 ANONYMOUS:
   Analysis: 
-    analysis type: ROLStoch
-    have sensor points: true
-    have sensor data: true
-    save sensor data: true
+    analysis type: ROL
+    have sensor points: false
+    have sensor data: false
+    save sensor data: false
     move sensors to IP: false
     use line search: false
     write output: true
-    ROL: 
-      SOL:
-        Number of Samples: 4
-        Objective:
-          Initial Statistic: 0.1
-          #Type: Risk Neutral
-          Type: Risk Averse
-          Risk Measure:
-            Name: CVaR
-            CVaR:
-              Confidence Level: 0.5
-              Smoothing Parameter: 1.e-2
-              Convex Combination Parameter: 1.0
-      General: 
-        Output Level: 1
+    ROL:
+      General:
+        Write Final Parameters: true
         Variable Objective Function: false
         Scale for Epsilon Active Sets: 1.0
         Use Scaling For Epsilon-Active Sets: false
-        Do grad check: false
+        Do grad+hessvec check: false
         Bound Optimization Variables: false
+        FD Check Use Ones Vector: false
         Inexact Objective Function: false
         Inexact Gradient: false
         Inexact Hessian-Times-A-Vector: false
         Projected Gradient Criticality Measure: false
-        Secant: 
+        Secant:
           Type: Limited-Memory BFGS
           Use as Preconditioner: false
           Use as Hessian: true
           Maximum Storage: 10
           Barzilai-Borwein Type: 1
-        Krylov: 
+        Krylov:
           Type: Conjugate Gradients
           Absolute Tolerance: 1.0e-6
-          Relative Tolerance: 1.0e-04
+          Relative Tolerance: 1.0e-4
           Iteration Limit: 20
-      Step: 
-        Line Search: 
+      Step:
+        Line Search:
           Function Evaluation Limit: 20
-          Sufficient Decrease Tolerance: 1.0e-04
+          Sufficient Decrease Tolerance: 1.0e-4
           Initial Step Size: 1.0
           User Defined Initial Step Size: false
           Accept Linesearch Minimizer: false
           Accept Last Alpha: false
-          Descent Method: 
+          Descent Method:
             Type: Newton-Krylov
             Nonlinear CG Type: Hestenes-Stiefel
-          Curvature Condition: 
+          Curvature Condition:
             Type: Strong Wolfe Conditions
             General Parameter: 9.0e-01
             Generalized Wolfe Parameter: 6.0e-01
-          Line-Search Method: 
+          Line-Search Method:
             Type: Cubic Interpolation
             Backtracking Rate: 5.0e-01
             Bracketing Tolerance: 1.0e-08
-            Path-Based Target Level: 
+            Path-Based Target Level:
               Target Relaxation Parameter: 1.0
               Upper Bound on Path Length: 1.0
-        Trust Region: 
+        Trust Region:
           Subproblem Solver: Truncated CG
-          Initial Radius: 1.0e+01
-          Maximum Radius: 5.0e+03
+          Initial Radius: 1.0e+02
+          Maximum Radius: 5.0e+18
           Step Acceptance Threshold: 5.0e-02
           Radius Shrinking Threshold: 5.0e-02
           Radius Growing Threshold: 9.0e-01
           Radius Shrinking Rate (Negative rho): 6.25e-02
-          Radius Shrinking Rate (Positive rho): 2.50e-01
+          Radius Shrinking Rate (Positive rho): 2.5e-01
           Radius Growing Rate: 2.5
           Safeguard Size: 1.0e+01
-          Inexact: 
-            Value: 
-              Tolerance Scaling: 1.0e-01
+          Inexact:
+            Value:
+              Tolerance Scaling: 1.0e-1
               Exponent: 9.0e-01
               Forcing Sequence Initial Value: 1.0
               Forcing Sequence Update Frequency: 10
               Forcing Sequence Reduction Factor: 1.0e-01
-            Gradient: 
+            Gradient:
               Tolerance Scaling: 1.0e-01
               Relative Tolerance: 2.0
-        Primal Dual Active Set: 
+        Primal Dual Active Set:
           Dual Scaling: 1.0
           Iteration Limit: 10
-          Relative Step Tolerance: 1.0e-08
+          Relative Step Tolerance: 1.0e-8
           Relative Gradient Tolerance: 1.0e-6
-        Composite Step: 
+        Composite Step:
           Output Level: 0
-          Optimality System Solver: 
-            Nominal Relative Tolerance: 1.0e-08
+          Optimality System Solver:
+            Nominal Relative Tolerance: 1.0e-8
             Fix Tolerance: true
-          Tangential Subproblem Solver: 
+          Tangential Subproblem Solver:
             Iteration Limit: 20
-            Relative Tolerance: 1.0e-02
-        Augmented Lagrangian: 
+            Relative Tolerance: 1.0e-2
+        Augmented Lagrangian:
           Initial Penalty Parameter: 1.0e+01
           Penalty Parameter Growth Factor: 1.0e+01
           Minimum Penalty Parameter Reciprocal: 1.0e-01
@@ -108,35 +97,35 @@ ANONYMOUS:
           Optimality Tolerance Update Exponent: 1.0
           Optimality Tolerance Decrease Exponent: 1.0
           Initial Feasibility Tolerance: 1.0
-          Feasibility Tolerance Update Exponent: 1.0e-01
+          Feasibility Tolerance Update Exponent: 1.0e-1
           Feasibility Tolerance Decrease Exponent: 9.0e-01
           Print Intermediate Optimization History: false
           Subproblem Step Type: Trust Region
           Subproblem Iteration Limit: 1000
-        Moreau-Yosida Penalty: 
+        Moreau-Yosida Penalty:
           Initial Penalty Parameter: 1.0e+02
           Penalty Parameter Growth Factor: 1.0
-          Subproblem: 
+          Subproblem:
             Optimality Tolerance: 1.0e-12
             Feasibility Tolerance: 1.0e-12
             Print History: false
             Iteration Limit: 200
-        Bundle: 
+        Bundle:
           Initial Trust-Region Parameter: 1.0e+01
           Maximum Trust-Region Parameter: 1.0e+08
-          Tolerance for Trust-Region Parameter: 1.0e-04
-          Epsilon Solution Tolerance: 1.0e-08
-          Upper Threshold for Serious Step: 1.0e-01
-          Lower Threshold for Serious Step: 2.0e-01
+          Tolerance for Trust-Region Parameter: 1.0e-4
+          Epsilon Solution Tolerance: 1.0e-8
+          Upper Threshold for Serious Step: 1.0e-1
+          Lower Threshold for Serious Step: 1.0e-1
           Upper Threshold for Null Step: 9.0e-01
           Distance Measure Coefficient: 1.0e-6
           Maximum Bundle Size: 50
           Removal Size for Bundle Update: 2
-          Cutting Plane Tolerance: 1.0e-08
+          Cutting Plane Tolerance: 1.0e-8
           Cutting Plane Iteration Limit: 1000
-      Status Test: 
+      Status Test:
         Gradient Tolerance: 1.0e-12
-        Constraint Tolerance: 1.0e-08
-        Step Tolerance: 1.0e-8
-        Iteration Limit: 500
+        Constraint Tolerance: 1.0e-8
+        Step Tolerance: 1.0e-12
+        Iteration Limit: 50
 ...
