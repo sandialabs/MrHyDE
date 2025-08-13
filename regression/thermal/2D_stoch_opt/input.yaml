@@ -26,7 +26,6 @@ ANONYMOUS:
       T: 1
     quadrature: 2
   Parameters input file: input_params.yaml
-  #Analysis input file: input_rol2.yaml
   Analysis input file: input_sol.yaml
   Solver:
     workset size: 1
@@ -39,7 +38,7 @@ ANONYMOUS:
   Postprocess: 
     response type: pointwise
     compute objective: true
-    write solution: true 
+    write solution: false
     Objective functions:
       obj0:
         type: integrated control

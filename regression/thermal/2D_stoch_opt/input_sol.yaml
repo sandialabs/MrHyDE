@@ -11,7 +11,7 @@ ANONYMOUS:
     write output: true
     ROL:
       SOL:
-        Number of Samples: 50
+        Number of Samples: 8
         Objective:
           Initial Statistic: 0.1
           Type: Risk Neutral
@@ -24,7 +24,8 @@ ANONYMOUS:
               Convex Combination Parameter: 1.0
       General: 
         Output Level: 1
-        Write Final Parameters: true
+        Write Iteration History: false
+        Write Final Parameters: false
         Variable Objective Function: false
         Scale for Epsilon Active Sets: 1.0
         Use Scaling For Epsilon-Active Sets: false
@@ -140,5 +141,5 @@ ANONYMOUS:
         Gradient Tolerance: 1.0e-12
         Constraint Tolerance: 1.0e-8
         Step Tolerance: 1.0e-12
-        Iteration Limit: 500
+        Iteration Limit: 1
 ...

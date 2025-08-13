@@ -986,12 +986,10 @@ void AnalysisManager::ROLStochSolve()
 
   Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_, sampler));
 
-
   // Construct ROL problem.
   ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj,x);
   rolProblem->makeObjectiveStochastic(ROLsettings,sampler);
   rolProblem->finalize(false,false,*outStream);
-
   if (ROLsettings.sublist("General").get("Do grad check", true))
   {
     Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
@@ -1002,16 +1000,21 @@ void AnalysisManager::ROLStochSolve()
   // Construct ROL solver.
   ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings);
   // Run algorithm.
+  if (ROLsettings.sublist("General").get("Write Iteration History", false) && (comm_->getRank() == 0))
+  {
+    string outname = ROLsettings.get("Output File Name", "ROL_out.txt");
+    freopen(outname.c_str(), "w", stdout);
+  }
+  Kokkos::fence();
   rolSolver.solve(*outStream);
+  if (ROLsettings.sublist("General").get("Write Iteration History", false) && (comm_->getRank() == 0))
+  {
+    fclose(stdout);
+  }
+  Kokkos::fence();
 
   if (ROLsettings.sublist("General").get("Write Final Parameters", false))
   {
-    string outname = ROLsettings.get("Output File Name", "ROL_out.txt");
-    std::ofstream respOUT(outname);
-    respOUT.precision(16);
-    Kokkos::fence();
-    x->print(respOUT);
-    respOUT.close();
     string outname2 = "final_params_.dat";
     std::ofstream respOUT2(outname2);
     respOUT2.precision(16);

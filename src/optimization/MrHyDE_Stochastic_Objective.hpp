@@ -61,7 +61,6 @@ namespace ROL
 
     Real value(const Vector<Real> &x, Real &tol) override
     {
-
       Teuchos::TimeMonitor localtimer(*valuetimer);
 
       MrHyDE_OptVector xp =
@@ -81,7 +80,6 @@ namespace ROL
     //! Compute gradient of objective function with respect to parameters
     void gradient(Vector<Real> &g, const Vector<Real> &x, Real &tol) override
     {
-
       Teuchos::TimeMonitor localtimer(*gradienttimer);
 
       bool new_x = this->checkNewx(x);
@@ -126,7 +124,7 @@ namespace ROL
           state_soln[sample_id][set].resize(numFwdSteps);
           for (int time_index = 0; time_index < numFwdSteps; time_index++)
           {
-            state_soln[sample_id][set][time_index] = solver->linalg->getNewVector(set);
+            state_soln[sample_id][set][time_index] = solver->linalg->getNewOverlappedVector(set);
           }
         }
       }
