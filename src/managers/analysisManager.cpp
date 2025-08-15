@@ -1095,20 +1095,16 @@ void AnalysisManager::ROLStochSolve()
   if (postproc_plot)
   {
     postproc_->write_solution = true;
-    string outfile = "output_after_optimization.exo";
-    postproc_->setNewExodusFile(outfile);
-    ScalarT objfun = 0.0;
-    solver_->forwardModel(objfun);
-    if (ROLsettings.sublist("General").get("Disable source on final output", false))
+    for (int i = 0; i < sampler->numMySamples(); i++)
     {
-      vector<bool> newflags(1, false);
-      solver_->physics->updateFlags(newflags);
-      string outfile = "output_only_control.exo";
+      std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
+      params_->updateParams(pt_i, "stochastic");
+      string outfile = "output_after_optimization_sample_" + std::to_string(i) + ".exo";
       postproc_->setNewExodusFile(outfile);
+      ScalarT objfun = 0.0;
       solver_->forwardModel(objfun);
     }
   }
-
 }
 
 // ========================================================================================
@@ -1273,12 +1269,62 @@ void AnalysisManager::readExoForwardSolve()
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: MrHyDE could not find the readExo+forward sublist in the input file!  Abort!");
 
   std::string exo_file = read_exo_settings.get<std::string>("ExoFile", "error");
+  std::string txt_file = read_exo_settings.get<std::string>("TxtFile", "error");
 
-  HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
-  HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, read_exo_settings);
-  Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
-  params_->updateParams(tpetra_vec);
-  this->forwardSolve();
+  if(exo_file != "error")
+  {
+    HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
+    HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, read_exo_settings);
+    Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
+    params_->updateParams(tpetra_vec);
+  }
+  else if (txt_file != "error")
+  {
+    ScalarT val = 0.0;
+    int dim = params_->getCurrentVector().dimension();
+    // read in data
+    std::ifstream in(txt_file);
+    std::vector<ScalarT> vec = std::vector<ScalarT>(dim,0.0);
+    // read the elements in the file into a vector
+    if (in)
+    {
+      for (int i = 0; i < dim; i++)
+      {
+        in >> val;
+        vec[i] = val;
+      }
+    }
+    else
+    {
+      std::cout << "Error loading the data from " << txt_file << std::endl;
+    }
+
+    params_->updateParams(vec, "active");
+  }
+
+  if (read_exo_settings.get("Read Sample Set", false))
+  {
+    ROL::Ptr<ROL::SampleGenerator<ScalarT>> sampler;
+    ROL::Ptr<ROL::BatchManager<ScalarT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<ScalarT, int>>(comm_);
+    int nsamp = read_exo_settings.get("Number of Samples", 100);
+    std::vector<size_t> param_dim = params_->getParamsLengths(2);
+    int dim = std::accumulate(param_dim.begin(), param_dim.end(), 0);
+    sampler = ROL::makePtr<ROL::Sample_Set_Reader<ScalarT>>(nsamp, dim, bman);
+
+    for (int i = 0; i < sampler->numMySamples(); i++)
+    {
+      std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
+      params_->updateParams(pt_i, "stochastic");
+      this->forwardSolve();
+
+      std::string command = "cp output.exo output_sample_" + std::to_string(i) + ".exo";
+      system(command.c_str());
+    }
+  }
+  else
+  {
+    this->forwardSolve();
+  }
 }
 
 #endif
