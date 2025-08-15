@@ -14,6 +14,7 @@
 #include "MrHyDE_Objective.hpp"
 #include "MrHyDE_Stochastic_Objective.hpp"
 #include "MrHyDE_OptVector.hpp"
+#include "MrHyDE_Sample_Set_Reader.hpp"
 #include "ROL_LineSearchStep.hpp"
 #include "ROL_Algorithm.hpp"
 #include "ROL_Bounds.hpp"
@@ -980,9 +981,18 @@ void AnalysisManager::ROLStochSolve()
       }
       pl_itr++;
    }
-  ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT,int>>(comm_);
-  int nsamp = ROLsettings.sublist("SOL").get("Number of Samples",100);
-  ROL::Ptr<ROL::SampleGenerator<RealT>> sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp,dist,bman);
+   ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT, int>>(comm_);
+   int nsamp = ROLsettings.sublist("SOL").get("Number of Samples", 100);
+   ROL::Ptr<ROL::SampleGenerator<RealT>> sampler;
+   if (ROLsettings.sublist("SOL").get("Read Sample Set", false))
+   {
+     int dim = dist.size();
+     sampler = ROL::makePtr<ROL::Sample_Set_Reader<RealT>>(nsamp, dim, bman);
+   }
+   else
+   {
+     sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp, dist, bman);
+   }
 
   Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_, sampler));
 
@@ -995,6 +1005,32 @@ void AnalysisManager::ROLStochSolve()
     Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
     dx->randomize();
     obj->checkGradient(*x,*dx,true,*outStream);
+  }
+
+  std::string init_iter_file = ROLsettings.sublist("General").get("Initial Iterate File", "error");
+  if (init_iter_file != "error")
+  {
+    // This functionality is currently only supported for parameters stored as std::vectors
+
+    RealT val = 0.0;
+    // read in data
+    std::ifstream in(init_iter_file);
+    MrHyDE_OptVector &xs = dynamic_cast<MrHyDE_OptVector&>(*x);
+    std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > x_data = xs.getParameter();
+    ROL::Ptr<std::vector<ScalarT>> x_std = x_data[0]->getVector();
+    // read the elements in the file into a vector
+    if (in)
+    {
+      for (int i = 0; i < x->dimension(); i++)
+      {
+        in >> val;
+        (*x_std)[i] = val;
+      }
+    }
+    else
+    {
+      std::cout << "Error loading the data from " << init_iter_file << std::endl;
+    }
   }
 
   // Construct ROL solver.
@@ -1013,6 +1049,23 @@ void AnalysisManager::ROLStochSolve()
   }
   Kokkos::fence();
 
+  // This block of code is for CVaR optimziation algorith testing purposes, it will be removed later
+  // if (ROLsettings.sublist("SOL").sublist("Objective").get("Type", "Risk Neutral") == "Risk Averse")
+  // {
+  //   ROL::Ptr<ROL::Objective<ScalarT>> obj_test = rolProblem->getObjective();
+  //   ROL::Ptr<ROL::Vector<ScalarT>> vec_test = rolProblem->getPrimalOptimizationVector();
+  //   ROL::Ptr<ROL::Vector<ScalarT>> g = vec_test->clone();
+  //   ScalarT tol = 1.e-8;
+  //   obj_test->gradient(*g,*vec_test,tol);
+  //   ROL::RiskVector<ScalarT> &gs = dynamic_cast<ROL::RiskVector<ScalarT>&>(*g);
+  //   ROL::Ptr<ROL::Vector<ScalarT>> g_vec = gs.getVector();
+  //   ROL::Ptr<std::vector<ScalarT>> g_stat = gs.getStatistic();
+  //   ScalarT g_norm = g_vec->norm();
+  //   ScalarT stat_norm = (*g_stat)[0];
+  //   *outStream << g_norm << std::endl;
+  //   *outStream << stat_norm << std::endl;
+  // }
+
   if (ROLsettings.sublist("General").get("Write Final Parameters", false))
   {
     string outname2 = "final_params_.dat";
@@ -1020,6 +1073,23 @@ void AnalysisManager::ROLStochSolve()
     respOUT2.precision(16);
     x->print(respOUT2);
     respOUT2.close();
+  }
+
+  if (ROLsettings.sublist("SOL").get("Write Samples", false))
+  {
+    string outname3 = "sample_set.dat";
+    std::ofstream respOUT3(outname3);
+    respOUT3.precision(16);
+    for (int i = 0; i < sampler->numMySamples(); i++)
+    {
+      std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
+      for (int k = 0; k < pt_i.size(); k++)
+      {
+        respOUT3 << pt_i[k] << " ";
+      }
+      respOUT3 << std::endl;
+    }
+    respOUT3.close();
   }
 
   if (postproc_plot)
