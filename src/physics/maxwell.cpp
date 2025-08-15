@@ -317,18 +317,17 @@ void maxwell<EvalT>::boundaryResidual() {
   
   int cside = wkset->currentside;
   
-  
   auto wts = wkset->wts_side;
   auto res = wkset->res;
   
   if (spaceDim == 2) {
-    View_Sc2 nx, ny;
-    nx = wkset->getScalarField("n[x]");
-    ny = wkset->getScalarField("n[y]");
     
     //double gamma = 0.0;
     if (bcs(Bnum,cside) == "Neumann") { // Really ABC
       // Computes -nxnxE in B equation
+      View_Sc2 nx, ny;
+      nx = wkset->getScalarField("n[x]");
+      ny = wkset->getScalarField("n[y]");
       
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -339,19 +338,21 @@ void maxwell<EvalT>::boundaryResidual() {
     
   }
   else if (spaceDim == 3) {
-    View_Sc2 nx, ny, nz;
-    nx = wkset->getScalarField("n[x]");
-    ny = wkset->getScalarField("n[y]");
-    nz = wkset->getScalarField("n[z]");
-    auto Ex = wkset->getSolutionField("E[x]");
-    auto Ey = wkset->getSolutionField("E[y]");
-    auto Ez = wkset->getSolutionField("E[z]");
-    auto off = subview(wkset->offsets, Enum, ALL());
-    auto basis = wkset->basis_side[wkset->usebasis[Enum]];
     
     double gamma = -0.9944;
-    if (bcs(Bnum,cside) == "Neumann") { // Really ABC
+    if (include_Beqn && bcs(Bnum,cside) == "Neumann") { // Really ABC
       // Contributes -<nxnxE,V> along boundary in B equation
+    
+      View_Sc2 nx, ny, nz;
+      nx = wkset->getScalarField("n[x]");
+      ny = wkset->getScalarField("n[y]");
+      nz = wkset->getScalarField("n[z]");
+      auto Ex = wkset->getSolutionField("E[x]");
+      auto Ey = wkset->getSolutionField("E[y]");
+      auto Ez = wkset->getSolutionField("E[z]");
+      
+      auto off = subview(wkset->offsets, Bnum, ALL());
+      auto basis = wkset->basis_side[wkset->usebasis[Bnum]];
       
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
