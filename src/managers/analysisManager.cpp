@@ -1531,21 +1531,18 @@ void AnalysisManager::readExoForwardSolve()
 
   if (read_exo_settings.get("Read Sample Set", false))
   {
-    ROL::Ptr<ROL::SampleGenerator<ScalarT>> sampler;
-    ROL::Ptr<ROL::BatchManager<ScalarT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<ScalarT, int>>(comm_);
     int nsamp = read_exo_settings.get("Number of Samples", 100);
     int dim = params_->getNumParams("stochastic");
-    sampler = ROL::makePtr<ROL::Sample_Set_Reader<ScalarT>>(nsamp, dim, bman);
+    ROL::Ptr<ROL::BatchManager<ScalarT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<ScalarT, int>>(comm_);
+    ROL::Ptr<ROL::SampleGenerator<ScalarT>> sampler = ROL::makePtr<ROL::Sample_Set_Reader<ScalarT>>(nsamp, dim, bman);
 
     for (int i = 0; i < sampler->numMySamples(); i++)
     {
       std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
       params_->updateParams(pt_i, "stochastic");
-      postproc_->setup(settings_);
+      std::string outfile = "output_sample_" + std::to_string(i) + ".exo";
+      postproc_->setNewExodusFile(outfile);
       this->forwardSolve();
-
-      std::string command = "mv output.exo output_sample_" + std::to_string(i) + ".exo";
-      system(command.c_str());
     }
   }
   else
