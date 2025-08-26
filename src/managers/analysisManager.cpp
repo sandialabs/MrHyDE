@@ -21,6 +21,7 @@
 #include "ROL_TrustRegionStep.hpp"
 #include "ROL_Solver.hpp"
 #include "ROL_StochasticProblem.hpp"
+#include "ROL_PrimalDualRisk.hpp"
 #include "MrHyDE_TeuchosBatchManager.hpp"
 #include "ROL_MonteCarloGenerator.hpp"
 #include "ROL_DistributionFactory.hpp"
@@ -990,22 +991,20 @@ void AnalysisManager::ROLStochSolve()
   ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT, int>>(comm_);
   int nsamp = ROLsettings.sublist("SOL").get("Number of Samples", 100);
   ROL::Ptr<ROL::SampleGenerator<RealT>> sampler;
-  if (ROLsettings.sublist("SOL").get("Read Sample Set", false))
+  if ( (ROLsettings.sublist("SOL").get("Sample Set File", "error") == "error") || (ROLsettings.sublist("SOL").get("Sample Weight File", "error") == "error") )
   {
-    int dim = dist.size();
-    sampler = ROL::makePtr<ROL::Sample_Set_Reader<RealT>>(nsamp, dim, bman);
+    std::cout << "I was unable to read the sample set or weights, so a new sampler is being created" << std::endl;
+    sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp, dist, bman);
   }
   else
   {
-    sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp, dist, bman);
+    int dim = dist.size();
+    std::string sample_pt_file = ROLsettings.sublist("SOL").get("Sample Set File", "error");
+    std::string sample_wt_file = ROLsettings.sublist("SOL").get("Sample Weight File", "error");
+    sampler = ROL::makePtr<ROL::Sample_Set_Reader<RealT>>(nsamp, dim, bman, sample_pt_file, sample_wt_file);
   }
 
   Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_, sampler));
-
-  // Construct ROL problem.
-  ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj, x);
-  rolProblem->makeObjectiveStochastic(ROLsettings, sampler);
-  rolProblem->finalize(false, false, *outStream);
   if (ROLsettings.sublist("General").get("Do grad check", true))
   {
     Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
@@ -1039,38 +1038,42 @@ void AnalysisManager::ROLStochSolve()
     }
   }
 
-  // Construct ROL solver.
-  ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings);
-  // Run algorithm.
   if (ROLsettings.sublist("General").get("Write Iteration History", false) && (comm_->getRank() == 0))
   {
     string outname = ROLsettings.get("Output File Name", "ROL_out.txt");
     freopen(outname.c_str(), "w", stdout);
   }
   Kokkos::fence();
-  rolSolver.solve(*outStream);
+
+  int N = sampler->numMySamples();
+  std::vector<RealT> sample_weights = std::vector<RealT>(N,0.0);
+  if (!ROLsettings.sublist("SOL").get("Use Primal Dual", false))
+  {
+    ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj, x);
+    rolProblem->makeObjectiveStochastic(ROLsettings, sampler);
+    rolProblem->finalize(false, false, *outStream);
+    ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings);
+    rolSolver.solve(*outStream);
+    for(int i = 0; i < N; i++)
+    {
+       sample_weights[i] = sampler->getMyWeight(i);
+    }
+  }
+  else
+  {
+    ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
+    ROL::Ptr<ROL::PrimalDualRisk<RealT>> pd_risk = ROL::makePtr<ROL::PrimalDualRisk<RealT>>(rolProblem, sampler, ROLsettings);
+    pd_risk->run(*outStream);
+    #if defined(MrHyDE_ENABLE_HDSA)
+    sample_weights = pd_risk->getMultipliers();
+    #endif
+  }
+
   if (ROLsettings.sublist("General").get("Write Iteration History", false) && (comm_->getRank() == 0))
   {
     fclose(stdout);
   }
   Kokkos::fence();
-
-  // This block of code is for CVaR optimziation algorith testing purposes, it will be removed later
-  // if (ROLsettings.sublist("SOL").sublist("Objective").get("Type", "Risk Neutral") == "Risk Averse")
-  // {
-  //   ROL::Ptr<ROL::Objective<ScalarT>> obj_test = rolProblem->getObjective();
-  //   ROL::Ptr<ROL::Vector<ScalarT>> vec_test = rolProblem->getPrimalOptimizationVector();
-  //   ROL::Ptr<ROL::Vector<ScalarT>> g = vec_test->clone();
-  //   ScalarT tol = 1.e-8;
-  //   obj_test->gradient(*g,*vec_test,tol);
-  //   ROL::RiskVector<ScalarT> &gs = dynamic_cast<ROL::RiskVector<ScalarT>&>(*g);
-  //   ROL::Ptr<ROL::Vector<ScalarT>> g_vec = gs.getVector();
-  //   ROL::Ptr<std::vector<ScalarT>> g_stat = gs.getStatistic();
-  //   ScalarT g_norm = g_vec->norm();
-  //   ScalarT stat_norm = (*g_stat)[0];
-  //   *outStream << g_norm << std::endl;
-  //   *outStream << stat_norm << std::endl;
-  // }
 
   if (ROLsettings.sublist("General").get("Write Final Parameters", false))
   {
@@ -1096,6 +1099,16 @@ void AnalysisManager::ROLStochSolve()
       respOUT3 << std::endl;
     }
     respOUT3.close();
+
+    string outname4 = "sample_weights.dat";
+    std::ofstream respOUT4(outname4);
+    respOUT4.precision(16);
+    for (int i = 0; i < sampler->numMySamples(); i++)
+    {
+      respOUT4 << sample_weights[i] << " ";
+      respOUT4 << std::endl;
+    }
+    respOUT4.close();
   }
 
   if (postproc_plot)
@@ -1316,7 +1329,9 @@ void AnalysisManager::HDSAStochSolve()
   HDSA::Ptr<ROL::BatchManager<ScalarT>> bman = HDSA::makePtr<ROL::MrHyDETeuchosBatchManager<ScalarT, int>>(comm_);
   int ens_size = data_load_list.get<int>("Ensemble Size", 100);
   int dim = params_->getNumParams("stochastic");
-  HDSA::Ptr<ROL::SampleGenerator<ScalarT>> sampler = HDSA::makePtr<ROL::Sample_Set_Reader<ScalarT>>(ens_size, dim, bman);
+  std::string sample_pt_file = data_load_list.get("Sample Set File", "error");
+  std::string sample_wt_file = data_load_list.get("Sample Weight File", "error");
+  HDSA::Ptr<ROL::SampleGenerator<ScalarT>> sampler = HDSA::makePtr<ROL::Sample_Set_Reader<ScalarT>>(ens_size, dim, bman, sample_pt_file, sample_wt_file);
 
   std::vector<HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>>> data_interface_ens;
   data_interface_ens.resize(ens_size);
@@ -1529,12 +1544,14 @@ void AnalysisManager::readExoForwardSolve()
     params_->updateParams(vec, "active");
   }
 
-  if (read_exo_settings.get("Read Sample Set", false))
+  if (read_exo_settings.get("Sample Set File", "error") != "error")
   {
     int nsamp = read_exo_settings.get("Number of Samples", 100);
     int dim = params_->getNumParams("stochastic");
     ROL::Ptr<ROL::BatchManager<ScalarT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<ScalarT, int>>(comm_);
-    ROL::Ptr<ROL::SampleGenerator<ScalarT>> sampler = ROL::makePtr<ROL::Sample_Set_Reader<ScalarT>>(nsamp, dim, bman);
+    std::string sample_pt_file = read_exo_settings.get("Sample Set File", "error");
+    std::string sample_wt_file = read_exo_settings.get("Sample Weight File", "error");
+    ROL::Ptr<ROL::SampleGenerator<ScalarT>> sampler = ROL::makePtr<ROL::Sample_Set_Reader<ScalarT>>(nsamp, dim, bman, sample_pt_file, sample_wt_file);
 
     for (int i = 0; i < sampler->numMySamples(); i++)
     {
