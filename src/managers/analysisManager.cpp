@@ -1368,7 +1368,13 @@ void AnalysisManager::HDSAStochSolve()
   std::cout << "D norm = " << D_norms[0] << std::endl;
 
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface_s = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
-  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface = HDSA::makePtr<MD_OUU_Opt_Prob_Interface_MrHyDE<ScalarT>>(opt_prob_interface_s, params_, sampler, ens_size);
+
+  std::vector<ScalarT> ens_weights = std::vector<ScalarT>(ens_size, 0.0);
+  for (int i = 0; i < ens_size; i++)
+  {
+    ens_weights[i] = sampler->getMyWeight(i);
+  }
+  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface = HDSA::makePtr<MD_OUU_Opt_Prob_Interface_MrHyDE<ScalarT>>(opt_prob_interface_s, params_, sampler, ens_weights);
 
   HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(data_interface_ens[0], postproc_, solver_);
 
