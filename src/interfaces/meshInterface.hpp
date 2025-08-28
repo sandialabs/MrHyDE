@@ -26,13 +26,13 @@
 #include "Panzer_STK_Interface.hpp"
 #include "Panzer_STK_ExodusReaderFactory.hpp"
 #include "Panzer_STKConnManager.hpp"
-#include "simplemeshmanager.hpp"
-#include "MrHyDE_Debugger.hpp"
+#include "tools/simplemeshmanager.hpp"
+#include "tools/MrHyDE_Debugger.hpp"
 
 #include "preferences.hpp"
 //#include "physicsInterface.hpp"
 //#include "group.hpp"
-#include "data.hpp"
+#include "tools/data.hpp"
 //#include "boundaryGroup.hpp"
 
 namespace MrHyDE {
