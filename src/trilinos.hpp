@@ -28,7 +28,7 @@
 
 // Kokkos include
 #include "Kokkos_Core.hpp"
-#include "kokkosTools.hpp"
+#include "tools/kokkosTools.hpp"
 
 // Sacado
 #include "Sacado.hpp"
