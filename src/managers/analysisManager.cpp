@@ -1119,6 +1119,7 @@ void AnalysisManager::ROLStochSolve()
   if (postproc_plot)
   {
     postproc_->write_solution = true;
+    std::vector<ScalarT> obj_vals = std::vector<ScalarT>(sampler->numMySamples(),0.0);
     for (int i = 0; i < sampler->numMySamples(); i++)
     {
       std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
@@ -1127,7 +1128,17 @@ void AnalysisManager::ROLStochSolve()
       postproc_->setNewExodusFile(outfile);
       ScalarT objfun = 0.0;
       solver_->forwardModel(objfun);
+      obj_vals[i] = objfun;
     }
+    string outname5 = "sample_obj_vals.dat";
+    std::ofstream respOUT5(outname5);
+    respOUT5.precision(16);
+    for (int i = 0; i < sampler->numMySamples(); i++)
+    {
+      respOUT5 << obj_vals[i] << " ";
+      respOUT5 << std::endl;
+    }
+    respOUT5.close();
   }
   
 }
