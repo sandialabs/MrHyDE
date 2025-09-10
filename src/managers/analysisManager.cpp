@@ -21,13 +21,14 @@
 #include "ROL_TrustRegionStep.hpp"
 #include "ROL_Solver.hpp"
 #include "ROL_StochasticProblem.hpp"
-#include "ROL_PrimalDualRisk.hpp"
+
 #include "MrHyDE_TeuchosBatchManager.hpp"
 #include "ROL_MonteCarloGenerator.hpp"
 #include "ROL_DistributionFactory.hpp"
 
 #if defined(MrHyDE_ENABLE_HDSA)
 #include "../../../hdsalib/src/source_file.hpp"
+#include "ROL_PrimalDualRisk.hpp"
 #endif
 
 using namespace MrHyDE;
@@ -937,6 +938,8 @@ void AnalysisManager::ROL2Solve()
 
 void AnalysisManager::ROLStochSolve()
 {
+  
+//#if defined(MrHyDE_ENABLE_HDSA)
   typedef ScalarT RealT;
 
   Teuchos::TimeMonitor localtimer(*rol2timer);
@@ -971,6 +974,7 @@ void AnalysisManager::ROLStochSolve()
   /*************************************************************************/
   /***************** BUILD SAMPLER *****************************************/
   /*************************************************************************/
+  
   std::vector<ROL::Ptr<ROL::Distribution<RealT>>> dist;
   Teuchos::ParameterList parameters = settings_->sublist("Parameters");
   Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
@@ -1061,10 +1065,11 @@ void AnalysisManager::ROLStochSolve()
   }
   else
   {
+    #if defined(MrHyDE_ENABLE_HDSA)
     ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
     ROL::Ptr<ROL::PrimalDualRisk<RealT>> pd_risk = ROL::makePtr<ROL::PrimalDualRisk<RealT>>(rolProblem, sampler, ROLsettings);
     pd_risk->run(*outStream);
-    #if defined(MrHyDE_ENABLE_HDSA)
+    
     sample_weights = pd_risk->getMultipliers();
     #endif
   }
@@ -1124,6 +1129,7 @@ void AnalysisManager::ROLStochSolve()
       solver_->forwardModel(objfun);
     }
   }
+  
 }
 
 // ========================================================================================
