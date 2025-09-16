@@ -27,7 +27,29 @@
 #include "ROL_DistributionFactory.hpp"
 
 #if defined(MrHyDE_ENABLE_HDSA)
-#include "../../../hdsalib/src/source_file.hpp"
+#include "HDSA_Ptr.hpp"
+#include "HDSA_Random_Number_Generator.hpp"
+#include "HDSA_MD_Data_Interface_MrHyDE.hpp"
+#include "HDSA_MD_Opt_Prob_Interface_MrHyDE.hpp"
+#include "HDSA_Write_Output_MrHyDE.hpp"
+#include "HDSA_Sparse_Matrix.hpp"
+#include "HDSA_MD_u_Hyperparameter_Interface.hpp"
+#include "HDSA_MD_z_Hyperparameter_Interface_MrHyDE.hpp"
+#include "HDSA_Prior_FE_Op_MrHyDE.hpp"
+#include "HDSA_MD_u_Prior_Interface.hpp"
+#include "HDSA_MD_Numeric_Laplacian_u_Prior_Interface.hpp"
+#include "HDSA_MD_z_Prior_Interface.hpp"
+#include "HDSA_MD_Numeric_Laplacian_z_Prior_Interface.hpp"
+#include "HDSA_MD_Vector_z_Prior_Interface.hpp"
+#include "HDSA_MD_Prior_Sampling.hpp"
+#include "HDSA_MD_Posterior_Sampling.hpp"
+#include "HDSA_MD_Hessian_Analysis.hpp"
+#include "HDSA_MD_Update.hpp"
+#include "HDSA_MD_OUU_Data_Interface_MrHyDE.hpp"
+#include "HDSA_MD_OUU_Opt_Prob_Interface_MrHyDE.hpp"
+#include "HDSA_MD_OUU_Hyperparameter_Data_Interface.hpp"
+#include "HDSA_MD_OUU_u_Prior_Interface.hpp"
+
 #include "ROL_PrimalDualRisk.hpp"
 #endif
 
@@ -939,7 +961,6 @@ void AnalysisManager::ROL2Solve()
 void AnalysisManager::ROLStochSolve()
 {
   
-//#if defined(MrHyDE_ENABLE_HDSA)
   typedef ScalarT RealT;
 
   Teuchos::TimeMonitor localtimer(*rol2timer);
@@ -1371,18 +1392,6 @@ void AnalysisManager::HDSAStochSolve()
   }
   HDSA::Ptr<HDSA::MD_OUU_Data_Interface<ScalarT>> data_interface = HDSA::makePtr<MD_OUU_Data_Interface_MrHyDE<ScalarT>>(data_interface_ens, sampler, ens_size);
   HDSA::Ptr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>> data_interface_hyperparam = HDSA::makePtr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>>(data_interface);
-
-  HDSA::Ptr<HDSA::Vector<ScalarT>> test_u_opt = data_interface->Load_Optimal_u();
-  HDSA::Ptr<HDSA::Vector<ScalarT>> test_z_opt = data_interface->Load_Optimal_z();
-  HDSA::Ptr<HDSA::MultiVector<ScalarT>> test_Z = data_interface->Load_Z_Data();
-  HDSA::Ptr<HDSA::MultiVector<ScalarT>> test_D = data_interface->Load_D_Data();
-
-  std::cout << "u_opt norm = " << test_u_opt->norm() << std::endl;
-  std::cout << "z_opt norm = " << test_z_opt->norm() << std::endl;
-  std::vector<ScalarT> Z_norms = test_Z->norms();
-  std::cout << "Z norm = " << Z_norms[0] << std::endl;
-  std::vector<ScalarT> D_norms = test_D->norms();
-  std::cout << "D norm = " << D_norms[0] << std::endl;
 
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface_s = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
 

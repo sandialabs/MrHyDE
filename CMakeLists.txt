@@ -192,12 +192,8 @@ ENDIF()
 
 IF(MrHyDE_ENABLE_HDSA)
   ADD_DEFINITIONS(-DMrHyDE_ENABLE_HDSA)
+  SET(HdsaLib_SRC_DIR ${HdsaLib_SRC_DIR})
   MESSAGE("-- HDSA has been enabled.")
-#  IF(MrHyDE_HDSA_DIR) 
-#    MESSAGE("-- HDSA directory: ${MrHyDE_HDSA_DIR}")
-#  ELSE()
-#    MESSAGE(FATAL_ERROR "HDSA requested, but MrHyDE_HDSA_DIR was not set.")
-#  ENDIF()  
 ENDIF()
 
 IF(MrHyDE_ENABLE_FFTW)
