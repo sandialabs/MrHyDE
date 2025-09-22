@@ -16,6 +16,7 @@
 #include "porousMixedHybridized.hpp"
 #include "porousWeakGalerkin.hpp"
 #include "cdr.hpp"
+#include "cdr2.hpp"
 #include "thermal.hpp"
 #include "ellipticPrior.hpp"  
 #include "msphasefield.hpp"
@@ -85,6 +86,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Convection diffusion
     if (modname == "cdr" || modname == "CDR") {
       modules.push_back(Teuchos::rcp(new cdr<EvalT>(settings, dimension) ) );
+    }
+
+    // Convection diffusion - additional species
+    if (modname == "cdr2" || modname == "CDR2") {
+      modules.push_back(Teuchos::rcp(new cdr2<EvalT>(settings, dimension) ) );
     }
     
     // Thermal
