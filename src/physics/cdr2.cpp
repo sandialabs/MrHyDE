@@ -37,17 +37,17 @@ void cdr2<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   
   // Functions
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
-  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),"ip");
+  functionManager->addFunction("source2",fs.get<string>("source2","0.0"),"ip");
+  functionManager->addFunction("diffusion2",fs.get<string>("diffusion2","1.0"),"ip");
   functionManager->addFunction("specific heat",fs.get<string>("specific heat","1.0"),"ip");
   functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
-  functionManager->addFunction("reaction",fs.get<string>("reaction","1.0"),"ip");
+  functionManager->addFunction("reaction2",fs.get<string>("reaction2","1.0"),"ip");
   functionManager->addFunction("xvel",fs.get<string>("xvel","1.0"),"ip");
   functionManager->addFunction("yvel",fs.get<string>("yvel","1.0"),"ip");
   functionManager->addFunction("zvel",fs.get<string>("zvel","1.0"),"ip");
   functionManager->addFunction("SUPG tau",fs.get<string>("SUPG tau","0.0"),"ip");
   
-  functionManager->addFunction("diffusion",fs.get<string>("diffusion","1.0"),"side ip");
+  functionManager->addFunction("diffusion2",fs.get<string>("diffusion2","1.0"),"side ip");
   functionManager->addFunction("robin alpha",fs.get<string>("robin alpha","0.0"),"side ip");
   
   //regParam = settings->sublist("Analysis").sublist("ROL").get<ScalarT>("regularization parameter",1.e-6);
@@ -71,11 +71,11 @@ void cdr2<EvalT>::volumeResidual() {
   Vista<EvalT> source, diff, cp, rho, reax, xvel, yvel, zvel, tau;
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-    source = functionManager->evaluate("source","ip");
-    diff = functionManager->evaluate("diffusion","ip");
+    source = functionManager->evaluate("source2","ip");
+    diff = functionManager->evaluate("diffusion2","ip");
     cp = functionManager->evaluate("specific heat","ip");
     rho = functionManager->evaluate("density","ip");
-    reax = functionManager->evaluate("reaction","ip");
+    reax = functionManager->evaluate("reaction2","ip");
     xvel = functionManager->evaluate("xvel","ip");
     yvel = functionManager->evaluate("yvel","ip");
     zvel = functionManager->evaluate("zvel","ip");
