@@ -1,0 +1,2 @@
+# Sandia_Proceedings_Paper_Examples
+This folder contains MrHyDE input files for the examples used in the Numerical Results section of the Sandia National Lab Proceedings Paper titled "Numerical Studies of Optimal Control Problems Governed by the Time-Dependent Maxwell's Equations" authored by Yaw Owusu-Agyemang, Denis Ridzal, Tim Wildley, Rohit Khandelwal and Harbir Antil

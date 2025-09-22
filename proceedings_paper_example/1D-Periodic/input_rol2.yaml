@@ -1,0 +1,73 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Analysis: 
+    analysis type: ROL2
+    ROL2: 
+      General: 
+        Output Level: 2
+        Disable source on final output: false
+        Variable Objective Function: false
+        Scale for Epsilon Active Sets: 1.0 
+        FD Scale: 1.0
+        Do grad+hessvec check: true
+        Bound Optimization Variables: false
+        Inexact Objective Function: false
+        Inexact Gradient: false
+        Inexact Hessian-Times-A-Vector: false
+        Projected Gradient Criticality Measure: false
+        Secant: 
+          Type: Limited-Memory BFGS
+          Use as Preconditioner: false
+          Use as Hessian: false
+          Maximum Storage: 50
+          Barzilai-Borwein Type: 1
+          Use Default Scaling: true
+          Initial Hessian Scale: 1.0e+8
+        Krylov: 
+          Type: Conjugate Gradients
+          Absolute Tolerance: 1.0e-6
+          Relative Tolerance: 1.0e-2
+          Iteration Limit: 20
+      Step: 
+        Type: Line Search
+        Line Search: 
+          Function Evaluation Limit: 20
+          Sufficient Decrease Tolerance: 1.0e-04
+          Initial Step Size: 1.0e-8
+          User Defined Initial Step Size: false
+          Accept Linesearch Minimizer: false
+          Accept Last Alpha: false
+          Descent Method: 
+            Type: Quasi-Newton
+            Nonlinear CG Type: Hestenes-Stiefel
+          Curvature Condition: 
+            # Type: Strong Wolfe Conditions
+            Type: Null Curvature Conditions
+            General Parameter: 9.0e-01
+            Generalized Wolfe Parameter: 6.0e-1
+          Line-Search Method: 
+            Type: Cubic Interpolation
+            Backtracking Rate: 5.0e-01
+            Bracketing Tolerance: 1.0e-8
+            Path-Based Target Level: 
+              Target Relaxation Parameter: 1.0
+              Upper Bound on Path Length: 1.0
+        Trust Region: 
+          Subproblem Solver: Truncated CG
+          Initial Radius: 1.0e-1
+          Maximum Radius: 1.0e+20
+          Step Acceptance Threshold: 5.0e-02
+          Radius Shrinking Threshold: 5.0e-02
+          Radius Growing Threshold: 9.0e-01
+          Radius Shrinking Rate (Negative rho): 6.25e-02
+          Radius Shrinking Rate (Positive rho): 2.50e-01
+          Radius Growing Rate: 2.5
+          Safeguard Size: 1.0e+01
+      Status Test: 
+        Gradient Tolerance: 1.0e-6
+        Use Relative Tolerances: true
+        Constraint Tolerance: 1.0e-08
+        Step Tolerance: 1.0e-20
+        Iteration Limit: 1000
+...

@@ -126,7 +126,7 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     }
     
     // Maxwell for optimal control
-    if (modname == "maxwell control") {
+    if (modname == "maxwell_control") {
       modules.push_back(Teuchos::rcp(new maxwell_control<EvalT>(settings, dimension) ) );
     }
     
