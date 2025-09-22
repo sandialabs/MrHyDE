@@ -1,5 +1,5 @@
 ## About
-This folder contains the input files for solving 2D Time-Dependent Maxwell's optimization problem modelled on a 3D-rectangular domain with periodic boundary conditions in the z axe\is. It contains input files for both the forward problem and the optimal control problem (minimizing the electromagnetic energy on some observation blocks).
+This folder contains the input files for solving 2D Time-Dependent Maxwell's optimization problem modelled on a 3D-rectangular domain with periodic boundary conditions in the z axis. It contains input files for both the forward problem and the optimal control problem (minimizing the electromagnetic energy on some observation blocks).
 
 ## Folder structure
 The structure of each example folder is as follows:

@@ -2,7 +2,7 @@
 ---
 ANONYMOUS:
   debug level: 0
-  verbosity: 0
+  verbosity: 10
   Mesh input file: input_mesh.yaml
   Physics: 
     modules: maxwell_control

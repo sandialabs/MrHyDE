@@ -41,7 +41,6 @@ ANONYMOUS:
     max nonlinear iters: 1
     use preconditioner: true
     preconditioner type: Ifpack2
-    #preconditioner type: domain decomposition
     right preconditioner: true
     use direct solver: false
     reuse preconditioner: true
