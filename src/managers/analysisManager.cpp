@@ -21,12 +21,36 @@
 #include "ROL_TrustRegionStep.hpp"
 #include "ROL_Solver.hpp"
 #include "ROL_StochasticProblem.hpp"
+
 #include "MrHyDE_TeuchosBatchManager.hpp"
 #include "ROL_MonteCarloGenerator.hpp"
 #include "ROL_DistributionFactory.hpp"
 
 #if defined(MrHyDE_ENABLE_HDSA)
-#include "../../../hdsalib/src/source_file.hpp"
+#include "HDSA_Ptr.hpp"
+#include "HDSA_Random_Number_Generator.hpp"
+#include "HDSA_MD_Data_Interface_MrHyDE.hpp"
+#include "HDSA_MD_Opt_Prob_Interface_MrHyDE.hpp"
+#include "HDSA_Write_Output_MrHyDE.hpp"
+#include "HDSA_Sparse_Matrix.hpp"
+#include "HDSA_MD_u_Hyperparameter_Interface.hpp"
+#include "HDSA_MD_z_Hyperparameter_Interface_MrHyDE.hpp"
+#include "HDSA_Prior_FE_Op_MrHyDE.hpp"
+#include "HDSA_MD_u_Prior_Interface.hpp"
+#include "HDSA_MD_Numeric_Laplacian_u_Prior_Interface.hpp"
+#include "HDSA_MD_z_Prior_Interface.hpp"
+#include "HDSA_MD_Numeric_Laplacian_z_Prior_Interface.hpp"
+#include "HDSA_MD_Vector_z_Prior_Interface.hpp"
+#include "HDSA_MD_Prior_Sampling.hpp"
+#include "HDSA_MD_Posterior_Sampling.hpp"
+#include "HDSA_MD_Hessian_Analysis.hpp"
+#include "HDSA_MD_Update.hpp"
+#include "HDSA_MD_OUU_Data_Interface_MrHyDE.hpp"
+#include "HDSA_MD_OUU_Opt_Prob_Interface_MrHyDE.hpp"
+#include "HDSA_MD_OUU_Hyperparameter_Data_Interface.hpp"
+#include "HDSA_MD_OUU_u_Prior_Interface.hpp"
+
+#include "ROL_PrimalDualRisk.hpp"
 #endif
 
 using namespace MrHyDE;
@@ -107,6 +131,10 @@ void AnalysisManager::run(std::string &analysis_type)
   else if (analysis_type == "HDSA")
   {
     this->HDSASolve();
+  }
+  else if (analysis_type == "HDSAStoch")
+  {
+    this->HDSAStochSolve();
   }
   else if (analysis_type == "readExo+forward")
   {
@@ -665,7 +693,7 @@ void AnalysisManager::ROLSolve()
     obj->checkGradient(*x, *d, (comm_->getRank() == 0));
   }
 
-  //Teuchos::Time timer("Optimization Time", true);
+  // Teuchos::Time timer("Optimization Time", true);
 
   // Run algorithm.
   vector<std::string> output;
@@ -678,7 +706,7 @@ void AnalysisManager::ROLSolve()
     output = algo.run(*x, *obj, (comm_->getRank() == 0)); // only processor of rank 0 prints out
   }
 
-  ScalarT optTime = 0.0;//timer.stop();
+  ScalarT optTime = 0.0; // timer.stop();
 
   if (ROLsettings.sublist("General").get("Write Final Parameters", false))
   {
@@ -880,7 +908,7 @@ void AnalysisManager::ROL2Solve()
     obj->checkGradient(*x, *d, (comm_->getRank() == 0));
   }
 
-  //Teuchos::Time timer("Optimization Time", true);
+  // Teuchos::Time timer("Optimization Time", true);
 
   // Construct ROL problem.
   ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
@@ -932,6 +960,7 @@ void AnalysisManager::ROL2Solve()
 
 void AnalysisManager::ROLStochSolve()
 {
+  
   typedef ScalarT RealT;
 
   Teuchos::TimeMonitor localtimer(*rol2timer);
@@ -949,10 +978,12 @@ void AnalysisManager::ROLStochSolve()
   // Output stream.
   ROL::Ptr<std::ostream> outStream;
   ROL::nullstream bhs; // outputs nothing
-  if (comm_->getRank() == 0) {
+  if (comm_->getRank() == 0)
+  {
     outStream = ROL::makePtrFromRef(std::cout);
   }
-  else {
+  else
+  {
     outStream = ROL::makePtrFromRef(bhs);
   }
 
@@ -964,47 +995,46 @@ void AnalysisManager::ROLStochSolve()
   /*************************************************************************/
   /***************** BUILD SAMPLER *****************************************/
   /*************************************************************************/
+  
   std::vector<ROL::Ptr<ROL::Distribution<RealT>>> dist;
   Teuchos::ParameterList parameters = settings_->sublist("Parameters");
   Teuchos::ParameterList::ConstIterator pl_itr = parameters.begin();
-  while (pl_itr != parameters.end()) 
-   {
-      Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
-      if (newparam.get<string>("usage") == "stochastic") 
+  while (pl_itr != parameters.end())
+  {
+    Teuchos::ParameterList newparam = parameters.sublist(pl_itr->first);
+    if (newparam.get<string>("usage") == "stochastic")
+    {
+      if (newparam.get<string>("type") != "scalar")
       {
-        if (newparam.get<string>("type") != "scalar") 
-        {
-          std::cout << "Error: the current stochastic optimization implementation only permits scalar inactive parameters to be sampled" << std::endl;
-        }
-        ROL::Ptr<ROL::Distribution<RealT>> tmp = ROL::DistributionFactory<RealT>(newparam);
-        dist.push_back(tmp);
+        std::cout << "Error: the current stochastic optimization implementation only permits scalar inactive parameters to be sampled" << std::endl;
       }
-      pl_itr++;
-   }
-   ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT, int>>(comm_);
-   int nsamp = ROLsettings.sublist("SOL").get("Number of Samples", 100);
-   ROL::Ptr<ROL::SampleGenerator<RealT>> sampler;
-   if (ROLsettings.sublist("SOL").get("Read Sample Set", false))
-   {
-     int dim = dist.size();
-     sampler = ROL::makePtr<ROL::Sample_Set_Reader<RealT>>(nsamp, dim, bman);
-   }
-   else
-   {
-     sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp, dist, bman);
-   }
+      ROL::Ptr<ROL::Distribution<RealT>> tmp = ROL::DistributionFactory<RealT>(newparam);
+      dist.push_back(tmp);
+    }
+    pl_itr++;
+  }
+  ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT, int>>(comm_);
+  int nsamp = ROLsettings.sublist("SOL").get("Number of Samples", 100);
+  ROL::Ptr<ROL::SampleGenerator<RealT>> sampler;
+  if ( (ROLsettings.sublist("SOL").get("Sample Set File", "error") == "error") || (ROLsettings.sublist("SOL").get("Sample Weight File", "error") == "error") )
+  {
+    std::cout << "I was unable to read the sample set or weights, so a new sampler is being created" << std::endl;
+    sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp, dist, bman);
+  }
+  else
+  {
+    int dim = dist.size();
+    std::string sample_pt_file = ROLsettings.sublist("SOL").get("Sample Set File", "error");
+    std::string sample_wt_file = ROLsettings.sublist("SOL").get("Sample Weight File", "error");
+    sampler = ROL::makePtr<ROL::Sample_Set_Reader<RealT>>(nsamp, dim, bman, sample_pt_file, sample_wt_file);
+  }
 
   Teuchos::RCP<ROL::Stochastic_Objective_MILO<RealT>> obj = Teuchos::rcp(new ROL::Stochastic_Objective_MILO<RealT>(solver_, postproc_, params_, sampler));
-
-  // Construct ROL problem.
-  ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj,x);
-  rolProblem->makeObjectiveStochastic(ROLsettings,sampler);
-  rolProblem->finalize(false,false,*outStream);
   if (ROLsettings.sublist("General").get("Do grad check", true))
   {
     Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
     dx->randomize();
-    obj->checkGradient(*x,*dx,true,*outStream);
+    obj->checkGradient(*x, *dx, true, *outStream);
   }
 
   std::string init_iter_file = ROLsettings.sublist("General").get("Initial Iterate File", "error");
@@ -1015,8 +1045,8 @@ void AnalysisManager::ROLStochSolve()
     RealT val = 0.0;
     // read in data
     std::ifstream in(init_iter_file);
-    MrHyDE_OptVector &xs = dynamic_cast<MrHyDE_OptVector&>(*x);
-    std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > x_data = xs.getParameter();
+    MrHyDE_OptVector &xs = dynamic_cast<MrHyDE_OptVector &>(*x);
+    std::vector<ROL::Ptr<ROL::StdVector<ScalarT>>> x_data = xs.getParameter();
     ROL::Ptr<std::vector<ScalarT>> x_std = x_data[0]->getVector();
     // read the elements in the file into a vector
     if (in)
@@ -1033,38 +1063,43 @@ void AnalysisManager::ROLStochSolve()
     }
   }
 
-  // Construct ROL solver.
-  ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings);
-  // Run algorithm.
   if (ROLsettings.sublist("General").get("Write Iteration History", false) && (comm_->getRank() == 0))
   {
     string outname = ROLsettings.get("Output File Name", "ROL_out.txt");
     freopen(outname.c_str(), "w", stdout);
   }
   Kokkos::fence();
-  rolSolver.solve(*outStream);
+
+  int N = sampler->numMySamples();
+  std::vector<RealT> sample_weights = std::vector<RealT>(N,0.0);
+  if (!ROLsettings.sublist("SOL").get("Use Primal Dual", false))
+  {
+    ROL::Ptr<ROL::StochasticProblem<RealT>> rolProblem = ROL::makePtr<ROL::StochasticProblem<RealT>>(obj, x);
+    rolProblem->makeObjectiveStochastic(ROLsettings, sampler);
+    rolProblem->finalize(false, false, *outStream);
+    ROL::Solver<ScalarT> rolSolver(rolProblem, ROLsettings);
+    rolSolver.solve(*outStream);
+    for(int i = 0; i < N; i++)
+    {
+       sample_weights[i] = sampler->getMyWeight(i);
+    }
+  }
+  else
+  {
+    #if defined(MrHyDE_ENABLE_HDSA)
+    ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
+    ROL::Ptr<ROL::PrimalDualRisk<RealT>> pd_risk = ROL::makePtr<ROL::PrimalDualRisk<RealT>>(rolProblem, sampler, ROLsettings);
+    pd_risk->run(*outStream);
+    
+    sample_weights = pd_risk->getMultipliers();
+    #endif
+  }
+
   if (ROLsettings.sublist("General").get("Write Iteration History", false) && (comm_->getRank() == 0))
   {
     fclose(stdout);
   }
   Kokkos::fence();
-
-  // This block of code is for CVaR optimziation algorith testing purposes, it will be removed later
-  // if (ROLsettings.sublist("SOL").sublist("Objective").get("Type", "Risk Neutral") == "Risk Averse")
-  // {
-  //   ROL::Ptr<ROL::Objective<ScalarT>> obj_test = rolProblem->getObjective();
-  //   ROL::Ptr<ROL::Vector<ScalarT>> vec_test = rolProblem->getPrimalOptimizationVector();
-  //   ROL::Ptr<ROL::Vector<ScalarT>> g = vec_test->clone();
-  //   ScalarT tol = 1.e-8;
-  //   obj_test->gradient(*g,*vec_test,tol);
-  //   ROL::RiskVector<ScalarT> &gs = dynamic_cast<ROL::RiskVector<ScalarT>&>(*g);
-  //   ROL::Ptr<ROL::Vector<ScalarT>> g_vec = gs.getVector();
-  //   ROL::Ptr<std::vector<ScalarT>> g_stat = gs.getStatistic();
-  //   ScalarT g_norm = g_vec->norm();
-  //   ScalarT stat_norm = (*g_stat)[0];
-  //   *outStream << g_norm << std::endl;
-  //   *outStream << stat_norm << std::endl;
-  // }
 
   if (ROLsettings.sublist("General").get("Write Final Parameters", false))
   {
@@ -1090,25 +1125,43 @@ void AnalysisManager::ROLStochSolve()
       respOUT3 << std::endl;
     }
     respOUT3.close();
+
+    string outname4 = "sample_weights.dat";
+    std::ofstream respOUT4(outname4);
+    respOUT4.precision(16);
+    for (int i = 0; i < sampler->numMySamples(); i++)
+    {
+      respOUT4 << sample_weights[i] << " ";
+      respOUT4 << std::endl;
+    }
+    respOUT4.close();
   }
 
   if (postproc_plot)
   {
     postproc_->write_solution = true;
-    string outfile = "output_after_optimization.exo";
-    postproc_->setNewExodusFile(outfile);
-    ScalarT objfun = 0.0;
-    solver_->forwardModel(objfun);
-    if (ROLsettings.sublist("General").get("Disable source on final output", false))
+    std::vector<ScalarT> obj_vals = std::vector<ScalarT>(sampler->numMySamples(),0.0);
+    for (int i = 0; i < sampler->numMySamples(); i++)
     {
-      vector<bool> newflags(1, false);
-      solver_->physics->updateFlags(newflags);
-      string outfile = "output_only_control.exo";
+      std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
+      params_->updateParams(pt_i, "stochastic");
+      string outfile = "output_after_optimization_sample_" + std::to_string(i) + ".exo";
       postproc_->setNewExodusFile(outfile);
+      ScalarT objfun = 0.0;
       solver_->forwardModel(objfun);
+      obj_vals[i] = objfun;
     }
+    string outname5 = "sample_obj_vals.dat";
+    std::ofstream respOUT5(outname5);
+    respOUT5.precision(16);
+    for (int i = 0; i < sampler->numMySamples(); i++)
+    {
+      respOUT5 << obj_vals[i] << " ";
+      respOUT5 << std::endl;
+    }
+    respOUT5.close();
   }
-
+  
 }
 
 // ========================================================================================
@@ -1163,8 +1216,8 @@ void AnalysisManager::HDSASolve()
   postproc_->write_solution = false;
   postproc_->write_optimization_solution = false;
   HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, data_load_list);
-  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface, random_number_generator);
-  HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(data_interface,postproc_,solver_);
+  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
+  HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(data_interface, postproc_, solver_);
 
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr<Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_, settings_, blockNames);
@@ -1263,6 +1316,223 @@ void AnalysisManager::HDSASolve()
   }
 }
 
+void AnalysisManager::HDSAStochSolve()
+{
+  Teuchos::ParameterList HDSAsettings;
+
+  if (settings_->sublist("Analysis").isSublist("HDSA"))
+    HDSAsettings = settings_->sublist("Analysis").sublist("HDSA");
+  else
+    TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: MrHyDE could not find the HDSA sublist in the input file!  Abort!");
+
+  int num_prior_samples = HDSAsettings.sublist("Configuration").get<int>("num_prior_samples", 0);
+  int num_posterior_samples = HDSAsettings.sublist("Configuration").get<int>("num_posterior_samples", 0);
+  int prior_num_state_solves = HDSAsettings.sublist("Configuration").get<int>("prior_num_state_solves", 0);
+  bool execute_prior_discrepancy_sampling = HDSAsettings.sublist("Configuration").get<bool>("execute_prior_discrepancy_sampling", false);
+  bool execute_posterior_discrepancy_sampling = HDSAsettings.sublist("Configuration").get<bool>("execute_posterior_discrepancy_sampling", false);
+  bool execute_optimal_solution_update = HDSAsettings.sublist("Configuration").get<bool>("execute_optimal_solution_update", false);
+
+  ScalarT alpha_u = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_u", 0.0);
+  ScalarT alpha_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_z", 0.0);
+  ScalarT beta_u = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_u", 0.0);
+  ScalarT beta_t = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_t", 0.0);
+  ScalarT beta_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_z", 0.0);
+  ScalarT alpha_d = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_d", 0.0);
+  int prior_num_sing_vals = HDSAsettings.sublist("HyperParameters").get<int>("prior_num_sing_vals", 200);
+  int prior_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("prior_oversampling", 20);
+  int prior_num_subspace_iter = HDSAsettings.sublist("HyperParameters").get<int>("prior_num_subspace_iter", 1);
+  int hessian_num_eig_vals = HDSAsettings.sublist("HyperParameters").get<int>("hessian_num_eig_vals", 5);
+  int hessian_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("hessian_oversampling", 3);
+
+  Teuchos::ParameterList data_load_list = HDSAsettings.sublist("DataLoadParameters");
+  std::string random_number_file = data_load_list.get<std::string>("random_number_file", "error");
+  int num_random_numbers = data_load_list.get<int>("num_random_numbers", 0);
+  HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator;
+  if (random_number_file == "error")
+  {
+    random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
+  }
+  else
+  {
+    if (num_random_numbers == 0)
+    {
+      std::cout << " Error: number of random numbers not specified" << std::endl;
+    }
+    random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>(num_random_numbers, random_number_file);
+  }
+
+  postproc_->write_solution = false;
+  postproc_->write_optimization_solution = false;
+
+  HDSA::Ptr<ROL::BatchManager<ScalarT>> bman = HDSA::makePtr<ROL::MrHyDETeuchosBatchManager<ScalarT, int>>(comm_);
+  int ens_size = data_load_list.get<int>("Ensemble Size", 100);
+  int dim = params_->getNumParams("stochastic");
+  std::string sample_pt_file = data_load_list.get("Sample Set File", "error");
+  std::string sample_wt_file = data_load_list.get("Sample Weight File", "error");
+  HDSA::Ptr<ROL::SampleGenerator<ScalarT>> sampler = HDSA::makePtr<ROL::Sample_Set_Reader<ScalarT>>(ens_size, dim, bman, sample_pt_file, sample_wt_file);
+
+  std::vector<HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>>> data_interface_ens;
+  data_interface_ens.resize(ens_size);
+  for (int s = 0; s < ens_size; s++)
+  {
+    data_interface_ens[s] = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, data_load_list);
+
+    std::string exo_file_base = data_interface_ens[s]->Get_Opt_Solution_Exo_File();
+    std::string exo_file = exo_file_base + std::to_string(s) + ".exo";
+    data_interface_ens[s]->Overwrite_Opt_Solution_Exo_File(exo_file);
+
+    std::vector<std::string> exo_files_base = data_interface_ens[s]->Get_HiFi_Exo_Files();
+    std::vector<std::string> exo_files;
+    exo_files.resize(exo_files_base.size());
+    for (int k = 0; k < exo_files.size(); k++)
+    {
+      exo_files[k] = exo_files_base[k] + std::to_string(s) + ".exo";
+    }
+    data_interface_ens[s]->Overwrite_HiFi_Exo_Files(exo_files);
+  }
+  HDSA::Ptr<HDSA::MD_OUU_Data_Interface<ScalarT>> data_interface = HDSA::makePtr<MD_OUU_Data_Interface_MrHyDE<ScalarT>>(data_interface_ens, sampler, ens_size);
+  HDSA::Ptr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>> data_interface_hyperparam = HDSA::makePtr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>>(data_interface);
+
+  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface_s = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
+
+  std::vector<ScalarT> ens_weights = std::vector<ScalarT>(ens_size, 0.0);
+  for (int i = 0; i < ens_size; i++)
+  {
+    ens_weights[i] = sampler->getMyWeight(i);
+  }
+  HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface = HDSA::makePtr<MD_OUU_Opt_Prob_Interface_MrHyDE<ScalarT>>(opt_prob_interface_s, params_, sampler, ens_weights);
+
+  HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(data_interface_ens[0], postproc_, solver_);
+
+  vector<string> blockNames = solver_->mesh->getBlockNames();
+  HDSA::Ptr<Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_, settings_, blockNames);
+  HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->M[0]);
+  HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> S = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->S[0]);
+
+  bool is_transient = solver_->isTransient;
+  HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>> us_hyperparam_interface;
+  HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> us_prior_interface;
+  if (is_transient)
+  {
+    us_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+    us_hyperparam_interface->Set_alpha_d(alpha_d);
+    us_hyperparam_interface->Set_alpha_u(alpha_u);
+    us_hyperparam_interface->Set_beta_u(beta_u);
+    us_hyperparam_interface->Set_beta_t(beta_t);
+    us_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
+    HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> spatial_us_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, us_hyperparam_interface, random_number_generator);
+    ScalarT T = solver_->final_time;
+    int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
+    int n_y = data_interface_hyperparam->get_u_opt()->dimension() / n_t;
+    HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface_hyperparam, us_hyperparam_interface, T, n_t, n_y);
+    us_prior_interface = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_us_prior_interface, transient_prior_cov);
+  }
+  else
+  {
+    us_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+    us_hyperparam_interface->Set_alpha_d(alpha_d);
+    us_hyperparam_interface->Set_alpha_u(alpha_u);
+    us_hyperparam_interface->Set_beta_u(beta_u);
+    us_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
+    us_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, us_hyperparam_interface, random_number_generator);
+  }
+
+  HDSA::Ptr<HDSA::Dense_Matrix<ScalarT>> K = HDSA::makePtr<HDSA::Dense_Matrix<ScalarT>>(ens_size, ens_size);
+  for (int i = 0; i < ens_size; i++)
+  {
+    std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
+    for (int j = 0; j < ens_size; j++)
+    {
+      std::vector<ScalarT> pt_j = sampler->getMyPoint(j);
+      ScalarT dist = 0.0;
+      for (int k = 0; k < 3; k++)
+      {
+        dist += std::pow(pt_i[k] - pt_j[k], 2.0);
+      }
+      ScalarT val = std::exp(-0.5 * dist);
+      K->Replace_Element(i, j, val);
+    }
+  }
+  HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, K);
+
+  std::string z_type = "vector";
+  if (params_->getNumParams("discretized") > 0)
+  {
+    z_type = "spatial field";
+  }
+  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(data_interface_ens[0], random_number_generator, z_type, prior_num_state_solves);
+  z_hyperparam_interface->Set_alpha_z(alpha_z);
+
+  HDSA::Ptr<HDSA::MD_z_Prior_Interface<ScalarT>> z_prior_interface;
+  if (z_type == "spatial field")
+  {
+    z_hyperparam_interface->Set_beta_z(beta_z);
+    z_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, z_hyperparam_interface, u_prior_interface);
+  }
+  else if (z_type == "vector")
+  {
+    z_prior_interface = HDSA::makePtr<HDSA::MD_Vector_z_Prior_Interface<ScalarT>>(alpha_z);
+  }
+
+  output_writer->Write_Hyperparameters(us_hyperparam_interface, z_hyperparam_interface);
+
+  if ((num_prior_samples > 0) & execute_prior_discrepancy_sampling)
+  {
+    HDSA::Ptr<HDSA::MD_Prior_Sampling<ScalarT>> prior_sampling = HDSA::makePtr<HDSA::MD_Prior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
+    HDSA::Ptr<HDSA::MultiVector<ScalarT>> spatial_coords = data_interface_ens[0]->Read_Spatial_Node_Data();
+    prior_sampling->Generate_Prior_Discrepancy_Sample_Data(num_prior_samples, us_hyperparam_interface, z_hyperparam_interface, spatial_coords);
+
+    HDSA::Ptr<HDSA::MultiVector<ScalarT>> prior_delta_z_opt = prior_sampling->Get_prior_delta_z_opt();
+    std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> prior_z_pert = prior_sampling->Get_prior_z_pert();
+    std::vector<HDSA::Ptr<HDSA::MultiVector<ScalarT>>> prior_delta_z_pert = prior_sampling->Get_prior_delta_z_pert();
+    output_writer->Write_Prior_Discrepancy_Samples(prior_delta_z_opt, prior_z_pert, prior_delta_z_pert);
+  }
+
+  HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT>> post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
+  if (execute_posterior_discrepancy_sampling || execute_optimal_solution_update)
+  {
+    post_sampling->Compute_Posterior_Data(us_hyperparam_interface->Get_alpha_d(), num_posterior_samples);
+  }
+
+  if ((num_posterior_samples > 0) & execute_posterior_discrepancy_sampling)
+  {
+    std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> z_in;
+    int N = data_interface->get_Z()->Number_of_Vectors();
+    z_in.resize(N);
+    for (int k = 0; k < N; k++)
+    {
+      z_in[k] = (*data_interface->get_Z())[k];
+    }
+    std::vector<HDSA::Ptr<HDSA::MD_Posterior_Vectors<ScalarT>>> post_delta = post_sampling->Posterior_Discrepancy_Samples(z_in);
+    output_writer->Write_Posterior_Discrepancy_Samples(post_delta);
+  }
+
+  if (execute_optimal_solution_update)
+  {
+    HDSA::Ptr<HDSA::MD_Hessian_Analysis<ScalarT>> hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<ScalarT>>(opt_prob_interface, z_prior_interface);
+    if (hessian_num_eig_vals > 0)
+    {
+      hessian_analysis->Compute_Hessian_GEVP(*data_interface->get_z_opt(), hessian_num_eig_vals, hessian_oversampling, false);
+      HDSA::Ptr<HDSA::Dense_Matrix<ScalarT>> evals = hessian_analysis->Get_Evals();
+      output_writer->Write_Hessian_Eigenvalues(evals);
+    }
+
+    HDSA::Ptr<HDSA::MD_Update<ScalarT>> update = HDSA::makePtr<HDSA::MD_Update<ScalarT>>(data_interface, u_prior_interface, z_prior_interface, opt_prob_interface, post_sampling, hessian_analysis);
+    if (num_posterior_samples > 0)
+    {
+      HDSA::Ptr<HDSA::MD_Posterior_Vectors<ScalarT>> posterior_update_samples = update->Posterior_Update_Samples();
+      output_writer->Write_Optimal_Solution_Update(posterior_update_samples);
+      std::cout << "z_update_mean norm = " << posterior_update_samples->mean->norm() << std::endl;
+    }
+    else
+    {
+      HDSA::Ptr<HDSA::Vector<ScalarT>> z_update_mean = update->Posterior_Update_Mean();
+      output_writer->Write_Optimal_Solution_Update(z_update_mean);
+      std::cout << "z_update_mean norm = " << z_update_mean->norm() << std::endl;
+    }
+  }
+}
+
 void AnalysisManager::readExoForwardSolve()
 {
   Teuchos::ParameterList read_exo_settings;
@@ -1273,12 +1543,61 @@ void AnalysisManager::readExoForwardSolve()
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: MrHyDE could not find the readExo+forward sublist in the input file!  Abort!");
 
   std::string exo_file = read_exo_settings.get<std::string>("ExoFile", "error");
+  std::string txt_file = read_exo_settings.get<std::string>("TxtFile", "error");
 
-  HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
-  HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, read_exo_settings);
-  Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
-  params_->updateParams(tpetra_vec);
-  this->forwardSolve();
+  if (exo_file != "error")
+  {
+    HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
+    HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, read_exo_settings);
+    Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
+    params_->updateParams(tpetra_vec);
+  }
+  else if (txt_file != "error")
+  {
+    ScalarT val = 0.0;
+    int dim = params_->getCurrentVector().dimension();
+    // read in data
+    std::ifstream in(txt_file);
+    std::vector<ScalarT> vec = std::vector<ScalarT>(dim, 0.0);
+    // read the elements in the file into a vector
+    if (in)
+    {
+      for (int i = 0; i < dim; i++)
+      {
+        in >> val;
+        vec[i] = val;
+      }
+    }
+    else
+    {
+      std::cout << "Error loading the data from " << txt_file << std::endl;
+    }
+
+    params_->updateParams(vec, "active");
+  }
+
+  if (read_exo_settings.get("Sample Set File", "error") != "error")
+  {
+    int nsamp = read_exo_settings.get("Number of Samples", 100);
+    int dim = params_->getNumParams("stochastic");
+    ROL::Ptr<ROL::BatchManager<ScalarT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<ScalarT, int>>(comm_);
+    std::string sample_pt_file = read_exo_settings.get("Sample Set File", "error");
+    std::string sample_wt_file = read_exo_settings.get("Sample Weight File", "error");
+    ROL::Ptr<ROL::SampleGenerator<ScalarT>> sampler = ROL::makePtr<ROL::Sample_Set_Reader<ScalarT>>(nsamp, dim, bman, sample_pt_file, sample_wt_file);
+
+    for (int i = 0; i < sampler->numMySamples(); i++)
+    {
+      std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
+      params_->updateParams(pt_i, "stochastic");
+      std::string outfile = "output_sample_" + std::to_string(i) + ".exo";
+      postproc_->setNewExodusFile(outfile);
+      this->forwardSolve();
+    }
+  }
+  else
+  {
+    this->forwardSolve();
+  }
 }
 
 #endif

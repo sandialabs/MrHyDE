@@ -23,26 +23,39 @@ private:
   int nSamp_;
 
   void sample(int n, int dim,
-              const ROL::Ptr<BatchManager<Real>> &bman) {
-    std::string file_pt = "sample_set.dat";
+              const ROL::Ptr<BatchManager<Real>> &bman,
+              std::string &sample_pt_file,
+              std::string &sample_wt_file) {
     nSamp_ = n;
     // Read in full point data and weight data
     std::fstream input_pt;
-    input_pt.open(file_pt.c_str(), std::ios::in);
+    input_pt.open(sample_pt_file.c_str(), std::ios::in);
+    std::fstream input_wt;
+    input_wt.open(sample_wt_file.c_str(), std::ios::in);
     if (!input_pt.is_open())
     {
       if (bman->batchID() == 0)
       {
-        std::cout << "CANNOT OPEN " << file_pt.c_str() << std::endl;
+        std::cout << "CANNOT OPEN " << sample_pt_file.c_str() << std::endl;
+      }
+    }
+    else if (!input_wt.is_open())
+    {
+      if (bman->batchID() == 0)
+      {
+        std::cout << "CANNOT OPEN " << sample_wt_file.c_str() << std::endl;
       }
     }
     else
     {
       std::vector<std::vector<Real>> pt(n);
-      std::vector<Real> wt(n,1.0/static_cast<Real>(n));
+      std::vector<Real> wt(n);
       std::vector<Real> point(dim,0.0);;
-      for (int i = 0; i < n; i++) {
-        for (int j = 0; j < dim; j++) {
+      for (int i = 0; i < n; i++) 
+      {
+        input_wt >> wt[i];
+        for (int j = 0; j < dim; j++) 
+        {
           input_pt >> point[j];
         } 
         pt[i] = point;
@@ -73,10 +86,12 @@ public:
   // For simplicity, this code only considers Monte Carlo samples with equal weights. This can be generalized.
   Sample_Set_Reader(int n,
                     int dim,
-                    const ROL::Ptr<BatchManager<Real>> &bman)
+                    const ROL::Ptr<BatchManager<Real>> &bman,
+                    std::string &sample_pt_file,
+                    std::string &sample_wt_file)
       : SampleGenerator<Real>(bman)
   {
-    sample(n, dim, bman);
+    sample(n, dim, bman, sample_pt_file, sample_wt_file);
   }
 
   void refine(void) {}

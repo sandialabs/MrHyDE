@@ -11,7 +11,9 @@
 #include "Panzer_OrientationsInterface.hpp"
 
 // HGRAD basis functions
+#include "Intrepid2_HGRAD_QUAD_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_QUAD_Cn_FEM.hpp"
+#include "Intrepid2_HGRAD_HEX_C1_FEM.hpp"
 #include "Intrepid2_HGRAD_HEX_Cn_FEM.hpp"
 #include "Intrepid2_HGRAD_TRI_Cn_FEM.hpp"
 #include "Intrepid2_HGRAD_TET_Cn_FEM.hpp"
@@ -357,7 +359,12 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
     }
     if (dimension == 2) {
       if (shape == "Quadrilateral_4") {
-        basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        if (degree == 1) {
+          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space,double,double>());
+        }
+        else {
+          basis = Teuchos::rcp(new Basis_HGRAD_QUAD_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        }
       }
       if (shape == "Triangle_3") {
         basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_WARPBLEND) );
@@ -365,7 +372,13 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
     }
     if (dimension == 3) {
       if (shape == "Hexahedron_8") {
-        basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        if (degree == 1) {
+          basis = Teuchos::rcp(new Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
+        }
+        else {
+          basis = Teuchos::rcp(new Basis_HGRAD_HEX_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
+        }
+        
       }
       if (shape == "Tetrahedron_4") {
         basis = Teuchos::rcp(new Basis_HGRAD_TET_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
@@ -869,7 +882,7 @@ DRV DiscretizationInterface::getMyNodes(const size_t & block, Kokkos::View<LO*,A
   deep_copy(elemIDs_host, elemIDs);
   
   for (size_type e=0; e<elemIDs_host.extent(0); ++e) {
-    localIds[e] = my_elements[block](elemIDs_host(e));
+    localIds[e] = elemIDs_host(e);//my_elements[block](elemIDs_host(e));
   }
   DRV nodes = mesh->getMyNodes(block, localIds);
   

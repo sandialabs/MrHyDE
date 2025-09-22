@@ -1187,15 +1187,22 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     vector<vector_RCP> phi = setInitial();
     
     if (solver_type == "steady-state") {
-      vector<vector_RCP> sol, zero_vec;
-      sol.push_back(linalg->getNewVector(0));
-      bool fnd = postproc->soln[0]->extract(sol[0], current_time);
-      if (!fnd) {
-        cout << "UNABLE TO FIND FORWARD SOLUTION" << endl;
+      // Since this is the adjoint solve, we loop over the physics sets in reverse order
+      for (size_t oset=0; oset<phi.size(); ++oset) {
+        size_t set = phi.size()-1-oset;
+        vector<vector_RCP> sol, zero_vec;
+        for (size_t iset=0; iset<phi.size(); ++iset) { // just collecting states - order doesn't matter
+          sol.push_back(linalg->getNewVector(iset));
+          bool fnd = postproc->soln[set]->extract(sol[iset], current_time);
+          if (!fnd) {
+            cout << "UNABLE TO FIND FORWARD SOLUTION" << endl;
+          }
+        }
+        params->updateDynamicParams(0);
+        this->nonlinearSolver(set, 0, sol, sol, zero_vec, phi, phi, zero_vec);
+        
+        postproc->computeSensitivities(sol, zero_vec, zero_vec, phi, 0, current_time, deltat, gradient);
       }
-      params->updateDynamicParams(0);
-      this->nonlinearSolver(0, 0, sol, sol, zero_vec, phi, phi, zero_vec);
-      postproc->computeSensitivities(sol, zero_vec, zero_vec, phi, 0, current_time, deltat, gradient);
     }
     else if (solver_type == "transient") {
       DFAD obj = 0.0;
@@ -1507,7 +1514,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
 
     gNLiter = NLiter;
   
-    bool build_jacobian = !linalg->getJacobianReuse(set);//true;
+    bool build_jacobian = !linalg->getJacobianReuse(set);
     matrix_RCP J = linalg->getNewMatrix(set);
 
     matrix_RCP J_over; 
@@ -1537,7 +1544,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
 
     auto paramvec = params->getDiscretizedParamsOver();
     auto paramdot = params->getDiscretizedParamsDotOver();
-    if (!use_autotune) {
+    if (!use_autotune) { //
       assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
                                 current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                 params->num_active_params, paramvec, paramdot, is_final_time, deltat);
@@ -1555,6 +1562,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         cdt = deltat;
       }
       
+      // This modifies the residual to be the residual of the dual/adjoint problem
       postproc->computeObjectiveGradState(set, sol[set], current_time+cdt, deltat, current_res);
       
     }
@@ -1615,7 +1623,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
           solve = false;
           proceed = false;
         }
-        else if (resnorm[0]<1.0e-100) {
+        else if (resnorm[0]<1.0e-100) { // Not sure why this is hard coded
           solve = false;
           proceed = false;
         }
@@ -1626,7 +1634,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       }
     }
     
-    // *********************** SOLVE THE LINEAR SYSTEM **************************
+    // *********************** SOLVE THE LINEAR SYSTEM FOR THE UPDATE **************************
     
     if (solve) {
       
@@ -1656,7 +1664,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       }
       linalg->importVectorToOverlapped(set, current_du_over, current_du);
       
-      alpha = 1.0;
+      alpha = 1.0; // what is the point of alpha?
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*updateLAtimer);
         if (phi_stage.size() > 0) {
@@ -1676,12 +1684,13 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         }
       }
     }
-    NLiter++; // increment number of iterations
+    NLiter++; // increment number of nonlinear iterations
     
     if (NLiter >= maxiter) {
       proceed = false;
     }
   } // while loop
+  
   if (verbosity>1) {
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> normu(1);
     if (sol_stage.size() > 0) {

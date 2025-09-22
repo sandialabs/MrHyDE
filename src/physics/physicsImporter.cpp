@@ -38,6 +38,8 @@
 #include "incompressibleSaturation.hpp"
 #include "shallowice.hpp"
 #include "hartmann.hpp"
+#include "vlasov_fokker_planck_0d2v.hpp"
+#include "vlasov_fokker_planck_1d2v.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -192,6 +194,16 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
       modules.push_back(Teuchos::rcp(new euler<EvalT>(settings, dimension) ) );
     }
 
+    // VFP0d2v equations
+    if (modname == "VFP0d2v" ){
+      modules.push_back(Teuchos::rcp(new VFP0d2v<EvalT>(settings, dimension) ) );
+    }
+    
+    // VFP1d2v equations
+    if (modname == "VFP1d2v" ){
+      modules.push_back(Teuchos::rcp(new VFP1d2v<EvalT>(settings, dimension) ) );
+    }
+    
     // Incompressible saturation equation
     if (modname == "incompressible saturation" || modname == "inc sat" ){
       modules.push_back(Teuchos::rcp(new incompressibleSaturation<EvalT>(settings, dimension) ) );

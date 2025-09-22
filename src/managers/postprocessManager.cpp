@@ -139,7 +139,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   save_solution = false;
   save_adjoint_solution = false; // very rarely is this true
 
-  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROLStoch" || analysis_type == "ROL_SIMOPT" || analysis_type == "HDSA")
+  if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROLStoch" || analysis_type == "ROL_SIMOPT" || analysis_type == "HDSA" || analysis_type == "HDSAStoch")
   {
     save_solution = true; // default is false
     string rolVersion = "ROL";
@@ -2867,10 +2867,11 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
 
       if (!assembler->groups[block][grp]->have_sols)
       {
-        assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
-        if (params->num_discretized_params > 0)
-        {
-          assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+        for (size_t set=0; set<sol_kv.size(); ++set) {
+          assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+          if (params->num_discretized_params > 0) {
+            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+          }
         }
       }
       assembler->updateWorksetAD(block, grp, 0, 0, true);
@@ -2920,7 +2921,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
 
         if (!assembler->groups[block][grp]->have_sols)
         {
-          assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+          for (size_t set=0; set<sol_kv.size(); ++set) {
+            assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+          }
           assembler->performGather(0, block, grp, params_kv[0], 4, 0);
         }
         assembler->updateWorksetAD(block, grp, 3, 0, true);
@@ -3041,7 +3044,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
 
       if (!assembler->groups[block][grp]->have_sols)
       {
-        assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+        for (size_t set=0; set<sol_kv.size(); ++set) {
+          assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+        }
         if (params->globalParamUnknowns > 0)
         {
           assembler->performGather(0, block, grp, params_kv[0], 4, 0);
@@ -3116,7 +3121,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
 
         if (!assembler->groups[block][grp]->have_sols)
         {
-          assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+          for (size_t set=0; set<sol_kv.size(); ++set) {
+            assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+          }
           assembler->performGather(0, block, grp, params_kv[0], 4, 0);
         }
         assembler->updateWorksetAD(block, grp, 3, 0, true);
@@ -3227,42 +3234,44 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
             z(0, 0) = objectives[obj].sensor_points(pt, 2);
           }
 
-          auto numDOF = assembler->groupData[block]->num_dof;
-          View_EvalT2 u_dof("u_dof", numDOF.extent(0), assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
-          if (!assembler->groups[block][grp]->have_sols)
-          {
-            assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
-          }
-          auto cu = subview(assembler->groupData[block]->sol[0], elem, ALL(), ALL()); // hard coded
-          parallel_for("grp response get u", RangePolicy<AssemblyExec>(0, u_dof.extent(0)), KOKKOS_LAMBDA(const size_type n) {
-            for (size_type n=0; n<numDOF.extent(0); n++) {
-              for( int i=0; i<numDOF(n); i++ ) {
-                u_dof(n,i) = cu(n,i);
-              }
-            } });
-
-          // Map the local solution to the solution and gradient at ip
-          View_EvalT2 u_ip("u_ip", numDOF.extent(0), assembler->groupData[block]->dimension);
-          View_EvalT2 ugrad_ip("ugrad_ip", numDOF.extent(0), assembler->groupData[block]->dimension);
-
-          for (size_type var = 0; var < numDOF.extent(0); var++)
-          {
-            auto cbasis = objectives[obj].sensor_basis[wset->usebasis[var]];
-            auto cbasis_grad = objectives[obj].sensor_basis_grad[wset->usebasis[var]];
-            auto u_sv = subview(u_ip, var, ALL());
-            auto u_dof_sv = subview(u_dof, var, ALL());
-            auto ugrad_sv = subview(ugrad_ip, var, ALL());
-
-            parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
-              u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
-              for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+          for (size_t set=0; set<sol_kv.size(); ++set) {
+            assembler->updatePhysicsSet(set);
+            auto numDOF = assembler->groupData[block]->num_dof; // filled in properly after updatePhysicsSet gets called
+            View_EvalT2 u_dof("u_dof", numDOF.extent(0), assembler->groups[block][grp]->LIDs[set].extent(1)); // hard coded
+            if (!assembler->groups[block][grp]->have_sols)
+            {
+              assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+            }
+            auto cu = subview(assembler->groupData[block]->sol[set], elem, ALL(), ALL()); // hard coded
+            parallel_for("grp response get u", RangePolicy<AssemblyExec>(0, u_dof.extent(0)), KOKKOS_LAMBDA(const size_type n) {
+              for (size_type n=0; n<numDOF.extent(0); n++) {
+                for( int i=0; i<numDOF(n); i++ ) {
+                  u_dof(n,i) = cu(n,i);
+                }
               } });
+            
+            // Map the local solution to the solution and gradient at ip
+            View_EvalT2 u_ip("u_ip", numDOF.extent(0), assembler->groupData[block]->dimension);
+            View_EvalT2 ugrad_ip("ugrad_ip", numDOF.extent(0), assembler->groupData[block]->dimension);
+            
+            for (size_type var = 0; var < numDOF.extent(0); var++)
+            {
+              auto cbasis = objectives[obj].sensor_basis[wset->usebasis[var]];
+              auto cbasis_grad = objectives[obj].sensor_basis_grad[wset->usebasis[var]];
+              auto u_sv = subview(u_ip, var, ALL());
+              auto u_dof_sv = subview(u_dof, var, ALL());
+              auto ugrad_sv = subview(ugrad_ip, var, ALL());
+              
+              parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
+                u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
+                for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                  ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                } });
+            }
+            
+            wset->setSolutionPoint(u_ip);
+            wset->setSolutionGradPoint(ugrad_ip);
           }
-
-          wset->setSolutionPoint(u_ip);
-          wset->setSolutionGradPoint(ugrad_ip);
-
           // Map the local discretized params to param and grad at ip
           if (params->globalParamUnknowns > 0)
           {
@@ -3437,7 +3446,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
 
           if (!assembler->groups[block][grp]->have_sols)
           {
-            assembler->performGather(0, block, grp, sol_kv[0], 0, 0);
+            for (size_t set=0; set<sol_kv.size(); ++set) {
+              assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+            }
             assembler->performGather(0, block, grp, params_kv[0], 4, 0);
           }
           assembler->updateWorksetAD(block, grp, 3, 0, true);
@@ -3496,7 +3507,9 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
 
             auto wts = assembler->boundary_groups[block][grp]->wts;
 
-            assembler->performBoundaryGather(0, block, grp, sol_kv[0], 0, 0);
+            for (size_t set=0; set<sol_kv.size(); ++set) {
+              assembler->performBoundaryGather(set, block, grp, sol_kv[set], 0, 0);
+            }
             assembler->performBoundaryGather(0, block, grp, params_kv[0], 4, 0);
             assembler->updateWorksetBoundaryAD(block, grp, 3, 0, true);
 
@@ -4661,6 +4674,9 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               // Fill data on device
               for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp)
               {
+                // Gather is probably necessary (checks internally)
+                assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+                
                 auto eID = assembler->groups[block][grp]->localElemID;
                 auto tmpsol = assembler->getSolutionAtNodes(block, grp, n);
                 auto sol = Kokkos::subview(tmpsol, Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
@@ -4671,7 +4687,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               }
               // Copy to host
               Kokkos::deep_copy(soln_computed, soln_dev);
-
+              
               // Write to file
               mesh->setSolutionFieldData(varlist[set][block][n] + append, blockID, myElements, soln_computed);
             }

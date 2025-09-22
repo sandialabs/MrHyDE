@@ -111,6 +111,7 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
         build_face = true;
       }
     }
+    
     build_volume_terms.push_back(build_volume);
     build_boundary_terms.push_back(build_bndry);
     build_face_terms.push_back(build_face);
@@ -2760,9 +2761,26 @@ void AssemblyManager<Node>::assembleJacRes(const size_t & set, const size_t & st
       // Update the local residual
       
       if (useadjoint) {
+        vector<Kokkos::View<ScalarT***,AssemblyDevice> > other_J;
+        size_t num_sets = physics->set_names.size();
+        if (num_sets > 1) {
+          for (size_t iset=0; iset<num_sets; ++iset) {
+            if (iset != set) {
+              // set up oJ
+              // fill oJ - requires both volume and boundary residuals
+              this->updateWorkset<EvalT>(block, grp, seedwhat, 0);
+              physics->volumeResidual<EvalT>(set, block);
+              
+              // add to other_J
+            }
+            else {
+              other_J.push_back(local_J); // no harm in adding it, but not used
+            }
+          }
+        }
         this->updateAdjointRes(block, grp, compute_jacobian, isTransient,
-                                             false, store_adjPrev,
-                                             local_J, local_res);
+                               false, store_adjPrev,
+                               local_J, other_J, local_res);
       }
       else {
         this->updateRes(block, grp, compute_sens, local_res);
@@ -7279,14 +7297,14 @@ void AssemblyManager<Node>::updateWorksetFace(Teuchos::RCP<Workset<EvalT> > & ws
 
 template<class Node>
 void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp, 
-                         const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
-                         const bool & compute_jacobian, const bool & compute_sens,
-                         const int & num_active_params, const bool & compute_disc_sens,
-                         const bool & compute_aux_sens, const bool & store_adjPrev,
-                         Kokkos::View<ScalarT***,AssemblyDevice> local_res,
-                         Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                         const bool & assemble_volume_terms,
-                         const bool & assemble_face_terms) {
+                                          const ScalarT & time, const bool & isTransient, const bool & isAdjoint,
+                                          const bool & compute_jacobian, const bool & compute_sens,
+                                          const int & num_active_params, const bool & compute_disc_sens,
+                                          const bool & compute_aux_sens, const bool & store_adjPrev,
+                                          Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                                          Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                          const bool & assemble_volume_terms,
+                                          const bool & assemble_face_terms) {
   
 #ifndef MrHyDE_NO_AD
 
@@ -7386,9 +7404,10 @@ void AssemblyManager<Node>::computeJacRes(const int & block, const size_t & grp,
   {
     if (isAdjoint) {
       //Teuchos::TimeMonitor localtimer(*adjointResidualTimer);
+      vector<Kokkos::View<ScalarT***,AssemblyDevice> > other_J;
       this->updateAdjointRes(block, grp, compute_jacobian, isTransient,
                              compute_aux_sens, store_adjPrev,
-                             local_J, local_res);
+                             local_J, other_J, local_res);
     }
     else {
       //Teuchos::TimeMonitor localtimer(*residualFillTimer);
@@ -7484,43 +7503,44 @@ void AssemblyManager<Node>::updateRes(const int & block, const size_t & grp,
 
 template<class Node>
 void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & grp,
-                            const bool & compute_jacobian, const bool & isTransient,
-                            const bool & compute_aux_sens, const bool & store_adjPrev,
-                            Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                            Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
+                                             const bool & compute_jacobian, const bool & isTransient,
+                                             const bool & compute_aux_sens, const bool & store_adjPrev,
+                                             Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                             vector<Kokkos::View<ScalarT***,AssemblyDevice> > other_J,
+                                             Kokkos::View<ScalarT***,AssemblyDevice> local_res) {
 
 #ifndef MrHyDE_NO_AD
   if (type_AD == -1) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD[block]);
   }
   else if (type_AD == 2) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD2[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD2[block]);
   }
   else if (type_AD == 4) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD4[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD4[block]);
   }
   else if (type_AD == 8) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD8[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD8[block]);
   }
   else if (type_AD == 16) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD16[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD16[block]);
   }
   else if (type_AD == 18) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD18[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD18[block]);
   }
   else if (type_AD == 24) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD24[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD24[block]);
   }
   else if (type_AD == 32) {
     this->updateAdjointRes(block, grp, compute_jacobian, isTransient, compute_aux_sens,
-                           store_adjPrev, local_J, local_res, wkset_AD32[block]);
+                           store_adjPrev, local_J, other_J, local_res, wkset_AD32[block]);
   }
 #endif
 }
@@ -7528,17 +7548,19 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
 template<class Node>
 template<class EvalT>
 void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & grp,
-                            const bool & compute_jacobian, const bool & isTransient,
-                            const bool & compute_aux_sens, const bool & store_adjPrev,
-                            Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                            Kokkos::View<ScalarT***,AssemblyDevice> local_res,
-                            Teuchos::RCP<Workset<EvalT> > & wset) {
+                                             const bool & compute_jacobian, const bool & isTransient,
+                                             const bool & compute_aux_sens, const bool & store_adjPrev,
+                                             Kokkos::View<ScalarT***,AssemblyDevice> local_J,
+                                             vector<Kokkos::View<ScalarT***,AssemblyDevice> > other_J,
+                                             Kokkos::View<ScalarT***,AssemblyDevice> local_res,
+                                             Teuchos::RCP<Workset<EvalT> > & wset) {
   
 #ifndef MrHyDE_NO_AD
 
   // Update residual (adjoint mode)
+  // Adjoint equation: J^T * phi = -dobj/du + 1/dt*M^T * phi_prev - \sum_{other sets} B^T * other_phi
   // Adjoint residual: -dobj/du - J^T * phi + 1/dt*M^T * phi_prev
-  // J = 1/dtM + A
+  // J = 1/dtM + A (does depend on the time integration scheme
   // adj_prev stores 1/dt*M^T * phi_prev where M is evaluated at appropriate time
   
   // TMW: This will not work on a GPU
@@ -7548,7 +7570,7 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
   size_t set = wset->current_set;
   auto cphi = groupData[block]->phi[set];
   
-  if (compute_jacobian) {
+  if (compute_jacobian) { // TMW: this probably does not work if this is false
     parallel_for("Group adjust adjoint jac",
                  RangePolicy<AssemblyExec>(0,local_res.extent(0)),
                  KOKKOS_LAMBDA (const size_type e ) {
@@ -7563,6 +7585,27 @@ void AssemblyManager<Node>::updateAdjointRes(const int & block, const size_t & g
       }
     });
     
+    for (size_t iset=0; iset<other_J.size(); ++iset) {
+      if (iset != set) {
+        auto ioffsets = wset->set_offsets[iset];
+        auto inumDOF = groupData[block]->set_num_dof[iset];
+        auto iphi = groupData[block]->phi[iset];
+        auto iJ = other_J[iset];
+        parallel_for("Group adjust adjoint jac",
+                     RangePolicy<AssemblyExec>(0,local_res.extent(0)),
+                     KOKKOS_LAMBDA (const size_type e ) {
+          for (size_type n=0; n<numDOF.extent(0); n++) {
+            for (int j=0; j<numDOF(n); j++) {
+              for (size_type m=0; m<inumDOF.extent(0); m++) {
+                for (int k=0; k<inumDOF(m); k++) {
+                  local_res(e,offsets(n,j),0) += -iJ(e,offsets(n,j),ioffsets(m,k))*iphi(e,m,k);
+                }
+              }
+            }
+          }
+        });
+      }
+    }
     if (isTransient) {
       
       // adj_prev is usually 1/dt*M*phi_prev
@@ -8478,6 +8521,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> AssemblyManager<Node>::getSolutionAtNode
   
   int bnum = wkset[block]->usebasis[var];
   auto cbasis = groups[block][grp]->basis_nodes[bnum];
+    
   Kokkos::View<ScalarT***,AssemblyDevice> nodesol("solution at nodes",
                                                   cbasis.extent(0), cbasis.extent(2), groupData[block]->dimension);
   auto uvals = subview(groupData[block]->sol[set], ALL(), var, ALL());

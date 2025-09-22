@@ -108,7 +108,7 @@ int main(int argc, char * argv[]) {
     auto x = wkset->getScalarField("x");
     auto y = wkset->getScalarField("y");
     auto gradax = wkset->getSolutionField("grad(a)[x]",false);
-    KokkosTools::print(a);
+    //KokkosTools::print(a);
     
     {
       string name = "test1";
