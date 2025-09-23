@@ -353,6 +353,15 @@ namespace MrHyDE {
       vec->putScalar(0.0);
       vec->doExport(*vec_over, *param_exporter, Tpetra::ADD);
     }
+
+    // ========================================================================================
+    // ========================================================================================
+    
+    void exportParamVectorFromOverlappedReplace(vector_RCP & vec, vector_RCP & vec_over) {
+      Teuchos::TimeMonitor mattimer(*exporttimer);
+      vec->putScalar(0.0);
+      vec->doExport(*vec_over, *param_exporter, Tpetra::REPLACE);
+    }
   
     // ========================================================================================
     // ========================================================================================
