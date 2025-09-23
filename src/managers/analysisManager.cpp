@@ -28,16 +28,19 @@
 
 #if defined(MrHyDE_ENABLE_HDSA)
 #include "HDSA_Ptr.hpp"
+#include "HDSA_Comm.hpp"
 #include "HDSA_Random_Number_Generator.hpp"
 #include "HDSA_MD_Data_Interface_MrHyDE.hpp"
 #include "HDSA_MD_Opt_Prob_Interface_MrHyDE.hpp"
 #include "HDSA_Write_Output_MrHyDE.hpp"
 #include "HDSA_Sparse_Matrix.hpp"
 #include "HDSA_MD_u_Hyperparameter_Interface.hpp"
+#include "HDSA_MD_Multi_State_u_Hyperparameter_Interface.hpp"
 #include "HDSA_MD_z_Hyperparameter_Interface_MrHyDE.hpp"
 #include "HDSA_Prior_FE_Op_MrHyDE.hpp"
 #include "HDSA_MD_u_Prior_Interface.hpp"
 #include "HDSA_MD_Numeric_Laplacian_u_Prior_Interface.hpp"
+#include "HDSA_MD_Multi_State_u_Prior_Interface.hpp"
 #include "HDSA_MD_z_Prior_Interface.hpp"
 #include "HDSA_MD_Numeric_Laplacian_z_Prior_Interface.hpp"
 #include "HDSA_MD_Vector_z_Prior_Interface.hpp"
@@ -1184,15 +1187,30 @@ void AnalysisManager::HDSASolve()
   bool execute_posterior_discrepancy_sampling = HDSAsettings.sublist("Configuration").get<bool>("execute_posterior_discrepancy_sampling", false);
   bool execute_optimal_solution_update = HDSAsettings.sublist("Configuration").get<bool>("execute_optimal_solution_update", false);
 
-  ScalarT alpha_u = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_u", 0.0);
+  int num_states = solver_->varlist[0][0].size();
+
+  std::vector<ScalarT> alpha_u = std::vector<ScalarT>(num_states,0.0);
+  std::vector<ScalarT> beta_u = std::vector<ScalarT>(num_states,0.0);
+  std::vector<ScalarT> beta_t = std::vector<ScalarT>(num_states,0.0);
+  std::vector<ScalarT> alpha_d = std::vector<ScalarT>(num_states,0.0);
+  std::vector<int> prior_num_sing_vals = std::vector<int>(num_states,0);
+  std::vector<int> prior_oversampling = std::vector<int>(num_states,0);
+  std::vector<int> prior_num_subspace_iter = std::vector<int>(num_states,0);
+  for(int k = 0; k < num_states; k++)
+  {
+    std::string state_var_name = solver_->varlist[0][0][k];
+    alpha_u[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<ScalarT>("alpha_u", 0.0);
+    beta_u[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<ScalarT>("beta_u", 0.0);
+    beta_t[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<ScalarT>("beta_t", 0.0);
+    alpha_d[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<ScalarT>("alpha_d", 0.0);
+    prior_num_sing_vals[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<int>("prior_num_sing_vals", 200);
+    prior_oversampling[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<int>("prior_oversampling", 20);
+    prior_num_subspace_iter[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<int>("prior_num_subspace_iter", 1);
+  }
+
   ScalarT alpha_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_z", 0.0);
-  ScalarT beta_u = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_u", 0.0);
-  ScalarT beta_t = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_t", 0.0);
   ScalarT beta_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_z", 0.0);
-  ScalarT alpha_d = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_d", 0.0);
-  int prior_num_sing_vals = HDSAsettings.sublist("HyperParameters").get<int>("prior_num_sing_vals", 200);
-  int prior_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("prior_oversampling", 20);
-  int prior_num_subspace_iter = HDSAsettings.sublist("HyperParameters").get<int>("prior_num_subspace_iter", 1);
+  
   int hessian_num_eig_vals = HDSAsettings.sublist("HyperParameters").get<int>("hessian_num_eig_vals", 5);
   int hessian_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("hessian_oversampling", 3);
 
@@ -1202,7 +1220,8 @@ void AnalysisManager::HDSASolve()
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator;
   if (random_number_file == "error")
   {
-    random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
+    HDSA::Ptr<HDSA::Comm<int>> hdsa_comm = HDSA::makePtr<HDSA::Comm<int>>(comm_);
+    random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>(hdsa_comm);
   }
   else
   {
@@ -1218,38 +1237,55 @@ void AnalysisManager::HDSASolve()
   HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, data_load_list);
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
   HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(data_interface, postproc_, solver_);
-
+  
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr<Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_, settings_, blockNames);
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->M[0]);
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> S = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->S[0]);
 
   bool is_transient = solver_->isTransient;
-  HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>> u_hyperparam_interface;
   HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> u_prior_interface;
-  if (is_transient)
+  HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>> u_hyperparam_interface;
+  std::vector<HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>> u_hyperparam_interface_std;
+  std::vector<HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>>> u_prior_interface_std;
+  u_hyperparam_interface_std.resize(num_states);
+  u_prior_interface_std.resize(num_states);
+  for(int k = 0; k < num_states; k++)
   {
-    u_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
-    u_hyperparam_interface->Set_alpha_d(alpha_d);
-    u_hyperparam_interface->Set_alpha_u(alpha_u);
-    u_hyperparam_interface->Set_beta_u(beta_u);
-    u_hyperparam_interface->Set_beta_t(beta_t);
-    u_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
-    HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> spatial_u_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface, random_number_generator);
-    ScalarT T = solver_->final_time;
-    int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
-    int n_y = data_interface->get_u_opt()->dimension() / n_t;
-    HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface, T, n_t, n_y);
-    u_prior_interface = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface, transient_prior_cov);
+    if (is_transient)
+     {
+        u_hyperparam_interface_std[k] = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+        u_hyperparam_interface_std[k]->Set_alpha_d(alpha_d[k]);
+        u_hyperparam_interface_std[k]->Set_alpha_u(alpha_u[k]);
+        u_hyperparam_interface_std[k]->Set_beta_u(beta_u[k]);
+        u_hyperparam_interface_std[k]->Set_beta_t(beta_t[k]);
+        u_hyperparam_interface_std[k]->Set_GSVD_Hyperparameters(prior_num_sing_vals[k], prior_oversampling[k], prior_num_subspace_iter[k]);
+        HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], random_number_generator);
+        ScalarT T = solver_->final_time;
+        int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
+        int n_y = data_interface->get_u_opt()->dimension() / n_t;
+        HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface_std[k], T, n_t, n_y);
+        u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface_k, transient_prior_cov_k);
+      }
+      else
+      {
+        u_hyperparam_interface_std[k] = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+        u_hyperparam_interface_std[k]->Set_alpha_d(alpha_d[k]);
+        u_hyperparam_interface_std[k]->Set_alpha_u(alpha_u[k]);
+        u_hyperparam_interface_std[k]->Set_beta_u(beta_u[k]);
+        u_hyperparam_interface_std[k]->Set_GSVD_Hyperparameters(prior_num_sing_vals[k], prior_oversampling[k], prior_num_subspace_iter[k]);
+        u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], random_number_generator);
+      }
+  }
+  if (num_states > 1)
+  {
+    u_hyperparam_interface = HDSA::makePtr<HDSA::MD_Multi_State_u_Hyperparameter_Interface<ScalarT>>(u_hyperparam_interface_std);
+    u_prior_interface = HDSA::makePtr<HDSA::MD_Multi_State_u_Prior_Interface<ScalarT>>(data_interface,u_prior_interface_std);
   }
   else
   {
-    u_hyperparam_interface = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
-    u_hyperparam_interface->Set_alpha_d(alpha_d);
-    u_hyperparam_interface->Set_alpha_u(alpha_u);
-    u_hyperparam_interface->Set_beta_u(beta_u);
-    u_hyperparam_interface->Set_GSVD_Hyperparameters(prior_num_sing_vals, prior_oversampling, prior_num_subspace_iter);
-    u_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface, random_number_generator);
+    u_hyperparam_interface = u_hyperparam_interface_std[0];
+    u_prior_interface = u_prior_interface_std[0];
   }
 
   HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(data_interface, random_number_generator, "spatial field", prior_num_state_solves);
