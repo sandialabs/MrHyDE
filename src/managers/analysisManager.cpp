@@ -905,9 +905,7 @@ void AnalysisManager::ROL2Solve()
     }
 
     // check gradient and Hessian-vector computation using finite differences
-    // obj->checkGradient(*x, *d, (comm_->getRank() == 0));
-    std::vector<RealT> steps = {1e-15, 1e-16, 1e-17, 1e-18, 1e-19, 1e-20, 1e-21, 1e-22, 1e-23, 1e-24, 1e-25, 1e-26, 1e-27};
-    obj->checkGradient(*x, *d, steps, (comm_->getRank() == 0));
+    obj->checkGradient(*x, *d, (comm_->getRank() == 0));
   }
 
   // Teuchos::Time timer("Optimization Time", true);
