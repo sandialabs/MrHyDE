@@ -13,7 +13,7 @@
 #include "preferences.hpp"
 #include "workset.hpp"
 #include "groupMetaData.hpp"
-#include "discretizationInterface.hpp"
+#include "interfaces/discretizationInterface.hpp"
 #include "compressedView.hpp"
 
 #include <iostream>     
