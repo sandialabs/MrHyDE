@@ -1305,7 +1305,14 @@ void AnalysisManager::HDSASolve()
     std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> prior_z_pert = prior_sampling->Get_prior_z_pert();
     std::vector<HDSA::Ptr<HDSA::MultiVector<ScalarT>>> prior_delta_z_pert = prior_sampling->Get_prior_delta_z_pert();
     output_writer->Write_Prior_Discrepancy_Samples(prior_delta_z_opt, prior_z_pert, prior_delta_z_pert);
-  }
+    
+    if(is_transient)
+    {
+      std::vector<std::vector<std::vector<ScalarT>>> prior_delta_z_opt_time_evol = prior_sampling->Get_prior_delta_z_opt_time_evol();
+      std::vector<std::vector<ScalarT>> prior_discrep_data_time_evol = prior_sampling->Get_prior_discrep_data_time_evol();
+      output_writer->Write_Prior_Discrepancy_Time_Evolution(prior_delta_z_opt_time_evol,prior_discrep_data_time_evol);
+    }
+ }
 
   HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT>> post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
   if (execute_posterior_discrepancy_sampling || execute_optimal_solution_update)
