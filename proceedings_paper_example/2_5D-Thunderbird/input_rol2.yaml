@@ -20,7 +20,7 @@ ANONYMOUS:
           Type: Limited-Memory BFGS
           Use as Preconditioner: false
           Use as Hessian: false
-          Maximum Storage: 30
+          Maximum Storage: 50
           Barzilai-Borwein Type: 1
           Use Default Scaling: true
           Initial Hessian Scale: 1.0e+8
@@ -68,5 +68,5 @@ ANONYMOUS:
         Use Relative Tolerances: true
         Constraint Tolerance: 1.0e-08
         Step Tolerance: 1.0e-20
-        Iteration Limit: 500
+        Iteration Limit: 800
 ...
