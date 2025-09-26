@@ -1,0 +1,7 @@
+#!/bin/bash
+
+TRILINOS_INSTALL_DIR='/home/yowusuag/Maxwell//Trilinos_install'
+EXODUS='thunderbird-2.5d-scaled.exo'
+PROC_CNT='8'
+
+${TRILINOS_INSTALL_DIR}/bin/decomp --processors ${PROC_CNT} --hsfc ${EXODUS}

@@ -1,0 +1,112 @@
+reset
+reset aprepro
+
+
+#{minwl   = 7}            ## minimum wavelength
+#{ptswl   = 14}           ## number of points per wavelength
+#{edgelen = minwl/ptswl}  ## edge length
+#{domsize = 72}           ## domain size
+#{dotsize = 3}            ## source (dot) size
+#{unitscaling = 1e-6}     ## mesh scaling
+
+
+create vertex  -7   5  0
+create vertex  -7   3  0
+create vertex  -4   3  0
+create vertex  -4   0  0
+create vertex -13   0  0
+create vertex -13 -12  0
+create vertex -10 -12  0
+create vertex  -8  -3  0
+create vertex  -4  -3  0
+create vertex  -5 -16  0
+create vertex   5 -16  0
+create vertex   4  -3  0
+create vertex   8  -3  0
+create vertex  10 -12  0
+create vertex  13 -12  0
+create vertex  13   0  0
+create vertex   4   0  0
+create vertex   4   5  0
+
+create curve polyline location vertex 1 to 18, 1
+
+create surface curve 1 to 18
+
+create surface circle radius {dotsize}
+move vol 2 x 12 y 6
+create surface circle radius {dotsize}
+move vol 3 x -12 y 6
+create surface circle radius {dotsize}
+move vol 4 x 12 y -17
+create surface circle radius {dotsize}
+move vol 5 x -12 y -17
+
+sweep surface all direction z distance 2
+
+create surface circle radius {22}
+move vol 6 x 0 y -6
+
+sweep surface all in vol 6 direction z distance 2
+
+subtract vol 1 to 5 from vol 6 keep
+delete vol 6
+
+create surface rectangle width {domsize} zplane
+sweep surface all in vol 8 direction z distance 2
+
+create surface circle radius {22}
+move vol 9 x 0 y -6
+sweep surface all in vol 9 direction z distance 2
+
+subtract vol 9 from vol 8
+
+imprint all
+merge all
+ 
+
+curve all size {edgelen}
+curve 19 to 22 size {edgelen/2}
+curve 37, 39, 144, 145, 147, 149 interval 2
+
+# surface all scheme tridelaunay
+
+mesh surface 24
+mesh vol 1
+
+mesh surface 26, 28, 30, 32
+surface 25, 27, 29, 31 interval 2
+mesh surface 25, 27, 29, 31
+mesh vol 2, 3, 4, 5
+
+mesh surface 60
+mesh vol 7
+
+mesh surface 72
+mesh vol 8
+
+imprint all
+merge all
+
+topology check coincident node hex all tolerance 1.0e-4
+
+block 1 vol 1
+block 1 name 'thunderbird'
+block 2 vol 2 to 5
+block 2 name 'control'
+block 3 vol 7
+block 3 name 'air'
+block 4 vol 8
+block 4 name 'observation'
+
+sideset 1 surface all patch maximum 36.1 36.1 2.1 minimum -36.1 -36.1 1.9
+sideset 1 name 'top'
+
+sideset 2 surface all patch maximum 36.1 36.1 0.1 minimum -36.1 -36.1 -0.1
+sideset 2 name 'bottom'
+
+block all element type HEX8
+
+# volume all scale {unitscaling}
+
+export mesh "/Users/home/em-mesh/thunderbird-2.5d.exo" dimension 3 overwrite

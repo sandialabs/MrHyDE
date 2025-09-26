@@ -1,0 +1,128 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Functions: 
+    # center block where current starts from
+    eblock-0_0_4:
+      current x: 'gt*exp(-2*timebub*(t<toff))*(z<zmax)*(z>zmin)'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      fc: '33.0e12'
+      fb: '10.0e12'
+      bs: '6.0'
+      sigmaJ: fb/bs
+      gt: 'cos(2*pi*fc*(t-toff))'
+      timebub: '(pi*sigmaJ*(t-toff))*(pi*sigmaJ*(t-toff))'
+      toff: '220.0e-15'
+      zmin: '-0.404e-6'
+      zmax: '0.404e-6'
+
+    # control blocks (NB: the parameters are not defined nor used in the forward problem)
+    eblock-0_0_3:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: 'ctrl_current[x]'
+      control current y: 'ctrl_current[y]'
+      control current z: 'ctrl_current[z]'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_5:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: 'ctrl_current[x]'
+      control current y: 'ctrl_current[y]'
+      control current z: 'ctrl_current[z]'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'  
+
+    # end blocks where adiabatic absorption occurs
+    eblock-0_0_0:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      conductivity: 'alpha*zmindist*zmincut + alpha*zmaxdist*zmaxcut'
+      alpha: 'max_sigma/(abs(zmaxend-zmaxstart)^3)'
+      max_sigma: "1.0e4"
+      zmaxd: 'abs(z-zmaxstart)'
+      zmaxdist: 'zmaxd*zmaxd*zmaxd'
+      zmaxcut: '(z>zmaxstart)'
+      zmaxstart: '32.0e-6'
+      zmaxend: '40.0e-6'
+      zmind: 'abs(z-zminstart)'
+      zmindist: 'zmind*zmind*zmind'
+      zmincut: '(z<zminstart)'
+      zminstart: '-32.0e-6'
+      zminend: '-40.0e-6'
+    eblock-0_0_8:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      conductivity: 'alpha*zmindist*zmincut + alpha*zmaxdist*zmaxcut'
+      alpha: 'max_sigma/(abs(zmaxend-zmaxstart)^3)'
+      max_sigma: "1.0e4"
+      zmaxd: 'abs(z-zmaxstart)'
+      zmaxdist: 'zmaxd*zmaxd*zmaxd'
+      zmaxcut: '(z>zmaxstart)'
+      zmaxstart: '32.0e-6'
+      zmaxend: '40.0e-6'
+      zmind: 'abs(z-zminstart)'
+      zmindist: 'zmind*zmind*zmind'
+      zmincut: '(z<zminstart)'
+      zminstart: '-32.0e-6'
+      zminend: '-40.0e-6'
+
+    # other blocks
+    eblock-0_0_1:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_2:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_6:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_7:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+...
