@@ -581,6 +581,7 @@ curl(E)
 E_t[x]
 E_t[y]
 E_t[z]
+div(E)
 q
 q_t
 Currently defined side solution fields are: 
@@ -1196,6 +1197,7 @@ curl(E)
 E_t[x]
 E_t[y]
 E_t[z]
+div(E)
 q
 q_t
 Currently defined side solution fields are: 
