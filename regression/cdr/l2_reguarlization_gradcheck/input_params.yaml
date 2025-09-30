@@ -1,0 +1,16 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Parameters: 
+    sval1:
+      type: scalar
+      value: 1.0
+      usage: active
+      dynamic: true
+    sval2:
+      type: scalar
+      value: 1.0
+      usage: active
+      dynamic: true
+
+...
