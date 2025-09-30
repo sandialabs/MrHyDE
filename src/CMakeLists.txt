@@ -4,6 +4,22 @@
 INCLUDE_DIRECTORIES ( ./
   ${Trilinos_INCLUDE_DIRS} 
   ${Trilinos_TPL_INCLUDE_DIRS}
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/interfaces/hyperparameter_interfaces
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/interfaces/problem_interfaces
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/interfaces/ouu_interfaces
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/interfaces/transient_prior_interfaces
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/interfaces/u_prior_interfaces
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/interfaces/z_prior_interfaces
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/prior
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/posterior
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/auxillary
+  ${HdsaLib_SRC_DIR}/src/core/parametric_continuation/interfaces
+  ${HdsaLib_SRC_DIR}/src/core/parametric_continuation/analysis
+  ${HdsaLib_SRC_DIR}/src/core/base
+  ${HdsaLib_SRC_DIR}/src/trilinos_adapter/adapters
+  ${HdsaLib_SRC_DIR}/src/trilinos_adapter/core
+  ${HdsaLib_SRC_DIR}/interfaces/mrhyde
+  ${HdsaLib_SRC_DIR}/interfaces/rol
   physics
   interfaces
   managers

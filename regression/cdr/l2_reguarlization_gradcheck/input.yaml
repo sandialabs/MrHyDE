@@ -1,0 +1,49 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 1
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    NX: 40
+  Parameters input file: input_params.yaml
+  Functions:
+    xvel: '10.0'
+    reaction: '10.0*c'
+    bubble: '-10.0*(x-0.2)*(x-0.2)'
+    source: 'sval1 * exp(-50.0*(x-0.25)*(x-0.25)) + sval2 * exp(-50.0*(x-0.35)*(x-0.35))'
+  Physics:
+    modules: 'cdr'
+    assemble boundary terms: true
+    Initial conditions:
+      c: 'exp(bubble)'
+  Discretization:
+    order:
+      c: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    workset size: 5
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 10
+    final time: 1.0
+    number of steps: 50
+    use strong DBCs: true
+  Analysis input file: input_rol2.yaml
+  Postprocess:
+    write solution: false
+    response type: pointwise
+    compute objective: true
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: '0.5*c^2'
+        weight: 0.0
+        Regularization functions:
+          reg0:
+            type: l2 norm squared
+            weight: 1.0
+ 

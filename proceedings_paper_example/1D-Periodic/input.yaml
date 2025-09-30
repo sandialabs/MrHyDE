@@ -1,0 +1,92 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    modules: maxwell_control
+    Initial conditions:
+      scalar data: true
+      E: 0.0
+      B: 0.0
+    Neumann conditions:
+      E: 
+        all boundaries: '0.0'
+    Mass weights:
+      E: 1.0
+      B: 1.0
+    Norm weights:
+      E: permittivity
+      B: 1/permeability
+  Discretization:
+    order:
+      E: 1
+      B: 1
+    quadrature: 2
+    side quadrature: 2
+  Parameters input file: input_params.yaml
+  Functions input file: input_functions.yaml
+  Solver: 
+    solver: 'transient'
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    workset size: 100
+    final time: 2.0e-13
+    number of steps: 400
+    assembly partitioning: sequential
+    use basis database: false
+    use mass database: false
+    database TOL: 1.0e-13
+    linear TOL: 1.0e-14
+    max linear iters: 200
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 1
+    use preconditioner: true
+    preconditioner type: Ifpack2
+    right preconditioner: true
+    use direct solver: false
+    reuse preconditioner: false
+    reuse Jacobian: false
+    preconditioner reuse type: full
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Belos solver: 'Block GMRES'
+    enable autotune: false
+  Analysis input file: input_rol2.yaml
+  Postprocess:
+    write solution: true
+    write frequency: 1
+    exodus write frequency: 1
+    output file: opt_output/output
+    compute objective: true
+    compute response: false
+    compute weighted norm: false
+    compute sensitivities: false
+    Objective functions:
+      EM Energy:
+        type: integrated control
+        function: '0.5*permittivity*((E[x])^2+(E[y])^2+(E[z])^2) + 0.5/permeability*((B[x])^2+(B[y])^2+(B[z])^2)'
+        weight: 1.0e37
+        blocks: 'eblock-0_0_0 eblock-0_0_1 eblock-0_0_2 eblock-0_0_6 eblock-0_0_7 eblock-0_0_8'
+      RegObj:
+        type: integrated control
+        function: '0.0'
+        weight: 0.0
+        blocks: 'eblock-0_0_3 eblock-0_0_5'
+        Regularization functions:
+          l2reg: 
+            type: integrated
+            location: volume
+            function: '0.5*(ctrl_current[x]*ctrl_current[x])+0.5*(ctrl_current[y]*ctrl_current[y])+0.5*(ctrl_current[z]*ctrl_current[z])'
+            weight: 1.0e5
+    Extra cell fields:
+      Jx: 'current x'
+      Jy: 'current y'
+      Jz: 'current z'
+      ctrlJx: 'curl(ctrl_current)[x]'
+      ctrlJy: 'curl(ctrl_current)[y]'
+      ctrlJz: 'curl(ctrl_current)[z]'
+      conductivity: sigma
+      em_energy: '0.5*permittivity*((E[x])^2+(E[y])^2+(E[z])^2) + 0.5/permeability*((B[x])^2+(B[y])^2+(B[z])^2)'
+...

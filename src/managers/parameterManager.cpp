@@ -1254,6 +1254,35 @@ vector<ScalarT> ParameterManager<Node>::getParams(const std::string & stype) {
 // ========================================================================================
 
 template<class Node>
+vector<ScalarT> ParameterManager<Node>::getParams(const std::string & stype, int dynamic_index) {
+  vector<ScalarT> reqparams;
+  int type = -1;
+  if (stype == "inactive")
+  type = 0;
+  else if (stype == "active")
+  type = 1;
+  else if (stype == "stochastic")
+  type = 2;
+  else if (stype == "discrete")
+  type = 3;
+  else
+  //complain
+  cout << "Error in parameterManager::getParams: input stype is not valid" << std::endl;
+
+  for (size_t k=0; k<paramvals[dynamic_index].size(); k++) {
+    if (paramtypes[k] == type) {
+      for (size_t j=0; j<paramvals[dynamic_index][k].size(); j++) {
+        reqparams.push_back(paramvals[dynamic_index][k][j]);
+      }
+    }
+  }
+  return reqparams;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 vector<Teuchos::RCP<vector<ScalarT> > > ParameterManager<Node>::getActiveParamBounds() {
   vector<Teuchos::RCP<vector<ScalarT> > > reqbnds;
   Teuchos::RCP<vector<ScalarT> > reqlo = Teuchos::rcp( new vector<ScalarT> (num_active_params, 0.0) );
