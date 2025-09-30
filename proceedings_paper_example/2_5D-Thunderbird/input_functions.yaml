@@ -1,0 +1,79 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Functions: 
+    # source block where current starts from
+    thunderbird:
+      current x: 'gt*exp(-2*timebub*(t<toff))'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      fc: '33.0e12'
+      fb: '10.0e12'
+      bs: '6.0'
+      sigmaJ: fb/bs
+      gt: 'cos(2*pi*fc*(t-toff))'
+      timebub: '(pi*sigmaJ*(t-toff))*(pi*sigmaJ*(t-toff))'
+      toff: '220.0e-15'
+
+    # control block
+    control:
+      current x: '0'
+      current y: '0' 
+      current z: '0'
+      control current x: 'ctrl_current[x]'
+      control current y: 'ctrl_current[y]'
+      control current z: 'ctrl_current[z]'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+
+    # observation blocks where adiabatic absorption occurs
+    observation:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      conductivity: 'alpha*(xmindist*xmincut + xmaxdist*xmaxcut) + alpha*(ymindist*ymincut + ymaxdist*ymaxcut)'
+      alpha: 'max_sigma/(abs(xmaxend-xmaxstart)^3)'  # using this only because difference is the same for x,y and z. Else define alpha_x, alpha_y and alpha_z
+      max_sigma: "1.0e4"
+      xmaxd: 'abs(x-xmaxstart)'
+      xmaxdist: 'xmaxd*xmaxd*xmaxd'
+      xmaxcut: '(x>xmaxstart)'
+      xmaxstart: '32.0e-6'
+      xmaxend: '36.0e-6'
+      xmind: 'abs(x-xminstart)'
+      xmindist: 'xmind*xmind*xmind'
+      xmincut: '(x<xminstart)'
+      xminstart: '-32.0e-6'
+      xminend: '-36.0e-6'
+      ymaxd: 'abs(y-ymaxstart)'
+      ymaxdist: 'ymaxd*ymaxd*ymaxd'
+      ymaxcut: '(y>ymaxstart)'
+      ymaxstart: '32.0e-6'
+      ymaxend: '36.0e-6'
+      ymind: 'abs(y-yminstart)'
+      ymindist: 'ymind*ymind*ymind'
+      ymincut: '(y<yminstart)'
+      yminstart: '-32.0e-6'
+      yminend: '-36.0e-6'
+
+    # air block
+    air:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      control current x: '0'
+      control current y: '0'
+      control current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+
+...
