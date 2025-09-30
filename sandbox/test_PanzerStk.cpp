@@ -51,7 +51,7 @@ int main(int argc, char * argv[]) {
     std::cout << "MPI is set up" << std::endl;
   }
     
-  sleep(5);
+  //sleep(5);
 
   Kokkos::initialize();
   
@@ -63,7 +63,7 @@ int main(int argc, char * argv[]) {
     std::cout << "Kokkos is set up" << std::endl;
   }
     
-  sleep(5);
+  //sleep(5);
 
   {
     int dimension = 2; 
@@ -138,7 +138,7 @@ int main(int argc, char * argv[]) {
       if (Comm->getRank() == 0) {
         std::cout << "Mesh has been finalized" << std::endl;
       }
-      sleep(10);
+      //sleep(10);
 
       std::vector<string> blocknames;
       mesh->getElementBlockNames(blocknames);
@@ -191,7 +191,7 @@ int main(int argc, char * argv[]) {
         if (Comm->getRank() == 0) {
           std::cout << "DOF manager has been set up" << std::endl;
         }
-        sleep(10);
+        //sleep(10);
 
         //DOF = Teuchos::null;
         //conn = Teuchos::null;
@@ -201,13 +201,13 @@ int main(int argc, char * argv[]) {
         if (Comm->getRank() == 0) {
           std::cout << "DOF manager has been destroyed" << std::endl;
         }
-        sleep(10);
+        //sleep(10);
       }
     }
     if (Comm->getRank() == 0) {
       std::cout << "Mesh has been destroyed" << std::endl;
     }
-    sleep(10);
+    //sleep(10);
     
   }
   

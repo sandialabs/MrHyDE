@@ -394,6 +394,7 @@ void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
       point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[y]", set_index, soltype, var_index));
       point_soln_fields.push_back(SolutionField<EvalT>("curl("+var+")[z]", set_index, soltype, var_index));
     }
+    soln_fields.push_back(SolutionField<EvalT>("div("+var+")", set_index, soltype, var_index));
   }
   else if (basistype.substr(0,5) == "HFACE") {
     
