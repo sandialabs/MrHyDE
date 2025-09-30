@@ -1183,6 +1183,7 @@ void AnalysisManager::HDSASolve()
   int num_prior_samples = HDSAsettings.sublist("Configuration").get<int>("num_prior_samples", 0);
   int num_posterior_samples = HDSAsettings.sublist("Configuration").get<int>("num_posterior_samples", 0);
   int prior_num_state_solves = HDSAsettings.sublist("Configuration").get<int>("prior_num_state_solves", 0);
+  int hdsa_verbosity = HDSAsettings.sublist("Configuration").get<int>("verbosity", 0);
   bool execute_prior_discrepancy_sampling = HDSAsettings.sublist("Configuration").get<bool>("execute_prior_discrepancy_sampling", false);
   bool execute_posterior_discrepancy_sampling = HDSAsettings.sublist("Configuration").get<bool>("execute_posterior_discrepancy_sampling", false);
   bool execute_optimal_solution_update = HDSAsettings.sublist("Configuration").get<bool>("execute_optimal_solution_update", false);
@@ -1208,8 +1209,9 @@ void AnalysisManager::HDSASolve()
     prior_num_subspace_iter[k] = HDSAsettings.sublist("HyperParameters").sublist(state_var_name).get<int>("prior_num_subspace_iter", 1);
   }
 
-  ScalarT alpha_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("alpha_z", 0.0);
-  ScalarT beta_z = HDSAsettings.sublist("HyperParameters").get<ScalarT>("beta_z", 0.0);
+  ScalarT alpha_z = HDSAsettings.sublist("HyperParameters").sublist("z").get<ScalarT>("alpha_z", 0.0);
+  ScalarT beta_z = HDSAsettings.sublist("HyperParameters").sublist("z").get<ScalarT>("beta_z", 0.0);
+  ScalarT beta_t_z_prior = HDSAsettings.sublist("HyperParameters").sublist("z").get<ScalarT>("beta_t", 0.0);
   
   int hessian_num_eig_vals = HDSAsettings.sublist("HyperParameters").get<int>("hessian_num_eig_vals", 5);
   int hessian_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("hessian_oversampling", 3);
@@ -1238,6 +1240,22 @@ void AnalysisManager::HDSASolve()
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
   HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(data_interface, postproc_, solver_);
   
+  if( hdsa_verbosity > 0)
+  {
+    HDSA::Ptr<const HDSA::Vector<ScalarT>> u_opt = data_interface->get_u_opt();
+    HDSA::Ptr<const HDSA::Vector<ScalarT>> z_opt = data_interface->get_z_opt();
+    HDSA::Ptr<const HDSA::MultiVector<ScalarT>> Z = data_interface->get_Z();
+    HDSA::Ptr<const HDSA::MultiVector<ScalarT>> D = data_interface->get_D();
+    std::cout << "u_opt->norm() = " << u_opt->norm() << std::endl;
+    std::cout << "z_opt->norm() = " << z_opt->norm() << std::endl;
+    int N = Z->Number_of_Vectors();
+    for(int k = 0; k < N; k++)
+    {
+      std::cout << "Z[" << k << "]->norm() = " << (*Z)[k]->norm() << std::endl;
+      std::cout << "D[" << k << "]->norm() = " << (*D)[k]->norm() << std::endl;
+    }
+  }
+
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr<Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_, settings_, blockNames);
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->M[0]);
@@ -1288,10 +1306,40 @@ void AnalysisManager::HDSASolve()
     u_prior_interface = u_prior_interface_std[0];
   }
 
-  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(data_interface, random_number_generator, "spatial field", prior_num_state_solves);
+  std::string z_type; 
+  if (params_->getNumParams("discretized") > 0)
+  {
+    z_type = "spatial field";
+  }
+  else if(params_->have_dynamic_scalar)
+  {
+    z_type = "transient vector";
+  }
+  else
+  {
+    z_type = "vector";
+  }
+  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(data_interface, random_number_generator, z_type, prior_num_state_solves);
   z_hyperparam_interface->Set_alpha_z(alpha_z);
-  z_hyperparam_interface->Set_beta_z(beta_z);
-  HDSA::Ptr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>> z_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>>(S, M, data_interface, z_hyperparam_interface, u_prior_interface);
+
+  HDSA::Ptr<HDSA::MD_z_Prior_Interface<ScalarT>> z_prior_interface;
+  if (z_type == "spatial field")
+  {
+    z_hyperparam_interface->Set_beta_z(beta_z);
+    z_prior_interface = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_z_Prior_Interface<ScalarT>>(S, M, data_interface, z_hyperparam_interface, u_prior_interface);
+  }
+  else if(z_type == "transient vector")
+  {
+    ScalarT T = solver_->final_time;
+    int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0);
+    int num_controls = params_->getNumParams("active");
+    z_hyperparam_interface->Set_beta_t(beta_t_z_prior);
+    z_prior_interface = HDSA::makePtr<HDSA::MD_Transient_Vector_z_Prior_Interface<ScalarT>>(data_interface, z_hyperparam_interface, u_prior_interface, n_t, T, num_controls);
+  }
+  else if (z_type == "vector")
+  {
+    z_prior_interface = HDSA::makePtr<HDSA::MD_Vector_z_Prior_Interface<ScalarT>>(alpha_z);
+  }
 
   output_writer->Write_Hyperparameters(u_hyperparam_interface, z_hyperparam_interface);
 
@@ -1597,26 +1645,59 @@ void AnalysisManager::readExoForwardSolve()
   }
   else if (txt_file != "error")
   {
-    ScalarT val = 0.0;
-    int dim = params_->getCurrentVector().dimension();
-    // read in data
-    std::ifstream in(txt_file);
-    std::vector<ScalarT> vec = std::vector<ScalarT>(dim, 0.0);
-    // read the elements in the file into a vector
-    if (in)
+    if (params_->have_dynamic_scalar)
     {
-      for (int i = 0; i < dim; i++)
+      int num_params = params_->getNumParams("active");
+      int num_time_steps = params_->getCurrentVector().dimension()/num_params; // This assumes that all active parameters are dynamic
+      ScalarT val = 0.0;
+      std::ifstream in(txt_file);
+      std::vector<std::vector<ScalarT>> vec;
+      vec.resize(num_time_steps);
+      if (in)
       {
-        in >> val;
-        vec[i] = val;
+        for(int i = 0; i < num_time_steps; i++)
+        {
+          vec[i].resize(num_params);
+          // read the elements in the file into a vector
+          for (int j = 0; j < num_params; j++)
+          {
+            in >> val;
+            vec[i][j] = val;
+          }
+          params_->dynamic_timeindex = i;
+          params_->updateParams(vec[i],"active");
+        }
+        params_->dynamic_timeindex = 0;
+      }
+      else
+      {
+        std::cout << "Error loading the data from " << txt_file << std::endl;
       }
     }
     else
     {
-      std::cout << "Error loading the data from " << txt_file << std::endl;
+      ScalarT val = 0.0;
+      int dim = params_->getCurrentVector().dimension();
+      // read in data
+      std::ifstream in(txt_file);
+      std::vector<ScalarT> vec = std::vector<ScalarT>(dim, 0.0);
+      // read the elements in the file into a vector
+      if (in)
+      {
+        for (int i = 0; i < dim; i++)
+        {
+          in >> val;
+          vec[i] = val;
+        }
+      }
+      else
+      {
+        std::cout << "Error loading the data from " << txt_file << std::endl;
+      }
+
+      params_->updateParams(vec, "active");
     }
 
-    params_->updateParams(vec, "active");
   }
 
   if (read_exo_settings.get("Sample Set File", "error") != "error")
