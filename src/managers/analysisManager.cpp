@@ -1423,7 +1423,7 @@ void AnalysisManager::HDSASolve()
           dist += std::pow(pt_i[k] - pt_j[k], 2.0);
         }
         ScalarT val = std::exp(-0.5 * dist);
-        K->Replace_Element(i, j, val);
+        K->Set_Entry(i, j, val);
       }
     }
     u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, K);
