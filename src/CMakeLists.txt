@@ -52,6 +52,16 @@ IF(MrHyDE_ENABLE_MIRAGE_EXTENSIONS)
   list(APPEND mrhyde-all "${MrHyDE_MIRAGE_EXTENSIONS_DIR}/mirage.cpp")
 ENDIF()
 
+IF(MrHyDE_ENABLE_PIEZO_EXTENSIONS)
+  INCLUDE_DIRECTORIES ( ./
+    ${MrHyDE_PIEZO_EXTENSIONS_DIR} 
+  )  
+  file(GLOB piezo
+    "${MrHyDE_PIEZO_EXTENSIONS_DIR}/*.cpp"
+  )
+  list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/maxwell_piezo.cpp")
+ENDIF()
+
 #IF(MrHyDE_ENABLE_FFTW)
 #  ## stand-alone target for now
 #  ADD_EXECUTABLE(fft_fftw 

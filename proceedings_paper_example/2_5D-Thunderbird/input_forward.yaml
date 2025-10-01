@@ -1,0 +1,67 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  Mesh: 
+    dimension: 3
+    source: Exodus
+    mesh file: mesh/thunderbird-2.5d-scaled.exo
+    element type: hex  
+    Periodic BCs:
+      Count: 1
+      Periodic Condition 1: 'xy-all 1e-10: top;bottom'
+  Physics: 
+    modules: maxwell_control
+    Initial conditions:
+      scalar data: true
+      E: 0.0
+      B: 0.0
+  Discretization:
+    order:
+      E: 1
+      B: 1
+    quadrature: 2
+    side quadrature: 2
+  Functions input file: input_functions_forward.yaml
+  Solver: 
+    solver: 'transient'
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    workset size: 100
+    final time: 2.0e-13
+    number of steps: 400
+    assembly partitioning: sequential
+    use basis database: false
+    use mass database: false
+    database TOL: 1.0e-13
+    linear TOL: 1.0e-13
+    max linear iters: 200
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 1
+    use preconditioner: true
+    preconditioner type: Ifpack2
+    right preconditioner: true
+    use direct solver: false
+    reuse preconditioner: true
+    reuse Jacobian: true
+    preconditioner reuse type: full
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Belos solver: 'Block GMRES'
+    enable autotune: false
+  Analysis: 
+    analysis type: forward
+  Postprocess:
+    write solution: true
+    write frequency: 1
+    exodus write frequency: 1
+    output file: forward_output/output_forward
+    compute errors: false
+    Extra cell fields:
+      Jx: 'current x'
+      Jy: 'current y'
+      Jz: 'current z'
+      conductivity: sigma
+      em_energy: '0.5*permittivity*(E[x]^2+E[y]^2+E[z]^2) + 0.5/permeability*(B[x]^2+B[y]^2+B[z]^2)'
+...

@@ -6,50 +6,36 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
 ************************************************************************/
 
-/** @file vlasov_fokker_planck.hpp
- *
- * @brief VFP 0d2v physics module
- *
- */
-
-#ifndef MRHYDE_VFP0d2v_H
-#define MRHYDE_VFP0d2v_H
+#ifndef MRHYDE_ROSENBLUTH_H
+#define MRHYDE_ROSENBLUTH_H
 
 #include "physicsBase.hpp"
 
 namespace MrHyDE {
   
-  /** 
-   * \brief Vlasov-Fokker-Planck physics module
-   *
-   */
-  
   template<class EvalT>
-  class VFP0d2v : public PhysicsBase<EvalT> {
+  class rosenbluth : public PhysicsBase<EvalT> {
   public:
-
+    
     // These are necessary due to the combination of templating and inheritance
     using PhysicsBase<EvalT>::functionManager;
     using PhysicsBase<EvalT>::wkset;
     using PhysicsBase<EvalT>::label;
     using PhysicsBase<EvalT>::myvars;
     using PhysicsBase<EvalT>::mybasistypes;
+    using PhysicsBase<EvalT>::adjrhs;
     
-    typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
     typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;
-    typedef Kokkos::View<EvalT***,ContLayout,AssemblyDevice> View_EvalT3;
-    typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
-    
-
-    VFP0d2v() {} ;
-    
-    ~VFP0d2v() {};
     
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    VFP0d2v(Teuchos::ParameterList & settings, const int & dimension);
+    rosenbluth() {} ;
+    
+    ~rosenbluth() {};
+    
+    rosenbluth(Teuchos::ParameterList & settings, const int & dimension_);
     
     // ========================================================================================
     // ========================================================================================
@@ -62,10 +48,16 @@ namespace MrHyDE {
     
     void volumeResidual();
     
+    
     // ========================================================================================
     // ========================================================================================
     
     void boundaryResidual();
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void edgeResidual();
     
     // ========================================================================================
     // The boundary/edge flux
@@ -78,23 +70,29 @@ namespace MrHyDE {
     
     void setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_);
 
-    /* @brief Update the inviscid fluxes for the residual calculation.
-     *
-     * @param[in] on_side  Bool indicating if we are on an element side or not
-     *
-     * @details When we are at an interface, the flux is evaluated using the trace variables.
-     * This should be called after updating the thermodynamic properties.
-     */
-
+    //void setVars(std::vector<string> & varlist_);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void updatePerm(View_EvalT2 perm);
     
     
   private:
-
-    int spaceDim, velDim, H_num, C_num, G_num, E_num;
-    ScalarT m_C, m_H, m_G, m_E, Z_C, Z_H, Z_G, Z_E;
     
-    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP0d2v::volumeResidual() - function evaluation");
-    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP0d2v::volumeResidual() - evaluation of residual");
+    int spaceDim, velDim;
+    int rhhnum, rhcnum, rhgnum, rhenum, rghnum, rgcnum, rggnum, rgenum;
+    bool include_Heqn, include_Geqn;
+    
+    
+    //Kokkos::View<int****,AssemblyDevice> sideinfo;
+    
+    Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::rosenbluth::volumeResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::rosenbluth::volumeResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::rosenbluth::boundaryResidual() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> boundaryResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::rosenbluth::boundaryResidual() - evaluation of residual");
+    Teuchos::RCP<Teuchos::Time> fluxFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::rosenbluth::computeFlux() - function evaluation");
+    Teuchos::RCP<Teuchos::Time> fluxFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::rosenbluth::computeFlux() - evaluation of flux");
     
   };
   

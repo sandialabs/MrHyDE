@@ -45,6 +45,10 @@
 #include "mirage.hpp"
 #endif
 
+#if defined(MrHyDE_ENABLE_PIEZO)
+#include "maxwell_piezo.hpp"
+#endif
+
 //#include "cns.hpp"
 
 using namespace MrHyDE;
@@ -126,7 +130,7 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     }
     
     // Maxwell for optimal control
-    if (modname == "maxwell control") {
+    if (modname == "maxwell_control") {
       modules.push_back(Teuchos::rcp(new maxwell_control<EvalT>(settings, dimension) ) );
     }
     
@@ -219,7 +223,14 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     if (modname == "Mirage" || modname == "mirage"){
       modules.push_back(Teuchos::rcp(new mirage<EvalT>(settings, dimension) ) );
     }
-    #endif  
+    #endif
+    
+    #if defined(MrHyDE_ENABLE_PIEZO)
+    // Physics for Mirage
+    if (modname == "maxwell piezo" || modname == "maxwell_piezo"){
+        modules.push_back(Teuchos::rcp(new maxwell_piezo<EvalT>(settings, dimension) ) );
+    }
+    #endif
     
   }
   
