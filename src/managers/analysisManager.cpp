@@ -32,12 +32,12 @@
 #include "HDSA_Random_Number_Generator.hpp"
 #include "HDSA_MD_Data_Interface_MrHyDE.hpp"
 #include "HDSA_MD_Opt_Prob_Interface_MrHyDE.hpp"
-#include "HDSA_Write_Output_MrHyDE.hpp"
+#include "HDSA_Output_Writer_MrHyDE.hpp"
 #include "HDSA_Sparse_Matrix.hpp"
 #include "HDSA_MD_u_Hyperparameter_Interface.hpp"
 #include "HDSA_MD_Multi_State_u_Hyperparameter_Interface.hpp"
 #include "HDSA_MD_z_Hyperparameter_Interface_MrHyDE.hpp"
-#include "HDSA_Prior_FE_Op_MrHyDE.hpp"
+#include "HDSA_Prior_Operators_Interface_MrHyDE.hpp"
 #include "HDSA_MD_u_Prior_Interface.hpp"
 #include "HDSA_MD_Numeric_Laplacian_u_Prior_Interface.hpp"
 #include "HDSA_MD_Multi_State_u_Prior_Interface.hpp"
@@ -1338,9 +1338,9 @@ void AnalysisManager::HDSASolve()
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
   vector<string> blockNames = solver_->mesh->getBlockNames();
-  HDSA::Ptr<Prior_FE_Op_MrHyDE<ScalarT>> prior_fe_op = HDSA::makePtr<Prior_FE_Op_MrHyDE<ScalarT>>(comm_, settings_, blockNames);
-  HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->M[0]);
-  HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> S = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_fe_op->S[0]);
+  HDSA::Ptr<Prior_Operators_Interface_MrHyDE<ScalarT>> prior_operator_interface = HDSA::makePtr<Prior_Operators_Interface_MrHyDE<ScalarT>>(comm_, settings_, blockNames);
+  HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_operator_interface->M);
+  HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> S = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_operator_interface->S);
 
   HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> u_prior_interface;
   HDSA::Ptr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>> u_hyperparam_interface;
@@ -1459,7 +1459,7 @@ void AnalysisManager::HDSASolve()
   {
     z_type = "vector";
   }
-  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(comm_, data_interface, random_number_generator, z_type, prior_num_state_solves);
+  HDSA::Ptr<HDSA::MD_z_Hyperparameter_Interface<ScalarT>> z_hyperparam_interface = HDSA::makePtr<MD_z_Hyperparameter_Interface_MrHyDE<ScalarT>>(solver_, params_, comm_, data_interface, random_number_generator, z_type, prior_num_state_solves);
   z_hyperparam_interface->Set_alpha_z(alpha_z);
 
   HDSA::Ptr<HDSA::MD_z_Prior_Interface<ScalarT>> z_prior_interface;
@@ -1491,7 +1491,7 @@ void AnalysisManager::HDSASolve()
   {
     write_exo = false;
   }
-  HDSA::Ptr<Write_Output_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Write_Output_MrHyDE<ScalarT>>(postproc_, solver_, write_exo);
+  HDSA::Ptr<Output_Writer_MrHyDE<ScalarT>> output_writer = HDSA::makePtr<Output_Writer_MrHyDE<ScalarT>>(postproc_, solver_, write_exo);
   output_writer->Write_Hyperparameters(u_hyperparam_interface, z_hyperparam_interface);
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1593,8 +1593,8 @@ void AnalysisManager::readExoForwardSolve()
   if (exo_file != "error")
   {
     HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>();
-    HDSA::Ptr<MD_Data_Interface_MrHyDE<ScalarT>> data_interface = HDSA::makePtr<MD_Data_Interface_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator, read_exo_settings);
-    Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> tpetra_vec = data_interface->Read_Exodus_Data(exo_file, false);
+    HDSA::Ptr<Data_Loader_MrHyDE<ScalarT>> data_loader = HDSA::makePtr<Data_Loader_MrHyDE<ScalarT>>(comm_, solver_, params_, random_number_generator);
+    Teuchos::RCP<Tpetra::MultiVector<ScalarT, LO, GO, SolverNode>> tpetra_vec = data_loader->Read_Exodus_Data(exo_file, false);
     params_->updateParams(tpetra_vec);
   }
   else if (txt_file != "error")
