@@ -1549,7 +1549,7 @@ void AnalysisManager::HDSASolve()
     HDSA::Ptr<HDSA::MD_Hessian_Analysis<ScalarT>> hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<ScalarT>>(opt_prob_interface, z_prior_interface);
     if (hessian_num_eig_vals > 0)
     {
-      hessian_analysis->Compute_Hessian_GEVP(*data_interface->get_z_opt(), hessian_num_eig_vals, hessian_oversampling, false);
+      hessian_analysis->Compute_Hessian_GEVP(data_interface->get_z_opt(), hessian_num_eig_vals, hessian_oversampling, false);
       HDSA::Ptr<HDSA::Dense_Matrix<ScalarT>> evals = hessian_analysis->Get_Evals();
       output_writer->Write_Hessian_Eigenvalues(evals);
     }
