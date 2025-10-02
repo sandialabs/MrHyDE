@@ -1301,13 +1301,13 @@ void AnalysisManager::HDSASolve()
     HDSA::Ptr<const HDSA::Vector<ScalarT>> z_opt = data_interface->get_z_opt();
     HDSA::Ptr<const HDSA::MultiVector<ScalarT>> Z = data_interface->get_Z();
     HDSA::Ptr<const HDSA::MultiVector<ScalarT>> D = data_interface->get_D();
-    std::cout << "u_opt->norm() = " << u_opt->norm() << std::endl;
-    std::cout << "z_opt->norm() = " << z_opt->norm() << std::endl;
+    std::cout << "u_opt->norm() = " << u_opt->Norm() << std::endl;
+    std::cout << "z_opt->norm() = " << z_opt->Norm() << std::endl;
     int N = Z->Number_of_Vectors();
     for (int k = 0; k < N; k++)
     {
-      std::cout << "Z[" << k << "]->norm() = " << (*Z)[k]->norm() << std::endl;
-      std::cout << "D[" << k << "]->norm() = " << (*D)[k]->norm() << std::endl;
+      std::cout << "Z[" << k << "]->norm() = " << (*Z)[k]->Norm() << std::endl;
+      std::cout << "D[" << k << "]->norm() = " << (*D)[k]->Norm() << std::endl;
     }
   }
 
@@ -1377,7 +1377,7 @@ void AnalysisManager::HDSASolve()
 
       ScalarT T = solver_->final_time;
       int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
-      int n_y = data_interface->get_u_opt()->dimension() / n_t;
+      int n_y = data_interface->get_u_opt()->Dimension() / n_t;
       HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface_std[k], T, n_t, n_y);
 
       u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface_k, transient_prior_cov_k);
@@ -1562,7 +1562,7 @@ void AnalysisManager::HDSASolve()
 
       if (hdsa_verbosity > 0)
       {
-        std::cout << "z_update_mean norm = " << posterior_update_samples->mean->norm() << std::endl;
+        std::cout << "z_update_mean norm = " << posterior_update_samples->mean->Norm() << std::endl;
       }
     }
     else
@@ -1572,7 +1572,7 @@ void AnalysisManager::HDSASolve()
 
       if (hdsa_verbosity > 0)
       {
-        std::cout << "z_update_mean norm = " << z_update_mean->norm() << std::endl;
+        std::cout << "z_update_mean norm = " << z_update_mean->Norm() << std::endl;
       }
     }
   }
