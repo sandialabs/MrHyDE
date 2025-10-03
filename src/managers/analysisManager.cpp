@@ -1297,10 +1297,10 @@ void AnalysisManager::HDSASolve()
 
   if (hdsa_verbosity > 0)
   {
-    HDSA::Ptr<const HDSA::Vector<ScalarT>> u_opt = data_interface->get_u_opt();
-    HDSA::Ptr<const HDSA::Vector<ScalarT>> z_opt = data_interface->get_z_opt();
-    HDSA::Ptr<const HDSA::MultiVector<ScalarT>> Z = data_interface->get_Z();
-    HDSA::Ptr<const HDSA::MultiVector<ScalarT>> D = data_interface->get_D();
+    HDSA::Ptr<const HDSA::Vector<ScalarT>> u_opt = data_interface->Get_u_opt();
+    HDSA::Ptr<const HDSA::Vector<ScalarT>> z_opt = data_interface->Get_z_opt();
+    HDSA::Ptr<const HDSA::MultiVector<ScalarT>> Z = data_interface->Get_Z();
+    HDSA::Ptr<const HDSA::MultiVector<ScalarT>> D = data_interface->Get_D();
     std::cout << "u_opt->norm() = " << u_opt->Norm() << std::endl;
     std::cout << "z_opt->norm() = " << z_opt->Norm() << std::endl;
     int N = Z->Number_of_Vectors();
@@ -1377,7 +1377,7 @@ void AnalysisManager::HDSASolve()
 
       ScalarT T = solver_->final_time;
       int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
-      int n_y = data_interface->get_u_opt()->Dimension() / n_t;
+      int n_y = data_interface->Get_u_opt()->Dimension() / n_t;
       HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface_std[k], T, n_t, n_y);
 
       u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface_k, transient_prior_cov_k);
@@ -1530,11 +1530,11 @@ void AnalysisManager::HDSASolve()
   if ((num_posterior_samples > 0) & execute_posterior_discrepancy_sampling)
   {
     std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> z_in;
-    int N = data_interface->get_Z()->Number_of_Vectors();
+    int N = data_interface->Get_Z()->Number_of_Vectors();
     z_in.resize(N);
     for (int k = 0; k < N; k++)
     {
-      z_in[k] = (*data_interface->get_Z())[k];
+      z_in[k] = (*data_interface->Get_Z())[k];
     }
     std::vector<HDSA::Ptr<HDSA::MD_Posterior_Vectors<ScalarT>>> post_delta = post_sampling->Posterior_Discrepancy_Samples(z_in);
     output_writer->Write_Posterior_Discrepancy_Samples(post_delta);
@@ -1549,7 +1549,7 @@ void AnalysisManager::HDSASolve()
     HDSA::Ptr<HDSA::MD_Hessian_Analysis<ScalarT>> hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<ScalarT>>(opt_prob_interface, z_prior_interface);
     if (hessian_num_eig_vals > 0)
     {
-      hessian_analysis->Compute_Hessian_GEVP(data_interface->get_z_opt(), hessian_num_eig_vals, hessian_oversampling, false);
+      hessian_analysis->Compute_Hessian_GEVP(data_interface->Get_z_opt(), hessian_num_eig_vals, hessian_oversampling, false);
       HDSA::Ptr<HDSA::Dense_Matrix<ScalarT>> evals = hessian_analysis->Get_Evals();
       output_writer->Write_Hessian_Eigenvalues(evals);
     }
