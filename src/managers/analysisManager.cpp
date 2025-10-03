@@ -34,8 +34,8 @@
 #include "HDSA_MD_Opt_Prob_Interface_MrHyDE.hpp"
 #include "HDSA_Output_Writer_MrHyDE.hpp"
 #include "HDSA_Sparse_Matrix.hpp"
-#include "HDSA_MD_u_Hyperparameter_Interface.hpp"
 #include "HDSA_MD_Multi_State_u_Hyperparameter_Interface.hpp"
+#include "HDSA_MD_u_Hyperparameter_Interface_MrHyDE.hpp"
 #include "HDSA_MD_z_Hyperparameter_Interface_MrHyDE.hpp"
 #include "HDSA_Prior_Operators_Interface_MrHyDE.hpp"
 #include "HDSA_MD_u_Prior_Interface.hpp"
@@ -1353,7 +1353,7 @@ void AnalysisManager::HDSASolve()
   bool is_transient = solver_->isTransient;
   for (int k = 0; k < num_states; k++)
   {
-    u_hyperparam_interface_std[k] = HDSA::makePtr<HDSA::MD_u_Hyperparameter_Interface<ScalarT>>(is_transient);
+    u_hyperparam_interface_std[k] = HDSA::makePtr<MD_u_Hyperparameter_Interface_MrHyDE<ScalarT>>(comm_, data_interface, is_transient);
     u_hyperparam_interface_std[k]->Set_alpha_d(alpha_d[k]);
     u_hyperparam_interface_std[k]->Set_alpha_u(alpha_u[k]);
     u_hyperparam_interface_std[k]->Set_beta_u(beta_u[k]);
