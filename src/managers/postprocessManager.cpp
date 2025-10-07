@@ -2626,7 +2626,12 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: l2 norm squared reguarlization was used but the active parameter dimension is zero");
             }
             ScalarT regwt = objectives[r].regularizations[reg].weight;
-            std::vector<ScalarT> param_vec = params->getParams("active",params->dynamic_timeindex);
+            int index = 0;
+            if( params->have_dynamic_scalar )
+            {
+              index = params->dynamic_timeindex;
+            }
+            std::vector<ScalarT> param_vec = params->getParams("active",index);
             for(int k = 0; k < param_dim; k++)
             {
               totaldiff[r] += regwt * param_vec[k] * param_vec[k];
@@ -3588,8 +3593,13 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
         TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: l2 norm squared reguarlization assumes that there are no discretized parameters");
       }
       ScalarT regwt = objectives[obj].regularizations[reg].weight;
-      std::vector<ScalarT> param_vec = params->getParams("active",params->dynamic_timeindex);
-      for(int k = 0; k < param_dim; k++)
+      int index = 0;
+      if (params->have_dynamic_scalar)
+      {
+        index = params->dynamic_timeindex;
+      }
+      std::vector<ScalarT> param_vec = params->getParams("active", index);
+      for (int k = 0; k < param_dim; k++)
       {
         gradient[k] += regwt * dt * 2.0 * param_vec[k];
       }

@@ -1015,7 +1015,7 @@ void AnalysisManager::ROLStochSolve()
   ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT, int>>(comm_);
   int nsamp = ROLsettings.sublist("SOL").get("Number of Samples", 100);
   ROL::Ptr<ROL::SampleGenerator<RealT>> sampler;
-  if ((ROLsettings.sublist("SOL").get("Sample Set File", "error") == "error") || (ROLsettings.sublist("SOL").get("Sample Weight File", "error") == "error"))
+  if ( ROLsettings.sublist("SOL").get("Sample Set File", "error") == "error" )
   {
     std::cout << "I was unable to read the sample set or weights, so a new sampler is being created" << std::endl;
     sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp, dist, bman);
