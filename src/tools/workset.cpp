@@ -2665,6 +2665,10 @@ View_Sc1 Workset<EvalT>::getElementSize() {
   return hsize;
 }
 
+//////////////////////////////////////////////////////////////
+// Allocate and return the element sizes, h
+//////////////////////////////////////////////////////////////
+
 template<class EvalT>
 View_Sc1 Workset<EvalT>::getSideElementSize() {
   
@@ -2681,6 +2685,16 @@ View_Sc1 Workset<EvalT>::getSideElementSize() {
   });
   return hsize;
 }
+
+//////////////////////////////////////////////////////////////
+// Get the view containing the current integrated quantities
+//////////////////////////////////////////////////////////////
+
+template<class EvalT>
+View_Sc1 Workset<EvalT>::getIntegratedQuantities() {
+  return integrated_quantities;
+}
+
 
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations

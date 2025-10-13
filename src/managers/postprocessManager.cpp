@@ -2433,17 +2433,26 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
 
               for (size_type var = 0; var < numDOF.extent(0); var++)
               {
-                auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
-                auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
+                int bnum = assembler->wkset[block]->usebasis[var];
+                auto btype = assembler->wkset[block]->basis_types[bnum];
+                
+                auto cbasis = objectives[r].sensor_basis[bnum];
                 auto u_sv = subview(u_ip, var, ALL());
                 auto u_dof_sv = subview(u_dof, var, ALL());
-                auto ugrad_sv = subview(ugrad_ip, var, ALL());
-
+                
                 parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
                   u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
-                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                    ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                  } });
+                });
+                
+                if (btype == "HGRAD") {
+                  auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
+                  auto ugrad_sv = subview(ugrad_ip, var, ALL());
+                  parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    } });
+
+                }
               }
 
               assembler->wkset[block]->setSolutionPoint(u_ip);

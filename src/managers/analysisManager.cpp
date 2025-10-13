@@ -393,7 +393,7 @@ vector<Teuchos::Array<ScalarT>> AnalysisManager::UQSolve()
   // Write the samples to file (if requested)
   if (write_samples && comm_->getRank() == 0)
   {
-    string sample_file = uqsettings_.get<string>("samples output file", "sample_inputs.dat");
+    string sample_file = uqsettings_.get<string>("samples input file", "sample_inputs.dat");
     std::ofstream sampOUT(sample_file.c_str());
     sampOUT.precision(12);
     for (size_type i = 0; i < samplepts.extent(0); ++i)
@@ -512,7 +512,7 @@ vector<Teuchos::Array<ScalarT>> AnalysisManager::UQSolve()
   if (comm_->getRank() == 0)
   {
 
-    string sname = "sample_output.dat";
+    string sname = uqsettings_.get<string>("samples output file", "sample_outputs.dat");
     std::ofstream respOUT(sname.c_str());
     respOUT.precision(12);
     for (size_t r = 0; r < response_values.size(); r++)

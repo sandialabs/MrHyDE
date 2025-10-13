@@ -77,6 +77,7 @@ porousMixed<EvalT>::porousMixed(Teuchos::ParameterList & settings, const int & d
       // Need to define these indices so the coeffs are ordered properly
       // BWR -- attempting a simple total order sorting
       // it is not particularly efficient but should work CHECK ME
+      // TMW: Total order makes no sense to me - reverting to tensor product
       KLindices = Kokkos::View<size_t**,AssemblyDevice>("KL indices",numindices,spaceDim);
       int prog = 0;
       if (spaceDim == 1) {
@@ -86,41 +87,41 @@ porousMixed<EvalT>::porousMixed(Teuchos::ParameterList & settings, const int & d
         }
       }
       else if (spaceDim == 2) {
-        size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() - 1; // max total order
+        //size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() - 1; // max total order
         // loop over alpha (total basis order)
-        for (size_t alpha=0; alpha<alpha_max; ++alpha) {
+        //for (size_t alpha=0; alpha<alpha_max; ++alpha) {
           // loop over y-direction basis
           for (size_t j=0; j<permKLy.getNumTerms(); ++j) {
             // loop over x-direction basis
             for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
-              if ( i + j == alpha ) {
+              //if ( i + j == alpha ) {
                 KLindices(prog,0) = i;
                 KLindices(prog,1) = j;
                 prog++;
-              }
+              //}
             }
           }
-        }
+        //}
       }
       else if (spaceDim == 3) {
-        size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() + permKLz.getNumTerms() - 2; // max total order
+        //size_t alpha_max = permKLx.getNumTerms() + permKLy.getNumTerms() + permKLz.getNumTerms() - 2; // max total order
         // loop over alpha (total basis order)
-        for (size_t alpha=0; alpha<alpha_max; ++alpha) {
+        //for (size_t alpha=0; alpha<alpha_max; ++alpha) {
           // loop over z-direction basis
           for (size_t k=0; k<permKLz.getNumTerms(); ++k) {
             // loop over y-direction basis
             for (size_t j=0; j<permKLy.getNumTerms(); ++j) {
               // loop over x-direction basis
               for (size_t i=0; i<permKLx.getNumTerms(); ++i) {
-                if ( i + j + k == alpha ) {
+                //if ( i + j + k == alpha ) {
                   KLindices(prog,0) = i;
                   KLindices(prog,1) = j;
                   KLindices(prog,2) = k;
                   prog++;
-                }
+                //}
               }
             }
-          }
+          //}
         }
       }
     }
