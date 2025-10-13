@@ -71,7 +71,7 @@ Kokkos::View<ScalarT**,HostDevice> UQManager::generateSamples(const int & numsam
         }
       }
       else if (param_types_[j] == "Gaussian") {
-        std::normal_distribution<ScalarT> distribution(param_means_[j],param_variances_[j]);
+        std::normal_distribution<ScalarT> distribution(param_means_[j],std::sqrt(param_variances_[j]));
         for (int k=0; k<numsamples; k++) {
           ScalarT number = distribution(generator);
           samples_(k,j) = number;
