@@ -15,10 +15,13 @@ INCLUDE_DIRECTORIES ( ./
   ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/auxillary
   ${HdsaLib_SRC_DIR}/src/core/parametric_continuation/interfaces
   ${HdsaLib_SRC_DIR}/src/core/parametric_continuation/analysis
-  ${HdsaLib_SRC_DIR}/src/core/base
+  ${HdsaLib_SRC_DIR}/src/core/base/auxillary
+  ${HdsaLib_SRC_DIR}/src/core/base/linear_algebra
+  ${HdsaLib_SRC_DIR}/src/core/base/vectors
   ${HdsaLib_SRC_DIR}/src/trilinos_adapter/adapters
   ${HdsaLib_SRC_DIR}/src/trilinos_adapter/core
-  ${HdsaLib_SRC_DIR}/interfaces/mrhyde
+  ${HdsaLib_SRC_DIR}/interfaces/mrhyde/md_interfaces
+  ${HdsaLib_SRC_DIR}/interfaces/mrhyde/auxillary
   ${HdsaLib_SRC_DIR}/interfaces/rol
   physics
   interfaces
