@@ -86,12 +86,12 @@ namespace MrHyDE {
      * This should be called after updating the thermodynamic properties.
      */
 
-    
+    std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim);
     
   private:
 
     int spaceDim, velDim, H_num, C_num, G_num, E_num;
-    ScalarT m_C, m_H, m_G, m_E, Z_C, Z_H, Z_G, Z_E;
+    ScalarT m_C, m_H, m_G, m_E, Z_C, Z_H, Z_G, Z_E, gamma_h;
     
     Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP0d2v::volumeResidual() - function evaluation");
     Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP0d2v::volumeResidual() - evaluation of residual");
