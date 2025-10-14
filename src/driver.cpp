@@ -140,7 +140,7 @@ int main(int argc,char * argv[]) {
       
       Teuchos::RCP<PostprocessManager<SolverNode> >
       postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh,
-                                                                  disc, physics, //assembler->function_managers_AD,
+                                                                  disc, physics,
                                                                   multiscale_manager,
                                                                   assembler, params) );
       
@@ -191,6 +191,7 @@ int main(int argc,char * argv[]) {
       
       solve->completeSetup();
       postproc->linalg = solve->linalg;
+      postproc->completeSetup(settings);
       
       if (settings->get<bool>("enable memory purge",false)) {
         disc->purgeMemory();

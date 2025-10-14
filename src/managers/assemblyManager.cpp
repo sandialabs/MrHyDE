@@ -8967,6 +8967,98 @@ void AssemblyManager<Node>::importMeshData() {
   
 }
 
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+View_Sc2 AssemblyManager<Node>::getQuadratureData(string & block) {
+  
+  debugger->print("**** Starting AssemblyManager::getQuadratureData");
+  
+  int dimension = mesh->dimension;
+  
+  size_t blockindex = 0;
+  for (size_t blk=0; blk<blocknames.size(); ++blk) {
+    if (blocknames[blk] == block) {
+      blockindex = blk;
+    }
+  }
+  size_type totalip = 0;
+  for (size_t grp=0; grp<groups[blockindex].size(); ++grp) {
+    auto wts = groups[blockindex][grp]->getWts();
+    totalip += wts.extent(0)*wts.extent(1); // stored as [elem,pt]
+  }
+  View_Sc2 qdata("quadrature data", totalip, dimension+1);
+    
+  size_t prog = 0;
+  for (size_t grp=0; grp<groups[blockindex].size(); ++grp) {
+    // These might be stored as compressed views, so use this functionality to get actual data
+    View_Sc2 wts = groups[blockindex][grp]->getWts();
+    vector<View_Sc2> ip = groups[blockindex][grp]->getIntegrationPts();
+    for (size_t elem=0; elem<wts.extent(0); ++elem) {
+      for (size_t pt=0; pt<wts.extent(1); ++pt) {
+        for (size_t dim=0; dim<dimension; ++dim) {
+          qdata(prog,dim) = ip[dim](elem,pt);
+        }
+        qdata(prog,dimension) = wts(elem,pt);
+        ++prog;
+      }
+    }
+  }
+  
+  debugger->print("**** Finished AssemblyManager::getQuadratureData");
+  
+  return qdata;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+View_Sc2 AssemblyManager<Node>::getboundaryQuadratureData(string & block, string & sidename) {
+  
+  int dimension = mesh->dimension;
+  
+  size_t blockindex = 0;
+  for (size_t blk=0; blk<blocknames.size(); ++blk) {
+    if (blocknames[blk] == block) {
+      blockindex = blk;
+    }
+  }
+  
+  size_type totalip = 0;
+  for (size_t grp=0; grp<boundary_groups[blockindex].size(); ++grp) {
+    if (boundary_groups[blockindex][grp]->sidename == sidename) {
+      auto wts = boundary_groups[blockindex][grp]->wts; // not compressed
+      totalip += wts.extent(0)*wts.extent(1); // stored as [elem,pt]
+    }
+  }
+  View_Sc2 qdata("quadrature data", totalip, 2*dimension+1); // [ip wts normals]
+  
+  size_t prog = 0;
+  for (size_t grp=0; grp<boundary_groups[blockindex].size(); ++grp) {
+    if (boundary_groups[blockindex][grp]->sidename == sidename) {
+      // These are never stored as compressed views, so just grab the views
+      View_Sc2 wts = boundary_groups[blockindex][grp]->wts;
+      vector<View_Sc2> ip = boundary_groups[blockindex][grp]->ip;
+      vector<View_Sc2> normals = boundary_groups[blockindex][grp]->normals;
+      for (size_t elem=0; elem<wts.extent(0); ++elem) {
+        for (size_t pt=0; pt<wts.extent(1); ++pt) {
+          for (size_t dim=0; dim<dimension; ++dim) {
+            qdata(prog,dim) = ip[dim](elem,pt);
+          }
+          qdata(prog,dimension) = wts(elem,pt);
+          for (size_t dim=0; dim<dimension; ++dim) {
+            qdata(prog,dimension+dim+1) = normals[dim](elem,pt);
+          }
+          ++prog;
+        }
+      }
+    }
+  }
+  return qdata;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
