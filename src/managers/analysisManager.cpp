@@ -1363,22 +1363,24 @@ void AnalysisManager::HDSASolve()
     if (is_transient)
     {
       HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> spatial_u_prior_interface_k;
+      HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov_k;
+      ScalarT T = solver_->final_time;
+      int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
 
       if (is_stoch)
       {
         HDSA::Ptr<HDSA::MD_OUU_Data_Interface<ScalarT>> ouu_data_interface = Teuchos::rcp_dynamic_cast<HDSA::MD_OUU_Data_Interface<ScalarT>>(data_interface);
         HDSA::Ptr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>> data_interface_hyperparam = HDSA::makePtr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>>(ouu_data_interface);
         spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, u_hyperparam_interface_std[k], random_number_generator);
+        int n_y = data_interface_hyperparam->Get_u_opt()->Dimension() / n_t;
+        transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface_hyperparam, u_hyperparam_interface_std[k], T, n_t, n_y);
       }
       else
       {
+        int n_y = data_interface->Get_u_opt()->Dimension() / n_t;
         spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], random_number_generator);
+        transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface_std[k], T, n_t, n_y);
       }
-
-      ScalarT T = solver_->final_time;
-      int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
-      int n_y = data_interface->Get_u_opt()->Dimension() / n_t;
-      HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface_std[k], T, n_t, n_y);
 
       u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface_k, transient_prior_cov_k);
     }
@@ -1478,7 +1480,7 @@ void AnalysisManager::HDSASolve()
   }
   else if (z_type == "vector")
   {
-    z_prior_interface = HDSA::makePtr<HDSA::MD_Vector_z_Prior_Interface<ScalarT>>(alpha_z);
+    z_prior_interface = HDSA::makePtr<HDSA::MD_Vector_z_Prior_Interface<ScalarT>>(data_interface, z_hyperparam_interface, u_prior_interface);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
