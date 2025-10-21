@@ -171,12 +171,36 @@ void ParameterManager<Node>::setupParameters() {
       else if (newparam.get<string>("usage") == "stochastic") {
         paramtypes.push_back(2);
         num_stochastic_params += newparamvals.size();
-        for (size_t i=0; i<newparamvals.size(); i++) {
-          stochastic_distribution.push_back(newparam.get<string>("distribution","uniform"));
-          stochastic_mean.push_back(newparam.get<ScalarT>("mean",0.0));
-          stochastic_variance.push_back(newparam.get<ScalarT>("variance",1.0));
-          stochastic_min.push_back(newparam.get<ScalarT>("min",-1.0));
-          stochastic_max.push_back(newparam.get<ScalarT>("max",1.0));
+        if (newparam.get<string>("type") == "vector") {
+          if (newparam.isParameter("mean source")) {
+            std::string filename = newparam.get<string>("mean source");
+            std::ifstream fin(filename.c_str());
+            std::istream_iterator<ScalarT> start(fin), end;
+            vector<ScalarT> importedparammean(start, end);
+            for (size_t i=0; i<importedparammean.size(); i++) {
+              stochastic_mean.push_back(importedparammean[i]);
+            }
+          }
+          else {
+            for (size_t i=0; i<newparamvals.size(); i++) {
+              stochastic_mean.push_back(newparam.get<ScalarT>("mean",0.0));
+            }
+          }
+          for (size_t i=0; i<newparamvals.size(); i++) {
+            stochastic_distribution.push_back(newparam.get<string>("distribution","uniform"));
+            stochastic_variance.push_back(newparam.get<ScalarT>("variance",1.0));
+            stochastic_min.push_back(newparam.get<ScalarT>("min",-1.0));
+            stochastic_max.push_back(newparam.get<ScalarT>("max",1.0));
+          }
+        }
+        else {
+          for (size_t i=0; i<newparamvals.size(); i++) {
+            stochastic_distribution.push_back(newparam.get<string>("distribution","uniform"));
+            stochastic_mean.push_back(newparam.get<ScalarT>("mean",0.0));
+            stochastic_variance.push_back(newparam.get<ScalarT>("variance",1.0));
+            stochastic_min.push_back(newparam.get<ScalarT>("min",-1.0));
+            stochastic_max.push_back(newparam.get<ScalarT>("max",1.0));
+          }
         }
       }
       else if (newparam.get<string>("usage") == "discrete") {

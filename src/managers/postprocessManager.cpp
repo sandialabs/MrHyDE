@@ -61,16 +61,16 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> &Comm_,
 template <class Node>
 void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &settings)
 {
-
+  
   debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level", 0), Comm));
-
+  
   debugger->print("**** Starting PostprocessManager::setup()");
-
+  
   ////////////////////////////////////////////
   // Grab flags from settings parameter list
-
+  
   verbosity = settings->get<int>("verbosity", 1);
-
+  
   compute_response = settings->sublist("Postprocess").get<bool>("compute responses", false);
   write_response = settings->sublist("Postprocess").get<bool>("write responses", compute_response);
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors", false);
@@ -78,7 +78,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   write_frequency = settings->sublist("Postprocess").get("write frequency", 1);
   exodus_write_frequency = settings->sublist("Postprocess").get("exodus write frequency", 1);
   write_group_number = settings->sublist("Postprocess").get("write group number", false);
-
+  
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution", false);
   write_subgrid_model = false;
   if (settings->isSublist("Subgrid"))
@@ -97,39 +97,41 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   compute_flux_response = settings->sublist("Postprocess").get("compute flux response", false);
   store_sensor_solution = settings->sublist("Postprocess").get("store sensor solution", false);
   fileoutput = settings->sublist("Postprocess").get("file output format", "text");
-
+  write_qdata = settings->sublist("Postprocess").get("write quadrature data", false);
+  write_bqdata = settings->sublist("Postprocess").get("write boundary quadrature data", false);
+  
   exodus_record_start = settings->sublist("Postprocess").get("exodus record start time", -DBL_MAX);
   exodus_record_stop = settings->sublist("Postprocess").get("exodus record stop time", DBL_MAX);
-
+  
   record_start = settings->sublist("Postprocess").get("record start time", -DBL_MAX);
   record_stop = settings->sublist("Postprocess").get("record stop time", DBL_MAX);
-
+  
   compute_integrated_quantities = settings->sublist("Postprocess").get("compute integrated quantities", false);
-
+  
   compute_weighted_norm = settings->sublist("Postprocess").get<bool>("compute weighted norm", false);
-
+  
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem", 4); // actually set by mesh interface
   dimension = physics->dimension;
-
+  
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false);    // or "global"
   save_sensor_data = settings->sublist("Analysis").get("save sensor data", false);
   sname = settings->sublist("Analysis").get("sensor prefix", "sensor");
-
+  
   stddev = settings->sublist("Analysis").get("additive normal noise standard dev", 0.0);
   write_dakota_output = settings->sublist("Postprocess").get("write Dakota output", false);
-
+  
   is_hdsa_analysis = (settings->sublist("Analysis").get("analysis type", "forward") == "HDSA");
-
+  
   // Get a few lists of strings for easy references
   varlist = physics->var_list;
   blocknames = physics->block_names;
   sideSets = physics->side_names;
   setnames = physics->set_names;
-
+  
   ///////////////////////////////////////////////////
   // Create solution storage objects (if required)
-
+  
   for (size_t set = 0; set < setnames.size(); ++set)
   {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
@@ -138,7 +140,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type", "forward");
   save_solution = false;
   save_adjoint_solution = false; // very rarely is this true
-
+  
   if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROLStoch" || analysis_type == "ROL_SIMOPT" || analysis_type == "HDSA" || analysis_type == "HDSAStoch")
   {
     save_solution = true; // default is false
@@ -155,11 +157,11 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
       }
     }
   }
-
+  
   ///////////////////////////////////////////////////
   // Default append string for output
   append = "";
-
+  
   ///////////////////////////////////////////////////
   // Writing HFACE variables to exodus requires a fair bit of overhead
   // This is due to the fact that they have no volumetric support, just face/edge
@@ -192,24 +194,24 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
     }
   }
   ///////////////////////////////////////////////////
-
+  
   ///////////////////////////////////////////////////
   // Set up the exodus file and informuser what file name is
-
+  
   if (write_solution && Comm->getRank() == 0 && !is_hdsa_analysis)
   {
     cout << endl
-         << "*********************************************************" << endl;
+    << "*********************************************************" << endl;
     cout << "***** Writing the solution to " << exodus_filename << endl;
     cout << "*********************************************************" << endl;
   }
-
+  
   isTD = false;
   if (settings->sublist("Solver").get<string>("solver", "steady-state") == "transient")
   {
     isTD = true;
   }
-
+  
   if (isTD && write_solution && !is_hdsa_analysis)
   {
     mesh->setupExodusFile(exodus_filename);
@@ -218,13 +220,13 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   {
     mesh->setupOptimizationExodusFile("optimization_" + exodus_filename);
   }
-
+  
   ///////////////////////////////////////////////////
   // Create the lists of postprocessing features that are enabled
-
+  
   for (size_t block = 0; block < blocknames.size(); ++block)
   {
-
+    
     if (settings->sublist("Postprocess").isSublist("Responses"))
     {
       Teuchos::ParameterList resps = settings->sublist("Postprocess").sublist("Responses");
@@ -258,7 +260,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
         tgt_itr++;
       }
     }
-
+    
     Teuchos::ParameterList blockPpSettings;
     if (settings->sublist("Postprocess").isSublist(blocknames[block]))
     { // adding block overwrites the default
@@ -269,13 +271,13 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
       blockPpSettings = settings->sublist("Postprocess");
     }
     vector<vector<vector<string>>> types = physics->types;
-
+    
     // Add true solutions to the function manager for verification studies
     Teuchos::ParameterList true_solns = blockPpSettings.sublist("True solutions");
-
+    
     vector<std::pair<string, string>> block_error_list = this->addTrueSolutions(true_solns, types, block);
     error_list.push_back(block_error_list);
-
+    
     // Add extra fields
     vector<string> block_ef;
     Teuchos::ParameterList efields = blockPpSettings.sublist("Extra fields");
@@ -289,7 +291,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
       ef_itr++;
     }
     extrafields_list.push_back(block_ef);
-
+    
     // Add extra grp fields
     vector<string> block_ecf;
     Teuchos::ParameterList ecfields = blockPpSettings.sublist("Extra cell fields");
@@ -302,7 +304,7 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
       ecf_itr++;
     }
     extracellfields_list.push_back(block_ecf);
-
+    
     // Add derived quantities from physics modules
     vector<string> block_dq;
     for (size_t set = 0; set < physics->modules.size(); ++set)
@@ -317,15 +319,15 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
       }
     }
     derivedquantities_list.push_back(block_dq);
-
+    
     // Add objective functions
     Teuchos::ParameterList obj_funs = blockPpSettings.sublist("Objective functions");
     this->addObjectiveFunctions(obj_funs, block);
-
+    
     // Add flux responses (special case of responses)
     Teuchos::ParameterList flux_resp = blockPpSettings.sublist("Flux responses");
     this->addFluxResponses(flux_resp, block);
-
+    
     // Add integrated quantities required by physics module
     // This needs to happen before we read in integrated quantities from the input file
     // to ensure proper ordering of the QoI
@@ -335,14 +337,14 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
       for (size_t m = 0; m < physics->modules[set][block].size(); ++m)
       {
         vector<vector<string>> integrandsNamesAndTypes =
-            physics->modules[set][block][m]->setupIntegratedQuantities(dimension);
+        physics->modules[set][block][m]->setupIntegratedQuantities(dimension);
         vector<integratedQuantity> phys_IQs =
-            this->addIntegratedQuantities(integrandsNamesAndTypes, block);
+        this->addIntegratedQuantities(integrandsNamesAndTypes, block);
         // add the IQs from this physics to the "running total"
         block_IQs.insert(end(block_IQs), begin(phys_IQs), end(phys_IQs));
       }
     }
-
+    
     // if the physics module requested IQs, make sure the compute flag is set to true
     // workset storage occurs in the physics module (setWorkset)
     if (block_IQs.size() > 0)
@@ -351,30 +353,51 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
       // but ALSO have IQs defined. This could potentially end up grabbing some of those anyway...
       compute_integrated_quantities = true;
     }
-
+    
     // Add integrated quantities from input file
     Teuchos::ParameterList iqs = blockPpSettings.sublist("Integrated quantities");
     vector<integratedQuantity> user_IQs = this->addIntegratedQuantities(iqs, block);
-
+    
     // add the IQs from the input file to the "running total"
     block_IQs.insert(end(block_IQs), begin(user_IQs), end(user_IQs));
-
+    
     // finalize IQ bookkeeping, IQs are stored block by block
     // only want to do this if we actually are computing something
     if (block_IQs.size() > 0)
       integratedQuantities.push_back(block_IQs);
-
+    
   } // end block loop
   ///////////////////////////////////////////////////
-
+  
   // Add sensor data to objectives
   this->addSensors();
-
+  
 #if defined(MrHyDE_ENABLE_FFTW)
   fft = Teuchos::rcp(new fftInterface());
 #endif
-
+  
   debugger->print("**** Finished PostprocessManager::setup()");
+  
+}
+  // ========================================================================================
+  // ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::completeSetup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+  debugger->print("**** Starting PostprocessManager::completeSetup()");
+  // Meeds to happen here because ip are not defined when constructor is called
+  
+  // Write quadrature points and weights to file if requested
+  // This is useful if one want to use these as sensors
+  if (write_qdata) {
+    this->writeQuadratureData(settings);
+  }
+  
+  if (write_bqdata) {
+    this->writeBoundaryQuadratureData(settings);
+  }
+  
+  debugger->print("**** Finished PostprocessManager::completeSetup()");
 }
 
 // ========================================================================================
@@ -2433,17 +2456,26 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
 
               for (size_type var = 0; var < numDOF.extent(0); var++)
               {
-                auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->usebasis[var]];
-                auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
+                int bnum = assembler->wkset[block]->usebasis[var];
+                auto btype = assembler->wkset[block]->basis_types[bnum];
+                
+                auto cbasis = objectives[r].sensor_basis[bnum];
                 auto u_sv = subview(u_ip, var, ALL());
                 auto u_dof_sv = subview(u_dof, var, ALL());
-                auto ugrad_sv = subview(ugrad_ip, var, ALL());
-
+                
                 parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
                   u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
-                  for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
-                    ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
-                  } });
+                });
+                
+                if (btype == "HGRAD") {
+                  auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
+                  auto ugrad_sv = subview(ugrad_ip, var, ALL());
+                  parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
+                    for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
+                      ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
+                    } });
+
+                }
               }
 
               assembler->wkset[block]->setSolutionPoint(u_ip);
@@ -6733,6 +6765,177 @@ void PostprocessManager<Node>::resetSolutions() {
     soln[set]->reset();
   }
 }
+
+// ========================================================================================
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::writeQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+  
+  // Separate files for different element blocks - can change later if one file is better
+  string ptsfile_base = settings->sublist("Postprocessing").get<string>("quadrature points file", "qpts");
+  string wtsfile_base = settings->sublist("Postprocessing").get<string>("quadrature weights file", "qwts");
+    
+  for (size_t block=0; block<blocknames.size(); ++block) {
+    string ptsfile = ptsfile_base + "." + blocknames[block] + ".dat";
+    string wtsfile = wtsfile_base + "." + blocknames[block] + ".dat";
+    
+    // All processors gather their own data
+    View_Sc2 qdata = assembler->getQuadratureData(blocknames[block]); // [pts wts]
+    Teuchos::Array<ScalarT> data = Teuchos::Array<ScalarT>(qdata.extent(0), 0.0);
+    View_Sc2 qdata0;
+    
+    if (qdata.extent(0) > 0) { // Not all procs will own elements on this block
+      // One by one they send to processor 0, which writes the file
+      for (size_t rank=0; rank<Comm->getSize(); ++rank) {
+        if (rank == 0) {
+          qdata0 = qdata;
+        }
+        else {
+          const int host = 0;
+          Teuchos::Array<int> numdata(1,qdata.extent(0));
+          Teuchos::Array<int> numdata0(1,0);
+          if (Comm->getRank() == rank && rank>0) {
+            Teuchos::send(*Comm, 1, &numdata[0], host);
+          }
+          if (Comm->getRank() == 0 && rank>0) {
+            Teuchos::receive(*Comm, rank, 1, &numdata0[0]);
+            qdata0 = View_Sc2("Data on proc 0", numdata0[0], dimension+1);
+          }
+          
+          for (size_type k=0; k<qdata.extent(1); ++k) {
+            if (Comm->getRank() == rank && rank>0) {
+              for (size_type i=0; i<qdata.extent(0); ++i) {
+                data[i] = qdata(k,i);
+              }
+              Teuchos::send(*Comm, numdata[0], &data[0], 0);
+            }
+            if (Comm->getRank() == 0 && rank>0) {
+              Teuchos::Array<ScalarT> data0(numdata0[0], 0.0);
+              Teuchos::receive(*Comm, rank, numdata[0], &data0[0]);
+              for (size_type i=0; i<qdata.extent(0); ++i) {
+                qdata0(k,i) = data0[i];
+              }
+            }
+          }
+        }
+        if (Comm->getRank() == 0) {
+          std::ofstream ptsOUT(ptsfile.c_str());
+          ptsOUT.precision(12);
+          for (size_type i=0; i<qdata0.extent(0); ++i) {
+            for (size_type v=0; v<qdata0.extent(1)-1; ++v) {
+              ptsOUT << qdata0(i, v) << "  ";
+            }
+            ptsOUT << endl;
+          }
+          ptsOUT.close();
+          
+          std::ofstream wtsOUT(wtsfile.c_str());
+          wtsOUT.precision(12);
+          for (size_type i=0; i<qdata0.extent(0); ++i) {
+            wtsOUT << qdata0(i, qdata0.extent(1)-1) << endl;
+          }
+          wtsOUT.close();
+        }
+      }
+      
+    }
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::writeBoundaryQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+  
+  // Separate files for different side sets (not element blocks) - can change later if one file is better
+  string ptsfile_base = settings->sublist("Postprocessing").get<string>("boundary quadrature points file", "qpts");
+  string wtsfile_base = settings->sublist("Postprocessing").get<string>("boundary quadrature weights file", "qwts");
+  string nsfile_base = settings->sublist("Postprocessing").get<string>("boundary quadrature normals file", "qns");
+  
+  for (size_t block=0; block<blocknames.size(); ++block) {
+  
+    for (size_t side=0; side<sideSets.size(); ++side) {
+      string ptsfile = ptsfile_base + "." + blocknames[block] + "." + sideSets[side] + ".dat";
+      string wtsfile = wtsfile_base + "." + blocknames[block] + "." + sideSets[side] + ".dat";
+      string nsfile = nsfile_base + "." + blocknames[block] + "." + sideSets[side] + ".dat";
+      
+      // All processors gather their own data
+      View_Sc2 qdata = assembler->getboundaryQuadratureData(blocknames[block], sideSets[side]); // [pts wts normals]
+      Teuchos::Array<ScalarT> data = Teuchos::Array<ScalarT>(qdata.extent(0), 0.0);
+      View_Sc2 qdata0;
+      
+      if (qdata.extent(0) > 0) { // Not all procs will own elements on this block
+        // One by one they send to processor 0, which writes the file
+        for (size_t rank=0; rank<Comm->getSize(); ++rank) {
+          if (rank == 0) {
+            qdata0 = qdata;
+          }
+          else {
+            const int host = 0;
+            Teuchos::Array<int> numdata(1,qdata.extent(0));
+            Teuchos::Array<int> numdata0(1,0);
+            if (Comm->getRank() == rank && rank>0) {
+              Teuchos::send(*Comm, 1, &numdata[0], host);
+            }
+            if (Comm->getRank() == 0 && rank>0) {
+              Teuchos::receive(*Comm, rank, 1, &numdata0[0]);
+              qdata0 = View_Sc2("Data on proc 0", numdata0[0], 2*dimension+1); // [pts wts normals]
+            }
+            
+            for (size_type k=0; k<qdata.extent(1); ++k) {
+              if (Comm->getRank() == rank && rank>0) {
+                for (size_type i=0; i<qdata.extent(0); ++i) {
+                  data[i] = qdata(k,i);
+                }
+                Teuchos::send(*Comm, numdata[0], &data[0], 0);
+              }
+              if (Comm->getRank() == 0 && rank>0) {
+                Teuchos::Array<ScalarT> data0(numdata0[0], 0.0);
+                Teuchos::receive(*Comm, rank, numdata[0], &data0[0]);
+                for (size_type i=0; i<qdata.extent(0); ++i) {
+                  qdata0(k,i) = data0[i];
+                }
+              }
+            }
+          }
+          if (Comm->getRank() == 0) {
+            std::ofstream ptsOUT(ptsfile.c_str());
+            ptsOUT.precision(12);
+            for (size_type i=0; i<qdata0.extent(0); ++i) {
+              for (size_type v=0; v<dimension; ++v) {
+                ptsOUT << qdata0(i, v) << "  ";
+              }
+              ptsOUT << endl;
+            }
+            ptsOUT.close();
+            
+            std::ofstream wtsOUT(wtsfile.c_str());
+            wtsOUT.precision(12);
+            for (size_type i=0; i<qdata0.extent(0); ++i) {
+              wtsOUT << qdata0(i, dimension) << endl;
+            }
+            wtsOUT.close();
+            
+            std::ofstream nsOUT(nsfile.c_str());
+            nsOUT.precision(12);
+            for (size_type i=0; i<qdata0.extent(0); ++i) {
+              for (size_type v=0; v<dimension; ++v) {
+                nsOUT << qdata0(i, v+dimension+1) << "  ";
+              }
+              nsOUT << endl;
+            }
+            nsOUT.close();
+            
+          }
+        }
+        
+      }
+    }
+  }
+}
+
 
 // ========================================================================================
 // ========================================================================================

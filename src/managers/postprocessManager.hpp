@@ -325,6 +325,21 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
+    void writeQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings);
+
+    // ========================================================================================
+    // ========================================================================================
+
+    void writeBoundaryQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    
+    // ========================================================================================
+    // ========================================================================================
+
+    void completeSetup(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    
+    // ========================================================================================
+    // ========================================================================================
+
     Teuchos::RCP<MpiComm> Comm;
     Teuchos::RCP<MeshInterface>  mesh;
     Teuchos::RCP<DiscretizationInterface> disc;
@@ -352,7 +367,8 @@ namespace MrHyDE {
     
     bool compute_response, write_response, compute_error, compute_subgrid_error, compute_weighted_norm;
     bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution, write_subgrid_model;
-    int write_frequency, exodus_write_frequency, write_group_number, write_database_id;  ///< Solution write frequency (1/timesteps) 
+    bool write_qdata, write_bqdata;
+    int write_frequency, exodus_write_frequency, write_group_number, write_database_id;  ///< Solution write frequency (1/timesteps)
     std::string exodus_filename, cellfield_reduction;
     int dimension;                                                // spatial dimension
     int numNodesPerElem;                                         // nodes on each element

@@ -1186,6 +1186,16 @@ public:
   // ========================================================================================
   // ========================================================================================
   
+  View_Sc2 getQuadratureData(string & block);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  View_Sc2 getboundaryQuadratureData(string & block, string & sidename);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
   void purgeMemory();
   
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -1222,9 +1232,9 @@ public:
   int verbosity;
   
   // Groups and worksets are unique to each block, but span the physics sets
-  std::vector<Teuchos::RCP<GroupMetaData> > groupData;
-  std::vector<std::vector<Teuchos::RCP<Group> > > groups;
-  std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups;
+  std::vector<Teuchos::RCP<GroupMetaData> > groupData; // [block]
+  std::vector<std::vector<Teuchos::RCP<Group> > > groups; // [block,grp]
+  std::vector<std::vector<Teuchos::RCP<BoundaryGroup> > > boundary_groups; // [block,bgrp] (stores side index and name)
   
   std::vector<Teuchos::RCP<Workset<ScalarT> > > wkset;
 #ifndef MrHyDE_NO_AD

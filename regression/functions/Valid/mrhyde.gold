@@ -1411,6 +1411,8 @@ Postprocess ->
  compute flux response = 0   [default]
  store sensor solution = 0   [default]
  file output format = text   [default]
+ write quadrature data = 0   [default]
+ write boundary quadrature data = 0   [default]
  exodus record start time = -1.79769e+308   [default]
  exodus record stop time = 1.79769e+308   [default]
  record start time = -1.79769e+308   [default]

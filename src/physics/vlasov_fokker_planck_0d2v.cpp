@@ -50,6 +50,8 @@ VFP0d2v<EvalT>::VFP0d2v(Teuchos::ParameterList & settings, const int & dimension
   Z_C = 6.0;
   Z_G = 30.0;
   Z_E = 1.0;
+  
+  gamma_h = 5.0/3.0;
 }
 
 // ========================================================================================
@@ -84,6 +86,33 @@ void VFP0d2v<EvalT>::volumeResidual() {
   Egrad1 = functionManager->evaluate("Egrad1","ip");
   Egrad2 = functionManager->evaluate("Egrad2","ip");
   
+  /*
+  auto IQs = wkset->getIntegratedQuantities();
+  ScalarT n_H, n_C, n_G, n_E;
+  n_H = IQs(0);
+  n_C = IQs(1);
+  n_G = IQs(2);
+  n_E = Z_H*n_H + Z_C*n_C + Z_G*n_G;
+  
+  ScalarT ux_H, ux_C, ux_G, ux_E;
+  ux_H = 1.0/n_H*IQs(3);
+  ux_C = 1.0/n_C*IQs(4);
+  ux_G = 1.0/n_G*IQs(5);
+  ux_E = 1.0/n_E*(Z_H*n_H*ux_H + Z_C*n_C*ux_C + Z_G*n_G*ux_G);
+  
+  ScalarT uy_H, uy_C, uy_G, uy_E;
+  uy_H = 1.0/n_H*IQs(6);
+  uy_C = 1.0/n_C*IQs(7);
+  uy_G = 1.0/n_G*IQs(8);
+  uy_E = 1.0/n_E*(Z_H*n_H*uy_H + Z_C*n_C*uy_C + Z_G*n_G*uy_G);
+  
+  ScalarT Z_eff, gamma_0, beta_0, alpha_0;
+  ScalarT e = 1.602e-19;
+  Z_eff = (Z_H*Z_H*n_H + Z_C*Z_C*n_C + Z_G*Z_G*n_G)/(e*n_E);
+   */
+  //gamma_0 = (25.0*Z_eff*(433.0*Z_eff + 180.0*std::sqrt(2)))/(4.0*(217.0*Z_eff^2 + 604*std::sqrt(2)*Z_eff+288));
+  //beta_0 = (30.0*Z_eff*(11.0*Z_eff+15*std::sqrt(2)))/(217.0*Z_eff^2+604*std::sqrt(2)*Z_eff+288.0);
+  //alpha_0 = (4.0*(16.0*Z_eff^2+61.0*std::sqrt(2)*Z_eff+72.0))/(217*Z_eff^2+604*std::sqrt(2)*Z_eff+288);
   // VFP for Helium
   {
     int H_basis_num = wkset->usebasis[H_num];
@@ -121,6 +150,18 @@ void VFP0d2v<EvalT>::volumeResidual() {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+          //EvalT T_E = (gamma_h-1.0)/(n_E*kappa)*E(elem,pt);
+          //EvalT nu_HE, nu_CE, nu_GE;
+          //nu_HE = (n_H*Z_H^2*e^4*gamma_HE)/(6*std::sqrt(2)*PI*std::sqrt(PI)*(k*T_E)*std::sqrt(k*T_E)*std::sqrt(m_E)*eps_0^2);
+          //nu_CE = (n_C*Z_C^2*e^4*gamma_CE)/(6*std::sqrt(2)*PI*std::sqrt(PI)*(k*T_E)*std::sqrt(k*T_E)*std::sqrt(m_E)*eps_0^2);
+          //nu_GE = (n_G*Z_G^2*e^4*gamma_GE)/(6*std::sqrt(2)*PI*std::sqrt(PI)*(k*T_E)*std::sqrt(k*T_E)*std::sqrt(m_E)*eps_0^2);
+          
+          //EvalT ux_mean, uy_mean;
+          //ux_mean = (nu_HE*ux_H + nu_CE*ux_C + nu_GE*ux_G)/(nu_HE+nu_CE+nu_GE);
+          //ux_mean = (nu_HE*uy_H + nu_CE*uy_C + nu_GE*uy_G)/(nu_HE+nu_CE+nu_GE);
+          
+          //EvalT F_HEx = -m_E*n_E*v_HE*()
+          //EvalT Ex = -(dedx(elem,pt) + F_HE + F_CE + F_GE)/(e*n_E)
           res(elem,off(dof)) += (dHdt(elem,pt) - source(elem,pt))*wts(elem,pt)*basis(elem,dof,pt,0);
           res(elem,off(dof)) += q_H(elem,pt)/m_H*Egrad1(elem,pt)*dHdv1(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,0);
           res(elem,off(dof)) += q_H(elem,pt)/m_H*Egrad1(elem,pt)*dHdv2(elem,pt)*wts(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -321,8 +362,47 @@ void VFP0d2v<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
       E_num = i;
   }
 
+  // First 3 are first moments, next 6 are second moments
+  // These are just scalars for this problem
+  int IQ_start = wkset->addIntegratedQuantities(9);
+  if (IQ_start != 8) {
+    //throw an error
+  }
 }
 
+// ========================================================================================
+// return the integrands for the integrated quantities
+// ========================================================================================
+
+template<class EvalT>
+std::vector< std::vector<string> > VFP0d2v<EvalT>::setupIntegratedQuantities(const int & spaceDim) {
+
+  std::vector< std::vector<string> > integrandsNamesAndTypes;
+
+  std::vector<string> HIQ = {"H","VFP0d2v mean H","volume"};
+  integrandsNamesAndTypes.push_back(HIQ);
+  std::vector<string> CIQ = {"C","VFP0d2v mean C","volume"};
+  integrandsNamesAndTypes.push_back(CIQ);
+  std::vector<string> GIQ = {"G","VFP0d2v mean G","volume"};
+  integrandsNamesAndTypes.push_back(GIQ);
+  
+  std::vector<string> HIQVx = {"x*H","VFP0d2v varx H","volume"};
+  integrandsNamesAndTypes.push_back(HIQVx);
+  std::vector<string> CIQVx = {"x*C","VFP0d2v varx C","volume"};
+  integrandsNamesAndTypes.push_back(CIQVx);
+  std::vector<string> GIQVx = {"x*G","VFP0d2v varx G","volume"};
+  integrandsNamesAndTypes.push_back(GIQVx);
+  
+  std::vector<string> HIQVy = {"y*H","VFP0d2v vary H","volume"};
+  integrandsNamesAndTypes.push_back(HIQVy);
+  std::vector<string> CIQVy = {"y*C","VFP0d2v vary C","volume"};
+  integrandsNamesAndTypes.push_back(CIQVy);
+  std::vector<string> GIQVy = {"y*G","VFP0d2v vary G","volume"};
+  integrandsNamesAndTypes.push_back(GIQVy);
+  
+  return integrandsNamesAndTypes;
+
+}
 
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations
