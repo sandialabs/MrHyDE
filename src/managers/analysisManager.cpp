@@ -1318,15 +1318,12 @@ void AnalysisManager::HDSASolve()
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface;
   if (is_stoch)
   {
-    HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface_s = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
-
     std::vector<ScalarT> ens_weights = std::vector<ScalarT>(ens_size, 0.0);
-    for (int i = 0; i < ens_size; i++)
+    for (int s = 0; s < ens_size; s++)
     {
-      ens_weights[i] = sampler->getMyWeight(i);
+      ens_weights[s] = sampler->getMyWeight(s);
     }
-
-    opt_prob_interface = HDSA::makePtr<MD_OUU_Opt_Prob_Interface_MrHyDE<ScalarT>>(opt_prob_interface_s, params_, sampler, ens_weights);
+    opt_prob_interface = HDSA::makePtr<MD_OUU_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface, sampler, ens_weights);
   }
   else
   {
