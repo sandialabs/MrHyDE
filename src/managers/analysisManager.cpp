@@ -50,6 +50,7 @@
 #include "HDSA_MD_Update.hpp"
 #include "HDSA_MD_OUU_Data_Interface_MrHyDE.hpp"
 #include "HDSA_MD_OUU_Opt_Prob_Interface_MrHyDE.hpp"
+#include "HDSA_MD_OUU_Ensemble_Weighting_Matrix.hpp"
 #include "HDSA_MD_OUU_Hyperparameter_Data_Interface.hpp"
 #include "HDSA_MD_OUU_u_Prior_Interface.hpp"
 
@@ -1409,23 +1410,9 @@ void AnalysisManager::HDSASolve()
       u_hyperparam_interface = u_hyperparam_interface_std[0];
       us_prior_interface = u_prior_interface_std[0];
     }
-    HDSA::Ptr<HDSA::Dense_Matrix<ScalarT>> K = HDSA::makePtr<HDSA::Dense_Matrix<ScalarT>>(ens_size, ens_size);
-    for (int i = 0; i < ens_size; i++)
-    {
-      std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
-      for (int j = 0; j < ens_size; j++)
-      {
-        std::vector<ScalarT> pt_j = sampler->getMyPoint(j);
-        ScalarT dist = 0.0;
-        for (int k = 0; k < 3; k++)
-        {
-          dist += std::pow(pt_i[k] - pt_j[k], 2.0);
-        }
-        ScalarT val = std::exp(-0.5 * dist);
-        K->Set_Entry(i, j, val);
-      }
-    }
-    u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, K);
+
+    HDSA::Ptr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>> ensemble_weighting = HDSA::makePtr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>>(data_interface, us_prior_interface, ens_size);
+    u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, ensemble_weighting);
   }
   else
   {
