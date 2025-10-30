@@ -83,6 +83,7 @@ settings(settings_), comm(comm_) {
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
     have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
+    have_quadrature_data = settings->sublist("Mesh").get<bool>("have mesh quadrature data",false);
     
   }
   

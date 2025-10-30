@@ -120,7 +120,7 @@ int main(int argc,char * argv[]) {
       Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh,
                                                                                                            disc, physics, params));
       
-      assembler->setMeshData();
+      //assembler->setMeshData();
       
       ////////////////////////////////////////////////////////////////////////////////
       // Set up the subgrid discretizations/models if using multiscale method
@@ -189,6 +189,7 @@ int main(int argc,char * argv[]) {
         
       }
       
+      assembler->setMeshData();
       solve->completeSetup();
       postproc->linalg = solve->linalg;
       postproc->completeSetup(settings);

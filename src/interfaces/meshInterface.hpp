@@ -311,7 +311,7 @@ namespace MrHyDE {
     Teuchos::RCP<MpiComm> comm; ///< RCP to the MPIComm
     Teuchos::RCP<panzer_stk::STK_MeshFactory> mesh_factory; ///< RCP to the Panzer STK Mesh Factory
     
-    bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi;
+    bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_quadrature_data;
     string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag;
     int dimension, verbosity;
     int num_nodes_per_elem, side_dim, num_sides, num_faces, num_seeds;
@@ -329,6 +329,7 @@ namespace MrHyDE {
     vector<vector<ScalarT> > nfield_vals, efield_vals;
     
     Teuchos::RCP<SimpleMeshManager<ScalarT>> simple_mesh; ///< RCP to the SimpleMeshManager
+    ///<
   private:
     Teuchos::RCP<panzer_stk::STK_Interface> stk_mesh; ///< RCP to the Panzer STK Mesh
     Teuchos::RCP<panzer_stk::STK_Interface> stk_optimization_mesh; ///< RCP to the Panzer STK Mesh used to visualize an optmization history.
