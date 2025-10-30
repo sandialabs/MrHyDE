@@ -40,6 +40,7 @@
 #include "HDSA_Prior_Operators_Interface_MrHyDE.hpp"
 #include "HDSA_MD_u_Prior_Interface.hpp"
 #include "HDSA_MD_Numeric_Laplacian_u_Prior_Interface.hpp"
+#include "HDSA_MD_Lumped_Mass_u_Prior_Interface.hpp"
 #include "HDSA_MD_Multi_State_u_Prior_Interface.hpp"
 #include "HDSA_MD_z_Prior_Interface.hpp"
 #include "HDSA_MD_Numeric_Laplacian_z_Prior_Interface.hpp"
@@ -50,6 +51,7 @@
 #include "HDSA_MD_Update.hpp"
 #include "HDSA_MD_OUU_Data_Interface_MrHyDE.hpp"
 #include "HDSA_MD_OUU_Opt_Prob_Interface_MrHyDE.hpp"
+#include "HDSA_MD_OUU_Ensemble_Weighting_Matrix.hpp"
 #include "HDSA_MD_OUU_Hyperparameter_Data_Interface.hpp"
 #include "HDSA_MD_OUU_u_Prior_Interface.hpp"
 
@@ -1193,6 +1195,7 @@ void AnalysisManager::HDSASolve()
   int num_posterior_samples = HDSAsettings.sublist("Configuration").get<int>("num_posterior_samples", 0);
   int prior_num_state_solves = HDSAsettings.sublist("Configuration").get<int>("prior_num_state_solves", 0);
   int hdsa_verbosity = HDSAsettings.sublist("Configuration").get<int>("verbosity", 0);
+  bool use_lumped_mass_prior = HDSAsettings.sublist("Configuration").get<bool>("use_lumped_mass_prior", false);
   bool execute_prior_discrepancy_sampling = HDSAsettings.sublist("Configuration").get<bool>("execute_prior_discrepancy_sampling", false);
   bool execute_posterior_discrepancy_sampling = HDSAsettings.sublist("Configuration").get<bool>("execute_posterior_discrepancy_sampling", false);
   bool execute_optimal_solution_update = HDSAsettings.sublist("Configuration").get<bool>("execute_optimal_solution_update", false);
@@ -1234,9 +1237,9 @@ void AnalysisManager::HDSASolve()
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
   HDSA::Ptr<HDSA::Random_Number_Generator<ScalarT>> random_number_generator;
+  HDSA::Ptr<HDSA::Comm<int>> hdsa_comm = HDSA::makePtr<HDSA::Comm<int>>(comm_);
   if (random_number_file == "error")
   {
-    HDSA::Ptr<HDSA::Comm<int>> hdsa_comm = HDSA::makePtr<HDSA::Comm<int>>(comm_);
     random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<ScalarT>>(hdsa_comm);
   }
   else
@@ -1318,15 +1321,12 @@ void AnalysisManager::HDSASolve()
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface;
   if (is_stoch)
   {
-    HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface_s = HDSA::makePtr<MD_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface);
-
     std::vector<ScalarT> ens_weights = std::vector<ScalarT>(ens_size, 0.0);
-    for (int i = 0; i < ens_size; i++)
+    for (int s = 0; s < ens_size; s++)
     {
-      ens_weights[i] = sampler->getMyWeight(i);
+      ens_weights[s] = sampler->getMyWeight(s);
     }
-
-    opt_prob_interface = HDSA::makePtr<MD_OUU_Opt_Prob_Interface_MrHyDE<ScalarT>>(opt_prob_interface_s, params_, sampler, ens_weights);
+    opt_prob_interface = HDSA::makePtr<MD_OUU_Opt_Prob_Interface_MrHyDE<ScalarT>>(solver_, postproc_, params_, data_interface, sampler, ens_weights);
   }
   else
   {
@@ -1363,22 +1363,38 @@ void AnalysisManager::HDSASolve()
     if (is_transient)
     {
       HDSA::Ptr<HDSA::MD_u_Prior_Interface<ScalarT>> spatial_u_prior_interface_k;
+      HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov_k;
+      ScalarT T = solver_->final_time;
+      int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
 
       if (is_stoch)
       {
         HDSA::Ptr<HDSA::MD_OUU_Data_Interface<ScalarT>> ouu_data_interface = Teuchos::rcp_dynamic_cast<HDSA::MD_OUU_Data_Interface<ScalarT>>(data_interface);
         HDSA::Ptr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>> data_interface_hyperparam = HDSA::makePtr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>>(ouu_data_interface);
-        spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, u_hyperparam_interface_std[k], random_number_generator);
+        if (use_lumped_mass_prior)
+        {
+          spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Lumped_Mass_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, u_hyperparam_interface_std[k], hdsa_comm, random_number_generator);
+        }
+        else
+        {
+          spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, u_hyperparam_interface_std[k], random_number_generator);
+        }
+        int n_y = data_interface_hyperparam->Get_u_opt()->Dimension() / n_t;
+        transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface_hyperparam, u_hyperparam_interface_std[k], T, n_t, n_y);
       }
       else
       {
-        spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], random_number_generator);
+        int n_y = data_interface->Get_u_opt()->Dimension() / n_t;
+        if (use_lumped_mass_prior)
+        {
+          spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Lumped_Mass_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], hdsa_comm, random_number_generator);
+        }
+        else
+        {
+          spatial_u_prior_interface_k = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], random_number_generator);
+        }
+        transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface_std[k], T, n_t, n_y);
       }
-
-      ScalarT T = solver_->final_time;
-      int n_t = solver_->settings->sublist("Solver").get<int>("number of steps", 0) + 1;
-      int n_y = data_interface->Get_u_opt()->Dimension() / n_t;
-      HDSA::Ptr<HDSA::MD_Transient_Prior_Covariance<ScalarT>> transient_prior_cov_k = HDSA::makePtr<HDSA::MD_Transient_Prior_Covariance<ScalarT>>(data_interface, u_hyperparam_interface_std[k], T, n_t, n_y);
 
       u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Transient_Elliptic_u_Prior_Interface<ScalarT>>(spatial_u_prior_interface_k, transient_prior_cov_k);
     }
@@ -1388,11 +1404,25 @@ void AnalysisManager::HDSASolve()
       {
         HDSA::Ptr<HDSA::MD_OUU_Data_Interface<ScalarT>> ouu_data_interface = Teuchos::rcp_dynamic_cast<HDSA::MD_OUU_Data_Interface<ScalarT>>(data_interface);
         HDSA::Ptr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>> data_interface_hyperparam = HDSA::makePtr<HDSA::MD_OUU_Hyperparameter_Data_Interface<ScalarT>>(ouu_data_interface);
-        u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, u_hyperparam_interface_std[k], random_number_generator);
+        if (use_lumped_mass_prior)
+        {
+          u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Lumped_Mass_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, u_hyperparam_interface_std[k], hdsa_comm, random_number_generator);
+        }
+        else
+        {
+          u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface_hyperparam, u_hyperparam_interface_std[k], random_number_generator);
+        }
       }
       else
       {
-        u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], random_number_generator);
+        if (use_lumped_mass_prior)
+        {
+          u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Lumped_Mass_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], hdsa_comm, random_number_generator);
+        }
+        else
+        {
+          u_prior_interface_std[k] = HDSA::makePtr<HDSA::MD_Numeric_Laplacian_u_Prior_Interface<ScalarT>>(S, M, data_interface, u_hyperparam_interface_std[k], random_number_generator);
+        }
       }
     }
   }
@@ -1410,23 +1440,9 @@ void AnalysisManager::HDSASolve()
       u_hyperparam_interface = u_hyperparam_interface_std[0];
       us_prior_interface = u_prior_interface_std[0];
     }
-    HDSA::Ptr<HDSA::Dense_Matrix<ScalarT>> K = HDSA::makePtr<HDSA::Dense_Matrix<ScalarT>>(ens_size, ens_size);
-    for (int i = 0; i < ens_size; i++)
-    {
-      std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
-      for (int j = 0; j < ens_size; j++)
-      {
-        std::vector<ScalarT> pt_j = sampler->getMyPoint(j);
-        ScalarT dist = 0.0;
-        for (int k = 0; k < 3; k++)
-        {
-          dist += std::pow(pt_i[k] - pt_j[k], 2.0);
-        }
-        ScalarT val = std::exp(-0.5 * dist);
-        K->Set_Entry(i, j, val);
-      }
-    }
-    u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, K);
+
+    HDSA::Ptr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>> ensemble_weighting = HDSA::makePtr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>>(data_interface, us_prior_interface, ens_size);
+    u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, ensemble_weighting);
   }
   else
   {
@@ -1478,7 +1494,7 @@ void AnalysisManager::HDSASolve()
   }
   else if (z_type == "vector")
   {
-    z_prior_interface = HDSA::makePtr<HDSA::MD_Vector_z_Prior_Interface<ScalarT>>(alpha_z);
+    z_prior_interface = HDSA::makePtr<HDSA::MD_Vector_z_Prior_Interface<ScalarT>>(data_interface, z_hyperparam_interface, u_prior_interface);
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////////////////
