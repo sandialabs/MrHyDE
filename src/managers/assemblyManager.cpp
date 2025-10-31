@@ -4661,7 +4661,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
   
   int dimension = groupData[block]->dimension;
   size_type numip = groupData[block]->ref_ip.extent(0);
-  bool ignore_orientations = true;
+  bool ignore_orientations = false;//true;
   for (size_t i=0; i<groupData[block]->basis_pointers.size(); ++i) {
     if (groupData[block]->basis_pointers[i]->requireOrientation()) {
       ignore_orientations = false;
@@ -4728,7 +4728,11 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
     disc->getMeasure(groupData[block], jacobian, measure);
     auto measure_host = create_mirror_view(measure);
     deep_copy(measure_host,measure);
-    
+    auto numElem = groups[block][grp]->numElem;
+    bool store_anyway = false;
+    if (numElem < 10) {
+      store_anyway = true;
+    }
     for (size_t e=0; e<groups[block][grp]->numElem; ++e) {
       bool found = false;
       size_t prog = 0;
@@ -4786,7 +4790,7 @@ void AssemblyManager<Node>::identifyVolumetricDatabase(const size_t & block, vec
           ++prog;
         }
       }
-      if (!found) {
+      if (!found || store_anyway) {
         index_host(e) = first_users.size();
         std::pair<size_t,size_t> newuj{grp,e};
         first_users.push_back(newuj);
@@ -5261,6 +5265,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
     //database_orientation_host(e) = orientations_host(refelem);
     
     database_ids_host(e) = groups[block][refgrp]->localElemID(refelem);
+    
     // Get the wts on the host
     View_Sc2 twts("temp physical wts",groups[block][refgrp]->numElem, database_wts.extent(1));
     vector<View_Sc2> tmpip;
@@ -8757,7 +8762,10 @@ void AssemblyManager<Node>::setMeshData() {
   
   debugger->print("**** Starting assembly manager setMeshData");
   
-  if (mesh->have_mesh_data) {
+  if (mesh->have_quadrature_data) {
+    this->importQuadratureData();
+  }
+  else if (mesh->have_mesh_data) {
     this->importMeshData();
   }
   else if (mesh->compute_mesh_data) {
@@ -8966,6 +8974,139 @@ void AssemblyManager<Node>::importMeshData() {
   debugger->print("**** Finished AssemblyManager::meshDataImport");
   
 }
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::importQuadratureData() {
+  
+  debugger->print("**** Starting AssemblyManager::importQuadratureData ...");
+  
+  Teuchos::Time meshimporttimer("mesh import", false);
+  meshimporttimer.start();
+  
+  
+  for (size_t block=0; block<groups.size(); ++block) {
+    int numdata = disc->numip[block];    
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      int numElem = groups[block][grp]->numElem;
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
+      groups[block][grp]->data = cell_data;
+      //groups[block][grp]->data_distance = vector<ScalarT>(numElem);
+      //groups[block][grp]->data_seed = vector<size_t>(numElem);
+      //groups[block][grp]->data_seedindex = vector<size_t>(numElem);
+    }
+  }
+  /*
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    int numdata = disc->numip_side[block];
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      int numElem = boundary_groups[block][grp]->numElem;
+      Kokkos::View<ScalarT**,AssemblyDevice> cell_data("cell_data",numElem,numdata);
+      boundary_groups[block][grp]->data = cell_data;
+      boundary_groups[block][grp]->data_distance = vector<ScalarT>(numElem);
+      boundary_groups[block][grp]->data_seed = vector<size_t>(numElem);
+      boundary_groups[block][grp]->data_seedindex = vector<size_t>(numElem);
+    }
+  }
+  */
+  
+  string mesh_data_pts_file = mesh->mesh_data_pts_tag + ".dat";
+  string mesh_data_file = mesh->mesh_data_tag + ".dat";
+  
+  Teuchos::RCP<Data> qpt_data = Teuchos::rcp(new Data("mesh data", mesh->dimension, mesh_data_pts_file,
+                                                      mesh_data_file, false));
+  for (size_t block=0; block<groups.size(); ++block) {
+    int numip = disc->numip[block];
+    for (size_t grp=0; grp<groups[block].size(); ++grp) {
+      DRV nodes = groups[block][grp]->nodes;
+      int numElem = groups[block][grp]->numElem;
+      auto qpts_vec = groups[block][grp]->getIntegrationPts();
+      View_Sc2 qpts("quadrature pts", numElem*numip, mesh->dimension);
+      auto qpts_mirror = Kokkos::create_mirror_view(qpts);
+      
+      for (int dim=0; dim<mesh->dimension; ++dim) {
+        auto pt_mirror = Kokkos::create_mirror_view(qpts_vec[dim]);
+        Kokkos::deep_copy(pt_mirror, qpts_vec[dim]);
+        
+        int prog = 0;
+        for (int elem=0; elem<numElem; elem++) {
+          for (int pt=0; pt<numip; pt++) {
+            qpts_mirror(prog,dim) = pt_mirror(elem, pt);
+            prog++;
+          }
+        }
+      }
+      Kokkos::deep_copy(qpts, qpts_mirror);
+      Kokkos::View<ScalarT*, AssemblyDevice> distance("distance", numElem*numip);
+      Kokkos::View<int*, CompadreDevice> cnode("cnode", numElem*numip);
+      
+      qpt_data->findClosestPoint(qpts,cnode,distance);
+      
+      auto data_mirror = Kokkos::create_mirror_view(groups[block][grp]->data);
+      
+      int prog = 0;
+      for (int elem=0; elem<numElem; elem++) {
+        for (int pt=0; pt<numip; pt++) {
+          Kokkos::View<ScalarT**,HostDevice> cdata = qpt_data->getData(cnode(prog));
+          data_mirror(elem,pt) = cdata(0,0);
+          prog++;
+        }
+      }
+      groups[block][grp]->group_data->have_quadrature_data = true;
+      
+      Kokkos::deep_copy(groups[block][grp]->data, data_mirror);
+    }
+  }
+  
+    // Mp
+    /*
+  for (size_t block=0; block<boundary_groups.size(); ++block) {
+    for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
+      DRV nodes = boundary_groups[block][grp]->nodes;
+      int numElem = boundary_groups[block][grp]->numElem;
+      
+      auto centers = mesh->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
+      
+      Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
+      Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
+      
+      mesh_data->findClosestPoint(centers,cnode,distance);
+      
+      auto distance_mirror = Kokkos::create_mirror_view(distance);
+      auto data_mirror = Kokkos::create_mirror_view(boundary_groups[block][grp]->data);
+      
+      for (int c=0; c<numElem; c++) {
+        Kokkos::View<ScalarT**,HostDevice> cdata = mesh_data->getData(cnode(c));
+        
+        for (size_t i=0; i<cdata.extent(1); i++) {
+          data_mirror(c,i) = cdata(0,i);
+        }
+        
+        boundary_groups[block][grp]->group_data->have_extra_data = true;
+        boundary_groups[block][grp]->group_data->have_rotation = mesh->have_rotations;
+        boundary_groups[block][grp]->group_data->have_phi = mesh->have_rotation_phi;
+        
+        boundary_groups[block][grp]->data_seed[c] = cnode(c);
+        boundary_groups[block][grp]->data_seedindex[c] = cnode(c) % 50;
+        boundary_groups[block][grp]->data_distance[c] = distance_mirror(c);
+      }
+      Kokkos::deep_copy(boundary_groups[block][grp]->data, data_mirror);
+    }
+  }*/
+  
+  
+  
+  meshimporttimer.stop();
+  if (verbosity>5 && comm->getRank() == 0) {
+    cout << "mesh data import time: " << meshimporttimer.totalElapsedTime(false) << endl;
+  }
+  
+  debugger->print("**** Finished AssemblyManager::meshDataImport");
+  
+}
+
 
 // ========================================================================================
 // ========================================================================================

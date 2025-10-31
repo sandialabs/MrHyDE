@@ -882,7 +882,7 @@ DRV DiscretizationInterface::getMyNodes(const size_t & block, Kokkos::View<LO*,A
   deep_copy(elemIDs_host, elemIDs);
   
   for (size_type e=0; e<elemIDs_host.extent(0); ++e) {
-    localIds[e] = elemIDs_host(e);//my_elements[block](elemIDs_host(e));
+    localIds[e] = my_elements[block](elemIDs_host(e));;//elemIDs_host(e);//my_elements[block](elemIDs_host(e));
   }
   DRV nodes = mesh->getMyNodes(block, localIds);
   
