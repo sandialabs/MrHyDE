@@ -1225,8 +1225,15 @@ void AnalysisManager::HDSASolve()
   ScalarT beta_z = HDSAsettings.sublist("HyperParameters").sublist("z").get<ScalarT>("beta_z", 0.0);
   ScalarT beta_t_z_prior = HDSAsettings.sublist("HyperParameters").sublist("z").get<ScalarT>("beta_t", 0.0);
 
+  ScalarT max_marginal_var_percent = HDSAsettings.sublist("HyperParameters").sublist("OUU").get<ScalarT>("max_marginal_var_percent", 1.0);
+  ScalarT min_cond_variance_percent = HDSAsettings.sublist("HyperParameters").sublist("OUU").get<ScalarT>("min_cond_variance_percent", 0.1);
+  bool assume_independent_ensembles = HDSAsettings.sublist("HyperParameters").sublist("OUU").get<bool>("assume_independent_ensembles", false);
+
   int hessian_num_eig_vals = HDSAsettings.sublist("HyperParameters").get<int>("hessian_num_eig_vals", 5);
   int hessian_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("hessian_oversampling", 3);
+
+  bool center_data = HDSAsettings.sublist("HyperParameters").get<bool>("center_data", false);
+  bool adapt_time_variance = HDSAsettings.sublist("HyperParameters").get<bool>("adapt_time_variance", false);
 
   Teuchos::ParameterList data_load_list = HDSAsettings.sublist("DataLoadParameters");
   std::string random_number_file = data_load_list.get<std::string>("random_number_file", "error");
@@ -1367,7 +1374,7 @@ void AnalysisManager::HDSASolve()
   bool is_transient = solver_->isTransient;
   for (int k = 0; k < num_states; k++)
   {
-    u_hyperparam_interface_std[k] = HDSA::makePtr<MD_u_Hyperparameter_Interface_MrHyDE<ScalarT>>(comm_, data_interface, is_transient);
+    u_hyperparam_interface_std[k] = HDSA::makePtr<MD_u_Hyperparameter_Interface_MrHyDE<ScalarT>>(comm_, data_interface, is_transient, center_data, adapt_time_variance);
     u_hyperparam_interface_std[k]->Set_alpha_d(alpha_d[k]);
     u_hyperparam_interface_std[k]->Set_alpha_u(alpha_u[k]);
     u_hyperparam_interface_std[k]->Set_beta_u(beta_u[k]);
@@ -1455,7 +1462,7 @@ void AnalysisManager::HDSASolve()
       us_prior_interface = u_prior_interface_std[0];
     }
 
-    HDSA::Ptr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>> ensemble_weighting = HDSA::makePtr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>>(data_interface, us_prior_interface, ens_size);
+    HDSA::Ptr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>> ensemble_weighting = HDSA::makePtr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>>(data_interface, us_prior_interface, ens_size, max_marginal_var_percent, min_cond_variance_percent, assume_independent_ensembles);
     u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, ensemble_weighting);
   }
   else
