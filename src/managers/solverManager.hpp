@@ -163,8 +163,8 @@ namespace MrHyDE {
     int nonlinearSolver(const size_t & set, const size_t & stage, 
                         vector<vector_RCP> & sol, 
                         vector<vector_RCP> & sol_stage, 
-                        vector<vector_RCP> & sol_prev, 
-                        vector<vector_RCP> & phi, 
+                        vector<vector_RCP> & sol_prev,
+                        vector<vector_RCP> & phi,
                         vector<vector_RCP> & phi_stage, 
                         vector<vector_RCP> & phi_prev);
     
@@ -299,6 +299,7 @@ namespace MrHyDE {
     
     Kokkos::View<ScalarT**,HostDevice> butcher_A; 
     Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
+    vector<vector<vector_RCP> > previous_adjoints; // weighted by Jacobian w.r.t. previous steps
     
   private:
 

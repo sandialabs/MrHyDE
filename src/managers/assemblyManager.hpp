@@ -184,6 +184,7 @@ public:
                       vector<vector_RCP> & phi_step,
                       const bool & compute_jacobian, const bool & compute_sens,
                       const bool & compute_disc_sens,
+                      const bool & compute_previous_jac, const size_t & stepindex,
                       vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                       const ScalarT & current_time, const bool & useadjoint,
                       const bool & store_adjPrev,
@@ -208,6 +209,7 @@ public:
                       vector_RCP & param_dot,
                       const bool & compute_jacobian, const bool & compute_sens,
                       const bool & compute_disc_sens,
+                      const bool & compute_previous_jac, const size_t & stepindex,
                       vector_RCP & res, matrix_RCP & J, const bool & isTransient,
                       const ScalarT & current_time, const bool & useadjoint,
                       const bool & store_adjPrev,
@@ -1017,46 +1019,6 @@ public:
   void updateRes(const int & block, const size_t & grp,
                  const bool & compute_sens, View_Sc3 local_res,
                  Teuchos::RCP<Workset<EvalT> > & wset);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void updateAdjointRes(const int & block, const size_t & grp,
-                        const bool & compute_jacobian, const bool & isTransient,
-                        const bool & compute_aux_sens, const bool & store_adjPrev,
-                        Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                        vector<Kokkos::View<ScalarT***,AssemblyDevice> > other_J,
-                        Kokkos::View<ScalarT***,AssemblyDevice> local_res);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  template<class EvalT>
-  void updateAdjointRes(const int & block, const size_t & grp,
-                        const bool & compute_jacobian, const bool & isTransient,
-                        const bool & compute_aux_sens, const bool & store_adjPrev,
-                        Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                        vector<Kokkos::View<ScalarT***,AssemblyDevice> > other_J,
-                        Kokkos::View<ScalarT***,AssemblyDevice> local_res,
-                        Teuchos::RCP<Workset<EvalT> > & wset);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  void updateAdjointBoundaryRes(const int & block, const size_t & grp,
-                                const bool & compute_jacobian,
-                                Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                                Kokkos::View<ScalarT***,AssemblyDevice> local_res);
-  
-  // ========================================================================================
-  // ========================================================================================
-  
-  template<class EvalT>
-  void updateAdjointBoundaryRes(const int & block, const size_t & grp,
-                                const bool & compute_jacobian,
-                                Kokkos::View<ScalarT***,AssemblyDevice> local_J,
-                                Kokkos::View<ScalarT***,AssemblyDevice> local_res,
-                                Teuchos::RCP<Workset<EvalT> > & wset);
   
   // ========================================================================================
   // ========================================================================================

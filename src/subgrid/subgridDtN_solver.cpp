@@ -747,12 +747,6 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
     
       for (size_t e=0; e<assembler->groups[macrogrp].size(); e++) {
         
-        if (isAdjoint) {
-          if (is_final_time) {
-            Kokkos::deep_copy(assembler->groups[macrogrp][e]->adj_prev[0], 0.0);
-          }
-        }
-        
         //////////////////////////////////////////////////////////////
         // Compute res and J=dF/du
         //////////////////////////////////////////////////////////////

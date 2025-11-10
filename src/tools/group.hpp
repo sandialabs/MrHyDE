@@ -166,28 +166,6 @@ namespace MrHyDE {
     
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * @brief Setup scalar views for the time history of the adjoint.
-     * 
-     * @param[in] maxnumsteps  Maximum number of BDF steps for each physics set
-     * @param[in] maxnumstages Maximum number of RK stages for each physics set
-     * 
-     */
-    
-    void setUpAdjointPrev(const vector<int> & maxnumsteps, const vector<int> & maxnumstages) {
-      if (group_data->requires_transient && group_data->requires_adjoint) {
-        for (size_t set=0; set<LIDs.size(); ++set) {
-          View_Sc3 newaprev("previous step adjoint",numElem,LIDs[set].extent(1),maxnumsteps[set]);
-          adj_prev.push_back(newaprev);
-          View_Sc3 newastage("previous stage adjoint",numElem,LIDs[set].extent(1),maxnumstages[set]);
-          adj_stage_prev.push_back(newastage);
-        }
-      }
-    }
-    
-    ///////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////
     
     void setUpSubGradient(const int & numParams) {
       if (group_data->requires_adjoint) {
@@ -201,12 +179,6 @@ namespace MrHyDE {
     
     void updateSubgridModel(vector<Teuchos::RCP<SubGridModel> > & models);
         
-    ///////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////////////////////////////////////////////////////////////
-    
-    void resetAdjPrev(const size_t & set, const ScalarT & val);
-    
-    
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -289,7 +261,6 @@ namespace MrHyDE {
     bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false, have_sols = false, have_nodes;
 
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
-    vector<Kokkos::View<ScalarT***,AssemblyDevice> > adj_prev, adj_stage_prev;
     vector<ScalarT> data_distance;
     
   };

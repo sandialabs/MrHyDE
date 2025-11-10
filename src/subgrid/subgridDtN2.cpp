@@ -580,8 +580,6 @@ void SubGridDtN2::createNewGroups(SubGridTools2 & sgt, size_t & mindex) {
   newgroups[0]->setUseBasis(sub_solver->solver->useBasis[0],
                             sub_solver->solver->maxnumsteps,
                             sub_solver->solver->maxnumstages, true);
-  newgroups[0]->setUpAdjointPrev(sub_solver->solver->maxnumsteps,
-                                     sub_solver->solver->maxnumstages);
   newgroups[0]->setUpSubGradient(sub_solver->solver->params->num_active_params);
   
   groups.push_back(newgroups);

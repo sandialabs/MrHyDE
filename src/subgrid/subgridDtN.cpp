@@ -681,8 +681,6 @@ void SubGridDtN::setUpSubgridModels() {
         groups[mindex][grp]->setUseBasis(sub_solver->solver->useBasis[0],
                                         sub_solver->solver->maxnumsteps,
                                         sub_solver->solver->maxnumstages, true);
-        groups[mindex][grp]->setUpAdjointPrev(sub_solver->solver->maxnumsteps,
-                                           sub_solver->solver->maxnumstages);
         groups[mindex][grp]->setUpSubGradient(sub_solver->solver->params->num_active_params);
       }
       if (boundary_groups.size() > mindex) { // should always be true here

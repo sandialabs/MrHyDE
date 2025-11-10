@@ -91,12 +91,12 @@ namespace MrHyDE {
     string amesos_type, belos_type, prec_type;
     string belos_sublist, prec_sublist;
     bool use_direct, use_preconditioner, right_preconditioner, reuse_preconditioner, reuse_jacobian;
-    bool have_jacobian, have_preconditioner, have_symb_factor;
+    bool have_jacobian, have_preconditioner, have_symb_factor, have_previous_jacobian;
     Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > amesos_solver;
     Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec; // AMG preconditioner for Jacobians
     Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > prec_dd; // domain decomposition preconditioner for Jacobians
     matrix_RCP jac; // Jacobian
-    
+    vector<matrix_RCP> jac_prev; // Jacobian w.r.t. previous time steps - needed for transient adjoint solves
   };
   
   // ========================================================================================
@@ -197,6 +197,36 @@ namespace MrHyDE {
     }
     
     // ========================================================================================
+    // This is defined for adjoint solves which need the Jacobian w.r.t. previous time steps
+    // ========================================================================================
+    
+    vector<matrix_RCP> getNewPreviousMatrix(const size_t & set, const size_t & numsteps) {
+      Teuchos::TimeMonitor mattimer(*newmatrixtimer);
+      vector<matrix_RCP> newmat;
+      if (options[set]->reuse_jacobian) {
+        if (options[set]->have_previous_jacobian) {
+          newmat = options[set]->jac_prev;
+        }
+        else {
+          for (size_t k=0; k<numsteps; ++k) {
+            matrix_RCP M = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], max_entries));
+            newmat.push_back(M);
+          }
+          options[set]->jac_prev = newmat;
+          options[set]->have_previous_jacobian = true;
+        }
+      }
+      else {
+        for (size_t k=0; k<numsteps; ++k) {
+          matrix_RCP M = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], max_entries));
+          newmat.push_back(M);
+        }
+      }
+      
+      return newmat;
+    }
+    
+    // ========================================================================================
     // ========================================================================================
     
     matrix_RCP getNewParamMatrix() {
@@ -239,8 +269,7 @@ namespace MrHyDE {
     
     void resetJacobian() {
       for (size_t set=0; set<options.size(); ++set) {
-        options[set]->have_jacobian = false;
-        options[set]->have_preconditioner = false;
+        this->resetJacobian(set);
       }
     }
     
@@ -249,7 +278,11 @@ namespace MrHyDE {
     
     void resetJacobian(const size_t & set) {
       options[set]->have_jacobian = false;
+      options[set]->have_previous_jacobian = false;
       options[set]->have_preconditioner = false;
+      options[set]->jac = Teuchos::null;
+      options[set]->prec = Teuchos::null;
+      options[set]->prec_dd = Teuchos::null;
     }
     
     // ========================================================================================

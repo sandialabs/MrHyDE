@@ -942,7 +942,6 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
       assembler->groupData[block]->setSolutionFields(maxnumsteps, maxnumstages);
       for (size_t grp=0; grp<assembler->groups[block].size(); ++grp) {
         assembler->groups[block][grp]->setUseBasis(block_useBasis, maxnumsteps, maxnumstages, false);
-        assembler->groups[block][grp]->setUpAdjointPrev(numsteps, maxnumstages);
         assembler->groups[block][grp]->setUpSubGradient(params->num_active_params);
       }
       
@@ -1394,6 +1393,26 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       sol_stage.push_back(linalg->getNewOverlappedVector(set));
       phi_stage.push_back(linalg->getNewOverlappedVector(set));
     }
+    // Transient adjoints require derivatives of Jacobians w.r.t. previous states
+    // We store the Jacobian-vector products in a (Nstep x Nstep) matrix
+    if (previous_adjoints.size() == 0) {
+      for (size_t i=0; i<numsteps[0]; ++i) { // hard-coded for now
+        vector<vector_RCP> ivecs;
+        for (size_t set=0; set<setnames.size(); ++set) { // hard-coded for now
+          vector_RCP tempvec = linalg->getNewVector(set);
+          tempvec->putScalar(0.0);
+          ivecs.push_back(tempvec);
+        }
+        previous_adjoints.push_back(ivecs);
+      }
+    }
+    else {
+      for (size_t i=0; i<numsteps[0]; ++i) { // hard-coded for now
+        for (size_t set=0; set<setnames.size(); ++set) { // hard-coded for now
+          previous_adjoints[i][set]->putScalar(0.0);
+        }
+      }
+    }
     
     size_t set = 0, stage = 0;
     // Just getting the number of times from first physics set should be fine
@@ -1487,7 +1506,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
   
   int maxiter = maxNLiter;
   if (is_adjoint) {
-    maxiter = 2;//2;
+    maxiter = 1;//2;
   }
     
   bool proceed = true;
@@ -1506,7 +1525,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
     current_du = linalg->getNewVector(set);
     current_du_over = linalg->getNewOverlappedVector(set);
   }
-
+  
   while (proceed) {
     
     multiscale_manager->reset();
@@ -1515,56 +1534,47 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
     gNLiter = NLiter;
   
     bool build_jacobian = !linalg->getJacobianReuse(set);
-    matrix_RCP J = linalg->getNewMatrix(set);
-
-    matrix_RCP J_over; 
+    matrix_RCP J, J_over;
+    
+    J = linalg->getNewMatrix(set);
     if (build_jacobian) {
       J_over = linalg->getNewOverlappedMatrix(set);
       linalg->fillComplete(J_over);
+      J_over->resumeFill();
+      J_over->setAllToScalar(0.0);
     }
     
     // *********************** COMPUTE THE JACOBIAN AND THE RESIDUAL **************************
     
     current_res_over->putScalar(0.0);
 
-    if (build_jacobian) {
-      J_over->resumeFill();
-      J_over->setAllToScalar(0.0);
-    }
-    
-    store_adjPrev = false;
+    store_adjPrev = false; //false;
     if ( is_adjoint && (NLiter == 1)) {
       store_adjPrev = true;
     }
 
     bool use_autotune = true;
-    if (is_adjoint || assembler->groupData[0]->multiscale) {
+    if (assembler->groupData[0]->multiscale) {
       use_autotune = false;
     }
 
     auto paramvec = params->getDiscretizedParamsOver();
     auto paramdot = params->getDiscretizedParamsDotOver();
-    if (!use_autotune) { //
-      assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
-                                current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
-                                params->num_active_params, paramvec, paramdot, is_final_time, deltat);
-    }
-    else {
-      assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, 
-                             paramvec, paramdot, current_res_over, J_over, isTransient, current_time, deltat);
-    }
-
-    linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
     
-    if (is_adjoint) {
-      ScalarT cdt = 0.0;
-      if (solver_type == "transient") {
-        cdt = deltat;
+    // This is where the residual is computed for the forward problem
+    // Jacobian is computed only if the residual is large enough to merit a linear solve
+    // Adjoint residual is computed below
+    if (!is_adjoint) {
+      if (!use_autotune) {
+        assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false, false, 0,
+                                  current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                  params->num_active_params, paramvec, paramdot, is_final_time, deltat);
       }
-      
-      // This modifies the residual to be the residual of the dual/adjoint problem
-      postproc->computeObjectiveGradState(set, sol[set], current_time+cdt, deltat, current_res);
-      
+      else {
+        assembler->assembleRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev,
+                               paramvec, paramdot, current_res_over, J_over, isTransient, current_time, deltat);
+      }
+      linalg->exportVectorFromOverlapped(set, current_res, current_res_over);
     }
     
     // *********************** CHECK THE NORM OF THE RESIDUAL **************************
@@ -1583,6 +1593,12 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       resnorm_scaled[0] = resnorm[0]/resnorm_first[0];
     }
     
+    // hard code these for adjoint solves since residual is computed below and only one iteration is needed
+    if (is_adjoint) {
+      resnorm[0] = 1.0;
+      resnorm_scaled[0] = 1.0;
+    }
+    
     if (Comm->getRank() == 0 && verbosity > 1) {
       cout << endl << "*********************************************************" << endl;
       cout << "***** Iteration: " << NLiter << endl;
@@ -1594,28 +1610,16 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
     if (!is_adjoint && allowBacktracking && resnorm_scaled[0] > 1.1) {
       solve = false;
       alpha *= 0.5;
-      if (is_adjoint) {
-        Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        if (phi_stage.size() > 0) {
-          phi_stage[stage]->update(-1.0*alpha, *(current_du_over), 1.0);
-        }
-        else {
-          phi[set]->update(-1.0*alpha, *(current_du_over), 1.0);
-        }
+      Teuchos::TimeMonitor localtimer(*updateLAtimer);
+      if (sol_stage.size() > 0) {
+        sol_stage[stage]->update(-1.0*alpha, *(current_du_over), 1.0);
       }
       else {
-        Teuchos::TimeMonitor localtimer(*updateLAtimer);
-        if (sol_stage.size() > 0) {
-          sol_stage[stage]->update(-1.0*alpha, *(current_du_over), 1.0);
-        }
-        else {
-          sol[set]->update(-1.0*alpha, *(current_du_over), 1.0);
-        }
+        sol[set]->update(-1.0*alpha, *(current_du_over), 1.0);
       }
       if (Comm->getRank() == 0 && verbosity > 1) {
         cout << "***** Backtracking: new learning rate = " << alpha << endl;
       }
-      
     }
     else {
       if (useRelativeTOL) {
@@ -1633,16 +1637,20 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         proceed = false;
       }
     }
+    if (is_adjoint) { // Always perform one linear solve
+      solve = true; // force a solve
+      proceed = false; // but only one
+    }
     
     // *********************** SOLVE THE LINEAR SYSTEM FOR THE UPDATE **************************
     
     if (solve) {
       
       if (build_jacobian) {
-        if (use_autotune) {
+        if (use_autotune) { // If false, J was already computed when the residual was computed - just saves an extra assembly
           auto paramvec = params->getDiscretizedParamsOver();
           auto paramdot = params->getDiscretizedParamsDotOver();
-          assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false,
+          assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false, false, 0,
                                     current_res_over, J_over, isTransient, current_time, is_adjoint, store_adjPrev,
                                     params->num_active_params, paramvec, paramdot, is_final_time, deltat);
         }
@@ -1651,10 +1659,63 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         linalg->exportMatrixFromOverlapped(set, J, J_over);
         linalg->fillComplete(J);
       }
+            
+      // This is where the adjoint residual is computed
+      if (is_adjoint) {
+        // First, the derivative of the objective w.r.t. the state
+        ScalarT cdt = 0.0;
+        if (isTransient) {
+          cdt = deltat;
+        }
+        postproc->computeObjectiveGradState(set, sol[set], current_time+cdt, deltat, current_res);
+        
+        // We use a true adjoint residual, so we need to Jacobian^T times the current approximation
+        
+        auto mvprod = linalg->getNewVector(set);
+        auto phi_owned = linalg->getNewVector(set);
+        linalg->exportVectorFromOverlappedReplace(set, phi_owned, phi_stage[set]);
+        J->apply(*phi_owned,*mvprod);
+        current_res->update(-1.0, *mvprod, 1.0);
+        
+        
+        // For transient problems, need to update adjoint residual with previous adjoint solutions (multi-step)
+        // This is actually a little complicated
+        // The jacobians need to be evaluated at the right time and using the right forward solution
+        // The Jacobian-vector products we need on this time step should already be computed
+        if (isTransient) {
+          
+          // use the stored Jacobian vector (Jv) products from previous time steps
+          for (size_t istep=0; istep<previous_adjoints.size(); ++istep) {
+            current_res->update(-1.0, *(previous_adjoints[istep][istep]), 1.0);
+          }
+          
+          // Increment the Jv products
+          size_t numSteps = sol_prev.size();
+          for (size_t istep=0; istep<numSteps-1; ++istep) {
+            for (size_t kstep=0; kstep<numSteps; ++kstep) {
+              previous_adjoints[kstep][numSteps-istep] = previous_adjoints[kstep][numSteps-istep-1];
+            }
+          }
+          
+          // The next set of Jacobian vector products are calculated below once phi is updated
+          
+        }
+        {
+          Teuchos::TimeMonitor localtimer(*normLAtimer);
+          current_res->normInf(resnorm);
+        }
+        
+      }
+      
+      //******************************************************
+      // Actual linear solve
+      //******************************************************
       
       current_du->putScalar(0.0);
       current_du_over->putScalar(0.0);
       linalg->linearSolver(set, J, current_res, current_du);
+      
+      // doesn't always write to file - only if requested
       if (is_adjoint) {
         linalg->writeToFile(J, current_res, current_du, "adjoint_jacobian.mm",
                             "adjoint_residual.mm","adjoint_solution.mm");
@@ -1671,7 +1732,51 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
           phi_stage[stage]->update(alpha, *(current_du_over), 1.0);
         }
         else {
-          phi[set]->update(-1.0*alpha, *(current_du_over), 1.0);
+          phi[set]->update(alpha, *(current_du_over), 1.0);
+        }
+        
+        if (isTransient) {
+          // Fill in prev_mass_adjoints[:][0] - need to create new vectors since these are RCPs
+          vector<matrix_RCP> Jprev = linalg->getNewPreviousMatrix(set, phi_prev.size());
+          for (size_t step=0; step<phi_prev.size(); ++step) {
+            
+            if (build_jacobian) {
+              auto paramvec = params->getDiscretizedParamsOver();
+              auto paramdot = params->getDiscretizedParamsDotOver();
+              matrix_RCP currJ = Jprev[step];
+              matrix_RCP currJ_over = linalg->getNewOverlappedMatrix(set);
+              linalg->fillComplete(currJ_over);
+              currJ_over->resumeFill();
+              currJ_over->setAllToScalar(0.0);
+              auto dummy_res_over = linalg->getNewOverlappedVector(set);
+              assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false, true, step,
+                                        dummy_res_over, currJ_over, isTransient, current_time, is_adjoint, store_adjPrev,
+                                        params->num_active_params, paramvec, paramdot, is_final_time, deltat);
+              linalg->fillComplete(currJ_over);
+              currJ->resumeFill();
+              linalg->exportMatrixFromOverlapped(set, currJ, currJ_over);
+              linalg->fillComplete(currJ);
+            }
+            
+            auto mvprod = linalg->getNewVector(set);
+            auto phip_owned = linalg->getNewVector(set);
+            
+            if (step == 0) {
+              if (phi_stage.size() > 0) {
+                linalg->exportVectorFromOverlappedReplace(set, phip_owned, phi_stage[stage]);
+              }
+              else {
+                linalg->exportVectorFromOverlappedReplace(set, phip_owned, phi[set]);
+              }
+            }
+            else {
+              linalg->exportVectorFromOverlappedReplace(set, phip_owned, phi_prev[step-1]);
+            }
+            
+            Jprev[step]->apply(*phip_owned,*mvprod);
+            previous_adjoints[0][0]->update(1.0, *mvprod, 0.0);
+            
+          }
         }
       }
       else {
@@ -1686,7 +1791,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
     }
     NLiter++; // increment number of nonlinear iterations
     
-    if (NLiter >= maxiter) {
+    if (is_adjoint) {
+      //proceed = false;
+    }
+    else if (NLiter >= maxiter) {
       proceed = false;
     }
   } // while loop

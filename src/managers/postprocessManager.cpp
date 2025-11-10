@@ -902,6 +902,27 @@ void PostprocessManager<Node>::report()
                 }
               }
             }
+            else if (objectives[obj].output_type == "integrated dft")
+            {
+              auto dft_data = objectives[obj].sensor_solution_dft;
+              size_type numfreq = dft_data.extent(3);
+              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
+              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+              numfields = numsols * numdims;
+              // need number of integrals to compute
+              sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, numfields, numfreq);
+              for (size_t t = 0; t < numfreq; ++t) {
+                for (int sens = 0; sens < numsensors; ++sens) {
+                  size_t solprog = 0;
+                  for (int sol = 0; sol < numsols; ++sol) {
+                    for (int d = 0; d < numdims; ++d) {
+                      sensor_data(sens, solprog, t) = dft_data(sens, sol, d, t).real();
+                      solprog++;
+                    }
+                  }
+                }
+              }
+            }
             else
             {
               numtimes = objectives[obj].sensor_solution_data.size();              // vector of Kokkos::Views
@@ -4453,7 +4474,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
     vector<vector_RCP> zero_vec;
     auto paramvec = params->getDiscretizedParamsOver();
     auto paramdot = params->getDiscretizedParamsDotOver();
-    assembler->assembleJacRes(set, 0, u, u_stage, u_prev, u, zero_vec, zero_vec, false, true, false,
+    assembler->assembleJacRes(set, 0, u, u_stage, u_prev, u, zero_vec, zero_vec, false, true, false, false, 0,
                               res_over, J_over, isTD, current_time, false, false,            // store_adjPrev,
                               params->num_active_params, paramvec, paramdot, false, deltat); // is_final_time, deltat);
 
@@ -4575,7 +4596,7 @@ ScalarT PostprocessManager<Node>::computeDualWeightedResidual(vector<vector_RCP>
   vector<vector_RCP> zero_vec;
   auto Psol = params->getDiscretizedParamsOver();
   auto Pdot = params->getDiscretizedParamsDotOver();
-  assembler->assembleJacRes(set, stage, u, zero_vec, zero_vec, u, zero_vec, zero_vec, false, false, false,
+  assembler->assembleJacRes(set, stage, u, zero_vec, zero_vec, u, zero_vec, zero_vec, false, false, false, false, 0,
                             res_over, J_over, isTD, current_time, false, false,    // store_adjPrev,
                             params->num_active_params, Psol, Pdot, false, deltat); // is_final_time, deltat);
 
@@ -4619,7 +4640,7 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> &u,
   auto Psol = params->getDiscretizedParamsOver();
   auto Pdot = params->getDiscretizedParamsDotOver();
 
-  assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true,
+  assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true, false, 0,
                             res_over, J_over, isTD, current_time, false, false,    // store_adjPrev,
                             params->num_active_params, Psol, Pdot, false, deltat); // is_final_time, deltat);
 
