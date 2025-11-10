@@ -1017,7 +1017,7 @@ void AnalysisManager::ROLStochSolve()
   ROL::Ptr<ROL::BatchManager<RealT>> bman = ROL::makePtr<ROL::MrHyDETeuchosBatchManager<RealT, int>>(comm_);
   int nsamp = ROLsettings.sublist("SOL").get("Number of Samples", 100);
   ROL::Ptr<ROL::SampleGenerator<RealT>> sampler;
-  if ( ROLsettings.sublist("SOL").get("Sample Set File", "error") == "error" )
+  if (ROLsettings.sublist("SOL").get("Sample Set File", "error") == "error")
   {
     std::cout << "I was unable to read the sample set or weights, so a new sampler is being created" << std::endl;
     sampler = ROL::makePtr<ROL::MonteCarloGenerator<RealT>>(nsamp, dist, bman);
@@ -1225,8 +1225,15 @@ void AnalysisManager::HDSASolve()
   ScalarT beta_z = HDSAsettings.sublist("HyperParameters").sublist("z").get<ScalarT>("beta_z", 0.0);
   ScalarT beta_t_z_prior = HDSAsettings.sublist("HyperParameters").sublist("z").get<ScalarT>("beta_t", 0.0);
 
+  ScalarT max_marginal_var_percent = HDSAsettings.sublist("HyperParameters").sublist("OUU").get<ScalarT>("max_marginal_var_percent", 1.0);
+  ScalarT min_cond_variance_percent = HDSAsettings.sublist("HyperParameters").sublist("OUU").get<ScalarT>("min_cond_variance_percent", 0.1);
+  bool assume_independent_ensembles = HDSAsettings.sublist("HyperParameters").sublist("OUU").get<bool>("assume_independent_ensembles", false);
+
   int hessian_num_eig_vals = HDSAsettings.sublist("HyperParameters").get<int>("hessian_num_eig_vals", 5);
   int hessian_oversampling = HDSAsettings.sublist("HyperParameters").get<int>("hessian_oversampling", 3);
+
+  bool center_data = HDSAsettings.sublist("HyperParameters").get<bool>("center_data", false);
+  bool adapt_time_variance = HDSAsettings.sublist("HyperParameters").get<bool>("adapt_time_variance", false);
 
   Teuchos::ParameterList data_load_list = HDSAsettings.sublist("DataLoadParameters");
   std::string random_number_file = data_load_list.get<std::string>("random_number_file", "error");
@@ -1268,6 +1275,10 @@ void AnalysisManager::HDSASolve()
   ///////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////// Data_Interface ///////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////////////////
+  if (hdsa_verbosity > 1)
+  {
+    std::cout << "Beginning Data_Interface instantiation" << std::endl;
+  }
 
   HDSA::Ptr<HDSA::MD_Data_Interface<ScalarT>> data_interface;
   if (is_stoch)
@@ -1318,6 +1329,11 @@ void AnalysisManager::HDSASolve()
   //////////////////////////////////////// Opt_Prob_Interface ///////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+  if (hdsa_verbosity > 1)
+  {
+    std::cout << "Beginning Opt_Prob_Interface instantiation" << std::endl;
+  }
+
   HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<ScalarT>> opt_prob_interface;
   if (is_stoch)
   {
@@ -1337,6 +1353,11 @@ void AnalysisManager::HDSASolve()
   //////////////////////////////////////// u_Prior_Interface ////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+  if (hdsa_verbosity > 1)
+  {
+    std::cout << "Beginning u_Prior_Interface instantiation" << std::endl;
+  }
+
   vector<string> blockNames = solver_->mesh->getBlockNames();
   HDSA::Ptr<Prior_Operators_Interface_MrHyDE<ScalarT>> prior_operator_interface = HDSA::makePtr<Prior_Operators_Interface_MrHyDE<ScalarT>>(comm_, settings_, blockNames);
   HDSA::Ptr<HDSA::Sparse_Matrix<ScalarT>> M = HDSA::makePtr<HDSA::Sparse_Matrix<ScalarT>>(prior_operator_interface->M);
@@ -1353,7 +1374,7 @@ void AnalysisManager::HDSASolve()
   bool is_transient = solver_->isTransient;
   for (int k = 0; k < num_states; k++)
   {
-    u_hyperparam_interface_std[k] = HDSA::makePtr<MD_u_Hyperparameter_Interface_MrHyDE<ScalarT>>(comm_, data_interface, is_transient);
+    u_hyperparam_interface_std[k] = HDSA::makePtr<MD_u_Hyperparameter_Interface_MrHyDE<ScalarT>>(comm_, data_interface, is_transient, center_data, adapt_time_variance);
     u_hyperparam_interface_std[k]->Set_alpha_d(alpha_d[k]);
     u_hyperparam_interface_std[k]->Set_alpha_u(alpha_u[k]);
     u_hyperparam_interface_std[k]->Set_beta_u(beta_u[k]);
@@ -1441,7 +1462,7 @@ void AnalysisManager::HDSASolve()
       us_prior_interface = u_prior_interface_std[0];
     }
 
-    HDSA::Ptr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>> ensemble_weighting = HDSA::makePtr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>>(data_interface, us_prior_interface, ens_size);
+    HDSA::Ptr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>> ensemble_weighting = HDSA::makePtr<HDSA::MD_OUU_Ensemble_Weighting_Matrix<ScalarT>>(data_interface, us_prior_interface, ens_size, max_marginal_var_percent, min_cond_variance_percent, assume_independent_ensembles);
     u_prior_interface = HDSA::makePtr<HDSA::MD_OUU_u_Prior_Interface<ScalarT>>(us_prior_interface, ensemble_weighting);
   }
   else
@@ -1461,6 +1482,11 @@ void AnalysisManager::HDSASolve()
   ///////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////// z_Prior_Interface ////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+  if (hdsa_verbosity > 1)
+  {
+    std::cout << "Beginning z_Prior_Interface instantiation" << std::endl;
+  }
 
   std::string z_type;
   if (params_->getNumParams("discretized") > 0)
@@ -1516,6 +1542,11 @@ void AnalysisManager::HDSASolve()
 
   if ((num_prior_samples > 0) & execute_prior_discrepancy_sampling)
   {
+    if (hdsa_verbosity > 1)
+    {
+      std::cout << "Beginning prior discrepancy analysis" << std::endl;
+    }
+
     HDSA::Ptr<HDSA::MD_Prior_Sampling<ScalarT>> prior_sampling = HDSA::makePtr<HDSA::MD_Prior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
     HDSA::Ptr<HDSA::MultiVector<ScalarT>> spatial_coords = data_interface->Read_Spatial_Node_Data();
     prior_sampling->Generate_Prior_Discrepancy_Sample_Data(num_prior_samples, u_hyperparam_interface, z_hyperparam_interface, spatial_coords);
@@ -1540,11 +1571,21 @@ void AnalysisManager::HDSASolve()
   HDSA::Ptr<HDSA::MD_Posterior_Sampling<ScalarT>> post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<ScalarT>>(data_interface, u_prior_interface, z_prior_interface);
   if (execute_posterior_discrepancy_sampling || execute_optimal_solution_update)
   {
+    if (hdsa_verbosity > 1)
+    {
+      std::cout << "Beginning posterior data computation" << std::endl;
+    }
+
     post_sampling->Compute_Posterior_Data(u_hyperparam_interface->Get_alpha_d(), num_posterior_samples);
   }
 
   if ((num_posterior_samples > 0) & execute_posterior_discrepancy_sampling)
   {
+    if (hdsa_verbosity > 1)
+    {
+      std::cout << "Beginning posterior discrepancy analysis" << std::endl;
+    }
+
     std::vector<HDSA::Ptr<HDSA::Vector<ScalarT>>> z_in;
     int N = data_interface->Get_Z()->Number_of_Vectors();
     z_in.resize(N);
@@ -1565,6 +1606,11 @@ void AnalysisManager::HDSASolve()
     HDSA::Ptr<HDSA::MD_Hessian_Analysis<ScalarT>> hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<ScalarT>>(opt_prob_interface, z_prior_interface);
     if (hessian_num_eig_vals > 0)
     {
+      if (hdsa_verbosity > 1)
+      {
+        std::cout << "Beginning Hessian analysis" << std::endl;
+      }
+
       hessian_analysis->Compute_Hessian_GEVP(data_interface->Get_z_opt(), hessian_num_eig_vals, hessian_oversampling, false);
       HDSA::Ptr<HDSA::Dense_Matrix<ScalarT>> evals = hessian_analysis->Get_Evals();
       output_writer->Write_Hessian_Eigenvalues(evals);
@@ -1573,6 +1619,11 @@ void AnalysisManager::HDSASolve()
     HDSA::Ptr<HDSA::MD_Update<ScalarT>> update = HDSA::makePtr<HDSA::MD_Update<ScalarT>>(data_interface, u_prior_interface, z_prior_interface, opt_prob_interface, post_sampling, hessian_analysis);
     if (num_posterior_samples > 0)
     {
+      if (hdsa_verbosity > 1)
+      {
+        std::cout << "Beginning posterior optimal solution analysis" << std::endl;
+      }
+
       HDSA::Ptr<HDSA::MD_Posterior_Vectors<ScalarT>> posterior_update_samples = update->Posterior_Update_Samples();
       output_writer->Write_Optimal_Solution_Update(posterior_update_samples);
 
