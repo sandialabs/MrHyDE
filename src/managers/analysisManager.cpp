@@ -1047,20 +1047,41 @@ void AnalysisManager::ROLStochSolve()
     // read in data
     std::ifstream in(init_iter_file);
     MrHyDE_OptVector &xs = dynamic_cast<MrHyDE_OptVector &>(*x);
-    std::vector<ROL::Ptr<ROL::StdVector<ScalarT>>> x_data = xs.getParameter();
-    ROL::Ptr<std::vector<ScalarT>> x_std = x_data[0]->getVector();
-    // read the elements in the file into a vector
-    if (in)
+
+    if (xs.haveScalar())
     {
-      for (int i = 0; i < x->dimension(); i++)
+      std::vector<ROL::Ptr<ROL::StdVector<ScalarT>>> x_data = xs.getParameter();
+      ROL::Ptr<std::vector<ScalarT>> x_std = x_data[0]->getVector();
+      // read the elements in the file into a vector
+      if (in)
       {
-        in >> val;
-        (*x_std)[i] = val;
+        for (int i = 0; i < x->dimension(); i++)
+        {
+          in >> val;
+          (*x_std)[i] = val;
+        }
+      }
+      else
+      {
+        std::cout << "Error loading the data from " << init_iter_file << std::endl;
       }
     }
-    else
+    else if (xs.haveField())
     {
-      std::cout << "Error loading the data from " << init_iter_file << std::endl;
+      std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT>>> x_data = xs.getField();
+      ROL::Ptr<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > x_tpetra = x_data[0]->getVector();
+      if (in)
+      {
+        for (int i = 0; i < x->dimension(); i++)
+        {
+          in >> val;
+          x_tpetra->replaceGlobalValue(i,0,val);
+        }
+      }
+      else
+      {
+        std::cout << "Error loading the data from " << init_iter_file << std::endl;
+      }
     }
   }
 

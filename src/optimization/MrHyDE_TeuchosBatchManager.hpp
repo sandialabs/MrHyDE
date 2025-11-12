@@ -30,7 +30,7 @@ public:
     std::vector<ROL::Ptr<ROL::TpetraMultiVector<Real,LO,GO,SolverNode> > > output_field_ptr
       = output_mrhyde_vec.getField();
 
-    if ( input_field_ptr.size() > 0 ) {
+    if ( input_mrhyde_vec.haveField() ) {
       ROL::Ptr<Tpetra::MultiVector<Real,LO,GO,SolverNode>> input_field  = input_field_ptr[0]->getVector();
       ROL::Ptr<Tpetra::MultiVector<Real,LO,GO,SolverNode>> output_field = output_field_ptr[0]->getVector();
       size_t input_length  = input_field->getLocalLength();
@@ -55,7 +55,7 @@ public:
     std::vector<ROL::Ptr<ROL::StdVector<Real> > > output_param_ptr
       = output_mrhyde_vec.getParameter();
 
-    if ( input_param_ptr.size() > 0 ) {
+    if ( input_mrhyde_vec.haveScalar() ) {
       ROL::Ptr<std::vector<Real>> input_param  = input_param_ptr[0]->getVector();
       ROL::Ptr<std::vector<Real>> output_param = output_param_ptr[0]->getVector();
       size_t input_size  = static_cast<size_t>(input_param->size());
