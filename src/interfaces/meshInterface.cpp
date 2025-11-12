@@ -69,12 +69,13 @@ settings(settings_), comm(comm_) {
   }
   verbosity = settings->get<int>("verbosity",0);
   
-  have_mesh_data = false;
+  have_mesh_data = false; 
   compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
   have_rotations = false;
   have_rotation_phi = false;
+  have_quadrature_data = false;
   mesh_data_file_tag = "none";
-  mesh_data_pts_tag = "mesh_data_pts";
+  mesh_data_pts_tag = "none";
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
@@ -84,7 +85,6 @@ settings(settings_), comm(comm_) {
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
     have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
     have_quadrature_data = settings->sublist("Mesh").get<bool>("have mesh quadrature data",false);
-    
   }
   
   meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);
@@ -265,8 +265,9 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
   compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
   have_rotations = false;
   have_rotation_phi = false;
+  have_quadrature_data = false;
   mesh_data_file_tag = "none";
-  mesh_data_pts_tag = "mesh_data_pts";
+  mesh_data_pts_tag = "none";
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
@@ -275,7 +276,7 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
     have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
-    
+    have_quadrature_data = settings->sublist("Mesh").get<bool>("have mesh quadrature data",false);
   }
   
   meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);
@@ -1246,3 +1247,5 @@ void MeshInterface::purgeMaps(){
        simple_mesh->deallocateMaps();
   }
 }
+
+
