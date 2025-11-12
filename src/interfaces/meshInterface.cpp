@@ -1247,5 +1247,3 @@ void MeshInterface::purgeMaps(){
        simple_mesh->deallocateMaps();
   }
 }
-
-
