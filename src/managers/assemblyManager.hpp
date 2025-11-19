@@ -18,18 +18,20 @@
 #include "Panzer_DOFManager.hpp"
 
 #include "preferences.hpp"
-#include "groupMetaData.hpp"
-#include "group.hpp"
-#include "boundaryGroup.hpp"
-#include "workset.hpp"
-#include "meshInterface.hpp"
-#include "physicsInterface.hpp"
-#include "discretizationInterface.hpp"
+#include "tools/groupMetaData.hpp"
+#include "tools/group.hpp"
+#include "tools/boundaryGroup.hpp"
+#include "tools/workset.hpp"
+#include "tools/data.hpp"
+
+#include "interfaces/meshInterface.hpp"
+#include "interfaces/physicsInterface.hpp"
+#include "interfaces/discretizationInterface.hpp"
+
 #include "parameterManager.hpp"
 #include "multiscaleManager.hpp"
 #include "functionManager.hpp"
-#include "data.hpp"
-#include "MrHyDE_Debugger.hpp"
+#include "tools/MrHyDE_Debugger.hpp"
 
 namespace MrHyDE {
 

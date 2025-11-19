@@ -4,18 +4,24 @@ cmake_minimum_required(VERSION 3.23.0 FATAL_ERROR)
 # not every version of CMAKE uses the new version of policy CMP0057
 # this enforces it since Kokkos assumes the new version of the policy
 CMAKE_POLICY(SET CMP0057 NEW)
+CMAKE_POLICY(SET CMP0048 NEW)
 
 ENABLE_TESTING()
 
 SET(TRILINOS_DIR ${Trilinos_INSTALL_DIR})
 SET(Trilinos_SRC_DIR ${Trilinos_SRC_DIR})
+option(MrHyDE_BUILD_SHARED_LIBS "Build MrHyDE with shared libraries." ON)
 
 set(CMAKE_PREFIX_PATH ${TRILINOS_DIR} ${CMAKE_PREFIX_PATH})
 
 #PROJECT(mrhyde)
 project(mrhyde
   LANGUAGES NONE  # Defined below after reading in compilers
+  VERSION 0.1.0
 )
+
+# the RPATH to be used when installing, but only if it's not a system directory
+list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX/lib}" isSystemDir)
 
 find_package(Trilinos REQUIRED)
 
@@ -42,6 +48,7 @@ IF(Trilinos_VERSION LESS 14.0) # GH: if a version is not detected, CMake default
 ELSE()
   MESSAGE("   Trilinos_VERSION >= 14 detected, using new names for Tpetra::KokkosCompat objects")
   ADD_DEFINITIONS(-DMrHyDE_HAVE_TRILINOS14)
+  set(MrHyDE_HAVE_TRILINOS14 TRUE)
 ENDIF()
 MESSAGE("End of Trilinos details\n")
 
@@ -272,7 +279,48 @@ ENDIF()
 IF(MrHyDE_ENABLE_UNIT_TESTS)
   ADD_SUBDIRECTORY(unit_tests)
 ENDIF()
-  
+
+IF(MrHyDE_BUILD_SHARED_LIBS)
+
+  # Add necessary definitions here
+  IF(MrHyDE_HAVE_TRILINOS14)
+    target_compile_definitions(mrhyde_lib PUBLIC MrHyDE_HAVE_TRILINOS14)
+  ENDIF()
+
+
+  # Install the shared library object targets
+  install(TARGETS mrhyde_lib
+    EXPORT MrHyDETargets
+    DESTINATION lib)
+
+  # Configure the CMake packaging
+  include(CMakePackageConfigHelpers)
+  configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+      "${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfig.cmake"
+      INSTALL_DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/MrHyDEcmake"
+      NO_SET_AND_CHECK_MACRO
+      NO_CHECK_REQUIRED_COMPONENTS_MACRO
+  )
+
+  write_basic_package_version_file(
+      "${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfigVersion.cmake"
+      VERSION "${PROJECT_VERSION}"
+      COMPATIBILITY SameMajorVersion
+  )
+
+  install(FILES
+      ${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfig.cmake
+      ${CMAKE_CURRENT_BINARY_DIR}/MrHyDEConfigVersion.cmake
+      DESTINATION lib/cmake/MrHyDE
+  )
+
+  export(TARGETS mrhyde_lib NAMESPACE MrHyDE:: FILE MrHyDETargets.cmake)
+  export(PACKAGE MrHyDE)
+
+  # Install the cmake configuration
+  install(EXPORT MrHyDETargets NAMESPACE MrHyDE:: DESTINATION lib/cmake/MrHyDE)
+ENDIF()
+
 #INSTALL(
 #    DIRECTORY ""
 #    DESTINATION ""
