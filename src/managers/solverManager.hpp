@@ -144,6 +144,16 @@ namespace MrHyDE {
     
     void adjointModel(MrHyDE_OptVector & gradient);
     
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    
+    void incrementalForwardModel(ScalarT & objective);
+    
+    // ========================================================================================
+    // ========================================================================================
+    
+    void incrementalAdjointModel(MrHyDE_OptVector & hessvec);
+    
     // ========================================================================================
     /* solve the problem */
     // ========================================================================================
@@ -300,6 +310,7 @@ namespace MrHyDE {
     Kokkos::View<ScalarT**,HostDevice> butcher_A; 
     Kokkos::View<ScalarT*,HostDevice> butcher_b, butcher_c;
     vector<vector<vector_RCP> > previous_adjoints; // weighted by Jacobian w.r.t. previous steps
+    vector<vector<vector_RCP> > previous_incadjoints; // weighted by Jacobian w.r.t. previous steps
     
   private:
 

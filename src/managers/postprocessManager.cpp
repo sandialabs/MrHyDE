@@ -16,18 +16,18 @@ using namespace MrHyDE;
 // ========================================================================================
 
 template <class Node>
-PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> &Comm_,
-                                             Teuchos::RCP<Teuchos::ParameterList> &settings,
-                                             Teuchos::RCP<MeshInterface> &mesh_,
-                                             Teuchos::RCP<DiscretizationInterface> &disc_,
-                                             Teuchos::RCP<PhysicsInterface> &phys_,
-                                             Teuchos::RCP<AssemblyManager<Node>> &assembler_) : Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
-                                                                                                assembler(assembler_)
+PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
+                                             Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                             Teuchos::RCP<MeshInterface> & mesh_,
+                                             Teuchos::RCP<DiscretizationInterface> & disc_,
+                                             Teuchos::RCP<PhysicsInterface> & phys_,
+                                             Teuchos::RCP<AssemblyManager<Node>> & assembler_) : Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
+                                                                                                assembler(assembler_), settings(settings_)
 {
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PostprocessManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
 
-  this->setup(settings);
+  this->setup();
 }
 
 // ========================================================================================
@@ -35,20 +35,20 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> &Comm_,
 // ========================================================================================
 
 template <class Node>
-PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> &Comm_,
-                                             Teuchos::RCP<Teuchos::ParameterList> &settings,
-                                             Teuchos::RCP<MeshInterface> &mesh_,
-                                             Teuchos::RCP<DiscretizationInterface> &disc_,
-                                             Teuchos::RCP<PhysicsInterface> &phys_,
-                                             Teuchos::RCP<MultiscaleManager> &multiscale_manager_,
-                                             Teuchos::RCP<AssemblyManager<Node>> &assembler_,
-                                             Teuchos::RCP<ParameterManager<Node>> &params_) : Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
-                                                                                              assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_)
+PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
+                                             Teuchos::RCP<Teuchos::ParameterList> & settings_,
+                                             Teuchos::RCP<MeshInterface> & mesh_,
+                                             Teuchos::RCP<DiscretizationInterface> & disc_,
+                                             Teuchos::RCP<PhysicsInterface> & phys_,
+                                             Teuchos::RCP<MultiscaleManager> & multiscale_manager_,
+                                             Teuchos::RCP<AssemblyManager<Node>> & assembler_,
+                                             Teuchos::RCP<ParameterManager<Node>> & params_) : Comm(Comm_), mesh(mesh_), disc(disc_), physics(phys_),
+                                                                                              assembler(assembler_), params(params_), multiscale_manager(multiscale_manager_), settings(settings_)
 {
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PostprocessManager - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
 
-  this->setup(settings);
+  this->setup();
 #if defined(MrHyDE_ENABLE_HDSA)
   hdsa_solop = false;
 #endif
@@ -59,8 +59,7 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> &Comm_,
 // ========================================================================================
 
 template <class Node>
-void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &settings)
-{
+void PostprocessManager<Node>::setup() {
   
   debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level", 0), Comm));
   
@@ -383,18 +382,18 @@ void PostprocessManager<Node>::setup(Teuchos::RCP<Teuchos::ParameterList> &setti
   // ========================================================================================
 
 template <class Node>
-void PostprocessManager<Node>::completeSetup(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+void PostprocessManager<Node>::completeSetup() {
   debugger->print("**** Starting PostprocessManager::completeSetup()");
   // Meeds to happen here because ip are not defined when constructor is called
   
   // Write quadrature points and weights to file if requested
   // This is useful if one want to use these as sensors
   if (write_qdata) {
-    this->writeQuadratureData(settings);
+    this->writeQuadratureData();
   }
   
   if (write_bqdata) {
-    this->writeBoundaryQuadratureData(settings);
+    this->writeBoundaryQuadratureData();
   }
   
   debugger->print("**** Finished PostprocessManager::completeSetup()");
@@ -878,8 +877,7 @@ void PostprocessManager<Node>::report()
                 ++sprog;
               }
             }
-            if (objectives[obj].output_type == "dft")
-            {
+            if (objectives[obj].output_type == "dft") {
               auto dft_data = objectives[obj].sensor_solution_dft;
               size_type numfreq = dft_data.extent(3);
               int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
@@ -904,6 +902,105 @@ void PostprocessManager<Node>::report()
             }
             else if (objectives[obj].output_type == "integrated dft")
             {
+              
+              auto dft_data = objectives[obj].sensor_solution_dft;
+              
+              // Grab some parameters from settings
+              int numtheta = settings->sublist("Postprocess").get("NF2FF number theta", 1);
+              ScalarT mintheta = settings->sublist("Postprocess").get("NF2FF min theta", 0.0);
+              ScalarT maxtheta = settings->sublist("Postprocess").get("NF2FF max theta", 0.0);
+              int numphi = settings->sublist("Postprocess").get("NF2FF number theta", 1);
+              ScalarT minphi = settings->sublist("Postprocess").get("NF2FF min phi", 0.0);
+              ScalarT maxphi = settings->sublist("Postprocess").get("NF2FF max phi", 0.0);
+              ScalarT k0 = settings->sublist("Postprocess").get("NF2FF wave number", 0.0);
+              ScalarT N0 = settings->sublist("Postprocess").get("NF2FF freespace impedence", 0.0);
+              
+              // Create the vectors of PHI and THETA
+              vector<ScalarT> THETA(numtheta), PHI(numphi);
+              if (numtheta>1) {
+                ScalarT dtheta = (maxtheta-mintheta)/(numtheta-1);
+                for (size_t k=0; k<numtheta; ++k) {
+                  THETA[k] = mintheta + k*dtheta;
+                }
+              }
+              else {
+                THETA[0] = mintheta;
+              }
+              
+              if (numphi>1) {
+                ScalarT dphi = (maxphi-minphi)/(numphi-1);
+                for (size_t k=0; k<numphi; ++k) {
+                  PHI[k] = minphi + k*dphi;
+                }
+              }
+              else {
+                PHI[0] = minphi;
+              }
+              
+              // Initialize vector potentials
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> A_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_th", dft_data.extent(3), numtheta, numphi);
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> A_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_ph", dft_data.extent(3), numtheta, numphi);
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> F_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_th", dft_data.extent(3), numtheta, numphi);
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> F_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_ph", dft_data.extent(3), numtheta, numphi);
+              
+              // Need to make a few assumptions here:
+              // 1. The sensors are the boundary quadrature points on a given block
+              // 2. They are in the same order as looping through the boundary groups and quadrature points
+              // 3. A given block has all of its boundary quadrature points as sensors
+              // 4. The data stored in dft_data is the dft of E at the quadrature points
+              // 5. The problem is 3D, not 1D or 2D
+              
+              size_t iblock = objectives[obj].block;
+              int prog = 0; // increments sensors
+              for (size_t grp=0; grp<assembler->boundary_groups[iblock].size(); ++grp) {
+                // These arrays live on the AssemblyDevice, which may not be the Host, i.e., will not run on GPU without data transfer
+                vector<View_Sc2> ip = assembler->boundary_groups[iblock][grp]->ip;
+                vector<View_Sc2> normals = assembler->boundary_groups[iblock][grp]->normals;
+                View_Sc2 wts = assembler->boundary_groups[iblock][grp]->wts;
+                
+                for (int nt=0; nt<numtheta; ++nt) {
+                  for (int np=0; np<numphi; ++np) {
+                    
+                    // Cartesian to spherical transform
+                    vector<ScalarT> r_hat = {std::sin(THETA[nt])*std::cos(PHI[np]), std::sin(THETA[nt])*std::sin(PHI[np]), std::cos(THETA[nt])};
+                    vector<ScalarT> theta_hat = {std::cos(THETA[nt])*std::cos(PHI[np]), std::cos(THETA[nt])*std::sin(PHI[np]), -std::sin(THETA[nt])};
+                    vector<ScalarT> phi_hat = {-std::sin(PHI[np]), std::cos(PHI[np]), 0.0};
+                    
+                    // Compute phase at quadrature points (assumes 3D)
+                    for (size_type elem=0; elem<wts.extent(0); ++elem) {
+                      for (size_type pt=0; pt<wts.extent(1); ++pt) {
+                        
+                        vector<ScalarT> phase = {k0*ip[0](elem,pt)*r_hat[0], k0*ip[1](elem,pt)*r_hat[1], k0*ip[2](elem,pt)*r_hat[2] };
+                        vector<std::complex<ScalarT> > phasor;
+                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[0]), -std::sin(phase[0])));
+                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[1]), -std::sin(phase[1])));
+                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[2]), -std::sin(phase[2])));
+                        
+                        vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor[0], theta_hat[1]*phasor[1], theta_hat[2]*phasor[2]};
+                        vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor[0], phi_hat[1]*phasor[1], phi_hat[2]*phasor[2]};
+                        
+                        for (size_t t=0; t<dft_data.extent(3); ++t) {
+                          vector<std::complex<ScalarT>> Esrc = {dft_data(prog,0,0,t), dft_data(prog,0,1,t), dft_data(prog,0,2,t)};
+                          
+                          // Compute normal x E_theta, normal x Escr, normal x E_phi
+                          vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
+                          vector<std::complex<ScalarT>> n_x_Esrc = {normals[1](elem,pt)*Esrc[2] - normals[2](elem,pt)*Esrc[1], normals[2](elem,pt)*Esrc[0] - normals[0](elem,pt)*Esrc[2], normals[0](elem,pt)*Esrc[1] - normals[1](elem,pt)*Esrc[0]};
+                          vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
+                          
+                          // Sum into the vector potentials
+                          A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
+                          A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
+                          F_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
+                          F_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
+                        }
+                      }
+                    }
+                    prog++;
+                  }
+                }
+                
+              }
+              /*
               auto dft_data = objectives[obj].sensor_solution_dft;
               size_type numfreq = dft_data.extent(3);
               int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
@@ -922,6 +1019,7 @@ void PostprocessManager<Node>::report()
                   }
                 }
               }
+               */
             }
             else
             {
@@ -6791,7 +6889,7 @@ void PostprocessManager<Node>::resetSolutions() {
 // ========================================================================================
 
 template <class Node>
-void PostprocessManager<Node>::writeQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+void PostprocessManager<Node>::writeQuadratureData() {
   
   // Separate files for different element blocks - can change later if one file is better
   string ptsfile_base = settings->sublist("Postprocessing").get<string>("quadrature points file", "qpts");
@@ -6868,7 +6966,7 @@ void PostprocessManager<Node>::writeQuadratureData(Teuchos::RCP<Teuchos::Paramet
 // ========================================================================================
 
 template <class Node>
-void PostprocessManager<Node>::writeBoundaryQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings) {
+void PostprocessManager<Node>::writeBoundaryQuadratureData() {
   
   // Separate files for different side sets (not element blocks) - can change later if one file is better
   string ptsfile_base = settings->sublist("Postprocessing").get<string>("boundary quadrature points file", "qpts");

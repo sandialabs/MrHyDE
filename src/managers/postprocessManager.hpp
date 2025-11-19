@@ -45,7 +45,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
-                       Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        Teuchos::RCP<MeshInterface> & mesh_,
                        Teuchos::RCP<DiscretizationInterface> & disc_,
                        Teuchos::RCP<PhysicsInterface> & phys_,
@@ -56,7 +56,7 @@ namespace MrHyDE {
     // ========================================================================================
     
     PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_,
-                       Teuchos::RCP<Teuchos::ParameterList> & settings,
+                       Teuchos::RCP<Teuchos::ParameterList> & settings_,
                        Teuchos::RCP<MeshInterface> & mesh_,
                        Teuchos::RCP<DiscretizationInterface> & disc_,
                        Teuchos::RCP<PhysicsInterface> & phys_,
@@ -67,7 +67,7 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
     
-    void setup(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    void setup();
     
     // ========================================================================================
     // ========================================================================================
@@ -167,7 +167,8 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
-    void computeSensitivities(vector<vector_RCP> & u, vector<vector_RCP> & sol_stage, vector<vector_RCP> & sol_prev, vector<vector_RCP> & adjoint,
+    void computeSensitivities(vector<vector_RCP> & u, vector<vector_RCP> & sol_stage,
+                              vector<vector_RCP> & sol_prev, vector<vector_RCP> & adjoint,
                               const ScalarT & current_time, const int & tindex, const ScalarT & deltat,
                               MrHyDE_OptVector & gradient);
 
@@ -325,17 +326,17 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
 
-    void writeQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    void writeQuadratureData();
 
     // ========================================================================================
     // ========================================================================================
 
-    void writeBoundaryQuadratureData(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    void writeBoundaryQuadratureData();
     
     // ========================================================================================
     // ========================================================================================
 
-    void completeSetup(Teuchos::RCP<Teuchos::ParameterList> & settings);
+    void completeSetup();
     
     // ========================================================================================
     // ========================================================================================
@@ -349,10 +350,11 @@ namespace MrHyDE {
     Teuchos::RCP<MultiscaleManager> multiscale_manager;
     Teuchos::RCP<LinearAlgebraInterface<Node> > linalg;
     Teuchos::RCP<MrHyDE_Debugger> debugger;
+    Teuchos::RCP<Teuchos::ParameterList> settings;
     
     vector<objective> objectives;
     vector<regularization> regularizations;
-    vector<Teuchos::RCP<SolutionStorage<Node> > > soln, adj_soln, datagen_soln;
+    vector<Teuchos::RCP<SolutionStorage<Node> > > soln, adj_soln, incr_soln, incr_adj_soln, datagen_soln;
     bool save_solution=false, save_adjoint_solution=false;
     vector<fluxResponse> fluxes;
     vector< vector<integratedQuantity> > integratedQuantities; /// A vector of integrated quantities for each block

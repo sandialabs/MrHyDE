@@ -192,7 +192,7 @@ int main(int argc,char * argv[]) {
       assembler->setMeshData();
       solve->completeSetup();
       postproc->linalg = solve->linalg;
-      postproc->completeSetup(settings);
+      postproc->completeSetup();
       
       if (settings->get<bool>("enable memory purge",false)) {
         disc->purgeMemory();
