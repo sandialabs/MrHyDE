@@ -1,14 +1,14 @@
 /***********************************************************************
  MrHyDE - a framework for solving Multi-resolution Hybridized
- Differential Equations and enabling beyond forward simulation for 
+ Differential Equations and enabling beyond forward simulation for
  large-scale multiphysics and multiscale systems.
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
-************************************************************************/
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
+ ************************************************************************/
 
-/** \file   physicsInterface.hpp
- \brief  Contains the user interface to MrHyDE.
- \author Created by T. Wildey
+/** \file physicsInterface.hpp
+ *  \brief Contains the user interface to MrHyDE.
+ *  \author Created by T. Wildey
  */
 
 #ifndef MRHYDE_USERINTERFACE_H
@@ -24,25 +24,39 @@
 #include "MirageTranslator.hpp"
 #endif
 
-
 namespace MrHyDE {
-  class userInterface{
 
-  public:  
+/** \class userInterface
+ *  \brief Provides user-level utilities for loading input files and displaying help.
+ */
+class userInterface{
+  
+public:
   //////////////////////////////////////////////////////////////////////////////////////////////
   // Figure out if a file is .xml or .yaml (default)
   //////////////////////////////////////////////////////////////////////////////////////////////
   
+  /**
+   * \brief Determine input file type based on its extension.
+   *
+   * Supported extensions:
+   *  - `.yaml` → returns 0
+   *  - `.xml`  → returns 1
+   *
+   * \param filename The name of the file to analyze.
+   * \return Integer flag identifying the file type (0=yaml, 1=xml).
+   * \throws std::runtime_error if the extension is not recognized.
+   */
   int getFileType(const std::string & filename)
   {
     int type = -1;
     if(filename.find_last_of(".") != std::string::npos) {
       std::string extension = filename.substr(filename.find_last_of(".")+1);
       if (extension == "yaml") {
-        type = 0;
+        type = 0; ///< YAML file
       }
       else if (extension == "xml") {
-        type = 1;
+        type = 1; ///< XML file
       }
       else {
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized file extension: " + filename);
@@ -55,6 +69,12 @@ namespace MrHyDE {
   // Function to print out help information
   //////////////////////////////////////////////////////////////////////////////////////////////
   
+  /**
+   * \brief Print high-level help or documentation information.
+   *
+   * \param details Additional descriptive text to display.
+   * \return void
+   */
   void userHelp(const std::string & details) {
     cout << "********** Help and Documentation for the User Interface **********" << endl;
   }
@@ -63,16 +83,23 @@ namespace MrHyDE {
   // Standard constructor
   //////////////////////////////////////////////////////////////////////////////////////////////
   
+  /**
+   * \brief Load and parse a user input file into a Trilinos ParameterList.
+   *
+   * \param filename The path to the input file.
+   * \return Teuchos::RCP<Teuchos::ParameterList> Parsed parameter list.
+   */
   Teuchos::RCP<Teuchos::ParameterList> UserInterface(const std::string & filename) {
     
     using Teuchos::RCP;
     using Teuchos::rcp;
     
+    
     RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::UserInterface - constructor");
     Teuchos::TimeMonitor constructortimer(*constructortime);
     
     RCP<Teuchos::ParameterList> settings = rcp(new Teuchos::ParameterList("MrHyDE"));
-        
+    
     // If called from Mirage, then the input file will be called "FEM3<ANYTHING>.xml",
     // e.g. "FEM3.xml", or "FEM3_optimization.xml" or "FEM3_simulation.xml".
     // This required a special interpreter
@@ -87,11 +114,11 @@ namespace MrHyDE {
         (filename[flen-3] == 'x') &&
         (filename[flen-2] == 'm') &&
         (filename[flen-1] == 'l')) {
-      #if defined(MrHyDE_ENABLE_MIRAGE)
+#if defined(MrHyDE_ENABLE_MIRAGE)
       MirageTranslator(settings, filename);
-      #else
+#else
       TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Mirage extensions were not enabled!");
-      #endif
+#endif
     }
     else {
       

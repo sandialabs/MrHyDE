@@ -16,150 +16,119 @@
 
 namespace MrHyDE {
   
+  /** \class UQManager
+   *  \brief Manages uncertainty quantification tasks such as sampling, statistics,
+   *         kernel density estimation, and rejection sampling.
+   */
   class UQManager {
     
   public:
     
-    UQManager() {};
+    UQManager() {}; ///< Default constructor (does nothing)
     
-    // ========================================================================================
-    // ========================================================================================
-    
-    ~UQManager() {};
+    ~UQManager() {}; ///< Default destructor
   
-    // ========================================================================================
-    /* Constructor to set up the problem */
-    // ========================================================================================
-    
     /**
-     * @brief Constructor that actually sets everything up.
+     * @brief Constructor that initializes the UQ manager and stores all parameter info.
      *
-     * @param[in]  comm        Teuchos MPI Communicator
-     * @param[in]  uqsettings  Teuchos ParameterList containing a few settings specific to performing UQ
-     * @param[in]  param*      Vectors of data from parameter manager
+     * @param[in]  comm           Teuchos MPI Communicator
+     * @param[in]  uqsettings     ParameterList with UQ configuration settings
+     * @param[in]  param_types    Types of distributions for each parameter
+     * @param[in]  param_means    Means of each parameter
+     * @param[in]  param_variances Variances of each parameter
+     * @param[in]  param_mins     Minimum allowed values for each parameter
+     * @param[in]  param_maxs     Maximum allowed values for each parameter
      */
-
     UQManager(const Teuchos::RCP<MpiComm> comm, const Teuchos::ParameterList & uqsettings,
               const std::vector<string> & param_types,
               const std::vector<ScalarT> & param_means, const std::vector<ScalarT> & param_variances,
               const std::vector<ScalarT> & param_mins, const std::vector<ScalarT> & param_maxs);
     
-    // ========================================================================================
-    // ========================================================================================
-    
     /**
-     * @brief Generates samples from the user-specified distributions.
+     * @brief Generates samples from the user-specified probability distributions.
      *
      * @param[in]  numsamples   Number of samples to generate
-     * @param[in]  seed         Sets the seed for the random number generator
-     * @param[out] output       2-dimensional Kokkos View of ScalarT.  Dimensions are numsamples x parameter dimension
+     * @param[in]  seed         Seed for random number generator
+     * @return 2D Kokkos::View with shape (numsamples x num_parameters)
      */
-
     Kokkos::View<ScalarT**,HostDevice> generateSamples(const int & numsamples, int & seed);
     
-    // ========================================================================================
-    // ========================================================================================
-    
     /**
-     * @brief Generates integer samples from the user-specified distributions.
+     * @brief Generates integer samples from discrete user-specified distributions.
      *
      * @param[in]  numsamples   Number of samples to generate
-     * @param[in]  seed         Sets the seed for the random number generator
-     * @param[out] output       1-dimensional Kokkos View of int.  Dimension is numsamples.  May generalize in the future to multi-dimensional.
+     * @param[in]  seed         Seed for random number generator
+     * @return 1D Kokkos::View<int> of length numsamples
      */
-
     Kokkos::View<int*,HostDevice> generateIntegerSamples(const int & numsamples, int & seed);
     
-    // ========================================================================================
-    // ========================================================================================
-    
     /**
-     * @brief Generates ScalarT (double) samples from the user-specified distributions.
+     * @brief Generates samples and fills both sample values and their weights.
      *
-     * @param[in]  numsamples   Number of samples to generate
-     * @param[in]  seed         Sets the seed for the random number generator
-     * @param[out] samplepts      The actual samples.
-     * @param[out] samplewts      The weights for each sample, typically 1/N
+     * @param[in]  numsamples   Number of samples
+     * @param[in]  seed         Random number generator seed
+     * @param[out] samplepts    Generated sample points
+     * @param[out] samplewts    Corresponding weights (typically uniform 1/N)
      */
-    
     void generateSamples(const int & numsamples, int & seed,
                          Kokkos::View<ScalarT**,HostDevice> samplepts,
                          Kokkos::View<ScalarT*,HostDevice> samplewts);
     
-    // ========================================================================================
-    // ========================================================================================
-    
     /**
-     * @brief Compute mean, variance, etc.
+     * @brief Computes statistics such as mean and variance from a vector of values.
      *
-     * @param[in]  values    Data to compute stats from.  Stats are output to screen.
+     * @param[in] values  Data vector
      */
-    
     void computeStatistics(const std::vector<ScalarT> & values);
     
-    // ========================================================================================
-    // ========================================================================================
-    
     /**
-     * @brief Compute mean, variance, etc. for a collection of QofI..
+     * @brief Computes statistics for a collection of QOIs.
      *
-     * @param[in]  values    Data to compute stats from.  Stats are output to screen.
+     * @param[in]  values  Vector of 3D Kokkos Views containing QOI data
      */
-    
     void computeStatistics(const vector<Kokkos::View<ScalarT***,HostDevice> > & values);
-    
-    // ========================================================================================
-    // ========================================================================================
     
     /**
      * @brief Standard Gaussian kernel density estimator.
      *
-     * @param[in]  seedpts    Points to serve as centers for the kernels.
-     * @param[in]  evalpts    Points to evaluate KDE at.  May be the same as seedpts.
-     * @param[out]  output    Values of the density estimate at each eval pt.
+     * @param[in] seedpts  Kernel centers
+     * @param[in] evalpts  Evaluation points
+     * @return Density estimate at each eval point
      */
-    
     View_Sc1 KDE(View_Sc2 seedpts, View_Sc2 evalpts);
 
-    // ========================================================================================
-    // ========================================================================================
-
     /**
-     * @brief Just compute the variance for a collection of QofI.
+     * @brief Computes the variance of each QOI in a data table.
      *
-     * @param[in]  pts    2-dimensional Kokkos::View with all of the data.
-     * @param[out]  output    1-dimensional Kokkos::View with the variances for each QofI.
+     * @param[in] pts   2D Kokkos::View with all data
+     * @return 1D View containing variances
      */
-    
     View_Sc1 computeVariance(View_Sc2 pts);
 
-    // ========================================================================================
-    // ========================================================================================
-
     /**
-     * @brief Basis rejection sampling routine.
+     * @brief Rejection sampling based on ratios of densities.
      *
-     * @param[in]  ratios    1-dimensional Kokkos::View with the ratios of two densities (target/generated)
-     * @param[in]  seed    Optional bool to seed to random uniform numbers in [0,1] used in rejection sampling algorithm.
-     * @param[out]  output    1-dimensional Kokkos::View with the logicals on whether to keep each data point
+     * @param[in] ratios  Target/generated density ratios
+     * @param[in] seed    Optional seed for RNG (default: -1 = do not reseed)
+     * @return Boolean View indicating which samples are accepted
      */
-    
     Kokkos::View<bool*,HostDevice> rejectionSampling(View_Sc1 ratios, const int & seed = -1);
 
-    // ========================================================================================
-    // ========================================================================================
-    
   private:
 
-    Teuchos::RCP<MpiComm> comm_;
-    std::string surrogate_;
-    int numstochparams_;
-    bool use_user_defined_;
-    Teuchos::ParameterList uqsettings_;
-    std::vector<string> param_types_;
-    std::vector<ScalarT> param_means_, param_variances_, param_mins_, param_maxs_;
+    Teuchos::RCP<MpiComm> comm_; ///< MPI communicator
+    std::string surrogate_;      ///< Surrogate type or model name
+    int numstochparams_;         ///< Number of stochastic parameters handled
+    bool use_user_defined_;      ///< Flag for user-defined distribution settings
+    Teuchos::ParameterList uqsettings_; ///< Parameter list storing UQ configuration
+
+    std::vector<string> param_types_;      ///< Distribution type for each parameter
+    std::vector<ScalarT> param_means_;     ///< Mean values of parameters
+    std::vector<ScalarT> param_variances_; ///< Variances of parameters
+    std::vector<ScalarT> param_mins_;      ///< Lower bounds of parameters
+    std::vector<ScalarT> param_maxs_;      ///< Upper bounds of parameters
     
-    Kokkos::View<ScalarT**,HostDevice> samples_;
+    Kokkos::View<ScalarT**,HostDevice> samples_; ///< Cached/generated sample storage
   };
 }
 #endif
