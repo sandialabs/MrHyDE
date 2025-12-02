@@ -46,7 +46,9 @@
 #endif
 
 #if defined(MrHyDE_ENABLE_PIEZO)
-#include "maxwell_piezo.hpp"
+#include "piezo_maxwell.hpp"
+#include "piezo_mechanics.hpp"
+#include "full_tensor.hpp"
 #endif
 
 //#include "cns.hpp"
@@ -226,9 +228,13 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     #endif
     
     #if defined(MrHyDE_ENABLE_PIEZO)
-    // Physics for Mirage
-    if (modname == "maxwell piezo" || modname == "maxwell_piezo"){
-        modules.push_back(Teuchos::rcp(new maxwell_piezo<EvalT>(settings, dimension) ) );
+    // Physics for Piezo
+    if (modname == "piezo maxwell" ){
+        modules.push_back(Teuchos::rcp(new piezo_maxwell<EvalT>(settings, dimension) ) );
+    }
+    // Physics for Piezo
+    if (modname == "piezo mechanics"){
+        modules.push_back(Teuchos::rcp(new piezo_mechanics<EvalT>(settings, dimension) ) );
     }
     #endif
     

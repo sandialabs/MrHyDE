@@ -1756,12 +1756,26 @@ void AnalysisManager::readExoForwardSolve()
       params_->updateParams(pt_i, "stochastic");
       std::string outfile = "output_sample_" + std::to_string(i) + ".exo";
       postproc_->setNewExodusFile(outfile);
-      this->forwardSolve();
+      ScalarT objfun = 0.0;
+      solver_->forwardModel(objfun);
+      postproc_->report();
+      std::string name = "obj_val_sample_" + std::to_string(i) + ".txt";
+      std::ofstream fout;
+      fout.open(name);
+      fout << std::setprecision(8) << objfun;
+      fout.close();
     }
   }
   else
   {
-    this->forwardSolve();
+    ScalarT objfun = 0.0;
+    solver_->forwardModel(objfun);
+    postproc_->report();
+    std::string name = "obj_val.txt";
+    std::ofstream fout;
+    fout.open(name);
+    fout << std::setprecision(8) << objfun;
+    fout.close();
   }
 }
 

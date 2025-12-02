@@ -62,7 +62,9 @@ IF(MrHyDE_ENABLE_PIEZO_EXTENSIONS)
   file(GLOB piezo
     "${MrHyDE_PIEZO_EXTENSIONS_DIR}/*.cpp"
   )
-  list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/maxwell_piezo.cpp")
+  list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/piezo_maxwell.cpp")
+  list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/piezo_mechanics.cpp")
+  list(APPEND mrhyde-all "${MrHyDE_PIEZO_EXTENSIONS_DIR}/full_tensor.cpp")
 ENDIF()
 
 #IF(MrHyDE_ENABLE_FFTW)

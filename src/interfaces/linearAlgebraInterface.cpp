@@ -56,7 +56,6 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
   do_dump_residual = settings->sublist("Solver").get<bool>("dump residual",false);
   do_dump_solution = settings->sublist("Solver").get<bool>("dump solution",false);
   
-  
   // Create the solver options for the state Jacobians
   for (size_t set=0; set<setnames.size(); ++set) {
     Teuchos::ParameterList solvesettings;
@@ -344,6 +343,17 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
 
   debugger->print("**** Finished solver::setupLinearAlgebraInterface");
   
+}
+
+// ========================================================================================
+
+template<class Node>
+bool LinearAlgebraInterface<Node>::getJacobianReuse(const size_t & set) {
+  bool reuse = false;
+  if (options[set]->reuse_jacobian && options[set]->have_jacobian) {
+    reuse = true;
+  }
+  return reuse;
 }
 
 // ========================================================================================

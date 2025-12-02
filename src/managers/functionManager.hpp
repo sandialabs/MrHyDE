@@ -6,13 +6,13 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
 ************************************************************************/
 
-/** \file   functionManager.hpp
- \brief  Contains the function manager which handles all of the user-defined or physics-defined functions.
- \author Created by T. Wildey
- */
-
 #ifndef MRHYDE_FUNCTION_MANAGER_H
 #define MRHYDE_FUNCTION_MANAGER_H
+
+/** \file functionManager.hpp
+ *  \brief Contains the function manager which handles all user-defined or physics-defined functions.
+ *  \author Created by T. Wildey
+ */
 
 #include "trilinos.hpp"
 #include "preferences.hpp"
@@ -22,214 +22,167 @@
 #include "vista.hpp"
 
 namespace MrHyDE {
-  
-  /** \class  MrHyDE::FunctionManager
-   \brief  Provides the functionality that allows the user (or physics modules) to define arbitrarily
-   complex functions without modifying the code.
+
+/** \class FunctionManager
+ *  \brief Provides functionality that allows users or physics modules to define arbitrary
+ *         functions without modifying the code.
+ */
+
+template<class EvalT>
+class FunctionManager {
+
+  typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT; ///< Kokkos view type for evaluation storage.
+
+public:
+
+  // ========================================================================================
+  // Constructors / Destructor
+  // ========================================================================================
+
+  /** \brief Default constructor. */
+  FunctionManager();
+
+  /** \brief Destructor. */
+  ~FunctionManager() {};
+
+  /** \brief Standard constructor.
+   *  \param blockname  Name of the block.
+   *  \param num_elem   Number of elements per group.
+   *  \param num_ip     Number of volumetric integration points.
+   *  \param num_ip_side Number of side integration points.
    */
-  
-  template<class EvalT>
-  class FunctionManager {
+  FunctionManager(const std::string & blockname, const int & num_elem,
+                  const int & num_ip, const int & num_ip_side);
 
-    typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT;
-    
-  public:
-    
-    // ========================================================================================
-    // ========================================================================================
-    
-    FunctionManager();
-    
-    // ========================================================================================
-    // ========================================================================================
-    
-    ~FunctionManager() {};
-    
-    /**
-     * @brief Standard contructor.
-     *
-     * @param[in]  blockname    String associated with the block.
-     * @param[in]  num_elem      Number of elements per group.
-     * @param[in]  num_ip      Number of volumetric integration points
-     * @param[in]  num_ip_side      Number of side integration points.
-     */
-    
-    FunctionManager(const std::string & blockname, const int & num_elem,
-                    const int & num_ip, const int & num_ip_side);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief Add a function (tree) to a specific forest given by "location", e.g. "ip" "side ip" or "point"
-     *
-     * @param[in]  fname    String giving the name of the function.
-     * @param[in]  expression    String giving the mathematical expression of the function, e.g., "sin(pi*x)"
-     * @param[in]  location    Forest to put this in.
-     */
-    
-    int addFunction(const std::string & fname, const std::string & expression, const std::string & location);
-    
-    /**
-     * @brief Add a function (tree) to a specific forest given by "location", e.g. "ip" "side ip" or "point"
-     *
-     * @param[in]  fname    String giving the name of the function.
-     * @param[in]  value    Scalar value for the function.  This is handles differently from expressions for memory and cost reasons.
-     * @param[in]  location    Forest to put this in.
-     */
-    
-    int addFunction(const string & fname, ScalarT & value, const string & location);
+  // ========================================================================================
+  // Function addition
+  // ========================================================================================
 
-    //////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief A mostly deprecated function that now just sets the list of parameters for reference.  Other information is taken from the workset.
-     *
-     * @param[in]  parameters    Vector of strings giving the name of the parameters.
-     */
-    
-    void setupLists(const std::vector<std::string> & parameters);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief This is one of the key routines in the function manager.  
-     *   It takes a string defining a mathematical expression and decomposes it into a 
-     *   tree where the leaves of the tree are known quantities.
-     *   Decompose the functions into terms and set the evaluation tree.
-     *   Also sets up the Kokkos::Views (subviews) to the data for all of the terms
-     */
-    
-    void decomposeFunctions();
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief Routine to determine if a term is a ScalarT or needs to be an AD type
-     *
-     * @param[in]  findex    Index of the function in the branch.
-     * @param[in]  tindex    Index of the tree in the forest.
-     * @param[in]  bindex    Index of the branch in the tree.
-     */
-    
-    bool isScalarTerm(const int & findex, const int & tindex, const int & bindex);
-    
-    /**
-     * @brief Routine to determine if the dependent fields for a quantity are constants, Kokkos::Views and/or AD types.
-     *
-     * @param[in]  findex    Index of the function in the branch.
-     * @param[in]  tindex    Index of the tree in the forest.
-     * @param[in]  bindex    Index of the branch in the tree.
-     * @param[out]  isConst   Are the dependencies all constant?
-     * @param[out]  isView   Are any of the dependencies views?
-     * @param[out]  isAD   Are any of the dependencies AD?
-     */
-    
-    void checkDepDataType(const int & findex, const int & tindex, const int & bindex,
-                          bool & isConst, bool & isView, bool & isAD);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief Routine to evaluate a funciton
-     *
-     * @param[in]  fname   String giving name of the function
-     * @param[in]  location    String giving the location (forest) of the function.  Some functions may be defined in multiple forests.
-     */
-    
-    Vista<EvalT> evaluate(const std::string & fname, const std::string & location);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief Routine to determine if a term is a ScalarT or needs to be an AD type
-     *
-     * @param[in]  findex    Index of the function in the branch.
-     * @param[in]  tindex    Index of the tree in the forest.
-     * @param[in]  bindex    Index of the branch in the tree.
-     */
-    
-    void evaluate(const size_t & findex, const size_t & tindex, const size_t & bindex);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Evaluate an operator
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief Evaluate an operator.  Case when the source and target  are both Views
-     *
-     * @param[out]  data    Storage for the target data, e.g., sin(x)
-     * @param[in]   tdata    Storage for the source data, e.g., x
-     * @param[in]   op      String indicating the operator, e.g., sin()
-     */
-    
-    template<class T1, class T2>
-    void evaluateOpVToV(T1 data, T2 tdata, const std::string & op);
-    
-    /**
-     * @brief Evaluate an operator.  Case when the source is a parameter and the target is a View.
-     *
-     * @param[out]  data    Storage for the evaluated data, e.g., sin(x)
-     * @param[in]   tdata    Storage for the source data, e.g., x
-     * @param[in]   op      String indicating the operator, e.g., sin()
-     */
-    
-    template<class T1, class T2>
-    void evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_, const std::string & op);
-    
-    /**
-     * @brief Evaluate an operator.  Case when the source is a ScalarT and the target is a View.
-     *
-     * @param[out]  data    Storage for the evaluated data, e.g., sin(x)
-     * @param[in]   tdata    Storage for the source data, e.g., x
-     * @param[in]   op      String indicating the operator, e.g., sin()
-     */
-    
-    template<class T1, class T2>
-    void evaluateOpSToV(T1 data, T2 & tdata, const std::string & op);
-    
-    /**
-     * @brief Evaluate an operator.  Case when the source and target are both scalars.
-     *
-     * @param[out]  data    Storage for the evaluated data, e.g., sin(x)
-     * @param[in]   tdata    Storage for the source data, e.g., x
-     * @param[in]   op      String indicating the operator, e.g., sin()
-     */
-    
-    template<class T1, class T2>
-    void evaluateOpSToS(T1 & data, T2 & tdata, const std::string & op);
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    /**
-     * @brief Print all of the functions and their dependencies.  Mostly for debugging.
-     */
-    
-    void printFunctions();
-    
-    //////////////////////////////////////////////////////////////////////////////////////
-    // Public data members
-    //////////////////////////////////////////////////////////////////////////////////////
-    
-    int num_elem_, num_ip_, num_ip_side_;
-    Teuchos::RCP<Workset<EvalT> > wkset;
-    
-  private:
+  /** \brief Add a function defined by a string expression.
+   *  \param fname       Name of the function.
+   *  \param expression  Mathematical expression string, e.g., "sin(pi*x)".
+   *  \param location    Forest location ("ip", "side ip", "point").
+   */
+  int addFunction(const std::string & fname, const std::string & expression, const std::string & location);
 
-    std::string blockname_;
-    std::vector<Forest<EvalT> > forests_;
-    std::vector<std::string> parameters_, disc_parameters_;
-    std::vector<std::string> known_vars_, known_ops_;
-    Teuchos::RCP<Interpreter<EvalT> > interpreter_;
-  };
-  
-}
+  /** \brief Add a function defined by a constant scalar value.
+   *  \param fname     Name of the function.
+   *  \param value     Constant scalar value.
+   *  \param location  Forest location.
+   */
+  int addFunction(const string & fname, ScalarT & value, const string & location);
+
+  // ========================================================================================
+  // Setup
+  // ========================================================================================
+
+  /** \brief Deprecated: sets parameter list for reference. Other information taken from workset.
+   *  \param parameters Vector of parameter names.
+   */
+  void setupLists(const std::vector<std::string> & parameters);
+
+  /** \brief Decomposes mathematical expression trees into evaluable terms and sets up Kokkos views. */
+  void decomposeFunctions();
+
+  // ========================================================================================
+  // Type and dependency checking
+  // ========================================================================================
+
+  /** \brief Determine if a term is ScalarT or AD.
+   *  \param findex Function index.
+   *  \param tindex Tree index.
+   *  \param bindex Branch index.
+   */
+  bool isScalarTerm(const int & findex, const int & tindex, const int & bindex);
+
+  /** \brief Determine dependencies: constants, views, and/or AD types.
+   *  \param findex Function index.
+   *  \param tindex Tree index.
+   *  \param bindex Branch index.
+   *  \param isConst Output flag indicating constant dependencies.
+   *  \param isView  Output flag indicating view-based dependencies.
+   *  \param isAD    Output flag indicating AD dependencies.
+   */
+  void checkDepDataType(const int & findex, const int & tindex, const int & bindex,
+                        bool & isConst, bool & isView, bool & isAD);
+
+  // ========================================================================================
+  // Evaluation routines
+  // ========================================================================================
+
+  /** \brief Evaluate a named function at a location.
+   *  \param fname    Function name.
+   *  \param location Forest in which the function resides.
+   */
+  Vista<EvalT> evaluate(const std::string & fname, const std::string & location);
+
+  /** \brief Evaluate a function given indices.
+   *  \param findex Function index.
+   *  \param tindex Tree index.
+   *  \param bindex Branch index.
+   */
+  void evaluate(const size_t & findex, const size_t & tindex, const size_t & bindex);
+
+  /** \brief Evaluate operator where source and target are both views.
+   *  \param data  Output data view.
+   *  \param tdata Input data view.
+   *  \param op    Operator name (e.g., "sin").
+   */
+  template<class T1, class T2>
+  void evaluateOpVToV(T1 data, T2 tdata, const std::string & op);
+
+  /** \brief Evaluate operator where source is parameter and target is a view.
+   *  \param data     Output data.
+   *  \param tdata    Parameter source data.
+   *  \param pIndex_  Parameter index.
+   *  \param op       Operator.
+   */
+  template<class T1, class T2>
+  void evaluateOpParamToV(T1 data, T2 tdata, const int & pIndex_, const std::string & op);
+
+  /** \brief Evaluate operator where source is ScalarT and target is view.
+   *  \param data  Output data.
+   *  \param tdata ScalarT source.
+   *  \param op    Operator.
+   */
+  template<class T1, class T2>
+  void evaluateOpSToV(T1 data, T2 & tdata, const std::string & op);
+
+  /** \brief Evaluate operator where source and target are scalars.
+   *  \param data  Output scalar.
+   *  \param tdata Input scalar.
+   *  \param op    Operator.
+   */
+  template<class T1, class T2>
+  void evaluateOpSToS(T1 & data, T2 & tdata, const std::string & op);
+
+  /** \brief Print all functions and dependencies (debugging). */
+  void printFunctions();
+
+  // ========================================================================================
+  // Public data members
+  // ========================================================================================
+
+  int num_elem_;        ///< Number of elements.
+  int num_ip_;          ///< Number of volume integration points.
+  int num_ip_side_;     ///< Number of side integration points.
+
+  Teuchos::RCP<Workset<EvalT> > wkset; ///< Workset containing simulation state.
+
+private:
+
+  std::string blockname_;                 ///< Name of the block associated with this function manager.
+  std::vector<Forest<EvalT> > forests_;   ///< Forests of expression trees for different locations.
+  std::vector<std::string> parameters_;   ///< List of parameters used in expressions.
+  std::vector<std::string> disc_parameters_; ///< List of discretized parameters.
+  std::vector<std::string> known_vars_;   ///< Variables known to the interpreter.
+  std::vector<std::string> known_ops_;    ///< Operators recognized by the interpreter.
+
+  Teuchos::RCP<Interpreter<EvalT> > interpreter_; ///< Interpreter for expression parsing and evaluation.
+};
+
+} // namespace MrHyDE
+
 #endif
 
 

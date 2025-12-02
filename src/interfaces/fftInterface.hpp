@@ -6,9 +6,9 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
 ************************************************************************/
 
-/** \file   fftInterface.hpp
- \brief  Contains the interface to the fftw library.
- \author Created by B. Reuter and modified by T. Wildey
+/** \file fftInterface.hpp
+ *  \brief Contains the interface to the FFTW library.
+ *  \author Created by B. Reuter and modified by T. Wildey
  */
 
 #ifndef MRHYDE_FFTINTERFACE_H
@@ -16,29 +16,60 @@
 
 #include "mpi.h"
 #include "fftw3.h"
-//#include "fftw3_mkl.h"
 #include <stdio.h>
 #include <iostream>
 #include <cmath>
 #include "trilinos.hpp"
-//#include "hdf5.h"
 
 namespace MrHyDE {
-  
-  
+
+  /**
+   * \class fftInterface
+   * \brief Interface class providing FFT-related operations using FFTW.
+   *
+   * The class serves as an abstraction layer for performing FFT operations
+   * on multi-dimensional data structures using FFTW, potentially across MPI
+   * processes. It provides routines for setup and computation of forward or
+   * inverse transforms, as well as handling sensor-based data layouts.
+   */
   class fftInterface {
   public:
-    
+
     // ========================================================================================
-    /* Constructor to set up the problem */
+    /**
+     * \brief Default constructor.
+     *
+     * Initializes an empty FFT interface object. No FFTW plans or data
+     * structures are allocated at this point.
+     */
     // ========================================================================================
-    
-    fftInterface() {} ;
-    
-    ~fftInterface() {} ;
-    
-    void compute(Kokkos::View<ScalarT***,HostDevice> data,  Kokkos::View<int*,HostDevice> IDs,
+    fftInterface() {};
+
+    /**
+     * \brief Destructor.
+     *
+     * Frees any allocated FFTW resources if applicable.
+     */
+    ~fftInterface() {};
+
+    /**
+     * \brief Perform FFT computations on the given data.
+     *
+     * Runs FFT-based operations on the provided 3D data array and sensor ID list.
+     * The nature of the FFT (forward/inverse) and additional operations depend
+     * on the implementation within this method.
+     *
+     * \param data  A 3D Kokkos view holding the real-space data values.
+     * \param IDs   A 1D Kokkos view containing sensor identifiers for indexing.
+     * \param total_sensors  Total number of sensors used for the computation.
+     *
+     * \return void
+     */
+    void compute(Kokkos::View<ScalarT***,HostDevice> data,
+                 Kokkos::View<int*,HostDevice> IDs,
                  const int & total_sensors) {
+      
+#endif // MRHYDE_FFTINTERFACE_H
       // each MPI process will own a certain number of time series data corresponding
       // to different spatial locations
     

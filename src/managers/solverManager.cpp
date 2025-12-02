@@ -1141,32 +1141,6 @@ void SolverManager<Node>::forwardModel(ScalarT & objective) {
 // ========================================================================================
 
 template<class Node>
-void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
-  
-  debugger->print("**** Starting SolverManager::steadySolver ...");
-  
-  for (int ss=0; ss<subcycles; ++ss) {
-    for (size_t set=0; set<setnames.size(); ++set) {
-      assembler->updatePhysicsSet(set);
-      vector<vector_RCP> zero_soln;
-      if (usestrongDBCs) {
-        this->setDirichlet(set, sol[set]);
-      }
-      params->updateDynamicParams(0);
-      this->nonlinearSolver(set, 0, sol, zero_soln, zero_soln,
-                            zero_soln, zero_soln, zero_soln);
-    }
-  }
-  postproc->record(sol, current_time, 1);
-  
-  debugger->print("**** Finished SolverManager::steadySolver");
-  
-}
-
-// ========================================================================================
-// ========================================================================================
-
-template<class Node>
 void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
   debugger->print("**** Starting SolverManager::adjointModel ...");
@@ -1218,9 +1192,99 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
 }
 
+// ========================================================================================
+// solve an incremental forward problem for the incremental adjoint
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::incrementalForwardModel(ScalarT & objective) {
+  
+}
 
 // ========================================================================================
-/* solve the problem */
+// solve an incremental adjoint for the hessian-vector product
+// This should only be called after a forward solve, an adjoint solve, and an incremental forward solve
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::incrementalAdjointModel(MrHyDE_OptVector & hessvec) {
+  
+  debugger->print("**** Starting SolverManager::incrementalAdjointModel ...");
+  
+  Teuchos::TimeMonitor localtimer(*adjointtimer);
+  
+  if (setnames.size()>1 && Comm->getRank() == 0) {
+    cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl;
+  }
+  else {
+    
+    is_adjoint = true;
+    
+    params->sacadoizeParams(false);
+    linalg->resetJacobian();
+    
+    vector<vector_RCP> phi = setInitial();
+    
+    if (solver_type == "steady-state") {
+      // Since this is the adjoint solve, we loop over the physics sets in reverse order
+      for (size_t oset=0; oset<phi.size(); ++oset) {
+        size_t set = phi.size()-1-oset;
+        vector<vector_RCP> sol, zero_vec;
+        for (size_t iset=0; iset<phi.size(); ++iset) { // just collecting states - order doesn't matter
+          sol.push_back(linalg->getNewVector(iset));
+          bool fnd = postproc->soln[set]->extract(sol[iset], current_time);
+          if (!fnd) {
+            cout << "UNABLE TO FIND FORWARD SOLUTION" << endl;
+          }
+        }
+        params->updateDynamicParams(0);
+        this->nonlinearSolver(set, 0, sol, sol, zero_vec, phi, phi, zero_vec);
+        
+        //postproc->computeSensitivities(sol, zero_vec, zero_vec, phi, 0, current_time, deltat, gradient);
+      }
+    }
+    else if (solver_type == "transient") {
+      DFAD obj = 0.0;
+      //this->transientSolver(phi, gradient, initial_time, final_time);
+    }
+    else {
+      // print out an error message
+    }
+    
+    is_adjoint = false;
+  }
+  
+  debugger->print("**** Finished SolverManager::adjointModel");
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
+  
+  debugger->print("**** Starting SolverManager::steadySolver ...");
+  
+  for (int ss=0; ss<subcycles; ++ss) {
+    for (size_t set=0; set<setnames.size(); ++set) {
+      assembler->updatePhysicsSet(set);
+      vector<vector_RCP> zero_soln;
+      if (usestrongDBCs) {
+        this->setDirichlet(set, sol[set]);
+      }
+      params->updateDynamicParams(0);
+      this->nonlinearSolver(set, 0, sol, zero_soln, zero_soln,
+                            zero_soln, zero_soln, zero_soln);
+    }
+  }
+  postproc->record(sol, current_time, 1);
+  
+  debugger->print("**** Finished SolverManager::steadySolver");
+  
+}
+
+// ========================================================================================
+/* solve a transient problem */
 // ========================================================================================
 
 template<class Node>
