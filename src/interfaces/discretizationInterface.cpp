@@ -2795,6 +2795,12 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
             have_dirichlet = true;
           }
           
+          // DEBUG: Print sideset info
+          if (verbosity > 5 && isDiri) {
+            std::cout << "[setDirichletData DEBUG] Block=" << blockID << ", Var=" << var 
+                      << ", Sideset=" << sideName << ", sideEntities.size()=" << sideEntities.size() << std::endl;
+          }
+          
           if (isDiri  && !use_weak_dbcs) {
             
             vector<size_t>             local_side_Ids;
@@ -2804,6 +2810,12 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
             //panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
             //                                           local_side_Ids, side_output);
             
+            // DEBUG: Print number of elements on this sideset
+            if (verbosity > 5) {
+              std::cout << "[setDirichletData DEBUG]   side_output.size()=" << side_output.size() 
+                        << " (elements touching sideset)" << std::endl;
+            }
+            
             for( size_t i=0; i<side_output.size(); i++ ) {
               LO local_EID = mesh->getSTKElementLocalId(side_output[i]);
               auto elemLIDs = DOF->getElementLIDs(local_EID);
@@ -2811,6 +2823,18 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
                                                                                                         dimension-1,
                                                                                                         local_side_Ids[i]);
               const vector<int> sideOffset = SideIndex.first;
+              
+              // DEBUG: Print closure offsets for first few elements
+              if (verbosity > 5 && i < 3) {
+                std::cout << "[setDirichletData DEBUG]   Element " << i << ": local_side_Id=" << local_side_Ids[i]
+                          << ", getGIDFieldOffsets_closure returned " << sideOffset.size() << " offsets: [";
+                for (size_t k=0; k<sideOffset.size() && k<10; k++) {
+                  std::cout << sideOffset[k];
+                  if (k < sideOffset.size()-1 && k < 9) std::cout << ",";
+                }
+                if (sideOffset.size() > 10) std::cout << "...";
+                std::cout << "]" << std::endl;
+              }
               
               for( size_t i=0; i<sideOffset.size(); i++ ) { // for each node
                 var_dofs.push_back(elemLIDs(sideOffset[i]));
@@ -2820,6 +2844,12 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
         }
         std::sort(var_dofs.begin(), var_dofs.end());
         var_dofs.erase(std::unique(var_dofs.begin(), var_dofs.end()), var_dofs.end());
+        
+        // DEBUG: final count of unique Dirichlet DOFs
+        if (verbosity > 5 && var_dofs.size() > 0) {
+          std::cout << "[setDirichletData DEBUG] FINAL: Block=" << blockID << ", Var=" << var 
+                    << ", unique Dirichlet DOFs marked=" << var_dofs.size() << std::endl;
+        }
         
         block_dbc_dofs.push_back(var_dofs);
       }
