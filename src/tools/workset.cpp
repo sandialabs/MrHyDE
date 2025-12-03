@@ -1050,6 +1050,13 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
       }
       
       size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
+      size_type basis_dim = cbasis.extent(3);
+      
+      if (component >= basis_dim) {
+        Kokkos::deep_copy(fielddata, 0.0);
+        soln_fields[fieldnum].is_updated_ = true;
+        return;
+      }
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VECTORSIZE),
@@ -1164,6 +1171,13 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
       }
       
       size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
+      size_type basis_dim = cbasis.extent(3);
+      
+      if (component >= basis_dim) {
+        Kokkos::deep_copy(fielddata, 0.0);
+        side_soln_fields[fieldnum].is_updated_ = true;
+        return;
+      }
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VECTORSIZE),

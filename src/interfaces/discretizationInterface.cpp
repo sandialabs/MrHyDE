@@ -1004,7 +1004,7 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           else {
             bnode_vals = bvals_tmp;
           }
-          basis_node_vals = View_Sc4("basis values", numElem, numb, nodes.extent(1), dimension);
+          basis_node_vals = View_Sc4("basis values", numElem, numb, nodes.extent(1), 1);
           auto basis_node_vals_sv = subview(basis_node_vals, ALL(), ALL(), ALL(), 0);
           Kokkos::deep_copy(basis_node_vals_sv,bnode_vals);
         }
