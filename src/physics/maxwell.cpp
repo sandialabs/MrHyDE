@@ -97,7 +97,7 @@ void maxwell<EvalT>::volumeResidual() {
       
       if (useLeapFrog) {
         if (stage == 0) {
-          auto curlE = wkset->getSolutionField("curl(E)[x]");
+          auto curlE = wkset->getSolutionField("curl(E)");
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        KOKKOS_LAMBDA (const int elem ) {
@@ -124,7 +124,7 @@ void maxwell<EvalT>::volumeResidual() {
       }
       else {
         
-        auto curlE = wkset->getSolutionField("curl(E)[x]");
+        auto curlE = wkset->getSolutionField("curl(E)");
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      KOKKOS_LAMBDA (const int elem ) {
