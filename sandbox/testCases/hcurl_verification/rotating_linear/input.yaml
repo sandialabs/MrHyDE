@@ -1,0 +1,96 @@
+%YAML 1.1
+---
+# Test: Component-Based BC Recognition
+#
+# Specifying Dirichlet BCs via components (Ex, Ey, Ez) instead of base variable.
+#
+# Analytical solution: E = (-y, x, 0) with curl(E) = (0, 0, 2)
+# Expected quantitative result: L2 error ~ machine precision
+#
+ANONYMOUS:
+  debug level: 0
+  verbosity: 5
+
+  Mesh:
+    dimension: 3
+    shape: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 4
+    NY: 4
+    NZ: 4
+    blocknames: eblock-0_0_0
+
+  Physics:
+    Dirichlet conditions:
+      scalar data: false
+    eblock-0_0_0:
+      modules: maxwell
+      assemble boundary terms: false
+      Dirichlet conditions:
+        Ex:
+          all boundaries: '-y'
+        Ey:
+          all boundaries: 'x'
+        Ez:
+          all boundaries: '0.0'
+      Initial conditions:
+        'E[x]': '-y'
+        'E[y]': 'x'
+        'E[z]': '0.0'
+        'B[x]': '0.0'
+        'B[y]': '0.0'
+        'B[z]': '0.0'
+
+  Discretization:
+    eblock-0_0_0:
+      order:
+        E: 1
+        B: 1
+      quadrature: 2
+
+  Functions:
+    current x: '0.0'
+    current y: '0.0'
+    current z: '0.0'
+    permittivity: '1.0'
+    permeability: '1.0'
+
+  Solver:
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: BWE
+    workset size: 100
+    nonlinear TOL: 1.0e-12
+    linear TOL: 1.0e-14
+    max nonlinear iters: 3
+    max linear iters: 500
+    final time: 1.0e-10
+    number of steps: 1
+    initial type: L2-projection
+    use preconditioner: true
+    use direct solver: true
+
+  Analysis:
+    analysis type: forward
+
+  Postprocess:
+    write solution: true
+    write frequency: 1
+    compute errors: true
+    eblock-0_0_0:
+      True solutions:
+        'E[x]': '-y'
+        'E[y]': 'x'
+        'E[z]': '0'
+        'B[x]': '0'
+        'B[y]': '0'
+        'B[z]': '0'
+        'curl(E)[x]': '0'
+        'curl(E)[y]': '0'
+        'curl(E)[z]': '2'
+...

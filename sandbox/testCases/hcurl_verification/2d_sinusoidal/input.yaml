@@ -1,0 +1,90 @@
+%YAML 1.1
+---
+# Test: 2D Inhomogeneous Boundary Conditions
+#
+# What it tests:
+#   Component-based BCs and tangential projection in 2D with spatially-varying
+#   BC values on each boundary.
+#
+# Analytical solution: E = (sin(pi*y), sin(pi*x))
+# Expected low L2 error from interpolation. 
+
+ANONYMOUS:
+  debug level: 0
+  verbosity: 5
+
+  Mesh:
+    dimension: 2
+    shape: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 32
+    NY: 32
+    blocknames: eblock-0_0
+
+  Physics:
+    Dirichlet conditions:
+      scalar data: false
+    eblock-0_0:
+      modules: maxwell
+      assemble boundary terms: false
+      Dirichlet conditions:
+        left:
+          Ex: 'sin(pi*y)'
+          Ey: '0.0'
+        right:
+          Ex: 'sin(pi*y)'
+          Ey: '0.0'
+        top:
+          Ex: '0.0'
+          Ey: 'sin(pi*x)'
+        bottom:
+          Ex: '0.0'
+          Ey: 'sin(pi*x)'
+      Initial conditions:
+        'E[x]': 'sin(pi*y)'
+        'E[y]': 'sin(pi*x)'
+        'B': '0.0'
+
+  Discretization:
+    eblock-0_0:
+      order:
+        E: 2
+        B: 2
+      quadrature: 4
+
+  Functions:
+    current: '0.0'
+    permittivity: '1.0'
+    permeability: '1.0'
+
+  Solver:
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: BWE
+    workset size: 100
+    nonlinear TOL: 1.0e-12
+    linear TOL: 1.0e-14
+    max nonlinear iters: 2
+    max linear iters: 500
+    final time: 1.0e-12
+    number of steps: 1
+    initial type: L2-projection
+    use preconditioner: true
+    use direct solver: true
+
+  Analysis:
+    analysis type: forward
+
+  Postprocess:
+    write solution: true
+    write frequency: 1
+    compute errors: true
+    eblock-0_0:
+      True solutions:
+        'E[x]': 'sin(pi*y)'
+        'E[y]': 'sin(pi*x)'
+        'B': '0.0'
+...
