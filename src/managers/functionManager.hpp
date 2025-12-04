@@ -159,6 +159,13 @@ public:
   /** \brief Print all functions and dependencies (debugging). */
   void printFunctions();
 
+  /** \brief Check if a named function exists at a location.
+   *  \param fname    Function name.
+   *  \param location Forest location ("ip", "side ip", "point").
+   *  \return True if the function exists, false otherwise.
+   */
+  bool hasFunction(const std::string & fname, const std::string & location = "side ip");
+
   // ========================================================================================
   // Public data members
   // ========================================================================================

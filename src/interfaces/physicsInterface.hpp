@@ -246,6 +246,25 @@ public:
   View_Sc2 getDirichlet(const int & var, const int & set,
                         const int & block, const std::string & sidename);
 
+  /**
+   * @brief Retrieve vector-valued Dirichlet BC data for HCURL/HDIV variables.
+   *
+   * @details
+   *   Returns a vector of 3 View_Sc2 arrays containing the x, y, z components
+   *   of the Dirichlet boundary data. If component-wise data (Ex, Ey, Ez)
+   *   is specified in the input, those values are used. Otherwise, falls back
+   *   to the scalar Dirichlet value broadcast to all components.
+   *
+   * @param var         Variable index within the set/block.
+   * @param set         Set index.
+   * @param block       Block index.
+   * @param sidename    Name of the boundary sideset.
+   *
+   * @return std::vector<View_Sc2>  Vector of 3 2D arrays for (x,y,z) components.
+   */
+  std::vector<View_Sc2> getDirichletVector(const int & var, const int & set,
+                                           const int & block, const std::string & sidename);
+
 
   /////////////////////////////////////////////////////////////////////////////////////////////
   // VARIABLE REGISTRATION

@@ -1995,6 +1995,26 @@ void FunctionManager<EvalT>::printFunctions() {
   
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+template<class EvalT>
+bool FunctionManager<EvalT>::hasFunction(const std::string & fname, const std::string & location) {
+  
+  // Find the forest corresponding to the location
+  for (size_t k=0; k<forests_.size(); k++) {
+    if (forests_[k].location_ == location) {
+      // Search for the function name in this forest's trees
+      for (size_t t=0; t<forests_[k].trees_.size(); t++) {
+        if (forests_[k].trees_[t].name_ == fname) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations
