@@ -1172,26 +1172,16 @@ void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J, const vector<vector<GO>
       }
     }
     else {
-      // First, zero the entire row (only nnz values)
-      size_t numEntries = J->getNumEntriesInGlobalRow(dofs[block][i]);
-      if (numEntries > 0) {
-        typename matrix_RCP::element_type::nonconst_global_inds_host_view_type indices("indices", numEntries);
-        typename matrix_RCP::element_type::nonconst_values_host_view_type values("values", numEntries);
-        J->getGlobalRowCopy(dofs[block][i], indices, values, numEntries);
-        for (size_t j = 0; j < numEntries; j++) {
-          ScalarT m_val = 0.0;
-          J->replaceGlobalValues(dofs[block][i], 1, &m_val, &indices(j));
-        }
+      GO numcols = J->getGlobalNumCols(); // TMW fix this!
+      for( GO col=0; col<numcols; col++ ) {
+        ScalarT m_val = 0.0; // set ALL of the entries to 0 in the Jacobian
+        J->replaceGlobalValues(dofs[block][i], 1, &m_val, &col);
       }
-      // Then set diagonal entry to 1
-      ScalarT val = 1.0;
+      ScalarT val = 1.0; // set diagonal entry to 1
       J->replaceGlobalValues(dofs[block][i], 1, &val, &dofs[block][i]);
     }
   }
 }
-
-
-
 
 // ========================================================================================
 // ========================================================================================
@@ -1205,19 +1195,7 @@ void AssemblyManager<Node>::updateJacDBC(matrix_RCP & J,
   }
   else {
     for( size_t i=0; i<dofs.size(); i++ ) {
-      // First, zero the entire row
-      size_t numEntries = J->getNumEntriesInLocalRow(dofs[i]);
-      if (numEntries > 0) {
-        typename matrix_RCP::element_type::nonconst_local_inds_host_view_type indices("indices", numEntries);
-        typename matrix_RCP::element_type::nonconst_values_host_view_type values("values", numEntries);
-        J->getLocalRowCopy(dofs[i], indices, values, numEntries);
-        for (size_t j = 0; j < numEntries; j++) {
-          ScalarT m_val = 0.0;
-          J->replaceLocalValues(dofs[i], 1, &m_val, &indices(j));
-        }
-      }
-      // Then set diagonal entry to 1
-      ScalarT val = 1.0;
+      ScalarT val = 1.0; // set diagonal entry to 1
       J->replaceLocalValues(dofs[i], 1, &val, &dofs[i]);
     }
   }
