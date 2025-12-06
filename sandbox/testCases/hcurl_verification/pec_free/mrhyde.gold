@@ -1,0 +1,2314 @@
+p=0 | CubeHexMesh: Building sub cells
+STK Meta data:
+   Element blocks = "eblock-0_0_0" 
+   Sidesets = "back" "bottom" "front" "left" "right" "top" 
+   Nodesets = "origin" 
+   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" "Ex" "Ey" "Ez" "Bx" "By" "Bz" 
+DOFManager Field Information: 
+   Element Block = eblock-0_0_0
+      "E" is field ID 0
+      "B" is field ID 1
+
+*********************************************************
+***** Writing the solution to output.exo
+*********************************************************
+
+
+*******************************************************
+
+**** Beginning Time Step 1
+**** Current time is 0
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 128
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.25913e-13
+***** Scaled Norm of nonlinear residual: 9.83695e-16
+*********************************************************
+Norm of solution: 38.7432    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 2
+**** Current time is 0.01
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 126.722
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.06775e-13
+***** Scaled Norm of nonlinear residual: 8.42598e-16
+*********************************************************
+Norm of solution: 38.4677    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 3
+**** Current time is 0.02
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 124.239
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.58062e-13
+***** Scaled Norm of nonlinear residual: 1.27224e-15
+*********************************************************
+Norm of solution: 38.0695    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 4
+**** Current time is 0.03
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 120.657
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.47156e-13
+***** Scaled Norm of nonlinear residual: 1.21962e-15
+*********************************************************
+Norm of solution: 37.5632    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 5
+**** Current time is 0.04
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 116.103
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.01473e-13
+***** Scaled Norm of nonlinear residual: 8.7399e-16
+*********************************************************
+Norm of solution: 36.9646    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 6
+**** Current time is 0.05
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 110.724
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.07197e-13
+***** Scaled Norm of nonlinear residual: 9.68154e-16
+*********************************************************
+Norm of solution: 36.2891    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 7
+**** Current time is 0.06
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 104.672
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.09939e-13
+***** Scaled Norm of nonlinear residual: 1.05032e-15
+*********************************************************
+Norm of solution: 35.5503    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 8
+**** Current time is 0.07
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 98.1076
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.12174e-14
+***** Scaled Norm of nonlinear residual: 9.29769e-16
+*********************************************************
+Norm of solution: 34.7596    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 9
+**** Current time is 0.08
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 91.1848
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.26851e-13
+***** Scaled Norm of nonlinear residual: 1.39115e-15
+*********************************************************
+Norm of solution: 33.9255    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 10
+**** Current time is 0.09
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 84.0501
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.78936e-14
+***** Scaled Norm of nonlinear residual: 1.16471e-15
+*********************************************************
+Norm of solution: 33.0541    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 11
+**** Current time is 0.1
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 76.8372
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.23239e-13
+***** Scaled Norm of nonlinear residual: 1.60389e-15
+*********************************************************
+Norm of solution: 32.1499    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 12
+**** Current time is 0.11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 69.6635
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.16126e-14
+***** Scaled Norm of nonlinear residual: 1.31507e-15
+*********************************************************
+Norm of solution: 31.2163    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 13
+**** Current time is 0.12
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 65.3206
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.44826e-13
+***** Scaled Norm of nonlinear residual: 2.21716e-15
+*********************************************************
+Norm of solution: 30.2566    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 14
+**** Current time is 0.13
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 69.1513
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.03528e-13
+***** Scaled Norm of nonlinear residual: 1.49712e-15
+*********************************************************
+Norm of solution: 29.275    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 15
+**** Current time is 0.14
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 71.9251
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.03672e-13
+***** Scaled Norm of nonlinear residual: 1.44138e-15
+*********************************************************
+Norm of solution: 28.2764    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 16
+**** Current time is 0.15
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 73.5963
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.16183e-13
+***** Scaled Norm of nonlinear residual: 1.57866e-15
+*********************************************************
+Norm of solution: 27.2675    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 17
+**** Current time is 0.16
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 74.1558
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.19471e-13
+***** Scaled Norm of nonlinear residual: 1.61108e-15
+*********************************************************
+Norm of solution: 26.2561    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 18
+**** Current time is 0.17
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 73.6527
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.32091e-14
+***** Scaled Norm of nonlinear residual: 9.93978e-16
+*********************************************************
+Norm of solution: 25.2515    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 19
+**** Current time is 0.18
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 72.4737
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.23848e-13
+***** Scaled Norm of nonlinear residual: 1.70887e-15
+*********************************************************
+Norm of solution: 24.2633    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 20
+**** Current time is 0.19
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 70.4829
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.686e-14
+***** Scaled Norm of nonlinear residual: 1.23236e-15
+*********************************************************
+Norm of solution: 23.3013    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 21
+**** Current time is 0.2
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 67.7889
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.70544e-14
+***** Scaled Norm of nonlinear residual: 1.43172e-15
+*********************************************************
+Norm of solution: 22.3744    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 22
+**** Current time is 0.21
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 64.5078
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.45377e-14
+***** Scaled Norm of nonlinear residual: 1.3105e-15
+*********************************************************
+Norm of solution: 21.4901    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 23
+**** Current time is 0.22
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 60.7575
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.36907e-14
+***** Scaled Norm of nonlinear residual: 1.54204e-15
+*********************************************************
+Norm of solution: 20.653    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 24
+**** Current time is 0.23
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 58.3734
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.49542e-14
+***** Scaled Norm of nonlinear residual: 1.62667e-15
+*********************************************************
+Norm of solution: 19.8645    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 25
+**** Current time is 0.24
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 61.8575
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.04888e-14
+***** Scaled Norm of nonlinear residual: 1.3012e-15
+*********************************************************
+Norm of solution: 19.1222    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 26
+**** Current time is 0.25
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 64.6989
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.19653e-13
+***** Scaled Norm of nonlinear residual: 1.84938e-15
+*********************************************************
+Norm of solution: 18.4195    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 27
+**** Current time is 0.26
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 66.8693
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.10378e-13
+***** Scaled Norm of nonlinear residual: 1.65066e-15
+*********************************************************
+Norm of solution: 17.7463    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 28
+**** Current time is 0.27
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 68.3571
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.09123e-13
+***** Scaled Norm of nonlinear residual: 1.59637e-15
+*********************************************************
+Norm of solution: 17.0898    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 29
+**** Current time is 0.28
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 69.1646
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.96468e-14
+***** Scaled Norm of nonlinear residual: 1.44072e-15
+*********************************************************
+Norm of solution: 16.4357    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 30
+**** Current time is 0.29
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 69.3046
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.14001e-13
+***** Scaled Norm of nonlinear residual: 1.64492e-15
+*********************************************************
+Norm of solution: 15.7706    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 31
+**** Current time is 0.3
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 68.7965
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.78579e-14
+***** Scaled Norm of nonlinear residual: 1.13171e-15
+*********************************************************
+Norm of solution: 15.0835    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 32
+**** Current time is 0.31
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 67.6633
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.06014e-13
+***** Scaled Norm of nonlinear residual: 1.56679e-15
+*********************************************************
+Norm of solution: 14.3685    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 33
+**** Current time is 0.32
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 65.9284
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.46916e-14
+***** Scaled Norm of nonlinear residual: 1.43628e-15
+*********************************************************
+Norm of solution: 13.6273    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 34
+**** Current time is 0.33
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 63.6135
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.14905e-13
+***** Scaled Norm of nonlinear residual: 1.80629e-15
+*********************************************************
+Norm of solution: 12.8711    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 35
+**** Current time is 0.34
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 60.7371
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.14845e-13
+***** Scaled Norm of nonlinear residual: 1.89086e-15
+*********************************************************
+Norm of solution: 12.1238    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 36
+**** Current time is 0.35
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 57.3142
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.22977e-13
+***** Scaled Norm of nonlinear residual: 2.14567e-15
+*********************************************************
+Norm of solution: 11.424    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 37
+**** Current time is 0.36
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 53.3558
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.86966e-14
+***** Scaled Norm of nonlinear residual: 1.84978e-15
+*********************************************************
+Norm of solution: 10.8258    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 38
+**** Current time is 0.37
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 48.8708
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.98453e-14
+***** Scaled Norm of nonlinear residual: 1.63381e-15
+*********************************************************
+Norm of solution: 10.3962    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 39
+**** Current time is 0.38
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 43.8667
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.00109e-14
+***** Scaled Norm of nonlinear residual: 2.05192e-15
+*********************************************************
+Norm of solution: 10.2054    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 40
+**** Current time is 0.39
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 38.3525
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.56888e-14
+***** Scaled Norm of nonlinear residual: 2.23424e-15
+*********************************************************
+Norm of solution: 10.3094    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 41
+**** Current time is 0.4
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 32.3403
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.29435e-14
+***** Scaled Norm of nonlinear residual: 2.56471e-15
+*********************************************************
+Norm of solution: 10.7319    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 42
+**** Current time is 0.41
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 32.8161
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.72341e-14
+***** Scaled Norm of nonlinear residual: 2.65827e-15
+*********************************************************
+Norm of solution: 11.4573    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 43
+**** Current time is 0.42
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 35.9322
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.22427e-14
+***** Scaled Norm of nonlinear residual: 2.28883e-15
+*********************************************************
+Norm of solution: 12.44    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 44
+**** Current time is 0.43
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 38.7843
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.73821e-14
+***** Scaled Norm of nonlinear residual: 1.99519e-15
+*********************************************************
+Norm of solution: 13.6205    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 45
+**** Current time is 0.44
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 41.3224
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.08458e-14
+***** Scaled Norm of nonlinear residual: 1.95646e-15
+*********************************************************
+Norm of solution: 14.9395    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 46
+**** Current time is 0.45
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 43.5042
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.55952e-14
+***** Scaled Norm of nonlinear residual: 1.96751e-15
+*********************************************************
+Norm of solution: 16.345    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 47
+**** Current time is 0.46
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 45.2962
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.36697e-14
+***** Scaled Norm of nonlinear residual: 1.84717e-15
+*********************************************************
+Norm of solution: 17.7939    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 48
+**** Current time is 0.47
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 46.6745
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.6342e-14
+***** Scaled Norm of nonlinear residual: 2.06412e-15
+*********************************************************
+Norm of solution: 19.2518    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 49
+**** Current time is 0.48
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 47.6262
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.62816e-14
+***** Scaled Norm of nonlinear residual: 2.02161e-15
+*********************************************************
+Norm of solution: 20.6922    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 50
+**** Current time is 0.49
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 48.1493
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.63049e-14
+***** Scaled Norm of nonlinear residual: 2.00013e-15
+*********************************************************
+Norm of solution: 22.0944    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 51
+**** Current time is 0.5
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 48.2537
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.87854e-14
+***** Scaled Norm of nonlinear residual: 2.04721e-15
+*********************************************************
+Norm of solution: 23.4428    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 52
+**** Current time is 0.51
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 54.1449
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.58056e-14
+***** Scaled Norm of nonlinear residual: 1.76943e-15
+*********************************************************
+Norm of solution: 24.726    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 53
+**** Current time is 0.52
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 61.7658
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.97238e-14
+***** Scaled Norm of nonlinear residual: 1.61455e-15
+*********************************************************
+Norm of solution: 25.9355    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 54
+**** Current time is 0.53
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 68.8905
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.23248e-13
+***** Scaled Norm of nonlinear residual: 1.78905e-15
+*********************************************************
+Norm of solution: 27.0657    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 55
+**** Current time is 0.54
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 75.4156
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.70612e-14
+***** Scaled Norm of nonlinear residual: 1.15442e-15
+*********************************************************
+Norm of solution: 28.1127    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 56
+**** Current time is 0.55
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 81.2471
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.16756e-13
+***** Scaled Norm of nonlinear residual: 1.43705e-15
+*********************************************************
+Norm of solution: 29.0743    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 57
+**** Current time is 0.56
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 86.3041
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.23788e-13
+***** Scaled Norm of nonlinear residual: 1.43433e-15
+*********************************************************
+Norm of solution: 29.9491    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 58
+**** Current time is 0.57
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 90.5204
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.20885e-14
+***** Scaled Norm of nonlinear residual: 1.01732e-15
+*********************************************************
+Norm of solution: 30.7368    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 59
+**** Current time is 0.58
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 93.8469
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.70692e-14
+***** Scaled Norm of nonlinear residual: 1.03434e-15
+*********************************************************
+Norm of solution: 31.4376    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 60
+**** Current time is 0.59
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 96.2523
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.94957e-14
+***** Scaled Norm of nonlinear residual: 1.0337e-15
+*********************************************************
+Norm of solution: 32.0521    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 61
+**** Current time is 0.6
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 97.7238
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.00575e-13
+***** Scaled Norm of nonlinear residual: 1.02918e-15
+*********************************************************
+Norm of solution: 32.5811    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 62
+**** Current time is 0.61
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 98.2669
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.47353e-14
+***** Scaled Norm of nonlinear residual: 8.62297e-16
+*********************************************************
+Norm of solution: 33.0261    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 63
+**** Current time is 0.62
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 97.9045
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.64847e-14
+***** Scaled Norm of nonlinear residual: 8.83358e-16
+*********************************************************
+Norm of solution: 33.3885    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 64
+**** Current time is 0.63
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 96.6752
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.11089e-14
+***** Scaled Norm of nonlinear residual: 8.38984e-16
+*********************************************************
+Norm of solution: 33.6705    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 65
+**** Current time is 0.64
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 94.6319
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.53039e-14
+***** Scaled Norm of nonlinear residual: 7.95756e-16
+*********************************************************
+Norm of solution: 33.8744    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 66
+**** Current time is 0.65
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 91.839
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.37041e-14
+***** Scaled Norm of nonlinear residual: 1.02031e-15
+*********************************************************
+Norm of solution: 34.0032    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 67
+**** Current time is 0.66
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 88.3702
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 6.75482e-14
+***** Scaled Norm of nonlinear residual: 7.64378e-16
+*********************************************************
+Norm of solution: 34.0604    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 68
+**** Current time is 0.67
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 85.9181
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.83291e-14
+***** Scaled Norm of nonlinear residual: 1.14445e-15
+*********************************************************
+Norm of solution: 34.05    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 69
+**** Current time is 0.68
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 85.9137
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 6.8748e-14
+***** Scaled Norm of nonlinear residual: 8.00199e-16
+*********************************************************
+Norm of solution: 33.9765    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 70
+**** Current time is 0.69
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 85.2081
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.4375e-13
+***** Scaled Norm of nonlinear residual: 1.68705e-15
+*********************************************************
+Norm of solution: 33.8447    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 71
+**** Current time is 0.7
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 83.7966
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.91437e-14
+***** Scaled Norm of nonlinear residual: 1.18315e-15
+*********************************************************
+Norm of solution: 33.66    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 72
+**** Current time is 0.71
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 81.6939
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.07687e-13
+***** Scaled Norm of nonlinear residual: 1.31818e-15
+*********************************************************
+Norm of solution: 33.4274    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 73
+**** Current time is 0.72
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 78.9333
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.45341e-14
+***** Scaled Norm of nonlinear residual: 1.07096e-15
+*********************************************************
+Norm of solution: 33.1521    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 74
+**** Current time is 0.73
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 75.5667
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.80286e-14
+***** Scaled Norm of nonlinear residual: 1.03258e-15
+*********************************************************
+Norm of solution: 32.8385    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 75
+**** Current time is 0.74
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 71.6625
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.29822e-14
+***** Scaled Norm of nonlinear residual: 1.15796e-15
+*********************************************************
+Norm of solution: 32.4906    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 76
+**** Current time is 0.75
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 67.3032
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 6.19578e-14
+***** Scaled Norm of nonlinear residual: 9.20578e-16
+*********************************************************
+Norm of solution: 32.1114    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 77
+**** Current time is 0.76
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 63.9366
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.31331e-14
+***** Scaled Norm of nonlinear residual: 1.30024e-15
+*********************************************************
+Norm of solution: 31.7028    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 78
+**** Current time is 0.77
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 67.8378
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.54033e-14
+***** Scaled Norm of nonlinear residual: 1.40634e-15
+*********************************************************
+Norm of solution: 31.2654    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 79
+**** Current time is 0.78
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 71.5615
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.65754e-14
+***** Scaled Norm of nonlinear residual: 1.2098e-15
+*********************************************************
+Norm of solution: 30.7987    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 80
+**** Current time is 0.79
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 75.0148
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.85548e-14
+***** Scaled Norm of nonlinear residual: 1.04719e-15
+*********************************************************
+Norm of solution: 30.301    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 81
+**** Current time is 0.8
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 78.1096
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 6.97871e-14
+***** Scaled Norm of nonlinear residual: 8.93451e-16
+*********************************************************
+Norm of solution: 29.7696    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 82
+**** Current time is 0.81
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 80.7645
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.08927e-13
+***** Scaled Norm of nonlinear residual: 1.3487e-15
+*********************************************************
+Norm of solution: 29.2008    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 83
+**** Current time is 0.82
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 82.9074
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.88222e-14
+***** Scaled Norm of nonlinear residual: 1.19196e-15
+*********************************************************
+Norm of solution: 28.5907    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 84
+**** Current time is 0.83
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 84.4768
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.10744e-13
+***** Scaled Norm of nonlinear residual: 1.31094e-15
+*********************************************************
+Norm of solution: 27.9346    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 85
+**** Current time is 0.84
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 85.4233
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.23295e-14
+***** Scaled Norm of nonlinear residual: 8.46718e-16
+*********************************************************
+Norm of solution: 27.2281    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 86
+**** Current time is 0.85
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 85.7108
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.63429e-14
+***** Scaled Norm of nonlinear residual: 8.90703e-16
+*********************************************************
+Norm of solution: 26.4669    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 87
+**** Current time is 0.86
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 85.3169
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.50603e-14
+***** Scaled Norm of nonlinear residual: 9.96993e-16
+*********************************************************
+Norm of solution: 25.6474    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 88
+**** Current time is 0.87
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 84.2332
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.75182e-14
+***** Scaled Norm of nonlinear residual: 1.15772e-15
+*********************************************************
+Norm of solution: 24.7662    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 89
+**** Current time is 0.88
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 82.465
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.06276e-13
+***** Scaled Norm of nonlinear residual: 1.28874e-15
+*********************************************************
+Norm of solution: 23.8211    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 90
+**** Current time is 0.89
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 80.0307
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.26184e-14
+***** Scaled Norm of nonlinear residual: 1.15729e-15
+*********************************************************
+Norm of solution: 22.8106    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 91
+**** Current time is 0.9
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 76.9611
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.35901e-14
+***** Scaled Norm of nonlinear residual: 1.21607e-15
+*********************************************************
+Norm of solution: 21.734    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 92
+**** Current time is 0.91
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 73.2977
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.04835e-13
+***** Scaled Norm of nonlinear residual: 1.43026e-15
+*********************************************************
+Norm of solution: 20.5918    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 93
+**** Current time is 0.92
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 69.0916
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.68545e-14
+***** Scaled Norm of nonlinear residual: 1.40183e-15
+*********************************************************
+Norm of solution: 19.3851    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 94
+**** Current time is 0.93
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 64.4014
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.39985e-14
+***** Scaled Norm of nonlinear residual: 1.14902e-15
+*********************************************************
+Norm of solution: 18.1163    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 95
+**** Current time is 0.94
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 59.2919
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 9.45555e-14
+***** Scaled Norm of nonlinear residual: 1.59475e-15
+*********************************************************
+Norm of solution: 16.7883    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 96
+**** Current time is 0.95
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 53.8318
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.01409e-13
+***** Scaled Norm of nonlinear residual: 1.88382e-15
+*********************************************************
+Norm of solution: 15.405    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 97
+**** Current time is 0.96
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 48.0921
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 7.8183e-14
+***** Scaled Norm of nonlinear residual: 1.62569e-15
+*********************************************************
+Norm of solution: 13.9713    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 98
+**** Current time is 0.97
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 42.6908
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.03987e-13
+***** Scaled Norm of nonlinear residual: 2.43581e-15
+*********************************************************
+Norm of solution: 12.493    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 99
+**** Current time is 0.98
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 37.1893
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.19822e-13
+***** Scaled Norm of nonlinear residual: 3.22194e-15
+*********************************************************
+Norm of solution: 10.9774    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 100
+**** Current time is 0.99
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 31.5601
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 1.3165e-13
+***** Scaled Norm of nonlinear residual: 4.1714e-15
+*********************************************************
+Norm of solution: 9.43367    (overlapped vector so results may differ on multiple procs)

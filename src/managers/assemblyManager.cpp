@@ -6620,14 +6620,14 @@ View_Sc2 AssemblyManager<Node>::getDirichletBoundary(const int & block, const si
 
   for (size_t n=0; n<wkset[block]->varlist.size(); n++) {
     if (bcs(n,boundary_groups[block][grp]->sidenum) == "Dirichlet") { // is this a strong DBC for this variable
-      auto dip = groupData[block]->physics->getDirichlet(n, set, groupData[block]->my_block, boundary_groups[block][grp]->sidename);
-
       int bind = wkset[block]->usebasis[n];
       std::string btype = groupData[block]->basis_types[bind];
       auto cbasis = boundary_groups[block][grp]->basis[bind]; // may fault in memory-saving mode
       
       auto off = Kokkos::subview(offsets,n,Kokkos::ALL());
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
+        // Get scalar Dirichlet data for HGRAD/HVOL/HFACE
+        auto dip = groupData[block]->physics->getDirichlet(n, set, groupData[block]->my_block, boundary_groups[block][grp]->sidename);
         parallel_for("bgroup fill Dirichlet",
                      RangePolicy<AssemblyExec>(0,cwts.extent(0)),
                      KOKKOS_LAMBDA (const int e ) {
@@ -6639,6 +6639,8 @@ View_Sc2 AssemblyManager<Node>::getDirichletBoundary(const int & block, const si
         });
       }
       else if (btype == "HDIV"){
+        // Get scalar Dirichlet data for HDIV (normal component)
+        auto dip = groupData[block]->physics->getDirichlet(n, set, groupData[block]->my_block, boundary_groups[block][grp]->sidename);
         
         View_Sc2 nx, ny, nz;
         nx = cnormals[0];
@@ -6666,7 +6668,51 @@ View_Sc2 AssemblyManager<Node>::getDirichletBoundary(const int & block, const si
         });
       }
       else if (btype == "HCURL"){
-        // not implemented yet
+        // Get vector-valued Dirichlet data E = (Ex, Ey, Ez)
+        auto dip_vec = groupData[block]->physics->getDirichletVector(n, set, groupData[block]->my_block, boundary_groups[block][grp]->sidename);
+        View_Sc2 dip_x = dip_vec[0];
+        View_Sc2 dip_y = dip_vec[1];
+        View_Sc2 dip_z = dip_vec[2];
+        
+        // Get normals n = (nx, ny, nz) for tangential projection
+        View_Sc2 nx, ny, nz;
+        nx = cnormals[0];
+        if (cnormals.size()>1) {
+          ny = cnormals[1];
+        }
+        if (cnormals.size()>2) {
+          nz = cnormals[2];
+        }
+        
+        // Tangential projection for HCURL basis functions psi.
+        // RHS: b_i = \int_\Gamma [E \cdot psi_i - (E \cdot n)(psi_i \cdot n)] dS
+        // This projects the tangential component of E onto the HCURL basis.
+        // Important for curved elements where psi \cdot n may not be exactly zero.
+        parallel_for("bgroup fill Dirichlet HCURL tangential",
+                     RangePolicy<AssemblyExec>(0,dvals.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          for( size_type i=0; i<cbasis.extent(1); i++ ) {
+            for( size_type j=0; j<cwts.extent(1); j++ ) {
+              // E \cdot n
+              ScalarT E_dot_n = dip_x(e,j)*nx(e,j);
+              if (cbasis.extent(3)>1) E_dot_n += dip_y(e,j)*ny(e,j);
+              if (cbasis.extent(3)>2) E_dot_n += dip_z(e,j)*nz(e,j);
+              
+              // psi \cdot n
+              ScalarT psi_dot_n = cbasis(e,i,j,0)*nx(e,j);
+              if (cbasis.extent(3)>1) psi_dot_n += cbasis(e,i,j,1)*ny(e,j);
+              if (cbasis.extent(3)>2) psi_dot_n += cbasis(e,i,j,2)*nz(e,j);
+              
+              // E \cdot psi
+              ScalarT E_dot_psi = dip_x(e,j)*cbasis(e,i,j,0);
+              if (cbasis.extent(3)>1) E_dot_psi += dip_y(e,j)*cbasis(e,i,j,1);
+              if (cbasis.extent(3)>2) E_dot_psi += dip_z(e,j)*cbasis(e,i,j,2);
+              
+              // Tangential projection: E \cdot psi - (E \cdot n)(psi \cdot n)
+              dvals(e,off(i)) += (E_dot_psi - E_dot_n*psi_dot_n) * cwts(e,j);
+            }
+          }
+        });
       }
     }
   }
@@ -6739,7 +6785,47 @@ View_Sc3 AssemblyManager<Node>::getMassBoundary(const int & block, const size_t 
         });
       }
       else if (btype == "HCURL"){
-        // not implemented yet
+        // Tangential mass matrix for HCURL basis functions psi.
+        // M_ij = \int_\Gamma [psi_i \cdot psi_j - (psi_i \cdot n)(psi_j \cdot n)] dS
+        // This properly accounts for the tangential component only,
+        // important for curved elements where psi \cdot n may not be exactly zero.
+        auto cnormals = boundary_groups[block][grp]->normals;
+        View_Sc2 nx, ny, nz;
+        nx = cnormals[0];
+        if (cnormals.size()>1) {
+          ny = cnormals[1];
+        }
+        if (cnormals.size()>2) {
+          nz = cnormals[2];
+        }
+        
+        parallel_for("bgroup compute mass HCURL tangential",
+                     RangePolicy<AssemblyExec>(0,mass.extent(0)),
+                     KOKKOS_LAMBDA (const int e ) {
+          for( size_type i=0; i<cbasis.extent(1); i++ ) {
+            for( size_type j=0; j<cbasis.extent(1); j++ ) {
+              for( size_type k=0; k<cbasis.extent(2); k++ ) {
+                // Compute psi_i \cdot n
+                ScalarT psi_i_n = cbasis(e,i,k,0)*nx(e,k);
+                if (cbasis.extent(3)>1) psi_i_n += cbasis(e,i,k,1)*ny(e,k);
+                if (cbasis.extent(3)>2) psi_i_n += cbasis(e,i,k,2)*nz(e,k);
+                
+                // Compute psi_j \cdot n
+                ScalarT psi_j_n = cbasis(e,j,k,0)*nx(e,k);
+                if (cbasis.extent(3)>1) psi_j_n += cbasis(e,j,k,1)*ny(e,k);
+                if (cbasis.extent(3)>2) psi_j_n += cbasis(e,j,k,2)*nz(e,k);
+                
+                // Compute psi_i \cdot psi_j
+                ScalarT psi_dot = cbasis(e,i,k,0)*cbasis(e,j,k,0);
+                if (cbasis.extent(3)>1) psi_dot += cbasis(e,i,k,1)*cbasis(e,j,k,1);
+                if (cbasis.extent(3)>2) psi_dot += cbasis(e,i,k,2)*cbasis(e,j,k,2);
+                
+                // Tangential mass: psi_i \cdot psi_j - (psi_i \cdot n)(psi_j \cdot n)
+                mass(e,off(i),off(j)) += (psi_dot - psi_i_n*psi_j_n) * cwts(e,k);
+              }
+            }
+          }
+        });
       }
     }
   }

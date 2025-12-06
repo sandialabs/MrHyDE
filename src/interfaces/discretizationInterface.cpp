@@ -2381,7 +2381,7 @@ void DiscretizationInterface::buildDOFManagers() {
 #endif
     if (verbosity>1) {
       if (comm->getRank() == 0) {
-        setDOF->printFieldInformation(std::cout);
+        setDOF->printFieldInformation(cout);
       }
     }
 
@@ -2579,8 +2579,40 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
           bool isSlip = false;
           bool isFlux = false;
 
-          if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
+          // Check for scalar Dirichlet BC (e.g., "E: all boundaries: ...")
+          bool hasScalarDiri = dbc_settings.sublist(var).isParameter("all boundaries") || 
+                               dbc_settings.sublist(var).isParameter(sideName);
+          if (hasScalarDiri) {
             isDiri = true;
+          }
+          
+          // For HCURL/HDIV variables, also check for component sublists (e.g., "Ex:", "Ey:", "Ez:")
+          // Component based values take precedence over scalar values when both are specified. 
+          std::string vartype = physics->types[set][block][j];
+          bool is_vector_type = (vartype.substr(0,5) == "HCURL" || vartype.substr(0,4) == "HDIV");
+          bool hasComponentDiri = false;
+          if (is_vector_type) {
+            // Check if any component has a Dirichlet BC on this boundary
+            std::vector<std::string> components = {"x", "y", "z"};
+            for (const auto& comp : components) {
+              std::string var_comp = var + comp;
+              if (dbc_settings.sublist(var_comp).isParameter("all boundaries") || 
+                  dbc_settings.sublist(var_comp).isParameter(sideName)) {
+                hasComponentDiri = true;
+                if (!isDiri) {
+                  isDiri = true;
+                }
+              }
+            }
+            
+            if (hasScalarDiri && hasComponentDiri) {
+              cout << "WARNING: Dirichlet condition for variable '" << var 
+                        << "' on boundary '" << sideName << "' has both scalar ('" << var 
+                        << ":') and component ('" << var << "x/y/z:') entries. " << endl;
+            }
+          }
+          
+          if (isDiri) {
             if (use_weak_dbcs) {
               current_var_bcs[side] = "weak Dirichlet";
             }
@@ -2795,6 +2827,23 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
             have_dirichlet = true;
           }
           
+          // For HCURL/HDIV variables, also check for component sublists (Ex, Ey, Ez)
+          // This allows for component-only BC specification without requiring the base variable entry
+          std::string vartype = physics->types[set][block][j];
+          bool is_vector_type = (vartype.substr(0,5) == "HCURL" || vartype.substr(0,4) == "HDIV");
+          if (is_vector_type && !isDiri) {
+            std::vector<std::string> components = {"x", "y", "z"};
+            for (const auto& comp : components) {
+              std::string var_comp = var + comp;
+              if (dbc_settings.sublist(var_comp).isParameter("all boundaries") || 
+                  dbc_settings.sublist(var_comp).isParameter(sideName)) {
+                isDiri = true;
+                have_dirichlet = true;
+                break;
+              }
+            }
+          }
+          
           if (isDiri  && !use_weak_dbcs) {
             
             vector<size_t>             local_side_Ids;
@@ -2803,7 +2852,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
             mesh->getSTKSideElements(blockID, sideEntities, local_side_Ids, side_output);
             //panzer_stk::workset_utils::getSideElements(*mesh, blockID, sideEntities,
             //                                           local_side_Ids, side_output);
-            
+
             for( size_t i=0; i<side_output.size(); i++ ) {
               LO local_EID = mesh->getSTKElementLocalId(side_output[i]);
               auto elemLIDs = DOF->getElementLIDs(local_EID);
@@ -2820,7 +2869,6 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
         }
         std::sort(var_dofs.begin(), var_dofs.end());
         var_dofs.erase(std::unique(var_dofs.begin(), var_dofs.end()), var_dofs.end());
-        
         block_dbc_dofs.push_back(var_dofs);
       }
       set_dbc_dofs.push_back(block_dbc_dofs);

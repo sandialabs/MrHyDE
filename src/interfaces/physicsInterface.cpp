@@ -269,6 +269,9 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
         Teuchos::ParameterList dbcs = physics_settings[set][block].sublist("Dirichlet conditions");
         for (size_t j=0; j<var_list[set][block].size(); j++) {
           string var = var_list[set][block][j];
+          bool is_vector_type = (types[set][block][j].substr(0,5) == "HCURL" || types[set][block][j].substr(0,4) == "HDIV");
+          
+          // check for scalar variable entry (e.g., "E:")
           if (dbcs.isSublist(var)) {
             if (dbcs.sublist(var).isType<string>("all boundaries")) {
               string entry = dbcs.sublist(var).get<string>("all boundaries");
@@ -301,6 +304,49 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
                   func_managers[block]->addFunction(label,entry,"side ip");
                 }
                 d_itr++;
+              }
+            }
+          }
+          
+          // check for vector component entries for HCURL/HDIV variables (e.g., "Ex:", "Ey:", "Ez:")
+          if (is_vector_type) {
+            std::vector<string> components = {"x", "y", "z"};
+            for (const auto& comp : components) {
+              string var_comp = var + comp;
+              if (dbcs.isSublist(var_comp)) {
+                if (dbcs.sublist(var_comp).isType<string>("all boundaries")) {
+                  string entry = dbcs.sublist(var_comp).get<string>("all boundaries");
+                  for (size_t s=0; s<side_names.size(); s++) {
+                    string label = "Dirichlet " + var_comp + " " + side_names[s];
+                    func_managers[block]->addFunction(label,entry,"side ip");
+                  }
+                }
+                else if (dbcs.sublist(var_comp).isType<double>("all boundaries")) {
+                  double value = dbcs.sublist(var_comp).get<double>("all boundaries");
+                  string entry = std::to_string(value);
+                  for (size_t s=0; s<side_names.size(); s++) {
+                    string label = "Dirichlet " + var_comp + " " + side_names[s];
+                    func_managers[block]->addFunction(label,entry,"side ip");
+                  }
+                }
+                else {
+                  Teuchos::ParameterList currdbcs = dbcs.sublist(var_comp);
+                  Teuchos::ParameterList::ConstIterator d_itr = currdbcs.begin();
+                  while (d_itr != currdbcs.end()) {
+                    if (currdbcs.isType<string>(d_itr->first)) {
+                      string entry = currdbcs.get<string>(d_itr->first);
+                      string label = "Dirichlet " + var_comp + " " + d_itr->first;
+                      func_managers[block]->addFunction(label,entry,"side ip");
+                    }
+                    else if (currdbcs.isType<double>(d_itr->first)) {
+                      double value = currdbcs.get<double>(d_itr->first);
+                      string entry = std::to_string(value);
+                      string label = "Dirichlet " + var_comp + " " + d_itr->first;
+                      func_managers[block]->addFunction(label,entry,"side ip");
+                    }
+                    d_itr++;
+                  }
+                }
               }
             }
           }
@@ -1149,6 +1195,64 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
     }
   });
   return dvals;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+std::vector<View_Sc2> PhysicsInterface::getDirichletVector(const int & var,
+                                                           const int & set,
+                                                           const int & block,
+                                                           const std::string & sidename) {
+  
+  std::vector<View_Sc2> dvals_vec(3);
+  string varname = var_list[set][block][var];
+  std::vector<string> components = {"x", "y", "z"};
+  
+  // check if vector component functions exist (e.g., "Dirichlet Ex bottom")
+  bool has_components = function_managers[block]->hasFunction("Dirichlet " + varname + "x " + sidename);
+  
+  if (has_components) {
+    // use component-wise Dirichlet data
+    for (size_t d=0; d<3; d++) {
+      string label = "Dirichlet " + varname + components[d] + " " + sidename;
+      if (function_managers[block]->hasFunction(label)) {
+        auto tdvals = function_managers[block]->evaluate(label, "side ip");
+        View_Sc2 dvals("dirichlet component", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
+        parallel_for("physics fill Dirichlet vector component",
+                     RangePolicy<AssemblyExec>(0,dvals.extent(0)),
+                     KOKKOS_LAMBDA (const int e) {
+          for (size_t i=0; i<dvals.extent(1); i++) {
+            dvals(e,i) = tdvals(e,i);
+          }
+        });
+        dvals_vec[d] = dvals;
+      }
+      else {
+        // use zero, if component not specified
+        View_Sc2 dvals("dirichlet component zero", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
+        Kokkos::deep_copy(dvals, 0.0);
+        dvals_vec[d] = dvals;
+      }
+    }
+  }
+  else {
+    // fall back to scalar Dirichlet data broadcast to all components
+    auto tdvals = function_managers[block]->evaluate("Dirichlet " + varname + " " + sidename, "side ip");
+    for (size_t d=0; d<3; d++) {
+      View_Sc2 dvals("dirichlet component broadcast", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
+      parallel_for("physics fill Dirichlet broadcast",
+                   RangePolicy<AssemblyExec>(0,dvals.extent(0)),
+                   KOKKOS_LAMBDA (const int e) {
+        for (size_t i=0; i<dvals.extent(1); i++) {
+          dvals(e,i) = tdvals(e,i);
+        }
+      });
+      dvals_vec[d] = dvals;
+    }
+  }
+  
+  return dvals_vec;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

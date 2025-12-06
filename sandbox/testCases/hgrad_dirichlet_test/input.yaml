@@ -1,0 +1,43 @@
+%YAML 1.1
+---
+# Simple test case for HGRAD Dirichlet boundary conditions
+# T field is HGRAD, we apply T = 0 on bottom face
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10   # High verbosity to enable debug output in setDirichletData
+  Mesh:
+    dimension: 3
+    element type: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 2
+    NY: 2
+    NZ: 2
+  Physics: 
+    eblock-0_0_0: 
+      modules: thermal
+      Dirichlet conditions:
+        T:
+          bottom: '0.0'
+      Initial conditions:
+        T: '0.0'
+  Discretization:
+    eblock-0_0_0:
+      order:
+        T: 1
+      quadrature: 2
+  Functions:
+    thermal source: '0.0'
+  Solver: 
+    solver: steady-state
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: false
+    write solution: false
+...
+

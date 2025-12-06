@@ -1,0 +1,49 @@
+%YAML 1.1
+---
+# Simple test case for HCURL Dirichlet boundary conditions (PEC)
+# E field is HCURL, we apply E x n = 0 on bottom face by setting E DOFs to zero
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10   # High verbosity to enable debug output in setDirichletData
+  Mesh input file: input_mesh.yaml
+  Physics: 
+    eblock-0_0_0:
+      modules: maxwell
+      assemble boundary terms: false
+      Dirichlet conditions:
+        E:
+          bottom: '0.0'
+    Initial conditions:
+      scalar data: true
+      eblock-0_0_0:
+        E: 0.0
+        B: 0.0
+  Discretization:
+    eblock-0_0_0:
+      order:
+        E: 1
+        B: 1
+      quadrature: 2
+  Functions input file: input_functions.yaml
+  Solver: 
+    solver: 'transient'
+    transient BDF order: 1
+    transient Butcher tableau: BWE
+    workset size: 100
+    nonlinear TOL: 1.0e-07
+    linear TOL: 1.0e-09
+    max nonlinear iters: 1
+    max linear iters: 200
+    final time: 1.0e-2
+    number of steps: 1
+    Initial type: none
+    use preconditioner: true
+    use direct solver: true
+    allow backtracking: false
+  Analysis: 
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    compute errors: false
+...
+
