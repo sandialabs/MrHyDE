@@ -7,7 +7,7 @@ INCLUDE_DIRECTORIES ( ./
   ../src
   ../src/physics
   ../src/interfaces
-  ../src/managers
+  ../src/managers/function
   ../src/tools
   ../src/subgrid
   ../src/optimization
@@ -50,7 +50,7 @@ test_functions.cpp
 ../src/tools/workset.cpp
 ../src/tools/vista.cpp
 ../src/tools/interpreter.cpp
-../src/managers/functionManager.cpp)
+../src/managers/function/functionManager.cpp)
 TARGET_LINK_LIBRARIES(test_functions ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES}) 
 
 ADD_EXECUTABLE(test_series_ABC

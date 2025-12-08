@@ -79,7 +79,7 @@ public:
                   Teuchos::RCP<ParameterManager<Node> > & params_);
   
   /** \brief Identify and create the fixed DOFs for the problem. */
-  void createFixedDOFs();
+  void createConstraints();
   
   /** \brief Create element groups required for assembly. */
   void createGroups();
@@ -120,15 +120,15 @@ public:
    *  \param[in] block Block index
    *  \param[in] compute_disc_sens Whether to compute sensitivities
    */
-  void updateJacDBC(matrix_RCP & J, const std::vector<std::vector<GO> > & dofs,
-                    const size_t & block, const bool & compute_disc_sens);
+  void setJacobianConstraints(matrix_RCP & J, const std::vector<std::vector<GO> > & dofs,
+                              const size_t & block, const bool & compute_disc_sens);
   
   /** \brief Apply Dirichlet BC modifications for a single DOF list.
    *  \param[inout] J Jacobian matrix
    *  \param[in] dofs DOF list
    *  \param[in] compute_disc_sens Whether to compute sensitivities
    */
-  void updateJacDBC(matrix_RCP & J, const std::vector<LO> & dofs, const bool & compute_disc_sens);
+  void setJacobianConstraints(matrix_RCP & J, const std::vector<LO> & dofs, const bool & compute_disc_sens);
   
   /** \brief Apply Dirichlet boundary conditions to RHS and optionally mass matrix.
    *  \param[in] set Boundary condition set index
@@ -138,8 +138,8 @@ public:
    *  \param[in] time Current simulation time
    *  \param[in] lumpmass Whether mass matrix should be lumped
    */
-  void setDirichlet(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
-                    const ScalarT & time, const bool & lumpmass=false);
+  void computeConstraintProjection(const size_t & set, vector_RCP & rhs, matrix_RCP & mass, const bool & useadjoint,
+                                   const ScalarT & time, const bool & lumpmass=false);
   
   /** \brief Apply initial conditions to RHS and mass matrix.
    *  \param[in] set Initial condition set index
@@ -1046,11 +1046,6 @@ public:
   /**
    * @brief Compute flux and optional sensitivity with respect to parameters.
    *
-   * Wrapper for computeFluxEvalT(), automatically providing a dummy AD value for
-   * type resolution. Computes the flux across a control surface or geometric
-   * face, using state, gradient, and parameter values at integration points.
-   *
-   * @tparam ViewType  Type of the Kokkos view for u, du, and dp.
    *
    * @param block            Block index.
    * @param grp              Group (element group) index.
@@ -1067,202 +1062,13 @@ public:
    *
    * @return void
    */
-  template<class ViewType>
-  void computeFlux(const int & block, const int & grp, ViewType u_kv,
-                   ViewType du_kv, ViewType dp_kv, View_Sc3 lambda,
+  
+  void computeFlux(const int & block, const int & grp, View_Sc2 u_sub,
+                   View_Sc2 du_sub, View_Sc2 dp_sub, View_Sc3 lambda,
                    const ScalarT & time, const int & side, const ScalarT & coarse_h,
                    const bool & compute_sens, const ScalarT & fluxwt,
-                   bool & useTransientSol) {
-    
-    AD dummyval = 0.0;
-    this->computeFluxEvalT(dummyval, block, grp, u_kv, du_kv, dp_kv, lambda, time, side, coarse_h, compute_sens, fluxwt, useTransientSol);
-    
-  }
+                   bool & useTransientSol);
   
-  /**
-   * @brief Evaluation-type–templated flux computation routine.
-   *
-   * This is the underlying implementation of computeFlux(), templated on EvalT
-   * so that automatic differentiation, sensitivities, and other evaluation modes
-   * can be employed consistently. Computes flux values at quadrature points and,
-   * if requested, their sensitivities with respect to parameters.
-   *
-   * @tparam ViewType  Kokkos or device view type used for field data.
-   * @tparam EvalT     Evaluation type (Residual, Jacobian, etc.).
-   *
-   * @param dummyval       Dummy variable of type EvalT used to differentiate overloads.
-   * @param block          Block index.
-   * @param grp            Group (element group) index.
-   * @param u_kv           State value view.
-   * @param du_kv          State gradient view.
-   * @param dp_kv          Parameter derivative view.
-   * @param lambda         Weighting vector.
-   * @param time           Current simulation time.
-   * @param side           Side index of the element.
-   * @param coarse_h       Characteristic length scale.
-   * @param compute_sens   Whether to compute parameter sensitivity.
-   * @param fluxwt         Weighting applied to flux.
-   * @param useTransientSol Whether transient solution values should be employed.
-   *
-   * @return void
-   */
-  template<class ViewType, class EvalT>
-  void computeFluxEvalT(EvalT & dummyval, const int & block, const int & grp,
-                        ViewType u_kv, ViewType du_kv, ViewType dp_kv, View_Sc3 lambda,
-                        const ScalarT & time, const int & side, const ScalarT & coarse_h,
-                        const bool & compute_sens, const ScalarT & fluxwt,
-                        bool & useTransientSol) {
-  
-#ifndef MrHyDE_NO_AD
-  typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_AD2;
-  int wkblock = 0;
-  
-  wkset_AD[wkblock]->setTime(time);
-  wkset_AD[wkblock]->sidename = boundary_groups[block][grp]->sidename;
-  wkset_AD[wkblock]->currentside = boundary_groups[block][grp]->sidenum;
-  wkset_AD[wkblock]->numElem = boundary_groups[block][grp]->numElem;
-  
-  // Currently hard coded to one physics sets
-  int set = 0;
-  
-  vector<View_AD2> sol_vals = wkset_AD[wkblock]->sol_vals;
-  //auto param_AD = wkset_AD->pvals;
-  //auto ulocal = groupData[block]->sol[set];
-  auto ulocal = boundary_groups[block][grp]->sol[set];
-  auto currLIDs = boundary_groups[block][grp]->LIDs[set];
-  
-  if (useTransientSol) {
-    int stage = wkset_AD[wkblock]->current_stage;
-    auto b_A = wkset_AD[wkblock]->butcher_A;
-    auto b_b = wkset_AD[wkblock]->butcher_b;
-    auto BDF = wkset_AD[wkblock]->BDF_wts;
-    
-    ScalarT one = 1.0;
-    
-    for (size_type var=0; var<ulocal.extent(1); var++ ) {
-      size_t uindex = wkset_AD[wkblock]->sol_vals_index[set][var];
-      auto u_AD = sol_vals[uindex];
-      auto off = subview(wkset_AD[wkblock]->set_offsets[set],var,ALL());
-      auto cu = subview(ulocal,ALL(),var,ALL());
-      //auto cu_prev = subview(groupData[block]->sol_prev[set],ALL(),var,ALL(),ALL());
-      //auto cu_stage = subview(groupData[block]->sol_stage[set],ALL(),var,ALL(),ALL());
-      
-      auto cu_prev = subview(boundary_groups[block][grp]->sol_prev[set],ALL(),var,ALL(),ALL());
-      auto cu_stage = subview(boundary_groups[block][grp]->sol_stage[set],ALL(),var,ALL(),ALL());
-      
-      parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(currLIDs.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        ScalarT beta_u;//, beta_t;
-        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        //ScalarT timewt = one/dt/b_b(stage);
-        //ScalarT alpha_t = BDF(0)*timewt;
-        
-        for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
-          
-          // Seed the stage solution
-          AD stageval = AD(MAXDERIVS,0,cu(elem,dof));
-          for( size_t p=0; p<du_kv.extent(1); p++ ) {
-            stageval.fastAccessDx(p) = fluxwt*du_kv(currLIDs(elem,off(dof)),p);
-          }
-          // Compute the evaluating solution
-          beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
-          for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-          }
-          u_AD(elem,dof) = alpha_u*stageval+beta_u;
-          
-          // Compute the time derivative
-          //beta_t = zero;
-          //for (size_type s=1; s<BDF.extent(0); s++) {
-          //  beta_t += BDF(s)*cu_prev(elem,dof,s-1);
-          //}
-          //beta_t *= timewt;
-          //u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-        }
-        
-      });
-      
-    }
-  }
-  else {
-    //Teuchos::TimeMonitor localtimer(*fluxGatherTimer);
-    
-    if (compute_sens) {
-      for (size_t var=0; var<ulocal.extent(1); var++) {
-        auto u_AD = sol_vals[var];
-        auto offsets = subview(wkset_AD[wkblock]->offsets,var,ALL());
-        parallel_for("flux gather",
-                     RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
-            u_AD(elem,dof) = AD(u_kv(currLIDs(elem,offsets(dof)),0));
-          }
-        });
-      }
-    }
-    else {
-      for (size_t var=0; var<ulocal.extent(1); var++) {
-        auto u_AD = sol_vals[var];
-        auto offsets = subview(wkset_AD[wkblock]->offsets,var,ALL());
-        parallel_for("flux gather",
-                     RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
-          for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
-            u_AD(elem,dof) = AD(MAXDERIVS, 0, u_kv(currLIDs(elem,offsets(dof)),0));
-            for( size_t p=0; p<du_kv.extent(1); p++ ) {
-              u_AD(elem,dof).fastAccessDx(p) = du_kv(currLIDs(elem,offsets(dof)),p);
-            }
-          }
-        });
-      }
-    }
-  }
-  
-  {
-    //Teuchos::TimeMonitor localtimer(*fluxWksetTimer);
-    wkset_AD[wkblock]->computeSolnSideIP(boundary_groups[block][grp]->sidenum);//, u_AD, param_AD);
-  }
-  
-  if (wkset_AD[wkblock]->numAux > 0) {
-    
-    // Teuchos::TimeMonitor localtimer(*fluxAuxTimer);
-    
-    auto numAuxDOF = groupData[wkblock]->num_aux_dof;
-    
-    for (size_type var=0; var<numAuxDOF.extent(0); var++) {
-      auto abasis = boundary_groups[block][grp]->auxside_basis[boundary_groups[block][grp]->auxusebasis[var]];
-      auto off = subview(boundary_groups[block][grp]->auxoffsets,var,ALL());
-      string varname = wkset_AD[wkblock]->aux_varlist[var];
-      auto local_aux = wkset_AD[wkblock]->getSolutionField("aux "+varname,false);
-      Kokkos::deep_copy(local_aux,0.0);
-      //auto local_aux = Kokkos::subview(wkset_AD->local_aux_side,Kokkos::ALL(),var,Kokkos::ALL(),0);
-      auto localID = boundary_groups[block][grp]->localElemID;
-      auto varaux = subview(lambda,ALL(),var,ALL());
-      parallel_for("flux aux",
-                   RangePolicy<AssemblyExec>(0,localID.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<abasis.extent(1); ++dof) {
-          AD auxval = AD(MAXDERIVS,off(dof), varaux(localID(elem),dof));
-          auxval.fastAccessDx(off(dof)) *= fluxwt;
-          for (size_type pt=0; pt<abasis.extent(2); ++pt) {
-            local_aux(elem,pt) += auxval*abasis(elem,dof,pt);
-          }
-        }
-      });
-    }
-    
-  }
-  
-  {
-    //Teuchos::TimeMonitor localtimer(*fluxEvalTimer);
-    physics->computeFlux<AD>(0,groupData[block]->my_block);
-  }
-#endif
-  //wkset_AD->isOnSide = false;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Functionality moved from boundary groups into here
 ////////////////////////////////////////////////////////////////////////////////

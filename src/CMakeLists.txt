@@ -25,7 +25,14 @@ INCLUDE_DIRECTORIES ( ./
   ${HdsaLib_SRC_DIR}/interfaces/rol
   physics
   interfaces
-  managers
+  managers/analysis
+  managers/assembly
+  managers/function
+  managers/multiscale
+  managers/parameter
+  managers/postprocess
+  managers/solver
+  managers/uq
   tools
   subgrid
   optimization
@@ -40,7 +47,14 @@ file(GLOB mrhyde-all
   "*.cpp"
   "subgrid/*.cpp"
   "interfaces/*.cpp"
-  "managers/*.cpp"
+  "managers/analysis/*.cpp"
+  "managers/assembly/*.cpp"
+  "managers/function/*.cpp"
+  "managers/multiscale/*.cpp"
+  "managers/parameter/*.cpp"
+  "managers/postprocess/*.cpp"
+  "managers/solver/*.cpp"
+  "managers/uq/*.cpp"
   "tools/*.cpp"
   "physics/*.cpp"
 )
