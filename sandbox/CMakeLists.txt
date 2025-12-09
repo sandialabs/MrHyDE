@@ -6,7 +6,9 @@ INCLUDE_DIRECTORIES ( ./
   ${Trilinos_TPL_INCLUDE_DIRS}
   ../src
   ../src/physics
-  ../src/interfaces
+  ../src/interfaces/compadre
+  ../src/interfaces/discretization
+  ../src/interfaces/mesh
   ../src/managers/function
   ../src/tools
   ../src/subgrid

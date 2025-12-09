@@ -98,7 +98,21 @@ public:
    * \param[in] groupData Metadata shared across element blocks
    */
   void setReferenceData(Teuchos::RCP<GroupMetaData> & groupData);
-  
+ 
+  /**
+   * \brief Sets up quadrature data stored in GroupMetaData.
+   *
+   * \param[in] groupData Metadata shared across element blocks
+   */
+  void setReferenceIntegrationData(Teuchos::RCP<GroupMetaData> & groupData);
+ 
+  /**
+   * \brief Sets up basis data stored in GroupMetaData.
+   *
+   * \param[in] groupData Metadata shared across element blocks
+   */
+  void setReferenceBasisData(Teuchos::RCP<GroupMetaData> & groupData);
+ 
   /**
    * \brief Computes physical quadrature points and weights via element IDs.
    *

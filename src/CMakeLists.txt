@@ -24,7 +24,13 @@ INCLUDE_DIRECTORIES ( ./
   ${HdsaLib_SRC_DIR}/interfaces/mrhyde/auxillary
   ${HdsaLib_SRC_DIR}/interfaces/rol
   physics
-  interfaces
+  interfaces/compadre
+  interfaces/discretization
+  interfaces/fft
+  interfaces/linear_algebra
+  interfaces/mesh
+  interfaces/physics
+  interfaces/user
   managers/analysis
   managers/assembly
   managers/function
@@ -46,7 +52,13 @@ LINK_DIRECTORIES (
 file(GLOB mrhyde-all
   "*.cpp"
   "subgrid/*.cpp"
-  "interfaces/*.cpp"
+  "interfaces/compadre/*.cpp"
+  "interfaces/discretization/*.cpp"
+  "interfaces/fft/*.cpp"
+  "interfaces/linear_algebra/*.cpp"
+  "interfaces/mesh/*.cpp"
+  "interfaces/physics/*.cpp"
+  "interfaces/user/*.cpp"
   "managers/analysis/*.cpp"
   "managers/assembly/*.cpp"
   "managers/function/*.cpp"
