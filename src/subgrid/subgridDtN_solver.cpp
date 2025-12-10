@@ -453,7 +453,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
             auto wts = assembler->wkset_AD[0]->wts;
             ScalarT error = 0.0;
             parallel_reduce(RangePolicy<AssemblyExec>(0,wts.extent(0)), 
-                            KOKKOS_CLASS_LAMBDA (const int elem, ScalarT& update) {
+                            MRHYDE_LAMBDA (const int elem, ScalarT& update) {
               for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                 ScalarT diff = sol(elem,pt).val() - tsol(elem,pt).val();
                 update += diff*diff*wts(elem,pt);
@@ -489,7 +489,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
             auto mres = macrowkset.res;
             parallel_for("subgrid DtN solver set res from flux",
                          RangePolicy<AssemblyExec>(0,total_res.extent(0)),
-                         KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                         MRHYDE_LAMBDA (const size_type elem ) {
               for (size_type dof=0; dof<total_res.extent(1); ++dof) {
                 total_res(elem,dof) += mres(elem,dof)/(ScalarT)time_steps;
               }
@@ -506,7 +506,7 @@ void SubGridDtN_Solver::solve(View_Sc3 coarse_sol,
           auto mres = macrowkset.res;
           parallel_for("subgrid DtN solver set res from flux",
                        RangePolicy<AssemblyExec>(0,total_res.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                       MRHYDE_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<total_res.extent(1); ++dof) {
               mres(elem,dof) = total_res(elem,dof);
             }
@@ -586,7 +586,7 @@ void SubGridDtN_Solver::lagrangeInterpolate(View_Sc3 interp_values,
     
       parallel_for("subgrid interp in time",
                    RangePolicy<AssemblyExec>(0,interp_values.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type var=0; var<interp_values.extent(1); ++var) {
           for (size_type dof=0; dof<interp_values.extent(2); ++dof) {
             interp_values(elem,var,dof) = alpha_n_1*prev_values(elem,var,dof,0) + alpha*curr_values(elem,var,dof);
@@ -607,7 +607,7 @@ void SubGridDtN_Solver::lagrangeInterpolate(View_Sc3 interp_values,
     
       parallel_for("subgrid interp in time",
                    RangePolicy<AssemblyExec>(0,interp_values.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type var=0; var<interp_values.extent(1); ++var) {
           for (size_type dof=0; dof<interp_values.extent(2); ++dof) {
             interp_values(elem,var,dof) = alpha_n_1*prev_values(elem,var,dof,0) + alpha_n_2*prev_values(elem,var,dof,1) + alpha*curr_values(elem,var,dof);
@@ -621,7 +621,7 @@ void SubGridDtN_Solver::lagrangeInterpolate(View_Sc3 interp_values,
     
     parallel_for("subgrid interp in time",
                  RangePolicy<AssemblyExec>(0,interp_values.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                 MRHYDE_LAMBDA (const size_type elem ) {
       for (size_type var=0; var<interp_values.extent(1); ++var) {
         for (size_type dof=0; dof<interp_values.extent(2); ++dof) {
           interp_values(elem,var,dof) = alpha*curr_values(elem,var,dof);
@@ -767,7 +767,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
           
           parallel_for("assembly insert Jac",
                        RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type n=0; n<numDOF.extent(0); ++n) {
               for (int j=0; j<numDOF(n); j++) {
                 int row = offsets(n,j);
@@ -780,7 +780,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
 #ifndef MrHyDE_NO_AD
           parallel_for("assembly insert Jac",
                        RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             const size_type numVals = LIDs.extent(1);
             LO cols[MAXDERIVS];
             ScalarT vals[MAXDERIVS];
@@ -828,7 +828,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
             
             parallel_for("assembly insert Jac",
                          RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                         KOKKOS_CLASS_LAMBDA (const int elem ) {
+                         MRHYDE_LAMBDA (const int elem ) {
               for (size_type n=0; n<numDOF.extent(0); ++n) {
                 for (int j=0; j<numDOF(n); j++) {
                   int row = offsets(n,j);
@@ -841,7 +841,7 @@ void SubGridDtN_Solver::assembleJacobianResidual(Teuchos::RCP<SG_MultiVector> & 
 
             parallel_for("assembly insert Jac",
                          RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                         KOKKOS_CLASS_LAMBDA (const int elem ) {
+                         MRHYDE_LAMBDA (const int elem ) {
               const size_type numVals = LIDs.extent(1);
               LO cols[MAXDERIVS];
               ScalarT vals[MAXDERIVS];
@@ -1048,7 +1048,7 @@ void SubGridDtN_Solver::fixDiagonal(LIDViewType LIDs, MatType localMatrix, const
   
   parallel_for("subgrid diagonal fix",
                RangePolicy<SG_exec>(startpoint,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     ScalarT vals[1];
     LO cols[1];
     for( size_type row=0; row<LIDs.extent(1); row++ ) {
@@ -1193,7 +1193,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
       auto res_sv = Kokkos::subview(d_res_over_kv,Kokkos::ALL(),p);
       ScalarT subgrad = 0.0;
       parallel_reduce(RangePolicy<SG_exec>(0,adj_kv.extent(0)), 
-                      KOKKOS_CLASS_LAMBDA (const int i, ScalarT& update) {
+                      MRHYDE_LAMBDA (const int i, ScalarT& update) {
         update += adj_kv(i,0) * res_sv(i);
       }, subgrad);
       subgrad_host(p,0) = subgrad;
@@ -1268,7 +1268,7 @@ void SubGridDtN_Solver::forwardSensitivityPropagation(Teuchos::RCP<SG_MultiVecto
         
         parallel_for("bcell update aux jac",
                      RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const int elem) {
+                     MRHYDE_LAMBDA (const int elem) {
           for (size_type n=0; n<numDOF.extent(0); ++n) {
             for (int j=0; j<numDOF(n); ++j) {
               LO row = offsets(n,j);
@@ -1446,7 +1446,7 @@ void SubGridDtN_Solver::updateResSens(ResViewType res, DataViewType data, LIDVie
   if (compute_sens) {
     parallel_for("subgrid diagonal fix",
                  RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         for (size_type col=0; col<data.extent(2); col++ ) {
@@ -1458,7 +1458,7 @@ void SubGridDtN_Solver::updateResSens(ResViewType res, DataViewType data, LIDVie
   else {
     parallel_for("subgrid diagonal fix",
                  RangePolicy<SG_exec>(0,LIDs.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         for (size_type col=0; col<data.extent(2); col++ ) {
@@ -1591,7 +1591,7 @@ void SubGridDtN_Solver::updateFlux(ViewType u_kv,
           auto res = macrowkset.res;
           parallel_for("subgrid flux",
                        RangePolicy<AssemblyExec>(0,bMIDs.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const size_type c ) {
+                       MRHYDE_LAMBDA (const size_type c ) {
             for (size_type j=0; j<macrobasis_ip.extent(1); j++) {
               for (size_type i=0; i<macrobasis_ip.extent(2); i++) {
                 AD val = macrobasis_ip(c,j,i)*flux(c,i)*cwts(c,i);///(ScalarT)time_steps;
@@ -1828,7 +1828,7 @@ std::pair<Kokkos::View<int**,AssemblyDevice>, vector<DRV> > SubGridDtN_Solver::e
       auto off = subview(offsets,n,ALL());
       parallel_for("ODE volume resid",
                    RangePolicy<AssemblyExec>(0,off.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const int m ) {
+                   MRHYDE_LAMBDA (const int m ) {
         tmpb0(off(m)) = tmpb1(m);
       });
     }
@@ -2000,7 +2000,7 @@ void SubGridDtN_Solver::performGather(const size_t & block, ViewType vec_dev, co
         cout << "ERROR - NOTHING WAS GATHERED" << endl;
     }
     
-    parallel_for(RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_CLASS_LAMBDA (const int e ) {
+    parallel_for(RangePolicy<AssemblyExec>(0,data.extent(0)), MRHYDE_LAMBDA (const int e ) {
       for (size_type n=0; n<numDOF.extent(0); n++) {
         for (int i=0; i<numDOF(n); i++ ) {
           data(e,n,i) = vec_dev(LIDs(e,offsets(n,i)));
@@ -2061,7 +2061,7 @@ void SubGridDtN_Solver::performBoundaryGather(const size_t & block, ViewType vec
             cout << "ERROR - NOTHING WAS GATHERED" << endl;
         }
         
-        parallel_for(RangePolicy<AssemblyExec>(0,data.extent(0)), KOKKOS_CLASS_LAMBDA (const int e ) {
+        parallel_for(RangePolicy<AssemblyExec>(0,data.extent(0)), MRHYDE_LAMBDA (const int e ) {
           for (size_type n=0; n<numDOF.extent(0); n++) {
             for(int i=0; i<numDOF(n); i++ ) {
               data(e,n,i) = vec_dev(LIDs(e,offsets(n,i)));
