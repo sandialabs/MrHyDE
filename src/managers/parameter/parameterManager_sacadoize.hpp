@@ -84,7 +84,7 @@ void ParameterManager<Node>::sacadoizeParamsSc(const bool & seed_active,
   
   parallel_for("parameter manager sacadoize - no seeding",
                RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-               KOKKOS_LAMBDA (const size_type i ) {
+               KOKKOS_CLASS_LAMBDA (const size_type i ) {
     for (size_t j=0; j<pvals.extent(1); j++) {
       for (size_t k=0; k<pvals.extent(2); k++) {
         kv_pvals(i,j,k) = pvals(i,j,k);
@@ -112,7 +112,7 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active,
       
       parallel_for("parameter manager sacadoize - seed active",
                    RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-                   KOKKOS_LAMBDA (const size_type k ) {
+                   KOKKOS_CLASS_LAMBDA (const size_type k ) {
         for (size_t i=0; i<plengths.extent(0); i++) {
           if (ptypes(i) == 1) { // active params
             for (size_t j=0; j<plengths(i); j++) {
@@ -136,7 +136,7 @@ void ParameterManager<Node>::sacadoizeParams(const bool & seed_active,
     else {
       parallel_for("parameter manager sacadoize - no seeding",
                    RangePolicy<AssemblyExec>(0,pvals.extent(0)),
-                   KOKKOS_LAMBDA (const size_type index ) {
+                   KOKKOS_CLASS_LAMBDA (const size_type index ) {
         for (size_t i=0; i<plengths.extent(0); i++) {
           for (size_t j=0; j<plengths(i); j++) {
             kv_pvals(index,i,j) = EvalT(pvals(index,i,j));

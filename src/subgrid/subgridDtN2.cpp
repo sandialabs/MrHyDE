@@ -434,7 +434,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
     
     parallel_for("subgrid bcell group",
                  RangePolicy<AssemblyExec>(0,currnodes.extent(0)),
-                 KOKKOS_LAMBDA (const int e ) {
+                 KOKKOS_CLASS_LAMBDA (const int e ) {
       for (size_type n=0; n<currnodes.extent(1); n++) {
         for (size_type m=0; m<currnodes.extent(2); m++) {
           currnodes(e,n,m) = newnodes(group_KV(e),n,m);
@@ -449,7 +449,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
       eIndex = Kokkos::View<int*,AssemblyDevice>("element indices",cgroup.size());
       parallel_for("subgrid bcell group",
                    RangePolicy<AssemblyExec>(0,currnodes.extent(0)),
-                   KOKKOS_LAMBDA (const int e ) {
+                   KOKKOS_CLASS_LAMBDA (const int e ) {
         eIndex(e) = group_KV(e);
       });
     }
@@ -463,7 +463,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
         eIndex = Kokkos::View<int*,AssemblyDevice>("element indices",cgroup.size());
         parallel_for("subgrid LIDs",
                      RangePolicy<AssemblyExec>(0,numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           eIndex(e) = group_KV(e);
         });
       }
@@ -479,7 +479,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
     if (mindex == 0) {
             
       LIDView cellLIDs("LIDs on device", cgroup.size(), LIDs.extent(1));
-      parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_LAMBDA (const int i ) {
+      parallel_for("assembly copy LIDs",RangePolicy<AssemblyExec>(0,cellLIDs.extent(0)), KOKKOS_CLASS_LAMBDA (const int i ) {
         size_t elemID = eIndex(i);
         for (size_type j=0; j<LIDs.extent(1); j++) {
           cellLIDs(i,j) = LIDs(elemID,j);
@@ -502,7 +502,7 @@ void SubGridDtN2::createNewBoundaryGroups(SubGridTools2 & sgt, size_t & mindex) 
         LIDView LIDs_0 = boundary_groups[0][s]->LIDs[0];
         parallel_for("subgrid LIDs",
                      RangePolicy<AssemblyExec>(0,numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type j=0; j<LIDs_0.extent(1); j++) {
             cellLIDs(e,j) = LIDs_0(e,j);
           }
@@ -554,7 +554,7 @@ void SubGridDtN2::createNewGroups(SubGridTools2 & sgt, size_t & mindex) {
     LIDView LIDs_0 = groups[0][0]->LIDs[0];
     parallel_for("subgrid LIDs",
                  RangePolicy<AssemblyExec>(0,numElem),
-                 KOKKOS_LAMBDA (const int e ) {
+                 KOKKOS_CLASS_LAMBDA (const int e ) {
       localID(e) = localID_0(e);
       for (size_t j=0; j<LIDs_0.extent(1); j++) {
         LIDs(e,j) = LIDs_0(e,j);
@@ -601,7 +601,7 @@ void SubGridDtN2::setBoundaryGroupAuxLIDs(size_t & mindex) {
     auto macroIDs = macroData[mindex]->macroIDs;
     parallel_for("subgrid bcell mIDs",
                  RangePolicy<AssemblyExec>(0,mID_dev.extent(0)), 
-                 KOKKOS_LAMBDA (const int e ) {
+                 KOKKOS_CLASS_LAMBDA (const int e ) {
       mID_dev(e) = macroIDs(localEID(e));
     });
     Kokkos::deep_copy(mID_host,mID_dev);
@@ -715,7 +715,7 @@ void SubGridDtN2::computeMacroBasisSubgridIP(size_t & mindex) {
         Kokkos::deep_copy(mcount_kv,mcount);
         Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> corientation("tmp orientation",numElem);
         auto morient = macroData[mindex]->macroorientation;
-        parallel_for("subgrid macro basis",RangePolicy<PHX::Device::execution_space>(0,numIDs), KOKKOS_LAMBDA (const int m ) {
+        parallel_for("subgrid macro basis",RangePolicy<PHX::Device::execution_space>(0,numIDs), KOKKOS_CLASS_LAMBDA (const int m ) {
           int mcount = mcount_kv(0);
           for (int n=0; n<mcount; n++) {
             int index= m*mcount+n;
@@ -726,7 +726,7 @@ void SubGridDtN2::computeMacroBasisSubgridIP(size_t & mindex) {
         for (size_t i=0; i<macro_basis_pointers.size(); i++) {
           DRV tmp_basis("basis values",numElem,macro_basis_pointers[i]->getCardinality(),sside_ip_x.extent(1));
           auto rbasis = refbasis[i];
-          parallel_for("subgrid macro basis",RangePolicy<PHX::Device::execution_space>(0,numIDs), KOKKOS_LAMBDA (const int m ) {
+          parallel_for("subgrid macro basis",RangePolicy<PHX::Device::execution_space>(0,numIDs), KOKKOS_CLASS_LAMBDA (const int m ) {
             int mcount = mcount_kv(0);
             for (int n=0; n<mcount; n++) {
               int index= m*mcount+n;
@@ -821,7 +821,7 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
 
   parallel_for("subgrid set coarse sol",
                RangePolicy<AssemblyExec>(0,coarse_u.extent(0)),
-               KOKKOS_LAMBDA (const size_type e ) {
+               KOKKOS_CLASS_LAMBDA (const size_type e ) {
     for (size_type i=0; i<coarse_u.extent(1); i++) {
       for (size_type j=0; j<coarse_u.extent(2); j++) {
         coarse_u(e,i,j) = coarse_fwdsoln(macroIDs(e),i,j);
@@ -836,7 +836,7 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
                         
   parallel_for("subgrid set coarse sol",
                RangePolicy<AssemblyExec>(0,coarse_uprev.extent(0)),
-               KOKKOS_LAMBDA (const size_type e ) {
+               KOKKOS_CLASS_LAMBDA (const size_type e ) {
     for (size_type i=0; i<coarse_uprev.extent(1); i++) {
       for (size_type j=0; j<coarse_uprev.extent(2); j++) {
         for (size_type k=0; k<coarse_uprev.extent(3); k++) {
@@ -852,7 +852,7 @@ void SubGridDtN2::subgridSolver(View_Sc3 coarse_fwdsoln,
                                                          coarse_adjsoln.extent(2));
     parallel_for("subgrid set coarse adj",
                  RangePolicy<AssemblyExec>(0,coarse_phi.extent(0)),
-                 KOKKOS_LAMBDA (const size_type e ) {
+                 KOKKOS_CLASS_LAMBDA (const size_type e ) {
       for (size_type i=0; i<coarse_phi.extent(1); i++) {
         for (size_type j=0; j<coarse_phi.extent(2); j++) {
           coarse_phi(e,i,j) = coarse_adjsoln(macroIDs(e),i,j);

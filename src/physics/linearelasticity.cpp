@@ -123,7 +123,7 @@ void linearelasticity<EvalT>::volumeResidual() {
     
     parallel_for("LE volume resid 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) - source_dx(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
@@ -142,7 +142,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       
       parallel_for("LE ux volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) - source_dx(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
@@ -160,7 +160,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       
       parallel_for("LE uy volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) - source_dy(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
@@ -182,7 +182,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       
       parallel_for("LE ux volume resid 3D",
                    TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -203,7 +203,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       
       parallel_for("LE uy volume resid 3D",
                    TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -224,7 +224,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       
       parallel_for("LE uz volume resid 3D",
                    TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -307,7 +307,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
       if (dx_sidetype == "Neumann") { // Neumann
         parallel_for("LE ux bndry resid 1D N",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             for (size_type i=0; i<basis.extent(1); i++ ) {
               res(e,off(i)) += (-source_dx(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -319,7 +319,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
         auto dx = wkset->getSolutionField("dx");
         parallel_for("LE ux bndry resid 1D wD",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
             EvalT deltadx = dx(e,k) - source_dx(e,k);
@@ -335,7 +335,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
         auto lambdax = wkset->getSolutionField("aux dx");
         parallel_for("LE ux bndry resid 1D wD-ms",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
             EvalT deltadx = dx(e,k) - lambdax(e,k);
@@ -361,7 +361,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
         if (dx_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE ux bndry resid 2D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_dx(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -374,7 +374,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto dy = wkset->getSolutionField("dy");
           parallel_for("LE ux bndry resid 2D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -395,7 +395,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto lambday = wkset->getSolutionField("aux dy");
           parallel_for("LE ux bndry resid 1D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - lambdax(e,k);
@@ -419,7 +419,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
         if (dy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uy bndry resid 2D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_dy(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -432,7 +432,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto dy = wkset->getSolutionField("dy");
           parallel_for("LE uy bndry resid 2D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -452,7 +452,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto lambday = wkset->getSolutionField("aux dy");
           parallel_for("LE uy bndry resid 2D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - lambdax(e,k);
@@ -482,7 +482,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
         if (dx_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE ux bndry resid 3D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_dx(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -496,7 +496,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto dz = wkset->getSolutionField("dz");
           parallel_for("LE ux bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -520,7 +520,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto lambdaz = wkset->getSolutionField("aux dz");
           parallel_for("LE ux bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - lambdax(e,k);
@@ -546,7 +546,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
         if (dy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uy bndry resid 3D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_dy(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -560,7 +560,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto dz = wkset->getSolutionField("dz");
           parallel_for("LE uy bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -584,7 +584,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto lambdaz = wkset->getSolutionField("aux dz");
           parallel_for("LE uy bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - lambdax(e,k);
@@ -609,7 +609,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
         if (dz_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("LE uz bndry resid 3D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_dz(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -623,7 +623,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           auto dz = wkset->getSolutionField("dz");
           parallel_for("LE uz bndry resid 3D wD",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - source_dx(e,k); // should be - dval(e,k), but this is set to 0.0
@@ -648,7 +648,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
           
           parallel_for("LE uz bndry resid 3D wD-ms",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               EvalT penalty = modelparams(1)*(lambda_side(e,k) + 2.0*mu_side(e,k))/h(e);
               EvalT deltadx = dx(e,k) - lambdax(e,k);
@@ -723,7 +723,7 @@ void linearelasticity<EvalT>::computeFlux() {
       auto flux_x = subview(wkset->flux, ALL(), dx_num, ALL());
       parallel_for("LE flux 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int e ) {
+                   KOKKOS_CLASS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*stress_side(e,k,0,0)*nx(e,k) + penalty*(source_dx(e,k)-dx(e,k));
@@ -762,7 +762,7 @@ void linearelasticity<EvalT>::computeFlux() {
       auto flux_y = subview( wkset->flux, ALL(), dy_num, ALL());
       parallel_for("LE flux 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int e ) {
+                   KOKKOS_CLASS_LAMBDA (const int e ) {
         for (size_type k=0; k<flux_x.extent(1); k++) {
           EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
           flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
@@ -818,7 +818,7 @@ void linearelasticity<EvalT>::computeFlux() {
         auto flux_x = subview( wkset->flux, ALL(), dx_num, ALL());
         parallel_for("LE flux 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<flux_x.extent(1); k++) {
             EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
             flux_x(e,k) = 1.0*(stress_side(e,k,0,0)*nx(e,k) + stress_side(e,k,0,1)*ny(e,k) + stress_side(e,k,0,2)*nz(e,k)) + penalty*(source_dx(e,k)-dx(e,k));
@@ -830,7 +830,7 @@ void linearelasticity<EvalT>::computeFlux() {
         auto flux_y = subview( wkset->flux, ALL(), dy_num, ALL());
         parallel_for("LE flux 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<flux_y.extent(1); k++) {
             EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
             flux_y(e,k) = 1.0*(stress_side(e,k,1,0)*nx(e,k) + stress_side(e,k,1,1)*ny(e,k) + stress_side(e,k,1,2)*nz(e,k)) + penalty*(source_dy(e,k)-dy(e,k));
@@ -842,7 +842,7 @@ void linearelasticity<EvalT>::computeFlux() {
         auto flux_z = subview( wkset->flux, ALL(), dz_num, ALL());
         parallel_for("LE flux 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<flux_z.extent(1); k++) {
             EvalT penalty = modelparams(1)/h(e)*(lambda_side(e,k) + 2.0*mu_side(e,k));
             flux_z(e,k) = 1.0*(stress_side(e,k,2,0)*nx(e,k) + stress_side(e,k,2,1)*ny(e,k) + stress_side(e,k,2,2)*nz(e,k)) + penalty*(source_dz(e,k)-dz(e,k));
@@ -938,7 +938,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 1D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = 4.0*mu(e,k)*ddx_dx(e,k);
             }
@@ -947,7 +947,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
               }
@@ -957,7 +957,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         else {
           parallel_for("LE stress 1D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = (2.0*mu(e,k)+lambda(e,k))*ddx_dx(e,k);
             }
@@ -966,7 +966,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               }
@@ -977,7 +977,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           auto pres = wkset->getSolutionField("p");
           parallel_for("LE stress 1D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) += mp(2)*pres(e,k);
             }
@@ -993,7 +993,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 2D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = 4.0*mu(e,k)*ddx_dx(e,k) + 2.0*mu(e,k)*ddy_dy(e,k);
               stress(e,k,0,1) = mu(e,k)*(ddx_dy(e,k) + ddy_dx(e,k));
@@ -1005,7 +1005,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
                 stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
@@ -1016,7 +1016,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         else {
           parallel_for("LE stress 2D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = (2.0*mu(e,k)+lambda(e,k))*ddx_dx(e,k) + lambda(e,k)*ddy_dy(e,k);
               stress(e,k,0,1) = mu(e,k)*(ddx_dy(e,k) + ddy_dx(e,k));
@@ -1028,7 +1028,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
                 stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
@@ -1040,7 +1040,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           auto pres = wkset->getSolutionField("p");
           parallel_for("LE stress 2D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) += -mp(2)*pres(e,k);
               stress(e,k,1,1) += -mp(2)*pres(e,k);
@@ -1061,7 +1061,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
                 
         parallel_for("LE stress 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<stress.extent(1); k++) {
             stress(e,k,0,0) = (2.0*mu(e,k)+lambda(e,k))*ddx_dx(e,k) + lambda(e,k)*(ddy_dy(e,k) + ddz_dz(e,k));
             stress(e,k,0,1) = mu(e,k)*(ddx_dy(e,k) + ddy_dx(e,k));
@@ -1078,7 +1078,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           auto T = wkset->getSolutionField("T");
           parallel_for("LE stress 3D TE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
@@ -1091,7 +1091,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         auto pres = wkset->getSolutionField("p");
         parallel_for("LE stress 3D PE",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<stress.extent(1); k++) {
             stress(e,k,0,0) += -mp(2)*pres(e,k);
             stress(e,k,1,1) += -mp(2)*pres(e,k);
@@ -1107,7 +1107,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 1D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = 4.0*mu(e,k)*ddx_dx(e,k);
             }
@@ -1116,7 +1116,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
               }
@@ -1126,7 +1126,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         else {
           parallel_for("LE stress 1D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = (2.0*mu(e,k)+lambda(e,k))*ddx_dx(e,k);
             }
@@ -1135,7 +1135,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               }
@@ -1146,7 +1146,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           auto pres = wkset->getSolutionField("p");
           parallel_for("LE stress 1D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) += mp(2)*pres(e,k);
             }
@@ -1162,7 +1162,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         if (incplanestress) { // lambda = 2*mu
           parallel_for("LE stress 2D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = 4.0*mu(e,k)*ddx_dx(e,k) + 2.0*mu(e,k)*ddy_dy(e,k);
               stress(e,k,0,1) = mu(e,k)*(ddx_dy(e,k) + ddy_dx(e,k));
@@ -1174,7 +1174,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("e");
             parallel_for("LE stress 3D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
                 stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(5.0*mu(e,k));
@@ -1185,7 +1185,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         else {
           parallel_for("LE stress 2D",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) = (2.0*mu(e,k)+lambda(e,k))*ddx_dx(e,k) + lambda(e,k)*ddy_dy(e,k);
               stress(e,k,0,1) = mu(e,k)*(ddx_dy(e,k) + ddy_dx(e,k));
@@ -1197,7 +1197,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
-                         KOKKOS_LAMBDA (const int e ) {
+                         KOKKOS_CLASS_LAMBDA (const int e ) {
               for (size_type k=0; k<stress.extent(1); k++) {
                 stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
                 stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
@@ -1209,7 +1209,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           auto pres = wkset->getSolutionField("p");
           parallel_for("LE stress 2D PE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) += -mp(2)*pres(e,k);
               stress(e,k,1,1) += -mp(2)*pres(e,k);
@@ -1230,7 +1230,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         
         parallel_for("LE stress 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<stress.extent(1); k++) {
             stress(e,k,0,0) = (2.0*mu(e,k)+lambda(e,k))*ddx_dx(e,k) + lambda(e,k)*(ddy_dy(e,k) + ddz_dz(e,k));
             stress(e,k,0,1) = mu(e,k)*(ddx_dy(e,k) + ddy_dx(e,k));
@@ -1247,7 +1247,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           auto T = wkset->getSolutionField("e");
           parallel_for("LE stress 3D TE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             for (size_type k=0; k<stress.extent(1); k++) {
               stress(e,k,0,0) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
               stress(e,k,1,1) += -mp(4)*(T(e,k) - mp(3))*(3.0*lambda(e,k) + 2.0*mu(e,k));
@@ -1260,7 +1260,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
         auto pres = wkset->getSolutionField("p");
         parallel_for("LE stress 3D PE",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for (size_type k=0; k<stress.extent(1); k++) {
             stress(e,k,0,0) += -mp(2)*pres(e,k);
             stress(e,k,1,1) += -mp(2)*pres(e,k);
@@ -1320,7 +1320,7 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > linearelasticity<E
   if (dimension == 1) {
     parallel_for("LE derived fill",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
         EvalT sxx = stress(elem,pt,0,0);
         vmstress(elem,pt) = sqrt(sxx*sxx);
@@ -1331,7 +1331,7 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > linearelasticity<E
   else if (dimension == 2) {
     parallel_for("LE derived fill",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
         EvalT sxx = stress(elem,pt,0,0);
         EvalT syy = stress(elem,pt,1,1);
@@ -1344,7 +1344,7 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > linearelasticity<E
   else if (dimension == 3) {
     parallel_for("LE derived fill",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<vmstress.extent(1); ++pt) {
         EvalT sxx = stress(elem,pt,0,0);
         EvalT syy = stress(elem,pt,1,1);

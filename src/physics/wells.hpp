@@ -93,7 +93,7 @@ namespace MrHyDE {
 
         parallel_for("update volumetric sources",
                      RangePolicy<AssemblyExec>(0,numElem),
-                     KOKKOS_LAMBDA (const int elem) {
+                     KOKKOS_CLASS_LAMBDA (const int elem) {
           ScalarT C = std::log(0.25*std::exp(-0.5772)*h(elem)/2.0);
 
           for (int pt=0; pt<numIP; pt++) {

@@ -872,7 +872,7 @@ void PostprocessManager<Node>::computeWeightedNorm(vector<vector_RCP> &current_s
     auto wts_view = norm_wts[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     auto prod_view = prod->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     auto soln_view = soln->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
-    parallel_for("assembly insert Jac", RangePolicy<LA_exec>(0, prod_view.extent(0)), KOKKOS_LAMBDA(const int k) { prod_view(k, 0) = wts_view(k, 0) * soln_view(k, 0) * soln_view(k, 0); });
+    parallel_for("assembly insert Jac", RangePolicy<LA_exec>(0, prod_view.extent(0)), KOKKOS_CLASS_LAMBDA(const int k) { prod_view(k, 0) = wts_view(k, 0) * soln_view(k, 0) * soln_view(k, 0); });
 
     Teuchos::Array<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType> l2norm(1);
     prod->norm2(l2norm);

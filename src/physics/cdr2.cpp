@@ -100,7 +100,7 @@ void cdr2<EvalT>::volumeResidual() {
   if (spaceDim == 1) {
     parallel_for("cdr2 volume resid 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT f = (dC2_dt(elem,pt) + xvel(elem,pt)*dC2_dx(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         EvalT Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC2_dx(elem,pt)*wts(elem,pt);
@@ -113,7 +113,7 @@ void cdr2<EvalT>::volumeResidual() {
   else if (spaceDim == 2) {
     parallel_for("cdr2 volume resid 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT f = (dC2_dt(elem,pt) + xvel(elem,pt)*dC2_dx(elem,pt) + yvel(elem,pt)*dC2_dy(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         EvalT Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC2_dx(elem,pt)*wts(elem,pt);
@@ -127,7 +127,7 @@ void cdr2<EvalT>::volumeResidual() {
   else if (spaceDim == 3) {
     parallel_for("cdr2 volume resid 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT f = (dC2_dt(elem,pt) + xvel(elem,pt)*dC2_dx(elem,pt) + yvel(elem,pt)*dC2_dy(elem,pt) + zvel(elem,pt)*dC2_dz(elem,pt) + reax(elem,pt) - source(elem,pt))*wts(elem,pt);
         EvalT Fx = 1.0/(rho(elem,pt)*cp(elem,pt))*diff(elem,pt)*dC2_dx(elem,pt)*wts(elem,pt);

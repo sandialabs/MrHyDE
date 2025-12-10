@@ -193,7 +193,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rho volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drho_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -214,7 +214,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhoux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhoux_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -235,7 +235,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhoE volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhoE_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -262,7 +262,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rho volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drho_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -284,7 +284,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhoux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhoux_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -306,7 +306,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhouy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhouy_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -328,7 +328,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhoE volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhoE_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -357,7 +357,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rho volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drho_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -380,7 +380,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhoux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhoux_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -403,7 +403,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhouy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhouy_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -426,7 +426,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhouz volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhouz_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -449,7 +449,7 @@ void euler<EvalT>::volumeResidual() {
       
       parallel_for("euler rhoE volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += drhoE_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -524,7 +524,7 @@ void euler<EvalT>::boundaryResidual() {
       
       parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (fluxes(elem,pt,iEqn,0)*nx(elem,pt) + 
@@ -547,7 +547,7 @@ void euler<EvalT>::boundaryResidual() {
       
       parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += 
@@ -571,7 +571,7 @@ void euler<EvalT>::boundaryResidual() {
       
       parallel_for("euler boundary resid eqn: " + std::to_string(iEqn),
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += 
@@ -636,7 +636,7 @@ void euler<EvalT>::computeFlux() {
 
       parallel_for("euler boundary flux copy",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
           for (size_type pt=0; pt<bound.extent(1); ++pt) {
             interfaceFlux(elem,ieqn,pt) = bound(elem,pt,ieqn);
@@ -658,7 +658,7 @@ void euler<EvalT>::computeFlux() {
 
         parallel_for("euler flux 1D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,ieqn,pt) = fluxes(elem,pt,ieqn,0)*nx(elem,pt)
@@ -673,7 +673,7 @@ void euler<EvalT>::computeFlux() {
 
         parallel_for("euler flux 2D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,ieqn,pt) = fluxes(elem,pt,ieqn,0)*nx(elem,pt)
@@ -689,7 +689,7 @@ void euler<EvalT>::computeFlux() {
 
         parallel_for("euler flux 3D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (int ieqn=0; ieqn<spaceDim+2; ++ieqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,ieqn,pt) = fluxes(elem,pt,ieqn,0)*nx(elem,pt)
@@ -778,7 +778,7 @@ void euler<EvalT>::computeInviscidFluxes(const bool & on_side) {
 
     parallel_for("euler inviscid fluxes 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // rho equation -- F_x = rhoux
@@ -805,7 +805,7 @@ void euler<EvalT>::computeInviscidFluxes(const bool & on_side) {
 
     parallel_for("euler inviscid fluxes 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // rho equation -- F_x = rhoux F_y = rhouy
@@ -847,7 +847,7 @@ void euler<EvalT>::computeInviscidFluxes(const bool & on_side) {
 
     parallel_for("euler inviscid fluxes 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // rho equation -- F_x = rhoux F_y = rhouy F_z = rhouz
@@ -927,7 +927,7 @@ void euler<EvalT>::computeThermoProps(const bool & on_side)
 
   parallel_for("euler thermo props",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
+               KOKKOS_CLASS_LAMBDA (const int elem ) {
 
     ScalarT gamma = modelparams(gamma_mp_num); 
     ScalarT MachNum = modelparams(MRef_mp_num);
@@ -1010,7 +1010,7 @@ void euler<EvalT>::computeStabilizationTerm() {
 
   parallel_for("euler stabilization",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
+               KOKKOS_CLASS_LAMBDA (const int elem ) {
 
     View_EvalT2 leftEV,rightEV; // Local eigendecomposition
     View_EvalT1 Lambda; // diagonal matrix
@@ -1160,7 +1160,7 @@ void euler<EvalT>::computeBoundaryTerm() {
 
   parallel_for("euler boundary term",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
+               KOKKOS_CLASS_LAMBDA (const int elem ) {
 
     View_EvalT2 leftEV,rightEV; // Local eigendecomposition
     View_EvalT1 Lambda; // diagonal matrix
@@ -1289,7 +1289,7 @@ void euler<EvalT>::computeBoundaryTerm() {
 
 template<class EvalT>
 KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
-        const EvalT & rhoux, const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma) {
+        const EvalT & rhoux, const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma) const {
 
   // In 1D, the eigenvalues are ux - a, ux, and ux + a
   // The right eigenvectors are 
@@ -1333,7 +1333,7 @@ KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, V
 template<class EvalT>
 KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
     const EvalT & rhoux, const EvalT & rhouy, const EvalT & rho, const ScalarT & nx, const ScalarT & ny,
-    const EvalT & a_sound, const ScalarT & gamma) {
+    const EvalT & a_sound, const ScalarT & gamma) const {
 
   // This follows Rohde 2001 (AIAA)
 
@@ -1392,7 +1392,7 @@ template<class EvalT>
 KOKKOS_FUNCTION void euler<EvalT>::eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
     const EvalT & rhoux, const EvalT & rhouy, const EvalT & rhouz, const EvalT & rho, 
     const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
-    const EvalT & a_sound, const ScalarT & gamma) {
+    const EvalT & a_sound, const ScalarT & gamma) const {
 
   // This follows Rohde 2001 (AIAA)
 

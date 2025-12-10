@@ -336,7 +336,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
           Kokkos::View<LO*,AssemblyDevice> EIDs = groups[block][grp]->localElemID;
           parallel_for("paramman copy LIDs",
                        RangePolicy<AssemblyExec>(0,groupLIDs.extent(0)), 
-                       KOKKOS_LAMBDA (const int c ) {
+                       KOKKOS_CLASS_LAMBDA (const int c ) {
             size_t elemID = GEIDs(EIDs(c));
             for (size_type j=0; j<LIDs.extent(1); j++) {
               groupLIDs(c,j) = LIDs(elemID,j);
@@ -359,7 +359,7 @@ void ParameterManager<Node>::setupDiscretizedParameters(vector<vector<Teuchos::R
           Kokkos::View<LO*,AssemblyDevice> EIDs = boundary_groups[block][grp]->localElemID;
           parallel_for("paramman copy LIDs bgroups",
                        RangePolicy<AssemblyExec>(0,groupLIDs.extent(0)), 
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             size_t elemID = EIDs(e);
             for (size_type j=0; j<LIDs.extent(1); j++) {
               groupLIDs(e,j) = LIDs(elemID,j);

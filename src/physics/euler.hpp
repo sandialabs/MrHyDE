@@ -153,7 +153,7 @@ namespace MrHyDE {
      */
 
     KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
-        const EvalT & rhoux, const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma);
+        const EvalT & rhoux, const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma) const;
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
      * This is the 2-D version.
@@ -174,7 +174,7 @@ namespace MrHyDE {
 
     KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
         const EvalT & rhoux, const EvalT & rhouy, const EvalT & rho, const ScalarT & nx, const ScalarT & ny,
-        const EvalT & a_sound, const ScalarT & gamma);
+        const EvalT & a_sound, const ScalarT & gamma) const;
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
      * This is the 3-D version.
@@ -198,7 +198,7 @@ namespace MrHyDE {
     KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
         const EvalT & rhoux, const EvalT & rhouy, const EvalT & rhouz, const EvalT & rho, 
         const ScalarT & nx, const ScalarT & ny, const ScalarT & nz,
-        const EvalT & a_sound, const ScalarT & gamma);
+        const EvalT & a_sound, const ScalarT & gamma) const;
 
     /* @brief Computes the local normal flux Jacobian for the boundary term.
      * This is the 1-D version.
@@ -213,7 +213,7 @@ namespace MrHyDE {
      */
 
     KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 dFdn, const EvalT & rhoux,
-        const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma);
+        const EvalT & rho, const EvalT & a_sound, const ScalarT & gamma) const;
 
     /* @brief Computes the local normal flux Jacobian for the boundary term.
      * This is the 2-D version.
@@ -232,7 +232,7 @@ namespace MrHyDE {
 
     KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 dFdn, const EvalT & rhoux,
         const EvalT & rhouy, const EvalT & rho, const EvalT & nx, const EvalT & ny, 
-        const EvalT & a_sound, const ScalarT & gamma);
+        const EvalT & a_sound, const ScalarT & gamma) const;
 
     /* @brief Computes the local normal flux Jacobian for the boundary term.
      * This is the 3-D version.
@@ -254,7 +254,7 @@ namespace MrHyDE {
     KOKKOS_FUNCTION void updateNormalFluxJacobian(View_EvalT2 dFdn, const EvalT & rhoux,
         const EvalT & rhouy, const EvalT & rhouz, const EvalT & rho, 
         const EvalT & nx, const EvalT & ny, const EvalT & nz,
-        const EvalT & a_sound, const ScalarT & gamma);
+        const EvalT & a_sound, const ScalarT & gamma) const;
 
     /* @brief Computes y = Ax
      *
@@ -265,7 +265,7 @@ namespace MrHyDE {
      */
 
     template<class V1, class V2, class V3>
-    KOKKOS_FUNCTION void matVec(const V1 A, const V2 x, V3 y) {
+    KOKKOS_FUNCTION void matVec(const V1 A, const V2 x, V3 y) const {
       // TODO error checking for size
 
       size_type n = A.extent(0);  // should be square and x and y should be of length n

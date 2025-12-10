@@ -22,7 +22,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
   View_Sc1 avgwts("elem size",cwts.extent(0));
   parallel_for("Group sol avg",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
-               KOKKOS_LAMBDA (const size_type elem ) {
+               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
     ScalarT avgwt = 0.0;
     for (size_type pt=0; pt<cwts.extent(1); pt++) {
       avgwt += cwts(elem,pt);
@@ -40,7 +40,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
       auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HGRAD[i],0);
       parallel_for("Group sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
+                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
         ScalarT solavg = 0.0;
         for (size_type pt=0; pt<sol.extent(2); pt++) {
           solavg += sol(elem,pt)*cwts(elem,pt);
@@ -57,7 +57,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
       auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HVOL[i],0);
       parallel_for("Group sol avg",
                    RangePolicy<AssemblyExec>(0,savg.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
+                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
         ScalarT solavg = 0.0;
         for (size_type pt=0; pt<sol.extent(2); pt++) {
           solavg += sol(elem,pt)*cwts(elem,pt);
@@ -84,7 +84,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
         auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HDIV[i],j);
         parallel_for("Group sol avg",
                      RangePolicy<AssemblyExec>(0,savg.extent(0)),
-                     KOKKOS_LAMBDA (const size_type elem ) {
+                     KOKKOS_CLASS_LAMBDA (const size_type elem ) {
           ScalarT solavg = 0.0;
           for (size_type pt=0; pt<sol.extent(2); pt++) {
             solavg += sol(elem,pt)*cwts(elem,pt);
@@ -103,7 +103,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
         auto savg = subview(groups[block][grp]->sol_avg[set],ALL(),vars_HCURL[i],j);
         parallel_for("Group sol avg",
                      RangePolicy<AssemblyExec>(0,savg.extent(0)),
-                     KOKKOS_LAMBDA (const size_type elem ) {
+                     KOKKOS_CLASS_LAMBDA (const size_type elem ) {
           ScalarT solavg = 0.0;
           for (size_type pt=0; pt<sol.extent(2); pt++) {
             solavg += sol(elem,pt)*cwts(elem,pt);
@@ -122,7 +122,7 @@ void AssemblyManager<Node>::computeSolAvg(const int & block, const size_t & grp)
 
     parallel_for("Group param avg",
                  RangePolicy<AssemblyExec>(0,pavg.extent(0)),
-                 KOKKOS_LAMBDA (const size_type elem ) {
+                 KOKKOS_CLASS_LAMBDA (const size_type elem ) {
       ScalarT avgwt = 0.0;
       for (size_type pt=0; pt<cwts.extent(1); pt++) {
         avgwt += cwts(elem,pt);
@@ -171,7 +171,7 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
   View_Sc1 avgwts("elem size",cwts.extent(0));
   parallel_for("Group sol avg",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
-               KOKKOS_LAMBDA (const size_type elem ) {
+               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
     ScalarT avgwt = 0.0;
     for (size_type pt=0; pt<cwts.extent(1); pt++) {
       avgwt += cwts(elem,pt);
@@ -184,7 +184,7 @@ void AssemblyManager<Node>::computeSolutionAverage(const int & block, const size
   auto scsol = subview(groupData[block]->sol[set],ALL(),index,ALL());
   parallel_for("wkset[block] soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
-               KOKKOS_LAMBDA (const size_type elem ) {
+               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
     for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
       ScalarT avgval = 0.0;
       for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
@@ -231,7 +231,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
   View_Sc1 avgwts("elem size",cwts.extent(0));
   parallel_for("Group sol avg",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
-               KOKKOS_LAMBDA (const size_type elem ) {
+               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
     ScalarT avgwt = 0.0;
     for (size_type pt=0; pt<cwts.extent(1); pt++) {
       avgwt += cwts(elem,pt);
@@ -242,7 +242,7 @@ void AssemblyManager<Node>::computeParameterAverage(const int & block, const siz
   auto csol = subview(groupData[block]->param,ALL(),index,ALL());
   parallel_for("wkset[block] soln ip HGRAD",
                RangePolicy<AssemblyExec>(0,cwts.extent(0)),
-               KOKKOS_LAMBDA (const size_type elem ) {
+               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
     for (size_type dim=0; dim<cbasis.extent(3); ++dim) {
       ScalarT avgval = 0.0;
       for (size_type dof=0; dof<cbasis.extent(1); ++dof ) {
@@ -273,7 +273,7 @@ Kokkos::View<ScalarT***,AssemblyDevice> AssemblyManager<Node>::getSolutionAtNode
   auto uvals = subview(groupData[block]->sol[set], ALL(), var, ALL());
   parallel_for("Group node sol",
                RangePolicy<AssemblyExec>(0,cbasis.extent(0)),
-               KOKKOS_LAMBDA (const size_type elem ) {
+               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
     for (size_type dof=0; dof<cbasis.extent(1); dof++ ) {
       ScalarT uval = uvals(elem,dof);
       for (size_type pt=0; pt<cbasis.extent(2); pt++ ) {
@@ -325,7 +325,7 @@ vector<vector<int> > AssemblyManager<Node>::identifySubgridModels() {
                                                                   
             parallel_for("assembly copy LIDs",
                          RangePolicy<AssemblyExec>(0,usagecheck_tmp.extent(0)),
-                         KOKKOS_LAMBDA (const int i ) {
+                         KOKKOS_CLASS_LAMBDA (const int i ) {
               for (size_type j=0; j<usagecheck_tmp.extent(1); j++) {
                 usagecheck_tmp(i,j) = usagecheck(i,j).val();
               }
@@ -897,7 +897,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
       
       parallel_for("mesh data cell nodes",
                    RangePolicy<AssemblyExec>(0,nodes.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<nodes.extent(1); ++pt) {
           for (size_type dim=0; dim<nodes.extent(2); ++dim) {
             totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
@@ -993,7 +993,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
         DRV nodes = disc->getMyNodes(block, boundary_groups[block][grp]->localElemID);
         parallel_for("mesh data cell nodes",
                      RangePolicy<AssemblyExec>(0,nodes.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<nodes.extent(1); ++pt) {
             for (size_type dim=0; dim<nodes.extent(2); ++dim) {
               totalNodes(prog+elem,pt,dim) = nodes(elem,pt,dim);
@@ -1121,7 +1121,7 @@ void AssemblyManager<Node>::computeFlux(const int & block, const int & grp,
       
       parallel_for("wkset transient sol seedwhat 1",
                    TeamPolicy<AssemblyExec>(currLIDs.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         ScalarT beta_u;//, beta_t;
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
@@ -1164,7 +1164,7 @@ void AssemblyManager<Node>::computeFlux(const int & block, const int & grp,
         auto offsets = subview(wkset_AD[wkblock]->offsets,var,ALL());
         parallel_for("flux gather",
                      RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
             u_AD(elem,dof) = AD(u_sub(currLIDs(elem,offsets(dof)),0));
           }
@@ -1177,7 +1177,7 @@ void AssemblyManager<Node>::computeFlux(const int & block, const int & grp,
         auto offsets = subview(wkset_AD[wkblock]->offsets,var,ALL());
         parallel_for("flux gather",
                      RangePolicy<AssemblyExec>(0,ulocal.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for( size_t dof=0; dof<u_AD.extent(1); dof++ ) {
             u_AD(elem,dof) = AD(MAXDERIVS, 0, u_sub(currLIDs(elem,offsets(dof)),0));
             for( size_t p=0; p<du_sub.extent(1); p++ ) {
@@ -1211,7 +1211,7 @@ void AssemblyManager<Node>::computeFlux(const int & block, const int & grp,
       auto varaux = subview(lambda,ALL(),var,ALL());
       parallel_for("flux aux",
                    RangePolicy<AssemblyExec>(0,localID.extent(0)),
-                   KOKKOS_LAMBDA (const size_type elem ) {
+                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<abasis.extent(1); ++dof) {
           AD auxval = AD(MAXDERIVS,off(dof), varaux(localID(elem),dof));
           auxval.fastAccessDx(off(dof)) *= fluxwt;

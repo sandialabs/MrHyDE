@@ -57,7 +57,7 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
   // copy values
   parallel_for("physics fill Dirichlet values",
                RangePolicy<AssemblyExec>(0,dvals.extent(0)),
-               KOKKOS_LAMBDA (const int e ) {
+               KOKKOS_CLASS_LAMBDA (const int e ) {
     for (size_t i=0; i<dvals.extent(1); i++) {
       dvals(e,i) = tdvals(e,i);
     }
@@ -89,7 +89,7 @@ std::vector<View_Sc2> PhysicsInterface::getDirichletVector(const int & var,
         View_Sc2 dvals("dirichlet component", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
         parallel_for("physics fill Dirichlet vector component",
                      RangePolicy<AssemblyExec>(0,dvals.extent(0)),
-                     KOKKOS_LAMBDA (const int e) {
+                     KOKKOS_CLASS_LAMBDA (const int e) {
           for (size_t i=0; i<dvals.extent(1); i++) {
             dvals(e,i) = tdvals(e,i);
           }
@@ -111,7 +111,7 @@ std::vector<View_Sc2> PhysicsInterface::getDirichletVector(const int & var,
       View_Sc2 dvals("dirichlet component broadcast", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
       parallel_for("physics fill Dirichlet broadcast",
                    RangePolicy<AssemblyExec>(0,dvals.extent(0)),
-                   KOKKOS_LAMBDA (const int e) {
+                   KOKKOS_CLASS_LAMBDA (const int e) {
         for (size_t i=0; i<dvals.extent(1); i++) {
           dvals(e,i) = tdvals(e,i);
         }
@@ -217,7 +217,7 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
       
         parallel_for("physics flux condition",
                      TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
             for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -246,7 +246,7 @@ void PhysicsInterface::fluxConditions(const size_t & set, const size_t block) {
       
         parallel_for("physics flux condition",
                      TeamPolicy<AssemblyExec>(wts.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
             for (size_type pt=0; pt<basis.extent(2); ++pt ) {

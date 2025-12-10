@@ -251,7 +251,7 @@ void DiscretizationInterface::getMeasure(Teuchos::RCP<GroupMetaData> & groupData
 
   parallel_for("compute measure",
                RangePolicy<AssemblyExec>(0,numElem),
-               KOKKOS_LAMBDA (const size_type elem ) {
+               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
     for (size_type pt=0; pt<wts.extent(1); ++pt) {
       measure(elem) += wts(elem,pt);
     }
@@ -363,7 +363,7 @@ void DiscretizationInterface::getPhysicalFaceIntegrationData(Teuchos::RCP<GroupM
     
     parallel_for("wkset transient sol seedwhat 1",
                  TeamPolicy<AssemblyExec>(snormals.extent(0), Kokkos::AUTO, VECTORSIZE),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type pt=team.team_rank(); pt<snormals.extent(1); pt+=team.team_size() ) {
         ScalarT normalLength = 0.0;
@@ -483,7 +483,7 @@ void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<Gr
       auto ref_normals = groupData->ref_side_normals[localSideID];
       parallel_for("bcell 1D normal copy",
                    RangePolicy<AssemblyExec>(0,tmpnormals.extent(0)),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         tmpnormals(elem,0,0) = ref_normals(0,0);
       });
       
@@ -575,7 +575,7 @@ void DiscretizationInterface::getPhysicalBoundaryIntegrationData(Teuchos::RCP<Gr
     
     parallel_for("bcell normal rescale",
                  TeamPolicy<AssemblyExec>(nx.extent(0), Kokkos::AUTO),
-                 KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       int dim = tmpip.extent(2);
       for (size_type pt=team.team_rank(); pt<nx.extent(1); pt+=team.team_size() ) {

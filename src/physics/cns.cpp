@@ -141,7 +141,7 @@ using namespace MrHyDE;
 //      // + (dv_1/dx_1, 4/3 mu du_1/dx_1) - (v_1,source)
 //      parallel_for("cns ux volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //        // TODO here and everywhere, WE NEED TO swing rho over to other side and use MU
 //        // ALSO --> should thermal divergence be abstracted? i.e. it will depend on EOS
@@ -165,7 +165,7 @@ using namespace MrHyDE;
 //        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
 //        parallel_for("cns ux volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            // TODO NO VISCOUS TERM
@@ -190,7 +190,7 @@ using namespace MrHyDE;
 //        auto dT_dx = wkset->getSolutionField("grad(T)[x]");
 //        parallel_for("cns ux volume resid GRADDIV",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            // TODO FIX TAU??? the constant at least is wrong
@@ -220,7 +220,7 @@ using namespace MrHyDE;
 //
 //      parallel_for("cns T volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
 //          // TODO SOURCE AND DPDT TERM
@@ -242,7 +242,7 @@ using namespace MrHyDE;
 //
 //        parallel_for("cns T volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),0.0,0.0,
 //                rho(elem,pt),h(elem),spaceDim,dt,isTransient);
@@ -275,7 +275,7 @@ using namespace MrHyDE;
 //      
 //      parallel_for("cns pr volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD divu = dux_dx(elem,pt)*wts(elem,pt);
 //          // TODO :: p0 part DONT SCREW UP WTS
@@ -298,7 +298,7 @@ using namespace MrHyDE;
 //        
 //        parallel_for("cns pr volume resid PSPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            // TODO NO VISCOUS TERM
@@ -334,7 +334,7 @@ using namespace MrHyDE;
 //      // + (dv_1/dx_2, \mu [du_1/dx_2 + du_2/dx_1]) - (v_1,source) 
 //      parallel_for("cns ux volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt))) - pr(elem,pt);
 //          //AD Fx = mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
@@ -359,7 +359,7 @@ using namespace MrHyDE;
 //        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
 //        parallel_for("cns ux volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
@@ -385,7 +385,7 @@ using namespace MrHyDE;
 //        auto dT_dy = wkset->getSolutionField("grad(T)[y]");
 //        parallel_for("cns ux volume resid GRADDIV",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            // TODO FIX TAU??? the constant at least is wrong
@@ -421,7 +421,7 @@ using namespace MrHyDE;
 //      
 //      parallel_for("cns uy volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
 //          //AD Fx = mu(elem,pt)*duy_dx(elem,pt);
@@ -447,7 +447,7 @@ using namespace MrHyDE;
 //        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
 //        parallel_for("cns uy volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            AD strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
@@ -472,7 +472,7 @@ using namespace MrHyDE;
 //        auto dT_dy = wkset->getSolutionField("grad(T)[y]");
 //        parallel_for("cns ux volume resid GRADDIV",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            // TODO FIX TAU??? the constant at least is wrong
@@ -508,7 +508,7 @@ using namespace MrHyDE;
 // 
 //      parallel_for("cns T volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
 //          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
@@ -531,7 +531,7 @@ using namespace MrHyDE;
 //
 //        parallel_for("cns T volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),0.0,
 //                rho(elem,pt),h(elem),spaceDim,dt,isTransient);
@@ -569,7 +569,7 @@ using namespace MrHyDE;
 //      
 //      parallel_for("cns pr volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
 //          // TODO :: p0 part DONT SCREW UP WTS
@@ -599,7 +599,7 @@ using namespace MrHyDE;
 //
 //        parallel_for("cns pr volume resid PSPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            // Strong residual x momentum
@@ -644,7 +644,7 @@ using namespace MrHyDE;
 //      
 //      parallel_for("cns ux volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
 //          Fx *= wts(elem,pt);
@@ -669,7 +669,7 @@ using namespace MrHyDE;
 //        auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
 //        parallel_for("cns ux volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            AD strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
@@ -711,7 +711,7 @@ using namespace MrHyDE;
 //      
 //      parallel_for("cns uy volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
 //          Fx *= wts(elem,pt);
@@ -737,7 +737,7 @@ using namespace MrHyDE;
 //        auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
 //        parallel_for("cns uy volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            AD strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
@@ -779,7 +779,7 @@ using namespace MrHyDE;
 //      
 //      parallel_for("cns uz volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD Fx = mu(elem,pt)*(duz_dx(elem,pt) + dux_dz(elem,pt));
 //          Fx *= wts(elem,pt);
@@ -805,7 +805,7 @@ using namespace MrHyDE;
 //        auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
 //        parallel_for("cns uz volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            AD strongres = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
@@ -842,7 +842,7 @@ using namespace MrHyDE;
 // 
 //      parallel_for("cns T volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt))*wts(elem,pt);
 //          F -= source_T(elem,pt)/cp(elem,pt)*wts(elem,pt);
@@ -866,7 +866,7 @@ using namespace MrHyDE;
 //
 //        parallel_for("cns T volume resid SUPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),
 //                rho(elem,pt),h(elem),spaceDim,dt,isTransient);
@@ -907,7 +907,7 @@ using namespace MrHyDE;
 //      
 //      parallel_for("cns pr volume resid",
 //                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                   KOKKOS_LAMBDA (const int elem ) {
+//                   KOKKOS_CLASS_LAMBDA (const int elem ) {
 //        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //          AD divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
 //          // TODO :: p0 part DONT SCREW UP WTS
@@ -940,7 +940,7 @@ using namespace MrHyDE;
 //        
 //        parallel_for("NS pr volume resid PSPG",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            AD tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
 //            // Strong residual x momentum
@@ -1028,7 +1028,7 @@ using namespace MrHyDE;
 //      if (ux_sidetype == "Neumann") {
 //        parallel_for("cns ux boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1049,7 +1049,7 @@ using namespace MrHyDE;
 //      if (T_sidetype == "Neumann") {
 //        parallel_for("cns T boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1072,7 +1072,7 @@ using namespace MrHyDE;
 //      if (ux_sidetype == "Neumann") {
 //        parallel_for("cns ux boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1094,7 +1094,7 @@ using namespace MrHyDE;
 //      if (uy_sidetype == "Neumann") {
 //        parallel_for("cns uy boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1115,7 +1115,7 @@ using namespace MrHyDE;
 //      if (T_sidetype == "Neumann") {
 //        parallel_for("cns T boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1138,7 +1138,7 @@ using namespace MrHyDE;
 //      if (ux_sidetype == "Neumann") {
 //        parallel_for("cns ux boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1161,7 +1161,7 @@ using namespace MrHyDE;
 //      if (uy_sidetype == "Neumann") {
 //        parallel_for("cns uy boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1184,7 +1184,7 @@ using namespace MrHyDE;
 //      if (uz_sidetype == "Neumann") {
 //        parallel_for("cns uz boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1205,7 +1205,7 @@ using namespace MrHyDE;
 //      if (T_sidetype == "Neumann") {
 //        parallel_for("cns T boundary resid",
 //                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-//                     KOKKOS_LAMBDA (const int elem ) {
+//                     KOKKOS_CLASS_LAMBDA (const int elem ) {
 //
 //          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
 //            for (size_type dof=0; dof<basis.extent(1); dof++ ) {

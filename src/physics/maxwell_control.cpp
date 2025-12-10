@@ -103,7 +103,7 @@ void maxwell_control<EvalT>::volumeResidual() {
           auto curlE = wkset->getSolutionField("curl(E)");
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -115,7 +115,7 @@ void maxwell_control<EvalT>::volumeResidual() {
         else {
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT f0 = dB_dt(elem,pt)*wts(elem,pt);
               for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -130,7 +130,7 @@ void maxwell_control<EvalT>::volumeResidual() {
         auto curlE = wkset->getSolutionField("curl(E)");
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT f0 = (dB_dt(elem,pt) + curlE(elem,pt))*wts(elem,pt);
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -161,7 +161,7 @@ void maxwell_control<EvalT>::volumeResidual() {
           
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
               EvalT f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
@@ -178,7 +178,7 @@ void maxwell_control<EvalT>::volumeResidual() {
           
           parallel_for("Maxwells B volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT f0 = dBx_dt(elem,pt)*wts(elem,pt);
               EvalT f1 = dBy_dt(elem,pt)*wts(elem,pt);
@@ -200,7 +200,7 @@ void maxwell_control<EvalT>::volumeResidual() {
         
         parallel_for("Maxwells B volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT f0 = (dBx_dt(elem,pt) + curlE_x(elem,pt))*wts(elem,pt);
             EvalT f1 = (dBy_dt(elem,pt) + curlE_y(elem,pt))*wts(elem,pt);
@@ -260,7 +260,7 @@ void maxwell_control<EvalT>::volumeResidual() {
         
         parallel_for("Maxwells E volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT f0 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + (sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
             EvalT f1 = (epsilon(elem,pt)*rindex(elem,pt)*rindex(elem,pt)*dEy_dt(elem,pt) + (sigma(elem,pt)*Ey(elem,pt) + current_y(elem,pt)))*wts(elem,pt);
@@ -294,7 +294,7 @@ void maxwell_control<EvalT>::volumeResidual() {
       
         parallel_for("Maxwells E volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT eps = epsilon(elem,pt);
             EvalT f0 = (rindex(elem,pt)*rindex(elem,pt)*dEx_dt(elem,pt) + 1.0/eps*(sigma(elem,pt)*Ex(elem,pt) + current_x(elem,pt)))*wts(elem,pt);
@@ -342,7 +342,7 @@ void maxwell_control<EvalT>::boundaryResidual() {
       
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
     
       });
     }
@@ -365,7 +365,7 @@ void maxwell_control<EvalT>::boundaryResidual() {
       
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
     
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
@@ -387,7 +387,7 @@ void maxwell_control<EvalT>::boundaryResidual() {
       auto Bz = wkset->getSolutionField("B[z]");
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
     
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           

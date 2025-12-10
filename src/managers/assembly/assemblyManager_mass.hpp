@@ -80,7 +80,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
 
         parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
           
             LO eindex = index(elem);
             for (size_type n=0; n<numDOF.extent(0); ++n) {
@@ -125,7 +125,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         
           parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
           
             int row = 0;
             LO rowIndex = 0;
@@ -161,7 +161,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
           if (compute_matrix) {
             parallel_for("assembly insert Jac",
                          RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                         KOKKOS_LAMBDA (const int elem ) {
+                         KOKKOS_CLASS_LAMBDA (const int elem ) {
               
               int row = 0;
               LO rowIndex = 0;
@@ -200,7 +200,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         
         parallel_for("assembly insert Jac",
                      RangePolicy<LA_exec>(0,LIDs_ladev.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           
           int row = 0;
           LO rowIndex = 0;
@@ -236,7 +236,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
         if (compute_matrix) {
           parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs_ladev.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
             
             int row = 0;
             LO rowIndex = 0;
@@ -350,7 +350,7 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
 
         parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
           
             LO eindex = index(elem);
             for (size_type n=0; n<numDOF.extent(0); ++n) {
@@ -396,7 +396,7 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
         
           parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
           
             int row = 0;
             LO rowIndex = 0;
@@ -432,7 +432,7 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
           if (compute_matrix) {
             parallel_for("assembly insert Jac",
                          RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                         KOKKOS_LAMBDA (const int elem ) {
+                         KOKKOS_CLASS_LAMBDA (const int elem ) {
               
               int row = 0;
               LO rowIndex = 0;
@@ -471,7 +471,7 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
         
         parallel_for("assembly insert Jac",
                      RangePolicy<LA_exec>(0,LIDs_ladev.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           
           int row = 0;
           LO rowIndex = 0;
@@ -507,7 +507,7 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
         if (compute_matrix) {
           parallel_for("assembly insert Jac",
                        RangePolicy<LA_exec>(0,LIDs_ladev.extent(0)),
-                       KOKKOS_LAMBDA (const int elem ) {
+                       KOKKOS_CLASS_LAMBDA (const int elem ) {
             
             int row = 0;
             LO rowIndex = 0;
@@ -599,7 +599,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, const vector
           if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
             parallel_for("get mass",
                          RangePolicy<AssemblyExec>(0,twts.extent(0)),
-                         KOKKOS_LAMBDA (const size_type e ) {
+                         KOKKOS_CLASS_LAMBDA (const size_type e ) {
               for (size_type i=0; i<cbasis.extent(1); i++ ) {
                 for (size_type j=0; j<cbasis.extent(1); j++ ) {
                   ScalarT massval = 0.0;
@@ -621,7 +621,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, const vector
           else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
             parallel_for("get mass",
                          RangePolicy<AssemblyExec>(0,twts.extent(0)),
-                         KOKKOS_LAMBDA (const size_type e ) {
+                         KOKKOS_CLASS_LAMBDA (const size_type e ) {
               for (size_type i=0; i<cbasis.extent(1); i++ ) {
                 for (size_type j=0; j<cbasis.extent(1); j++ ) {
                   ScalarT massval = 0.0;
@@ -663,7 +663,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, const vector
             
             parallel_for("get mass",
                          RangePolicy<AssemblyExec>(0,index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
+                         KOKKOS_CLASS_LAMBDA (const size_type elem ) {
               LO eindex = index(elem);
            
               // New code that uses sparse data structures
@@ -695,7 +695,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, const vector
 
             parallel_for("get mass",
                          RangePolicy<AssemblyExec>(0,index.extent(0)),
-                         KOKKOS_LAMBDA (const size_type elem ) {
+                         KOKKOS_CLASS_LAMBDA (const size_type elem ) {
               LO eindex = index(elem);
               // Old code that assumed dense data structures
               for (size_type var=0; var<numDOF.extent(0); var++) {
@@ -722,7 +722,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, const vector
           auto curr_mass = groups[block][grp]->local_mass[set];
           parallel_for("get mass",
                        RangePolicy<AssemblyExec>(0,curr_mass.extent(0)),
-                       KOKKOS_LAMBDA (const size_type elem ) {
+                       KOKKOS_CLASS_LAMBDA (const size_type elem ) {
             for (size_type var=0; var<numDOF.extent(0); var++) {
               for (int i=0; i<numDOF(var); i++ ) {
                 for (int j=0; j<numDOF(var); j++ ) {
@@ -775,7 +775,7 @@ void AssemblyManager<Node>::getWeightVector(const size_t & set, vector_RCP & wts
         auto LIDs = groups[block][grp]->LIDs[set];
         parallel_for("assembly insert Jac",
                      RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                     KOKKOS_LAMBDA (const int elem ) {
+                     KOKKOS_CLASS_LAMBDA (const int elem ) {
           
           int row = 0;
           LO rowIndex = 0;
@@ -822,7 +822,7 @@ View_Sc3 AssemblyManager<Node>::getMassBoundary(const int & block, const size_t 
       if (btype == "HGRAD" || btype == "HVOL" || btype == "HFACE"){
         parallel_for("bgroup compute mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cbasis.extent(1); j++ ) {
               for( size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -844,7 +844,7 @@ View_Sc3 AssemblyManager<Node>::getMassBoundary(const int & block, const size_t 
         }
         parallel_for("bgroup compute mass HDIV",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cbasis.extent(1); j++ ) {
               for( size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -877,7 +877,7 @@ View_Sc3 AssemblyManager<Node>::getMassBoundary(const int & block, const size_t 
         
         parallel_for("bgroup compute mass HCURL tangential",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const int e ) {
+                     KOKKOS_CLASS_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cbasis.extent(1); j++ ) {
               for( size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -946,7 +946,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getMass(const int & block, const
     if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
       parallel_for("Group get mass",
                    RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                   KOKKOS_LAMBDA (const size_type e ) {
+                   KOKKOS_CLASS_LAMBDA (const size_type e ) {
         for(size_type i=0; i<cbasis.extent(1); i++ ) {
           for(size_type j=0; j<cbasis.extent(1); j++ ) {
             for(size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -959,7 +959,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getMass(const int & block, const
     else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
       parallel_for("Group get mass",
                    RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                   KOKKOS_LAMBDA (const size_type e ) {
+                   KOKKOS_CLASS_LAMBDA (const size_type e ) {
         for (size_type i=0; i<cbasis.extent(1); i++ ) {
           for (size_type j=0; j<cbasis.extent(1); j++ ) {
             for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -1020,7 +1020,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getParamMass(const int & block, 
       if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
         parallel_for("Group get mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const size_type e ) {
+                     KOKKOS_CLASS_LAMBDA (const size_type e ) {
           for (size_type i=0; i<cbasis.extent(1); i++ ) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -1033,7 +1033,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getParamMass(const int & block, 
       else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
         parallel_for("Group get mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const size_type e ) {
+                     KOKKOS_CLASS_LAMBDA (const size_type e ) {
           for (size_type i=0; i<cbasis.extent(1); i++ ) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -1102,7 +1102,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getWeightedMass(const int & bloc
       if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
         parallel_for("Group get mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const size_type e ) {
+                     KOKKOS_CLASS_LAMBDA (const size_type e ) {
           for (size_type i=0; i<cbasis.extent(1); i++ ) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -1115,7 +1115,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getWeightedMass(const int & bloc
       else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
         parallel_for("Group get mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const size_type e ) {
+                     KOKKOS_CLASS_LAMBDA (const size_type e ) {
           for (size_type i=0; i<cbasis.extent(1); i++ ) {
             for (size_type j=0; j<cbasis.extent(1); j++ ) {
               for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -1172,7 +1172,7 @@ CompressedView<View_Sc3> AssemblyManager<Node>::getMassFace(const int & block, c
         // loop over mesh elements
         parallel_for("Group get mass",
                      RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                     KOKKOS_LAMBDA (const size_type e ) {
+                     KOKKOS_CLASS_LAMBDA (const size_type e ) {
           for(size_type i=0; i<cbasis.extent(1); i++ ) {
             for(size_type j=0; j<cbasis.extent(1); j++ ) {
               for(size_type k=0; k<cbasis.extent(2); k++ ) {

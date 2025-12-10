@@ -28,7 +28,7 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int &block, Compre
         auto cdq = dqvals[k];
 
         if (cellfield_reduction == "mean") { // default
-          parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_LAMBDA(const int e) {
+          parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int e) {
             ScalarT grpmeas = 0.0;
             for (size_t pt=0; pt<wts.extent(1); pt++) {
               grpmeas += wts(e,pt);
@@ -40,7 +40,7 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int &block, Compre
           });
         }
         else if (cellfield_reduction == "max") {
-          parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_LAMBDA(const int e) {
+          parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int e) {
             for (size_t j=0; j<wts.extent(1); j++) {
               ScalarT val = cdq(e,j);
               if (val>cfield(e)) {
@@ -50,7 +50,7 @@ View_Sc2 PostprocessManager<Node>::getDerivedQuantities(const int &block, Compre
           });
         }
         else if (cellfield_reduction == "min") {
-          parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_LAMBDA(const int e) {
+          parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int e) {
             for (size_t j=0; j<wts.extent(1); j++) {
               ScalarT val = cdq(e,j);
               if (val<cfield(e)) {

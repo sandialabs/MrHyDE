@@ -93,7 +93,7 @@ void ellipticPrior<EvalT>::volumeResidual() {
   
   parallel_for("ellipticPrior volume resid 3D part 1",
                TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-               KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+               KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
     int elem = team.league_rank();
     for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
       for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -162,7 +162,7 @@ void ellipticPrior<EvalT>::computeFlux() {
       
       parallel_for("ellipticPrior bndry resid wD",
                    TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<nx.extent(1); pt+=team.team_size() ) {
           fluxT(elem,pt) = epen/h(elem)*diff_side(elem,pt)*(lambda(elem,pt)-T(elem,pt));

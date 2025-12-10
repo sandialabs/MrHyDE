@@ -138,7 +138,7 @@ namespace MrHyDE {
      */
 
     KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
-        const EvalT & Hux, const EvalT & H);
+        const EvalT & Hux, const EvalT & H) const;
 
     /* @brief Computes the local eigenvalue decomposition for the stabilization and boundary terms.
      * This is the 2-D version.
@@ -156,7 +156,7 @@ namespace MrHyDE {
      */
 
     KOKKOS_FUNCTION void eigendecompFluxJacobian(View_EvalT2 leftEV, View_EvalT1 Lambda, View_EvalT2 rightEV, 
-        const EvalT & rhoux, const EvalT & rhouy, const EvalT & rho, const ScalarT & nx, const ScalarT & ny);
+        const EvalT & rhoux, const EvalT & rhouy, const EvalT & rho, const ScalarT & nx, const ScalarT & ny) const;
 
     /* @brief Computes y = Ax
      *
@@ -167,7 +167,7 @@ namespace MrHyDE {
      */
 
     template<class V1, class V2, class V3>
-    KOKKOS_FUNCTION void matVec(const V1 A, const V2 x, V3 y) {
+    KOKKOS_FUNCTION void matVec(const V1 A, const V2 x, V3 y) const {
 
       // TODO error checking for size
     

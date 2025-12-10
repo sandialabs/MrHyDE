@@ -117,7 +117,7 @@ void shallowwater<EvalT>::volumeResidual() {
   
   parallel_for("SW volume resid",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
+               KOKKOS_CLASS_LAMBDA (const int elem ) {
     //ScalarT gravity = 1.0;//9.8;
     for (size_type pt=0; pt<Hbasis.extent(2); pt++ ) {
       

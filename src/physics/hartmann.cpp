@@ -68,7 +68,7 @@ void hartmann<EvalT>::volumeResidual()
         parallel_for(
             "Hartmann u volume resid",
             RangePolicy<AssemblyExec>(0, wkset->numElem),
-            KOKKOS_LAMBDA(const int elem) {
+            KOKKOS_CLASS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     EvalT Fx = -du_dx(elem, pt);
@@ -93,7 +93,7 @@ void hartmann<EvalT>::volumeResidual()
         parallel_for(
             "Hartmann b volume resid",
             RangePolicy<AssemblyExec>(0, wkset->numElem),
-            KOKKOS_LAMBDA(const int elem) {
+            KOKKOS_CLASS_LAMBDA(const int elem) {
                 for (size_type pt = 0; pt < basis.extent(2); pt++)
                 {
                     EvalT Fx = -db_dx(elem, pt);
@@ -143,7 +143,7 @@ void hartmann<EvalT>::boundaryResidual()
                 parallel_for(
                     "Hartmann b bndry resid Neumann",
                     RangePolicy<AssemblyExec>(0, wkset->numElem),
-                    KOKKOS_LAMBDA(const int e) {
+                    KOKKOS_CLASS_LAMBDA(const int e) {
                         for (size_type k = 0; k < basis.extent(2); k++)
                         {
                             for (size_type i = 0; i < basis.extent(1); i++)

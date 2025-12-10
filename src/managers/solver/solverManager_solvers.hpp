@@ -777,7 +777,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
       
       parallel_for("explicit solver apply invdiag",
                    RangePolicy<LA_exec>(0,sol_view.extent(0)),
-                   KOKKOS_LAMBDA (const int k ) {
+                   KOKKOS_CLASS_LAMBDA (const int k ) {
         sol_view(k,0) += wt*res_view(k,0)/dm_view(k,0);
       });
 
@@ -862,7 +862,7 @@ void SolverManager<Node>::PCG(const size_t & set, matrix_RCP & J, vector_RCP & b
       Teuchos::TimeMonitor localtimer(*PCGApplyPrectimer);
       parallel_for("PCG apply prec",
                    RangePolicy<LA_exec>(0,z_view.extent(0)),
-                   KOKKOS_LAMBDA (const int k ) {
+                   KOKKOS_CLASS_LAMBDA (const int k ) {
         z_view(k,0) = r_view(k,0)/M_view(k,0);
       });
     }
@@ -983,7 +983,7 @@ void SolverManager<Node>::matrixFreePCG(const size_t & set, vector_RCP & b, vect
       Teuchos::TimeMonitor localtimer(*PCGApplyPrectimer);
       parallel_for("PCG apply prec",
                    RangePolicy<LA_exec>(0,z_view.extent(0)),
-                   KOKKOS_LAMBDA (const int k ) {
+                   KOKKOS_CLASS_LAMBDA (const int k ) {
         z_view(k,0) = r_view(k,0)/M_view(k,0);
       });
     }

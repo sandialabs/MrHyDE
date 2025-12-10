@@ -198,7 +198,7 @@ void porousMixed<EvalT>::volumeResidual() {
       
       parallel_for("porous mixed update KL",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<KL_Kxx.extent(1); ++pt) {
           new_Kxx(elem,pt) = Kinv_xx(elem,pt)/exp(KL_Kxx(elem,pt));
         }
@@ -244,7 +244,7 @@ void porousMixed<EvalT>::volumeResidual() {
         
       parallel_for("porous HDIV volume resid u 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT p = psol(elem,pt)*wts(elem,pt);
           EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -264,7 +264,7 @@ void porousMixed<EvalT>::volumeResidual() {
       
       parallel_for("porous HDIV volume resid u 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT p = psol(elem,pt)*wts(elem,pt);
           EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -288,7 +288,7 @@ void porousMixed<EvalT>::volumeResidual() {
       
       parallel_for("porous HDIV volume resid u 3D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT p = psol(elem,pt)*wts(elem,pt);
           EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -324,7 +324,7 @@ void porousMixed<EvalT>::volumeResidual() {
     
     parallel_for("porous HDIV volume resid div(u)",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT F = source(elem,pt) - udiv(elem,pt);
         F *= wts(elem,pt);
@@ -391,7 +391,7 @@ void porousMixed<EvalT>::boundaryResidual() {
   if (bcs(pnum,cside) == "Dirichlet") {
     parallel_for("porous HDIV bndry resid Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT src = bsource(elem,pt)*wts(elem,pt);
@@ -412,7 +412,7 @@ void porousMixed<EvalT>::boundaryResidual() {
     auto lambda = wkset->getSolutionField("aux "+auxvar);
     parallel_for("porous HDIV boundary resid MS Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT lam = lambda(elem,pt)*wts(elem,pt);
@@ -453,7 +453,7 @@ void porousMixed<EvalT>::computeFlux() {
       ux = wkset->getSolutionField("u");
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<nx.extent(1); pt++) {
           EvalT udotn = ux(elem,pt)*nx(elem,pt);
           uflux(elem,pt) = udotn;
@@ -467,7 +467,7 @@ void porousMixed<EvalT>::computeFlux() {
       uy = wkset->getSolutionField("u[y]");
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<nx.extent(1); pt++) {
           EvalT udotn = ux(elem,pt)*nx(elem,pt);
           udotn += uy(elem,pt)*ny(elem,pt);
@@ -485,7 +485,7 @@ void porousMixed<EvalT>::computeFlux() {
       
       parallel_for("porous HDIV flux ",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<nx.extent(1); pt++) {
           EvalT udotn = ux(elem,pt)*nx(elem,pt);
           udotn += uy(elem,pt)*ny(elem,pt);
@@ -554,7 +554,7 @@ void porousMixed<EvalT>::updatePerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_yy, Vi
   
   parallel_for("porous HDIV update perm",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
+               KOKKOS_CLASS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<Kinv_xx.extent(1); pt++) {
       Kinv_xx(elem,pt) = 1.0/data(elem,0);
       Kinv_yy(elem,pt) = 1.0/data(elem,0);
@@ -581,7 +581,7 @@ void porousMixed<EvalT>::updateKLPerm(View_EvalT2 KL_Kxx,
     if (spaceDim == 1) {
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         
         for (size_type k=0; k<maxind; ++k) {
           ScalarT eval = permKLx.getEval(k);
@@ -596,7 +596,7 @@ void porousMixed<EvalT>::updateKLPerm(View_EvalT2 KL_Kxx,
       auto ypts = wkset->getScalarField("y");
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         
         for (size_type k=0; k<maxind; ++k) {
           int xind = indices(k,0);
@@ -617,7 +617,7 @@ void porousMixed<EvalT>::updateKLPerm(View_EvalT2 KL_Kxx,
       auto zpts = wkset->getScalarField("z");
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         
         for (size_type k=0; k<maxind; ++k) {
           int xind = indices(k,0);
@@ -650,7 +650,7 @@ void porousMixed<EvalT>::updateKLPerm(View_EvalT2 KL_Kxx,
     if (spaceDim == 1) {
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         
         for (size_type k=prog; k<maxind; ++k) {
           ScalarT eval = permKLx.getEval(k);
@@ -666,7 +666,7 @@ void porousMixed<EvalT>::updateKLPerm(View_EvalT2 KL_Kxx,
       
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         
         for (size_type k=prog; k<maxind; ++k) {
           int xind = indices(k,0);
@@ -687,7 +687,7 @@ void porousMixed<EvalT>::updateKLPerm(View_EvalT2 KL_Kxx,
       auto zpts = wkset->getScalarField("z");
       parallel_for("porous KL update perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         
         for (size_type k=prog; k<maxind; ++k) {
           int xind = indices(k,0);
@@ -766,7 +766,7 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > porousMixed<EvalT>
       
       parallel_for("porous gdv perm",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<KL_Kxx.extent(1); ++pt) {
           new_Kxx(elem,pt) = Kinv_xx(elem,pt)/exp(KL_Kxx(elem,pt));
         }
@@ -796,7 +796,7 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > porousMixed<EvalT>
     
   parallel_for("porous gdv perm 2",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int elem ) {
+               KOKKOS_CLASS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<K_xx.extent(1); ++pt) {
       K_xx(elem,pt) = 1.0/Kinv_xx(elem,pt);
     }

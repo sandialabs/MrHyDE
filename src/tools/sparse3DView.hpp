@@ -135,7 +135,7 @@ namespace MrHyDE {
     void setLocalColumns(Kokkos::View<int**,AssemblyDevice> offsets, Kokkos::View<int*,AssemblyDevice> numDOF) {
       parallel_for("get mass",
                     RangePolicy<AssemblyExec>(0,columns_.extent(0)),
-                    KOKKOS_LAMBDA (const size_type elem ) {
+                    KOKKOS_CLASS_LAMBDA (const size_type elem ) {
         for (size_type var=0; var<numDOF.extent(0); var++) {
           for (int i=0; i<numDOF(var); i++ ) {
             LO localrow = offsets(var,i);

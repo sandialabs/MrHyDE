@@ -61,7 +61,7 @@ void ODE<EvalT>::volumeResidual() {
   // Simply solves q_dot = f(q,t)
   parallel_for("ODE volume resid",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_LAMBDA (const int e ) {
+               KOKKOS_CLASS_LAMBDA (const int e ) {
     for (size_type pt=0; pt<wts.extent(1); ++pt) {
       res(e,off(0)) += (dqdt(e,pt) - source(e,pt))*wts(e,pt);
     }

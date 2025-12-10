@@ -156,14 +156,14 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
         auto obj_dev = assembler->function_managers[block]->evaluate(objectives[r].name, "ip");
         
         Kokkos::View<ScalarT[1], AssemblyDevice> objsum("sum of objective");
-        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_LAMBDA(const size_type elem) {
+        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type elem) {
           ScalarT tmpval = 0.0;
           for (size_type pt=0; pt<wts.extent(1); pt++) {
             tmpval += obj_dev(elem,pt)*wts(elem,pt);
           }
           Kokkos::atomic_add(&(objsum(0)),tmpval); });
         
-        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, objsum_dev.extent(0)), KOKKOS_LAMBDA(const size_type p) {
+        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, objsum_dev.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type p) {
           if (p==0) {
             objsum_dev(p) = objsum(0);
           } });
@@ -230,7 +230,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
         auto obj_dev = assembler->function_managers[block]->evaluate(objectives[r].name + " response", "ip");
         
         Kokkos::View<ScalarT[1], AssemblyDevice> objsum("sum of objective");
-        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_LAMBDA(const size_type elem) {
+        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type elem) {
           ScalarT tmpval = 0.0;
           for (size_type pt=0; pt<wts.extent(1); pt++) {
             tmpval += obj_dev(elem,pt)*wts(elem,pt);
@@ -239,7 +239,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
         
         View_Sc1 objsum_dev("obj func sum as scalar on device", numParams + 1);
         
-        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, objsum_dev.extent(0)), KOKKOS_LAMBDA(const size_type p) {
+        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, objsum_dev.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type p) {
           if (p==0) {
             objsum_dev(p) = objsum(0);
           } });
@@ -332,7 +332,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
             
             View_Sc2 u_dof("u_dof", numDOF.extent(0), assembler->groups[block][grp]->LIDs[0].extent(1)); // hard coded
             auto cu = subview(assembler->groupData[block]->sol[0], elem, ALL(), ALL());                  // hard coded
-            parallel_for("grp response get u", RangePolicy<AssemblyExec>(0, u_dof.extent(0)), KOKKOS_LAMBDA(const size_type n) {
+            parallel_for("grp response get u", RangePolicy<AssemblyExec>(0, u_dof.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type n) {
               for (size_type n=0; n<numDOF.extent(0); n++) {
                 for( int i=0; i<numDOF(n); i++ ) {
                   u_dof(n,i) = cu(n,i);
@@ -352,14 +352,14 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               auto u_sv = subview(u_ip, var, ALL());
               auto u_dof_sv = subview(u_dof, var, ALL());
               
-              parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
+              parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_CLASS_LAMBDA(const int dof) {
                 u_sv(0) += u_dof_sv(dof)*cbasis(pt,dof,0,0);
               });
               
               if (btype == "HGRAD") {
                 auto cbasis_grad = objectives[r].sensor_basis_grad[assembler->wkset[block]->usebasis[var]];
                 auto ugrad_sv = subview(ugrad_ip, var, ALL());
-                parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
+                parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_CLASS_LAMBDA(const int dof) {
                   for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
                     ugrad_sv(dim) += u_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
                   } });
@@ -380,7 +380,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               }
               View_Sc2 p_dof("p_dof", numParamDOF.extent(0), assembler->groups[block][grp]->paramLIDs.extent(1));
               auto cp = subview(assembler->groupData[block]->param, elem, ALL(), ALL());
-              parallel_for("grp response get u", RangePolicy<AssemblyExec>(0, p_dof.extent(0)), KOKKOS_LAMBDA(const size_type n) {
+              parallel_for("grp response get u", RangePolicy<AssemblyExec>(0, p_dof.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type n) {
                 for (size_type n=0; n<numParamDOF.extent(0); n++) {
                   for( int i=0; i<numParamDOF(n); i++ ) {
                     p_dof(n,i) = cp(n,i);
@@ -398,7 +398,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
                 auto p_sv = subview(p_ip, var, ALL());
                 auto p_dof_sv = subview(p_dof, var, ALL());
                 
-                parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) { p_sv(0) += p_dof_sv(dof) * cbasis(pt, dof, 0, 0); });
+                parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_CLASS_LAMBDA(const int dof) { p_sv(0) += p_dof_sv(dof) * cbasis(pt, dof, 0, 0); });
                 assembler->wkset[block]->setParamPoint(p_ip);
                 
                 if (btype == "HGRAD")
@@ -406,7 +406,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
                   auto cbasis_grad = objectives[r].sensor_basis_grad[bnum];
                   auto pgrad_sv = subview(pgrad_ip, var, ALL());
                   
-                  parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_LAMBDA(const int dof) {
+                  parallel_for("grp response sensor uip", RangePolicy<AssemblyExec>(0, cbasis.extent(1)), KOKKOS_CLASS_LAMBDA(const int dof) {
                     for (size_t dim=0; dim<cbasis_grad.extent(3); dim++) {
                       pgrad_sv(dim) += p_dof_sv(dof)*cbasis_grad(pt,dof,0,dim);
                     } });
@@ -468,7 +468,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
             auto regvals_tmp = assembler->function_managers[block]->evaluate(objectives[r].regularizations[reg].name, "ip");
             View_Sc2 regvals("regvals", wts.extent(0), wts.extent(1));
             
-            parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_LAMBDA(const size_type elem) {
+            parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type elem) {
               for (size_type pt=0; pt<wts.extent(1); ++pt) {
                 regvals(elem,pt) = wts(elem,pt)*regvals_tmp(elem,pt);
               } });
@@ -510,7 +510,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
               auto regvals_tmp = assembler->function_managers[block]->evaluate(objectives[r].regularizations[reg].name, "side ip");
               View_Sc2 regvals("regvals", wts.extent(0), wts.extent(1));
               
-              parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_LAMBDA(const size_type elem) {
+              parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const size_type elem) {
                 for (size_type pt=0; pt<wts.extent(1); ++pt) {
                   regvals(elem,pt) = wts(elem,pt)*regvals_tmp(elem,pt);
                 } });

@@ -210,7 +210,7 @@ void AssemblyManager<Node>::createGroups() {
                   auto currLIDs = LIDs[set];
                   parallel_for("assembly copy LIDs bgrp",
                                RangePolicy<AssemblyExec>(0,groupLIDs.extent(0)),
-                               KOKKOS_LAMBDA (const int e ) {
+                               KOKKOS_CLASS_LAMBDA (const int e ) {
                     size_t elemID = eIndex(e);
                     for (size_type j=0; j<currLIDs.extent(1); j++) {
                       groupLIDs(e,j) = currLIDs(elemID,j);
@@ -401,7 +401,7 @@ void AssemblyManager<Node>::createGroups() {
           LIDView groupLIDs("LIDs on device",currElem,currLIDs.extent(1));
           parallel_for("assembly copy nodes",
                        RangePolicy<AssemblyExec>(0,eIndex.extent(0)),
-                       KOKKOS_LAMBDA (const int e ) {
+                       KOKKOS_CLASS_LAMBDA (const int e ) {
             LO elemID = eIndex(e);
             for (size_type j=0; j<currLIDs.extent(1); j++) {
               groupLIDs(e,j) = currLIDs(eIDs(elemID),j);
@@ -618,7 +618,7 @@ void AssemblyManager<Node>::updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset
 
     parallel_for("Group update data",
                  RangePolicy<AssemblyExec>(0,data.extent(0)),
-                 KOKKOS_LAMBDA (const size_type e ) {
+                 KOKKOS_CLASS_LAMBDA (const size_type e ) {
       rot(e,0,0) = data(e,0);
       rot(e,0,1) = data(e,1);
       rot(e,0,2) = data(e,2);

@@ -81,7 +81,7 @@ void shallowice<EvalT>::volumeResidual() {
   if (spaceDim == 1) {
     parallel_for("shallowice volume resid 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
         EvalT Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);
@@ -94,7 +94,7 @@ void shallowice<EvalT>::volumeResidual() {
   else if (spaceDim == 2) {
     parallel_for("shallowice volume resid 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT f = (dS_dt(elem,pt) - source(elem,pt))*wts(elem,pt);
         EvalT Fx = diff(elem,pt)*dS_dx(elem,pt)*wts(elem,pt);

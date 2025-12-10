@@ -139,7 +139,7 @@ void porousWeakGalerkin<EvalT>::volumeResidual() {
       auto ux = wkset->getSolutionField("u[x]");
       parallel_for("porous WG volume resid: u 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT pint = pintsol(elem,pt)*wts(elem,pt);
           EvalT uxw = ux(elem,pt)*wts(elem,pt);
@@ -156,7 +156,7 @@ void porousWeakGalerkin<EvalT>::volumeResidual() {
       auto uy = wkset->getSolutionField("u[y]");
       parallel_for("porous WG volume resid: u 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT pint = pintsol(elem,pt)*wts(elem,pt);
           EvalT uxw = ux(elem,pt)*wts(elem,pt);
@@ -176,7 +176,7 @@ void porousWeakGalerkin<EvalT>::volumeResidual() {
       auto uz = wkset->getSolutionField("u[z]");
       parallel_for("porous WG volume resid: u 3D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT pint = pintsol(elem,pt)*wts(elem,pt);
           EvalT uxw = ux(elem,pt)*wts(elem,pt);
@@ -208,7 +208,7 @@ void porousWeakGalerkin<EvalT>::volumeResidual() {
       auto tx = wkset->getSolutionField("t[x]");
       parallel_for("porous WG volume resid t 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
           EvalT txw = tx(elem,pt)*wts(elem,pt);
@@ -230,7 +230,7 @@ void porousWeakGalerkin<EvalT>::volumeResidual() {
       auto ty = wkset->getSolutionField("t[y]");
       parallel_for("porous WG volume resid t 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
           EvalT txw = tx(elem,pt)*wts(elem,pt);
@@ -258,7 +258,7 @@ void porousWeakGalerkin<EvalT>::volumeResidual() {
       auto tz = wkset->getSolutionField("t[z]");
       parallel_for("porous WG volume resid t 3D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_LAMBDA (const int elem ) {
+                   KOKKOS_CLASS_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Kux = perm(elem,pt)*ux(elem,pt)*wts(elem,pt);
           EvalT txw = tx(elem,pt)*wts(elem,pt);
@@ -306,7 +306,7 @@ void porousWeakGalerkin<EvalT>::volumeResidual() {
     
     parallel_for("porous WG volume resid div(t)",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT divt = tdiv(elem,pt)*wts(elem,pt);
@@ -373,7 +373,7 @@ void porousWeakGalerkin<EvalT>::boundaryResidual() {
     auto off = subview(wkset->offsets, unum, ALL());
     parallel_for("porous WG bndry resid Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT S = bsource(elem,pt)*wts(elem,pt);
@@ -395,7 +395,7 @@ void porousWeakGalerkin<EvalT>::boundaryResidual() {
     auto lambda = wkset->getSolutionField("aux pbndry");
     parallel_for("porous WG bndry resid MS Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT lam = lambda(elem,pt)*wts(elem,pt);
@@ -454,7 +454,7 @@ void porousWeakGalerkin<EvalT>::faceResidual() {
     
     parallel_for("porous WG face resid pbndry",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT p = pbndry(elem,pt)*wts(elem,pt);
@@ -483,7 +483,7 @@ void porousWeakGalerkin<EvalT>::faceResidual() {
     
     parallel_for("porous WG face resid t dot n",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       size_type dim = ubasis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT tdotn = tx(elem,pt)*nx(elem,pt);
@@ -536,7 +536,7 @@ void porousWeakGalerkin<EvalT>::computeFlux() {
     
     parallel_for("porous WG flux",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_LAMBDA (const int elem ) {
+                 KOKKOS_CLASS_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<mflux.extent(1); pt++) {
         EvalT tdotn = tx(elem,pt)*nx(elem,pt);
@@ -601,7 +601,7 @@ template<class EvalT>
 void porousWeakGalerkin<EvalT>::updatePerm(View_EvalT2 perm) {
   
   View_Sc2 data = wkset->extra_data;
-  parallel_for("porous WG update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_LAMBDA (const int elem ) {
+  parallel_for("porous WG update perm",RangePolicy<AssemblyExec>(0,perm.extent(0)), KOKKOS_CLASS_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<perm.extent(1); pt++) {
       perm(elem,pt) = data(elem,0);
     }
