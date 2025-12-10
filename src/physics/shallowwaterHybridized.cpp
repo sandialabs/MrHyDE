@@ -150,7 +150,7 @@ void shallowwaterHybridized<EvalT>::volumeResidual() {
 
       parallel_for("shallow water volume resid " + varlist[iEqn] + " 1D",
               RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -168,7 +168,7 @@ void shallowwaterHybridized<EvalT>::volumeResidual() {
 
       parallel_for("shallow water volume resid " + varlist[iEqn] + " 2D",
               RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -232,7 +232,7 @@ void shallowwaterHybridized<EvalT>::boundaryResidual() {
     if (spaceDim == 1) {
       parallel_for("shallow water boundary resid " + varlist[iEqn] + " 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += (fluxes(elem,pt,iEqn,0)*nx(elem,pt) + 
@@ -248,7 +248,7 @@ void shallowwaterHybridized<EvalT>::boundaryResidual() {
 
       parallel_for("shallow water boundary resid " + varlist[iEqn] + " 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += 
@@ -313,7 +313,7 @@ void shallowwaterHybridized<EvalT>::computeFlux() {
 
       parallel_for("Shallow water boundary flux copy",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_t ieqn=0; ieqn<nVar; ++ieqn) {
           for (size_type pt=0; pt<bound.extent(1); ++pt) {
             interfaceFlux(elem,ieqn,pt) = bound(elem,pt,ieqn);
@@ -335,7 +335,7 @@ void shallowwaterHybridized<EvalT>::computeFlux() {
 
         parallel_for("Shallow water flux 1D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_t iEqn=0; iEqn<nVar; ++iEqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,iEqn,pt) = fluxes(elem,pt,iEqn,0)*nx(elem,pt)
@@ -350,7 +350,7 @@ void shallowwaterHybridized<EvalT>::computeFlux() {
 
         parallel_for("Shallow water flux 2D",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_t iEqn=0; iEqn<nVar; ++iEqn) {
             for (size_type pt=0; pt<nx.extent(1); ++pt) {
               interfaceFlux(elem,iEqn,pt) = fluxes(elem,pt,iEqn,0)*nx(elem,pt)
@@ -427,7 +427,7 @@ void shallowwaterHybridized<EvalT>::computeFluxVector(const bool & on_side) {
 
     parallel_for("shallow water fluxes 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // H equation -- F_x = Hux
@@ -449,7 +449,7 @@ void shallowwaterHybridized<EvalT>::computeFluxVector(const bool & on_side) {
 
     parallel_for("shallow water fluxes 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // H equation -- F_x = Hux F_y = Huy
@@ -522,7 +522,7 @@ void shallowwaterHybridized<EvalT>::computeStabilizationTerm() {
 
   parallel_for("euler stabilization",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
 
     View_EvalT2 leftEV,rightEV; // Local eigendecomposition
     View_EvalT1 Lambda; // diagonal matrix
@@ -655,7 +655,7 @@ void shallowwaterHybridized<EvalT>::computeBoundaryTerm() {
 
   parallel_for("Shallow water boundary term",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
 
     View_EvalT2 leftEV,rightEV; // Local eigendecomposition
     View_EvalT1 Lambda; // diagonal matrix

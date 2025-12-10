@@ -146,7 +146,7 @@ void VFP0d2v<EvalT>::volumeResidual() {
     
     parallel_for("VFP 0d2v H residual",
                  TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -211,7 +211,7 @@ void VFP0d2v<EvalT>::volumeResidual() {
     
     parallel_for("Thermal volume resid 3D part 1",
                  TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -257,7 +257,7 @@ void VFP0d2v<EvalT>::volumeResidual() {
     
     parallel_for("Thermal volume resid 3D part 1",
                  TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
@@ -302,7 +302,7 @@ void VFP0d2v<EvalT>::volumeResidual() {
     
     parallel_for("Thermal volume resid 3D part 1",
                  TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {

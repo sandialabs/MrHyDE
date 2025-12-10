@@ -297,7 +297,7 @@ View_Sc2 AssemblyManager<Node>::getDirichletBoundary(const int & block, const si
         auto dip = groupData[block]->physics->getDirichlet(n, set, groupData[block]->my_block, boundary_groups[block][grp]->sidename);
         parallel_for("bgroup fill Dirichlet",
                      RangePolicy<AssemblyExec>(0,cwts.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const int e ) {
+                     MRHYDE_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cwts.extent(1); j++ ) {
               dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,0)*cwts(e,j);
@@ -320,7 +320,7 @@ View_Sc2 AssemblyManager<Node>::getDirichletBoundary(const int & block, const si
         
         parallel_for("bgroup fill Dirichlet HDIV",
                      RangePolicy<AssemblyExec>(0,dvals.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const int e ) {
+                     MRHYDE_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cwts.extent(1); j++ ) {
               dvals(e,off(i)) += dip(e,j)*cbasis(e,i,j,0)*nx(e,j)*cwts(e,j);
@@ -357,7 +357,7 @@ View_Sc2 AssemblyManager<Node>::getDirichletBoundary(const int & block, const si
         // Important for curved elements where psi \cdot n may not be exactly zero.
         parallel_for("bgroup fill Dirichlet HCURL tangential",
                      RangePolicy<AssemblyExec>(0,dvals.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const int e ) {
+                     MRHYDE_LAMBDA (const int e ) {
           for( size_type i=0; i<cbasis.extent(1); i++ ) {
             for( size_type j=0; j<cwts.extent(1); j++ ) {
               // E \cdot n

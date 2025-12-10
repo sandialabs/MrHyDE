@@ -87,7 +87,7 @@ void porous<EvalT>::volumeResidual() {
     auto dpdx = wkset->getSolutionField("grad(p)[x]");
     parallel_for("porous HGRAD volume resid 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
         EvalT Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         EvalT M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -104,7 +104,7 @@ void porous<EvalT>::volumeResidual() {
     auto dpdy = wkset->getSolutionField("grad(p)[y]");
     parallel_for("porous HGRAD volume resid 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
         EvalT Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         EvalT M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -123,7 +123,7 @@ void porous<EvalT>::volumeResidual() {
     auto dpdz = wkset->getSolutionField("grad(p)[z]");
     parallel_for("porous HGRAD volume resid 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<psol.extent(1); pt++ ) {
         EvalT Kdens = perm(elem,pt)/viscosity(elem,pt)*densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
         EvalT M = porosity(elem,pt)*densref(elem,pt)*comp(elem,pt)*pdot(elem,pt) - source(elem,pt);
@@ -208,7 +208,7 @@ void porous<EvalT>::boundaryResidual() {
   if (bcs(pnum,cside) == "Neumann") { //Neumann
     parallel_for("porous HGRAD bndry resid Neumann",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT s = -source(elem,pt)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -220,7 +220,7 @@ void porous<EvalT>::boundaryResidual() {
   else if (bcs(pnum,cside) == "weak Dirichlet") { // weak Dirichlet
     parallel_for("porous HGRAD bndry resid weak Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT pval = psol(elem,pt);
@@ -254,7 +254,7 @@ void porous<EvalT>::boundaryResidual() {
     auto lambda = wkset->getSolutionField("aux "+auxvar);
     parallel_for("porous HGRAD bndry resid MS weak Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT pval = psol(elem,pt);
@@ -342,7 +342,7 @@ void porous<EvalT>::computeFlux() {
     auto lambda = wkset->getSolutionField("aux "+auxvar);
     parallel_for("porous HGRAD flux",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = basis_grad.extent(3);
       for (size_type pt=0; pt<pflux.extent(1); pt++) {
         EvalT dens = densref(elem,pt)*(1.0+comp(elem,pt)*(psol(elem,pt) - pref(elem,pt)));
@@ -404,7 +404,7 @@ void porous<EvalT>::updatePerm(View_EvalT2 perm) {
   
   parallel_for("porous HGRAD update perm",
                RangePolicy<AssemblyExec>(0,perm.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<perm.extent(1); pt++) {
       perm(elem,pt) = data(elem,0);
     }

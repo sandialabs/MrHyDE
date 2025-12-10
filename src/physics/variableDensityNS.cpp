@@ -159,7 +159,7 @@ void VDNS<EvalT>::volumeResidual() {
       // + (dv_1/dx_1, 4/3 mu du_1/dx_1) - (v_1,source)
       parallel_for("VDNS ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = 4./3.*mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -180,7 +180,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO NO VISCOUS TERM
@@ -204,7 +204,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dT_dx = wkset->getSolutionField("grad(T)[x]");
         parallel_for("VDNS ux volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
@@ -235,7 +235,7 @@ void VDNS<EvalT>::volumeResidual() {
 
       parallel_for("VDNS T volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt))*wts(elem,pt);
           F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
@@ -255,7 +255,7 @@ void VDNS<EvalT>::volumeResidual() {
 
         parallel_for("VDNS T volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),0.0,0.0,
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
@@ -289,7 +289,7 @@ void VDNS<EvalT>::volumeResidual() {
       
       parallel_for("VDNS pr volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT divu = dux_dx(elem,pt);
           EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt));
@@ -312,7 +312,7 @@ void VDNS<EvalT>::volumeResidual() {
         
         parallel_for("VDNS pr volume resid PSPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),0.0,0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO NO VISCOUS TERM
@@ -348,7 +348,7 @@ void VDNS<EvalT>::volumeResidual() {
       // + (dv_1/dx_2, \mu [du_1/dx_2 + du_2/dx_1]) - (v_1,source) 
       parallel_for("VDNS ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt))) - pr(elem,pt);
           //EvalT Fx = mu(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
@@ -373,7 +373,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
@@ -398,7 +398,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dT_dy = wkset->getSolutionField("grad(T)[y]");
         parallel_for("VDNS ux volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
@@ -435,7 +435,7 @@ void VDNS<EvalT>::volumeResidual() {
       
       parallel_for("VDNS uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
           //EvalT Fx = mu(elem,pt)*duy_dx(elem,pt);
@@ -461,7 +461,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("VDNS uy volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
@@ -485,7 +485,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dT_dy = wkset->getSolutionField("grad(T)[y]");
         parallel_for("VDNS uy volume resid GRADDIV",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // TODO FIX TAU??? the constant at least is wrong
@@ -521,7 +521,7 @@ void VDNS<EvalT>::volumeResidual() {
  
       parallel_for("VDNS T volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt))*wts(elem,pt);
           F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
@@ -542,7 +542,7 @@ void VDNS<EvalT>::volumeResidual() {
 
         parallel_for("VDNS T volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),0.0,
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
@@ -580,7 +580,7 @@ void VDNS<EvalT>::volumeResidual() {
       
       parallel_for("VDNS pr volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT divu = (dux_dx(elem,pt) + duy_dy(elem,pt));
           EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt));
@@ -606,7 +606,7 @@ void VDNS<EvalT>::volumeResidual() {
 
         parallel_for("VDNS pr volume resid PSPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),0.0,rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // Strong residual x momentum
@@ -651,7 +651,7 @@ void VDNS<EvalT>::volumeResidual() {
       
       parallel_for("VDNS ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = mu(elem,pt)*(2.*dux_dx(elem,pt) - 2./3.*(dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -676,7 +676,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("VDNS ux volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT strongres = rho(elem,pt)*(dux_dt(elem,pt) + ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - source_ux(elem,pt);
@@ -718,7 +718,7 @@ void VDNS<EvalT>::volumeResidual() {
       
       parallel_for("VDNS uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = mu(elem,pt)*(dux_dy(elem,pt) + duy_dx(elem,pt));
           Fx *= wts(elem,pt);
@@ -744,7 +744,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("VDNS uy volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT strongres = rho(elem,pt)*(duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - source_uy(elem,pt);
@@ -786,7 +786,7 @@ void VDNS<EvalT>::volumeResidual() {
       
       parallel_for("VDNS uz volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = mu(elem,pt)*(duz_dx(elem,pt) + dux_dz(elem,pt));
           Fx *= wts(elem,pt);
@@ -812,7 +812,7 @@ void VDNS<EvalT>::volumeResidual() {
         auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
         parallel_for("VDNS uz volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT strongres = rho(elem,pt)*(duz_dt(elem,pt) + ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - source_uz(elem,pt);
@@ -848,7 +848,7 @@ void VDNS<EvalT>::volumeResidual() {
  
       parallel_for("VDNS T volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT F = rho(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt))*wts(elem,pt);
           F -= (dp0dt(0) + source_T(elem,pt))/cp(elem,pt)*wts(elem,pt);
@@ -870,7 +870,7 @@ void VDNS<EvalT>::volumeResidual() {
 
         parallel_for("VDNS T volume resid SUPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(lambda(elem,pt)/cp(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),
                 rho(elem,pt),h(elem),spaceDim,dt,isTransient);
@@ -911,7 +911,7 @@ void VDNS<EvalT>::volumeResidual() {
       
       parallel_for("VDNS pr volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt));
           EvalT thermDiv = 1./T(elem,pt)*(dT_dt(elem,pt) + ux(elem,pt)*dT_dx(elem,pt) + uy(elem,pt)*dT_dy(elem,pt) + uz(elem,pt)*dT_dz(elem,pt));
@@ -943,7 +943,7 @@ void VDNS<EvalT>::volumeResidual() {
         
         parallel_for("NS pr volume resid PSPG",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(mu(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),rho(elem,pt),h(elem),spaceDim,dt,isTransient);
             // Strong residual x momentum
@@ -1032,7 +1032,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (ux_sidetype == "Neumann") {
         parallel_for("VDNS ux boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1053,7 +1053,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (T_sidetype == "Neumann") {
         parallel_for("VDNS T boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1076,7 +1076,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (ux_sidetype == "Neumann") {
         parallel_for("VDNS ux boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1098,7 +1098,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (uy_sidetype == "Neumann") {
         parallel_for("VDNS uy boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1119,7 +1119,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (T_sidetype == "Neumann") {
         parallel_for("VDNS T boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1142,7 +1142,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (ux_sidetype == "Neumann") {
         parallel_for("VDNS ux boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1165,7 +1165,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (uy_sidetype == "Neumann") {
         parallel_for("VDNS uy boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1188,7 +1188,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (uz_sidetype == "Neumann") {
         parallel_for("VDNS uz boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1209,7 +1209,7 @@ void VDNS<EvalT>::boundaryResidual() {
       if (T_sidetype == "Neumann") {
         parallel_for("VDNS T boundary resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
 
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -1344,7 +1344,7 @@ void VDNS<EvalT>::updateIntegratedQuantitiesDependents() {
     // The IQs are volume, total heating*(gamma - 1), (gamma - 1)*heat flux, gamma*velocity flux 
     parallel_for("VDNS update p0 dp0dt",
                 RangePolicy<AssemblyExec>(0,1),
-                KOKKOS_CLASS_LAMBDA (const int s) {
+                MRHYDE_LAMBDA (const int s) {
 
       // dp0/dt + 1/vol*p0*vf = 1/vol*hf + 1/vol*heat
       // see equation 10 in gravemeier
@@ -1357,7 +1357,7 @@ void VDNS<EvalT>::updateIntegratedQuantitiesDependents() {
     // The two IQs are RGas * m_total and \int 1/T 
     parallel_for("VDNS update p0 dp0dt",
                 RangePolicy<AssemblyExec>(0,1),
-                KOKKOS_CLASS_LAMBDA (const int s) {
+                MRHYDE_LAMBDA (const int s) {
     
       // p0 = R \int \rho dvol / \int 1/T dvol
 

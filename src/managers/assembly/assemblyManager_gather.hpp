@@ -223,7 +223,7 @@ void AssemblyManager<Node>::performGather(const size_t & set, const size_t & blo
   auto cvec = vec_dev;
   parallel_for("assembly gather",
                RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for (size_type var=0; var<offsets.extent(0); var++) {
       for(int dof=0; dof<numDOF(var); dof++ ) {
         data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
@@ -280,7 +280,7 @@ void AssemblyManager<Node>::performGather4D(const size_t & set, const size_t & b
   auto cvec = vec_dev;
   parallel_for("assembly gather",
                RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for (size_type var=0; var<offsets.extent(0); var++) {
       for(int dof=0; dof<numDOF(var); dof++ ) {
         data(elem,var,dof,local_entry) = cvec(LIDs(elem,offsets(var,dof)));
@@ -341,7 +341,7 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & set, const size
   auto cvec = vec_dev;
   parallel_for("assembly gather",
                RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for (size_type var=0; var<offsets.extent(0); var++) {
       for(int dof=0; dof<numDOF(var); dof++ ) {
         data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
@@ -398,7 +398,7 @@ void AssemblyManager<Node>::performBoundaryGather4D(const size_t & set, const si
   auto cvec = vec_dev;
   parallel_for("assembly gather",
                RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for (size_type var=0; var<offsets.extent(0); var++) {
       for(int dof=0; dof<numDOF(var); dof++ ) {
         data(elem,var,dof,local_entry) = cvec(LIDs(elem,offsets(var,dof)));
@@ -457,7 +457,7 @@ void AssemblyManager<Node>::performBoundaryGather(const size_t & set, ViewType v
         
         parallel_for("assembly boundary gather",
                      RangePolicy<AssemblyExec>(0,data.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_t var=0; var<numDOF.extent(0); var++) {
             for(int dof=0; dof<numDOF(var); dof++ ) {
               data(elem,var,dof) = vec_dev(LIDs(elem,offsets(var,dof)));

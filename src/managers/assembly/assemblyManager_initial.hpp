@@ -66,7 +66,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
     
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       
       int row = 0;
       LO rowIndex = 0;
@@ -116,7 +116,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
     
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,numrows),
-                 KOKKOS_CLASS_LAMBDA (const size_t row ) {
+                 MRHYDE_LAMBDA (const size_t row ) {
       auto rowdata = localMatrix.row(row);
       ScalarT abssum = 0.0;
       for (int col=0; col<rowdata.length; ++col ) {
@@ -230,7 +230,7 @@ void AssemblyManager<Node>::setInitialFace(const size_t & set, vector_RCP & rhs,
   
   parallel_for("assembly insert Jac",
                RangePolicy<LA_exec>(0,numrows),
-               KOKKOS_CLASS_LAMBDA (const size_t row ) {
+               MRHYDE_LAMBDA (const size_t row ) {
     auto rowdata = localMatrix.row(row);
     ScalarT abssum = 0.0;
     for (int col=0; col<rowdata.length; ++col ) {
@@ -282,7 +282,7 @@ View_Sc2 AssemblyManager<Node>::getInitial(const int & block, const size_t & grp
         auto initvar = subview(initialip, ALL(), n, ALL(), 0);
         parallel_for("Group init project",
                      TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
-                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
             for(size_type pt=0; pt<cwts.extent(1); pt++ ) {
@@ -295,7 +295,7 @@ View_Sc2 AssemblyManager<Node>::getInitial(const int & block, const size_t & grp
         auto initvar = subview(initialip, ALL(), n, ALL(), ALL());
         parallel_for("Group init project",
                      TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
-                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
             for (size_type pt=0; pt<cwts.extent(1); pt++ ) {
@@ -339,7 +339,7 @@ View_Sc2 AssemblyManager<Node>::getInitial(const int & block, const size_t & grp
       auto initvar = subview(initialnodes, ALL(), n, ALL(), 0);
       parallel_for("Group init project",
                    TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<initvar.extent(1); dof+=team.team_size() ) {
           initialvals(elem,off(dof)) = initvar(elem,dof);
@@ -382,7 +382,7 @@ View_Sc2 AssemblyManager<Node>::getInitialFace(const int & block, const size_t &
       // loop over mesh elements
       parallel_for("Group init project",
                    TeamPolicy<AssemblyExec>(initvar.extent(0), Kokkos::AUTO),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<cbasis.extent(1); dof+=team.team_size() ) {
           for(size_type pt=0; pt<cwts.extent(1); pt++ ) {

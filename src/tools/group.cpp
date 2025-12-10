@@ -103,7 +103,7 @@ void Group::computeFaceSize() {
     View_Sc1 face_hsize("face hsize", numElem);
     parallel_for("bcell hsize",
                  RangePolicy<AssemblyExec>(0,cwts.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int e ) {
+                 MRHYDE_LAMBDA (const int e ) {
       ScalarT vol = 0.0;
       for (size_type i=0; i<cwts.extent(1); i++) {
         vol += cwts(e,i);
@@ -123,7 +123,7 @@ void Group::initializeBasisIndex() {
   basis_index = Kokkos::View<LO*,AssemblyDevice>("basis index",numElem);
   parallel_for("compute hsize",
                RangePolicy<AssemblyExec>(0,basis_index.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int e ) {
+               MRHYDE_LAMBDA (const int e ) {
     basis_index(e) = e;
   });
 }  
@@ -451,7 +451,7 @@ void Group::resetPrevSoln(const size_t & set) {
     if (csol_prev.extent(3)>1) {
       parallel_for("Group reset prev soln 1",
                    TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
           for (size_type j=0; j<csol_prev.extent(2); j++) {
@@ -466,7 +466,7 @@ void Group::resetPrevSoln(const size_t & set) {
     // copy current sol into first step
     parallel_for("Group reset prev soln 2",
                  TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VECTORSIZE),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
         for (size_type j=0; j<csol.extent(2); j++) {
@@ -491,7 +491,7 @@ void Group::revertSoln(const size_t & set) {
     // copy current u into first step
     parallel_for("Group reset prev soln 2",
                  TeamPolicy<AssemblyExec>(csol_prev.extent(0), Kokkos::AUTO, VECTORSIZE),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type i=team.team_rank(); i<csol_prev.extent(1); i+=team.team_size() ) {
         for (size_type j=0; j<csol.extent(2); j++) {
@@ -517,7 +517,7 @@ void Group::resetStageSoln(const size_t & set) {
     if (csol_stage.extent(3) > 0) {
       parallel_for("Group reset stage 1",
                    TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type i=team.team_rank(); i<csol_stage.extent(1); i+=team.team_size() ) {
           for (size_type j=0; j<csol_stage.extent(2); j++) {
@@ -547,7 +547,7 @@ void Group::updateStageSoln(const size_t & set) {
     if (stage < csol_stage.extent(3)) {
       parallel_for("wkset transient sol seedwhat 1",
                    TeamPolicy<AssemblyExec>(csol_stage.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type i=team.team_rank(); i<csol_stage.extent(1); i+=team.team_size() ) {
           for (size_type j=0; j<csol_stage.extent(2); j++) {
@@ -678,7 +678,7 @@ View_Sc2 Group::getWts() {
       newwts = View_Sc2("temp wts",numElem, vdata.extent(1));
       parallel_for("grp wts decompress",
                RangePolicy<AssemblyExec>(0,numElem),
-               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+               MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type i=0; i<vdata.extent(1); ++i) {
           newwts(elem,i) = vdata(vkey(elem),i);
         }
@@ -716,7 +716,7 @@ vector<View_Sc2> Group::getIntegrationPts() {
       pts = View_Sc2("temp pts",numElem, vdata.extent(1));
       parallel_for("grp pts decompress",
                RangePolicy<AssemblyExec>(0,numElem),
-               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+               MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type i=0; i<vdata.extent(1); ++i) {
           pts(elem,i) = vdata(vkey(elem),i);
         }

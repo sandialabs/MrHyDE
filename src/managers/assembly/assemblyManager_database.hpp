@@ -798,7 +798,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
             if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
               parallel_for("Group get mass",
                            RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                           MRHYDE_LAMBDA (const size_type e ) {
                 for (size_type i=0; i<cbasis.extent(1); i++ ) {
                   for (size_type j=0; j<cbasis.extent(1); j++ ) {
                     for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -811,7 +811,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
             else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
               parallel_for("Group get mass",
                            RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                           MRHYDE_LAMBDA (const size_type e ) {
                 for (size_type i=0; i<cbasis.extent(1); i++ ) {
                   for (size_type j=0; j<cbasis.extent(1); j++ ) {
                     for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -835,7 +835,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
               
             parallel_for("Group get mass",
                          RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                         KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                         MRHYDE_LAMBDA (const size_type e ) {
               for (size_type i=0; i<cbasis.extent(1); i++ ) {
                 for (size_type j=0; j<cbasis.extent(1); j++ ) {
                   for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -852,7 +852,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
             else { // see if any alternative rules are better for each entry
               parallel_for("Group get mass",
                            RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                           MRHYDE_LAMBDA (const size_type e ) {
             
                 for (size_type i=0; i<newmass.extent(1); i++ ) {
                   for (size_type j=0; j<newmass.extent(2); j++ ) {
@@ -876,7 +876,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
           auto off = subview(offsets,n,ALL());
           parallel_for("Group get mass",
                        RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                       MRHYDE_LAMBDA (const size_type e ) {
             for (size_type i=0; i<mass_sparse.extent(1); i++ ) {
               for (size_type j=0; j<mass_sparse.extent(2); j++ ) {
                 mass(e,off(i),off(j)) = mass_sparse(e,i,j);
@@ -895,7 +895,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
             if (btype.substr(0,5) == "HGRAD" || btype.substr(0,4) == "HVOL") {
               parallel_for("Group get mass",
                            RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                           MRHYDE_LAMBDA (const size_type e ) {
                 for (size_type i=0; i<cbasis.extent(1); i++ ) {
                   for (size_type j=0; j<cbasis.extent(1); j++ ) {
                     for (size_type k=0; k<cbasis.extent(2); k++ ) {
@@ -908,7 +908,7 @@ void AssemblyManager<Node>::buildVolumetricDatabase(const size_t & block, vector
             else if (btype.substr(0,4) == "HDIV" || btype.substr(0,5) == "HCURL") {
               parallel_for("Group get mass",
                            RangePolicy<AssemblyExec>(0,mass.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                           MRHYDE_LAMBDA (const size_type e ) {
                 for (size_type i=0; i<cbasis.extent(1); i++ ) {
                   for (size_type j=0; j<cbasis.extent(1); j++ ) {
                     for (size_type k=0; k<cbasis.extent(2); k++ ) {

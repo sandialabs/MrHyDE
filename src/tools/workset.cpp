@@ -453,7 +453,7 @@ void Workset<ScalarT>::resetResidual() {
     size_t maxRes_ = maxRes;
     parallel_for("wkset reset res",
                  TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
         res(elem,dof) = 0.0;
@@ -471,7 +471,7 @@ void Workset<EvalT>::resetResidual() {
     ScalarT zero = 0.0;
     parallel_for("wkset reset res",
                  TeamPolicy<AssemblyExec>(res.extent(0), Kokkos::AUTO),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<maxRes_; dof+=team.team_size() ) {
         res(elem,dof) = zero;
@@ -518,7 +518,7 @@ void Workset<ScalarT>::computeSolnTransientSeeded(const size_t & set,
         
       parallel_for("wkset transient sol seedwhat 1",
                    TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         ScalarT beta_u, beta_t;
         ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
@@ -553,7 +553,7 @@ void Workset<ScalarT>::computeSolnTransientSeeded(const size_t & set,
       
       parallel_for("wkset steady soln",
                    RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
           u_AD(elem,dof) = cu(elem,dof);
         }
@@ -598,7 +598,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
         auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
         parallel_for("wkset transient sol seedwhat 1",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           ScalarT beta_u, beta_t;
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
@@ -646,7 +646,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
         
         parallel_for("wkset transient sol seedwhat 1",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           EvalT beta_u, beta_t;
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
@@ -703,7 +703,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
         auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
         parallel_for("wkset transient sol seedwhat 1",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           EvalT beta_u, beta_t;
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
@@ -755,7 +755,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
         
         parallel_for("wkset transient sol seedwhat 1",
                      TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
           int elem = team.league_rank();
           ScalarT beta_u, beta_t;
           ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
@@ -791,7 +791,7 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
       
       parallel_for("wkset steady soln",
                    RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
           u_AD(elem,dof) = cu(elem,dof);
         }
@@ -821,7 +821,7 @@ void Workset<ScalarT>::computeSolnSteadySeeded(const size_t & set,
     auto cu = subview(u,ALL(),var,ALL());
     parallel_for("wkset steady soln",
                  RangePolicy<AssemblyExec>(0,u.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                 MRHYDE_LAMBDA (const size_type elem ) {
       for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
         u_AD(elem,dof) = cu(elem,dof);
       }
@@ -845,7 +845,7 @@ void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
     if (seedwhat == 1 && set == current_set) {
       parallel_for("wkset steady soln",
                    RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         EvalT dummyval = 0.0;
         for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
 #ifndef MrHyDE_NO_AD
@@ -859,7 +859,7 @@ void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
     else {
       parallel_for("wkset steady soln",
                    RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
           u_AD(elem,dof) = cu(elem,dof);
         }
@@ -887,7 +887,7 @@ void Workset<ScalarT>::computeParamSteadySeeded(View_Sc3 param,
       
       parallel_for("wkset steady soln",
                    RangePolicy<AssemblyExec>(0,param.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
           p_AD(elem,dof) = cp(elem,dof);
         }
@@ -913,7 +913,7 @@ void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
       if (seedwhat == 3) {
         parallel_for("wkset steady soln",
                      RangePolicy<AssemblyExec>(0,param.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                     MRHYDE_LAMBDA (const size_type elem ) {
           EvalT dummyval = 0.0;
           for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
 #ifndef MrHyDE_NO_AD
@@ -927,7 +927,7 @@ void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
       else {
         parallel_for("wkset steady soln",
                      RangePolicy<AssemblyExec>(0,param.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                     MRHYDE_LAMBDA (const size_type elem ) {
           for (size_type dof=0; dof<p_AD.extent(1); dof++ ) {
             p_AD(elem,dof) = cp(elem,dof);
           }
@@ -1009,7 +1009,7 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
@@ -1060,7 +1060,7 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
@@ -1148,7 +1148,7 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
@@ -1181,7 +1181,7 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
@@ -1232,7 +1232,7 @@ void Workset<EvalT>::computeSolnSideIP(const int & side) {
       
       parallel_for("wkset soln ip HGRAD",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis_grad.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -1273,7 +1273,7 @@ void Workset<EvalT>::computeSolnSideIP(const int & side) {
       
       parallel_for("wkset soln ip HVOL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
           csol(elem,pt) = 0.0;
@@ -1301,7 +1301,7 @@ void Workset<EvalT>::computeSolnSideIP(const int & side) {
       
       parallel_for("wkset soln ip HDIV",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -1342,7 +1342,7 @@ void Workset<EvalT>::computeSolnSideIP(const int & side) {
       
       parallel_for("wkset soln ip HCURL",
                    TeamPolicy<AssemblyExec>(cbasis.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         size_type dim = cbasis.extent(3);
         for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
@@ -2034,7 +2034,7 @@ void Workset<EvalT>::copyData(V1 view1, V2 view2) {
     //deep_copy(view1,0.0);
     parallel_for("wkset copy data",
                  RangePolicy<AssemblyExec>(0,view2.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                 MRHYDE_LAMBDA (const size_type elem ) {
       for (size_type pt=0; pt<view1.extent(1); ++pt) {
         view1(elem,pt) = view2(elem,pt);
       }
@@ -2258,7 +2258,7 @@ void Workset<EvalT>::setSolutionPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
   }
@@ -2269,7 +2269,7 @@ void Workset<EvalT>::setSolutionPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
   }
@@ -2281,14 +2281,14 @@ void Workset<EvalT>::setSolutionPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
       auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(1);
       });
     }
@@ -2296,7 +2296,7 @@ void Workset<EvalT>::setSolutionPoint(View_EvalT2 newsol) {
       auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(2);
       });
     }
@@ -2309,14 +2309,14 @@ void Workset<EvalT>::setSolutionPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
       auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(1);
       });
     }
@@ -2324,7 +2324,7 @@ void Workset<EvalT>::setSolutionPoint(View_EvalT2 newsol) {
       auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(2);
       });
     }
@@ -2347,14 +2347,14 @@ void Workset<EvalT>::setSolutionGradPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
       auto csol = this->getSolutionField("grad("+var+")[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(1);
       });
     }
@@ -2362,7 +2362,7 @@ void Workset<EvalT>::setSolutionGradPoint(View_EvalT2 newsol) {
       auto csol = this->getSolutionField("grad("+var+")[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(2);
       });
     }
@@ -2453,7 +2453,7 @@ void Workset<EvalT>::setParamPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
   }
@@ -2464,7 +2464,7 @@ void Workset<EvalT>::setParamPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
   }
@@ -2476,14 +2476,14 @@ void Workset<EvalT>::setParamPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
       auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(1);
       });
     }
@@ -2491,7 +2491,7 @@ void Workset<EvalT>::setParamPoint(View_EvalT2 newsol) {
       auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(2);
       });
     }
@@ -2504,14 +2504,14 @@ void Workset<EvalT>::setParamPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
       auto csol = this->getSolutionField(var+"[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(1);
       });
     }
@@ -2519,7 +2519,7 @@ void Workset<EvalT>::setParamPoint(View_EvalT2 newsol) {
       auto csol = this->getSolutionField(var+"[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(2);
       });
     }
@@ -2542,14 +2542,14 @@ void Workset<EvalT>::setParamGradPoint(View_EvalT2 newsol) {
     auto cnsol = subview(newsol,varind,ALL());
     parallel_for("physics point response",
                  RangePolicy<AssemblyExec>(0,1),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       csol(0,0) = cnsol(0);
     });
     if (dim>1) {
       auto csol = this->getSolutionField("grad("+var+")[y]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(1);
       });
     }
@@ -2557,7 +2557,7 @@ void Workset<EvalT>::setParamGradPoint(View_EvalT2 newsol) {
       auto csol = this->getSolutionField("grad("+var+")[z]",false,true);
       parallel_for("physics point response",
                    RangePolicy<AssemblyExec>(0,1),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         csol(0,0) = cnsol(2);
       });
     }
@@ -2668,7 +2668,7 @@ View_Sc1 Workset<EvalT>::getElementSize() {
   View_Sc1 hsize("tmp hsize",wts.extent(0));
   parallel_for("elem size",
                RangePolicy<AssemblyExec>(0,wts.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+               MRHYDE_LAMBDA (const size_type elem ) {
     ScalarT vol = 0.0;
     for (size_type i=0; i<wts.extent(1); i++) {
       vol += wts(elem,i);
@@ -2689,7 +2689,7 @@ View_Sc1 Workset<EvalT>::getSideElementSize() {
   View_Sc1 hsize("tmp hsize",wts_side.extent(0));
   parallel_for("elem size",
                RangePolicy<AssemblyExec>(0,wts_side.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+               MRHYDE_LAMBDA (const size_type elem ) {
     ScalarT vol = 0.0;
     for (size_type i=0; i<wts_side.extent(1); i++) {
       vol += wts_side(elem,i);

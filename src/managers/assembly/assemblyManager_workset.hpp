@@ -1343,7 +1343,7 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
     if (seedwhat == 4) {
       parallel_for("bgroup aux 4",
                    TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         EvalT dummyval = 0.0;
         for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
@@ -1357,7 +1357,7 @@ void AssemblyManager<Node>::computeBoundaryAux(const int & block, const size_t &
     else {
       parallel_for("bgroup aux 5",
                     TeamPolicy<AssemblyExec>(localID.extent(0), Kokkos::AUTO, VECTORSIZE),
-                    KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                    MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
         int elem = team.league_rank();
         for (size_type pt=team.team_rank(); pt<abasis.extent(2); pt+=team.team_size() ) {
           for (size_type dof=0; dof<abasis.extent(1); ++dof) {
@@ -1447,7 +1447,7 @@ void AssemblyManager<Node>::updateDataBoundary(Teuchos::RCP<Workset<EvalT> > & w
     auto data = boundary_groups[block][grp]->data;
     parallel_for("update data",
                  RangePolicy<AssemblyExec>(0,data.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                 MRHYDE_LAMBDA (const size_type e ) {
       rot(e,0,0) = data(e,0);
       rot(e,0,1) = data(e,1);
       rot(e,0,2) = data(e,2);

@@ -48,7 +48,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
         //copy
         parallel_for("physics fill initial values",
                      RangePolicy<AssemblyExec>(0,cvals.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const int e ) {
+                     MRHYDE_LAMBDA (const int e ) {
           for (size_t i=0; i<cvals.extent(1); i++) {
             cvals(e,i) = tivals(e,i);
           }
@@ -60,7 +60,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
         //copy
         parallel_for("physics fill initial values",
                      RangePolicy<AssemblyExec>(0,cvals.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const int e ) {
+                     MRHYDE_LAMBDA (const int e ) {
           for (size_t i=0; i<cvals.extent(1); i++) {
             cvals(e,i) = tivals(e,i);
           }
@@ -71,7 +71,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
           //copy
           parallel_for("physics fill initial values",
                        RangePolicy<AssemblyExec>(0,cvals.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const int e ) {
+                       MRHYDE_LAMBDA (const int e ) {
             for (size_t i=0; i<cvals.extent(1); i++) {
               cvals(e,i) = tivals(e,i);
             }
@@ -83,7 +83,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
           //copy
           parallel_for("physics fill initial values",
                        RangePolicy<AssemblyExec>(0,cvals.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const int e ) {
+                       MRHYDE_LAMBDA (const int e ) {
             for (size_t i=0; i<cvals.extent(1); i++) {
               cvals(e,i) = tivals(e,i);
             }
@@ -123,7 +123,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
         int dim_ = dimension;
         parallel_for("physics initial set point",
                      RangePolicy<AssemblyExec>(0,1),
-                     KOKKOS_CLASS_LAMBDA (const int s ) {
+                     MRHYDE_LAMBDA (const int s ) {
           x(0,0) = ptx(e,i); // TMW: this might be ok
           if (dim_ > 1) {
             y(0,0) = pty(e,i);
@@ -141,7 +141,7 @@ View_Sc4 PhysicsInterface::getInitial(vector<View_Sc2> & pts, const int & set, c
           // Also might be ok (terribly inefficient though)
           parallel_for("physics initial set point",
                        RangePolicy<AssemblyExec>(0,1),
-                       KOKKOS_CLASS_LAMBDA (const int s ) {
+                       MRHYDE_LAMBDA (const int s ) {
             ivals(e,n,i,0) = tivals(0,0);
           });
           
@@ -177,7 +177,7 @@ View_Sc3 PhysicsInterface::getInitialFace(vector<View_Sc2> & pts, const int & se
       //copy
       parallel_for("physics fill initial values",
                    RangePolicy<AssemblyExec>(0,cvals.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const int e ) {
+                   MRHYDE_LAMBDA (const int e ) {
         for (size_t i=0; i<cvals.extent(1); i++) {
           cvals(e,i) = tivals(e,i);
         }

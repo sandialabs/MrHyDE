@@ -65,7 +65,7 @@ View_Sc2 AssemblyManager<Node>::evaluateFunction(const int & block, const string
 
   parallel_for("assembly eval func",
                  RangePolicy<LA_exec>(0,num_elem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<num_pts; ++pt) {
       outdata(elem,pt) = data(elem,pt);
     }

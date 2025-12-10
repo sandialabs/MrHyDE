@@ -121,7 +121,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
                 auto eID = assembler->groups[block][grp]->localElemID;
                 auto tmpsol = assembler->getSolutionAtNodes(block, grp, n);
                 auto sol = Kokkos::subview(tmpsol, Kokkos::ALL(), Kokkos::ALL(), 0); // last component is dimension, which is 0 for HGRAD
-                parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+                parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                   for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                     soln_dev(eID(elem),i) = sol(elem,i);
                   } });
@@ -150,7 +150,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
 
                 // Fill data on device
                 auto sol = Kokkos::subview(assembler->groupData[block]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
-                parallel_for("postproc plot HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+                parallel_for("postproc plot HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                   for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                     soln_dev(eID(elem),i) = sol(elem,i);
                   } });
@@ -177,7 +177,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               auto eID = assembler->groups[block][grp]->localElemID;
               assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
               auto sol = Kokkos::subview(assembler->groupData[block]->sol[set], Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+              parallel_for("postproc plot HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                 soln_dev(eID(elem)) = sol(elem, 0); // u_kv(pindex,0);
               });
             }
@@ -210,7 +210,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
               // Compute the element average
               assembler->computeSolutionAverage(block, grp, varlist[set][block][n], sol);
-              parallel_for("postproc plot HDIV/HCURL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+              parallel_for("postproc plot HDIV/HCURL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                 soln_x_dev(eID(elem)) = sol(elem,0);
                 if (sol.extent(1) > 1) {
                   soln_y_dev(eID(elem)) = sol(elem,1);
@@ -266,7 +266,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
                 assembler->updateWorksetFace(block, grp, face);
                 auto wts = assembler->wkset[block]->wts_side;
                 auto sol = assembler->wkset[block]->getSolutionField(varlist[set][block][n]);
-                parallel_for("postproc plot HFACE", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+                parallel_for("postproc plot HFACE", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                   for( size_t pt=0; pt<wts.extent(1); pt++ ) {
                     face_measure_dev(eID(elem)) += wts(elem,pt);
                     soln_faceavg_dev(eID(elem)) += sol(elem,pt)*wts(elem,pt);
@@ -278,7 +278,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
             assembler->wkset[block]->isOnSide = false;
 
             // Compute the face average
-            parallel_for("postproc plot HFACE 2", RangePolicy<AssemblyExec>(0, soln_faceavg_dev.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) { soln_faceavg_dev(elem) *= 1.0 / face_measure_dev(elem); });
+            parallel_for("postproc plot HFACE 2", RangePolicy<AssemblyExec>(0, soln_faceavg_dev.extent(0)), MRHYDE_LAMBDA(const int elem) { soln_faceavg_dev(elem) *= 1.0 / face_measure_dev(elem); });
 
             // Copy to host
             Kokkos::deep_copy(soln_faceavg, soln_faceavg_dev);
@@ -326,7 +326,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               assembler->performGather(0, block, grp, params_kv[0], 4, 0);
 
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+              parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                 for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
                 } });
@@ -354,7 +354,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               assembler->performGather(0, block, grp, params_kv[0], 4, 0);
 
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) { soln_dev(eID(elem)) = sol(elem, 0); });
+              parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) { soln_dev(eID(elem)) = sol(elem, 0); });
             }
 
             // Copy to host
@@ -385,7 +385,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               auto eID = assembler->groups[block][grp]->localElemID;
               assembler->performGather(0, block, grp, params_kv[0], 4, 0);
               assembler->computeParameterAverage(block, grp, dpnames[n], sol);
-              parallel_for("postproc plot HDIV/HCURL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+              parallel_for("postproc plot HDIV/HCURL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                 soln_x_dev(eID(elem)) = sol(elem,0);
                 if (sol.extent(1) > 1) {
                   soln_y_dev(eID(elem)) = sol(elem,1);
@@ -452,7 +452,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
 
           auto cfields = this->getExtraCellFields(block, assembler->groups[block][grp]->wts);
 
-          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
             for (size_type r=0; r<cfields.extent(1); ++r) {
               ecd_dev(eID(elem),r) = cfields(elem,r);
             } });
@@ -497,7 +497,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
 
           auto cfields = this->getDerivedQuantities(block, assembler->groups[block][grp]->wts);
 
-          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
             for (size_type r=0; r<cfields.extent(1); ++r) {
               dq_dev(eID(elem),r) = cfields(elem,r);
             } });
@@ -577,7 +577,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
         for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp)
         {
           auto eID = assembler->groups[block][grp]->localElemID;
-          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) { grpnum_dev(eID(elem)) = grp; });
+          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) { grpnum_dev(eID(elem)) = grp; });
         }
 
         // Copt to host
@@ -606,7 +606,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
         {
           auto index = assembler->groups[block][grp]->basis_index;
           auto eID = assembler->groups[block][grp]->localElemID;
-          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
             jacnum_dev(eID(elem)) = index(elem); // TMW: is this what we want?
           });
         }
@@ -637,7 +637,7 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
         {
           int sgindex = assembler->groups[block][grp]->subgrid_model_index;
           auto eID = assembler->groups[block][grp]->localElemID;
-          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) { sgmodel_dev(eID(elem)) = sgindex; });
+          parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) { sgmodel_dev(eID(elem)) = sgindex; });
         }
 
         // Copy to host
@@ -689,7 +689,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int &block, Compress
 
     if (cellfield_reduction == "mean")
     { // default
-      parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int e) {
+      parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), MRHYDE_LAMBDA(const int e) {
         ScalarT grpmeas = 0.0;
         for (size_t pt=0; pt<wts.extent(1); pt++) {
           grpmeas += wts(e,pt);
@@ -701,7 +701,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int &block, Compress
     }
     else if (cellfield_reduction == "max")
     {
-      parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int e) {
+      parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), MRHYDE_LAMBDA(const int e) {
         for (size_t j=0; j<wts.extent(1); j++) {
           ScalarT val = ecf(e,j);
           if (val>cfield(e)) {
@@ -711,7 +711,7 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int &block, Compress
     }
     if (cellfield_reduction == "min")
     {
-      parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int e) {
+      parallel_for("physics get extra grp fields", RangePolicy<AssemblyExec>(0, wts.extent(0)), MRHYDE_LAMBDA(const int e) {
         for (size_t j=0; j<wts.extent(1); j++) {
           ScalarT val = ecf(e,j);
           if (val<cfield(e)) {
@@ -799,7 +799,7 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int &numEvaluatio
                 assembler->performGather(0, block, grp, params_kv[0], 4, 0);
               }
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+              parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                 for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
                 } });
@@ -820,7 +820,7 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int &numEvaluatio
                 assembler->performGather(0, block, grp, params_kv[0], 4, 0);
               }
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) { soln_dev(eID(elem)) = sol(elem, 0); });
+              parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) { soln_dev(eID(elem)) = sol(elem, 0); });
             }
             Kokkos::deep_copy(soln_computed, soln_dev);
             mesh->setOptimizationCellFieldData(dpnames[n], blockID, myElements, soln_computed);
@@ -937,7 +937,7 @@ void PostprocessManager<Node>::writeOptimizationSolution(const std::string &file
                 assembler->performGather(0, block, grp, params_kv[0], 4, 0);
               }
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) {
+              parallel_for("postproc plot param HGRAD", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) {
                 for( size_type i=0; i<soln_dev.extent(1); i++ ) {
                   soln_dev(eID(elem),i) = sol(elem,i);
                 } });
@@ -958,7 +958,7 @@ void PostprocessManager<Node>::writeOptimizationSolution(const std::string &file
                 assembler->performGather(0, block, grp, params_kv[0], 4, 0);
               }
               auto sol = Kokkos::subview(assembler->groupData[block]->param, Kokkos::ALL(), n, Kokkos::ALL());
-              parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem) { soln_dev(eID(elem)) = sol(elem, 0); });
+              parallel_for("postproc plot param HVOL", RangePolicy<AssemblyExec>(0, eID.extent(0)), MRHYDE_LAMBDA(const int elem) { soln_dev(eID(elem)) = sol(elem, 0); });
             }
             Kokkos::deep_copy(soln_computed, soln_dev);
             mesh->setOptimizationCellFieldData(dpnames[n], blockID, myElements, soln_computed);

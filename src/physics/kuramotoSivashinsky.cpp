@@ -63,7 +63,7 @@ void KuramotoSivashinsky<EvalT>::volumeResidual() {
       auto dwdx = wkset->getSolutionField("grad(w)[x]");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                  KOKKOS_CLASS_LAMBDA (const int elem ) {
+                  MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT gradu_sq = 0.5*dudx(elem,pt)*dudx(elem,pt);
           EvalT f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
@@ -82,7 +82,7 @@ void KuramotoSivashinsky<EvalT>::volumeResidual() {
       auto dwdy = wkset->getSolutionField("grad(w)[y]");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                  KOKKOS_CLASS_LAMBDA (const int elem ) {
+                  MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt));
           EvalT f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
@@ -105,7 +105,7 @@ void KuramotoSivashinsky<EvalT>::volumeResidual() {
       auto dwdz = wkset->getSolutionField("grad(w)[z]");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                  KOKKOS_CLASS_LAMBDA (const int elem ) {
+                  MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT gradu_sq = 0.5*(dudx(elem,pt)*dudx(elem,pt) + dudy(elem,pt)*dudy(elem,pt) + dudz(elem,pt)*dudz(elem,pt));
           EvalT f = (dudt(elem,pt) + w(elem,pt) + gradu_sq)*wts(elem,pt);
@@ -130,7 +130,7 @@ void KuramotoSivashinsky<EvalT>::volumeResidual() {
       auto w = wkset->getSolutionField("w");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                  KOKKOS_CLASS_LAMBDA (const int elem ) {
+                  MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT f = (w(elem,pt))*wts(elem,pt);
           EvalT Fx = (dudx(elem,pt))*wts(elem,pt);
@@ -146,7 +146,7 @@ void KuramotoSivashinsky<EvalT>::volumeResidual() {
       auto w = wkset->getSolutionField("w");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                  KOKKOS_CLASS_LAMBDA (const int elem ) {
+                  MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT f = (w(elem,pt))*wts(elem,pt);
           EvalT Fx = (dudx(elem,pt))*wts(elem,pt);
@@ -165,7 +165,7 @@ void KuramotoSivashinsky<EvalT>::volumeResidual() {
       auto w = wkset->getSolutionField("w");
       parallel_for("Kuramoto-Sivashinsky volume resid",
                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                  KOKKOS_CLASS_LAMBDA (const int elem ) {
+                  MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT f = (w(elem,pt))*wts(elem,pt);
           EvalT Fx = (dudx(elem,pt))*wts(elem,pt);

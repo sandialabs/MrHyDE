@@ -44,7 +44,7 @@ void ParameterManager<Node>::setInitialParams() {
       for (size_t group=0; group<assembler->groups[block].size(); group++) {
         Kokkos::View<LO**,HostDevice> LIDs = assembler->groups[block][group]->LIDs_host;
         Kokkos::View<LO*,HostDevice> numDOF = assembler->groups[block][group]->group_data->numDOF_host;
-        //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), KOKKOS_CLASS_LAMBDA (const int e ) {
+        //parallel_for("solver initial scalar",RangePolicy<HostExec>(0,LIDs.extent(0)), MRHYDE_LAMBDA (const int e ) {
         for (int e=0; e<LIDs.extent(0); e++) {
           for (size_t n=0; n<numDOF.extent(0); n++) {
             for (size_t i=0; i<numDOF(n); i++ ) {

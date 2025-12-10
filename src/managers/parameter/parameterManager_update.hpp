@@ -138,7 +138,7 @@ void ParameterManager<Node>::updateDynamicParams(const int & timestep) {
   if (index == 0) {
     parallel_for("paramman copy zero",
                  RangePolicy<AssemblyExec>(0,paramdot_KV.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int c ) {
+                 MRHYDE_LAMBDA (const int c ) {
       for (size_type j=0; j<paramdot_KV.extent(1); j++) {
         paramdot_KV(c,j) = 0.0;
 #ifndef MrHyDE_NO_AD
@@ -157,7 +157,7 @@ void ParameterManager<Node>::updateDynamicParams(const int & timestep) {
   else {
     parallel_for("paramman copy zero",
                  RangePolicy<AssemblyExec>(0,paramdot_KV.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int c ) {
+                 MRHYDE_LAMBDA (const int c ) {
       for (size_type j=0; j<paramdot_KV.extent(1); j++) {
         paramdot_KV(c,j) = (paramvals_KV_ALL(index,c,j) - paramvals_KV_ALL(index-1,c,j))/dynamic_dt;
 #ifndef MrHyDE_NO_AD

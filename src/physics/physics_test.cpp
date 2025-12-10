@@ -218,7 +218,7 @@ void physicsTest<EvalT>::updatePerm(View_EvalT2 perm) {
   
   parallel_for("physicsTest HGRAD update perm",
                RangePolicy<AssemblyExec>(0,perm.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<perm.extent(1); pt++) {
       perm(elem,pt) = data(elem,0);
     }

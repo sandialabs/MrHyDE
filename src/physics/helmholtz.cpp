@@ -133,7 +133,7 @@ void helmholtz<EvalT>::volumeResidual() {
   // TMW: this won't actually work on a GPU ... need to use subviews of sol, etc. and remove conditionals
   parallel_for("helmholtz volume resid",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_CLASS_LAMBDA (const int e ) {
+               MRHYDE_LAMBDA (const int e ) {
     for (size_type k=0; k<Ur.extent(1); k++ ) {
       EvalT ur = Ur(e,k);
       EvalT durdx = dUr_dx(e,k);

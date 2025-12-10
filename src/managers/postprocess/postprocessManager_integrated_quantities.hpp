@@ -179,7 +179,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> &c
           View_Sc2 integrand = assembler->evaluateFunction(globalBlock, integratedQuantities[iLocal][iIQ].name + " integrand", "ip");
           // expand this for integral integrands, etc.?
 
-          parallel_reduce(RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem, ScalarT &update) {
+          parallel_reduce(RangePolicy<AssemblyExec>(0, wts.extent(0)), MRHYDE_LAMBDA(const int elem, ScalarT &update) {
             for (size_t pt=0; pt<wts.extent(1); pt++) {
               ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
               update += Idx;
@@ -221,7 +221,7 @@ void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> &c
             // evaluate the integrand at integration points
             // auto integrand = functionManagers[globalBlock]->evaluate(integratedQuantities[iLocal][iIQ].name+" integrand","side ip");
             View_Sc2 integrand = assembler->evaluateFunction(globalBlock, integratedQuantities[iLocal][iIQ].name + " integrand", "side ip");
-            parallel_reduce(RangePolicy<AssemblyExec>(0, wts.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem, ScalarT &update) {
+            parallel_reduce(RangePolicy<AssemblyExec>(0, wts.extent(0)), MRHYDE_LAMBDA(const int elem, ScalarT &update) {
               for (size_t pt=0; pt<wts.extent(1); pt++) {
                 ScalarT Idx = wts(elem,pt)*integrand(elem,pt);
                 update += Idx;

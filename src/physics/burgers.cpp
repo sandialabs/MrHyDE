@@ -72,7 +72,7 @@ void Burgers<EvalT>::volumeResidual() {
     auto dudx = wkset->getSolutionField("grad(u)[x]");
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT usq = 0.5*u(elem,pt)*u(elem,pt);
         EvalT f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
@@ -101,7 +101,7 @@ void Burgers<EvalT>::volumeResidual() {
     auto dt = wkset->deltat;
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT evisc = 0.0;
         if (use_evisc) {  
@@ -143,7 +143,7 @@ void Burgers<EvalT>::volumeResidual() {
     auto vz = functionManager->evaluate("zvel","ip");
     parallel_for("Burgers volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT usq = 0.5*u(elem,pt)*u(elem,pt);
         EvalT f = (dudt(elem,pt) - source(elem,pt))*wts(elem,pt);
@@ -191,7 +191,7 @@ void Burgers<EvalT>::boundaryResidual() {
     
     parallel_for("Thermal bndry resid part 1",
                  TeamPolicy<AssemblyExec>(wkset->numElem, Kokkos::AUTO, VECTORSIZE),
-                 KOKKOS_CLASS_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {

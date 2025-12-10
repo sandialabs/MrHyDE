@@ -66,7 +66,7 @@ void PostprocessManager<Node>::computeFluxResponse(vector<vector_RCP> &current_s
             {
               ScalarT value = 0.0;
               auto vflux = subview(cflux, ALL(), v, ALL());
-              parallel_reduce(RangePolicy<AssemblyExec>(0, iwts.extent(0)), KOKKOS_CLASS_LAMBDA(const int elem, ScalarT &update) {
+              parallel_reduce(RangePolicy<AssemblyExec>(0, iwts.extent(0)), MRHYDE_LAMBDA(const int elem, ScalarT &update) {
                 for( size_t pt=0; pt<iwts.extent(1); pt++ ) {
                   ScalarT up = vflux(elem,pt)*wts(elem,pt)*iwts(elem,pt);
                   update += up;

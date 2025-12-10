@@ -478,7 +478,7 @@ void MultiscaleManager::update(vector<vector<int> > & sgmodels) {
                 auto udot_sc_sv = subview(udot_sc,ALL(),var,ALL());
                 parallel_for("assembly compute coarse sol",
                              RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                             KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                             MRHYDE_LAMBDA (const size_type elem ) {
                   for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
                     //cout << uvals_AD(elem,dof).val() << endl;
 #ifndef MrHyDE_NO_AD
@@ -519,7 +519,7 @@ void MultiscaleManager::update(vector<vector<int> > & sgmodels) {
               auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
               parallel_for("assembly compute coarse sol",
                            RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                           MRHYDE_LAMBDA (const size_type elem ) {
                 for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
 #ifndef MrHyDE_NO_AD
                   //uvals_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
@@ -539,7 +539,7 @@ void MultiscaleManager::update(vector<vector<int> > & sgmodels) {
               View_Sc1 avg_wts("average wts",u_curr.extent(0));
               parallel_for("assembly compute coarse sol",
                            RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                           MRHYDE_LAMBDA (const size_type elem ) {
                 for (size_type pt=0; pt<wts.extent(1); ++pt) {
                   avg_wts(elem) += wts(elem,pt);
                 }
@@ -548,7 +548,7 @@ void MultiscaleManager::update(vector<vector<int> > & sgmodels) {
               auto ip_y = groups[block][grp]->ip[1];
               parallel_for("assembly compute coarse sol",
                            RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                           KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                           MRHYDE_LAMBDA (const size_type elem ) {
                 for (size_type pt=0; pt<ip_x.extent(1); ++pt) {
                   avg_xyz(elem,0) = ip_x(elem,pt)*wts(elem,pt)/avg_wts(elem);
                   avg_xyz(elem,1) = ip_y(elem,pt)*wts(elem,pt)/avg_wts(elem);
@@ -901,7 +901,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
     auto uvals_sc_sv = subview(uvals_sc,ALL(),var,ALL());
     parallel_for("assembly compute coarse sol",
                  RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                 MRHYDE_LAMBDA (const size_type elem ) {
       for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
 #ifndef MrHyDE_NO_AD
         uvals_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
@@ -937,7 +937,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
         auto res = wkset->res;
         parallel_for("ms man copy res",
                      RangePolicy<AssemblyExec>(0,res.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                     MRHYDE_LAMBDA (const size_type elem ) {
           for (size_type dof=0; dof<res.extent(1); ++dof) {
             prev_res(elem,dof) = res(elem,dof);
           }
@@ -1027,7 +1027,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
           auto udot_sc_sv = subview(udot_sc,ALL(),var,ALL());
           parallel_for("assembly compute coarse sol",
                        RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                       KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                       MRHYDE_LAMBDA (const size_type elem ) {
             for (size_type dof=0; dof<uvals_AD.extent(1); ++dof) {
 #ifndef MrHyDE_NO_AD
               udot_sc_sv(elem,dof) = uvals_AD(elem,dof).val();
@@ -1048,7 +1048,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
         View_Sc1 avg_wts("average wts",u_curr.extent(0));
         parallel_for("assembly compute coarse sol",
                      RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                     MRHYDE_LAMBDA (const size_type elem ) {
           for (size_type pt=0; pt<wts.extent(1); ++pt) {
             avg_wts(elem) += wts(elem,pt);
           }
@@ -1057,7 +1057,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
         auto ip_y = group->ip[1];
         parallel_for("assembly compute coarse sol",
                      RangePolicy<AssemblyExec>(0,u_curr.extent(0)),
-                     KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                     MRHYDE_LAMBDA (const size_type elem ) {
           for (size_type pt=0; pt<ip_x.extent(1); ++pt) {
             avg_xyz(elem,0) = ip_x(elem,pt)*wts(elem,pt)/avg_wts(elem);
             avg_xyz(elem,1) = ip_y(elem,pt)*wts(elem,pt)/avg_wts(elem);
@@ -1103,7 +1103,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
       View_AD2 ref_res = View_AD2("prev res",numElem,res.extent(1));
       parallel_for("ms man copy res",
                    RangePolicy<AssemblyExec>(0,numElem),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<res.extent(1); ++dof) {
           ref_res(elem,dof) = res(elem,dof);
         }
@@ -1162,7 +1162,7 @@ void MultiscaleManager::evaluateMacroMicroMacroMap(Teuchos::RCP<Workset<AD>> & w
       } // models
       parallel_for("ms man copy res",
                    RangePolicy<AssemblyExec>(0,numElem),
-                   KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+                   MRHYDE_LAMBDA (const size_type elem ) {
         for (size_type dof=0; dof<res.extent(1); ++dof) {
           res(elem,dof) = ref_res(elem,dof);
         }

@@ -272,7 +272,7 @@ void CrystalElastic<EvalT>::computeStress(Teuchos::RCP<Workset<EvalT> > & wkset,
     auto dx_x = wkset->getSolutionField("grad(dx)[x]");
     parallel_for("CE stress 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                 MRHYDE_LAMBDA (const size_type e ) {
       for (size_type k=0; k<dx_x.extent(1); k++) {
         E(e,k,0,0) = dx_x(e,k);
       }
@@ -285,7 +285,7 @@ void CrystalElastic<EvalT>::computeStress(Teuchos::RCP<Workset<EvalT> > & wkset,
     auto dy_y = wkset->getSolutionField("grad(dy)[y]");
     parallel_for("CE stress 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                 MRHYDE_LAMBDA (const size_type e ) {
       for (size_type k=0; k<dx_x.extent(1); k++) {
         E(e,k,0,0) = dx_x(e,k);
         E(e,k,0,1) = 0.5*dx_y(e,k) + 0.5*dy_x(e,k);
@@ -306,7 +306,7 @@ void CrystalElastic<EvalT>::computeStress(Teuchos::RCP<Workset<EvalT> > & wkset,
     auto dz_z = wkset->getSolutionField("grad(dz)[z]");
     parallel_for("CE stress 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                 MRHYDE_LAMBDA (const size_type e ) {
       for (size_type k=0; k<dx_x.extent(1); k++) {
         E(e,k,0,0) = dx_x(e,k);
         E(e,k,0,1) = 0.5*dx_y(e,k) + 0.5*dy_x(e,k);
@@ -329,7 +329,7 @@ void CrystalElastic<EvalT>::computeStress(Teuchos::RCP<Workset<EvalT> > & wkset,
   
   parallel_for("CE stress 3D",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_CLASS_LAMBDA (const size_type e ) {
+               MRHYDE_LAMBDA (const size_type e ) {
     for (int q=0; q<numip; q++) {
       for ( int i = 0; i < dimension_; ++i ) {
         for ( int j = 0; j < dimension_; ++j ) {
@@ -347,7 +347,7 @@ void CrystalElastic<EvalT>::computeStress(Teuchos::RCP<Workset<EvalT> > & wkset,
     auto T = wkset->getSolutionField("e");
     parallel_for("CE stress 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const size_type e ) {
+                 MRHYDE_LAMBDA (const size_type e ) {
       for (int q=0; q<numip; q++) {
         for ( int i = 0; i < dimension_; ++i ) {
           stress(e,q,i,i) += -alpha_T*(3*lambda+2*mu)*(T(e,q)-e_ref);
@@ -387,7 +387,7 @@ void CrystalElastic<EvalT>::computeRotatedTensor(Teuchos::RCP<Workset<EvalT> > &
   
   parallel_for("CE stress 3D",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_CLASS_LAMBDA (const size_type e ) {
+               MRHYDE_LAMBDA (const size_type e ) {
       
     if (allow_rotations_) {
       if (use_phi) {

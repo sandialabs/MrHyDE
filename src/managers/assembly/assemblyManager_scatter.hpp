@@ -34,7 +34,7 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
   if (compute_disc_sens) {
     parallel_for("assembly insert Jac sens",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_t row=0; row<LIDs.extent(1); row++ ) {
         LO rowIndex = LIDs(elem,row);
         for (size_t col=0; col<paramLIDs.extent(1); col++ ) {
@@ -48,7 +48,7 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
   else {
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       const size_type numVals = LIDs.extent(1);
       LO cols[MAXDERIVS];
       ScalarT vals[MAXDERIVS];
@@ -92,7 +92,7 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
   
   parallel_for("assembly scatter res",
                RangePolicy<LA_exec>(0,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for( size_type row=0; row<LIDs.extent(1); row++ ) {
       LO rowIndex = LIDs(elem,row);
       if (!fixedDOF(rowIndex)) {
@@ -195,7 +195,7 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
   
   parallel_for("assembly insert Jac",
                RangePolicy<LA_exec>(0,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     
     int row = 0;
     LO rowIndex = 0;
@@ -309,7 +309,7 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
   
   parallel_for("assembly insert Jac",
                RangePolicy<LA_exec>(0,LIDs.extent(0)),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     
     int row = 0;
     LO rowIndex = 0;

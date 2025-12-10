@@ -32,7 +32,7 @@ void DiscretizationInterface::getFrobenius(Teuchos::RCP<GroupMetaData> & groupDa
 
   parallel_for("compute measure",
                RangePolicy<AssemblyExec>(0,numElem),
-               KOKKOS_CLASS_LAMBDA (const size_type elem ) {
+               MRHYDE_LAMBDA (const size_type elem ) {
     for (size_type d1=0; d1<jacobian.extent(2); ++d1) {
       for (size_type d2=0; d2<jacobian.extent(3); ++d2) {
       

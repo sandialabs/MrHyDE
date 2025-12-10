@@ -115,7 +115,7 @@ void incompressibleSaturation<EvalT>::volumeResidual() {
 
       parallel_for("saturation volume resid " + varlist[iEqn] + " 1D",
               RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += phi*dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -132,7 +132,7 @@ void incompressibleSaturation<EvalT>::volumeResidual() {
 
       parallel_for("saturation volume resid " + varlist[iEqn] + " 2D",
               RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += phi*dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -150,7 +150,7 @@ void incompressibleSaturation<EvalT>::volumeResidual() {
 
       parallel_for("saturation volume resid " + varlist[iEqn] + " 3D",
               RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for( size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += phi*dSi_dt(elem,pt)*basis(elem,dof,pt,0)*wts(elem,pt);
@@ -225,7 +225,7 @@ void incompressibleSaturation<EvalT>::computeFluxVector() {
 
     parallel_for("saturation fluxes 1D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // S equation -- F_x = f_w ux
@@ -241,7 +241,7 @@ void incompressibleSaturation<EvalT>::computeFluxVector() {
 
     parallel_for("saturation fluxes 2D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // S equation -- F_x = f_w ux F_y = f_w uy
@@ -259,7 +259,7 @@ void incompressibleSaturation<EvalT>::computeFluxVector() {
 
     parallel_for("saturation fluxes 3D",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<fluxes.extent(1); ++pt) {
 
         // S equation -- F_x = f_w ux F_y = f_w uy f_w F_z = uz

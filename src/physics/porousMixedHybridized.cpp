@@ -111,7 +111,7 @@ void porousMixedHybrid<EvalT>::volumeResidual() {
       auto ux = wkset->getSolutionField("u[x]");
       parallel_for("porous HDIV-HY volume resid u 1D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT p = psol(elem,pt)*wts(elem,pt);
           EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -128,7 +128,7 @@ void porousMixedHybrid<EvalT>::volumeResidual() {
       auto uy = wkset->getSolutionField("u[y]");
       parallel_for("porous HDIV-HY volume resid u 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT p = psol(elem,pt)*wts(elem,pt);
           EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -148,7 +148,7 @@ void porousMixedHybrid<EvalT>::volumeResidual() {
       auto uz = wkset->getSolutionField("u[z]");
       parallel_for("porous HDIV-HY volume resid u 3D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT p = psol(elem,pt)*wts(elem,pt);
           EvalT Kiux = Kinv_xx(elem,pt)*ux(elem,pt)*wts(elem,pt);
@@ -175,7 +175,7 @@ void porousMixedHybrid<EvalT>::volumeResidual() {
     
     parallel_for("porous HDIV-HY volume resid div(u)",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT divu = udiv(elem,pt)*wts(elem,pt);
         EvalT src = source(elem,pt)*wts(elem,pt);
@@ -239,7 +239,7 @@ void porousMixedHybrid<EvalT>::boundaryResidual() {
   if (bcs(pnum,cside) == "Dirichlet") {
     parallel_for("porous HDIV-HY bndry resid Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT src = bsource(elem,pt)*wts(elem,pt);
@@ -260,7 +260,7 @@ void porousMixedHybrid<EvalT>::boundaryResidual() {
     auto lambda = wkset->getSolutionField("aux p");
     parallel_for("porous HDIV-HY bndry resid MS Dirichlet",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT lam = lambda(elem,pt)*wts(elem,pt);
@@ -316,7 +316,7 @@ void porousMixedHybrid<EvalT>::faceResidual() {
     
     parallel_for("porous HDIV-HY face resid lambda",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT lam = lambda(elem,pt)*wts(elem,pt);
@@ -342,7 +342,7 @@ void porousMixedHybrid<EvalT>::faceResidual() {
     
     parallel_for("porous HDIV-HY face resid u dot n",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = ubasis.extent(3);
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
         EvalT udotn = ux(elem,pt)*nx(elem,pt);
@@ -390,7 +390,7 @@ void porousMixedHybrid<EvalT>::computeFlux() {
     
     parallel_for("porous HDIV flux ",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 KOKKOS_CLASS_LAMBDA (const int elem ) {
+                 MRHYDE_LAMBDA (const int elem ) {
       size_type dim = basis.extent(3);
       for (size_type pt=0; pt<nx.extent(1); pt++) {
         EvalT udotn = ux(elem,pt)*nx(elem,pt);
@@ -454,7 +454,7 @@ void porousMixedHybrid<EvalT>::updatePerm(View_EvalT2 Kinv_xx, View_EvalT2 Kinv_
   
   parallel_for("porous HDIV update perm",
                RangePolicy<AssemblyExec>(0,wkset->numElem),
-               KOKKOS_CLASS_LAMBDA (const int elem ) {
+               MRHYDE_LAMBDA (const int elem ) {
     for (size_type pt=0; pt<Kinv_xx.extent(1); pt++) {
       Kinv_xx(elem,pt) = data(elem,0);
       Kinv_yy(elem,pt) = data(elem,0);

@@ -130,7 +130,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dHdy = wkset->getSolutionField("grad(rH_H)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rhh(elem,pt)*basis(elem,dof,pt,0) + dHdx(elem,pt)*basis_grad(elem,dof,pt,0) + dHdy(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -153,7 +153,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dHdy = wkset->getSolutionField("grad(rH_C)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rhc(elem,pt)*basis(elem,dof,pt,0) + dHdx(elem,pt)*basis_grad(elem,dof,pt,0) + dHdy(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -176,7 +176,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dHdy = wkset->getSolutionField("grad(rH_G)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rhg(elem,pt)*basis(elem,dof,pt,0) + dHdx(elem,pt)*basis_grad(elem,dof,pt,0) + dHdy(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -199,7 +199,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dHdy = wkset->getSolutionField("grad(rH_E)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rhe(elem,pt)*basis(elem,dof,pt,0) + dHdx(elem,pt)*basis_grad(elem,dof,pt,0) + dHdy(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -235,7 +235,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dGdy = wkset->getSolutionField("grad(rG_H)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rgh(elem,pt)*basis(elem,dof,pt,0) + dGdx(elem,pt)*basis_grad(elem,dof,pt,0) + dGdy(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -258,7 +258,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dGdy = wkset->getSolutionField("grad(rG_C)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rgc(elem,pt)*basis(elem,dof,pt,0) + dGdx(elem,pt)*basis_grad(elem,dof,pt,0) + dGdy(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -281,7 +281,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dGdy = wkset->getSolutionField("grad(rG_G)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rgg(elem,pt)*basis(elem,dof,pt,0) + dGdx(elem,pt)*basis_grad(elem,dof,pt,0) + dGdy(elem,pt)*basis_grad(elem,dof,pt,1);
@@ -304,7 +304,7 @@ void rosenbluth<EvalT>::volumeResidual() {
       auto dGdy = wkset->getSolutionField("grad(rG_E)[y]");
       parallel_for("porous HGRAD volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += -1.0*source_rge(elem,pt)*basis(elem,dof,pt,0) + dGdx(elem,pt)*basis_grad(elem,dof,pt,0) + dGdy(elem,pt)*basis_grad(elem,dof,pt,1);

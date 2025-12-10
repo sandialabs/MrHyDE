@@ -118,7 +118,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // Ux equation
       parallel_for("NS ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -136,7 +136,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto E = wkset->getSolutionField("e");
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -154,7 +154,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
             EvalT stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
@@ -170,7 +170,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS ux volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
@@ -197,7 +197,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       parallel_for("NS pr volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT divu = dux_dx(elem,pt)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -217,7 +217,7 @@ void navierstokes<EvalT>::volumeResidual() {
         
         parallel_for("NS pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             // BWR -- OK, I'm assuming that the viscosity defined here mean kinematic viscosity... which is not how I was interpretting it
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
@@ -234,7 +234,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS pr volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),0.0,0.0,h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
@@ -265,7 +265,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // Ux equation
       parallel_for("NS ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -285,7 +285,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto E = wkset->getSolutionField("e");
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -303,7 +303,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]"); // TODO unnecesary?
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
             EvalT stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
@@ -320,7 +320,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS ux volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
@@ -350,7 +350,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       parallel_for("NS uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -370,7 +370,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto E = wkset->getSolutionField("e");
         parallel_for("NS uy volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -387,7 +387,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("NS uy volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
             EvalT stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
@@ -404,7 +404,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS ux volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
@@ -433,7 +433,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       parallel_for("NS pr volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -456,7 +456,7 @@ void navierstokes<EvalT>::volumeResidual() {
         
         parallel_for("NS pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
             EvalT Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
@@ -474,7 +474,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS pr volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
               EvalT Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
@@ -509,7 +509,7 @@ void navierstokes<EvalT>::volumeResidual() {
       // Ux equation
       parallel_for("NS ux volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = visc(elem,pt)*dux_dx(elem,pt) - pr(elem,pt);
           Fx *= wts(elem,pt);
@@ -531,7 +531,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto E = wkset->getSolutionField("e");
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -548,7 +548,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
         parallel_for("NS ux volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
@@ -566,7 +566,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS ux volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
@@ -599,7 +599,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       parallel_for("NS uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = visc(elem,pt)*duy_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -621,7 +621,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto E = wkset->getSolutionField("e");
         parallel_for("NS uy volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -638,7 +638,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
         parallel_for("NS uy volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) + uz(elem,pt)*duy_dz(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
@@ -656,7 +656,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS uy volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
@@ -689,7 +689,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       parallel_for("NS uy volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT Fx = visc(elem,pt)*duz_dx(elem,pt);
           Fx *= wts(elem,pt);
@@ -711,7 +711,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto E = wkset->getSolutionField("e");
         parallel_for("NS uy volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -728,7 +728,7 @@ void navierstokes<EvalT>::volumeResidual() {
         auto dpr_dz = wkset->getSolutionField("grad(pr)[z]");
         parallel_for("NS uz volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT stabres = dens(elem,pt)*duz_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duz_dx(elem,pt) + uy(elem,pt)*duz_dy(elem,pt) + uz(elem,pt)*duz_dz(elem,pt)) + dpr_dz(elem,pt) - dens(elem,pt)*source_uz(elem,pt);
@@ -746,7 +746,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS uz volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uz(elem,pt);
@@ -777,7 +777,7 @@ void navierstokes<EvalT>::volumeResidual() {
       
       parallel_for("NS pr volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   KOKKOS_CLASS_LAMBDA (const int elem ) {
+                   MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT divu = (dux_dx(elem,pt) + duy_dy(elem,pt) + duz_dz(elem,pt))*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
@@ -807,7 +807,7 @@ void navierstokes<EvalT>::volumeResidual() {
         
         parallel_for("NS pr volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int elem ) {
+                     MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
             EvalT Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt) + uz(elem,pt)*dux_dz(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
@@ -827,7 +827,7 @@ void navierstokes<EvalT>::volumeResidual() {
           auto E = wkset->getSolutionField("e");
           parallel_for("NS pr volume resid",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int elem ) {
+                       MRHYDE_LAMBDA (const int elem ) {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               EvalT Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
@@ -900,7 +900,7 @@ void navierstokes<EvalT>::boundaryResidual() {
       if (ux_sidetype == "Neumann") { // Neumann
         parallel_for("NS ux bndry resid 1D N",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     KOKKOS_CLASS_LAMBDA (const int e ) {
+                     MRHYDE_LAMBDA (const int e ) {
           for (size_type k=0; k<basis.extent(2); k++ ) {
             for (size_type i=0; i<basis.extent(1); i++ ) {
               res(e,off(i)) += (-source_ux(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -920,7 +920,7 @@ void navierstokes<EvalT>::boundaryResidual() {
         if (ux_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS ux bndry resid 2D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int e ) {
+                       MRHYDE_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_ux(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -938,7 +938,7 @@ void navierstokes<EvalT>::boundaryResidual() {
         if (uy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS uy bndry resid 2D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int e ) {
+                       MRHYDE_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_uy(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -959,7 +959,7 @@ void navierstokes<EvalT>::boundaryResidual() {
         if (ux_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS ux bndry resid 3D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int e ) {
+                       MRHYDE_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_ux(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -977,7 +977,7 @@ void navierstokes<EvalT>::boundaryResidual() {
         if (uy_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS uy bndry resid 3D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int e ) {
+                       MRHYDE_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_uy(e,k)*basis(e,i,k,0))*wts(e,k);
@@ -995,7 +995,7 @@ void navierstokes<EvalT>::boundaryResidual() {
         if (uz_sidetype == "Neumann") { // traction (Neumann)
           parallel_for("NS uz bndry resid 3D N",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
-                       KOKKOS_CLASS_LAMBDA (const int e ) {
+                       MRHYDE_LAMBDA (const int e ) {
             for (size_type k=0; k<basis.extent(2); k++ ) {
               for (size_type i=0; i<basis.extent(1); i++ ) {
                 res(e,off(i)) += (-source_uz(e,k)*basis(e,i,k,0))*wts(e,k);

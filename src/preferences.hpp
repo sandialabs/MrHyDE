@@ -226,3 +226,7 @@ for(unsigned int i=0; i<var.extent(0); ++i) \
 std::cout << "]" << std::endl;
 
 #endif
+
+#if !defined(MRHYDE_LAMBDA)
+#define MRHYDE_LAMBDA [&]
+#endif

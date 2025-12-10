@@ -93,7 +93,7 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
             auto cdofs = dbcDOFs[block][v];
             parallel_for("solver initial scalar",
                          RangePolicy<LA_exec>(0,cdofs.extent(0)),
-                         KOKKOS_CLASS_LAMBDA (const int i ) {
+                         MRHYDE_LAMBDA (const int i ) {
               u_kv(cdofs(i),0) = value;
             });
           }
@@ -108,7 +108,7 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
             auto cdofs = dbcDOFs[block][v];
             parallel_for("solver initial scalar",
                          RangePolicy<LA_exec>(0,cdofs.extent(0)),
-                         KOKKOS_CLASS_LAMBDA (const int i ) {
+                         MRHYDE_LAMBDA (const int i ) {
               u_kv(cdofs(i),0) = dbc_kv(cdofs(i),0);
             });
           }
@@ -129,7 +129,7 @@ void SolverManager<Node>::setDirichlet(const size_t & set, vector_RCP & u) {
       Kokkos::deep_copy(ptdofs,ptdofs_host);
       parallel_for("solver initial scalar",
                    RangePolicy<LA_exec>(0,ptdofs.extent(0)),
-                   KOKKOS_CLASS_LAMBDA (const int i ) {
+                   MRHYDE_LAMBDA (const int i ) {
         LO row = ptdofs(i);
         u_kv(row,0) = 0.0; // fix to zero for now
       });
@@ -214,7 +214,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
                   auto LIDs = assembler->groups[block][cell]->LIDs[set];
                   parallel_for("solver initial scalar",
                                RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                               KOKKOS_CLASS_LAMBDA (const int e ) {
+                               MRHYDE_LAMBDA (const int e ) {
                     for (size_type n=0; n<numDOF.extent(0); n++) {
                       for (int i=0; i<numDOF(n); i++ ) {
                         initial_kv(LIDs(e,offsets(n,i)),0) = idata(n);
@@ -232,7 +232,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
                   auto LIDs = assembler->groups[block][cell]->LIDs_host[set];
                   parallel_for("solver initial scalar",
                                RangePolicy<LA_exec>(0,LIDs.extent(0)),
-                               KOKKOS_CLASS_LAMBDA (const int e ) {
+                               MRHYDE_LAMBDA (const int e ) {
                     for (size_type n=0; n<numDOF.extent(0); n++) {
                       for (int i=0; i<numDOF(n); i++ ) {
                         initial_kv(LIDs(e,host_offsets(n,i)),0) = idata(n);
