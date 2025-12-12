@@ -471,6 +471,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         J->resumeFill();
         linalg->exportMatrixFromOverlapped(set, J, J_over);
         linalg->fillComplete(J);
+        linalg->setJacobianBuilt(set);
       }
             
       // This is where the adjoint residual is computed

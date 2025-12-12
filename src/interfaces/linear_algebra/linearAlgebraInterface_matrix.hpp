@@ -20,7 +20,6 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > LinearAlgebraInterface<Node
     else {
       newmat = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], max_entries));
       options[set]->jac = newmat;
-      options[set]->have_jacobian = true;
     }
   }
   else {
