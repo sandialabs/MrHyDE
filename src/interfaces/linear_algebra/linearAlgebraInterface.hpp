@@ -115,7 +115,7 @@ public:
    * @param set Physics set index.
    * @return Newly created or reused matrix.
    */
-matrix_RCP getNewMatrix(const size_t & set);
+  matrix_RCP getNewMatrix(const size_t & set);
   
   /**
    * @brief Create matrices for Jacobians associated with previous timesteps (adjoint solves).
