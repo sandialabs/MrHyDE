@@ -40,6 +40,7 @@
 #include "hartmann.hpp"
 #include "vlasov_fokker_planck_0d2v.hpp"
 #include "vlasov_fokker_planck_1d2v.hpp"
+#include "levelSet.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -220,6 +221,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     //  modules.push_back(Teuchos::rcp(new cns(settings, dimension) ) );
     //}
 
+    // levelSet
+    if (modname == "levelSet") {
+      modules.push_back(Teuchos::rcp(new levelSet<EvalT>(settings, dimension) ) );
+    }
+    
     #if defined(MrHyDE_ENABLE_MIRAGE)
     // Physics for Mirage
     if (modname == "Mirage" || modname == "mirage"){
