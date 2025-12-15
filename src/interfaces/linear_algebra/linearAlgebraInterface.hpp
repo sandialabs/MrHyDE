@@ -186,9 +186,7 @@ matrix_RCP getNewMatrix(const size_t & set);
    * @brief Mark that the Jacobian has been built with proper values and constraints.
    * @param set Index of the physics set.
    */
-  void setJacobianBuilt(const size_t & set) {
-    options[set]->have_jacobian = true;
-  }
+  void setJacobianBuilt(const size_t & set);
   
   // ========================================================================================
   // ========================================================================================

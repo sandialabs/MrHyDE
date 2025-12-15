@@ -95,6 +95,13 @@ void LinearAlgebraInterface<Node>::resetJacobian(const size_t & set) {
   options[set]->prec_dd = Teuchos::null;
 }
 
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::setJacobianBuilt(const size_t & set) {
+  options[set]->have_jacobian = true;
+}
 
 // ========================================================================================
 // ========================================================================================
