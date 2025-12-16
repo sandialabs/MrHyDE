@@ -1,0 +1,53 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 20
+    NY: 20
+  Functions:
+    tmax: '2.0'
+    beta: '1.0'
+    radius: '0.15'
+    center_x: '0.5'
+    center_y: '0.75'
+    x_shift: 'x - center_x'
+    y_shift: 'y - center_y'
+    distance: 'sqrt(x_shift*x_shift + y_shift*y_shift) - radius'
+    xvel: '-2 * (sin(pi * x) ^ 2) * cos(pi * y) * sin(pi * y) * cos(pi * t / tmax)'
+    yvel: '2 * cos(pi * x) * sin(pi * x) * (sin(pi * y) ^ 2) * cos(pi * t / tmax)'
+  Physics:
+    modules: levelSet
+    use rothermal: false
+    Initial conditions:
+      phi: 'distance'
+  Discretization:
+    order:
+      phi: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    transient Butcher tableau: CN
+    nonlinear solver: picard
+    workset size: 100 
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 10
+    final time: 0.5
+    delta t: 2.0e-2
+  Analysis: 
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    output file: output_default
+    format: exodus 
+    compute errors: true
+    True solutions:
+      phi: '0.0'
+...

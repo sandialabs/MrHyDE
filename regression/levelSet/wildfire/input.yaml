@@ -1,0 +1,56 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    source: Exodus
+    mesh file: mesh.exo
+    element type: quad
+    have element data: true
+  Functions:
+    beta: '0.1'
+    radius: '200.0'
+    center_x: '5500.0'
+    center_y: '3500.0'
+    x_shift: 'x - center_x'
+    y_shift: 'y - center_y'
+    distance: 'sqrt(x_shift*x_shift + y_shift*y_shift) - radius'
+    xvel: '0.0'
+    yvel: '800.0'
+  Physics:
+    modules: levelSet
+    use rothermal: true
+    rothermal:
+      heavisideScale: 10.0
+      absoluteValueScale: 1.0
+      burnConstant: 1.0
+      windConstant: 2.0
+      slopeConstant: 1.0
+      Fthresh: 5e-2
+    Initial conditions:
+      phi: 'distance'
+  Discretization:
+    order:
+      phi: 1
+    quadrature: 2
+  Solver:
+    solver: transient
+    transient Butcher tableau: CN
+    nonlinear solver: picard
+    workset size: 50 
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 10
+    final time: 0.5
+    delta t: 1e-1
+  Analysis: 
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    output file: output_fire
+    format: exodus 
+    compute errors: true
+    True solutions:
+      phi: '0.0'
+...
