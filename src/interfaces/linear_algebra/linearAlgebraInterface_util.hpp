@@ -98,9 +98,11 @@ void LinearAlgebraInterface<Node>::resetJacobian() {
 template<class Node>
 void LinearAlgebraInterface<Node>::resetJacobian(const size_t & set) {
   options[set]->have_jacobian = false;
+  options[set]->have_param_jacobian = false;
   options[set]->have_previous_jacobian = false;
   options[set]->have_preconditioner = false;
   options[set]->jac = Teuchos::null;
+  options[set]->param_jac = Teuchos::null;
   options[set]->prec = Teuchos::null;
   options[set]->prec_dd = Teuchos::null;
 }
