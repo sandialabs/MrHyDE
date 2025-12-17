@@ -1404,6 +1404,7 @@ Postprocess ->
  write HFACE variables = 0   [default]
  output file = output   [default]
  compute objective = 0   [default]
+ compute objective grad param = 1   [default]
  objective output file =    [default]
  objective gradient output file =    [default]
  scale factor for discrete objective = 1   [default]
