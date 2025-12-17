@@ -139,7 +139,7 @@ void levelSet<EvalT>::volumeResidual()
   // loop over elements
   Kokkos::parallel_for("levelSet volume resid 2D",
                        RangePolicy<AssemblyExec>(0, wkset->numElem),
-                       KOKKOS_LAMBDA(const int elem)
+                       MRHYDE_LAMBDA(const int elem)
   {
 
     // element size
@@ -328,7 +328,7 @@ levelSet<EvalT>::getDerivedValues()
   View_EvalT2 gradNorm("gradNorm", numElem, numQuad);
   Kokkos::parallel_for("levelSet::computeGradNorm",
                        RangePolicy<AssemblyExec>(0, numElem),
-                       KOKKOS_LAMBDA(const int e) {
+                       MRHYDE_LAMBDA(const int e) {
     for (int q = 0; q < numQuad; ++q) {
       gradNorm(e,q) = sqrt(dPhi_dx(e,q) * dPhi_dx(e,q) + dPhi_dy(e,q) * dPhi_dy(e,q) + zero_tol);
     }
