@@ -68,6 +68,7 @@ public:
     have_preconditioner = false;
     have_symb_factor = false;
     have_jacobian = false;
+    have_param_jacobian = false;
   }
   
   // Public data members
@@ -81,7 +82,8 @@ public:
   bool right_preconditioner;    /**< Whether to apply right preconditioning. */
   bool reuse_preconditioner;    /**< Whether to reuse an existing preconditioner. */
   bool reuse_jacobian;          /**< Whether to reuse an existing Jacobian. */
-  bool have_jacobian;          /**< Indicates whether a Jacobian has been constructed. */
+  bool have_jacobian;           /**< Indicates whether a Jacobian has been constructed. */
+  bool have_param_jacobian;     /**< Indicates whether a parameter Jacobian has been constructed. */
   bool have_preconditioner;     /**< Indicates whether a preconditioner exists. */
   bool have_symb_factor;        /**< Indicates whether symbolic factorization exists. */
   bool have_previous_jacobian;  /**< Indicates whether previous Jacobians exist for reuse. */
@@ -90,7 +92,7 @@ public:
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec; /**< MueLu AMG preconditioner operator. */
   Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > prec_dd; /**< Ifpack2 domain decomposition preconditioner. */
   
-  matrix_RCP jac; /**< Current Jacobian matrix. */
+  matrix_RCP jac, param_jac; /**< Current Jacobian matrix. */
   vector<matrix_RCP> jac_prev; /**< Previously stored Jacobians for reuse. */
 };
 

@@ -648,7 +648,7 @@ public:
   bool have_norm_weights = false; ///< Whether norm weights have been initialized.
   
   bool compute_response, write_response, compute_error, compute_subgrid_error, compute_weighted_norm; ///< Flags for various postprocessing tasks.
-  
+  bool compute_objective_grad_param;
   bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution, write_subgrid_model; ///< Output control flags.
   bool write_qdata, write_bqdata; ///< Flags for writing quadrature data.
   
@@ -705,6 +705,11 @@ private:
   Teuchos::RCP<Teuchos::Time> sensorSolutionTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeSensorSolution()"); ///< Timer for sensor solution computation.
   Teuchos::RCP<Teuchos::Time> reportTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::report()"); ///< Timer for reporting.
   Teuchos::RCP<Teuchos::Time> computeWeightedNormTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeWeightedNorm()"); ///< Timer for weighted norm computation.
+  Teuchos::RCP<Teuchos::Time> computeGradientTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeSensitivities()"); ///< Timer for
+  Teuchos::RCP<Teuchos::Time> computeDiscreteGradientTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeDiscreteSensitivities()"); ///< Timer for
+  Teuchos::RCP<Teuchos::Time> objectiveGradParamTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeObjectiveGradParam()"); ///< Timer for objective computation.
+  Teuchos::RCP<Teuchos::Time> objectiveGradStateTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeObjectiveGradState()"); ///< Timer for objective computation.
+  
 };
 }
 

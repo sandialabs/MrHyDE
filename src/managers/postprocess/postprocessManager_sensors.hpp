@@ -899,23 +899,19 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
 
   // Can the LA_device execution_space access the AseemblyDevice data?
   bool data_avail = true;
-  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible)
-  {
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
     data_avail = false;
   }
 
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
   vector<Kokkos::View<ScalarT *, AssemblyDevice>> sol_kv;
-  for (size_t s = 0; s < current_soln.size(); ++s)
-  {
+  for (size_t s = 0; s < current_soln.size(); ++s) {
     auto vec_kv = current_soln[s]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
     auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
-    if (data_avail)
-    {
+    if (data_avail) {
       sol_kv.push_back(vec_slice);
     }
-    else
-    {
+    else {
       auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(), vec_slice);
       Kokkos::deep_copy(vec_dev, vec_slice);
       sol_kv.push_back(vec_dev);
@@ -928,59 +924,47 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
   auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
 
-  if (data_avail)
-  {
+  if (data_avail) {
     params_kv.push_back(pslice);
   }
-  else
-  {
+  else {
     auto p_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(), pslice);
     Kokkos::deep_copy(p_dev, pslice);
     params_kv.push_back(p_dev);
   }
 
-  for (size_t r = 0; r < objectives.size(); ++r)
-  {
+  for (size_t r = 0; r < objectives.size(); ++r) {
 
-    if (objectives[r].type == "sensors")
-    {
-      if (objectives[r].compute_sensor_soln || objectives[r].compute_sensor_average_soln)
-      {
+    if (objectives[r].type == "sensors") {
+      if (objectives[r].compute_sensor_soln || objectives[r].compute_sensor_average_soln) {
 
         size_t block = objectives[r].block;
 
         int numSols = 0;
-        for (size_t set = 0; set < varlist.size(); ++set)
-        {
+        for (size_t set = 0; set < varlist.size(); ++set) {
           numSols += varlist[set][block].size();
         }
         Kokkos::View<ScalarT ***, HostDevice> sensordat("sensor solution", objectives[r].numSensors, numSols, dimension);
         objectives[r].response_times.push_back(current_time); // might store this somewhere else
 
-        for (size_t pt = 0; pt < objectives[r].numSensors; ++pt)
-        {
+        for (size_t pt = 0; pt < objectives[r].numSensors; ++pt) {
 
           size_t solprog = 0;
           int grp_owner = objectives[r].sensor_owners(pt, 0);
           int elem_owner = objectives[r].sensor_owners(pt, 1);
-          for (size_t set = 0; set < varlist.size(); ++set)
-          {
+          for (size_t set = 0; set < varlist.size(); ++set) {
             auto numDOF = assembler->groupData[block]->set_num_dof_host[set];
-            if (!assembler->groups[block][grp_owner]->have_sols)
-            {
+            if (!assembler->groups[block][grp_owner]->have_sols) {
               assembler->performGather(set, block, grp_owner, sol_kv[set], 0, 0);
             }
             auto cu = subview(assembler->groupData[block]->sol[set], elem_owner, ALL(), ALL());
             auto cu_host = create_mirror_view(cu);
             // KokkosTools::print(assembler->groups[block][grp_owner]->u[set]);
             deep_copy(cu_host, cu);
-            for (size_type var = 0; var < numDOF.extent(0); var++)
-            {
+            for (size_type var = 0; var < numDOF.extent(0); var++) {
               auto cbasis = objectives[r].sensor_basis[assembler->wkset[block]->set_usebasis[set][var]];
-              for (size_type dof = 0; dof < cbasis.extent(1); ++dof)
-              {
-                for (size_type dim = 0; dim < cbasis.extent(3); ++dim)
-                {
+              for (size_type dof = 0; dof < cbasis.extent(1); ++dof) {
+                for (size_type dim = 0; dim < cbasis.extent(3); ++dim) {
                   // sensordat(pt,solprog,dim) += cu_host(solprog,dof)*cbasis(pt,dof,0,dim);
                   sensordat(pt, solprog, dim) += cu_host(var, dof) * cbasis(pt, dof, 0, dim);
                 }
@@ -993,33 +977,25 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
         } // sensor points
         // KokkosTools::print(sensordat);
 
-        if (objectives[r].output_type == "dft")
-        {
+        if (objectives[r].output_type == "dft") {
           std::complex<double> imagi(0.0, 1.0);
           int N = objectives[r].dft_num_freqs;
           Kokkos::View<std::complex<double> ****, HostDevice> newdft;
-          if (objectives[r].sensor_solution_dft.extent(0) == 0)
-          {
+          if (objectives[r].sensor_solution_dft.extent(0) == 0) {
             newdft = Kokkos::View<std::complex<double> ****, HostDevice>("KV of complex DFT", sensordat.extent(0),
                                                                          sensordat.extent(1), sensordat.extent(2), N);
             objectives[r].sensor_solution_dft = newdft;
           }
-          else
-          {
+          else {
             newdft = objectives[r].sensor_solution_dft;
           }
-          for (int j = 0; j < N; ++j)
-          {
-            for (int k = 0; k < N; ++k)
-            {
+          for (int j = 0; j < N; ++j) {
+            for (int k = 0; k < N; ++k) {
               double freq = static_cast<double>(k * j / N);
               freq *= -2.0 * PI;
-              for (size_type n = 0; n < newdft.extent(0); ++n)
-              {
-                for (size_type m = 0; m < newdft.extent(1); ++m)
-                {
-                  for (size_type p = 0; p < newdft.extent(2); ++p)
-                  {
+              for (size_type n = 0; n < newdft.extent(0); ++n) {
+                for (size_type m = 0; m < newdft.extent(1); ++m) {
+                  for (size_type p = 0; p < newdft.extent(2); ++p) {
                     newdft(n, m, p, k) += sensordat(n, m, p) * std::exp(imagi * freq);
                   }
                 }
@@ -1027,8 +1003,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
             }
           }
         }
-        else
-        {
+        else {
           objectives[r].sensor_solution_data.push_back(sensordat);
         }
 

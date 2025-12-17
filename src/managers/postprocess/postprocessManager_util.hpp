@@ -194,11 +194,12 @@ void PostprocessManager<Node>::report()
                 PHI[0] = minphi;
               }
               
+              auto numfreq = dft_data.extent(3);
               // Initialize vector potentials
-              Kokkos::View<std::complex<ScalarT>***,HostDevice> A_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_th", dft_data.extent(3), numtheta, numphi);
-              Kokkos::View<std::complex<ScalarT>***,HostDevice> A_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_ph", dft_data.extent(3), numtheta, numphi);
-              Kokkos::View<std::complex<ScalarT>***,HostDevice> F_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_th", dft_data.extent(3), numtheta, numphi);
-              Kokkos::View<std::complex<ScalarT>***,HostDevice> F_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_ph", dft_data.extent(3), numtheta, numphi);
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> A_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_th", numfreq, numtheta, numphi);
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> A_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_ph", numfreq, numtheta, numphi);
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> F_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_th", numfreq, numtheta, numphi);
+              Kokkos::View<std::complex<ScalarT>***,HostDevice> F_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_ph", numfreq, numtheta, numphi);
               
               // Need to make a few assumptions here:
               // 1. The sensors are the boundary quadrature points on a given block
@@ -236,7 +237,7 @@ void PostprocessManager<Node>::report()
                         vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor[0], theta_hat[1]*phasor[1], theta_hat[2]*phasor[2]};
                         vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor[0], phi_hat[1]*phasor[1], phi_hat[2]*phasor[2]};
                         
-                        for (size_t t=0; t<dft_data.extent(3); ++t) {
+                        for (size_t t=0; t<numfreq; ++t) {
                           vector<std::complex<ScalarT>> Esrc = {dft_data(prog,0,0,t), dft_data(prog,0,1,t), dft_data(prog,0,2,t)};
                           
                           // Compute normal x E_theta, normal x Escr, normal x E_phi
@@ -277,6 +278,32 @@ void PostprocessManager<Node>::report()
                 }
               }
                */
+              //sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, 7, numfreq*numtheta*numphi);
+              /*
+              ScalarT r = 1.0; // distance into the far field
+              int prog = 0;
+              for (size_t t=0; t<numfreq; ++t) {
+                for (int nt=0; nt<numtheta; ++nt) {
+                  for (int np=0; np<numphi; ++np) {
+                  }
+                }
+              }
+              DAT.Eth = k0./(4*pi*r)*abs(N0.*A_th + F_ph);
+              DAT.Eph = k0./(4*pi*r)*abs(N0.*A_ph - F_th);
+
+              DAT.Pth = k0^2/(4*pi)^2 * 1/N0 * abs(N0.*A_th + F_ph).^2;
+              DAT.Pph = k0^2/(4*pi)^2 * 1/N0 * abs(N0.*A_ph - F_th).^2;
+
+              % COMPUTE BISTATIC RCS (same as directivity but with Pinc instead of Prad)
+              % Einc = [0;0;1]; %Incident electric field
+              % % EP = te*ate + tm*atm; %this is Einc
+              % Pinc = norm(Einc).^2./(2*N0);  %Polarization vector
+              Pinc = norm(SRC.PlaneWave.EP).^2./(2*N0);
+
+              DAT.RCSth = k0^2/(8*pi*N0*Pinc).*(abs(F_ph + N0.*A_th).^2);
+              DAT.RCSph = k0^2/(8*pi*N0*Pinc).*(abs(F_th - N0.*A_ph).^2);
+              DAT.RCStot = DAT.RCSth + DAT.RCSph;
+              */
             }
             else
             {
@@ -316,68 +343,55 @@ void PostprocessManager<Node>::report()
           int max_numfields = 0;
           Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MAX, 1, &numfields, &max_numfields);
 
-          if (fileoutput == "text")
-          {
+          if (fileoutput == "text" && objectives[obj].output_type != "integrated dft") {
 
-            for (int field = 0; field < max_numfields; ++field)
-            {
+            for (int field = 0; field < max_numfields; ++field) {
               std::stringstream ss;
               size_t blocknum = objectives[obj].block;
               ss << field;
               string respfile = "sensor_solution_field." + ss.str() + "." + blocknames[blocknum] + ".out";
               std::ofstream respOUT;
-              if (Comm->getRank() == 0)
-              {
+              if (Comm->getRank() == 0) {
                 bool is_open = false;
                 int attempts = 0;
                 int max_attempts = 100;
-                while (!is_open && attempts < max_attempts)
-                {
+                while (!is_open && attempts < max_attempts) {
                   respOUT.open(respfile);
                   is_open = respOUT.is_open();
                   attempts++;
                 }
                 respOUT.precision(8);
                 Teuchos::Array<ScalarT> time_data(max_numtimes + dimension, 0.0);
-                for (int dim = 0; dim < dimension; ++dim)
-                {
+                for (int dim = 0; dim < dimension; ++dim) {
                   time_data[dim] = 0.0;
                 }
 
-                for (size_t tt = 0; tt < max_numtimes; ++tt)
-                {
+                for (size_t tt = 0; tt < max_numtimes; ++tt) {
                   time_data[tt + dimension] = objectives[obj].response_times[tt];
                 }
 
-                for (size_t tt = 0; tt < max_numtimes + dimension; ++tt)
-                {
+                for (size_t tt = 0; tt < max_numtimes + dimension; ++tt) {
                   respOUT << time_data[tt] << "  ";
                 }
                 respOUT << endl;
               }
 
               auto spts = objectives[obj].sensor_points;
-              for (size_t ss = 0; ss < objectives[obj].sensor_found.size(); ++ss)
-              {
+              for (size_t ss = 0; ss < objectives[obj].sensor_found.size(); ++ss) {
                 Teuchos::Array<ScalarT> series_data(max_numtimes + dimension, 0.0);
                 Teuchos::Array<ScalarT> gseries_data(max_numtimes + dimension, 0.0);
-                if (objectives[obj].sensor_found[ss])
-                {
+                if (objectives[obj].sensor_found[ss]) {
                   size_t sindex = 0;
-                  for (size_t j = 0; j < ss; ++j)
-                  {
-                    if (objectives[obj].sensor_found(j))
-                    {
+                  for (size_t j = 0; j < ss; ++j) {
+                    if (objectives[obj].sensor_found(j)) {
                       sindex++;
                     }
                   }
-                  for (int dim = 0; dim < dimension; ++dim)
-                  {
+                  for (int dim = 0; dim < dimension; ++dim) {
                     series_data[dim] = spts(sindex, dim);
                   }
 
-                  for (size_t tt = 0; tt < max_numtimes; ++tt)
-                  {
+                  for (size_t tt = 0; tt < max_numtimes; ++tt) {
                     series_data[tt + dimension] = sensor_data(sindex, field, tt);
                   }
                 }
@@ -385,32 +399,27 @@ void PostprocessManager<Node>::report()
                 const int numentries = max_numtimes + dimension;
                 Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &series_data[0], &gseries_data[0]);
 
-                if (Comm->getRank() == 0)
-                {
+                if (Comm->getRank() == 0) {
                   // respOUT << gseries_data[0] << "  " << gseries_data[1] << "  " << gseries_data[2] << "  ";
-                  for (size_t tt = 0; tt < max_numtimes + dimension; ++tt)
-                  {
+                  for (size_t tt = 0; tt < max_numtimes + dimension; ++tt) {
                     respOUT << gseries_data[tt] << "  ";
                   }
                   respOUT << endl;
                 }
               }
-              if (Comm->getRank() == 0)
-              {
+              if (Comm->getRank() == 0) {
                 respOUT.close();
               }
             }
           }
 #ifdef MrHyDE_USE_HDF5
-          else if (fileoutput == "hdf5")
-          {
+          else if (fileoutput == "hdf5") {
             // PHDF5 creation
             size_t num_snaps = max_numtimes;
             const size_t alength = num_snaps;
             ScalarT *myData = new ScalarT[alength];
 
-            for (int field = 0; field < max_numfields; ++field)
-            {
+            for (int field = 0; field < max_numfields; ++field) {
 
               herr_t err; // HDF5 return value
               hid_t f_id; // HDF5 file ID
@@ -450,8 +459,7 @@ void PostprocessManager<Node>::report()
               field_id = H5Dcreate2(f_id, "soln", complex_id, ds_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 
               // set up the portion of the files this process will access
-              for (size_type sens = 0; sens < sensorIDs.extent(0); ++sens)
-              {
+              for (size_type sens = 0; sens < sensorIDs.extent(0); ++sens) {
                 hsize_t myID = sensorIDs(sens);
                 hsize_t start[2] = {myID, 0};
                 hsize_t count[2] = {1, num_snaps};
@@ -459,8 +467,7 @@ void PostprocessManager<Node>::report()
                 err = H5Sselect_hyperslab(ds_id, H5S_SELECT_SET, start, NULL, // contiguous
                                           count, NULL);                       // contiguous
 
-                for (size_t s = 0; s < num_snaps; ++s)
-                {
+                for (size_t s = 0; s < num_snaps; ++s) {
                   myData[s] = sensor_data(sensorIDs(sens), field, s);
                 }
                 hsize_t flattened[] = {num_snaps};
@@ -470,8 +477,7 @@ void PostprocessManager<Node>::report()
 
               err = H5Dclose(field_id);
 
-              if (err > 0)
-              {
+              if (err > 0) {
                 // say something
               }
               H5Sclose(ds_id);
@@ -481,17 +487,14 @@ void PostprocessManager<Node>::report()
           }
 #endif // MrHyDE_USE_HDF5
         }
-        else
-        { // Second case: sensors computed response functions
+        else { // Second case: sensors computed response functions
           string respfile = objectives[obj].response_file + ".out";
           std::ofstream respOUT;
-          if (Comm->getRank() == 0)
-          {
+          if (Comm->getRank() == 0) {
             bool is_open = false;
             int attempts = 0;
             int max_attempts = 100;
-            while (!is_open && attempts < max_attempts)
-            {
+            while (!is_open && attempts < max_attempts) {
               respOUT.open(respfile);
               is_open = respOUT.is_open();
               attempts++;
@@ -499,26 +502,19 @@ void PostprocessManager<Node>::report()
             respOUT.precision(16);
           }
 
-          if (Comm->getRank() == 0)
-          {
-            for (size_t tt = 0; tt < objectives[obj].response_times.size(); ++tt)
-            {
+          if (Comm->getRank() == 0) {
+            for (size_t tt = 0; tt < objectives[obj].response_times.size(); ++tt) {
               respOUT << objectives[obj].response_times[tt] << "  ";
             }
             respOUT << endl;
           }
-          for (size_t ss = 0; ss < objectives[obj].sensor_found.size(); ++ss)
-          {
-            for (size_t tt = 0; tt < objectives[obj].response_times.size(); ++tt)
-            {
+          for (size_t ss = 0; ss < objectives[obj].sensor_found.size(); ++ss) {
+            for (size_t tt = 0; tt < objectives[obj].response_times.size(); ++tt) {
               ScalarT sslval = 0.0, ssgval = 0.0;
-              if (objectives[obj].sensor_found[ss])
-              {
+              if (objectives[obj].sensor_found[ss]) {
                 size_t sindex = 0;
-                for (size_t j = 0; j < ss; ++j)
-                {
-                  if (objectives[obj].sensor_found(j))
-                  {
+                for (size_t j = 0; j < ss; ++j) {
+                  if (objectives[obj].sensor_found(j)) {
                     sindex++;
                   }
                 }
@@ -526,59 +522,48 @@ void PostprocessManager<Node>::report()
                 sslval = objectives[obj].response_data[tt](sindex);
               }
               Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1, &sslval, &ssgval);
-              if (Comm->getRank() == 0)
-              {
+              if (Comm->getRank() == 0) {
                 respOUT << ssgval << "  ";
               }
             }
-            if (Comm->getRank() == 0)
-            {
+            if (Comm->getRank() == 0) {
               respOUT << endl;
             }
           }
-          if (Comm->getRank() == 0)
-          {
+          if (Comm->getRank() == 0) {
             respOUT.close();
           }
         }
       }
-      else if (objectives[obj].type == "integrated response")
-      {
-        if (objectives[obj].save_data)
-        {
+      else if (objectives[obj].type == "integrated response") {
+        if (objectives[obj].save_data) {
           string respfile = objectives[obj].response_file + "." + blocknames[objectives[obj].block] + append + ".out";
           std::ofstream respOUT;
-          if (Comm->getRank() == 0)
-          {
+          if (Comm->getRank() == 0) {
             bool is_open = false;
             int attempts = 0;
             int max_attempts = 100;
-            while (!is_open && attempts < max_attempts)
-            {
+            while (!is_open && attempts < max_attempts) {
               respOUT.open(respfile);
               is_open = respOUT.is_open();
               attempts++;
             }
             respOUT.precision(16);
           }
-          for (size_t tt = 0; tt < objectives[obj].response_times.size(); ++tt)
-          {
+          for (size_t tt = 0; tt < objectives[obj].response_times.size(); ++tt) {
 
-            if (Comm->getRank() == 0)
-            {
+            if (Comm->getRank() == 0) {
               respOUT << objectives[obj].response_times[tt] << "  ";
             }
             double localval = objectives[obj].scalar_response_data[tt];
             double globalval = 0.0;
             Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1, &localval, &globalval);
-            if (Comm->getRank() == 0)
-            {
+            if (Comm->getRank() == 0) {
               respOUT << globalval;
               respOUT << endl;
             }
           }
-          if (Comm->getRank() == 0)
-          {
+          if (Comm->getRank() == 0) {
             respOUT.close();
           }
         }

@@ -166,6 +166,16 @@ public:
   // ========================================================================================
   
   /**
+   * @brief Query whether the parameter-state Jacobian for this set can be reused.
+   * @param set Physics set index.
+   * @return True if reuse is enabled and a Jacobian exists.
+   */
+  bool getParamJacobianReuse(const size_t & set);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  /**
    * @brief Reset Jacobian-related data for all physics sets.
    */
   void resetJacobian();

@@ -75,7 +75,20 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > LinearAlgebraInterface<Node
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > LinearAlgebraInterface<Node>::getNewParamStateMatrix(const size_t & set) {
   Teuchos::TimeMonitor mattimer(*newmatrixtimer);
-  matrix_RCP newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, max_entries));
+  matrix_RCP newmat;
+  if (options[set]->reuse_jacobian) {
+    if (options[set]->have_param_jacobian) {
+      newmat = options[set]->param_jac;
+    }
+    else {
+      newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, max_entries));
+      options[set]->param_jac = newmat;
+      options[set]->have_param_jacobian = true;
+    }
+  }
+  else {
+    newmat = Teuchos::rcp(new LA_CrsMatrix(param_owned_map, max_entries));
+  }
   return newmat;
 }
 

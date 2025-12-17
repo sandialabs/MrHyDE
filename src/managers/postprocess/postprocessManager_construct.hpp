@@ -82,6 +82,7 @@ void PostprocessManager<Node>::setup() {
   exodus_filename = settings->sublist("Postprocess").get<string>("output file", "output") + ".exo";
   write_optimization_solution = settings->sublist("Postprocess").get("create optimization movie", false);
   compute_objective = settings->sublist("Postprocess").get("compute objective", false);
+  compute_objective_grad_param = settings->sublist("Postprocess").get("compute objective grad param", true); // only turn this off if you know what you are doing
   objective_file = settings->sublist("Postprocess").get("objective output file", "");
   objective_grad_file = settings->sublist("Postprocess").get("objective gradient output file", "");
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective", 1.0);

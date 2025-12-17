@@ -361,6 +361,8 @@ public:
   Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::forward()"); // Timer for forward model
   Teuchos::RCP<Teuchos::Time> adjointtimer =
   Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::adjoint()"); // Timer for adjoint model
+  Teuchos::RCP<Teuchos::Time> transientadjointrhstimer =
+  Teuchos::TimeMonitor::getNewCounter("MrHyDE::SolverManager::transientSolver() - adjoint RHS"); // Timer for transient solve
   
 };
 

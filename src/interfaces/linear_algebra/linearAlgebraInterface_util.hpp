@@ -33,6 +33,16 @@ bool LinearAlgebraInterface<Node>::getJacobianReuse(const size_t & set) {
 }
 
 // ========================================================================================
+
+template<class Node>
+bool LinearAlgebraInterface<Node>::getParamJacobianReuse(const size_t & set) {
+  bool reuse = false;
+  if (options[set]->reuse_jacobian && options[set]->have_param_jacobian) {
+    reuse = true;
+  }
+  return reuse;
+}
+// ========================================================================================
 // All iterative solvers use the same Belos list.  This would be easy to specialize.
 // ========================================================================================
 

@@ -475,6 +475,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
             
       // This is where the adjoint residual is computed
       if (is_adjoint) {
+        Teuchos::TimeMonitor localtimer(*transientadjointrhstimer);
         // First, the derivative of the objective w.r.t. the state
         ScalarT cdt = 0.0;
         if (isTransient) {

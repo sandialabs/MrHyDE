@@ -35,63 +35,65 @@ void PostprocessManager<Node>::computeObjectiveGradParam(vector<vector_RCP> &cur
 
   debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradParam ...");
 
+  if (compute_objective_grad_param) {
 #ifndef MrHyDE_NO_AD
-  for (size_t r = 0; r < objectives.size(); ++r)
-  {
-    DFAD newobj = 0.0;
-    size_t block = objectives[r].block;
-    if (assembler->type_AD == -1)
+    for (size_t r = 0; r < objectives.size(); ++r)
     {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD[block],
-                                               assembler->function_managers_AD[block]);
+      DFAD newobj = 0.0;
+      size_t block = objectives[r].block;
+      
+      if (assembler->type_AD == -1)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD[block],
+                                                 assembler->function_managers_AD[block]);
+      }
+      else if (assembler->type_AD == 2)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD2[block],
+                                                 assembler->function_managers_AD2[block]);
+      }
+      else if (assembler->type_AD == 4)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD4[block],
+                                                 assembler->function_managers_AD4[block]);
+      }
+      else if (assembler->type_AD == 8)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD8[block],
+                                                 assembler->function_managers_AD8[block]);
+      }
+      else if (assembler->type_AD == 16)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD16[block],
+                                                 assembler->function_managers_AD16[block]);
+      }
+      else if (assembler->type_AD == 18)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD18[block],
+                                                 assembler->function_managers_AD18[block]);
+      }
+      else if (assembler->type_AD == 24)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD24[block],
+                                                 assembler->function_managers_AD24[block]);
+      }
+      else if (assembler->type_AD == 32)
+      {
+        newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
+                                                 assembler->wkset_AD32[block],
+                                                 assembler->function_managers_AD32[block]);
+      }
+      
+      objectiveval += newobj;
     }
-    else if (assembler->type_AD == 2)
-    {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD2[block],
-                                               assembler->function_managers_AD2[block]);
-    }
-    else if (assembler->type_AD == 4)
-    {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD4[block],
-                                               assembler->function_managers_AD4[block]);
-    }
-    else if (assembler->type_AD == 8)
-    {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD8[block],
-                                               assembler->function_managers_AD8[block]);
-    }
-    else if (assembler->type_AD == 16)
-    {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD16[block],
-                                               assembler->function_managers_AD16[block]);
-    }
-    else if (assembler->type_AD == 18)
-    {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD18[block],
-                                               assembler->function_managers_AD18[block]);
-    }
-    else if (assembler->type_AD == 24)
-    {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD24[block],
-                                               assembler->function_managers_AD24[block]);
-    }
-    else if (assembler->type_AD == 32)
-    {
-      newobj = this->computeObjectiveGradParam(r, current_soln, current_time, dt,
-                                               assembler->wkset_AD32[block],
-                                               assembler->function_managers_AD32[block]);
-    }
-
-    objectiveval += newobj;
   }
-
 #if defined(MrHyDE_ENABLE_HDSA)
   if (hdsa_solop)
   {
@@ -117,7 +119,7 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
                                                          Teuchos::RCP<FunctionManager<EvalT>> &fman)
 {
 
-  Teuchos::TimeMonitor localtimer(*objectiveTimer);
+  Teuchos::TimeMonitor localtimer(*objectiveGradParamTimer);
 
   debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradParam<EvalT> ...");
 
@@ -192,54 +194,55 @@ DFAD PostprocessManager<Node>::computeObjectiveGradParam(const size_t &obj, vect
     // First, compute objective value and deriv. w.r.t scalar params
     params->sacadoizeParams(true);
 
-    for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp)
-    {
-
-      View_Sc1 objsum_dev("obj func sum as scalar on device", numParams + 1);
-      // assembler->computeObjectiveGrad(block, grp, objectives[r].name, objsum_dev);
-
-      auto wts = assembler->groups[block][grp]->wts;
-
-      if (!assembler->groups[block][grp]->have_sols)
-      {
-        for (size_t set=0; set<sol_kv.size(); ++set) {
-          assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
-          if (params->num_discretized_params > 0) {
-            assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+    for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp) {
+      if (params->num_active_params >0) {
+        
+        View_Sc1 objsum_dev("obj func sum as scalar on device", numParams + 1);
+        // assembler->computeObjectiveGrad(block, grp, objectives[r].name, objsum_dev);
+        
+        auto wts = assembler->groups[block][grp]->wts;
+        
+        if (!assembler->groups[block][grp]->have_sols)
+        {
+          for (size_t set=0; set<sol_kv.size(); ++set) {
+            assembler->performGather(set, block, grp, sol_kv[set], 0, 0);
+            if (params->num_discretized_params > 0) {
+              assembler->performGather(0, block, grp, params_kv[0], 4, 0);
+            }
           }
         }
-      }
-      assembler->updateWorksetAD(block, grp, 0, 0, true);
-
-      auto obj_dev = fman->evaluate(objectives[obj].name, "ip");
-
-      Kokkos::View<EvalT[1], AssemblyDevice> objsum("sum of objective");
-      parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), MRHYDE_LAMBDA(const size_type elem) {
-        EvalT tmpval = 0.0;
-        for (size_type pt=0; pt<wts.extent(1); pt++) {
-          tmpval += obj_dev(elem,pt)*wts(elem,pt);
+        assembler->updateWorksetAD(block, grp, 0, 0, true);
+        
+        auto obj_dev = fman->evaluate(objectives[obj].name, "ip");
+        
+        Kokkos::View<EvalT[1], AssemblyDevice> objsum("sum of objective");
+        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, wts.extent(0)), MRHYDE_LAMBDA(const size_type elem) {
+          EvalT tmpval = 0.0;
+          for (size_type pt=0; pt<wts.extent(1); pt++) {
+            tmpval += obj_dev(elem,pt)*wts(elem,pt);
+          }
+          Kokkos::atomic_add(&(objsum(0)),tmpval); });
+        
+        parallel_for("grp objective", RangePolicy<AssemblyExec>(0, objsum_dev.extent(0)), MRHYDE_LAMBDA(const size_type p) {
+          size_t numder = static_cast<size_t>(objsum(0).size());
+          if (p==0) {
+            objsum_dev(p) = objsum(0).val();
+          }
+          else if (p <= numder) {
+            objsum_dev(p) = objsum(0).fastAccessDx(p-1);
+          } });
+        
+        auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
+        Kokkos::deep_copy(objsum_host, objsum_dev);
+        
+        // Update the objective function value
+        objval += objectives[obj].weight * objsum_host(0);
+        
+        // Update the gradients w.r.t scalar active parameters
+        for (size_t p = 0; p < params->num_active_params; p++)
+        {
+          gradient[p] += objectives[obj].weight * objsum_host(p + 1);
         }
-        Kokkos::atomic_add(&(objsum(0)),tmpval); });
-
-      parallel_for("grp objective", RangePolicy<AssemblyExec>(0, objsum_dev.extent(0)), MRHYDE_LAMBDA(const size_type p) {
-        size_t numder = static_cast<size_t>(objsum(0).size());
-        if (p==0) {
-          objsum_dev(p) = objsum(0).val();
-        }
-        else if (p <= numder) {
-          objsum_dev(p) = objsum(0).fastAccessDx(p-1);
-        } });
-
-      auto objsum_host = Kokkos::create_mirror_view(objsum_dev);
-      Kokkos::deep_copy(objsum_host, objsum_dev);
-
-      // Update the objective function value
-      objval += objectives[obj].weight * objsum_host(0);
-
-      // Update the gradients w.r.t scalar active parameters
-      for (size_t p = 0; p < params->num_active_params; p++)
-      {
-        gradient[p] += objectives[obj].weight * objsum_host(p + 1);
       }
     }
 
@@ -1055,6 +1058,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
                                                          Teuchos::RCP<FunctionManager<EvalT>> &fman)
 {
 
+  Teuchos::TimeMonitor localtimer(*objectiveGradStateTimer);
+  
   debugger->print(1, "******** Starting PostprocessManager::computeObjectiveGradState<EvalT> ...");
 
 #ifndef MrHyDE_NO_AD
@@ -1512,6 +1517,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
                                                     MrHyDE_OptVector &gradient)
 {
 
+  Teuchos::TimeMonitor localtimer(*computeGradientTimer);
   debugger->print(1, "******** Starting PostprocessManager::computeSensitivities ...");
 
   typedef typename Node::device_type LA_device;
@@ -1644,7 +1650,7 @@ void PostprocessManager<Node>::computeSensitivities(vector<vector_RCP> &u,
     curr_grad->update(1.0, *sensr, 1.0);
 
   }
-  this->saveObjectiveGradientData(gradient);
+  //this->saveObjectiveGradientData(gradient);
 
   debugger->print(1, "******** Finished PostprocessManager::computeSensitivities ...");
 }
@@ -1661,38 +1667,45 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> &u,
                                                        const ScalarT &deltat)
 {
 
+  Teuchos::TimeMonitor localtimer(*computeDiscreteGradientTimer);
   int set = 0; // hard-coded for now
 
   typedef Tpetra::CrsMatrix<ScalarT, LO, GO, Node> LA_CrsMatrix;
   typedef Teuchos::RCP<LA_CrsMatrix> matrix_RCP;
   
-  vector_RCP res_over = linalg->getNewOverlappedVector(set);
-  matrix_RCP J = linalg->getNewParamStateMatrix(set);
-  matrix_RCP J_over = linalg->getNewOverlappedParamStateMatrix(set);
-  
-  res_over->putScalar(0.0);
-  J->setAllToScalar(0.0);
-  J_over->setAllToScalar(0.0);
-  vector<vector_RCP> zero_vec;
-  params->sacadoizeParams(false);
-  params->updateDynamicParams(tindex - 1);
-
-  auto Psol = params->getDiscretizedParamsOver();
-  auto Pdot = params->getDiscretizedParamsDotOver();
-
-  assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true, false, 0,
-                            res_over, J_over, isTD, current_time, false, false,    // store_adjPrev,
-                            params->num_active_params, Psol, Pdot, false, deltat); // is_final_time, deltat);
-
-  
-  linalg->fillCompleteParamState(set, J_over);
-  
   vector_RCP gradient = linalg->getNewParamVector();
-
-  linalg->exportParamStateMatrixFromOverlapped(set, J, J_over);
+  vector_RCP res_over = linalg->getNewOverlappedVector(set);
   
-  linalg->fillCompleteParamState(set, J);
-  
+  matrix_RCP J;
+  bool reuse_jacobian = linalg->getParamJacobianReuse(set);
+  if (reuse_jacobian) {
+    J = linalg->getNewParamStateMatrix(set);
+  }
+  else {
+    J = linalg->getNewParamStateMatrix(set);
+    matrix_RCP J_over = linalg->getNewOverlappedParamStateMatrix(set);
+    
+    res_over->putScalar(0.0);
+    J->setAllToScalar(0.0);
+    J_over->setAllToScalar(0.0);
+    vector<vector_RCP> zero_vec;
+    params->sacadoizeParams(false);
+    params->updateDynamicParams(tindex - 1);
+    
+    auto Psol = params->getDiscretizedParamsOver();
+    auto Pdot = params->getDiscretizedParamsDotOver();
+    
+    assembler->assembleJacRes(set, 0, u, zero_vec, zero_vec, u, zero_vec, zero_vec, true, false, true, false, 0,
+                              res_over, J_over, isTD, current_time, false, false,    // store_adjPrev,
+                              params->num_active_params, Psol, Pdot, false, deltat); // is_final_time, deltat);
+    
+    
+    linalg->fillCompleteParamState(set, J_over);
+    
+    linalg->exportParamStateMatrixFromOverlapped(set, J, J_over);
+    
+    linalg->fillCompleteParamState(set, J);
+  }
   vector_RCP adj = linalg->getNewVector(set);
   adj->doExport(*(adjoint[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
   J->apply(*adj, *gradient);
