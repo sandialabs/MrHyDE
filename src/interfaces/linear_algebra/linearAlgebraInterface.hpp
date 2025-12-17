@@ -193,6 +193,15 @@ public:
   // ========================================================================================
   
   /**
+   * @brief Mark that the Jacobian has been built with proper values and constraints.
+   * @param set Index of the physics set.
+   */
+  void setJacobianBuilt(const size_t & set);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  /**
    * @brief Create a new overlapped matrix using the stored overlapped graph.
    * @param set Physics set index.
    * @return Newly allocated overlapped matrix.

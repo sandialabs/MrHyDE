@@ -61,6 +61,7 @@ ANONYMOUS:
     permeability: '1.0'
 
   Solver:
+    reuse Jacobian: true
     solver: transient
     transient BDF order: 1
     transient Butcher tableau: BWE
