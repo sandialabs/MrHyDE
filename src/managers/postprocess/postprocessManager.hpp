@@ -609,6 +609,8 @@ public:
    */
   void completeSetup();
   
+  void setForwardStates(vector<vector<vector_RCP> > & fwd_states, vector<ScalarT> & times);
+  
   Teuchos::RCP<MpiComm> Comm; ///< MPI communicator used throughout the postprocessing module.
   Teuchos::RCP<MeshInterface> mesh; ///< Mesh interface providing access to mesh blocks, sets, and geometry.
   Teuchos::RCP<DiscretizationInterface> disc; ///< Discretization interface used for finite element or finite volume data.
@@ -638,7 +640,8 @@ public:
   bool compute_objective; ///< Whether to compute objective values.
   bool compute_flux_response; ///< Whether to compute flux responses.
   bool compute_integrated_quantities; ///< Whether to compute integrated quantities.
-  
+  bool write_solution_to_file;
+  string solution_storage_file;
   ScalarT discrete_objective_scale_factor; ///< Scaling factor for the discrete objective.
   
   vector<vector<string>> extrafields_list, extracellfields_list, derivedquantities_list; ///< Extra field names requested by the user.
@@ -648,9 +651,10 @@ public:
   bool have_norm_weights = false; ///< Whether norm weights have been initialized.
   
   bool compute_response, write_response, compute_error, compute_subgrid_error, compute_weighted_norm; ///< Flags for various postprocessing tasks.
-  bool compute_objective_grad_param;
+  bool compute_objective_grad_param, write_objective_to_file;
   bool write_solution, write_subgrid_solution, write_HFACE_variables, write_optimization_solution, write_subgrid_model; ///< Output control flags.
   bool write_qdata, write_bqdata; ///< Flags for writing quadrature data.
+  string objective_storage_file;
   
   int write_frequency, exodus_write_frequency, write_group_number, write_database_id; ///< Solution write frequency and grouping.
   

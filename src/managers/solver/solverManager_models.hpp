@@ -23,7 +23,7 @@ void SolverManager<Node>::forwardModel(ScalarT & objective) {
   params->sacadoizeParams(false);
   postproc->resetObjectives();
   postproc->resetSolutions();
-  linalg->resetJacobian();
+  linalg->resetAllJacobian();
   
   for (size_t set=0; set<setnames.size(); ++set) {
     if (!scalarDirichletData[set]) {
@@ -80,7 +80,7 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
     is_adjoint = true;
     
     params->sacadoizeParams(false);
-    linalg->resetJacobian();
+    linalg->resetAllJacobian();
     
     vector<vector_RCP> phi = setInitial();
     

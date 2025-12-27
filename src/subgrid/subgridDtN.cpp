@@ -1181,7 +1181,7 @@ void SubGridDtN::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
     auto rhs = sub_solver->solver->linalg->getNewOverlappedVector(0);
     auto mass = sub_solver->solver->linalg->getNewOverlappedMatrix(0);
     auto glrhs = sub_solver->solver->linalg->getNewVector(0);
-    auto glmass = sub_solver->solver->linalg->getNewMatrix(0);
+    auto glmass = sub_solver->solver->linalg->getNewL2Matrix(0);
 
     sub_assembler->setInitial(0, rhs, mass, false, false, 1.0, 0, (size_t)macrogrp);
     
@@ -1191,7 +1191,7 @@ void SubGridDtN::setInitial(Teuchos::RCP<SG_MultiVector> & initial,
     sub_solver->solver->linalg->fillComplete(glmass);
     sub_solver->solver->linalg->linearSolverL2(0,glmass, glrhs, glinitial);
     sub_solver->solver->linalg->importVectorToOverlapped(0,initial, glinitial);
-    sub_solver->solver->linalg->resetJacobian(0);
+    sub_solver->solver->linalg->resetL2Jacobian();
    
    }
    //else {

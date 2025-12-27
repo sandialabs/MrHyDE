@@ -211,6 +211,10 @@ public:
   void matrixFreePCG(const size_t & set, vector_RCP & b, vector_RCP & x, vector_RCP & Minv,
                      const ScalarT & tol, const int & maxiter);
   
+  void setForwardStates(vector<vector<vector_RCP> > & fwd_states);
+  
+  void recoverForwardStateFromFile(string & statefilebase);
+  
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Public data members (with inline comments)
   ///////////////////////////////////////////////////////////////////////////////////////////

@@ -153,6 +153,12 @@ public:
   void writeSolutionToText(string & filename, vector<vector<vector_RCP> > & soln,
                            const bool & only_write_final = false);
 
+  void writeOptVectorToFile(MrHyDE_OptVector & vec, string & filebase);
+    
+  MrHyDE_OptVector recoverParametersFromFile();
+  
+  vector<vector<vector_RCP> > recoverForwardStateFromFile();
+  
 private:
 
   Teuchos::RCP<MpiComm> comm_;                    ///< MPI communicator

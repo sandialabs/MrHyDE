@@ -23,80 +23,112 @@ void AnalysisManager::run()
 // ========================================================================================
 // ========================================================================================
 
-void AnalysisManager::run(std::string &analysis_type)
-{
+void AnalysisManager::run(std::string &analysis_type) {
 
-  if (analysis_type == "forward")
-  {
-
+  // There are several cases where one may want to modify the parameters from file
+  bool params_from_file = settings_->sublist("Analysis").get<bool>("read parameters from file", false);
+  if (params_from_file) {
+    MrHyDE_OptVector fileparams = this->recoverParametersFromFile();
+    params_->updateParams(fileparams);
+  }
+  
+  if (analysis_type == "forward") {
     this->forwardSolve();
   }
-  else if (analysis_type == "forward+adjoint")
-  {
-
-    this->forwardSolve();
-
+  else if (analysis_type == "adjoint") {
+    
+    // Just running an adjoint means we need to read in, recover, or compute the forward state and parameters (see above)
+        
+    string fwdrecovery = settings_->sublist("Analysis").get<string>("forward state recovery type", "file");
+    if (fwdrecovery == "file") {
+      string statefilebase = settings_->sublist("Analysis").get<string>("state recovery file", "state");
+      solver_->recoverForwardStateFromFile(statefilebase);
+    }
+    else if (fwdrecovery == "checkpointing") {
+      // not actually implemented yet
+      // in addition, it would need to be tightly intertwined with the time integrator to avoid just recomputing and storing the full forward state
+      TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: checkointing is not implemented yet.");
+    }
+    else if (fwdrecovery == "recompute") {
+      this->forwardSolve();
+    }
+    else {
+      // throw an error
+      TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: unrecognized forward state recovery type: " + fwdrecovery);
+    }
+    
+    
     MrHyDE_OptVector sens = this->adjointSolve();
+    bool writesens = settings_->sublist("Analysis").get<bool>("write gradient to file", false);
+    if (writesens) {
+      string filebase = settings_->sublist("Analysis").get<string>("gradient storage file", "grad");
+      this->writeOptVectorToFile(sens, filebase);
+    }
   }
-  else if (analysis_type == "dry run")
-  {
+  else if (analysis_type == "forward+adjoint") {
+    this->forwardSolve();
+    MrHyDE_OptVector sens = this->adjointSolve();
+    bool writesens = settings_->sublist("Analysis").get<bool>("write gradient to file", false);
+    if (writesens) {
+      string filebase = settings_->sublist("Analysis").get<string>("gradient storage file", "grad");
+      this->writeOptVectorToFile(sens, filebase);
+    }
+  }
+  else if (analysis_type == "dry run") {
     cout << " **** MrHyDE has completed the dry run with verbosity: " << verbosity_ << endl;
   }
-  else if (analysis_type == "UQ")
-  {
+  else if (analysis_type == "UQ") {
     vector<Teuchos::Array<ScalarT>> response_values = this->UQSolve();
   }
-  else if (analysis_type == "ROL")
-  {
+  else if (analysis_type == "ROL") {
     this->ROLSolve();
   }
-  else if (analysis_type == "ROL2")
-  {
+  else if (analysis_type == "ROL2") {
     this->ROL2Solve();
   }
-  else if (analysis_type == "ROLStoch")
-  {
+  else if (analysis_type == "ROLStoch") {
     this->ROLStochSolve();
   }
 #if defined(MrHyDE_ENABLE_HDSA)
-  else if (analysis_type == "HDSA")
-  {
+  else if (analysis_type == "HDSA") {
     this->HDSASolve();
   }
-  else if (analysis_type == "readExo+forward")
-  {
+  else if (analysis_type == "readExo+forward") {
     this->readExoForwardSolve();
   }
 #endif
-  else if (analysis_type == "DCI")
-  {
+  else if (analysis_type == "DCI") {
     this->DCISolve();
   }
-  else if (analysis_type == "Scalable DCI")
-  {
+  else if (analysis_type == "Scalable DCI") {
     this->ScalableDCISolve();
   }
-  else if (analysis_type == "Scalable Bayes")
-  {
+  else if (analysis_type == "Scalable Bayes") {
     this->ScalableBayesSolve();
   }
-  else if (analysis_type == "restart")
-  {
+  else if (analysis_type == "restart") {
     this->restartSolve();
   }
-  else
-  { // don't solver_ anything, but produce visualization
+  else {
     std::cout << "Unknown analysis option: " << analysis_type << std::endl;
-    std::cout << "Valid and tested options: dry run, forward, forward+adjoint, UQ, ROL, ROL2, DCI" << std::endl;
+    std::cout << "Valid and tested options: dry run, forward, adjoint, forward+adjoint, UQ, ROL, ROL2, DCI" << std::endl;
   }
+  
+  // There are several cases where one may want to write the parameters to file
+  // Writing the state to file is handled by the postprocess manager
+  bool params_to_file = settings_->sublist("Analysis").get<bool>("write parameters to file", false);
+  if (params_to_file) {
+    string filebase = settings_->sublist("Analysis").get<string>("parameter storage file", "params");
+    MrHyDE_OptVector current_params = params_->getCurrentVector();
+    this->writeOptVectorToFile(current_params, filebase);
+  }
+  
 }
 
 // ========================================================================================
 // ========================================================================================
 
-void AnalysisManager::forwardSolve()
-{
-
+void AnalysisManager::forwardSolve() {
   ScalarT objfun = 0.0;
   solver_->forwardModel(objfun);
   postproc_->report();
@@ -540,6 +572,12 @@ void AnalysisManager::ROLSolve()
       solver_->forwardModel(objfun);
     }
   }
+  
+  if (settings_->sublist("Analysis").get("save parameters to file",false) ) {
+    string filebase = settings_->sublist("Analysis").get("parameters file","params");
+    MrHyDE_OptVector xtmp = params_->getCurrentVector();
+    xtmp.print(filebase);
+  }
 }
 
 // ========================================================================================
@@ -723,6 +761,12 @@ void AnalysisManager::ROL2Solve()
       postproc_->setNewExodusFile(outfile);
       solver_->forwardModel(objfun);
     }
+  }
+  
+  if (settings_->sublist("Analysis").get("save parameters to file",false) ) {
+    string filebase = settings_->sublist("Analysis").get("parameters file","params");
+    MrHyDE_OptVector xtmp = params_->getCurrentVector();
+    xtmp.print(filebase);
   }
 }
 
@@ -1728,4 +1772,182 @@ void AnalysisManager::restartSolve()
   { // don't solver_ anything, but produce visualization
     std::cout << "Unknown restart mode: " << mode << std::endl;
   }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+MrHyDE_OptVector AnalysisManager::recoverParametersFromFile() {
+
+  MrHyDE_OptVector currparams = params_->getCurrentVector();
+  string paramfilebase = settings_->sublist("Analysis").get<string>("parameter recovery file", "params");
+  // Assumes the parameters are actually stored in files names params.scalar.0.dat or params.field.0.mm where the number represents the time step for dynamic parameters
+  
+  // First, scalar parameters
+  vector<Teuchos::RCP<vector<ScalarT> > > scalar_params;
+  
+  // Does the current vector have scalars?
+  bool have_scalar = currparams.haveScalar();
+  
+  // Are they dynamic?
+  bool have_dyn_scalar = currparams.haveDynamicScalar();
+  
+  // Read in from file if present
+  if (have_scalar) {
+    if (have_dyn_scalar) {
+      std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > currscalar = currparams.getParameter();
+      size_t numparams = currscalar.size();
+      for (size_t t=0; t<numparams; ++t) {
+        std::stringstream ss;
+        ss << paramfilebase << ".scalar." << t << ".dat";
+        
+        std::ifstream fin(ss.str());
+        if (!fin.good()) {
+          TEUCHOS_TEST_FOR_EXCEPTION(!fin.good(),std::runtime_error,"Error: could not find the data file: " + ss.str());
+        }
+        
+        Teuchos::RCP<std::vector<ScalarT> > values = Teuchos::rcp(new std::vector<ScalarT>());
+        ScalarT number;
+        while (fin >> number) {
+          values->push_back(number);
+        }
+        scalar_params.push_back(values);
+        fin.close();
+      }
+    }
+    else {
+      std::stringstream ss;
+      ss << paramfilebase << ".scalar.0.dat";
+      
+      std::ifstream fin(ss.str());
+      if (!fin.good()) {
+        TEUCHOS_TEST_FOR_EXCEPTION(!fin.good(),std::runtime_error,"Error: could not find the data file: " + ss.str());
+      }
+      
+      Teuchos::RCP<std::vector<ScalarT> > values = Teuchos::rcp(new std::vector<ScalarT>());
+      ScalarT number;
+      while (fin >> number) {
+        values->push_back(number);
+      }
+      scalar_params.push_back(values);
+      fin.close();
+    }
+  }
+ 
+  
+  // Next, field parameters
+  std::vector<vector_RCP> field_params;
+  
+  // Does the current vector have fields?
+  bool have_field = currparams.haveField();
+  
+  // Are they dynamic?
+  bool have_dyn_field = currparams.haveDynamicField();
+  
+  // Read in from file if present
+  if (have_field) {
+    if (have_dyn_field) {
+      std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > > currfield = currparams.getField();
+      size_t numparams = currfield.size();
+      for (size_t t=0; t<numparams; ++t) {
+        std::stringstream ss;
+        ss << paramfilebase << ".field." << t << ".mm";
+        
+        vector_RCP vec = solver_->linalg->readParameterVectorFromFile(ss.str());
+        field_params.push_back(vec);
+      }
+    }
+    else {
+      std::stringstream ss;
+      ss << paramfilebase << ".field.0.mm";
+      
+      vector_RCP vec = solver_->linalg->readParameterVectorFromFile(ss.str());
+      field_params.push_back(vec);
+    }
+  }
+  
+  MrHyDE_OptVector newparams(field_params, scalar_params, 1.0, params_->diagParamMass, params_->paramMass, comm_->getRank());
+  return newparams;
+  
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void AnalysisManager::writeOptVectorToFile(MrHyDE_OptVector & vec, string & filebase) {
+  // First, scalar parameters
+  
+  // Does the current vector have scalars?
+  bool have_scalar = vec.haveScalar();
+  
+  // Are they dynamic?
+  bool have_dyn_scalar = vec.haveDynamicScalar();
+  
+  // Scalar parameters are on every processor, so only rank=0 needs to write
+  if (have_scalar && comm_->getRank() == 0) {
+    std::vector<ROL::Ptr<ROL::StdVector<ScalarT> > > currscalar = vec.getParameter();
+    if (have_dyn_scalar) {
+      size_t numparams = currscalar.size();
+      for (size_t t=0; t<numparams; ++t) {
+        std::stringstream ss;
+        ss << filebase << ".scalar." << t << ".dat";
+        
+        std::ofstream fout(ss.str());
+        if (!fout.is_open()) {
+          TEUCHOS_TEST_FOR_EXCEPTION(!fout.is_open(),std::runtime_error,"Error: could not open the data file: " + ss.str());
+        }
+        fout.precision(12);
+        auto currvec = *(currscalar[t]->getVector());
+        for (size_t i=0; i<currvec.size(); ++i) {
+          fout << currvec[i] << endl;
+        }
+        fout.close();
+      }
+    }
+    else {
+      std::stringstream ss;
+      ss << filebase << ".scalar.0.dat";
+      
+      std::ofstream fout(ss.str());
+      if (!fout.is_open()) {
+        TEUCHOS_TEST_FOR_EXCEPTION(!fout.is_open(),std::runtime_error,"Error: could not open the data file: " + ss.str());
+      }
+      fout.precision(12);
+      auto currvec = *(currscalar[0]->getVector());
+      for (size_t i=0; i<currvec.size(); ++i) {
+        fout << currvec[i] << endl;
+      }
+      fout.close();
+    }
+  }
+  
+  // Does the current vector have fields?
+  bool have_field = vec.haveField();
+  
+  // Are they dynamic?
+  bool have_dyn_field = vec.haveDynamicField();
+  
+  // Write to file - each processors only stores a piece of the field
+  if (have_field) {
+    std::vector<ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > > currfield = vec.getField();
+    if (have_dyn_field) {
+      size_t numfields = currfield.size();
+      for (size_t t=0; t<numfields; ++t) {
+        std::stringstream ss;
+        ss << filebase << ".field." << t << ".mm";
+        string filename = ss.str();
+        ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > currvec = currfield[t];
+        solver_->linalg->writeVectorToFile(currvec, filename);
+      }
+    }
+    else {
+      std::stringstream ss;
+      ss << filebase << ".field.0.mm";
+      string filename = ss.str();
+      ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > currvec = currfield[0];
+      solver_->linalg->writeVectorToFile(currvec, filename);
+      
+    }
+  }
+  
 }

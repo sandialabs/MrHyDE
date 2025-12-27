@@ -69,9 +69,13 @@ void PostprocessManager<Node>::setup() {
   write_response = settings->sublist("Postprocess").get<bool>("write responses", compute_response);
   compute_error = settings->sublist("Postprocess").get<bool>("compute errors", false);
   write_solution = settings->sublist("Postprocess").get("write solution", false);
+  write_solution_to_file = settings->sublist("Postprocess").get("write solution to file", false);
+  solution_storage_file = settings->sublist("Postprocess").get("solution storage file", "fwdsoln");
   write_frequency = settings->sublist("Postprocess").get("write frequency", 1);
   exodus_write_frequency = settings->sublist("Postprocess").get("exodus write frequency", 1);
   write_group_number = settings->sublist("Postprocess").get("write group number", false);
+  write_objective_to_file = settings->sublist("Postprocess").get("write objective to file", false);
+  objective_storage_file = settings->sublist("Postprocess").get("objective storage file", "objective");
   
   write_subgrid_solution = settings->sublist("Postprocess").get("write subgrid solution", false);
   write_subgrid_model = false;

@@ -41,79 +41,90 @@ comm(comm_), settings(settings_), disc(disc_), params(params_) {
   do_dump_residual = settings->sublist("Solver").get<bool>("dump residual",false);
   do_dump_solution = settings->sublist("Solver").get<bool>("dump solution",false);
   
-  // Create the solver options for the state Jacobians
+  // Create the solver Context for the state Jacobians
   for (size_t set=0; set<setnames.size(); ++set) {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("State linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("State linear solver");
     }
-    else { // use generic options
+    else { // use generic Context
       solvesettings = settings->sublist("Solver");
     }
-    options.push_back(Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) ));
+    context.push_back(Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) ));
   }
   
-  // Create the solver options for the state L2-projections
+  // Create the solver Context for the state L2-projections
   for (size_t set=0; set<setnames.size(); ++set) {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("State L2 linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("State L2 linear solver");
     }
-    else { // use generic options
+    else { // use generic Context
       solvesettings = settings->sublist("Solver");
     }
-    options_L2.push_back(Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) ));
+    context_L2.push_back(Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) ));
   }
   
-  // Create the solver options for the state boundary L2-projections
+  // Create the solver Context for the state boundary L2-projections
   for (size_t set=0; set<setnames.size(); ++set) {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("State boundary L2 linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("State boundary L2 linear solver");
     }
-    else { // use generic options
+    else { // use generic Context
       solvesettings = settings->sublist("Solver");
     }
     solvesettings.set("use preconditioner",false);
-    options_BndryL2.push_back(Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) ));
+    context_BndryL2.push_back(Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) ));
   }
   
-  // Create the solver options for the discretized parameter Jacobians
+  // Create the solver Context for the discretized parameter Jacobians
   {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("Parameter linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("Parameter linear solver");
     }
-    else { // use generic options
+    else { // use generic Context
       solvesettings = settings->sublist("Solver");
     }
-    options_param = Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) );
+    context_param = Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) );
   }
   
-  // Create the solver options for the discretized parameter L2-projections
+  // Create the solver Context for the discretized parameter L2-projections
   {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("Parameter L2 linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("Parameter L2 linear solver");
     }
-    else { // use generic options
+    else { // use generic Context
       solvesettings = settings->sublist("Solver");
     }
-    options_param_L2 = Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) );
+    context_param_L2 = Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) );
   }
   
-  // Create the solver options for the discretized parameter boundary L2-projections
+  // Create the solver Context for the discretized parameter boundary L2-projections
   {
     Teuchos::ParameterList solvesettings;
     if (settings->sublist("Solver").isSublist("Parameter boundary L2 linear solver")) { // for detailed control
       solvesettings = settings->sublist("Solver").sublist("Parameter boundary L2 linear solver");
     }
-    else { // use generic options
+    else { // use generic Context
       solvesettings = settings->sublist("Solver");
     }
-    options_param_BndryL2 = Teuchos::rcp( new LinearSolverOptions<Node>(solvesettings) );
+    context_param_BndryL2 = Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) );
   }
   
+  // Create the solver Context for the param-state Jacobians
+  for (size_t set=0; set<setnames.size(); ++set) {
+    Teuchos::ParameterList solvesettings;
+    if (settings->sublist("Solver").isSublist("Parameter state linear solver")) { // for detailed control
+      solvesettings = settings->sublist("Solver").sublist("Parameter state linear solver");
+    }
+    else { // use generic Context
+      solvesettings = settings->sublist("Solver");
+    }
+    context_param_state.push_back(Teuchos::rcp( new LinearSolverContext<Node>(solvesettings) ));
+  }
   this->setupLinearAlgebra();
   
   debugger->print("**** Finished linear algebra interface constructor");
@@ -214,12 +225,12 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       
       overlapped_graph[set]->fillComplete();
       
-      matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], curr_max_entries)));
+      //matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(owned_map[set], curr_max_entries)));
       
-      overlapped_matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(overlapped_graph[set])));
+      //overlapped_matrix.push_back(Teuchos::rcp(new LA_CrsMatrix(overlapped_graph[set])));
       
-      this->fillComplete(matrix[set]);
-      this->fillComplete(overlapped_matrix[set]);
+      //this->fillComplete(matrix[set]);
+      //this->fillComplete(overlapped_matrix[set]);
     }
   }
   

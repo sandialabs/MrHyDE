@@ -999,7 +999,7 @@ void SubGridDtN_Solver::nonlinearSolver(Teuchos::RCP<SG_MultiVector> & sol,
             //MueLu::ReuseTpetraPreconditioner(J,*belos_M);
           }
           else {
-            belos_M = solver->linalg->buildPreconditioner(J,"Preconditioner Settings");
+            belos_M = solver->linalg->buildAMGPreconditioner(J,solver->linalg->context[0]);
             //belos_problem->setRightPrec(belos_M);
             belos_problem->setLeftPrec(belos_M);
             //have_preconditioner = true;

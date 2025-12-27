@@ -26,7 +26,7 @@ using namespace MrHyDE;
 template<class Node>
 bool LinearAlgebraInterface<Node>::getJacobianReuse(const size_t & set) {
   bool reuse = false;
-  if (options[set]->reuse_jacobian && options[set]->have_jacobian) {
+  if (context[set]->reuse_matrix && context[set]->have_matrix) {
     reuse = true;
   }
   return reuse;
@@ -35,19 +35,31 @@ bool LinearAlgebraInterface<Node>::getJacobianReuse(const size_t & set) {
 // ========================================================================================
 
 template<class Node>
-bool LinearAlgebraInterface<Node>::getParamJacobianReuse(const size_t & set) {
+bool LinearAlgebraInterface<Node>::getParamJacobianReuse() {
   bool reuse = false;
-  if (options[set]->reuse_jacobian && options[set]->have_param_jacobian) {
+  if (context_param->reuse_matrix && context_param->have_matrix) {
     reuse = true;
   }
   return reuse;
 }
+
+// ========================================================================================
+
+template<class Node>
+bool LinearAlgebraInterface<Node>::getParamStateJacobianReuse(const size_t & set) {
+  bool reuse = false;
+  if (context_param_state[set]->reuse_matrix && context_param_state[set]->have_matrix) {
+    reuse = true;
+  }
+  return reuse;
+}
+
 // ========================================================================================
 // All iterative solvers use the same Belos list.  This would be easy to specialize.
 // ========================================================================================
 
 template<class Node>
-Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList(const string & belosSublist) {
+Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParameterList(Teuchos::RCP<LinearSolverContext<Node> > & cntxt) {
   Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList());
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
   belosList->set("Num Blocks", maxLinearIters);
@@ -74,9 +86,9 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   belosList->set("Output Style", Belos::Brief);
   belosList->set("Implicit Residual Scaling", belos_residual_scaling);
   
-  if (settings->sublist("Solver").isSublist(belosSublist)) {
-    Teuchos::ParameterList inputParams = settings->sublist("Solver").sublist(belosSublist);
-    belosList->setParameters(inputParams);
+  if (cntxt->belos_sublist.name() != "empty") {
+    //Teuchos::ParameterList inputParams = settings->sublist("Solver").sublist(belosSublist);
+    belosList->setParameters(cntxt->belos_sublist);
   }
   
   return belosList;
@@ -86,9 +98,21 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
 // ========================================================================================
 
 template<class Node>
+void LinearAlgebraInterface<Node>::resetAllJacobian() {
+  this->resetJacobian();
+  this->resetL2Jacobian();
+  this->resetBndryL2Jacobian();
+  this->resetParamJacobian();
+  this->resetPrevJacobian();
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
 void LinearAlgebraInterface<Node>::resetJacobian() {
-  for (size_t set=0; set<options.size(); ++set) {
-    this->resetJacobian(set);
+  for (size_t set=0; set<context.size(); ++set) {
+    context[set]->reset();
   }
 }
 
@@ -96,15 +120,50 @@ void LinearAlgebraInterface<Node>::resetJacobian() {
 // ========================================================================================
 
 template<class Node>
-void LinearAlgebraInterface<Node>::resetJacobian(const size_t & set) {
-  options[set]->have_jacobian = false;
-  options[set]->have_param_jacobian = false;
-  options[set]->have_previous_jacobian = false;
-  options[set]->have_preconditioner = false;
-  options[set]->jac = Teuchos::null;
-  options[set]->param_jac = Teuchos::null;
-  options[set]->prec = Teuchos::null;
-  options[set]->prec_dd = Teuchos::null;
+void LinearAlgebraInterface<Node>::resetL2Jacobian() {
+  for (size_t set=0; set<context_L2.size(); ++set) {
+    context_L2[set]->reset();
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::resetBndryL2Jacobian() {
+  for (size_t set=0; set<context_BndryL2.size(); ++set) {
+    context_BndryL2[set]->reset();
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::resetParamJacobian() {
+  context_param->reset();
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::resetParamStateJacobian() {
+  for (size_t set=0; set<context_param_state.size(); ++set) {
+    context_param_state[set]->reset();
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::resetPrevJacobian() {
+  for (size_t step=0; step<context_prev.size(); ++step) {
+    for (size_t set=0; set<context_prev[step].size(); ++set) {
+      context_prev[step][set]->reset();
+    }
+  }
 }
 
 
@@ -241,10 +300,60 @@ void LinearAlgebraInterface<Node>::writeToFile(matrix_RCP &J, vector_RCP &r, vec
                                                const std::string &sol_filename) {
   Teuchos::TimeMonitor localtimer(*writefiletimer);
   
-  if(do_dump_jacobian)
+  if (do_dump_jacobian) {
     Tpetra::MatrixMarket::Writer<LA_CrsMatrix>::writeSparseFile(jac_filename,*J);
-  if(do_dump_residual)
+  }
+  if (do_dump_residual) {
     Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(res_filename,*r);
-  if(do_dump_solution)
+  }
+  if (do_dump_solution) {
     Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(sol_filename,*soln);
+  }
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::writeStateToFile(vector<vector_RCP> & soln,
+                                                    const std::string & filebase, const int & stepnum) {
+  Teuchos::TimeMonitor localtimer(*writefiletimer);
+  
+  for (size_t set=0; set<soln.size(); ++set) {
+    std::stringstream ss;
+    ss << filebase << "." << set << "." << stepnum << ".mm";
+    
+    Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(ss.str(),*(soln[set]));
+  }
+}
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void LinearAlgebraInterface<Node>::writeVectorToFile(ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > & vec, string & filename) {
+  Teuchos::TimeMonitor localtimer(*writefiletimer);
+  
+  Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(filename,vec->getVector());
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > LinearAlgebraInterface<Node>::readParameterVectorFromFile(const std::string & filename) {
+  Teuchos::TimeMonitor localtimer(*readfiletimer);
+  
+  vector_RCP vec = Tpetra::MatrixMarket::Reader<LA_MultiVector>::readDenseFile(filename, comm, param_owned_map);
+  return vec;
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > LinearAlgebraInterface<Node>::readStateVectorFromFile(const std::string & filename, const size_t & set) {
+  Teuchos::TimeMonitor localtimer(*readfiletimer);
+  
+  vector_RCP vec = Tpetra::MatrixMarket::Reader<LA_MultiVector>::readDenseFile(filename, comm, owned_map[set]);
+  return vec;
 }

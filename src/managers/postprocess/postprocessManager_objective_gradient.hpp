@@ -1677,7 +1677,7 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> &u,
   vector_RCP res_over = linalg->getNewOverlappedVector(set);
   
   matrix_RCP J;
-  bool reuse_jacobian = linalg->getParamJacobianReuse(set);
+  bool reuse_jacobian = linalg->getParamStateJacobianReuse(set);
   if (reuse_jacobian) {
     J = linalg->getNewParamStateMatrix(set);
   }

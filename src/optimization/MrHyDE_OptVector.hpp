@@ -14,6 +14,7 @@
 
 #include "ROL_StdVector.hpp"
 #include "ROL_TpetraMultiVector.hpp"
+#include "MatrixMarket_Tpetra.hpp"
 
 class MrHyDE_OptVector : public ROL::Vector<ScalarT> {
   
@@ -1358,6 +1359,35 @@ public:
       for (size_t i=0; i<scalar_vec.size(); ++i) {
         if (mpirank == 0 && scalar_vec[i] != ROL::nullPtr) {
           scalar_vec[i]->print(outStream);
+        }
+      }
+    }
+  }
+  
+  ///////////////////////////////////////////////////
+  ///////////////////////////////////////////////////
+  
+  void print(string & filebase) const {
+    if (have_field) {
+      for (size_t i=0; i<field_vec.size(); ++i) {
+        if (field_vec[i] != ROL::nullPtr) {
+          std::stringstream ss;
+          ss << filebase << ".field." << i << ".mm";
+          Tpetra::MatrixMarket::Writer<LA_MultiVector>::writeDenseFile(ss.str(),*(field_vec[i]->getVector()));
+        }
+      }
+    }
+    if (have_scalar) {
+      for (size_t i=0; i<scalar_vec.size(); ++i) {
+        if (mpirank == 0 && scalar_vec[i] != ROL::nullPtr) {
+          std::stringstream ss;
+          ss << filebase << ".scalar." << i << ".dat";
+          std::ofstream scalarOUT(ss.str());
+          scalarOUT.precision(12);
+          auto vec = scalar_vec[i]->getVector();
+          for (size_t j=0; j<vec->size(); ++j) {
+            scalarOUT << (*vec)[j] << endl;
+          }
         }
       }
     }

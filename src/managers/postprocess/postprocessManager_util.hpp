@@ -13,69 +13,59 @@
 
 template <class Node>
 void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const ScalarT &current_time,
-                                      const int &stepnum)
-{
+                                      const int &stepnum) {
 
   // Determine if we want to collect QoI, objectives, etc.
   bool write_this_step = false;
-  if (stepnum % write_frequency == 0)
-  {
+  if (stepnum % write_frequency == 0) {
     write_this_step = true;
   }
 
   // Determine if we want to write to exodus on this time step
   bool write_exodus_this_step = false;
-  if (stepnum % exodus_write_frequency == 0)
-  {
+  if (stepnum % exodus_write_frequency == 0) {
     write_exodus_this_step = true;
   }
 
   // Write to exodus if requested and within user-defined time window for output
-  if (write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop)
-  {
-    if (write_solution)
-    {
+  if (write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop) {
+    if (write_solution) {
       this->writeSolution(current_soln, current_time);
     }
   }
 
   // Write all other output if requested and within user-defined time window for output
-  if (write_this_step && current_time + 1.0e-100 >= record_start && current_time - 1.0e-100 <= record_stop)
-  {
+  if (write_this_step && current_time + 1.0e-100 >= record_start && current_time - 1.0e-100 <= record_stop) {
 
-    if (compute_error)
-    {
+    if (compute_error) {
       this->computeError(current_soln, current_time);
     }
-    if (compute_response || compute_objective)
-    {
+    if (compute_response || compute_objective) {
       this->computeObjective(current_soln, current_time);
     }
-    if (compute_flux_response)
-    {
+    if (compute_flux_response) {
       this->computeFluxResponse(current_soln, current_time);
     }
-    if (compute_integrated_quantities)
-    {
+    if (compute_integrated_quantities) {
       this->computeIntegratedQuantities(current_soln, current_time);
     }
-    if (compute_weighted_norm)
-    {
+    if (compute_weighted_norm) {
       this->computeWeightedNorm(current_soln);
     }
-    if (store_sensor_solution)
-    {
+    if (store_sensor_solution) {
       this->computeSensorSolution(current_soln, current_time);
     }
   }
 
   // We only store the full forward state if running optimization, or if user requested it
-  if (save_solution)
-  {
-    for (size_t set = 0; set < soln.size(); ++set)
-    {
+  if (save_solution) {
+    for (size_t set = 0; set < soln.size(); ++set) {
       soln[set]->store(current_soln[set], current_time, 0);
     }
+  }
+  
+  if (write_solution_to_file) {
+    linalg->writeStateToFile(current_soln, solution_storage_file, stepnum);
   }
 }
 
@@ -1220,6 +1210,19 @@ void PostprocessManager<Node>::writeBoundaryQuadratureData() {
         }
         
       }
+    }
+  }
+}
+
+
+// ========================================================================================
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::setForwardStates(vector<vector<vector_RCP> > & fwd_states, vector<ScalarT> & times) {
+  for (size_t set = 0; set < fwd_states.size(); ++set) {
+    for (size_t t = 0; t < fwd_states[set].size(); ++t) {
+      soln[set]->store(fwd_states[set][t], times[t], 0);
     }
   }
 }

@@ -629,6 +629,19 @@ void PostprocessManager<Node>::reportObjective(ScalarT &objectiveval)
   
   objectiveval += totalobj;
   
+  if (write_objective_to_file) {
+    std::stringstream ss;
+    ss << objective_storage_file << ".dat";
+    
+    std::ofstream fout(ss.str());
+    if (!fout.is_open()) {
+      TEUCHOS_TEST_FOR_EXCEPTION(!fout.is_open(),std::runtime_error,"Error: could not open the data file: " + ss.str());
+    }
+    fout.precision(12);
+    fout << objectiveval << endl;
+    fout.close();
+  }
+  
   debugger->print(1, "******** Finished PostprocessManager::reportObjective ...");
 }
 

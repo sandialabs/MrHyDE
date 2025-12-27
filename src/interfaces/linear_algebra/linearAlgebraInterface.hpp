@@ -35,7 +35,7 @@
 #include "Amesos2.hpp"
 
 // Options for various linear solvers
-#include "linearSolverOptions.hpp"
+#include "linearSolverContext.hpp"
 
 namespace MrHyDE {
 
@@ -118,6 +118,20 @@ public:
   matrix_RCP getNewMatrix(const size_t & set);
   
   /**
+   * @brief Allocate or reuse a Jacobian matrix for a given physics set.
+   * @param set Physics set index.
+   * @return Newly created or reused matrix.
+   */
+  matrix_RCP getNewL2Matrix(const size_t & set);
+  
+  /**
+   * @brief Allocate or reuse a Jacobian matrix for a given physics set.
+   * @param set Physics set index.
+   * @return Newly created or reused matrix.
+   */
+  matrix_RCP getNewBndryL2Matrix(const size_t & set);
+  
+  /**
    * @brief Create matrices for Jacobians associated with previous timesteps (adjoint solves).
    * @param set      Physics set index.
    * @param numsteps Number of previous steps to allocate.
@@ -166,11 +180,20 @@ public:
   // ========================================================================================
   
   /**
-   * @brief Query whether the parameter-state Jacobian for this set can be reused.
+   * @brief Query whether the parameter Jacobian can be reused.
+   * @return True if reuse is enabled and a Jacobian exists.
+   */
+  bool getParamJacobianReuse();
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  /**
+   * @brief Query whether the parameter/state Jacobian for this set can be reused.
    * @param set Physics set index.
    * @return True if reuse is enabled and a Jacobian exists.
    */
-  bool getParamJacobianReuse(const size_t & set);
+  bool getParamStateJacobianReuse(const size_t & set);
   
   // ========================================================================================
   // ========================================================================================
@@ -178,16 +201,37 @@ public:
   /**
    * @brief Reset Jacobian-related data for all physics sets.
    */
-  void resetJacobian();
-  
-  // ========================================================================================
-  // ========================================================================================
+  void resetAllJacobian();
   
   /**
-   * @brief Reset Jacobian, preconditioner, and symbolic factorization flags for a specific physics set.
-   * @param set Index of the physics set.
+   * @brief Reset Jacobian-related data for all physics sets.
    */
-  void resetJacobian(const size_t & set);
+  void resetJacobian();
+  
+  /**
+   * @brief Reset Jacobian-related data for all physics sets.
+   */
+  void resetL2Jacobian();
+  
+  /**
+   * @brief Reset Jacobian-related data for all physics sets.
+   */
+  void resetBndryL2Jacobian();
+  
+  /**
+   * @brief Reset Jacobian-related data for all physics sets.
+   */
+  void resetParamJacobian();
+  
+  /**
+   * @brief Reset Jacobian-related data for all physics sets.
+   */
+  void resetParamStateJacobian();
+  
+  /**
+   * @brief Reset Jacobian-related data for all physics sets.
+   */
+  void resetPrevJacobian();
   
   // ========================================================================================
   // ========================================================================================
@@ -414,6 +458,14 @@ public:
                    const std::string &res_filename="residual.mm",
                    const std::string &sol_filename="solution.mm");
   
+  void writeVectorToFile(ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > & vec, string & filename);
+    
+  void writeStateToFile(vector<vector_RCP> & soln, const std::string & filebase, const int & stepnum);
+
+  vector_RCP readParameterVectorFromFile(const std::string & filename);
+  
+  vector_RCP readStateVectorFromFile(const std::string & filename, const size_t & set);
+    
   // ========================================================================================
   // Belos solver parameter list accessor
   // ========================================================================================
@@ -424,7 +476,7 @@ public:
    * @param belosSublist  Name of the Belos sublist to retrieve.
    * @return RCP to the corresponding parameter list.
    */
-  Teuchos::RCP<Teuchos::ParameterList> getBelosParameterList(const string & belosSublist);
+  Teuchos::RCP<Teuchos::ParameterList> getBelosParameterList(Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
   
   // ========================================================================================
   // Linear solver on Tpetra stack for Jacobians of states
@@ -438,7 +490,7 @@ public:
    * @param r     Right-hand side (residual vector).
    * @param soln  Solution vector to be filled.
    */
-  void linearSolver(Teuchos::RCP<LinearSolverOptions<Node> > & opt,
+  void linearSolver(Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                     matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
   
   /**
@@ -521,8 +573,8 @@ public:
    * @param precSublist  Name of the MueLu sublist in the parameter list.
    * @return RCP to a MueLu preconditioner operator.
    */
-  Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> >
-  buildPreconditioner(const matrix_RCP & J, const string & precSublist);
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildAMGPreconditioner(const matrix_RCP & J,
+                                                                                  const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
   
   
   ///////////////////////////////////////////////////////////////////////////////////////////
@@ -535,16 +587,17 @@ public:
   vector<Teuchos::RCP<LA_Export> > exporter;                   //!< Exporters for owned → overlapped transfer.
   vector<Teuchos::RCP<LA_Import> > importer;                   //!< Importers for overlapped → owned transfer.
   
-  vector<Teuchos::RCP<LinearSolverOptions<Node> > > options;        //!< Solver options for standard Jacobian solves.
-  vector<Teuchos::RCP<LinearSolverOptions<Node> > > options_L2;     //!< Solver options for L2 projection solves.
-  vector<Teuchos::RCP<LinearSolverOptions<Node> > > options_BndryL2;//!< Solver options for boundary L2 projection solves.
-  
-  Teuchos::RCP<LinearSolverOptions<Node> > options_param;           //!< Solver options for discretized parameter solves.
-  Teuchos::RCP<LinearSolverOptions<Node> > options_param_L2;        //!< Solver options for L2 parameter projection solves.
-  Teuchos::RCP<LinearSolverOptions<Node> > options_param_BndryL2;   //!< Solver options for boundary L2 parameter solves.
-  
+  vector<Teuchos::RCP<LinearSolverContext<Node> > > context;        //!< Solver context for standard Jacobian solves.
+  vector<Teuchos::RCP<LinearSolverContext<Node> > > context_L2;     //!< Solver context for L2 projection solves.
+  vector<Teuchos::RCP<LinearSolverContext<Node> > > context_BndryL2;//!< Solver context for boundary L2 projection solves.
+  vector<vector<Teuchos::RCP<LinearSolverContext<Node> > > > context_prev;        //!< Solver context for previous Jacobians.
+  Teuchos::RCP<LinearSolverContext<Node> > context_param;           //!< Solver context for discretized parameter solves.
+  Teuchos::RCP<LinearSolverContext<Node> > context_param_L2;        //!< Solver context for L2 parameter projection solves.
+  Teuchos::RCP<LinearSolverContext<Node> > context_param_BndryL2;   //!< Solver context for boundary L2 parameter solves.
+  vector<Teuchos::RCP<LinearSolverContext<Node> > > context_param_state;        //!< Solver context for standard Jacobian solves.
+  //!
   ///////////////////////////////////////////////////////////////////////////////////////////
-  // Private data members
+  // (could be) Private data members
   ///////////////////////////////////////////////////////////////////////////////////////////
   
   Teuchos::RCP<MpiComm> comm;                                 //!< MPI communicator for parallel linear algebra.
@@ -571,8 +624,8 @@ public:
   vector<Teuchos::RCP<const LA_Map> > paramstate_overlapped_map; //!< Overlapped maps for parameter–state coupling.
   vector<Teuchos::RCP<LA_CrsGraph> > paramstate_overlapped_graph; //!< Overlapped graphs for parameter–state systems.
   
-  vector<matrix_RCP> matrix;                                  //!< Owned matrices for each equation set.
-  vector<matrix_RCP> overlapped_matrix;                       //!< Overlapped matrices (ghosted).
+  //vector<matrix_RCP> matrix;                                  //!< Owned matrices for each equation set.
+  //vector<matrix_RCP> overlapped_matrix;                       //!< Overlapped matrices (ghosted).
   
   // Linear solvers and preconditioner settings
   int maxLinearIters;                                         //!< Maximum number of solver iterations.
@@ -587,6 +640,7 @@ public:
   Teuchos::RCP<Teuchos::Time> newovervectortimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNewOverlappedVector()");
   Teuchos::RCP<Teuchos::Time> newmatrixtimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::getNew*Matrix()");
   Teuchos::RCP<Teuchos::Time> writefiletimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::write()");
+  Teuchos::RCP<Teuchos::Time> readfiletimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::read()");
   Teuchos::RCP<Teuchos::Time> linearsolvertimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::linearSolver*()");
   Teuchos::RCP<Teuchos::Time> fillcompletetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::fillComplete*()");
   Teuchos::RCP<Teuchos::Time> exporttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::LinearAlgebraInterface::export*()");

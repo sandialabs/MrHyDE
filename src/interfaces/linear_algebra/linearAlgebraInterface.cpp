@@ -32,8 +32,8 @@ using namespace MrHyDE;
 
 // Explicit template instantiations
 template class MrHyDE::LinearAlgebraInterface<SolverNode>;
-template class MrHyDE::LinearSolverOptions<SolverNode>;
+template class MrHyDE::LinearSolverContext<SolverNode>;
 #if MrHyDE_REQ_SUBGRID_ETI
 template class MrHyDE::LinearAlgebraInterface<SubgridSolverNode>;
-template class MrHyDE::LinearSolverOptions<SubgridSolverNode>; 
+template class MrHyDE::LinearSolverContext<SubgridSolverNode>; 
 #endif

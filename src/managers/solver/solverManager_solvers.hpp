@@ -26,7 +26,7 @@ void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
                             zero_soln, zero_soln, zero_soln);
     }
   }
-  postproc->record(sol, current_time, 1);
+  postproc->record(sol, current_time, 0);
   
   debugger->print("**** Finished SolverManager::steadySolver");
   

@@ -69,6 +69,7 @@ void maxwell<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("refractive index",fs.get<string>("refractive index","1.0"),"ip");
   functionManager->addFunction("epsilon",fs.get<string>("permittivity","1.0"),"ip");
   functionManager->addFunction("sigma",fs.get<string>("conductivity","0.0"),"ip");
+  functionManager->addFunction("epsilon",fs.get<string>("permittivity","1.0"),"side ip");
   
 }
 

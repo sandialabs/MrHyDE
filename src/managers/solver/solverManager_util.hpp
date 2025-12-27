@@ -33,7 +33,7 @@ void SolverManager<Node>::projectDirichlet(const size_t & set) {
     vector_RCP rhs = linalg->getNewOverlappedVector(set);
     matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
     vector_RCP glrhs = linalg->getNewVector(set);
-    matrix_RCP glmass = linalg->getNewMatrix(set);
+    matrix_RCP glmass = linalg->getNewBndryL2Matrix(set);
     
     assembler->computeConstraintProjection(set, rhs, mass, is_adjoint, current_time);
     
@@ -254,7 +254,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             vector_RCP rhs = linalg->getNewOverlappedVector(set);
             matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
             vector_RCP glrhs = linalg->getNewVector(set);
-            matrix_RCP glmass = linalg->getNewMatrix(set);
+            matrix_RCP glmass = linalg->getNewL2Matrix(set);
             
             assembler->setInitial(set, rhs, mass, is_adjoint);
             
@@ -264,7 +264,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             linalg->fillComplete(glmass);
             linalg->linearSolverL2(set, glmass, glrhs, glinitial);
             linalg->importVectorToOverlapped(set, initial, glinitial);
-            linalg->resetJacobian(set);
+            
           }
           else if (initial_type == "L2-projection-HFACE") {
             // Similar to above, but the basis support only exists on the mesh skeleton
@@ -272,7 +272,7 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             vector_RCP rhs = linalg->getNewOverlappedVector(set);
             matrix_RCP mass = linalg->getNewOverlappedMatrix(set);
             vector_RCP glrhs = linalg->getNewVector(set);
-            matrix_RCP glmass = linalg->getNewMatrix(set);
+            matrix_RCP glmass = linalg->getNewL2Matrix(set);
             
             assembler->setInitialFace(set, rhs, mass, is_adjoint);
             
@@ -283,15 +283,14 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
             // With HFACE we ensure the preconditioner is not
             // used for this projection (mass matrix is nearly the identity
             // and can cause issues)
-            auto origPreconFlag = linalg->options_L2[set]->use_preconditioner;
-            linalg->options_L2[set]->use_preconditioner = false;
+            auto origPreconFlag = linalg->context_L2[set]->use_preconditioner;
+            linalg->context_L2[set]->use_preconditioner = false;
             // do the solve
             linalg->linearSolverL2(set, glmass, glrhs, glinitial);
             // set back to original
-            linalg->options_L2[set]->use_preconditioner = origPreconFlag;
+            linalg->context_L2[set]->use_preconditioner = origPreconFlag;
             
             linalg->importVectorToOverlapped(set, initial, glinitial);
-            linalg->resetJacobian(set); // TODO not sure of this
             
           }
           else if (initial_type == "interpolation") {
@@ -305,6 +304,8 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
       initial_solns.push_back(initial);
     }
   }
+  
+  linalg->resetL2Jacobian();
   
   debugger->print("**** Finished SolverManager::setInitial ...");
   
@@ -359,4 +360,46 @@ vector<Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,Node> > > SolverManager<No
     }
   }
   return restart_adjoint_solution;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void SolverManager<Node>::setForwardStates(vector<vector<vector_RCP> > & fwd_states) {
+  postproc->resetSolutions();
+  
+  vector<ScalarT> times;
+  times.push_back(initial_time);
+  ScalarT ctime = initial_time;
+  ScalarT timetol = 1.0e-6*final_time;
+  while (ctime < (final_time-timetol)) {
+    ctime += deltat;
+    times.push_back(ctime);
+  }
+  
+  postproc->setForwardStates(fwd_states, times);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template<class Node>
+void SolverManager<Node>::recoverForwardStateFromFile(string & statefilebase) {
+
+  vector<vector<vector_RCP> > fwd_states;
+    
+  for (size_t set=0; set<numsteps.size(); ++set) {
+    vector<vector_RCP> set_states;
+    for (size_t step=0; step<numsteps[set]; ++step) {
+      std::stringstream ss;
+      ss << statefilebase << "." << set << "." << step << ".mm";
+      
+      vector_RCP vec = linalg->readStateVectorFromFile(ss.str(), set);
+      set_states.push_back(vec);
+    }
+    fwd_states.push_back(set_states);
+  }
+  this->setForwardStates(fwd_states);
 }
