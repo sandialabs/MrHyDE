@@ -1,0 +1,80 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  verbosity: 0
+  debug level: 0
+  Mesh:
+    dimension: 2
+    shape: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 40
+    NY: 40
+  Functions:
+    truesource: (8*(pi*pi)+0.5*sin(2*pi*x)*sin(2*pi*y))*sin(2*pi*x)*sin(2*pi*y) + 2.0*2*pi*cos(2*pi*x)*sin(2*pi*y) + 1.0*2*pi*sin(2*pi*x)*cos(2*pi*y)
+    source: strans
+    xvel: '2.0'
+    yvel: '1.0'
+    reaction: '0.5*c*c'
+    SUPG tau: '0.0'
+    sfgradx: 'grad(sfield)[x]'
+  Physics:
+    modules: cdr
+    Dirichlet conditions:
+      c:
+        all boundaries: '0.0'
+    Initial conditions:
+      c: '0.0'
+  Discretization:
+    order:
+      c: 1
+    quadrature: 2
+  Solver:
+    solver: steady-state
+    workset size: -1
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 4
+    final time: 1.00
+    number of steps: 10
+    use strong DBCs: true
+    enable autotune: false
+  Analysis:
+    analysis type: adjoint
+    read parameters from file: true
+    parameter storage file: params
+    forward state recovery type: file
+    state recovery file: fwdsoln
+    write gradient to file: true
+    gradient storage file: grad_sequential
+  Parameters:
+    sfield:
+      type: HGRAD
+      order: 1
+      usage: discretized
+      initial_value: 1.0
+      dynamic: false
+    strans:
+      type: scalar
+      value: 0.1
+      usage: active
+      dynamic: false
+  Postprocess:
+    compute errors: false
+    compute objective: true
+    write solution: false
+    True solutions:
+      c: sin(2*pi*x)*sin(2*pi*y)
+    Objective functions:
+      obj0:
+        type: integrated control
+        function: 1.0*(c-sin(2*pi*x)*sin(2*pi*y))^2
+        weight: 0.0 # just testing L2 regularization
+        Regularization functions:
+          reg0:
+            type: integrated
+            location: volume
+            function: '(sfield)^2'
+            weight: 1.0
+...
