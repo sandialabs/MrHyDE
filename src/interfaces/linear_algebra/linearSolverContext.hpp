@@ -1,0 +1,118 @@
+/***********************************************************************
+ MrHyDE - a framework for solving Multi-resolution Hybridized
+ Differential Equations and enabling beyond forward simulation for
+ large-scale multiphysics and multiscale systems.
+ 
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
+ ************************************************************************/
+
+#ifndef MRHYDE_LINEAR_ALGEBRA_OPTS_H
+#define MRHYDE_LINEAR_ALGEBRA_OPTS_H
+
+#include "trilinos.hpp"
+#include "preferences.hpp"
+
+// Belos
+#include <BelosConfigDefs.hpp>
+#include <BelosLinearProblem.hpp>
+#include <BelosTpetraAdapter.hpp>
+
+// MueLu
+#include <MueLu.hpp>
+#include <MueLu_TpetraOperator.hpp>
+#include <MueLu_CreateTpetraPreconditioner.hpp>
+#include <MueLu_Utilities.hpp>
+
+// Amesos includes
+#include "Amesos2.hpp"
+
+namespace MrHyDE {
+/** \class  LinearSolverContext
+ *  \brief  Stores the specifications for a given linear solver.
+ *
+ *  This class holds configuration options for Amesos2, Belos, and MueLu
+ *  solvers and preconditioners. It also stores reusable solver components
+ *  such as matrices,  symbolic factorizations, and preconditioners.
+ *
+ *  The linear algebra interface holds multiple contexts - one for each type of matrix that might be used.
+ *
+ *  \tparam Node  Tpetra execution node type.
+ */
+template<class Node>
+class LinearSolverContext {
+  typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node>   LA_CrsMatrix;
+  typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+  typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
+  
+public:
+  /** \brief Default constructor. */
+  LinearSolverContext() {};
+  
+  /** \brief Destructor. */
+  ~LinearSolverContext() {};
+  
+  /** \brief Construct options from a parameter list.
+   *  \param settings  Parameter list containing all solver settings.
+   */
+  LinearSolverContext(Teuchos::ParameterList & settings) {
+    amesos_type = settings.get<string>("Amesos solver","KLU2");
+    belos_type = settings.get<string>("Belos solver","Block GMRES");
+    if (settings.isSublist("Belos Settings")) {
+      belos_sublist = settings.sublist("Belos Settings");
+    }
+    else {
+      belos_sublist = Teuchos::ParameterList("empty");
+    }
+    if (settings.isSublist("Preconditioner Settings")) {
+      prec_sublist = settings.sublist("Preconditioner Settings");
+    }
+    else {
+      prec_sublist = Teuchos::ParameterList("empty");
+    }
+    use_direct = settings.get<bool>("use direct solver",false);
+    prec_type = settings.get<string>("preconditioner type","AMG");
+    use_preconditioner = settings.get<bool>("use preconditioner",true);
+    reuse_preconditioner = settings.get<bool>("reuse preconditioner",true);
+    right_preconditioner = settings.get<bool>("right preconditioner",false);
+    reuse_matrix = settings.get<bool>("reuse Jacobian",false);
+    
+    have_preconditioner = false;
+    have_symb_factor = false;
+    have_matrix = false;
+    
+  }
+  
+  void reset() {
+    have_matrix = false;
+    have_preconditioner = false;
+    matrix = Teuchos::null;
+    prec = Teuchos::null;
+    prec_dd = Teuchos::null;
+  }
+  
+  // Public data members
+  string amesos_type;   /**< Amesos2 solver type (e.g., KLU2). */
+  string belos_type;    /**< Belos solver type (e.g., GMRES). */
+  string prec_type;     /**< Preconditioner type (e.g., AMG). */
+  bool use_direct;            /**< Use direct Amesos2 solver. */
+  bool use_preconditioner;      /**< Whether to apply a preconditioner. */
+  bool right_preconditioner;    /**< Whether to apply right preconditioning. */
+  bool reuse_preconditioner;    /**< Whether to reuse an existing preconditioner. */
+  bool reuse_matrix;          /**< Whether to reuse an existing Jacobian. */
+  bool have_matrix;           /**< Indicates whether a Jacobian has been constructed. */
+  bool have_preconditioner;     /**< Indicates whether a preconditioner exists. */
+  bool have_symb_factor;        /**< Indicates whether symbolic factorization exists. */
+  
+  Teuchos::ParameterList prec_sublist, belos_sublist;
+  
+  Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > amesos_solver; /**< Reusable Amesos2 direct solver. */
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec; /**< MueLu AMG preconditioner operator. */
+  Teuchos::RCP<Ifpack2::Preconditioner<ScalarT, LO, GO, Node> > prec_dd; /**< Ifpack2 domain decomposition preconditioner. */
+  
+  matrix_RCP matrix; /**< Current Jacobian matrix. */
+  
+};
+
+} // MrHyDE
+
+#endif
