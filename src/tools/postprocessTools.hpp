@@ -95,6 +95,8 @@ namespace MrHyDE {
       if (type == "sensors") {
         sensor_points_file = objsettings.get<string>("sensor points file","sensor_points.dat");
         sensor_data_file = objsettings.get<string>("sensor data file","");
+        use_quadrature_pts = objsettings.get<bool>("use quadrature pts as sensors",false);
+        use_bndry_quadrature_pts = objsettings.get<bool>("use boundary quadrature pts as sensors",false);
         save_data = objsettings.get<bool>("save sensor data",false);
         use_sensor_grid = objsettings.get<bool>("use sensor grid",false);
         if (use_sensor_grid) {
@@ -109,6 +111,7 @@ namespace MrHyDE {
           sensor_grid_zmin = objsettings.get<double>("grid zmin");
           sensor_grid_zmax = objsettings.get<double>("grid zmax");
         }
+        sideset = objsettings.get<string>("sideset","");
         response = objsettings.get<string>("response","0.0");
         response_file = objsettings.get<string>("response file","sensor."+name);
         compute_sensor_soln = objsettings.get<bool>("compute sensor solution",false);
@@ -149,7 +152,7 @@ namespace MrHyDE {
     }
     
     size_t block;
-    string name, type, location, response, function, boundary_name, response_file;
+    string name, sideset, type, location, response, function, boundary_name, response_file;
     ScalarT weight, target, current_response;
     bool save_data, is_transient;
     vector<regularization> regularizations;
@@ -161,6 +164,7 @@ namespace MrHyDE {
     string sensor_points_file, sensor_data_file, output_type;
     size_t numSensors;
     bool use_sensor_grid, compute_sensor_soln, compute_sensor_average_soln;
+    bool use_quadrature_pts, use_bndry_quadrature_pts;
     int sensor_grid_Nx, sensor_grid_Ny, sensor_grid_Nz, dft_num_freqs;
     double sensor_grid_xmin, sensor_grid_xmax, sensor_grid_ymin, sensor_grid_ymax, sensor_grid_zmin, sensor_grid_zmax;
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_data;   // Ns x Nt

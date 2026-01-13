@@ -1135,9 +1135,15 @@ void PostprocessManager<Node>::writeBoundaryQuadratureData() {
   for (size_t block=0; block<blocknames.size(); ++block) {
   
     for (size_t side=0; side<sideSets.size(); ++side) {
-      string ptsfile = ptsfile_base + "." + blocknames[block] + "." + sideSets[side] + ".dat";
-      string wtsfile = wtsfile_base + "." + blocknames[block] + "." + sideSets[side] + ".dat";
-      string nsfile = nsfile_base + "." + blocknames[block] + "." + sideSets[side] + ".dat";
+      
+      std::stringstream ptsfile_ss, wtsfile_ss, nsfile_ss;
+      ptsfile_ss << ptsfile_base << "." << blocknames[block] << "." << sideSets[side] << "." << Comm->getRank() << ".dat";
+      wtsfile_ss << wtsfile_base << "." << blocknames[block] << "." << sideSets[side] << "." << Comm->getRank() << ".dat";
+      nsfile_ss << nsfile_base << "." << blocknames[block] << "." << sideSets[side] << "." << Comm->getRank() << ".dat";
+      
+      string ptsfile = ptsfile_ss.str();
+      string wtsfile = wtsfile_ss.str();
+      string nsfile = nsfile_ss.str();
       
       // All processors gather their own data
       View_Sc2 qdata = assembler->getboundaryQuadratureData(blocknames[block], sideSets[side]); // [pts wts normals]
@@ -1178,7 +1184,7 @@ void PostprocessManager<Node>::writeBoundaryQuadratureData() {
               }
             }
           }
-          if (Comm->getRank() == 0) {
+          //if (Comm->getRank() == 0) {
             std::ofstream ptsOUT(ptsfile.c_str());
             ptsOUT.precision(12);
             for (size_type i=0; i<qdata0.extent(0); ++i) {
@@ -1207,7 +1213,7 @@ void PostprocessManager<Node>::writeBoundaryQuadratureData() {
             nsOUT.close();
             
           }
-        }
+        //}
         
       }
     }

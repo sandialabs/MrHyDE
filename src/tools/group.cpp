@@ -708,24 +708,38 @@ View_Sc2 Group::getWts() {
 
 vector<View_Sc2> Group::getIntegrationPts() {
   vector<View_Sc2> newpts;
-  for (size_t dim=0; dim<ip.size(); ++dim) {
-    View_Sc2 pts;
-    if (ip[dim].getHaveKey()) {
-      auto vdata = ip[dim].getView();
-      auto vkey = ip[dim].getKey();
-      pts = View_Sc2("temp pts",numElem, vdata.extent(1));
-      parallel_for("grp pts decompress",
-               RangePolicy<AssemblyExec>(0,numElem),
-               MRHYDE_LAMBDA (const size_type elem ) {
-        for (size_type i=0; i<vdata.extent(1); ++i) {
-          pts(elem,i) = vdata(vkey(elem),i);
-        }
-      });
+  if (ip.size() > 0) {
+    for (size_t dim=0; dim<ip.size(); ++dim) {
+      View_Sc2 pts;
+      if (ip[dim].getHaveKey()) {
+        auto vdata = ip[dim].getView();
+        auto vkey = ip[dim].getKey();
+        pts = View_Sc2("temp pts",numElem, vdata.extent(1));
+        parallel_for("grp pts decompress",
+                     RangePolicy<AssemblyExec>(0,numElem),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type i=0; i<vdata.extent(1); ++i) {
+            pts(elem,i) = vdata(vkey(elem),i);
+          }
+        });
+      }
+      else {
+        pts = ip[dim].getView();
+      }
+      newpts.push_back(pts);
+    }
+  }
+  else {
+    size_type numip = group_data->ref_ip.extent(0);
+    View_Sc2 newwts = View_Sc2("temp physical wts",numElem, numip);
+    cout << "have nodes = " << have_nodes << endl;
+    
+    if (have_nodes) {
+      disc->getPhysicalIntegrationData(group_data, nodes, newpts, newwts);
     }
     else {
-      pts = ip[dim].getView();
+      disc->getPhysicalIntegrationData(group_data, localElemID, newpts, newwts);
     }
-    newpts.push_back(pts);
   }
   return newpts;
 }

@@ -167,46 +167,49 @@ void Data::importPoints(const std::string & ptsfile, const int & spaceDim) {
   
   std::ifstream fnmast(ptsfile.c_str());
   if (!fnmast.good()) {
-    TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: MrHyDE could not find the data point file: " + ptsfile);
+    std::cout << "MrHyDE WARNING: could not find the data point file: " + ptsfile << std::endl;
+    std::cout << "This used to throw an exception, but vaid use cases do exist" << std::endl;
+    //TEUCHOS_TEST_FOR_EXCEPTION(!fnmast.good(),std::runtime_error,"Error: MrHyDE could not find the data point file: " + ptsfile);
   }
-  
-  FILE* PointsFile = fopen(ptsfile.c_str(),"r");
-  double x,y,z;
-  
-  std::vector<ScalarT> xvec,yvec,zvec;
-  while( !feof(PointsFile) ) {
-    char line[100] = "";
-    fgets(line,100,PointsFile);
-    if( strcmp(line,"") ) {
-      if (spaceDim == 1) {
-        sscanf(line, "%lf", &x);
-        xvec.push_back(x);
-      }
-      if (spaceDim == 2) {
-        sscanf(line, "%lf %lf", &x, &y);
-        xvec.push_back(x);
-        yvec.push_back(y);
-      }
-      if (spaceDim == 3) {
-        sscanf(line, "%lf %lf %lf", &x, &y, &z);
-        xvec.push_back(x);
-        yvec.push_back(y);
-        zvec.push_back(z);
+  else {
+    
+    FILE* PointsFile = fopen(ptsfile.c_str(),"r");
+    double x,y,z;
+    
+    std::vector<ScalarT> xvec,yvec,zvec;
+    while( !feof(PointsFile) ) {
+      char line[100] = "";
+      fgets(line,100,PointsFile);
+      if( strcmp(line,"") ) {
+        if (spaceDim == 1) {
+          sscanf(line, "%lf", &x);
+          xvec.push_back(x);
+        }
+        if (spaceDim == 2) {
+          sscanf(line, "%lf %lf", &x, &y);
+          xvec.push_back(x);
+          yvec.push_back(y);
+        }
+        if (spaceDim == 3) {
+          sscanf(line, "%lf %lf %lf", &x, &y, &z);
+          xvec.push_back(x);
+          yvec.push_back(y);
+          zvec.push_back(z);
+        }
       }
     }
+    size_t numSensors = xvec.size();
+    
+    points = Kokkos::View<ScalarT**,HostDevice>("data points",numSensors,spaceDim);
+    for (size_t i=0; i<numSensors; i++) {
+      if (spaceDim >0)
+        points(i,0) = xvec[i];
+      if (spaceDim >1)
+        points(i,1) = yvec[i];
+      if (spaceDim >2)
+        points(i,2) = zvec[i];
+    }
   }
-  size_t numSensors = xvec.size();
-  
-  points = Kokkos::View<ScalarT**,HostDevice>("data points",numSensors,spaceDim);
-  for (size_t i=0; i<numSensors; i++) {
-    if (spaceDim >0)
-      points(i,0) = xvec[i];
-    if (spaceDim >1)
-      points(i,1) = yvec[i];
-    if (spaceDim >2)
-      points(i,2) = zvec[i];
-  }
-  
   
 }
 

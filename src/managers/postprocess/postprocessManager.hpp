@@ -494,6 +494,28 @@ public:
   // ========================================================================================
   
   /**
+   * @brief Populates sensor locations at the quadrature points
+   *
+   * @param[in] objID
+   *        Objective identifier for which grid-based sensors are generated.
+   */
+  void importSensorsOnQuadrature(const int & objID);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  /**
+   * @brief Populates sensor locations at the boundary quadrature pts
+   *
+   * @param[in] objID
+   *        Objective identifier for which grid-based sensors are generated.
+   */
+  void importSensorsOnBndryQuadrature(const int & objID);
+  
+  // ========================================================================================
+  // ========================================================================================
+  
+  /**
    * @brief Computes the basis representation for a set of sensors.
    *
    * This precomputes shape function values or other basis data used when mapping
@@ -511,11 +533,13 @@ public:
    * @brief Locates sensor points within mesh elements.
    *
    * @param[in]  block        Mesh block index.
+   * @param[in]  checkprocs       Make sure only one proc owns sensor (sometimes false)
    * @param[in]  spts_host    Host view of sensor point coordinates.
    * @param[out] spts_owners  Output: cell/element ownership for each sensor point.
    * @param[out] spts_found   Output: Boolean flags indicating whether points were found.
    */
   void locateSensorPoints(const int & block,
+                          const bool & checkprocs,
                           Kokkos::View<ScalarT**,HostDevice> spts_host,
                           Kokkos::View<int*[2],HostDevice> spts_owners,
                           Kokkos::View<bool*,HostDevice> spts_found);

@@ -10,30 +10,31 @@
 // ========================================================================================
 
 template <class Node>
-void PostprocessManager<Node>::addSensors()
-{
+void PostprocessManager<Node>::addSensors() {
 
   debugger->print("**** Starting PostprocessManager::addSensors ...");
 
   // Reading in sensors from a mesh file only works on a single element block (for now)
   // There isn't any problem with multiple blocks, it just hasn't been generalized for sensors yet
-  for (size_t r = 0; r < objectives.size(); ++r)
-  {
-    if (objectives[r].type == "sensors")
-    {
-
-      if (objectives[r].sensor_points_file == "mesh")
-      {
+  for (size_t r = 0; r < objectives.size(); ++r) {
+    if (objectives[r].type == "sensors") {
+      if (objectives[r].sensor_points_file == "mesh") {
         // Teuchos::TimeMonitor localtimer(*importexodustimer);
         this->importSensorsFromExodus(r);
       }
-      else if (objectives[r].use_sensor_grid)
-      {
+      else if (objectives[r].use_sensor_grid) {
         // Teuchos::TimeMonitor localtimer(*importexodustimer);
         this->importSensorsOnGrid(r);
       }
-      else
-      {
+      else if (objectives[r].use_quadrature_pts) {
+        // Teuchos::TimeMonitor localtimer(*importexodustimer);
+        this->importSensorsOnQuadrature(r);
+      }
+      else if (objectives[r].use_bndry_quadrature_pts) {
+        // Teuchos::TimeMonitor localtimer(*importexodustimer);
+        this->importSensorsOnBndryQuadrature(r);
+      }
+      else {
         // Teuchos::TimeMonitor localtimer(*importfiletimer);
         this->importSensorsFromFiles(r);
       }
@@ -294,6 +295,26 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int &objID)
   Data sdata;
   bool have_data = false;
 
+  bool addproc = settings->sublist("Postprocess").get<bool>("add processor rank to sensor files",false);
+  if (addproc) {
+    if (objectives[objID].sensor_points_file.ends_with(".dat")) {
+      objectives[objID].sensor_points_file.resize(objectives[objID].sensor_points_file.size() - 4);
+    }
+    std::stringstream sfile;
+    sfile << objectives[objID].sensor_points_file << "." << Comm->getRank() << ".dat";
+    objectives[objID].sensor_points_file = sfile.str();
+  
+    if (objectives[objID].sensor_data_file != "") {
+      if (objectives[objID].sensor_data_file.ends_with(".dat")) {
+        objectives[objID].sensor_data_file.resize(objectives[objID].sensor_points_file.size() - 4);
+      }
+      
+      std::stringstream sfile2;
+      sfile2 << objectives[objID].sensor_data_file << "." << Comm->getRank() << ".dat";
+      objectives[objID].sensor_data_file = sfile2.str();
+    }
+  }
+  
   if (objectives[objID].sensor_data_file == "")
   {
     sdata = Data("Sensor Measurements", dimension,
@@ -370,7 +391,7 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int &objID)
   Kokkos::View<int *[2], HostDevice> spts_owners("sensor owners", spts_host.extent(0));
   Kokkos::View<bool *, HostDevice> spts_found("sensors found", spts_host.extent(0));
 
-  this->locateSensorPoints(block, spts_host, spts_owners, spts_found);
+  this->locateSensorPoints(block, true, spts_host, spts_owners, spts_found);
 
   // ========================================
   // Determine the number of sensors on this proc
@@ -551,7 +572,7 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int &objID)
   Kokkos::View<int *[2], HostDevice> spts_owners("sensor owners", spts_host.extent(0));
   Kokkos::View<bool *, HostDevice> spts_found("sensors found", spts_host.extent(0));
 
-  this->locateSensorPoints(block, spts_host, spts_owners, spts_found);
+  this->locateSensorPoints(block, true, spts_host, spts_owners, spts_found);
 
   // ========================================
   // Determine the number of sensors on this proc
@@ -616,6 +637,211 @@ void PostprocessManager<Node>::importSensorsOnGrid(const int &objID)
 
   debugger->print("**** Finished SensorManager::importSensorsOnGrid() ...");
 }
+
+// ========================================================================================
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::importSensorsOnQuadrature(const int &objID)
+{
+
+  debugger->print("**** Starting PostprocessManager::importSensorsOnQuadrature() ...");
+
+  size_t block = objectives[objID].block;
+
+  // ========================================
+  // Import the data from the files
+  // ========================================
+
+  
+  // ========================================
+  // Save the locations in the appropriate view
+  // ========================================
+
+  View_Sc2 qdata = assembler->getQuadratureData(blocknames[block]); // [pts wts]
+  
+  Kokkos::View<double **, HostDevice> spts_host("sensor points", qdata.extent(0), qdata.extent(1)-1); // strip off wts
+  for (size_t i=0; i<qdata.extent(0); ++i) {
+    for (size_t j=0; j<qdata.extent(1)-1; ++j) {
+      spts_host(i,j) = qdata(i,j);
+    }
+  }
+  // ========================================
+  // For now assuming we don't have data to match
+  // ========================================
+
+  // ========================================
+  // Determine which element contains each sensor point
+  // This is not needed since we already know the owners
+  // ========================================
+
+  Kokkos::View<int *[2], HostDevice> spts_owners("sensor owners", spts_host.extent(0));
+  Kokkos::View<bool *, HostDevice> spts_found("sensors found", spts_host.extent(0));
+
+  this->locateSensorPoints(block, false, spts_host, spts_owners, spts_found);
+
+  // ========================================
+  // Determine the number of sensors on this proc
+  // ========================================
+
+  size_t numFound = 0;
+  for (size_type pt = 0; pt < spts_found.extent(0); ++pt) {
+    if (spts_found(pt)) {
+      numFound++;
+    }
+    else {
+      //cout << spts_host(pt,0) << " " << spts_host(pt,1) << endl;
+    }
+  }
+  if (numFound != qdata.extent(0)) {
+    // throw an error
+  }
+  objectives[objID].numSensors = numFound;
+  objectives[objID].sensor_found = spts_found;
+  
+  if (numFound > 0) {
+
+    // ========================================
+    // Create and store more compact Views based on number of sensors on this proc
+    // ========================================
+
+    Kokkos::View<ScalarT **, AssemblyDevice> spts("sensor point", numFound, dimension);
+    Kokkos::View<ScalarT *, AssemblyDevice> stime;
+    Kokkos::View<ScalarT **, AssemblyDevice> sdat;
+    Kokkos::View<int *[2], HostDevice> sowners("sensor owners", numFound);
+
+    auto spts_tmp = create_mirror_view(spts);
+    
+    size_t prog = 0;
+
+    for (size_type pt = 0; pt < spts_host.extent(0); ++pt) {
+      if (spts_found(pt)) {
+        for (size_type j = 0; j < sowners.extent(1); ++j) {
+          sowners(prog, j) = spts_owners(pt, j);
+        }
+        for (size_type j = 0; j < spts.extent(1); ++j) {
+          spts_tmp(prog, j) = spts_host(pt, j);
+        }
+        prog++;
+      }
+    }
+    deep_copy(spts, spts_tmp);
+
+    objectives[objID].sensor_points = spts;
+    objectives[objID].sensor_times = stime;
+    //objectives[objID].sensor_data = sdat;
+    objectives[objID].sensor_owners = sowners;
+
+    // ========================================
+    // Evaluate the basis functions and grads for each sensor point
+    // ========================================
+
+    this->computeSensorBasis(objID);
+  }
+
+  debugger->print("**** Finished SensorManager::importSensorsOnQuadrature() ...");
+}
+
+// ========================================================================================
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::importSensorsOnBndryQuadrature(const int &objID)
+{
+
+  debugger->print("**** Starting PostprocessManager::importSensorsOnBndryQuadrature() ...");
+
+  size_t block = objectives[objID].block;
+  string sidename = objectives[objID].sideset;
+  
+  int sidenum = -1;
+  for (size_t side=0; side<sideSets.size(); ++side) {
+    if (sideSets[side] == sidename) {
+      sidenum = side;
+    }
+  }
+  View_Sc2 qdata = assembler->getboundaryQuadratureData(blocknames[block], sideSets[sidenum]); // [pts wts normals]
+  
+  Kokkos::View<double **, HostDevice> spts_host("sensor points", qdata.extent(0), qdata.extent(1)-dimension-1); // strip off wts
+  for (size_t i=0; i<qdata.extent(0); ++i) {
+    for (size_t j=0; j<qdata.extent(1)-dimension-1; ++j) {
+      spts_host(i,j) = qdata(i,j);
+    }
+  }
+  
+  // ========================================
+  // For now assuming we don't have data to match
+  // ========================================
+
+  // ========================================
+  // Determine which element contains each sensor point
+  // This is not needed since we already know the owners
+  // ========================================
+
+  Kokkos::View<int *[2], HostDevice> spts_owners("sensor owners", spts_host.extent(0));
+  Kokkos::View<bool *, HostDevice> spts_found("sensors found", spts_host.extent(0));
+
+  this->locateSensorPoints(block, false, spts_host, spts_owners, spts_found);
+
+  // ========================================
+  // Determine the number of sensors on this proc
+  // ========================================
+
+  size_t numFound = 0;
+  for (size_type pt = 0; pt < spts_found.extent(0); ++pt) {
+    if (spts_found(pt)) {
+      numFound++;
+    }
+  }
+  if (numFound != qdata.extent(0)) {
+    // throw an error
+  }
+  objectives[objID].numSensors = numFound;
+  objectives[objID].sensor_found = spts_found;
+
+  if (numFound > 0) {
+
+    // ========================================
+    // Create and store more compact Views based on number of sensors on this proc
+    // ========================================
+
+    Kokkos::View<ScalarT **, AssemblyDevice> spts("sensor point", numFound, dimension);
+    Kokkos::View<ScalarT *, AssemblyDevice> stime;
+    Kokkos::View<ScalarT **, AssemblyDevice> sdat;
+    Kokkos::View<int *[2], HostDevice> sowners("sensor owners", numFound);
+
+    auto spts_tmp = create_mirror_view(spts);
+    
+    size_t prog = 0;
+
+    for (size_type pt = 0; pt < spts_host.extent(0); ++pt) {
+      if (spts_found(pt)) {
+        for (size_type j = 0; j < sowners.extent(1); ++j) {
+          sowners(prog, j) = spts_owners(pt, j);
+        }
+        for (size_type j = 0; j < spts.extent(1); ++j) {
+          spts_tmp(prog, j) = spts_host(pt, j);
+        }
+        prog++;
+      }
+    }
+    deep_copy(spts, spts_tmp);
+
+    objectives[objID].sensor_points = spts;
+    objectives[objID].sensor_times = stime;
+    //objectives[objID].sensor_data = sdat;
+    objectives[objID].sensor_owners = sowners;
+
+    // ========================================
+    // Evaluate the basis functions and grads for each sensor point
+    // ========================================
+
+    this->computeSensorBasis(objID);
+  }
+
+  debugger->print("**** Finished SensorManager::importSensorsOnBndryQuadrature() ...");
+}
+
 
 // ========================================================================================
 // ========================================================================================
@@ -737,7 +963,8 @@ void PostprocessManager<Node>::computeSensorBasis(const int &objID)
 // ========================================================================================
 
 template <class Node>
-void PostprocessManager<Node>::locateSensorPoints(const int &block,
+void PostprocessManager<Node>::locateSensorPoints(const int & block,
+                                                  const bool & checkprocs,
                                                   Kokkos::View<ScalarT **, HostDevice> spts_host,
                                                   Kokkos::View<int *[2], HostDevice> spts_owners,
                                                   Kokkos::View<bool *, HostDevice> spts_found)
@@ -834,9 +1061,9 @@ void PostprocessManager<Node>::locateSensorPoints(const int &block,
             }
             else
             {
-              // cout << "Sensor was in bounding box, but not in element: " << endl;
-              // KokkosTools::print(phys_pt);
-              // KokkosTools::print(cnodes);
+              //cout << "Sensor was in bounding box, but not in element: " << endl;
+              //KokkosTools::print(phys_pt);
+              //KokkosTools::print(nodes);
             }
           }
         }
@@ -844,17 +1071,18 @@ void PostprocessManager<Node>::locateSensorPoints(const int &block,
     } // pt
   } // elem
 
-  
-  for (size_type pt = 0; pt < spts_found.extent(0); ++pt) {
-    size_t fnd_flag = Comm->getSize()+1;
-    if (spts_found(pt))
-    {
-      fnd_flag = Comm->getRank();
-    }
-    size_t globalFound = 0;
-    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MIN, 1, &fnd_flag, &globalFound);
-    if (Comm->getRank() != globalFound) {
-      spts_found(pt) = false;
+  if (checkprocs) {
+    for (size_type pt = 0; pt < spts_found.extent(0); ++pt) {
+      size_t fnd_flag = Comm->getSize()+1;
+      if (spts_found(pt))
+      {
+        fnd_flag = Comm->getRank();
+      }
+      size_t globalFound = 0;
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MIN, 1, &fnd_flag, &globalFound);
+      if (Comm->getRank() != globalFound) {
+        spts_found(pt) = false;
+      }
     }
   }
   
