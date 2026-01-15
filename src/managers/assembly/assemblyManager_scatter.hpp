@@ -27,7 +27,7 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
   
   auto fixedDOF = isFixedDOF[set];
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   
@@ -86,7 +86,7 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
   
   auto fixedDOF = isFixedDOF[0];
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   
@@ -189,7 +189,7 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
 #endif
   
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   
@@ -303,7 +303,7 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
   auto numDOF = groupData[block]->num_dof;
   
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   

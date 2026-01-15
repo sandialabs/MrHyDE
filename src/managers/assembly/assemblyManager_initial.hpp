@@ -41,7 +41,7 @@ void AssemblyManager<Node>::setInitial(const size_t & set, vector_RCP & rhs, mat
   using namespace std;
   
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   

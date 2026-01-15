@@ -131,15 +131,11 @@ void PostprocessManager<Node>::report()
               int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
               numfields = numsols * numdims;
               sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, numfields, numfreq);
-              for (size_t t = 0; t < numfreq; ++t)
-              {
-                for (int sens = 0; sens < numsensors; ++sens)
-                {
+              for (size_t t = 0; t < numfreq; ++t) {
+                for (int sens = 0; sens < numsensors; ++sens) {
                   size_t solprog = 0;
-                  for (int sol = 0; sol < numsols; ++sol)
-                  {
-                    for (int d = 0; d < numdims; ++d)
-                    {
+                  for (int sol = 0; sol < numsols; ++sol) {
+                    for (int d = 0; d < numdims; ++d) {
                       sensor_data(sens, solprog, t) = dft_data(sens, sol, d, t).real();
                       solprog++;
                     }

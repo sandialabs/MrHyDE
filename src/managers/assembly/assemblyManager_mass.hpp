@@ -22,7 +22,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
   
   typedef typename Node::execution_space LA_exec;
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   bool compute_matrix = true;
@@ -291,7 +291,7 @@ void AssemblyManager<Node>::getParamMass(matrix_RCP & mass,
   
   typedef typename Node::execution_space LA_exec;
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   bool compute_matrix = true;
@@ -556,7 +556,7 @@ void AssemblyManager<Node>::applyMassMatrixFree(const size_t & set, const vector
   
   typedef typename Node::execution_space LA_exec;
   bool use_atomics_ = false;
-  if (LA_exec::concurrency() > 1) {
+  if (LA_exec().concurrency() > 1) {
     use_atomics_ = true;
   }
   

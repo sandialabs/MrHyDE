@@ -85,7 +85,7 @@ int main(int argc, char * argv[]) {
     
     //Kokkos::View<ScalarT***,AssemblyDevice> rJdiff("error",numElem,numdof,numDerivs+1);
    
-    int scratch_concurrency = std::min(AssemblyExec::concurrency(),numElem);
+    int scratch_concurrency = std::min(AssemblyExec().concurrency(),numElem);
     
     Kokkos::View<EvalT***,CL,AssemblyDevice> scratch("scratch vals",scratch_concurrency,numip,3);
 
