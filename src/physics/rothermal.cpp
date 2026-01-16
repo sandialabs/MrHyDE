@@ -132,7 +132,7 @@ rothermal<EvalT>::getElementIds(Teuchos::RCP<Workset<EvalT> > & wkset)
   auto y = wkset->getScalarField("y");
 
   Kokkos::parallel_for("map_ws_to_exo", RangePolicy<AssemblyExec>(0, numElem),
-    KOKKOS_LAMBDA(int e){
+    MRHYDE_LAMBDA(int e){
       const ScalarT X = x(e,0);
       const ScalarT Y = y(e,0);
       int i = (int)floor((X - meshData.x0)/meshData.dx);  if (i<0) i=0; if (i>=meshData.nx) i=meshData.nx-1;
@@ -286,7 +286,7 @@ rothermal<EvalT>::computeFields(
     // loop over elements
     Kokkos::parallel_for("rothermal computeFields",
         Kokkos::RangePolicy<AssemblyExec>(0, numElem),
-        KOKKOS_LAMBDA(const int elem)
+        MRHYDE_LAMBDA(const int elem)
     {
         
         // get element id
