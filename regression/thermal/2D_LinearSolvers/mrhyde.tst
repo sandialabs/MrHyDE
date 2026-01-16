@@ -55,6 +55,7 @@ status += its.call('mpiexec -n 1 ../../mrhyde inputPseudoBlockStochasticCG.yaml 
 status += its.call('mpiexec -n 1 ../../mrhyde inputPseudoBlockTFQMR.yaml >> mrhyde.log')
 status += its.call('mpiexec -n 1 ../../mrhyde inputRCG.yaml >> mrhyde.log')
 status += its.call('mpiexec -n 1 ../../mrhyde inputTFQMR.yaml >> mrhyde.log')
+status += its.call('mpiexec -n 1 ../../mrhyde inputBlockGmres_Ifpack2.yaml >> mrhyde.log')
 status += its.call('diff -y %s.log %s.gold' % (root, root))
 
 

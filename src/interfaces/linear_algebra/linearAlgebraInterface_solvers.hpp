@@ -51,7 +51,7 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<LinearSolverContext
       else if (cntxt->prec_type == "Ifpack2") {
         if (!cntxt->reuse_preconditioner || !cntxt->have_preconditioner) {
           Teuchos::ParameterList & ifpackList = cntxt->prec_sublist;//settings->sublist("Solver").sublist(cntxt->prec_sublist);
-          string method = ifpackList.get("preconditioner variant","RELAXATION");//settings->sublist("Solver").get("preconditioner variant","RELAXATION");
+          string method = settings->sublist("Solver").get("preconditioner variant","RELAXATION");
           // TMW: keeping these here for reference, but these can be set from input file
           //ifpackList.set("relaxation: type","Symmetric Gauss-Seidel");
           //ifpackList.set("relaxation: sweeps",1);
