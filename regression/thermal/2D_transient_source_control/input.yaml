@@ -30,7 +30,8 @@ ANONYMOUS:
     max nonlinear iters: 4
     final time: 1.0
     number of steps: 10
-  Postprocess: 
+    reuse Jacobian: true
+  Postprocess:
     response type: global
     compute objective: true
     Objective functions:

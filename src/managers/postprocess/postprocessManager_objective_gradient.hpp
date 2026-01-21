@@ -1668,6 +1668,8 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> &u,
 {
 
   Teuchos::TimeMonitor localtimer(*computeDiscreteGradientTimer);
+  debugger->print(1, "******** Starting PostprocessManager::computeDiscreteSensitivities ...");
+
   int set = 0; // hard-coded for now
 
   typedef Tpetra::CrsMatrix<ScalarT, LO, GO, Node> LA_CrsMatrix;
@@ -1710,6 +1712,8 @@ PostprocessManager<Node>::computeDiscreteSensitivities(vector<vector_RCP> &u,
   adj->doExport(*(adjoint[set]), *(linalg->exporter[set]), Tpetra::REPLACE);
   J->apply(*adj, *gradient);
 
+  debugger->print(1, "******** Finished PostprocessManager::computeDiscreteSensitivities ...");
+  
   return gradient;
 }
 

@@ -551,16 +551,20 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         
         if (isTransient) {
           // Fill in prev_mass_adjoints[:][0] - need to create new vectors since these are RCPs
+          bool build_prev_jacobian = !linalg->getPrevJacobianReuse(set);
+          
           vector<matrix_RCP> Jprev = linalg->getNewPreviousMatrix(set, phi_prev.size());
-          for (size_t step=0; step<phi_prev.size(); ++step) {
+          
+          if (build_prev_jacobian) {
             
-            if (build_jacobian) {
+            for (size_t step=0; step<phi_prev.size(); ++step) {
               auto paramvec = params->getDiscretizedParamsOver();
               auto paramdot = params->getDiscretizedParamsDotOver();
               matrix_RCP currJ = Jprev[step];
               matrix_RCP currJ_over = linalg->getNewOverlappedMatrix(set);
               linalg->fillComplete(currJ_over);
               currJ_over->resumeFill();
+              currJ->setAllToScalar(0.0);
               currJ_over->setAllToScalar(0.0);
               auto dummy_res_over = linalg->getNewOverlappedVector(set);
               assembler->assembleJacRes(set, stage, sol, sol_stage, sol_prev, phi, phi_stage, phi_prev, build_jacobian, false, false, true, step,
@@ -571,7 +575,10 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
               linalg->exportMatrixFromOverlapped(set, currJ, currJ_over);
               linalg->fillComplete(currJ);
             }
-            
+          }
+          
+          for (size_t step=0; step<phi_prev.size(); ++step) {
+          
             auto mvprod = linalg->getNewVector(set);
             auto phip_owned = linalg->getNewVector(set);
             

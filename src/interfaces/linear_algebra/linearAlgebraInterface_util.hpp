@@ -35,6 +35,24 @@ bool LinearAlgebraInterface<Node>::getJacobianReuse(const size_t & set) {
 // ========================================================================================
 
 template<class Node>
+bool LinearAlgebraInterface<Node>::getPrevJacobianReuse(const size_t & step) {
+  bool reuse = true;
+  if (context_prev.size() == 0) {
+    reuse = false;
+  }
+  else {
+    for (size_t set=0; set<context_prev[step].size(); ++set) {
+      if (!context_prev[step][set]->reuse_matrix || !context_prev[step][set]->have_matrix) {
+        reuse = false;
+      }
+    }
+  }
+  return reuse;
+}
+
+// ========================================================================================
+
+template<class Node>
 bool LinearAlgebraInterface<Node>::getParamJacobianReuse() {
   bool reuse = false;
   if (context_param->reuse_matrix && context_param->have_matrix) {
@@ -103,6 +121,7 @@ void LinearAlgebraInterface<Node>::resetAllJacobian() {
   this->resetL2Jacobian();
   this->resetBndryL2Jacobian();
   this->resetParamJacobian();
+  this->resetParamStateJacobian();
   this->resetPrevJacobian();
 }
 

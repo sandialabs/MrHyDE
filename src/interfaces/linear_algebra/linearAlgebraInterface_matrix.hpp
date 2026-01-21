@@ -117,6 +117,7 @@ vector<Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > > LinearAlgebraInter
         matrix_RCP M = Teuchos::rcp(new LA_CrsMatrix(owned_map[set], max_entries));
         newmat.push_back(M);
         context_prev[k][set]->matrix = M;
+        context_prev[k][set]->have_matrix = true;
       }
     }
     else {
