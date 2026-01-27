@@ -118,7 +118,7 @@ namespace MrHyDE {
         compute_sensor_average_soln = objsettings.get<bool>("compute sensor average solution",false);
         output_type = objsettings.get<string>("output type",""); // "fft" for fft output
         dft_current = 0;
-        if (output_type == "dft") {
+        if (output_type == "dft" || output_type == "integrated dft") {
           // logic and setup for a subset of frequencies ...
           dft_num_freqs = objsettings.get<int>("number of dft frequencies");
         }
