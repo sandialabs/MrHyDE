@@ -19,9 +19,13 @@ template<class EvalT>
 rothermal<EvalT>::rothermal(Teuchos::ParameterList& p)
   : rothermalSettings_(p)
 {
+  std::cout << "Entering rothermalt<>::constructor()" << std::endl;  
+
   initScalars();         // constants and hyperparameters
   initParameterFields(); // fuel and slope parameter fields
   getMeshData();         // mesh data: used to normalize the problem
+
+  std::cout << "Leaving rothermalt<>::constructor()" << std::endl;  
 }
 
 

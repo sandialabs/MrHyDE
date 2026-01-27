@@ -22,7 +22,8 @@ template<class EvalT>
 levelSet<EvalT>::levelSet(Teuchos::ParameterList & settings, const int & dimension_)
   : PhysicsBase<EvalT>(settings, dimension_)
 {
-  
+  std::cout << "Entering levelSet<>::constructor()" << std::endl;  
+
   label = "levelSet";
 
   settings_ = settings;
@@ -32,11 +33,15 @@ levelSet<EvalT>::levelSet(Teuchos::ParameterList & settings, const int & dimensi
 
   // in the case rothermal is true, instiatinite rothermal object and pass settings
   useRothermal = settings.get<bool>("use rothermal",false);
+  std::cout << "In levelSet<>::constructor()"
+            << ": useRothermal = " << useRothermal
+            << std::endl;  
   if (useRothermal) {
     auto & rothermalSettings = settings.sublist("rothermal");
     rothermal_ = Teuchos::rcp(new rothermal<EvalT>(rothermalSettings));
   }
 
+  std::cout << "Leaving levelSet<>::constructor()" << std::endl;  
 }
 
 // ========================================================================================
@@ -48,13 +53,15 @@ void levelSet<EvalT>::defineFunctions(
   Teuchos::RCP<FunctionManager<EvalT> > & functionManager_
 )
 {
-  
+  std::cout << "Entering levelSet<>::defineFunctions()" << std::endl;  
+
   functionManager = functionManager_;
 
   functionManager->addFunction("beta",fs.get<string>("beta","0.1"),"ip");
   functionManager->addFunction("xvel",fs.get<string>("xvel","1.0"),"ip");
   functionManager->addFunction("yvel",fs.get<string>("yvel","1.0"),"ip");
-  
+
+  std::cout << "Leaving levelSet<>::defineFunctions()" << std::endl;  
 }
 
 // ========================================================================================
@@ -63,6 +70,8 @@ void levelSet<EvalT>::defineFunctions(
 template<class EvalT>
 typename levelSet<EvalT>::template FuncData<EvalT> levelSet<EvalT>::prepareFunctions()
 {
+    //std::cout << "Entering levelSet<>::prepareFunctions()" << std::endl;  
+
     FuncData<EvalT> funcData;
 
     {
@@ -73,6 +82,8 @@ typename levelSet<EvalT>::template FuncData<EvalT> levelSet<EvalT>::prepareFunct
       
     }
 
+    //std::cout << "Leaving levelSet<>::prepareFunctions()" << std::endl;  
+
     return funcData;
 }
 
@@ -82,6 +93,7 @@ typename levelSet<EvalT>::template FuncData<EvalT> levelSet<EvalT>::prepareFunct
 template<class EvalT>
 typename levelSet<EvalT>::template FieldData<EvalT> levelSet<EvalT>::prepareFields()
 {
+    //std::cout << "Entering levelSet<>::prepareFields()" << std::endl;  
 
     FieldData<EvalT> fieldData;
 
@@ -90,6 +102,8 @@ typename levelSet<EvalT>::template FieldData<EvalT> levelSet<EvalT>::prepareFiel
     fieldData.dphi_dx = wkset->getSolutionField("grad(phi)[x]");
     fieldData.dphi_dy = wkset->getSolutionField("grad(phi)[y]");
     fieldData.off     = Kokkos::subview(wkset->offsets, phinum, Kokkos::ALL());
+
+    //std::cout << "Leaving levelSet<>::prepareFields()" << std::endl;  
 
     return fieldData;
 }
@@ -100,6 +114,7 @@ typename levelSet<EvalT>::template FieldData<EvalT> levelSet<EvalT>::prepareFiel
 template<class EvalT>
 void levelSet<EvalT>::volumeResidual()
 {
+  std::cout << "Entering levelSet<>::volumeResidual()" << std::endl;  
 
   // prepare functions and fields
   auto funcs = prepareFunctions();
@@ -244,6 +259,8 @@ void levelSet<EvalT>::volumeResidual()
       }
     }
   });
+
+  //std::cout << "Leaving levelSet<>::volumeResidual()" << std::endl;  
 }
 
 // ========================================================================================
@@ -285,6 +302,8 @@ KOKKOS_FUNCTION EvalT levelSet<EvalT>::computeTau(
 template<class EvalT>
 std::vector<std::string> levelSet<EvalT>::getDerivedNames()
 {
+  std::cout << "Entering levelSet<>::getDerivedNames()" << std::endl;  
+
   std::vector<std::string> names;
   names.push_back("gradNorm");
   if (useRothermal) {
@@ -297,6 +316,9 @@ std::vector<std::string> levelSet<EvalT>::getDerivedNames()
     names.push_back("slopeCorrection");
     names.push_back("Hphi");
   }
+
+  std::cout << "Leaving levelSet<>::getDerivedNames()" << std::endl;  
+
   return names;
 }
 
@@ -307,6 +329,7 @@ template<class EvalT>
 std::vector<typename levelSet<EvalT>::View_EvalT2>
 levelSet<EvalT>::getDerivedValues()
 {
+  std::cout << "Entering levelSet<>::getDerivedValues()" << std::endl;  
 
   // initialize vector of derived values
   std::vector<View_EvalT2> vals;
@@ -361,6 +384,8 @@ levelSet<EvalT>::getDerivedValues()
     vals.push_back(F.slopeCorrection);
     vals.push_back(F.Hphi);
   }
+
+  std::cout << "Leaving levelSet<>::getDerivedValues()" << std::endl;  
 
   return vals;
 }

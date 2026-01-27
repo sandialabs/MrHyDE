@@ -11,13 +11,19 @@
 
 void AnalysisManager::run()
 {
-
+  std::cout << "EEP Entering AnalysisManager::run()" << std::endl;
+  
   debugger_->print("**** Starting AnalysisManager::run ...");
 
   std::string analysis_type = settings_->sublist("Analysis").get<string>("analysis type", "forward");
+  std::cout << "EEP In AnalysisManager::run()"
+            << ": analysis_type = " << analysis_type
+            << std::endl;
   this->run(analysis_type);
 
   debugger_->print("**** Finished analysis::run");
+
+  std::cout << "EEP Leaving AnalysisManager::run()" << std::endl;
 }
 
 // ========================================================================================

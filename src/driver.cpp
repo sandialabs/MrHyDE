@@ -29,7 +29,9 @@ int main(int argc,char * argv[]) {
 #else
   EPIC_FAIL // MRHYDE requires MPI for HostDevice
 #endif
-  
+
+  std::cout << "EEP Entering main()" << std::endl;
+
   using namespace MrHyDE;
   
   int verbosity = 0;
@@ -188,7 +190,9 @@ int main(int argc,char * argv[]) {
         }
         
       }
-      
+
+      std::cout << "EEP In main(): pos 001" << std::endl;
+
       assembler->setMeshData();
       solve->completeSetup();
       postproc->linalg = solve->linalg;
@@ -209,10 +213,14 @@ int main(int argc,char * argv[]) {
       ////////////////////////////////////////////////////////////////////////////////
       // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
       ////////////////////////////////////////////////////////////////////////////////
+
+      std::cout << "EEP In main(): pos 002" << std::endl;
       
       Teuchos::RCP<AnalysisManager> analysis = Teuchos::rcp( new AnalysisManager(Comm, settings,
                                                                                  solve, postproc, params) );
       
+      std::cout << "EEP In main(): pos 003" << std::endl;
+
       // Make sure all processes are caught up at this point
       Kokkos::fence();
       Comm->barrier();
@@ -225,12 +233,15 @@ int main(int argc,char * argv[]) {
           std::cout << "*********************************************" << std::endl;
         }
       }
+
+      std::cout << "EEP In main(): pos 004 (about to call analysis->run())" << std::endl;
       
       {
         Teuchos::TimeMonitor rtimer(*runTimer);
         analysis->run();
       }
       
+      std::cout << "EEP In main(): pos 005 (just returned from analysis->run())" << std::endl;
     }
     
     
@@ -252,4 +263,5 @@ int main(int argc,char * argv[]) {
   
   Kokkos::finalize();
   
+  std::cout << "EEP Leaving main()" << std::endl;
 }
