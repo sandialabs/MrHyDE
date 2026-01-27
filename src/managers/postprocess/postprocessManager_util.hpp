@@ -158,6 +158,10 @@ void PostprocessManager<Node>::report()
               ScalarT k0 = settings->sublist("Postprocess").get("NF2FF wave number", 0.0);
               ScalarT N0 = settings->sublist("Postprocess").get("NF2FF freespace impedence", 0.0);
               
+              ScalarT EPx = settings->sublist("Postprocess").get("NF2FF planewave EPx", 0.0);
+              ScalarT EPy = settings->sublist("Postprocess").get("NF2FF planewave EPy", 0.0);
+              ScalarT EPz = settings->sublist("Postprocess").get("NF2FF planewave EPz", 0.0);
+              
               // Create the vectors of PHI and THETA
               vector<ScalarT> THETA(numtheta), PHI(numphi);
               if (numtheta>1) {
@@ -264,16 +268,30 @@ void PostprocessManager<Node>::report()
                 }
               }
                */
-              //sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, 7, numfreq*numtheta*numphi);
-              /*
+              Kokkos::View<ScalarT **, HostDevice> sdat("sensor data", numfreq*numtheta*numphi, 7);
+              
               ScalarT r = 1.0; // distance into the far field
-              int prog = 0;
+              prog = 0;
+              ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*N0);
               for (size_t t=0; t<numfreq; ++t) {
                 for (int nt=0; nt<numtheta; ++nt) {
                   for (int np=0; np<numphi; ++np) {
+                    sdat(prog,0) = k0/(4*PI*r)*std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np));
+                    sdat(prog,1) = k0/(4*PI*r)*std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np));
+                    
+                    sdat(prog,2) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2);
+                    sdat(prog,3) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2);
+                    
+                    sdat(prog,4) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_ph(t,nt,np) + N0*A_th(t,nt,np)),2);
+                    sdat(prog,5) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_th(t,nt,np) - N0*A_ph(t,nt,np)),2);
+                    sdat(prog,6) = sdat(prog,4) + sdat(prog,5);
+                    ++prog;
                   }
                 }
               }
+              
+              
+              /*
               DAT.Eth = k0./(4*pi*r)*abs(N0.*A_th + F_ph);
               DAT.Eph = k0./(4*pi*r)*abs(N0.*A_ph - F_th);
 
@@ -290,6 +308,39 @@ void PostprocessManager<Node>::report()
               DAT.RCSph = k0^2/(8*pi*N0*Pinc).*(abs(F_th - N0.*A_ph).^2);
               DAT.RCStot = DAT.RCSth + DAT.RCSph;
               */
+              
+              std::stringstream ss;
+              ss << Comm->getRank();
+              string respfile = "integrated_dft_calc." + ss.str() + ".csv";
+              std::ofstream respOUT;
+              
+              bool is_open = false;
+              int attempts = 0;
+              int max_attempts = 100;
+              while (!is_open && attempts < max_attempts) {
+                respOUT.open(respfile);
+                is_open = respOUT.is_open();
+                attempts++;
+              }
+              respOUT.precision(8);
+              
+              prog = 0;
+              for (size_t t=0; t<numfreq; ++t) {
+                for (int nt=0; nt<numtheta; ++nt) {
+                  for (int np=0; np<numphi; ++np) {
+                    respOUT << sdat(prog,0) << ",  ";
+                    respOUT << sdat(prog,1) << ",  ";
+                    respOUT << sdat(prog,2) << ",  ";
+                    respOUT << sdat(prog,3) << ",  ";
+                    respOUT << sdat(prog,4) << ",  ";
+                    respOUT << sdat(prog,5) << ",  ";
+                    respOUT << sdat(prog,6) << ",  ";
+                    respOUT << endl;
+                    ++prog;
+                  }
+                }
+              }
+              respOUT.close();
             }
             else
             {
