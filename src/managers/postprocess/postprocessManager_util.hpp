@@ -152,7 +152,7 @@ void PostprocessManager<Node>::report()
               int numtheta = settings->sublist("Postprocess").get("NF2FF number theta", 1);
               ScalarT mintheta = settings->sublist("Postprocess").get("NF2FF min theta", 0.0);
               ScalarT maxtheta = settings->sublist("Postprocess").get("NF2FF max theta", 0.0);
-              int numphi = settings->sublist("Postprocess").get("NF2FF number theta", 1);
+              int numphi = settings->sublist("Postprocess").get("NF2FF number phi", 1);
               ScalarT minphi = settings->sublist("Postprocess").get("NF2FF min phi", 0.0);
               ScalarT maxphi = settings->sublist("Postprocess").get("NF2FF max phi", 0.0);
               ScalarT k0 = settings->sublist("Postprocess").get("NF2FF wave number", 0.0);
