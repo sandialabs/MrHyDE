@@ -149,18 +149,18 @@ void PostprocessManager<Node>::report()
               auto dft_data = objectives[obj].sensor_solution_dft;
               
               // Grab some parameters from settings
-              int numtheta = settings->sublist("Postprocess").get("NF2FF number theta", 1);
-              ScalarT mintheta = settings->sublist("Postprocess").get("NF2FF min theta", 0.0);
-              ScalarT maxtheta = settings->sublist("Postprocess").get("NF2FF max theta", 0.0);
-              int numphi = settings->sublist("Postprocess").get("NF2FF number phi", 1);
-              ScalarT minphi = settings->sublist("Postprocess").get("NF2FF min phi", 0.0);
-              ScalarT maxphi = settings->sublist("Postprocess").get("NF2FF max phi", 0.0);
-              ScalarT k0 = settings->sublist("Postprocess").get("NF2FF wave number", 0.0);
-              ScalarT N0 = settings->sublist("Postprocess").get("NF2FF freespace impedence", 0.0);
+              int numtheta = settings->sublist("Postprocess").sublist("NF2FF").get("number theta", 1);
+              ScalarT mintheta = settings->sublist("Postprocess").sublist("NF2FF").get("min theta", 0.0);
+              ScalarT maxtheta = settings->sublist("Postprocess").sublist("NF2FF").get("max theta", 0.0);
+              int numphi = settings->sublist("Postprocess").sublist("NF2FF").get("number phi", 1);
+              ScalarT minphi = settings->sublist("Postprocess").sublist("NF2FF").get("min phi", 0.0);
+              ScalarT maxphi = settings->sublist("Postprocess").sublist("NF2FF").get("max phi", 0.0);
+              ScalarT k0 = settings->sublist("Postprocess").sublist("NF2FF").get("wave number", 0.0);
+              ScalarT N0 = settings->sublist("Postprocess").sublist("NF2FF").get("freespace impedence", 0.0);
               
-              ScalarT EPx = settings->sublist("Postprocess").get("NF2FF planewave EPx", 0.0);
-              ScalarT EPy = settings->sublist("Postprocess").get("NF2FF planewave EPy", 0.0);
-              ScalarT EPz = settings->sublist("Postprocess").get("NF2FF planewave EPz", 0.0);
+              ScalarT EPx = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPx", 0.0);
+              ScalarT EPy = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPy", 0.0);
+              ScalarT EPz = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPz", 0.0);
               
               // Create the vectors of PHI and THETA
               vector<ScalarT> THETA(numtheta), PHI(numphi);
