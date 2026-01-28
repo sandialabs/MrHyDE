@@ -459,16 +459,16 @@ def smp_testing(opts,listOfTests,doc):
         if fd not in subprocs: continue
         test = subprocs[fd]
         if fd == test.p.stdout.fileno():
-          chunk = os.read(fd,n)
+          chunk = os.read(fd,n).decode('utf-8', errors='replace')
           test.stdout += chunk
           while len(chunk) == n:
-            chunk = os.read(fd,n)
+            chunk = os.read(fd,n).decode('utf-8', errors='replace')
             test.stdout += chunk
         elif fd == test.p.stderr.fileno():
-          chunk = os.read(fd,n)
+          chunk = os.read(fd,n).decode('utf-8', errors='replace')
           test.stderr += chunk
           while len(chunk) == n:
-            chunk = os.read(fd,n)
+            chunk = os.read(fd,n).decode('utf-8', errors='replace')
             test.stderr += chunk
       done_tests = []
       for key in subprocs:
