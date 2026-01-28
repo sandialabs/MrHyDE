@@ -79,8 +79,7 @@ ANONYMOUS:
     analysis type: forward
 
   Postprocess:
-    write solution: true
-    write frequency: 1
+    write solution: false
     compute errors: true
     eblock-0_0_0:
       True solutions:

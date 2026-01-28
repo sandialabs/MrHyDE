@@ -1,0 +1,26 @@
+STK Meta data:
+   Element blocks = "eblock-0_0" 
+   Sidesets = "bottom" "left" "right" "top" 
+   Nodesets = "lower_left" "origin" 
+   Fields = "coordinates" "edges" "PROC_ID" "LOAD_BAL" 
+DOFManager Field Information: 
+   Element Block = eblock-0_0
+      "T" is field ID 0
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.46667
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+
+*********************************************************
+***** Iteration: 1
+***** Norm of nonlinear residual: 8.88178e-16
+***** Scaled Norm of nonlinear residual: 6.05576e-16
+*********************************************************
+Norm of solution: 3.85    (overlapped vector so results may differ on multiple procs)
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for T = 5.11314e-08  (time = 0)
