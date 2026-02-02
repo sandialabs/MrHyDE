@@ -149,18 +149,18 @@ void PostprocessManager<Node>::report()
               auto dft_data = objectives[obj].sensor_solution_dft;
               
               // Grab some parameters from settings
-              int numtheta = settings->sublist("Postprocess").get("NF2FF number theta", 1);
-              ScalarT mintheta = settings->sublist("Postprocess").get("NF2FF min theta", 0.0);
-              ScalarT maxtheta = settings->sublist("Postprocess").get("NF2FF max theta", 0.0);
-              int numphi = settings->sublist("Postprocess").get("NF2FF number theta", 1);
-              ScalarT minphi = settings->sublist("Postprocess").get("NF2FF min phi", 0.0);
-              ScalarT maxphi = settings->sublist("Postprocess").get("NF2FF max phi", 0.0);
-              ScalarT k0 = settings->sublist("Postprocess").get("NF2FF wave number", 0.0);
-              ScalarT N0 = settings->sublist("Postprocess").get("NF2FF freespace impedence", 0.0);
+              int numtheta = settings->sublist("Postprocess").sublist("NF2FF").get("number theta", 1);
+              ScalarT mintheta = settings->sublist("Postprocess").sublist("NF2FF").get("min theta", 0.0);
+              ScalarT maxtheta = settings->sublist("Postprocess").sublist("NF2FF").get("max theta", 0.0);
+              int numphi = settings->sublist("Postprocess").sublist("NF2FF").get("number phi", 1);
+              ScalarT minphi = settings->sublist("Postprocess").sublist("NF2FF").get("min phi", 0.0);
+              ScalarT maxphi = settings->sublist("Postprocess").sublist("NF2FF").get("max phi", 0.0);
+              ScalarT k0 = settings->sublist("Postprocess").sublist("NF2FF").get("wave number", 0.0);
+              ScalarT N0 = settings->sublist("Postprocess").sublist("NF2FF").get("freespace impedence", 0.0);
               
-              ScalarT EPx = settings->sublist("Postprocess").get("NF2FF planewave EPx", 0.0);
-              ScalarT EPy = settings->sublist("Postprocess").get("NF2FF planewave EPy", 0.0);
-              ScalarT EPz = settings->sublist("Postprocess").get("NF2FF planewave EPz", 0.0);
+              ScalarT EPx = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPx", 0.0);
+              ScalarT EPy = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPy", 0.0);
+              ScalarT EPz = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPz", 0.0);
               
               // Create the vectors of PHI and THETA
               vector<ScalarT> THETA(numtheta), PHI(numphi);
@@ -248,6 +248,47 @@ void PostprocessManager<Node>::report()
                 }
                 
               }
+              
+              // The above calculation provides the processor-local contribution to the integrated quantity
+              // Need to sum over all processors to get the global values
+              Teuchos::Array<ScalarT> local_data_A_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_A_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> local_data_A_ph(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_A_ph(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> local_data_F_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_F_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> local_data_F_ph(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_F_ph(numtheta*numphi*numfreq, 0.0);
+              
+              // Just taking the real component for now
+              prog = 0;
+              for (int t=0; t<numfreq; ++t) {
+                for (int nt=0; nt<numtheta; ++nt) {
+                  for (int np=0; np<numphi; ++np) {
+                    local_data_A_th[prog] = A_th(t,nt,np).real();
+                    local_data_A_ph[prog] = A_ph(t,nt,np).real();
+                    local_data_F_th[prog] = F_th(t,nt,np).real();
+                    local_data_F_ph[prog] = F_ph(t,nt,np).real();
+                    ++prog;
+                  }
+                }
+              }
+              
+              const int numentries = numtheta*numphi*numfreq;
+              Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_th[0], &global_data_A_th[0]);
+              
+              prog = 0;
+              for (int t=0; t<numfreq; ++t) {
+                for (int nt=0; nt<numtheta; ++nt) {
+                  for (int np=0; np<numphi; ++np) {
+                    A_th(t,nt,np) = global_data_A_th[prog];
+                    A_ph(t,nt,np) = global_data_A_ph[prog];
+                    F_th(t,nt,np) = global_data_F_th[prog];
+                    F_ph(t,nt,np) = global_data_F_ph[prog];
+                  }
+                }
+              }
+              
               /*
               auto dft_data = objectives[obj].sensor_solution_dft;
               size_type numfreq = dft_data.extent(3);
@@ -268,7 +309,7 @@ void PostprocessManager<Node>::report()
                 }
               }
                */
-              Kokkos::View<ScalarT **, HostDevice> sdat("sensor data", numfreq*numtheta*numphi, 7);
+              Kokkos::View<std::complex<ScalarT>**, HostDevice> sdat("sensor data", numfreq*numtheta*numphi, 7);
               
               ScalarT r = 1.0; // distance into the far field
               prog = 0;
@@ -309,38 +350,39 @@ void PostprocessManager<Node>::report()
               DAT.RCStot = DAT.RCSth + DAT.RCSph;
               */
               
-              std::stringstream ss;
-              ss << Comm->getRank();
-              string respfile = "integrated_dft_calc." + ss.str() + ".csv";
-              std::ofstream respOUT;
-              
-              bool is_open = false;
-              int attempts = 0;
-              int max_attempts = 100;
-              while (!is_open && attempts < max_attempts) {
-                respOUT.open(respfile);
-                is_open = respOUT.is_open();
-                attempts++;
-              }
-              respOUT.precision(8);
-              
-              prog = 0;
-              for (size_t t=0; t<numfreq; ++t) {
-                for (int nt=0; nt<numtheta; ++nt) {
-                  for (int np=0; np<numphi; ++np) {
-                    respOUT << sdat(prog,0) << ",  ";
-                    respOUT << sdat(prog,1) << ",  ";
-                    respOUT << sdat(prog,2) << ",  ";
-                    respOUT << sdat(prog,3) << ",  ";
-                    respOUT << sdat(prog,4) << ",  ";
-                    respOUT << sdat(prog,5) << ",  ";
-                    respOUT << sdat(prog,6) << ",  ";
-                    respOUT << endl;
-                    ++prog;
+              if (Comm->getRank() == 0) {
+                string respfile = "integrated_dft_calc.csv";
+                std::ofstream respOUT;
+                
+                bool is_open = false;
+                int attempts = 0;
+                int max_attempts = 100;
+                while (!is_open && attempts < max_attempts) {
+                  respOUT.open(respfile);
+                  is_open = respOUT.is_open();
+                  attempts++;
+                }
+                respOUT.precision(8);
+                
+                // Just writing the real component for now
+                prog = 0;
+                for (size_t t=0; t<numfreq; ++t) {
+                  for (int nt=0; nt<numtheta; ++nt) {
+                    for (int np=0; np<numphi; ++np) {
+                      respOUT << sdat(prog,0).real() << ",  ";
+                      respOUT << sdat(prog,1).real() << ",  ";
+                      respOUT << sdat(prog,2).real() << ",  ";
+                      respOUT << sdat(prog,3).real() << ",  ";
+                      respOUT << sdat(prog,4).real() << ",  ";
+                      respOUT << sdat(prog,5).real() << ",  ";
+                      respOUT << sdat(prog,6).real() << ",  ";
+                      respOUT << endl;
+                      ++prog;
+                    }
                   }
                 }
+                respOUT.close();
               }
-              respOUT.close();
             }
             else
             {

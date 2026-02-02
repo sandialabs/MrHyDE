@@ -1205,7 +1205,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
         } // sensor points
         // KokkosTools::print(sensordat);
 
-        if (objectives[r].output_type == "dft") {
+        if (objectives[r].output_type == "dft" || objectives[r].output_type == "integrated dft") {
           std::complex<double> imagi(0.0, 1.0);
           int N = objectives[r].dft_num_freqs;
           Kokkos::View<std::complex<double> ****, HostDevice> newdft;
