@@ -3,15 +3,11 @@ STK Meta data:
    Element blocks = "eblock-0_0_0" 
    Sidesets = "back" "bottom" "front" "left" "right" "top" 
    Nodesets = "origin" 
-   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" "Ex" "Ey" "Ez" "Bx" "By" "Bz" 
+   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" 
 DOFManager Field Information: 
    Element Block = eblock-0_0_0
       "E" is field ID 0
       "B" is field ID 1
-
-*********************************************************
-***** Writing the solution to output.exo
-*********************************************************
 
 
 *******************************************************
@@ -31,23 +27,23 @@ DOFManager Field Information:
 
 *********************************************************
 ***** Iteration: 1
-***** Norm of nonlinear residual: 3.57288e-08
-***** Scaled Norm of nonlinear residual: 1.78644e-08
+***** Norm of nonlinear residual: 3.44976e-08
+***** Scaled Norm of nonlinear residual: 1.72488e-08
 *********************************************************
 
 *********************************************************
 ***** Iteration: 2
-***** Norm of nonlinear residual: 3.57288e-08
-***** Scaled Norm of nonlinear residual: 1.78644e-08
+***** Norm of nonlinear residual: 3.44976e-08
+***** Scaled Norm of nonlinear residual: 1.72488e-08
 *********************************************************
-Norm of solution: 1.20221    (overlapped vector so results may differ on multiple procs)
+Norm of solution: 1.08253    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Computing errors ******
 
-***** L2 norm of the error for E = 2.43416e-16  (time = 0)
-***** L2 norm of the error for E = 2.48556e-16  (time = 1e-10)
-***** L2 norm of the error for curl(E) = 2.1725e-15  (time = 0)
-***** L2 norm of the error for curl(E) = 2.1978e-15  (time = 1e-10)
+***** L2 norm of the error for E = 2.54667e-16  (time = 0)
+***** L2 norm of the error for E = 2.53146e-16  (time = 1e-10)
+***** L2 norm of the error for curl(E) = 2.30949e-15  (time = 0)
+***** L2 norm of the error for curl(E) = 2.25341e-15  (time = 1e-10)
 ***** L2 norm of the error for B = 0  (time = 0)
 ***** L2 norm of the error for B = 2e-10  (time = 1e-10)
