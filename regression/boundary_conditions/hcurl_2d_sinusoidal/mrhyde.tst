@@ -26,7 +26,7 @@ root = 'mrhyde'
 
 # These comments are for testing with the runtest.py utility.
 #TESTING active
-#TESTING -n 1
+#TESTING -n 2
 #TESTING -k maxwell,HCURL,Dirichlet,2D,inhomogeneous
 
 # ==============================================================================

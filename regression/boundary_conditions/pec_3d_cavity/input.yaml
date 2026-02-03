@@ -86,7 +86,20 @@ ANONYMOUS:
     number of steps: 10
     initial type: L2-projection
     use preconditioner: true
-    use direct solver: true
+    reuse preconditioner: true
+    right preconditioner: true
+    preconditioner type: Ifpack2
+    preconditioner reuse type: full
+    use direct solver: false
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Preconditioner Settings:
+      "relaxation: type": "Jacobi"
+      "relaxation: damping factor": 0.5
+      "relaxation: backward mode": false
+      "relaxation: sweeps": 2
+    Belos solver: 'BiCGStab'
+    enable autotune: true
 
   Analysis:
     analysis type: forward

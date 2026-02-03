@@ -15,12 +15,12 @@ DOFManager Field Information:
 
 *********************************************************
 ***** Iteration: 1
-***** Norm of nonlinear residual: 8.88178e-16
-***** Scaled Norm of nonlinear residual: 6.05576e-16
+***** Norm of nonlinear residual: 7.04259e-08
+***** Scaled Norm of nonlinear residual: 4.80177e-08
 *********************************************************
-Norm of solution: 3.85    (overlapped vector so results may differ on multiple procs)
+Norm of solution: 3.97303    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Computing errors ******
 
-***** L2 norm of the error for T = 5.11314e-08  (time = 0)
+***** L2 norm of the error for T = 9.20814e-09  (time = 0)

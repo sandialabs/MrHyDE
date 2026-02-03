@@ -28,13 +28,13 @@ root = 'mrhyde'
 
 # These comments are for testing with the runtest.py utility.
 #TESTING active
-#TESTING -n 1
+#TESTING -n 2
 #TESTING -k thermal,HGRAD,Dirichlet,steady-state
 
 # ==============================================================================
 status = 0
 
-status += its.call('mpiexec -n 1 ../../mrhyde >& mrhyde.log')
+status += its.call('mpiexec -n 2 ../../mrhyde >& mrhyde.log')
 status += its.clean_log()
 status += its.call('diff -y %s.log %s.gold' % (root, root))
 
