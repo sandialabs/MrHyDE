@@ -1239,6 +1239,6 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
     }
   }
 
-  debugger->print(1, "******** Finished PostprocessManager::computeSensorSolutions ...");
+  debugger->print(1, "******** Finished PostprocessManager::computeSensorSolution ...");
 }
 

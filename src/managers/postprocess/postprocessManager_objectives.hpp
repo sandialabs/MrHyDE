@@ -280,6 +280,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
       }
       else
       {
+        
         Kokkos::View<ScalarT *, HostDevice> sensordat;
         if (compute_response)
         {
