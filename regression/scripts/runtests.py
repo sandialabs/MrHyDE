@@ -115,12 +115,12 @@ class Test:
       hostname = hostname.rstrip('1234567890')
 
       if not os.path.exists(self.fullpath):
-        print('%s does not exist!') %(self.fullpath)
+        print('%s does not exist!' % self.fullpath)
         self.status = 1
         self.statusStr = '!exist'
         self.skipped = 1
       elif not os.access(self.fullpath, os.X_OK):
-        print('%s not executable!') %(self.fullpath)
+        print('%s not executable!' % self.fullpath)
         self.status = 1
         self.statusStr = '!exec'
         self.skipped = 1
@@ -340,7 +340,7 @@ class xml_document:
               % (test.index+1, self.list_length, \
                  test.statusStr, runtime, test.nprocs, fname)
       print(stmt2)
-    
+
 
 #===============================================================================
 
@@ -369,8 +369,8 @@ def serial_testing(opts,listOfTests,doc):
     # default is 32 bit so only add if 64 bit
     if opts.mode_64: cmd += ['--64']
     if test.test_args: cmd += shlex.split(test.test_args)
-    if opts.verbose==1: print('Executing the command %s' % (cmd)) 
-    # launch command and wait for completion    
+    if opts.verbose==1: print('Executing the command %s' % (cmd))
+    # launch command and wait for completion
     p = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=head)
     test.stdout, test.stderr = p.communicate()
     test.status = p.wait()
@@ -833,7 +833,7 @@ def main():
 
   p.add_option("-c", dest="computer", default=None, \
                      action="store", \
-                     help='''Computer to run on (e.g.  SandiaCray, 
+                     help='''Computer to run on (e.g.  SandiaCray,
                      SandiaSkybridge, MacPro, Linux)''')
 
   p.add_option("-d", dest="startingDir", default='.', \
@@ -881,9 +881,9 @@ def main():
 
                              Composite example showing both comma separated
                              and multiple -k options:
-                             e.g. -k acoustic,short -k Trilinos,elastic 
+                             e.g. -k acoustic,short -k Trilinos,elastic
                              selects tests that have both the acoustic and
-                             short keywords, and selects additional tests that 
+                             short keywords, and selects additional tests that
                              have both the elastic and Trilinos keywords.''')
 
   p.add_option("-K", dest="exclude_keywords", default=[], \
@@ -897,14 +897,14 @@ def main():
                                   either Trilinos tests or short tests.
 
                              Example with comma separated -K option:
-                             e.g. -K Trilinos,short only excludes a test if 
-                                  that test has both the Trilinos and short 
+                             e.g. -K Trilinos,short only excludes a test if
+                                  that test has both the Trilinos and short
                                   keywords.
 
                              Composite example with both -k and -K options:
                              e.g. -k acoustic,short -K Trilinos,Rol  will first
-                                  select tests that are both acoustic and short, 
-                                  and will then remove any of those tests that 
+                                  select tests that are both acoustic and short,
+                                  and will then remove any of those tests that
                                   have both the Trilinos and Rol keywords.''')
 
   p.add_option("--list-keywords", dest="listKeywords", default=False, \
@@ -1006,11 +1006,11 @@ def main():
 
   p.add_option("-v", dest="verbose", default=False, action="store_true", \
                      help='''Echo the commands to output.''')
-                     
+
   p.add_option("--print-keywords", dest="printKeywords", default=False, \
                      action="store_true", \
                      help='''Print the keywords with results of each test.''')
-                     
+
   # Parse the command line options
   opts, args = p.parse_args()
 
