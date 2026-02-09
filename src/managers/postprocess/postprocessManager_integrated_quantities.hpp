@@ -249,6 +249,18 @@ void PostprocessManager<Node>::computeIntegratedQuantities(vector<vector_RCP> &c
       integratedQuantities[iLocal][iIQ].val(0) = allsums[iIQ];
     } // end loop over integrated quantities
 
+    // Print integrated quantities at each time step for debugging
+    if (Comm->getRank() == 0 && verbosity >= 5)
+    {
+      std::cout << "Time = " << currenttime << ", Integrated quantities:";
+      for (size_t k = 0; k < integratedQuantities[iLocal].size(); ++k)
+      {
+        std::cout << "  " << integratedQuantities[iLocal][k].name << " = " 
+                  << integratedQuantities[iLocal][k].val(0);
+      }
+      std::cout << std::endl;
+    }
+
     // need to put in the right place now (accessible to the residual) and
     // update any parameters which depend on the IQs
     // TODO :: BWR this ultimately is an "explicit" idea but doing things implicitly
