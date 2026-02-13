@@ -22,6 +22,9 @@ rothermal<EvalT>::rothermal(Teuchos::ParameterList& p)
   initScalars();         // constants and hyperparameters
   initParameterFields(); // fuel and slope parameter fields
   getMeshData();         // mesh data: used to normalize the problem
+
+//   haveNodalR = rothermalSettings_.get("use_Rnodal", false);
+//   cout << "haveNodalR: " << haveNodalR << endl;
 }
 
 
@@ -32,16 +35,16 @@ template<class EvalT>
 void rothermal<EvalT>::initScalars()
 {
   // fire dies when fuel fraction is below this threshold
-  Fthresh = rothermalSettings_.get("Fthresh",            Fthresh);
+  Fthresh = rothermalSettings_.get("Fthresh", Fthresh);
 
   // smoothing parameters
   absoluteValueScale = rothermalSettings_.get("absoluteValueScale", absoluteValueScale);
-  heavisideScale     = rothermalSettings_.get("heavisideScale",     heavisideScale);
+  heavisideScale     = rothermalSettings_.get("heavisideScale", heavisideScale);
 
   // constants for fuel, wind, and slope magnification/damping
-  burnConstant       = rothermalSettings_.get("burnConstant",       burnConstant);
-  windConstant       = rothermalSettings_.get("windConstant",       windConstant);
-  slopeConstant      = rothermalSettings_.get("slopeConstant",      slopeConstant);
+  burnConstant       = rothermalSettings_.get("burnConstant", burnConstant);
+  windConstant       = rothermalSettings_.get("windConstant", windConstant);
+  slopeConstant      = rothermalSettings_.get("slopeConstant", slopeConstant);
 }
 
 
@@ -132,7 +135,7 @@ rothermal<EvalT>::getElementIds(Teuchos::RCP<Workset<EvalT> > & wkset)
   auto y = wkset->getScalarField("y");
 
   Kokkos::parallel_for("map_ws_to_exo", RangePolicy<AssemblyExec>(0, numElem),
-    MRHYDE_LAMBDA(int e){
+    KOKKOS_LAMBDA(int e){
       const ScalarT X = x(e,0);
       const ScalarT Y = y(e,0);
       int i = (int)floor((X - meshData.x0)/meshData.dx);  if (i<0) i=0; if (i>=meshData.nx) i=meshData.nx-1;
@@ -143,6 +146,100 @@ rothermal<EvalT>::getElementIds(Teuchos::RCP<Workset<EvalT> > & wkset)
   return wksetIds;
 
 }
+
+// ===============================
+// evalNodalR: this is used to interpolate R from nodal data
+// ===============================
+template<class EvalT>
+void rothermal<EvalT>::readNodalR()
+{
+    // resolve mesh path
+    string meshPath = "mesh.exo";
+    ExoReader rdr(meshPath);
+    rdr.open();
+    rdr.readNodalField("Rnodal", Rnodal_host_, 1);
+    rdr.close();
+}
+
+
+template<class EvalT>
+typename rothermal<EvalT>::View_EvalT2
+rothermal<EvalT>::evalNodalR(Teuchos::RCP<Workset<EvalT> > & wkset)
+{
+
+    // IP coordinates
+    const int numElem = wkset->numElem;
+    auto xip          = wkset->getScalarField("x");
+    auto yip          = wkset->getScalarField("y");
+    const int numQuad = static_cast<int>(xip.extent(1));
+
+    // mesh geometry from rothermal_ (uniform rect grid)
+    const double x0 = meshData.x0;
+    const double y0 = meshData.y0;
+    const double dx = meshData.dx;
+    const double dy = meshData.dy;
+    const int    nx = meshData.nx;
+    const int    ny = meshData.ny;
+
+
+    // copy nodal array to device for use in kernel
+    const size_t nNodes = Rnodal_host_.size();
+    Kokkos::View<double*, AssemblyDevice> Rnodal_d("Rnodal_d", nNodes);
+    {
+      auto Rnodal_h = Kokkos::create_mirror_view(Rnodal_d);
+      for (size_t i = 0; i < nNodes; ++i) Rnodal_h(i) = Rnodal_host_[i];
+      Kokkos::deep_copy(Rnodal_d, Rnodal_h);
+    }
+
+    View_EvalT2 R_ip("R_ip", numElem, numQuad);
+    
+    Kokkos::parallel_for("R_from_Rnodal_same_mesh",
+        RangePolicy<AssemblyExec>(0, numElem),
+        KOKKOS_LAMBDA(const int e) {
+          for (int q = 0; q < numQuad; ++q) {
+
+
+            const double x = xip(e,q);
+            const double y = yip(e,q);
+
+            // cell indices and local coords
+            const double sx = (x - x0) / dx;
+            const double sy = (y - y0) / dy;
+
+            int i0 = static_cast<int>(floor(sx));
+            int j0 = static_cast<int>(floor(sy));
+
+            // clamp so (i0+1)<=nx and (j0+1)<=ny
+            if (i0 < 0) i0 = 0; if (i0 > nx-1) i0 = nx-1;
+            if (j0 < 0) j0 = 0; if (j0 > ny-1) j0 = ny-1;
+
+            const double tx = sx - i0;
+            const double ty = sy - j0;
+
+            const int nnx = nx + 1;
+            const size_t n00 = static_cast<size_t>(j0    ) * nnx + static_cast<size_t>(i0    );
+            const size_t n10 = static_cast<size_t>(j0    ) * nnx + static_cast<size_t>(i0 + 1);
+            const size_t n01 = static_cast<size_t>(j0 + 1) * nnx + static_cast<size_t>(i0    );
+            const size_t n11 = static_cast<size_t>(j0 + 1) * nnx + static_cast<size_t>(i0 + 1);
+
+            const double r00 = Rnodal_d(n00);
+            const double r10 = Rnodal_d(n10);
+            const double r01 = Rnodal_d(n01);
+            const double r11 = Rnodal_d(n11);
+
+            const double w00 = (1.0 - tx) * (1.0 - ty);
+            const double w10 =        tx  * (1.0 - ty);
+            const double w01 = (1.0 - tx) *        ty ;
+            const double w11 =        tx  *        ty ;
+
+            R_ip(e,q) = w00*r00 + w10*r10 + w01*r01 + w11*r11;
+          }
+        });
+
+    return R_ip;
+}
+
+
 
 // ===============================
 // compute base equations: these are the orginal base equations from Rothermal (1972)
@@ -248,7 +345,9 @@ rothermal<EvalT>::computeFields(
     const View_EvalT2& dphi_dy,
     const Vista<EvalT>& xvel,
     const Vista<EvalT>& yvel,
-    Teuchos::RCP<Workset<EvalT> > & wkset
+    Teuchos::RCP<Workset<EvalT> > & wkset,
+    const bool & hasExternalR,
+    Vista<EvalT>& R
 )
 {
 
@@ -267,15 +366,16 @@ rothermal<EvalT>::computeFields(
     auto isFuel = distFields.isFuel;
 
     // initialize views
-    View_EvalT1 Rothermal_       ("Rothermal",       numElem);
+    // View_EvalT1 Rothermal_       ("Rothermal",       numElem);
 
     // initialize views based on workset size
-    View_EvalT2 fuelFraction_    ("fuelFraction",    numElem, numQuad);
+    // View_EvalT2 fuelFraction_    ("fuelFraction",    numElem, numQuad);
+    View_EvalT2 fuelCorrection_  ("fuelCorrection",  numElem, numQuad);
     View_EvalT2 ROS_             ("ROS",             numElem, numQuad);
-    // View_EvalT2 Rothermal_       ("Rothermal",       numElem, numQuad);
+    View_EvalT2 Rothermal_       ("Rothermal",       numElem, numQuad);
     View_EvalT2 windComponent_   ("windComponent",   numElem, numQuad);
     View_EvalT2 windCorrection_  ("windCorrection",  numElem, numQuad);
-    View_EvalT2 slopeComponent_ ("slopeComponent", numElem, numQuad);
+    View_EvalT2 slopeComponent_ ("slopeComponent",   numElem, numQuad);
     View_EvalT2 slopeCorrection_ ("slopeCorrection", numElem, numQuad);
     View_EvalT2 Hphi_            ("Hphi",            numElem, numQuad);
 
@@ -286,18 +386,23 @@ rothermal<EvalT>::computeFields(
     // loop over elements
     Kokkos::parallel_for("rothermal computeFields",
         Kokkos::RangePolicy<AssemblyExec>(0, numElem),
-        MRHYDE_LAMBDA(const int elem)
+        KOKKOS_LAMBDA(const int elem)
     {
         
         // get element id
         int id = wksetIds(elem);
 
         // compute base rothermals without wind/slope
-        Rothermal_(elem) = computeRothermals(elem, wksetIds);
+        // Rothermal_(elem) = computeRothermals(elem, wksetIds); // * old
+
+        // * either use supplied or computed rothermals base ROS
+        const EvalT R0_elem = hasExternalR ? R(elem, 0) : computeRothermals(elem, wksetIds);
 
         // loop over quadrature points
         for (size_type pt = 0; pt < (size_type)numQuad; ++pt)
         {
+
+            Rothermal_(elem, pt) = R0_elem;
 
             // scaled SDF, indicator, and interface gate
             EvalT phiScaled = heavisideScale * 2 * phi(elem, pt) / diag;
@@ -314,15 +419,13 @@ rothermal<EvalT>::computeFields(
             EvalT normalY     = dphi_dy(elem,pt) * invGradNorm;
 
             // fuel fraction
-            EvalT fuelArg           = burnConstant * phiScaled;
-            EvalT ExpFuelArg        = exp(fuelArg);
-            fuelFraction_(elem, pt) = Hphi + (1 - Hphi) * ExpFuelArg / (1 + ExpFuelArg);
-            EvalT fuelCorrection    = heaviside(heavisideScale * (fuelFraction_(elem, pt) - Fthresh));
+            EvalT fuelArg             = burnConstant * phiScaled;
+            fuelCorrection_(elem, pt) = heaviside(fuelArg - Fthresh);
 
             // wind
             EvalT windComp            = xvel(elem,pt) * normalX + yvel(elem,pt) * normalY;
             windComponent_(elem, pt)  = windComp;
-            EvalT windNorm            = sqrt(xvel(elem,pt) * xvel(elem,pt) + yvel(elem,pt) * yvel(elem,pt) + zero_tol*zero_tol);
+            EvalT windNorm            = sqrt(xvel(elem,pt) * xvel(elem,pt) + yvel(elem,pt) * yvel(elem,pt) + zero_tol * zero_tol);
             EvalT windArg             = phiGate * windConstant * (windComp / (1.0 + windNorm));
             windCorrection_(elem, pt) = exp(windArg);
 
@@ -331,16 +434,16 @@ rothermal<EvalT>::computeFields(
             EvalT sy                   = ySlope(id);
             EvalT slopeComp            = sx * normalX + sy * normalY;
             slopeComponent_(elem, pt)  = slopeComp;
-            EvalT slopeNorm            = sqrt(sx * sx + sy * sy + zero_tol*zero_tol);
-            EvalT slopeArg             = phiGate * slopeConstant * ((slope(id) / (slope(id) + 1.0)) * (slopeComp / slopeNorm));
+            EvalT slopeNorm            = sqrt(sx * sx + sy * sy + zero_tol * zero_tol);
+            EvalT slopeArg             = phiGate * slopeConstant * slopeComp / (1.0 + slopeNorm);
             slopeCorrection_(elem, pt) = exp(slopeArg);
 
-            // base rothermals from |u dot n|
-            // EvalT windAbs        = sqrt(windComp*windComp + zero_tol * zero_tol);
+            // * either use suppplied or computed rothermals base ROS
+            const EvalT R_here = hasExternalR ? R(elem,pt) : R0_elem;
 
             // final ROS
-            ROS_(elem, pt) = Rothermal_(elem)
-                           * fuelCorrection
+            ROS_(elem, pt) = R_here
+                           * fuelCorrection_(elem, pt)
                            * windCorrection_(elem, pt)
                            * slopeCorrection_(elem, pt)
                            * isFuel(id);
@@ -348,9 +451,10 @@ rothermal<EvalT>::computeFields(
     });
 
     // return fields
-    fields.fuelFraction    = fuelFraction_;
+    // fields.fuelFraction    = fuelFraction_;
+    fields.fuelCorrection  = fuelCorrection_;
     fields.ROS             = ROS_;
-    // fields.Rothermal       = Rothermal_;
+    fields.Rothermal       = Rothermal_;
     fields.windComponent   = windComponent_;
     fields.windCorrection  = windCorrection_;
     fields.slopeComponent  = slopeComponent_;
@@ -360,265 +464,6 @@ rothermal<EvalT>::computeFields(
     return fields;
 }
 
-// ExoReader
-
-// ========================================================================================
-// constructor: initialize with file path
-// ========================================================================================
-ExoReader::ExoReader(const std::string& path) : file_(path) {}
-
-// ========================================================================================
-// destructor: automatically close file if open
-// ========================================================================================
-ExoReader::~ExoReader() {
-  try { close(); } catch (...) {}
-}
-
-// ========================================================================================
-// ensure file is open: throw exception if not
-// ========================================================================================
-void ExoReader::ensureOpen_() const {
-  if (exoid_ < 0) throw std::runtime_error("ExoReader: file is not open");
-}
-
-// ========================================================================================
-// open exodus file for reading
-// ========================================================================================
-void ExoReader::open() {
-  if (isOpen()) return;
-  int cpu_ws    = 8;   // use doubles
-  int io_ws     = 0;   // read as stored
-  float version = 0.0f;
-  exoid_        = ex_open(file_.c_str(), EX_READ, &cpu_ws, &io_ws, &version);
-
-
-  if (exoid_ < 0) throw std::runtime_error("ExoReader: ex_open failed for '" + file_ + "'");
-
-  // reset caches
-  grid_ok_       = false;
-  var_map_ok_    = false;
-  block_id_      = 0;
-  num_elems_     = -1;
-  num_elem_vars_ = 0;
-
-  name_to_varidx_.clear();
-}
-
-// ========================================================================================
-// close exodus file
-// ========================================================================================
-void ExoReader::close() {
-  if (!isOpen()) return;
-  (void)ex_close(exoid_); // keep state consistent even if close errors
-  exoid_ = -1;
-}
-
-// ========================================================================================
-// query exodus initialization data: get basic file dimensions
-// ========================================================================================
-void ExoReader::queryInit_(int& nd, int& nn, int& ne, int& nb, int& nns, int& nss) {
-  ensureOpen_();
-  char title[MAX_LINE_LENGTH+1];
-  std::memset(title, 0, sizeof(title));
-  nd=nn=ne=nb=nns=nss=0;
-  if (ex_get_init(exoid_, title, &nd, &nn, &ne, &nb, &nns, &nss) != 0) {
-    throw std::runtime_error("ExoReader: ex_get_init failed");
-  }
-}
-
-// ========================================================================================
-// require single element block: ensure exactly one block exists and cache its info
-// ========================================================================================
-void ExoReader::requireSingleBlock_() {
-  ensureOpen_();
-  if (block_id_ != 0 && num_elems_ >= 0) return; // already cached
-
-  int nd=0, nn=0, ne=0, nb=0, nns=0, nss=0;
-  queryInit_(nd, nn, ne, nb, nns, nss);
-  if (nb != 1) {
-    throw std::runtime_error("ExoReader: expected exactly 1 element block, found " + std::to_string(nb));
-  }
-
-  std::vector<ex_entity_id> ids(nb, 0);
-  if (ex_get_ids(exoid_, EX_ELEM_BLOCK, ids.data()) != 0) {
-    throw std::runtime_error("ExoReader: ex_get_ids(EX_ELEM_BLOCK) failed");
-  }
-  block_id_ = ids[0];
-
-  // query element count of this block
-  char elem_type[MAX_STR_LENGTH+1] = {0};
-  int64_t nele=0, nnpe=0, nedge=0, nface=0, nattr=0;
-  if (ex_get_block(exoid_, EX_ELEM_BLOCK, block_id_, elem_type, &nele, &nnpe, &nedge, &nface, &nattr) != 0) {
-    throw std::runtime_error("ExoReader: ex_get_block failed");
-  }
-  num_elems_ = nele;
-}
-
-// ========================================================================================
-// get element block ID
-// ========================================================================================
-ex_entity_id ExoReader::blockId() {
-  requireSingleBlock_();
-  return block_id_;
-}
-
-// ========================================================================================
-// get number of elements in the block
-// ========================================================================================
-int64_t ExoReader::numElems() {
-  requireSingleBlock_();
-  return num_elems_;
-}
-
-// ========================================================================================
-// compute grid and domain geometry from mesh coordinates
-// ========================================================================================
-void ExoReader::computeGridAndDomain() {
-  ensureOpen_();
-
-  int nd=0, nn=0, ne=0, nb=0, nns=0, nss=0;
-  queryInit_(nd, nn, ne, nb, nns, nss);
-
-  // coordinates
-  std::vector<double> X(nn), Y(nn);
-  if (ex_get_coord(exoid_, X.data(), Y.data(), nullptr) != 0) {
-    throw std::runtime_error("ExoReader: ex_get_coord failed");
-  }
-  if (nn <= 0) throw std::runtime_error("ExoReader: no nodes in file");
-
-  // unique sorted X/Y with tolerance
-  const double eps = 1e-10;
-  auto Xu = unique_sorted_(X, eps);
-  auto Yu = unique_sorted_(Y, eps);
-  if (Xu.size() < 2 || Yu.size() < 2) {
-    throw std::runtime_error("ExoReader: degenerate grid (need >= 2 unique coords per axis)");
-  }
-
-  // compute spacings and sanity-check uniform rectilinear grid
-  std::vector<double> dX, dY;
-  for (size_t i = 1; i < Xu.size(); ++i) dX.push_back(Xu[i] - Xu[i-1]);
-  for (size_t j = 1; j < Yu.size(); ++j) dY.push_back(Yu[j] - Yu[j-1]);
-
-  double dx_mean = (dX.empty()? 1.0 : (Xu.back() - Xu.front()) / (double)(Xu.size()-1));
-  double dy_mean = (dY.empty()? 1.0 : (Yu.back() - Yu.front()) / (double)(Yu.size()-1));
-
-  // fill public geometry
-  x0         = Xu.front();
-  y0         = Yu.front();
-  dx         = dx_mean;
-  dy         = dy_mean;
-  nx         = static_cast<int>(Xu.size()) - 1;
-  ny         = static_cast<int>(Yu.size()) - 1;
-  domainX    = Xu.back() - Xu.front();
-  domainY    = Yu.back() - Yu.front();
-  domainDiag = std::sqrt(domainX*domainX + domainY*domainY);
-  inv_dx_    = 1.0 / dx;
-  inv_dy_    = 1.0 / dy;
-
-  // consistency with element count
-  requireSingleBlock_();
-  if (static_cast<int64_t>(nx) * static_cast<int64_t>(ny) != num_elems_) {
-    throw std::runtime_error("ExoReader: nx*ny != number of elements in block");
-  }
-
-  grid_ok_ = true;
-}
-
-// ========================================================================================
-// get element variable name to index mapping
-// ========================================================================================
-const std::unordered_map<std::string,int>& ExoReader::elemVarIndex() {
-  if (!var_map_ok_) buildElemVarNameIndex_();
-  return name_to_varidx_;
-}
-
-// ========================================================================================
-// build element variable name to index mapping
-// ========================================================================================
-void ExoReader::buildElemVarNameIndex_() {
-  ensureOpen_();
-  // number of element variables
-  int nvar = 0;
-  if (ex_get_variable_param(exoid_, EX_ELEM_BLOCK, &nvar) != 0) {
-    throw std::runtime_error("ExoReader: ex_get_variable_param(EX_ELEM_BLOCK) failed");
-  }
-  num_elem_vars_ = nvar;
-
-  name_to_varidx_.clear();
-  if (nvar <= 0) { var_map_ok_ = true; return; }
-
-  // exodus names are fixed-length char arrays
-  std::vector<char*> names(nvar, nullptr);
-  std::vector<std::vector<char>> storage(nvar, std::vector<char>(MAX_STR_LENGTH+1, 0));
-  for (int i = 0; i < nvar; ++i) names[i] = storage[i].data();
-
-  if (ex_get_variable_names(exoid_, EX_ELEM_BLOCK, nvar, names.data()) != 0) {
-    throw std::runtime_error("ExoReader: ex_get_variable_names(EX_ELEM_BLOCK) failed");
-  }
-
-  for (int i = 0; i < nvar; ++i) {
-    std::string nm = trimPad_(names[i]);
-    if (!nm.empty()) name_to_varidx_[nm] = i+1; // 1-based index
-  }
-  var_map_ok_ = true;
-}
-
-// ========================================================================================
-// read element variable by index
-// ========================================================================================
-std::vector<double> ExoReader::readElemVarByIndex(int var_idx, int time_step) {
-  ensureOpen_();
-  requireSingleBlock_();
-
-  if (num_elems_ <= 0) return {};
-  if (num_elem_vars_ == 0) buildElemVarNameIndex_(); // ensure we know count
-
-  // accept 0- or 1-based input for robustness; do not document change
-  int ex_var_idx = (var_idx >= 1) ? var_idx : (var_idx + 1);
-  if (ex_var_idx <= 0 || ex_var_idx > num_elem_vars_) {
-    throw std::out_of_range("ExoReader: element variable index out of range");
-  }
-
-  std::vector<double> vals(static_cast<size_t>(num_elems_), 0.0);
-  if (ex_get_var(exoid_, time_step, EX_ELEM_BLOCK, ex_var_idx, block_id_, num_elems_, vals.data()) != 0) {
-    throw std::runtime_error("ExoReader: ex_get_var failed for element variable index");
-  }
-  return vals;
-}
-
-// ========================================================================================
-// read element variable by name
-// ========================================================================================
-std::vector<double> ExoReader::readElemVarByName(const std::string& name, int time_step) {
-  if (!var_map_ok_) buildElemVarNameIndex_();
-  auto it = name_to_varidx_.find(name);
-  if (it == name_to_varidx_.end())
-    throw std::runtime_error("ExoReader: element variable '" + name + "' not found");
-  return readElemVarByIndex(it->second, time_step);
-}
-
-
-// ========================================================================================
-// trim padding from exodus string: remove trailing spaces and nulls
-// ========================================================================================
-std::string ExoReader::trimPad_(const char* s) {
-  if (!s) return std::string();
-  std::string t(s);
-  while (!t.empty() && (t.back() == ' ' || t.back() == '\0'))
-    t.pop_back();
-  return t;
-}
-
-// ========================================================================================
-// get unique sorted values with tolerance: remove duplicates within epsilon
-// ========================================================================================
-std::vector<double> ExoReader::unique_sorted_(const std::vector<double>& a, double eps) {
-  std::vector<double> b = a;
-  std::sort(b.begin(), b.end());
-  auto eq = [eps](double A, double B){ return std::abs(A-B) < eps; };
-  b.erase(std::unique(b.begin(), b.end(), eq), b.end());
-  return b;
-}
 
 
 template class MrHyDE::rothermal<ScalarT>;
