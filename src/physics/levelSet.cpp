@@ -15,6 +15,7 @@
 
 using namespace MrHyDE;
 
+
 // ========================================================================================
 // constructor
 // ========================================================================================
@@ -38,15 +39,14 @@ levelSet<EvalT>::levelSet(Teuchos::ParameterList & settings, const int & dimensi
             << std::endl;  
   if (useRothermal) {
     auto & rothermalSettings = settings.sublist("rothermal");
-    rothermal_ = Teuchos::rcp(new rothermal<EvalT>(rothermalSettings));
+    rothermal_       = Teuchos::rcp(new rothermal<EvalT>(rothermalSettings));
+    this->haveNodalR = rothermalSettings.get<bool>("use_Rnodal", false);
   }
 
   std::cout << "Leaving levelSet<>::constructor()" << std::endl;  
 }
 
-// ========================================================================================
-// define functions in parameter list
-// ========================================================================================
+
 template<class EvalT>
 void levelSet<EvalT>::defineFunctions(
   Teuchos::ParameterList & fs,
@@ -57,35 +57,66 @@ void levelSet<EvalT>::defineFunctions(
 
   functionManager = functionManager_;
 
-  functionManager->addFunction("beta",fs.get<string>("beta","0.1"),"ip");
-  functionManager->addFunction("xvel",fs.get<string>("xvel","1.0"),"ip");
-  functionManager->addFunction("yvel",fs.get<string>("yvel","1.0"),"ip");
+  functionManager->addFunction("beta", fs.get<string>("beta","0.1"), "ip");
+  functionManager->addFunction("xvel", fs.get<string>("xvel","1.0"), "ip");
+  functionManager->addFunction("yvel", fs.get<string>("yvel","1.0"), "ip");
+
+  if (useRothermal) {
+    Teuchos::ParameterList & rlist = fs.sublist("rothermal");
+
+    haveAnalyticR = fs.isParameter("R");
+    useExternalR  = haveAnalyticR || haveNodalR;
+
+
+
+    if (haveNodalR) {
+      rothermal_->readNodalR();
+    }
+
+    // keep original binding; if you later override in prepareFunctions(), this is ignored
+    functionManager->addFunction("R", fs.get<string>("R", "1.0"), "ip");
+
+    // scaling (unchanged)
+    const double diag       = rothermal_->meshData.Diag;
+    const double hs         = rlist.get<double>("heavisideScale", 10.0);
+    const double Hphi_scale = 2.0 * hs / diag;
+    const string s          = std::to_string(Hphi_scale);
+    functionManager->addFunction("Hphi_scale", s, "ip");
+    functionManager->addFunction("Hphi_scale", s, "point");
+  }
 
   std::cout << "Leaving levelSet<>::defineFunctions()" << std::endl;  
 }
 
-// ========================================================================================
-// prepare functions for use in volume residual
-// ========================================================================================
+
+
 template<class EvalT>
-typename levelSet<EvalT>::template FuncData<EvalT> levelSet<EvalT>::prepareFunctions()
+typename levelSet<EvalT>::template FuncData<EvalT>
+levelSet<EvalT>::prepareFunctions()
 {
-    //std::cout << "Entering levelSet<>::prepareFunctions()" << std::endl;  
+  //std::cout << "Entering levelSet<>::prepareFunctions()" << std::endl;  
 
-    FuncData<EvalT> funcData;
+  FuncData<EvalT> funcData;
 
-    {
-      Teuchos::TimeMonitor funceval(*volumeResidualFunc);
-      funcData.beta = functionManager->evaluate("beta","ip");
-      funcData.xvel = functionManager->evaluate("xvel","ip");
-      funcData.yvel = functionManager->evaluate("yvel","ip");
-      
+  {
+    Teuchos::TimeMonitor funceval(*volumeResidualFunc);
+    funcData.beta = functionManager->evaluate("beta","ip");
+    funcData.xvel = functionManager->evaluate("xvel","ip");
+    funcData.yvel = functionManager->evaluate("yvel","ip");
+  }
+
+  if (useRothermal) {
+    funcData.R = functionManager->evaluate("R","ip");
+    if (haveNodalR && !rothermal_->Rnodal_host_.empty()) {
+      funcData.R = rothermal_->evalNodalR(wkset);
     }
+  }
 
-    //std::cout << "Leaving levelSet<>::prepareFunctions()" << std::endl;  
+  //std::cout << "Leaving levelSet<>::prepareFunctions()" << std::endl;  
 
-    return funcData;
+  return funcData;
 }
+
 
 // ========================================================================================
 // prepare fields for use in volume residual
@@ -108,6 +139,7 @@ typename levelSet<EvalT>::template FieldData<EvalT> levelSet<EvalT>::prepareFiel
     return fieldData;
 }
 
+
 // ========================================================================================
 // volume residual
 // ========================================================================================
@@ -128,12 +160,13 @@ void levelSet<EvalT>::volumeResidual()
   auto wts          = wkset->wts;
   auto res          = wkset->res;
 
-  // retrieve functions and fields
+  // retrieve functions
   auto beta        = funcs.beta; 
   auto xvel        = funcs.xvel;
   auto yvel        = funcs.yvel;
   
   // retrieve fields
+  auto phi         = field.phi;
   auto dPhi_dt     = field.phi_t;
   auto dPhi_dx     = field.dphi_dx;
   auto dPhi_dy     = field.dphi_dy;
@@ -143,12 +176,15 @@ void levelSet<EvalT>::volumeResidual()
 
   // if the flag is true, get the rothermal fields to compute velocity
   if (useRothermal) {
+
     fields = rothermal_->computeFields(field.phi,
                                        field.dphi_dx,
                                        field.dphi_dy,
                                        funcs.xvel,
                                        funcs.yvel,
-                                       wkset);
+                                       wkset,
+                                       useExternalR,
+                                       funcs.R);
   }  
 
   // loop over elements
@@ -256,6 +292,7 @@ void levelSet<EvalT>::volumeResidual()
 
         res(elem, off(dof)) += stabx * basis_grad(elem, dof, pt, 0);
         res(elem, off(dof)) += staby * basis_grad(elem, dof, pt, 1);
+
       }
     }
   });
@@ -300,16 +337,17 @@ KOKKOS_FUNCTION EvalT levelSet<EvalT>::computeTau(
 // get derived names
 // ========================================================================================
 template<class EvalT>
-std::vector<std::string> levelSet<EvalT>::getDerivedNames()
+vector<string> levelSet<EvalT>::getDerivedNames()
 {
   std::cout << "Entering levelSet<>::getDerivedNames()" << std::endl;  
 
-  std::vector<std::string> names;
+  vector<string> names;
   names.push_back("gradNorm");
   if (useRothermal) {
-    names.push_back("fuelFraction");
+    // names.push_back("fuelFraction");
+    names.push_back("fuelCorrection");
     names.push_back("ROS");
-    // names.push_back("Rothermal");
+    names.push_back("Rothermal");
     names.push_back("windComponent");
     names.push_back("windCorrection");
     names.push_back("slopeComponent");
@@ -326,13 +364,13 @@ std::vector<std::string> levelSet<EvalT>::getDerivedNames()
 // get derived values
 // ========================================================================================
 template<class EvalT>
-std::vector<typename levelSet<EvalT>::View_EvalT2>
+vector<typename levelSet<EvalT>::View_EvalT2>
 levelSet<EvalT>::getDerivedValues()
 {
   std::cout << "Entering levelSet<>::getDerivedValues()" << std::endl;  
 
   // initialize vector of derived values
-  std::vector<View_EvalT2> vals;
+  vector<View_EvalT2> vals;
 
   // retrieve fields
   auto field = prepareFields();
@@ -372,12 +410,15 @@ levelSet<EvalT>::getDerivedValues()
                               field.dphi_dy,
                               funcs.xvel,
                               funcs.yvel,
-                              wkset);
+                              wkset,
+                              useExternalR,
+                              funcs.R);
 
     // add derived values to vector of derived values
-    vals.push_back(F.fuelFraction);
+    // vals.push_back(F.fuelFraction);
+    vals.push_back(F.fuelCorrection);
     vals.push_back(F.ROS);
-    // vals.push_back(F.Rothermal);
+    vals.push_back(F.Rothermal);
     vals.push_back(F.windComponent);
     vals.push_back(F.windCorrection);
     vals.push_back(F.slopeComponent);

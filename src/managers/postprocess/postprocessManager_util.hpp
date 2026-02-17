@@ -98,11 +98,9 @@ void PostprocessManager<Node>::report()
     }
     for (size_t obj = 0; obj < objectives.size(); ++obj)
     {
-      if (objectives[obj].type == "sensors")
-      {
+      if (objectives[obj].type == "sensors") {
         // First case: sensors just computed states (faster than other case)
-        if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln)
-        {
+        if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
 
           Kokkos::View<ScalarT ***, HostDevice> sensor_data;
           Kokkos::View<int *, HostDevice> sensorIDs;
@@ -285,6 +283,7 @@ void PostprocessManager<Node>::report()
                     A_ph(t,nt,np) = global_data_A_ph[prog];
                     F_th(t,nt,np) = global_data_F_th[prog];
                     F_ph(t,nt,np) = global_data_F_ph[prog];
+                    ++prog;
                   }
                 }
               }

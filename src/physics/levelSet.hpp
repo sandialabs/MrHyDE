@@ -10,7 +10,7 @@
 #define MRHYDE_LEVELSET_H
 
 #include "physicsBase.hpp"
-#include <optional>
+// #include <optional>
 
 #include "rothermal.hpp"
 
@@ -35,14 +35,28 @@ namespace MrHyDE {
     using PhysicsBase<EvalT>::wkset;
     using PhysicsBase<EvalT>::label;
     using PhysicsBase<EvalT>::myvars;
-    using PhysicsBase<EvalT>::mybasistypes;
-
+    using PhysicsBase<EvalT>::mybasistypes;    
 
   // ========================================================================================
   // constructor and destructor
   // ========================================================================================
     levelSet() {} ;
     ~levelSet() {};
+
+    // booleans use to track if nodal or supplied R will be used
+    bool haveAnalyticR = false;
+    bool haveNodalR    = false;
+    bool useExternalR  = false;
+
+    // std::vector<double> Rnodal_host_;                   // filled by ExoReader
+    // Kokkos::View<double*, AssemblyDevice> Rnodal_dev_;  // device copy of nodal R
+
+    // trash
+    // View_EvalT2 R_ip_cached_;                           // cached IP values
+    // bool   R_ip_is_cached_ = false;
+    // int    cached_numElem_  = -1;
+    // int    cached_numQuad_  = -1;
+    // size_t cached_nNodes_   = 0;
 
     // parameter list
     levelSet(Teuchos::ParameterList & settings, const int & dimension_);
@@ -77,8 +91,8 @@ namespace MrHyDE {
     // ========================================================================================
     // used to save computed fields
     // ========================================================================================
-    std::vector<string> getDerivedNames();
-    std::vector<View_EvalT2> getDerivedValues();
+    vector<string> getDerivedNames();
+    vector<View_EvalT2> getDerivedValues();
     
   private:
     
@@ -92,7 +106,7 @@ namespace MrHyDE {
     Teuchos::RCP<rothermal<EvalT> > rothermal_;
 
     // zero tolerance: used to avoid division by zero
-    ScalarT zero_tol  = 1e-9;
+    ScalarT zero_tol  = 1e-8;
 
     // function data: used to prepare functions for use in volume residual
     template<typename T>
@@ -100,6 +114,7 @@ namespace MrHyDE {
         Vista<T> beta;
         Vista<T> xvel;
         Vista<T> yvel;
+        Vista<T> R;
     };
 
     // field data: used to prepare fields for use in volume residual
