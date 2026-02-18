@@ -1,0 +1,60 @@
+%YAML 1.1
+---
+# HGRAD Dirichlet BC verification test
+# Inhomogeneous Dirichlet BCs: T = x*y on all boundaries
+# Manufactured solution: T = x*y, source = 0 (\Delta T = 0)
+ANONYMOUS:
+  verbosity: 5
+  debug level: 0
+  Mesh:
+    dimension: 2
+    element type: quad
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    NX: 10
+    NY: 10
+  Functions:
+    thermal source: '0.0'
+  Physics:
+    modules: thermal
+    assemble boundary terms: false
+    build face terms: true
+    Dirichlet conditions:
+      T:
+        all boundaries: x*y
+    Initial conditions:
+      T: '0.0'
+  Discretization:
+    order:
+      T: 1
+    quadrature: 2
+  Solver: 
+    solver: steady-state
+    nonlinear TOL: 1.0e-08
+    max nonlinear iters: 2
+    use strong DBCs: true
+    use preconditioner: true
+    reuse preconditioner: true
+    right preconditioner: true
+    reuse Jacobian: true
+    preconditioner type: Ifpack2
+    preconditioner reuse type: full
+    use direct solver: false
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Preconditioner Settings:
+      "relaxation: type": "Jacobi"
+      "relaxation: damping factor": 0.5
+      "relaxation: backward mode": false
+      "relaxation: sweeps": 2
+    Belos solver: 'BiCGStab'
+  Analysis: 
+    analysis type: forward
+  Postprocess: 
+    compute errors: true
+    write solution: false
+    True solutions:
+      T: x*y
+...
