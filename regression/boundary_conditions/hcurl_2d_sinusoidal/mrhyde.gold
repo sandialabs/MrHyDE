@@ -23,18 +23,12 @@ DOFManager Field Information:
 ***** Norm of nonlinear residual: 0.0243957
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 2.17702e-06
-***** Scaled Norm of nonlinear residual: 8.9238e-05
-*********************************************************
 Norm of solution: 1.01551    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Computing errors ******
 
 ***** L2 norm of the error for E = 3.28164e-05  (time = 0)
-***** L2 norm of the error for E = 3.28164e-05  (time = 1e-12)
+***** L2 norm of the error for E = 3.28164e-05  (time = 1e-11)
 ***** L2 norm of the error for B = 0  (time = 0)
-***** L2 norm of the error for B = 3.13693e-12  (time = 1e-12)
+***** L2 norm of the error for B = 3.13693e-11  (time = 1e-11)

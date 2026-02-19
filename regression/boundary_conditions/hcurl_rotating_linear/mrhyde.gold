@@ -24,18 +24,6 @@ DOFManager Field Information:
 ***** Norm of nonlinear residual: 2
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 3.19252e-08
-***** Scaled Norm of nonlinear residual: 1.59626e-08
-*********************************************************
-
-*********************************************************
-***** Iteration: 2
-***** Norm of nonlinear residual: 3.19252e-08
-***** Scaled Norm of nonlinear residual: 1.59626e-08
-*********************************************************
 Norm of solution: 1.11803    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************

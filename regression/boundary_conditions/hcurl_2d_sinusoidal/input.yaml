@@ -67,9 +67,9 @@ ANONYMOUS:
     workset size: 100
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-14
-    max nonlinear iters: 2
+    max nonlinear iters: 1
     max linear iters: 500
-    final time: 1.0e-12
+    final time: 1.0e-11
     number of steps: 1
     initial type: L2-projection
     use preconditioner: true
