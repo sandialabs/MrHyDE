@@ -25,24 +25,12 @@ Time = 0, Integrated quantities:  electric_energy = 0.0624974  magnetic_energy =
 ***** Norm of nonlinear residual: 1.23553
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 5.9164e-16
-***** Scaled Norm of nonlinear residual: 4.78854e-16
-*********************************************************
 Norm of solution: 0.696004    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 1.23553
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 1.66437e-14
-***** Scaled Norm of nonlinear residual: 1.34709e-14
 *********************************************************
 Norm of solution: 0.678902    (overlapped vector so results may differ on multiple procs)
 Time = 0.05, Integrated quantities:  electric_energy = 0.0594637  magnetic_energy = 0.00303363  total_energy = 0.0624974
@@ -62,24 +50,12 @@ Time = 0.05, Integrated quantities:  electric_energy = 0.0594637  magnetic_energ
 ***** Norm of nonlinear residual: 1.20538
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 1.6868e-14
-***** Scaled Norm of nonlinear residual: 1.39939e-14
-*********************************************************
 Norm of solution: 0.661881    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 1.17522
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 3.34791e-15
-***** Scaled Norm of nonlinear residual: 2.84874e-15
 *********************************************************
 Norm of solution: 0.645616    (overlapped vector so results may differ on multiple procs)
 Time = 0.1, Integrated quantities:  electric_energy = 0.0509518  magnetic_energy = 0.0115455  total_energy = 0.0624974
@@ -99,24 +75,12 @@ Time = 0.1, Integrated quantities:  electric_energy = 0.0509518  magnetic_energy
 ***** Norm of nonlinear residual: 1.11618
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 8.10845e-15
-***** Scaled Norm of nonlinear residual: 7.26446e-15
-*********************************************************
 Norm of solution: 0.595322    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 1.05714
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 1.07961e-14
-***** Scaled Norm of nonlinear residual: 1.02126e-14
 *********************************************************
 Norm of solution: 0.580694    (overlapped vector so results may differ on multiple procs)
 Time = 0.15, Integrated quantities:  electric_energy = 0.0386144  magnetic_energy = 0.023883  total_energy = 0.0624974
@@ -136,24 +100,12 @@ Time = 0.15, Integrated quantities:  electric_energy = 0.0386144  magnetic_energ
 ***** Norm of nonlinear residual: 0.971932
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 6.68042e-15
-***** Scaled Norm of nonlinear residual: 6.87334e-15
-*********************************************************
 Norm of solution: 0.499637    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 0.886727
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 2.33949e-15
-***** Scaled Norm of nonlinear residual: 2.63835e-15
 *********************************************************
 Norm of solution: 0.487361    (overlapped vector so results may differ on multiple procs)
 Time = 0.2, Integrated quantities:  electric_energy = 0.0248468  magnetic_energy = 0.0376506  total_energy = 0.0624974
@@ -173,24 +125,12 @@ Time = 0.2, Integrated quantities:  electric_energy = 0.0248468  magnetic_energy
 ***** Norm of nonlinear residual: 0.7796
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 9.01953e-15
-***** Scaled Norm of nonlinear residual: 1.15694e-14
-*********************************************************
 Norm of solution: 0.379629    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 0.672473
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 1.66042e-15
-***** Scaled Norm of nonlinear residual: 2.46912e-15
 *********************************************************
 Norm of solution: 0.3703    (overlapped vector so results may differ on multiple procs)
 Time = 0.25, Integrated quantities:  electric_energy = 0.0123222  magnetic_energy = 0.0501752  total_energy = 0.0624974
@@ -210,24 +150,12 @@ Time = 0.25, Integrated quantities:  electric_energy = 0.0123222  magnetic_energ
 ***** Norm of nonlinear residual: 0.548854
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 2.25286e-15
-***** Scaled Norm of nonlinear residual: 4.10467e-15
-*********************************************************
 Norm of solution: 0.241525    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 0.425234
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 8.8545e-16
-***** Scaled Norm of nonlinear residual: 2.08226e-15
 *********************************************************
 Norm of solution: 0.235587    (overlapped vector so results may differ on multiple procs)
 Time = 0.3, Integrated quantities:  electric_energy = 0.00347238  magnetic_energy = 0.059025  total_energy = 0.0624974
@@ -247,24 +175,12 @@ Time = 0.3, Integrated quantities:  electric_energy = 0.00347238  magnetic_energ
 ***** Norm of nonlinear residual: 0.29126
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 3.24046e-15
-***** Scaled Norm of nonlinear residual: 1.11257e-14
-*********************************************************
 Norm of solution: 0.0945561    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 0.157286
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 1.49395e-15
-***** Scaled Norm of nonlinear residual: 9.49826e-15
 *********************************************************
 Norm of solution: 0.0922296    (overlapped vector so results may differ on multiple procs)
 Time = 0.35, Integrated quantities:  electric_energy = 1.56227e-05  magnetic_energy = 0.0624817  total_energy = 0.0624974
@@ -284,24 +200,12 @@ Time = 0.35, Integrated quantities:  electric_energy = 1.56227e-05  magnetic_ene
 ***** Norm of nonlinear residual: 0.0877938
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 9.12659e-16
-***** Scaled Norm of nonlinear residual: 1.03955e-14
-*********************************************************
 Norm of solution: 0.0743923    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 0.118336
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 3.54171e-15
-***** Scaled Norm of nonlinear residual: 2.99292e-14
 *********************************************************
 Norm of solution: 0.0725609    (overlapped vector so results may differ on multiple procs)
 Time = 0.4, Integrated quantities:  electric_energy = 0.00262309  magnetic_energy = 0.0598743  total_energy = 0.0624974
@@ -321,24 +225,12 @@ Time = 0.4, Integrated quantities:  electric_energy = 0.00262309  magnetic_energ
 ***** Norm of nonlinear residual: 0.25327
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 1.00213e-15
-***** Scaled Norm of nonlinear residual: 3.95677e-15
-*********************************************************
 Norm of solution: 0.220852    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 0.388203
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 1.1524e-15
-***** Scaled Norm of nonlinear residual: 2.96856e-15
 *********************************************************
 Norm of solution: 0.215417    (overlapped vector so results may differ on multiple procs)
 Time = 0.45, Integrated quantities:  electric_energy = 0.0107885  magnetic_energy = 0.0517088  total_energy = 0.0624974
@@ -358,24 +250,12 @@ Time = 0.45, Integrated quantities:  electric_energy = 0.0107885  magnetic_energ
 ***** Norm of nonlinear residual: 0.513598
 ***** Scaled Norm of nonlinear residual: 1
 *********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 6.1201e-15
-***** Scaled Norm of nonlinear residual: 1.19161e-14
-*********************************************************
 Norm of solution: 0.36091    (overlapped vector so results may differ on multiple procs)
 
 *********************************************************
 ***** Iteration: 0
 ***** Norm of nonlinear residual: 0.638993
 ***** Scaled Norm of nonlinear residual: 1
-*********************************************************
-
-*********************************************************
-***** Iteration: 1
-***** Norm of nonlinear residual: 3.36114e-15
-***** Scaled Norm of nonlinear residual: 5.26006e-15
 *********************************************************
 Norm of solution: 0.352039    (overlapped vector so results may differ on multiple procs)
 Time = 0.5, Integrated quantities:  electric_energy = 0.0229265  magnetic_energy = 0.0395708  total_energy = 0.0624974
