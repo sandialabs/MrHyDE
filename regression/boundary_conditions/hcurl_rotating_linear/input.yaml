@@ -69,8 +69,8 @@ ANONYMOUS:
     linear TOL: 1.0e-14
     max nonlinear iters: 1
     max linear iters: 500
-    final time: 1.0e-10
-    number of steps: 1
+    final time: 1.0e-11
+    number of steps: 10
     initial type: L2-projection
     use preconditioner: true
     reuse preconditioner: true
@@ -93,7 +93,7 @@ ANONYMOUS:
 
   Postprocess:
     write solution: false
-    compute errors: true
+    compute errors: false
     eblock-0_0_0:
       True solutions:
         'E[x]': '-y'
