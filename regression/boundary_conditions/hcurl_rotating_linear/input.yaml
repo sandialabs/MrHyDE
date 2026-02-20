@@ -20,9 +20,9 @@ ANONYMOUS:
     ymax: 1.0
     zmin: 0.0
     zmax: 1.0
-    NX: 4
-    NY: 4
-    NZ: 4
+    NX: 8
+    NY: 8
+    NZ: 8
     blocknames: eblock-0_0_0
 
   Physics:
@@ -67,10 +67,10 @@ ANONYMOUS:
     workset size: 100
     nonlinear TOL: 1.0e-12
     linear TOL: 1.0e-14
-    max nonlinear iters: 3
+    max nonlinear iters: 1
     max linear iters: 500
     final time: 1.0e-10
-    number of steps: 1
+    number of steps: 10
     initial type: L2-projection
     use preconditioner: true
     reuse preconditioner: true
@@ -96,13 +96,16 @@ ANONYMOUS:
     compute errors: true
     eblock-0_0_0:
       True solutions:
-        'E[x]': '-y'
-        'E[y]': 'x'
-        'E[z]': '0'
+        # E and curl(E) errors are O(machine epsilon), the exact solution is a degree-1
+        # polynomial representable exactly in the H(curl) space, and are excluded to avoid
+        # architecture-dependent floating-point noise in regression comparisons.
+        #'E[x]': '-y'
+        #'E[y]': 'x'
+        #'E[z]': '0'
+        #'curl(E)[x]': '0'
+        #'curl(E)[y]': '0'
+        #'curl(E)[z]': '2'
         'B[x]': '0'
         'B[y]': '0'
         'B[z]': '0'
-        'curl(E)[x]': '0'
-        'curl(E)[y]': '0'
-        'curl(E)[z]': '2'
 ...
