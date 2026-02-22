@@ -24,8 +24,12 @@ settings(settings_), comm(comm_) {
   
   debugger->print("**** Starting mesh interface constructor ...");
   
+  dimension = settings->sublist("Mesh").get<int>("dimension",0);
+  verbosity = settings->get<int>("verbosity",0);
+  
   use_stk_mesh = settings->sublist("Mesh").get<bool>("use STK mesh",true);
   use_simple_mesh = settings->sublist("Mesh").get<bool>("use simple mesh",false);
+  
   if (use_simple_mesh) {
     use_stk_mesh = false;
 
@@ -43,26 +47,31 @@ settings(settings_), comm(comm_) {
     pl.sublist("Geometry").set("NZ",     settings->sublist("Mesh").get("NZ",20));
 
     if (comm->getSize() == 1) {
-      simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+      if (dimension == 2) {
+        simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+      }
+      else if (dimension == 3) {
+        simple_mesh = Teuchos::RCP<SimpleMeshManager_Brick<ScalarT>>(new SimpleMeshManager_Brick<ScalarT>(pl));
+      }
     }
     else {
-      int xprocs = settings->sublist("Mesh").get("Xprocs",comm->getSize());
-      int yprocs = settings->sublist("Mesh").get("Yprocs",1);
-      if (xprocs*yprocs != comm->getSize()) {
-        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: number of xprocs*yprocs not equal to MPI Comm size");
+      if (dimension == 2) {
+        int xprocs = settings->sublist("Mesh").get("Xprocs",comm->getSize());
+        int yprocs = settings->sublist("Mesh").get("Yprocs",1);
+        if (xprocs*yprocs != comm->getSize()) {
+          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: number of xprocs*yprocs not equal to MPI Comm size");
+        }
+        simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, comm->getRank(), xprocs, yprocs));
       }
-      simple_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle_Parallel<ScalarT>>(new SimpleMeshManager_Rectangle_Parallel<ScalarT>(pl, comm->getRank(), xprocs, yprocs));
+      else if (dimension == 3) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: parallel simple mesh not implemented yet");
+      }
     }
   }
   shape = settings->sublist("Mesh").get<string>("shape","none");
   if (shape == "none") { // new keywords, but allowing BWDS compat.
     shape = settings->sublist("Mesh").get<string>("element type","quad");
   }
-  dimension = settings->sublist("Mesh").get<int>("dim",0);
-  if (dimension == 0) {
-    dimension = settings->sublist("Mesh").get<int>("dimension",2);
-  }
-  verbosity = settings->get<int>("verbosity",0);
   
   have_mesh_data = false;
   compute_mesh_data = settings->sublist("Mesh").get<bool>("compute mesh data",false);
@@ -193,8 +202,15 @@ settings(settings_), comm(comm_) {
   else if (use_simple_mesh) {
     block_names = { "eblock-0_0" };
     // GHDR: Need to define block_names, side_names, node_names
-    cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>())));
-    side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));
+    if (dimension == 2) {
+      cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>())));
+      side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));
+    }
+    else if (dimension == 3) {
+      cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<> >())));
+      side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >())));
+                                                                
+    }
   }
 
   if(use_stk_mesh) {
