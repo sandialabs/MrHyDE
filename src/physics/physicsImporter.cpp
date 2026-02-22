@@ -23,6 +23,7 @@
 #include "stokes.hpp"
 #include "navierstokes.hpp"
 #include "linearelasticity.hpp"
+#include "neohookean.hpp"
 #include "helmholtz.hpp"
 #include "maxwells_fp.hpp"
 #include "shallowwater.hpp"
@@ -41,6 +42,7 @@
 #include "vlasov_fokker_planck_0d2v.hpp"
 #include "vlasov_fokker_planck_1d2v.hpp"
 #include "levelSet.hpp"
+#include "maxwell_bianisotropic.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -137,6 +139,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
       modules.push_back(Teuchos::rcp(new maxwell_control<EvalT>(settings, dimension) ) );
     }
     
+    // Maxwell with bianisotropic materials
+    if (modname == "maxwell bianisotropic") {
+      modules.push_back(Teuchos::rcp(new maxwell_bianisotropic<EvalT>(settings, dimension) ) );
+    }
+    
     // Multiple Species PhaseField
     if (modname == "msphasefield") {
       modules.push_back(Teuchos::rcp(new msphasefield<EvalT>(settings, dimension, Commptr) ) );
@@ -159,6 +166,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Linear Elasticity
     if (modname == "linearelasticity" || modname == "linear elasticity") {
       modules.push_back(Teuchos::rcp(new linearelasticity<EvalT>(settings, dimension) ) );
+    }
+
+    // Neo-Hookean hyperelasticity
+    if (modname == "neohookean" || modname == "neo hookean") {
+      modules.push_back(Teuchos::rcp(new neohookean<EvalT>(settings, dimension) ) );
     }
     
     // Helmholtz

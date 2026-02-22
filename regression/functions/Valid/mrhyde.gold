@@ -1267,7 +1267,6 @@ Mesh ->
  use STK mesh = 1   [default]
  use simple mesh = 0   [default]
  shape = none   [default]
- dim = 0   [default]
  compute mesh data = 0   [default]
  data file = none   [default]
  numNodesPerElem = 4

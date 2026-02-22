@@ -1385,7 +1385,30 @@ public:
     computeSideSets();
   }
 
+  void allocateDataStructures() const {
+    //computeNodes();
+    //computeCellToNodeMap();
+    //computeCellToEdgeMap();
+    //computeSideSets();
+  }
 
+  void deallocateMaps() const {
+    //meshCellToNodeMap_ = LIDView_host("deallocated cell to node map",1,1);
+    //meshCellToEdgeMap_ = LIDView_host("deallocated cell to edge map",1,1);
+  }
+
+  GO localToGlobal(int lid) const {
+    return (GO)lid;
+  }
+  
+  int globalToLocal(GO gid) const {
+    return (int)gid;
+  }
+  
+  bool isShared(int lid) const {
+    return false;
+  }
+  
   NodeView_host getNodes() const {
     return meshNodes_;
   }
