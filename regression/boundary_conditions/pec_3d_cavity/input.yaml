@@ -1,0 +1,122 @@
+%YAML 1.1
+---
+# Test: 3D PEC Cavity TM_110 Mode - Energy Conservation
+#
+# Tests Perfect Electric Conductor (PEC) boundary conditions in 3D: n x E = 0.
+# Uses TM_110 mode which naturally satisfies PEC on all walls.
+#
+# Domain: [0,1]x[0,1]x[0,0.5]
+# Mode: TM_110 with Ez = sin(pi*x)*sin(pi*y), Ex = Ey = 0
+#
+# PEC verification via energy conservation:
+#   - In a lossless PEC cavity, total EM energy U = U_E + U_B is constant (within numerical tolerance)
+#   - Paraview (qualitative test - should be near machine precision)
+#      - On x=0,1: max|Ey|, max|Ez|
+#      - On y=0,1: max|Ex|, max|Ez|
+#      - On z=0,0.5: max|Ex|, max|Ey|
+
+
+ANONYMOUS:
+  debug level: 0
+  verbosity: 5
+
+  Mesh:
+    dimension: 3
+    shape: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 0.5
+    NX: 10
+    NY: 10
+    NZ: 4
+    blocknames: eblock-0_0_0
+
+  Physics:
+    Dirichlet conditions:
+      scalar data: false
+    eblock-0_0_0:
+      modules: maxwell
+      assemble boundary terms: false
+      Dirichlet conditions:
+        # PEC on all boundaries: tangential E = 0
+        # For 3D, we specify all components as 0 on all boundaries
+        # HCURL basis will enforce only tangential components
+        Ex:
+          all boundaries: '0.0'
+        Ey:
+          all boundaries: '0.0'
+        Ez:
+          all boundaries: '0.0'
+      Initial conditions:
+        # TM_110 mode at t=0: Ez = sin(pi*x)*sin(pi*y), B = 0
+        'E[x]': '0.0'
+        'E[y]': '0.0'
+        'E[z]': 'sin(pi*x)*sin(pi*y)'
+        'B[x]': '0.0'
+        'B[y]': '0.0'
+        'B[z]': '0.0'
+
+  Discretization:
+    eblock-0_0_0:
+      order:
+        E: 1
+        B: 1
+      quadrature: 2
+
+  Functions:
+    current x: '0.0'
+    current y: '0.0'
+    current z: '0.0'
+    permittivity: '1.0'
+    permeability: '1.0'
+
+  Solver:
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: CN
+    workset size: 100
+    nonlinear TOL: 1.0e-12
+    linear TOL: 1.0e-14
+    max nonlinear iters: 1
+    max linear iters: 500
+    final time: 0.50
+    number of steps: 10
+    initial type: L2-projection
+    use preconditioner: true
+    reuse preconditioner: true
+    right preconditioner: true
+    preconditioner type: Ifpack2
+    preconditioner reuse type: full
+    use direct solver: false
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Preconditioner Settings:
+      "relaxation: type": "Jacobi"
+      "relaxation: damping factor": 0.5
+      "relaxation: backward mode": false
+      "relaxation: sweeps": 2
+    Belos solver: 'BiCGStab'
+    enable autotune: true
+
+  Analysis:
+    analysis type: forward
+
+  Postprocess:
+    write solution: false
+    compute errors: false
+    compute integrated quantities: true
+    eblock-0_0_0:
+      Integrated quantities:
+        electric_energy:
+          integrand: '0.5*(E[x]^2 + E[y]^2 + E[z]^2)'
+          location: 'volume'
+        magnetic_energy:
+          integrand: '0.5*(B[x]^2 + B[y]^2 + B[z]^2)'
+          location: 'volume'
+        total_energy:
+          integrand: '0.5*(E[x]^2 + E[y]^2 + E[z]^2) + 0.5*(B[x]^2 + B[y]^2 + B[z]^2)'
+          location: 'volume'
+...

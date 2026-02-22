@@ -1,0 +1,195 @@
+p=0 | CubeHexMesh: Building sub cells
+STK Meta data:
+   Element blocks = "eblock-0_0_0" 
+   Sidesets = "back" "bottom" "front" "left" "right" "top" 
+   Nodesets = "origin" 
+   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" 
+DOFManager Field Information: 
+   Element Block = eblock-0_0_0
+      "E" is field ID 0
+      "B" is field ID 1
+
+
+*******************************************************
+
+**** Beginning Time Step 1
+**** Current time is 0
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 2
+**** Current time is 1e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 3
+**** Current time is 2e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 4
+**** Current time is 3e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 5
+**** Current time is 4e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 6
+**** Current time is 5e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 7
+**** Current time is 6e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 8
+**** Current time is 7e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 9
+**** Current time is 8e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+
+*******************************************************
+
+**** Beginning Time Step 10
+**** Current time is 9e-11
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 1.36502    (overlapped vector so results may differ on multiple procs)
+
+*********************************************************
+***** Computing errors ******
+
+***** L2 norm of the error for B = 0  (time = 0)
+***** L2 norm of the error for B = 2e-11  (time = 1e-11)
+***** L2 norm of the error for B = 4e-11  (time = 2e-11)
+***** L2 norm of the error for B = 6e-11  (time = 3e-11)
+***** L2 norm of the error for B = 8e-11  (time = 4e-11)
+***** L2 norm of the error for B = 1e-10  (time = 5e-11)
+***** L2 norm of the error for B = 1.2e-10  (time = 6e-11)
+***** L2 norm of the error for B = 1.4e-10  (time = 7e-11)
+***** L2 norm of the error for B = 1.6e-10  (time = 8e-11)
+***** L2 norm of the error for B = 1.8e-10  (time = 9e-11)
+***** L2 norm of the error for B = 2e-10  (time = 1e-10)

@@ -1,6 +1,0 @@
-[setDirichletData DEBUG] Block=eblock-0_0_0, Var=T, Sideset=bottom, sideEntities.size()=4
-[setDirichletData DEBUG]   side_output.size()=4 (elements touching sideset)
-[setDirichletData DEBUG]   Element 0: local_side_Id=0, getGIDFieldOffsets_closure returned 4 offsets: [0,1,4,5]
-[setDirichletData DEBUG]   Element 1: local_side_Id=0, getGIDFieldOffsets_closure returned 4 offsets: [0,1,4,5]
-[setDirichletData DEBUG]   Element 2: local_side_Id=0, getGIDFieldOffsets_closure returned 4 offsets: [0,1,4,5]
-[setDirichletData DEBUG] FINAL: Block=eblock-0_0_0, Var=T, unique Dirichlet DOFs marked=9
