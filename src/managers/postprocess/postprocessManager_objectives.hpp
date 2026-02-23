@@ -274,6 +274,7 @@ void PostprocessManager<Node>::computeObjective(vector<vector_RCP> &current_soln
     }
     else if (objectives[r].type == "sensors" || objectives[r].type == "sensor response" || objectives[r].type == "pointwise response")
     {
+      
       if (objectives[r].compute_sensor_soln || objectives[r].compute_sensor_average_soln)
       {
         // don't do anything for this use case
