@@ -146,7 +146,7 @@ typename levelSet<EvalT>::template FieldData<EvalT> levelSet<EvalT>::prepareFiel
 template<class EvalT>
 void levelSet<EvalT>::volumeResidual()
 {
-  std::cout << "Entering levelSet<>::volumeResidual()" << std::endl;  
+  //std::cout << "Entering levelSet<>::volumeResidual()" << std::endl;  
 
   // prepare functions and fields
   auto funcs = prepareFunctions();
