@@ -32,6 +32,12 @@ regression/
       input.yaml, ...
       run.sh                 # Manual run script (no automated testing)
       ref/mrhyde.ocs         # Reference output for comparison
+  hpc/                       # HPC tests (run with -k hpc)
+    scripts/
+      parse_mrhyde_log.py    # Log file parser
+      scaling_analysis.py    # Scaling analysis utilities
+    strong_scaling/
+      maxwell_cavity/        # Strong scaling test for Maxwell
   ...
 ```
 
@@ -43,7 +49,7 @@ These tests are discovered and run automatically by `runtests.py`.
 
 **Required files:**
 - `input.yaml` - Problem configuration (mesh, physics, solver parameters)
-- `mrhyde.tst` - Python test script with `#TESTING` directives
+- `mrhyde.tst` - Python test script with `#TESTING` directives (uses `mrhyde_test_support.py` utilities)
 - `mrhyde.gold` - Expected output for diff comparison
 
 **How it works:**
@@ -195,7 +201,7 @@ python3 scripts/runtests.py --list-keywords
 | `--print-keywords` | Show keywords in results |
 | `--include-all` | Include inactive in report |
 
-### Legacy Options (Not Recommended)
+### Legacy Options (potentially broken)
 
 These options were inherited from the DGM project and have hardcoded values from ~2015:
 
@@ -209,6 +215,67 @@ These options were inherited from the DGM project and have hardcoded values from
 ## Running on SLURM Clusters
 
 The built-in cluster support (`-b`, `-q`) is outdated. Use these interactive or batch scripts to run these tests on your local cluster.
+
+## HPC Regression Testing
+
+HPC regression tests verify parallel scaling behavior and are located in the `hpc/` directory.
+These tests are not run by default. The test driver automatically excludes tests whose
+keywords include `hpc` unless you explicitly request them with `-k hpc`.
+
+### Running HPC Tests
+
+```bash
+cd MrHyDE/regression
+
+# Run all HPC tests
+python3 scripts/runtests.py -k hpc
+```
+
+### HPC Test Structure
+
+```
+regression/
+  hpc/
+    scripts/
+      parse_mrhyde_log.py    # Log file parser
+      scaling_analysis.py    # Scaling analysis utilities
+    strong_scaling/
+      maxwell_cavity/
+        input.yaml           # Problem configuration
+        mrhyde.tst           # Test script
+```
+
+### HPC Helper Scripts (standalone use)
+
+The two helper scripts in `hpc/scripts/` can be used directly on any MrHyDE log files
+that contain compatible TimeMonitor output (`verbose: 10`).
+
+**1. Log parser: `parse_mrhyde_log.py`**
+
+From the `regression/` directory:
+
+```bash
+# Parse a single log and print workload and timing tables
+python3 hpc/scripts/parse_mrhyde_log.py \
+  hpc/strong_scaling/maxwell_cavity/mrhyde_np1.log
+```
+This script extracts:
+- Per-processor workload information (elements, memory usage)
+- Timing data from the TimeMonitor section
+
+**2. Scaling analysis: `scaling_analysis.py`**
+
+From the `regression/` directory:
+
+```bash
+# Analyze scaling across multiple logs (for example 1, 2, 4 MPI processes)
+python3 hpc/scripts/scaling_analysis.py \
+  hpc/strong_scaling/maxwell_cavity/mrhyde_np1.log \
+  hpc/strong_scaling/maxwell_cavity/mrhyde_np2.log \
+  hpc/strong_scaling/maxwell_cavity/mrhyde_np4.log
+This script:
+- Loads timing data from each log (via `parse_mrhyde_log.py`)
+- Computes speedup and parallel efficiency versus processor count
 
 ## Creating a New Test
 
