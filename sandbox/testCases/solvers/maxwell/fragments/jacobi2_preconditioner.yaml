@@ -1,0 +1,2 @@
+preconditioner variant: RELAXATION
+import: jacobi2_params.yaml

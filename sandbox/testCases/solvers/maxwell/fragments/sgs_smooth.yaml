@@ -1,0 +1,5 @@
+"smoother: type": RELAXATION
+"smoother: params":
+  "relaxation: type": Symmetric Gauss-Seidel
+  "relaxation: sweeps": 2
+  "relaxation: use l1": true

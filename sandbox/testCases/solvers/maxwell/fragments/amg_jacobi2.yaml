@@ -1,0 +1,7 @@
+verbosity: medium
+"coarse: max size": 300
+"multigrid algorithm": sa
+"aggregation: type": uncoupled
+"aggregation: drop tol": 0.0
+import: jacobi2_smooth.yaml
+"coarse: type": KLU

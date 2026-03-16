@@ -1,0 +1,3 @@
+"smoother: type": CHEBYSHEV
+"smoother: params":
+  import: cheb4_params.yaml

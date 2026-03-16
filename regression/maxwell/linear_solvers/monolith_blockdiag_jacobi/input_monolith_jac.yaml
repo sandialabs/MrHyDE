@@ -1,0 +1,23 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 5
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common_t2.yaml
+  Solver:
+    max linear iters: 24 # should converge under 18 iters on macOS
+    use preconditioner: true
+    preconditioner type: Ifpack2
+    preconditioner reuse type: full
+    Preconditioner Settings:
+      'relaxation: type': Jacobi
+      'relaxation: sweeps': 1
+      'relaxation: damping factor': 0.66
+      'relaxation: backward mode': false
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+...
