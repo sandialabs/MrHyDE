@@ -55,21 +55,7 @@ void SolverManager<Node>::completeSetup() {
     }
     const bool use_ads_schur = (schur_prec == "ADS");
     const bool use_refmaxwell_schur = (schur_prec == "REFMAXWELL");
-    std::string schur_variant = cntxt->schur.variant;
-    if (schur_variant.empty()) {
-      std::string schur_type = cntxt->schur.approximation_type;
-      for (size_t i = 0; i < schur_type.size(); ++i) {
-        schur_type[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(schur_type[i])));
-      }
-      if (schur_type == "C+AUGMENTED" || schur_type == "AUGMENTED") {
-        schur_variant = "augmented";
-      }
-      else if (schur_type == "C+DIAG+AUGMENTED" || schur_type == "DIAG+AUGMENTED") {
-        schur_variant = "diag+augmented";
-      }
-    }
-    const bool use_augmented_schur = (schur_variant == "augmented" || schur_variant == "diag+augmented");
-    return (use_block_tri && (use_refmaxwell || use_augmented_schur || use_ads_schur || use_refmaxwell_schur)) ||
+    return (use_block_tri && (use_refmaxwell || use_ads_schur || use_refmaxwell_schur)) ||
            (use_block_diag && use_refmaxwell);
   };
 
@@ -128,6 +114,9 @@ void SolverManager<Node>::completeSetup() {
 // ========================================================================================
 // ========================================================================================
 
+// Build D0 (grad), M1 (edge mass), M2 (optional), nodal coords, and optionally D1 (curl for ADS)
+// for block-triangular/block-diagonal RefMaxwell. Data is stored in cntxt->refMaxwell and shared
+// across all linear solver contexts for this set in completeSetup().
 template<class Node>
 void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
                                                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) {
@@ -135,7 +124,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     "Missing linear solver context for set " + std::to_string(set));
   debugger->print("**** setupBlockTriangularAuxiliary: begin set " + std::to_string(set));
 
-  // Decide when the block-triangular/diagonal path needs unit-weight M1 for RefMaxwell/ADS.
+  // RefMaxwell/ADS need M1 (H(curl) mass) with unit weights; otherwise use physics mass weights.
   const bool pivotHasRefMaxwell =
     (cntxt->pivot_block_sublist.name() != "empty") &&
     cntxt->pivot_block_sublist.isSublist("RefMaxwell Settings");
@@ -148,6 +137,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   const bool use_ads_schur = (schur_prec == "ADS");
   const bool use_unit_mass = pivotHasRefMaxwell || schurHasRefMaxwell || use_ads_schur;
 
+  // Assemble full H(curl) mass matrix M1 (overlapped then exported). Used for RefMaxwell edge block.
   matrix_RCP M1_over = linalg->getNewOverlappedMatrix(set);
   vector_RCP diagM1_over = linalg->getNewOverlappedVector(set);
   assembler->updatePhysicsSet(set);
@@ -157,6 +147,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   linalg->exportMatrixFromOverlapped(set, M1_full, M1_over);
   linalg->fillComplete(M1_full);
 
+  // One map per variable block (same as block_prec). Identifies which block is edge (HCURL) for M1/D0.
   std::vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > > blockMaps = linalg->buildBlockMaps(set);
   TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.empty(), std::runtime_error,
     "Block-triangular auxiliary setup requires at least one block map.");
@@ -165,8 +156,8 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     std::runtime_error,
     "Schur pivot block index " + std::to_string(pivotBlock) + " is out of range for set " +
     std::to_string(set) + " with " + std::to_string(blockMaps.size()) + " blocks.");
-  // M1 extraction deferred until edge block is known (after D0 build).
 
+  // Basis names for auxiliary spaces: prefer RefMaxwell Settings, else top-level prec/schur list.
   const Teuchos::ParameterList * refmaxwellSetupListPtr = nullptr;
   if (pivotHasRefMaxwell)
     refmaxwellSetupListPtr = &cntxt->pivot_block_sublist.sublist("RefMaxwell Settings");
@@ -180,7 +171,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   }
   TEUCHOS_TEST_FOR_EXCEPTION(refmaxwellSetupListPtr == nullptr || !refmaxwellSetupListPtr->isParameter("hgrad basis name"),
     std::runtime_error,
-    "Block-triangular auxiliary (e.g. diag+augmented Schur) requires 'hgrad basis name' and 'hcurl basis name' in "
+    "Block-triangular/block-diagonal RefMaxwell/ADS auxiliary requires 'hgrad basis name' and 'hcurl basis name' in "
     "Pivot Block Settings->RefMaxwell Settings, Schur Block Settings->RefMaxwell Settings, "
     "Preconditioner Settings, or at the top level of Schur Block Settings.");
   TEUCHOS_TEST_FOR_EXCEPTION(!refmaxwellSetupListPtr->isParameter("hcurl basis name"), std::runtime_error,
@@ -197,6 +188,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
 
   Teuchos::RCP<panzer::ConnManager> conn = mesh->getSTKConnManager();
 
+  // Panzer DOF managers for auxiliary H(grad) and H(curl) on the mesh (used to build D0).
   Teuchos::RCP<panzer::DOFManager> hgrad_dof = Teuchos::rcp(new panzer::DOFManager());
   hgrad_dof->setConnManager(conn, *(Comm->getRawMpiComm()));
   hgrad_dof->setOrientationsRequired(false);
@@ -223,6 +215,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   hgrad_dof->buildGlobalUnknowns();
   hcurl_dof->buildGlobalUnknowns();
 
+  // D0 = gradient: nodal (Hgrad) -> edge (Hcurl). RefMaxwell uses it for the auxiliary space.
   Teuchos::RCP<Thyra::LinearOpBase<ScalarT> > D0_thyra =
     panzer::buildInterpolation(conn, hgrad_dof, hcurl_dof,
                                hgrad_basis, hcurl_basis,
@@ -231,7 +224,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   auto D0_tpetra = Thyra::TpetraOperatorVectorExtraction<ScalarT,LO,GO,Node>::getTpetraOperator(D0_thyra);
   cntxt->refMaxwell.D0_matrix = Teuchos::rcp_dynamic_cast<LA_CrsMatrix>(D0_tpetra, true);
 
-  // Detect the edge (HCURL) block by matching D0 range size to block maps.
+  // Which block is edge (HCURL)? Match D0 range size to a block map so M1 and D0 use the same ordering.
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > aux_edge_map = cntxt->refMaxwell.D0_matrix->getRangeMap();
   const GO d0_range_size = static_cast<GO>(aux_edge_map->getGlobalNumElements());
   size_t edgeBlock = static_cast<size_t>(pivotBlock);
@@ -248,83 +241,22 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     "D0 size mismatch with edge block: D0 rows=" + std::to_string(d0_rows) +
     ", edge-block rows=" + std::to_string(edge_block_rows));
 
-  // Extract M1 (edge mass) on the edge block map.
+  // Restrict full mass to edge block: M1 is the H(curl) mass on the edge block for RefMaxwell.
   cntxt->refMaxwell.M1_matrix = linalg->extractDiagonalBlock(M1_full, edge_block_map);
 
-  auto d0DiagSummary = [&](const std::string & stage,
-                           const matrix_RCP & D0,
-                           const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & target_map) -> std::string {
-    const int rank = Comm->getRank();
-    const int nranks = Comm->getSize();
-    const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_row_map = D0->getRowMap();
-    const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_range_map = D0->getRangeMap();
-    const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_domain_map = D0->getDomainMap();
-    const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_col_map_local = D0->getColMap();
-    const GO local_rows = static_cast<GO>(D0->getLocalNumRows());
-    const GO local_range = static_cast<GO>(d0_range_map.is_null() ? 0 : d0_range_map->getLocalNumElements());
-    const GO local_domain = static_cast<GO>(d0_domain_map.is_null() ? 0 : d0_domain_map->getLocalNumElements());
-    const GO local_col = static_cast<GO>(d0_col_map_local.is_null() ? 0 : d0_col_map_local->getLocalNumElements());
-    const GO local_target = static_cast<GO>(target_map.is_null() ? 0 : target_map->getLocalNumElements());
-    const GO global_rows = static_cast<GO>(D0->getGlobalNumRows());
-    const GO global_range = static_cast<GO>(d0_range_map.is_null() ? 0 : d0_range_map->getGlobalNumElements());
-    const GO global_domain = static_cast<GO>(d0_domain_map.is_null() ? 0 : d0_domain_map->getGlobalNumElements());
-    const GO global_col = static_cast<GO>(d0_col_map_local.is_null() ? 0 : d0_col_map_local->getGlobalNumElements());
-    const GO global_target = static_cast<GO>(target_map.is_null() ? 0 : target_map->getGlobalNumElements());
-
-    size_t local_empty_rows = 0;
-    const LO local_num_rows = D0->getLocalNumRows();
-    for (LO row_lid = 0; row_lid < local_num_rows; ++row_lid) {
-      if (D0->getNumEntriesInLocalRow(row_lid) == 0) ++local_empty_rows;
-    }
-    const GO global_empty_go = -1;
-    const GO global_max_row_nnz = -1;
-
-    std::string msg =
-      "[RefMaxwell D0 " + stage + "] rank=" + std::to_string(rank) + "/" + std::to_string(nranks) +
-      " localRows=" + std::to_string(static_cast<long long>(local_rows)) +
-      " globalRows=" + std::to_string(static_cast<long long>(global_rows)) +
-      " localEmptyRows=" + std::to_string(local_empty_rows) +
-      " globalEmptyRows=" + std::to_string(static_cast<long long>(global_empty_go)) +
-      " localMaxRowNnz=" + std::to_string(D0->getLocalMaxNumRowEntries()) +
-      " globalMaxRowNnz=" + std::to_string(static_cast<long long>(global_max_row_nnz)) +
-      " localRange=" + std::to_string(static_cast<long long>(local_range)) +
-      " globalRange=" + std::to_string(static_cast<long long>(global_range)) +
-      " localDomain=" + std::to_string(static_cast<long long>(local_domain)) +
-      " globalDomain=" + std::to_string(static_cast<long long>(global_domain)) +
-      " localCol=" + std::to_string(static_cast<long long>(local_col)) +
-      " globalCol=" + std::to_string(static_cast<long long>(global_col)) +
-      " localTargetRows=" + std::to_string(static_cast<long long>(local_target)) +
-      " globalTargetRows=" + std::to_string(static_cast<long long>(global_target));
-    const bool row_range_same = !d0_row_map.is_null() && !d0_range_map.is_null() && d0_row_map->isSameAs(*d0_range_map);
-    const bool range_target_same = !d0_range_map.is_null() && !target_map.is_null() && d0_range_map->isSameAs(*target_map);
-    msg += " rowEqRange=" + std::string(row_range_same ? "true" : "false");
-    msg += " rangeEqTarget=" + std::string(range_target_same ? "true" : "false");
-    return msg;
-  };
-  // Baseline D0 map state immediately after auxiliary operators are built.
-  if (this->verbosity >= 10) {
-    std::cout << d0DiagSummary("post-build", cntxt->refMaxwell.D0_matrix, edge_block_map) << std::endl;
-  }
-
-  // Remap D0 row IDs from auxiliary HCURL map onto edge block map.
+  // If Panzer D0 range map differs from our edge block map, reorder D0 rows to edge_block_map.
   typedef typename LA_CrsMatrix::nonconst_local_inds_host_view_type host_inds_type;
   typedef typename LA_CrsMatrix::nonconst_values_host_view_type host_vals_type;
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_col_map = cntxt->refMaxwell.D0_matrix->getColMap();
   if (!aux_edge_map->isSameAs(*edge_block_map)) {
-    // Capture mismatch state before remapping D0 rows onto the edge block map.
-    if (this->verbosity >= 10) {
-      std::cout << d0DiagSummary("pre-remap", cntxt->refMaxwell.D0_matrix, edge_block_map) << std::endl;
-    }
-
     Teuchos::RCP<LA_CrsMatrix> D0_remapped =
       Teuchos::rcp(new LA_CrsMatrix(edge_block_map, std::max<size_t>(1, cntxt->refMaxwell.D0_matrix->getLocalMaxNumRowEntries())));
     const LO n_aux_rows = aux_edge_map->getLocalNumElements();
     const LO n_target_rows = edge_block_map->getLocalNumElements();
     TEUCHOS_TEST_FOR_EXCEPTION(n_aux_rows != n_target_rows, std::runtime_error,
-      "D0 remap failed: local auxiliary and target row counts differ (aux=" +
-      std::to_string(static_cast<long long>(n_aux_rows)) + ", target=" +
-      std::to_string(static_cast<long long>(n_target_rows)) + ").");
+      "D0 remap: local row counts differ (aux=" + std::to_string(static_cast<long long>(n_aux_rows)) +
+      ", target=" + std::to_string(static_cast<long long>(n_target_rows)) + ").");
     for (LO lid = 0; lid < n_aux_rows; ++lid) {
       const GO row_gid = edge_block_map->getGlobalElement(lid);
       size_t nent = cntxt->refMaxwell.D0_matrix->getNumEntriesInLocalRow(lid);
@@ -348,29 +280,9 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     }
     D0_remapped->fillComplete(nodal_map, edge_block_map);
     cntxt->refMaxwell.D0_matrix = D0_remapped;
-    // Confirm remap results and map alignment after fillComplete.
-    if (this->verbosity >= 10) {
-      std::cout << d0DiagSummary("post-remap", cntxt->refMaxwell.D0_matrix, edge_block_map) << std::endl;
-    }
-  }
-  else if (this->verbosity >= 10) {
-    // Diagnostic for the common case where no D0 remap is needed.
-    std::cout << d0DiagSummary("no-remap", cntxt->refMaxwell.D0_matrix, edge_block_map) << std::endl;
   }
 
-  TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->refMaxwell.D0_matrix->getRangeMap()->isSameAs(*edge_block_map), std::runtime_error,
-    "RefMaxwell auxiliary setup failed: remapped D0 range map does not match edge block map. " +
-    d0DiagSummary("range-check", cntxt->refMaxwell.D0_matrix, edge_block_map));
-  TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->refMaxwell.D0_matrix->getDomainMap()->isSameAs(*nodal_map), std::runtime_error,
-    "RefMaxwell auxiliary setup failed: remapped D0 domain map does not match nodal map. " +
-    d0DiagSummary("domain-check", cntxt->refMaxwell.D0_matrix, edge_block_map));
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix->getLocalNumRows() != edge_block_map->getLocalNumElements(), std::runtime_error,
-    "RefMaxwell auxiliary setup failed: D0 local row count does not match edge block local row count. " +
-    d0DiagSummary("local-row-count", cntxt->refMaxwell.D0_matrix, edge_block_map));
-  TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->refMaxwell.M1_matrix->getRowMap()->isSameAs(*edge_block_map) ||
-                             !cntxt->refMaxwell.M1_matrix->getDomainMap()->isSameAs(*edge_block_map), std::runtime_error,
-    "RefMaxwell auxiliary setup failed: M1 map does not match edge block map.");
-
+  // Nodal coordinates on D0 domain (Hgrad) for RefMaxwell nullspace / mesh info.
   cntxt->refMaxwell.nodal_coords = Teuchos::rcp(
     new Tpetra::MultiVector<typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>(nodal_map, dimension));
   auto coords_2d = cntxt->refMaxwell.nodal_coords->getLocalViewHost(Tpetra::Access::OverwriteAll);
@@ -405,10 +317,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     }
   }
 
-  TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->refMaxwell.nodal_coords->getMap()->isSameAs(*cntxt->refMaxwell.D0_matrix->getDomainMap()), std::runtime_error,
-    "RefMaxwell auxiliary setup failed: nodal coordinates map does not match D0 domain map.");
-
-  // ADS for Schur: build D1 (curl) and M2 (face mass) when requested.
+  // ADS (Auxiliary-space Divergence Solver) for Schur block: D1 = curl (Hcurl -> Hdiv), M2 = face mass on target block.
   if (use_ads_schur) {
     typedef typename LA_CrsMatrix::nonconst_local_inds_host_view_type host_inds_type;
     typedef typename LA_CrsMatrix::nonconst_values_host_view_type host_vals_type;
@@ -433,6 +342,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     const int hdiv_order = schurAdsList.isParameter("hdiv basis order")
       ? schurAdsList.template get<int>("hdiv basis order") : 1;
 
+    // H(div) DOFs for D1 (curl); then build D1 and remap its range/domain to block maps.
     Teuchos::RCP<panzer::DOFManager> hdiv_dof = Teuchos::rcp(new panzer::DOFManager());
     hdiv_dof->setConnManager(conn, *(Comm->getRawMpiComm()));
     hdiv_dof->setOrientationsRequired(true);
