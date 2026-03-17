@@ -116,7 +116,7 @@ def main() -> int:
     )
     ap.add_argument(
         "--ref",
-        default="0,1,2,3", #",3",
+        default="1,2,3", #",3",
         help="Comma-separated refinement levels; NX=NY=6*2^ref, NZ=3*2^ref (default: 0,1,2)",
     )
     ap.add_argument(
@@ -233,8 +233,8 @@ def main() -> int:
 
     for i, nsteps in enumerate(nsteps_list):
         for j, ref in enumerate(ref_list):
-            nx = ny = 6 * (2**ref)
-            nz = 3 * (2**ref)
+            nx = ny = 8 * (2**ref)
+            nz = 4 * (2**ref)
             print(f"nsteps={nsteps} (i={i}) ref={ref} (j={j}) nx={nx} ny={ny} nz={nz}")
             update_mesh_yaml(mesh_yaml, nx, ny, nz)
             update_solver_yaml(solver_yaml, nsteps)

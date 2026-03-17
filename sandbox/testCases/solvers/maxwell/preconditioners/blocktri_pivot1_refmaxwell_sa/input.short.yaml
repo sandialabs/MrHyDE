@@ -40,9 +40,11 @@ ANONYMOUS:
         "refmaxwell: skip first (2,2) level": false
         #"aggregation: drop tol": 0.001
         11list:
+          "multigrid algorithm": "sa"
           max levels: 10
           import: ../../fragments/cheb2_smooth.yaml
         22list:
+          "multigrid algorithm": "sa"
           max levels: 10
           import: ../../fragments/cheb2_smooth.yaml
 

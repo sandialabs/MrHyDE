@@ -18,7 +18,7 @@ ANONYMOUS:
       #preconditioner type: direct
       preconditioner type: AMG
       AMG Settings:
-       import: ../../fragments/amg_cheb2.yaml
+       import: ../../fragments/amg_cheb4.yaml
     Schur Block Settings:
       pivot block: 1
       approximation type: diag
@@ -40,9 +40,11 @@ ANONYMOUS:
         "refmaxwell: skip first (2,2) level": false
         #"aggregation: drop tol": 0.001
         11list:
+          "multigrid algorithm": "emin"
           max levels: 10
           import: ../../fragments/cheb2_smooth.yaml
         22list:
+          "multigrid algorithm": "emin"
           max levels: 10
           import: ../../fragments/cheb2_smooth.yaml
 

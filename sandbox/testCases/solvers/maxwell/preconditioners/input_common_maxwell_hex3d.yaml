@@ -25,9 +25,9 @@ ANONYMOUS:
     ymax: 1.0
     zmin: 0.0
     zmax: 0.5
-    NX: 48
-    NY: 48
-    NZ: 24
+    NX: 256
+    NY: 256
+    NZ: 128
     blocknames: eblock-0_0_0
 
   Physics:
