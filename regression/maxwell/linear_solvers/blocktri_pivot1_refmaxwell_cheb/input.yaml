@@ -9,7 +9,7 @@ ANONYMOUS:
   Functions input file: ../input_common_maxwell_hex3d.yaml
   Solver input file: ../input_solver_common.yaml
   Solver:
-    max linear iters: 19 # should converge under 15 iters on macOS
+    max linear iters: 17 # should converge under 15 iters on macOS
     use preconditioner: true
     preconditioner reuse type: full
     preconditioner type: block triangular
