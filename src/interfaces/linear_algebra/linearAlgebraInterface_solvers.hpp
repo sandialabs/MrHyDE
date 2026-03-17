@@ -407,7 +407,9 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   const Teuchos::RCP<const LA_Map> nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
   TEUCHOS_TEST_FOR_EXCEPTION(!cntxt->refMaxwell.nodal_coords->getMap()->isSameAs(*nodal_map), std::runtime_error,
     "RefMaxwell requires nodal coordinates map to match D0 domain map.");
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords->getGlobalLength() != D0_global_cols, std::runtime_error,
+  TEUCHOS_TEST_FOR_EXCEPTION(
+    cntxt->refMaxwell.nodal_coords->getGlobalLength() != static_cast<Tpetra::global_size_t>(D0_global_cols),
+    std::runtime_error,
     "RefMaxwell requires nodal coordinates length to match D0 column count.");
   TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords->getLocalLength() != nodal_map->getLocalNumElements(), std::runtime_error,
     "RefMaxwell requires nodal coordinates local length to match local D0 domain size.");

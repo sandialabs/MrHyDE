@@ -193,7 +193,8 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
     // domain GIDs via a temporary GO vector imported from source domain to source columns.
     Teuchos::RCP<GoVector> tgtDomainOnSrcDomain = Teuchos::rcp(new GoVector(srcDomainMap));
     auto tgtDomainOnSrcDomainData = tgtDomainOnSrcDomain->getLocalViewHost(Tpetra::Access::ReadWrite);
-    for (LO lid = 0; lid < srcDomainMap->getLocalNumElements(); ++lid) {
+    const LO nLocalDomain = static_cast<LO>(srcDomainMap->getLocalNumElements());
+    for (LO lid = 0; lid < nLocalDomain; ++lid) {
       tgtDomainOnSrcDomainData(lid, 0) = domainMap->getGlobalElement(lid);
     }
 

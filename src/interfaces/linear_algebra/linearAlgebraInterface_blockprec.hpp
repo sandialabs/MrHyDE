@@ -394,11 +394,13 @@ void LinearAlgebraInterface<Node>::validateRefMaxwellBlockInputs(
     "RefMaxwell pivot-block: nodal_coords map must match D0 domain map.");
   const GO d0Range = static_cast<GO>(cntxt->refMaxwell.D0_matrix->getRangeMap()->getGlobalNumElements());
   const GO d0Domain = static_cast<GO>(cntxt->refMaxwell.D0_matrix->getDomainMap()->getGlobalNumElements());
-  TEUCHOS_TEST_FOR_EXCEPTION(J00->getGlobalNumRows() != d0Range || J00->getGlobalNumCols() != d0Range,
+  TEUCHOS_TEST_FOR_EXCEPTION(
+    static_cast<GO>(J00->getGlobalNumRows()) != d0Range || static_cast<GO>(J00->getGlobalNumCols()) != d0Range,
     std::runtime_error,
     "RefMaxwell pivot-block: J00 size " << J00->getGlobalNumRows() << "x" << J00->getGlobalNumCols()
     << " must match D0 range size " << d0Range << " (square edge block).");
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords->getGlobalLength() != d0Domain,
+  TEUCHOS_TEST_FOR_EXCEPTION(
+    static_cast<GO>(cntxt->refMaxwell.nodal_coords->getGlobalLength()) != d0Domain,
     std::runtime_error,
     "RefMaxwell pivot-block: nodal_coords length " << cntxt->refMaxwell.nodal_coords->getGlobalLength()
     << " must match D0 domain size " << d0Domain << ".");
