@@ -216,14 +216,12 @@ void PostprocessManager<Node>::report()
                     for (size_type elem=0; elem<wts.extent(0); ++elem) {
                       for (size_type pt=0; pt<wts.extent(1); ++pt) {
                         
-                        vector<ScalarT> phase = {k0*ip[0](elem,pt)*r_hat[0], k0*ip[1](elem,pt)*r_hat[1], k0*ip[2](elem,pt)*r_hat[2] };
+                        ScalarT phase = k0*(ip[0](elem,pt)*r_hat[0] + ip[1](elem,pt)*r_hat[1] + ip[2](elem,pt)*r_hat[2]);
                         vector<std::complex<ScalarT> > phasor;
-                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[0]), -std::sin(phase[0])));
-                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[1]), -std::sin(phase[1])));
-                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[2]), -std::sin(phase[2])));
+                        phasor.push_back(std::complex<ScalarT>(std::cos(phase), -std::sin(phase)));
                         
-                        vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor[0], theta_hat[1]*phasor[1], theta_hat[2]*phasor[2]};
-                        vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor[0], phi_hat[1]*phasor[1], phi_hat[2]*phasor[2]};
+                        vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
+                        vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
                         
                         for (size_t t=0; t<numfreq; ++t) {
                           vector<std::complex<ScalarT>> Esrc = {dft_data(prog,0,0,t), dft_data(prog,0,1,t), dft_data(prog,0,2,t)};
@@ -236,9 +234,10 @@ void PostprocessManager<Node>::report()
                           // Sum into the vector potentials
                           A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
                           A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
-                          F_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
-                          F_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
+                          F_th(t,nt,np) += -wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
+                          F_ph(t,nt,np) += -wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
                         }
+
                       }
                     }
                     prog++;
