@@ -1217,6 +1217,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
           else {
             newdft = objectives[r].sensor_solution_dft;
           }
+          /* Old/Incorrect DFT Compuation
           for (int j = 0; j < N; ++j) {
             for (int k = 0; k < N; ++k) {
               double freq = static_cast<double>(k * j / N);
@@ -1230,6 +1231,24 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
               }
             }
           }
+          */
+          
+          //Edgar
+          for (int k = 0; k < N; ++k) {
+            double freq = objectives[r].dft_frequencies[k];
+            double phase = -2.0 * PI * freq * current_time;
+            std::complex<double> kernel = std::exp(imagi * phase);
+            
+            for (size_type n = 0; n < newdft.extent(0); ++n) {
+              for (size_type m = 0; m < newdft.extent(1); ++m) {
+                for (size_type p = 0; p < newdft.extent(2); ++p) {
+                  newdft(n, m, p, k) += sensordat(n, m, p) * kernel;
+                }
+              }
+            }
+          }
+          //Edgar
+          
         }
         else {
           objectives[r].sensor_solution_data.push_back(sensordat);

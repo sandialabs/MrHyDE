@@ -153,7 +153,7 @@ void PostprocessManager<Node>::report()
               int numphi = settings->sublist("Postprocess").sublist("NF2FF").get("number phi", 1);
               ScalarT minphi = settings->sublist("Postprocess").sublist("NF2FF").get("min phi", 0.0);
               ScalarT maxphi = settings->sublist("Postprocess").sublist("NF2FF").get("max phi", 0.0);
-              ScalarT k0 = settings->sublist("Postprocess").sublist("NF2FF").get("wave number", 0.0);
+              // ScalarT k0 = settings->sublist("Postprocess").sublist("NF2FF").get("wave number", 0.0);
               ScalarT N0 = settings->sublist("Postprocess").sublist("NF2FF").get("freespace impedence", 0.0);
               
               ScalarT EPx = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPx", 0.0);
@@ -204,6 +204,7 @@ void PostprocessManager<Node>::report()
                 vector<View_Sc2> normals = assembler->boundary_groups[iblock][grp]->normals;
                 View_Sc2 wts = assembler->boundary_groups[iblock][grp]->wts;
                 
+                /* Old/Incorrect NF2FF
                 for (int nt=0; nt<numtheta; ++nt) {
                   for (int np=0; np<numphi; ++np) {
                     
@@ -216,12 +217,14 @@ void PostprocessManager<Node>::report()
                     for (size_type elem=0; elem<wts.extent(0); ++elem) {
                       for (size_type pt=0; pt<wts.extent(1); ++pt) {
                         
-                        ScalarT phase = k0*(ip[0](elem,pt)*r_hat[0] + ip[1](elem,pt)*r_hat[1] + ip[2](elem,pt)*r_hat[2]);
+                        vector<ScalarT> phase = {k0*ip[0](elem,pt)*r_hat[0], k0*ip[1](elem,pt)*r_hat[1], k0*ip[2](elem,pt)*r_hat[2] };
                         vector<std::complex<ScalarT> > phasor;
-                        phasor.push_back(std::complex<ScalarT>(std::cos(phase), -std::sin(phase)));
+                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[0]), -std::sin(phase[0])));
+                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[1]), -std::sin(phase[1])));
+                        phasor.push_back(std::complex<ScalarT>(std::cos(phase[2]), -std::sin(phase[2])));
                         
-                        vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
-                        vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
+                        vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor[0], theta_hat[1]*phasor[1], theta_hat[2]*phasor[2]};
+                        vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor[0], phi_hat[1]*phasor[1], phi_hat[2]*phasor[2]};
                         
                         for (size_t t=0; t<numfreq; ++t) {
                           vector<std::complex<ScalarT>> Esrc = {dft_data(prog,0,0,t), dft_data(prog,0,1,t), dft_data(prog,0,2,t)};
@@ -234,15 +237,59 @@ void PostprocessManager<Node>::report()
                           // Sum into the vector potentials
                           A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
                           A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
-                          F_th(t,nt,np) += -wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
-                          F_ph(t,nt,np) += -wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
+                          F_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
+                          F_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
                         }
-
                       }
                     }
                     prog++;
                   }
                 }
+                */
+                
+                //Edgar
+                ScalarT c0 = 299792458; // m/s (hard coded for now)
+                for (size_t t=0; t<numfreq; ++t) {
+                  ScalarT freq = objectives[obj].dft_frequencies[t];
+                  ScalarT k0 = 2.0 * PI * freq / c0;
+                  vector<std::complex<ScalarT>> Esrc = {dft_data(prog,0,0,t), dft_data(prog,0,1,t), dft_data(prog,0,2,t)};
+                  
+                  for (int nt=0; nt<numtheta; ++nt) {
+                    for (int np=0; np<numphi; ++np) {
+                      
+                      // Cartesian to spherical transform
+                      vector<ScalarT> r_hat = {std::sin(THETA[nt])*std::cos(PHI[np]), std::sin(THETA[nt])*std::sin(PHI[np]), std::cos(THETA[nt])};
+                      vector<ScalarT> theta_hat = {std::cos(THETA[nt])*std::cos(PHI[np]), std::cos(THETA[nt])*std::sin(PHI[np]), -std::sin(THETA[nt])};
+                      vector<ScalarT> phi_hat = {-std::sin(PHI[np]), std::cos(PHI[np]), 0.0};
+                      
+                      // Compute phase at quadrature points (assumes 3D)
+                      for (size_type elem=0; elem<wts.extent(0); ++elem) {
+                        for (size_type pt=0; pt<wts.extent(1); ++pt) {
+                          
+                          ScalarT phase = k0*(ip[0](elem,pt)*r_hat[0] + ip[1](elem,pt)*r_hat[1] + ip[2](elem,pt)*r_hat[2]);
+                          std::complex<ScalarT> phasor;
+                          phasor.push_back(std::complex<ScalarT>(std::cos(phase), -std::sin(phase)));
+                          
+                          vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
+                          vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
+                          
+                          // Compute normal x E_theta, normal x Escr, normal x E_phi
+                          vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
+                          vector<std::complex<ScalarT>> n_x_Esrc = {normals[1](elem,pt)*Esrc[2] - normals[2](elem,pt)*Esrc[1], normals[2](elem,pt)*Esrc[0] - normals[0](elem,pt)*Esrc[2], normals[0](elem,pt)*Esrc[1] - normals[1](elem,pt)*Esrc[0]};
+                          vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
+                          
+                          // Sum into the vector potentials
+                          A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
+                          A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
+                          F_th(t,nt,np) += -wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
+                          F_ph(t,nt,np) += -wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
+                        }
+                      }
+                    }
+                  }
+                }
+                prog++;
+                //Edgar
                 
               }
               
@@ -273,6 +320,12 @@ void PostprocessManager<Node>::report()
               
               const int numentries = numtheta*numphi*numfreq;
               Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_th[0], &global_data_A_th[0]);
+              
+              //Edgar
+              Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_ph[0], &global_data_A_ph[0]);
+              Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_th[0], &global_data_F_th[0]);
+              Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_ph[0], &global_data_F_ph[0]);
+              //Edgar
               
               prog = 0;
               for (int t=0; t<numfreq; ++t) {
@@ -318,8 +371,8 @@ void PostprocessManager<Node>::report()
                     sdat(prog,0) = k0/(4*PI*r)*std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np));
                     sdat(prog,1) = k0/(4*PI*r)*std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np));
                     
-                    sdat(prog,2) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2);
-                    sdat(prog,3) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2);
+                    sdat(prog,2) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2); //Edgar
+                    sdat(prog,3) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2); //Edgar
                     
                     sdat(prog,4) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_ph(t,nt,np) + N0*A_th(t,nt,np)),2);
                     sdat(prog,5) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_th(t,nt,np) - N0*A_ph(t,nt,np)),2);
