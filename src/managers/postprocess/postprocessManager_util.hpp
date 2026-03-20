@@ -204,7 +204,7 @@ void PostprocessManager<Node>::report()
                 vector<View_Sc2> normals = assembler->boundary_groups[iblock][grp]->normals;
                 View_Sc2 wts = assembler->boundary_groups[iblock][grp]->wts;
                 
-                /* Old/Incorrect NF2FF
+                // Old/Incorrect NF2FF
                 for (int nt=0; nt<numtheta; ++nt) {
                   for (int np=0; np<numphi; ++np) {
                     
@@ -245,9 +245,9 @@ void PostprocessManager<Node>::report()
                     prog++;
                   }
                 }
-                */
+                // Old/Incorrect NF2FF
                 
-                //Edgar
+                /* //Edgar
                 ScalarT c0 = 299792458; // m/s (hard coded for now)
                 for (size_t t=0; t<numfreq; ++t) {
                   ScalarT freq = objectives[obj].dft_frequencies[t];
@@ -267,8 +267,9 @@ void PostprocessManager<Node>::report()
                         for (size_type pt=0; pt<wts.extent(1); ++pt) {
                           
                           ScalarT phase = k0*(ip[0](elem,pt)*r_hat[0] + ip[1](elem,pt)*r_hat[1] + ip[2](elem,pt)*r_hat[2]);
-                          std::complex<ScalarT> phasor;
-                          phasor.push_back(std::complex<ScalarT>(std::cos(phase), -std::sin(phase)));
+                          //std::complex<ScalarT> phasor;
+                          //phasor.push_back(std::complex<ScalarT>(std::cos(phase), -std::sin(phase)));
+                          std::complex<ScalarT> phasor(std::cos(phase), -std::sin(phase));
                           
                           vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
                           vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
@@ -289,7 +290,7 @@ void PostprocessManager<Node>::report()
                   }
                 }
                 prog++;
-                //Edgar
+                */ //Edgar
                 
               }
               
@@ -321,11 +322,11 @@ void PostprocessManager<Node>::report()
               const int numentries = numtheta*numphi*numfreq;
               Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_th[0], &global_data_A_th[0]);
               
-              //Edgar
+              /* //Edgar
               Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_ph[0], &global_data_A_ph[0]);
               Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_th[0], &global_data_F_th[0]);
               Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_ph[0], &global_data_F_ph[0]);
-              //Edgar
+              */ //Edgar
               
               prog = 0;
               for (int t=0; t<numfreq; ++t) {
@@ -365,14 +366,19 @@ void PostprocessManager<Node>::report()
               ScalarT r = 1.0; // distance into the far field
               prog = 0;
               ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*N0);
+              ScalarT c0 = 299792458; // m/s (hard coded for now)
               for (size_t t=0; t<numfreq; ++t) {
+                ScalarT freq = objectives[obj].dft_frequencies[t];
+                ScalarT k0 = 2.0 * PI * freq / c0;
                 for (int nt=0; nt<numtheta; ++nt) {
                   for (int np=0; np<numphi; ++np) {
                     sdat(prog,0) = k0/(4*PI*r)*std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np));
                     sdat(prog,1) = k0/(4*PI*r)*std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np));
                     
-                    sdat(prog,2) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2); //Edgar
-                    sdat(prog,3) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2); //Edgar
+                    sdat(prog,2) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2);
+                    sdat(prog,3) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2);
+                    //sdat(prog,2) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2); //Edgar
+                    //sdat(prog,3) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2); //Edgar
                     
                     sdat(prog,4) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_ph(t,nt,np) + N0*A_th(t,nt,np)),2);
                     sdat(prog,5) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_th(t,nt,np) - N0*A_ph(t,nt,np)),2);

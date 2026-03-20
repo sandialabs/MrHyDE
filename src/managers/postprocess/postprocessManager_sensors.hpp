@@ -1205,6 +1205,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
         } // sensor points
         // KokkosTools::print(sensordat);
 
+
         if (objectives[r].output_type == "dft" || objectives[r].output_type == "integrated dft") {
           std::complex<double> imagi(0.0, 1.0);
           int N = objectives[r].dft_num_freqs;
@@ -1233,7 +1234,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
           }
           */
           
-          //Edgar
+          /* //Edgar
           for (int k = 0; k < N; ++k) {
             double freq = objectives[r].dft_frequencies[k];
             double phase = -2.0 * PI * freq * current_time;
@@ -1242,12 +1243,12 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
             for (size_type n = 0; n < newdft.extent(0); ++n) {
               for (size_type m = 0; m < newdft.extent(1); ++m) {
                 for (size_type p = 0; p < newdft.extent(2); ++p) {
-                  newdft(n, m, p, k) += sensordat(n, m, p) * kernel;
+                  newdft(n, m, p, k) += sensordat(n, m, p) * kernel; //it is missing the dt constant (time_step_resolution)
                 }
               }
             }
           }
-          //Edgar
+          */ //Edgar
           
         }
         else {
@@ -1257,7 +1258,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
       } // objectives
     }
   }
-
+  
   debugger->print(1, "******** Finished PostprocessManager::computeSensorSolution ...");
 }
 
