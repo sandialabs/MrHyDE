@@ -122,7 +122,7 @@ namespace MrHyDE {
           // logic and setup for a subset of frequencies ...
           dft_num_freqs = objsettings.get<int>("number of dft frequencies");
           
-          /* //Edgar
+          //EB
           dft_min_freq  = objsettings.get<double>("min dft frequency", 0.0);
           dft_max_freq  = objsettings.get<double>("max dft frequency", 0.0);
           
@@ -137,7 +137,7 @@ namespace MrHyDE {
               dft_frequencies[k] = dft_min_freq + static_cast<double>(k) * df;
             }
           }
-          */ //Edgar
+          //EB
           
         }
         if (compute_sensor_soln && compute_sensor_average_soln) {
@@ -184,8 +184,8 @@ namespace MrHyDE {
     bool use_sensor_grid, compute_sensor_soln, compute_sensor_average_soln;
     bool use_quadrature_pts, use_bndry_quadrature_pts;
     int sensor_grid_Nx, sensor_grid_Ny, sensor_grid_Nz, dft_num_freqs;
-    // double dft_min_freq, dft_max_freq; //Edgar
-    // vector<double> dft_frequencies; //Edgar
+    double dft_min_freq, dft_max_freq; //EB
+    vector<double> dft_frequencies; //EB
     double sensor_grid_xmin, sensor_grid_xmax, sensor_grid_ymin, sensor_grid_ymax, sensor_grid_zmin, sensor_grid_zmax;
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_data;   // Ns x Nt
     Kokkos::View<ScalarT**,AssemblyDevice> sensor_points; // Ns x dim

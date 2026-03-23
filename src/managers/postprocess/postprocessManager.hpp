@@ -244,8 +244,10 @@ public:
    * @param[in] current_soln  Current solution vectors.
    * @param[in] current_time  Current time.
    */
+  //void computeSensorSolution(vector<vector_RCP> & current_soln,
+  //                           const ScalarT & current_time);
   void computeSensorSolution(vector<vector_RCP> & current_soln,
-                             const ScalarT & current_time);
+                             const ScalarT & current_time, const ScalarT & time_resolution); //EB
   
   // ========================================================================================
   // ========================================================================================
