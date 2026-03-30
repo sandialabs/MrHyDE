@@ -26,7 +26,7 @@ void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
                             zero_soln, zero_soln, zero_soln);
     }
   }
-  postproc->record(sol, current_time, 0);
+  postproc->record(sol, current_time, 0, deltat);
   
   debugger->print("**** Finished SolverManager::steadySolver");
   
@@ -59,7 +59,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       }
     }
     
-    postproc->record(sol,current_time,0);
+    postproc->record(sol,current_time,0,deltat);
     
     vector<vector<vector_RCP> > sol_prev;
     for (size_t set=0; set<sol.size(); ++set) {
@@ -168,7 +168,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
         //  assembler->performGather(set,u[set],0,0);
         //}
         multiscale_manager->completeTimeStep();
-        postproc->record(sol,current_time,stepProg);
+        postproc->record(sol,current_time,stepProg,deltat);
         
       }
       else { // something went wrong, cut time step and try again

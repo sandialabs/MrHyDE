@@ -11,9 +11,12 @@
 // Checks if output is required at this time, and write to file or saves for output later
 // ========================================================================================
 
+//void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const ScalarT &current_time,
+//                                      const int &stepnum) {
+                                      
 template <class Node>
 void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const ScalarT &current_time,
-                                      const int &stepnum) {
+                                      const int &stepnum, const ScalarT &deltat) { //EB
 
   // Determine if we want to collect QoI, objectives, etc.
   bool write_this_step = false;
@@ -53,8 +56,8 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
       this->computeWeightedNorm(current_soln);
     }
     if (store_sensor_solution) {
-      const ScalarT time_resolution = current_time/stepnum; //EB
-      this->computeSensorSolution(current_soln, current_time, time_resolution);
+      //this->computeSensorSolution(current_soln, current_time);
+      this->computeSensorSolution(current_soln, current_time, deltat); //EB
     }
   }
 
@@ -125,9 +128,12 @@ void PostprocessManager<Node>::report()
             }
             if (objectives[obj].output_type == "dft") {
               auto dft_data = objectives[obj].sensor_solution_dft;
+              numtimes = dft_data.extent(3);
+              //int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
+              //int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
+              int numsols = dft_data.extent_int(1); //EB
+              int numdims = dft_data.extent_int(2); //EB
               size_type numfreq = dft_data.extent(3);
-              int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
-              int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
               numfields = numsols * numdims;
               sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, numfields, numfreq);
               for (size_t t = 0; t < numfreq; ++t) {
@@ -146,6 +152,7 @@ void PostprocessManager<Node>::report()
             {
               
               auto dft_data = objectives[obj].sensor_solution_dft;
+              numtimes = dft_data.extent(3);
               
               // Grab some parameters from settings
               int numtheta = settings->sublist("Postprocess").sublist("NF2FF").get("number theta", 1);
@@ -248,47 +255,73 @@ void PostprocessManager<Node>::report()
                 }
                 */ // Old NF2FF
                 
+                
+                /*
+              numfields = numsols * numdims;
+              sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, numfields, numfreq);
+              for (size_t t = 0; t < numfreq; ++t) {
+                for (int sens = 0; sens < numsensors; ++sens) {
+                  size_t solprog = 0;
+                  for (int sol = 0; sol < numsols; ++sol) {
+                    for (int d = 0; d < numdims; ++d) {
+                      sensor_data(sens, solprog, t) = dft_data(sens, sol, d, t).real();
+                      solprog++;
+                    }
+                  }
+                }
+              }
+              */
+              
+              
                 //EB
+              	int numsols = dft_data.extent_int(1); //EB
+              	cout << "numsols: " << numsols << endl;
+              	cout << "dft_data.extent(0): " << dft_data.extent(0) << endl;
                 ScalarT c0 = 299792458; // m/s (hard coded for now)
                 for (size_t t=0; t<numfreq; ++t) {
                   ScalarT freq = objectives[obj].dft_frequencies[t];
                   ScalarT k0 = 2.0 * PI * freq / c0;
-                  vector<std::complex<ScalarT>> Esrc = {dft_data(prog,0,0,t), dft_data(prog,0,1,t), dft_data(prog,0,2,t)};
                   
-                  for (int nt=0; nt<numtheta; ++nt) {
-                    for (int np=0; np<numphi; ++np) {
-                      
-                      // Cartesian to spherical transform
-                      vector<ScalarT> r_hat = {std::sin(THETA[nt])*std::cos(PHI[np]), std::sin(THETA[nt])*std::sin(PHI[np]), std::cos(THETA[nt])};
-                      vector<ScalarT> theta_hat = {std::cos(THETA[nt])*std::cos(PHI[np]), std::cos(THETA[nt])*std::sin(PHI[np]), -std::sin(THETA[nt])};
-                      vector<ScalarT> phi_hat = {-std::sin(PHI[np]), std::cos(PHI[np]), 0.0};
-                      
-                      // Compute phase at quadrature points (assumes 3D)
-                      for (size_type elem=0; elem<wts.extent(0); ++elem) {
-                        for (size_type pt=0; pt<wts.extent(1); ++pt) {
+                  for (int sens = 0; sens<numsensors; ++sens) {
+                    vector<std::complex<ScalarT>> Esrc = {dft_data(sens,0,0,t), dft_data(sens,0,1,t), dft_data(sens,0,2,t)};
+                    
+                    for (int nt=0; nt<numtheta; ++nt) {
+                      for (int np=0; np<numphi; ++np) {
+                        
+                        // Cartesian to spherical transform
+                        vector<ScalarT> r_hat = {std::sin(THETA[nt])*std::cos(PHI[np]), std::sin(THETA[nt])*std::sin(PHI[np]), std::cos(THETA[nt])};
+                        vector<ScalarT> theta_hat = {std::cos(THETA[nt])*std::cos(PHI[np]), std::cos(THETA[nt])*std::sin(PHI[np]), -std::sin(THETA[nt])};
+                        vector<ScalarT> phi_hat = {-std::sin(PHI[np]), std::cos(PHI[np]), 0.0};
+                        
+                        // Compute phase at quadrature points (assumes 3D)
+                        for (size_type elem=0; elem<wts.extent(0); ++elem) {
+                          for (size_type pt=0; pt<wts.extent(1); ++pt) {
+                            
+                            ScalarT phase = k0*(ip[0](elem,pt)*r_hat[0] + ip[1](elem,pt)*r_hat[1] + ip[2](elem,pt)*r_hat[2]);
+                            std::complex<ScalarT> phasor(std::cos(phase), -std::sin(phase));
+                            
+                            vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
+                            vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
+                            
+                            // Compute normal x E_theta, normal x Escr, normal x E_phi
+                            vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
+                            vector<std::complex<ScalarT>> n_x_Esrc = {normals[1](elem,pt)*Esrc[2] - normals[2](elem,pt)*Esrc[1], normals[2](elem,pt)*Esrc[0] - normals[0](elem,pt)*Esrc[2], normals[0](elem,pt)*Esrc[1] - normals[1](elem,pt)*Esrc[0]};
+                            vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
                           
-                          ScalarT phase = k0*(ip[0](elem,pt)*r_hat[0] + ip[1](elem,pt)*r_hat[1] + ip[2](elem,pt)*r_hat[2]);
-                          std::complex<ScalarT> phasor(std::cos(phase), -std::sin(phase));
-                          
-                          vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
-                          vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
-                          
-                          // Compute normal x E_theta, normal x Escr, normal x E_phi
-                          vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
-                          vector<std::complex<ScalarT>> n_x_Esrc = {normals[1](elem,pt)*Esrc[2] - normals[2](elem,pt)*Esrc[1], normals[2](elem,pt)*Esrc[0] - normals[0](elem,pt)*Esrc[2], normals[0](elem,pt)*Esrc[1] - normals[1](elem,pt)*Esrc[0]};
-                          vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
-                          
-                          // Sum into the vector potentials
-                          A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
-                          A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
-                          F_th(t,nt,np) += -wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
-                          F_ph(t,nt,np) += -wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
+                            // Sum into the vector potentials
+                            A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
+                            A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
+                            F_th(t,nt,np) += -wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
+                            F_ph(t,nt,np) += -wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
+                          }
                         }
                       }
                     }
                   }
+                  //prog++; //moved inside for loop
                 }
-                prog++;
+              	//cout << "prog: " << prog << endl;
+                //prog++; //might need to be moved one for loop inside
                 //EB
                 
               }
@@ -537,13 +570,16 @@ void PostprocessManager<Node>::report()
               }
             }
           }
-
+	  
           size_t max_numtimes = 0;
           Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MAX, 1, &numtimes, &max_numtimes);
+          //cout << "Here 1: " << max_numtimes << endl; //EB
 
           int max_numfields = 0;
           Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MAX, 1, &numfields, &max_numfields);
-
+	  
+	  //max_numtimes = 1; //EB
+          //cout << "Here 2: " << max_numfields << endl; //EB
           if (fileoutput == "text" && objectives[obj].output_type != "integrated dft") {
 
             for (int field = 0; field < max_numfields; ++field) {
@@ -598,6 +634,7 @@ void PostprocessManager<Node>::report()
                 }
 
                 const int numentries = max_numtimes + dimension;
+                
                 Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &series_data[0], &gseries_data[0]);
 
                 if (Comm->getRank() == 0) {
@@ -1185,7 +1222,7 @@ Teuchos::Array<ScalarT> PostprocessManager<Node>::collectResponses()
               ++sprog;
             }
           }
-
+          
           if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln)
           {
             for (int sens = 0; sens < numsensors; ++sens)

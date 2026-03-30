@@ -93,8 +93,10 @@ public:
    * @param current_time Current time value
    * @param stepnum      Time step number
    */
+  //void record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
+  //            const int & stepnum); //EB
   void record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
-              const int & stepnum);
+              const int & stepnum, const ScalarT & deltat);
   
   /**
    * @brief Reports all collected postprocessing data
@@ -247,7 +249,7 @@ public:
   //void computeSensorSolution(vector<vector_RCP> & current_soln,
   //                           const ScalarT & current_time);
   void computeSensorSolution(vector<vector_RCP> & current_soln,
-                             const ScalarT & current_time, const ScalarT & time_resolution); //EB
+                             const ScalarT & current_time, const ScalarT & deltat); //EB
   
   // ========================================================================================
   // ========================================================================================

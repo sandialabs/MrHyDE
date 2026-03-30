@@ -1115,7 +1115,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
 
 template <class Node>
 void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current_soln,
-                                                     const ScalarT &current_time, const ScalarT &time_resolution)
+                                                     const ScalarT &current_time, const ScalarT &deltat)
 {
 
   Teuchos::TimeMonitor localtimer(*sensorSolutionTimer);
@@ -1243,7 +1243,7 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
             for (size_type n = 0; n < newdft.extent(0); ++n) {
               for (size_type m = 0; m < newdft.extent(1); ++m) {
                 for (size_type p = 0; p < newdft.extent(2); ++p) {
-                  newdft(n, m, p, k) += sensordat(n, m, p) * kernel * time_resolution; //it is missing the dt constant (time_step_resolution)
+                  newdft(n, m, p, k) += sensordat(n, m, p) * kernel; // * deltat
                 }
               }
             }
