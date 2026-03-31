@@ -1,0 +1,46 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Solver:
+    Belos solver: "Block GMRES"
+    Belos Settings:
+      Flexible Gmres: true
+    use preconditioner: true
+    preconditioner reuse type: full
+    preconditioner type: block triangular
+    Pivot Block Settings:
+      preconditioner type: AMG
+      use inner krylov: true
+      inner krylov tolerance: 1.0e-9
+      inner krylov max iters: 100
+      inner krylov warn on failure: true
+      AMG Settings:
+        xml param file: amg_params.xml
+    Schur Block Settings:
+      pivot block: 1
+      approximation type: diag
+      diag use lumped pivot diagonal: true
+      preconditioner type: RefMaxwell
+      use inner krylov: true
+      inner krylov tolerance: 1.0e-9
+      inner krylov max iters: 1000
+      inner krylov warn on failure: true
+      hgrad basis name: phi_aux
+      hcurl basis name: E
+      RefMaxwell Settings:
+        xml param file: refmaxwell_params.xml
+        hgrad basis name: phi_aux
+        hcurl basis name: E
+        hgrad basis order: 1
+        hcurl basis order: 1
+        use lumped M0inv: true
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+...
