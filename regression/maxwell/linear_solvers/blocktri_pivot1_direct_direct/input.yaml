@@ -14,7 +14,6 @@ ANONYMOUS:
     use preconditioner: true
     preconditioner reuse type: full
     preconditioner type: block triangular
-    #block prec backend: teko_full
     Pivot Block Settings:
       preconditioner type: Direct
     Schur Block Settings:

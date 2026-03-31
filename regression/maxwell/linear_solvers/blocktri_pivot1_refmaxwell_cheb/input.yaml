@@ -9,32 +9,15 @@ ANONYMOUS:
   Functions input file: ../input_common_maxwell_hex3d.yaml
   Solver input file: ../input_solver_common.yaml
   Solver:
-    max linear iters: 17 # should converge under 15 iters on macOS
+    max linear iters: 17
     use preconditioner: true
     preconditioner reuse type: full
     preconditioner type: block triangular
     Pivot Block Settings:
       preconditioner type: AMG
       AMG Settings:
-        'smoother: type': RELAXATION
-        'smoother: params':
-          'relaxation: type': Jacobi
-          'relaxation: sweeps': 2
-          'relaxation: damping factor': 0.66
-        verbosity: none
-        'coarse: max size': 300
-        multigrid algorithm: sa
-        'aggregation: type': uncoupled
-        'aggregation: drop tol': 0.0
-        'coarse: type': KLU
+        xml param file: amg_params.xml
     Schur Block Settings:
-      'smoother: type': CHEBYSHEV
-      'smoother: params':
-        'chebyshev: degree': 2
-        'chebyshev: ratio eigenvalue': 1.1
-        'chebyshev: min eigenvalue': 0.1
-        'eigen-analysis: type': power-method
-        'chebyshev: eigenvalue max iterations': 15
       pivot block: 1
       approximation type: diag
       diag use lumped pivot diagonal: true
@@ -42,33 +25,12 @@ ANONYMOUS:
       hgrad basis name: phi_aux
       hcurl basis name: E
       RefMaxwell Settings:
-        verbosity: none
-        use as preconditioner: true
+        xml param file: refmaxwell_params.xml
         hgrad basis name: phi_aux
         hcurl basis name: E
         hgrad basis order: 1
         hcurl basis order: 1
-        'refmaxwell: space number': 1
-        enable reuse: true
         use lumped M0inv: true
-        disable addon: false
-        'refmaxwell: skip first (2,2) level': false
-        'aggregation: drop tol': 0.001
-        11list:
-          'smoother: type': CHEBYSHEV
-          'smoother: params':
-            'chebyshev: degree': 2
-            'chebyshev: ratio eigenvalue': 1.1
-            'chebyshev: min eigenvalue': 0.1
-            'eigen-analysis: type': power-method
-            'chebyshev: eigenvalue max iterations': 15
-        22list:
-          'smoother: type': RELAXATION
-          'smoother: params':
-            'relaxation: type': Jacobi
-            'relaxation: sweeps': 2
-            'relaxation: damping factor': 0.66
-          max levels: 10
   Analysis input file: ../input_common_maxwell_hex3d.yaml
   Postprocess input file: ../input_common_maxwell_hex3d.yaml
 ...

@@ -8,6 +8,7 @@
 
 #include "block_prec/ParamUtils.hpp"
 #include "block_prec/BlockAssembly.hpp"
+#include <Teuchos_XMLParameterListHelpers.hpp>
 #include <cctype>
 
 namespace MrHyDE {
@@ -327,33 +328,54 @@ void LinearAlgebraInterface<Node>::linearSolverBoundaryL2Param(matrix_RCP & J, v
 template<class Node>
 Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterface<Node>::buildAMGPreconditioner(const matrix_RCP & J,
                                                                                                                  const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) {
-  
+
   Teuchos::TimeMonitor localtimer(*prectimer);
 
-  Teuchos::ParameterList mueluParams = defaultMueLuParams();
-  
-  if (cntxt->prec_sublist.name() != "empty" ) {
-    Teuchos::ParameterList filteredParams(cntxt->prec_sublist);
-    stripContextAndMethodKeys(filteredParams);
-    mueluParams.setParameters(filteredParams);
+  Teuchos::ParameterList mueluParams;
+
+  // Check if XML parameter file is specified (optional)
+  if (!cntxt->amg.xml_param_file.empty()) {
+    // Load parameters from XML file
+    try {
+      mueluParams = *Teuchos::getParametersFromXmlFile(cntxt->amg.xml_param_file);
+      if (verbosity >= 6 && J->getComm()->getRank() == 0) {
+        std::cout << "[AMG] Loaded parameters from XML file: "
+                  << cntxt->amg.xml_param_file << std::endl;
+      }
+    } catch (const std::exception& e) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+        "Failed to load AMG parameters from XML file '"
+        << cntxt->amg.xml_param_file << "': " << e.what());
+    }
+  } else {
+    // Use YAML-based parameters with defaults
+    mueluParams = defaultMueLuParams();
+
+    if (cntxt->prec_sublist.name() != "empty" ) {
+      Teuchos::ParameterList filteredParams(cntxt->prec_sublist);
+      stripContextAndMethodKeys(filteredParams);
+      mueluParams.setParameters(filteredParams);
+    }
+    if (cntxt->prec_sublist.name() == "empty" ) {
+      mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
+      mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
+      mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
+      mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
+    }
   }
+
+  // Convert verbosity from int to string if needed
   if (mueluParams.isParameter("verbosity") && mueluParams.getEntry("verbosity").isType<int>()) {
     int v = mueluParams.get<int>("verbosity");
     mueluParams.set("verbosity", std::string(v <= 0 ? "none" : v <= 1 ? "low" : v <= 2 ? "medium" : "high"));
   }
-  if (cntxt->prec_sublist.name() == "empty" ) {
-    mueluParams.sublist("smoother: params").set("chebyshev: degree",2);
-    mueluParams.sublist("smoother: params").set("chebyshev: ratio eigenvalue",7.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: min eigenvalue",1.0);
-    mueluParams.sublist("smoother: params").set("chebyshev: zero starting solution",true);
-  }
-  
+
   if (verbosity >= 20){
     mueluParams.set("verbosity","high");
   }
-  
+
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > Mnew = MueLu::CreateTpetraPreconditioner((Teuchos::RCP<LA_Operator>)J, mueluParams);
-  
+
   return Mnew;
 }
 
@@ -416,15 +438,22 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   const bool hasNestedRefMaxwellSettings =
     (blockSublist.name() != "empty") &&
     blockSublist.isSublist("RefMaxwell Settings");
-  const Teuchos::ParameterList & refmaxwellSource =
-    hasNestedRefMaxwellSettings ? blockSublist.sublist("RefMaxwell Settings") : cntxt->prec_sublist;
-  const bool useLumpedM0inv = (refmaxwellSource.name() == "empty")
-    ? true
-    : (refmaxwellSource.isParameter("use lumped M0inv")
-      ? refmaxwellSource.template get<bool>("use lumped M0inv")
-      : (refmaxwellSource.isParameter("refmaxwell: use lumped M0inv")
-        ? refmaxwellSource.template get<bool>("refmaxwell: use lumped M0inv")
-        : true));
+
+  // Handle use lumped M0inv parameter - this is MrHyDE-specific, not passed to MueLu
+  bool useLumpedM0inv = true; // default
+  if (hasNestedRefMaxwellSettings) {
+    const Teuchos::ParameterList & refmaxwellSettings = blockSublist.sublist("RefMaxwell Settings");
+    if (refmaxwellSettings.isParameter("use lumped M0inv")) {
+      useLumpedM0inv = refmaxwellSettings.template get<bool>("use lumped M0inv");
+    }
+  } else if (cntxt->prec_sublist.name() != "empty") {
+    if (cntxt->prec_sublist.isParameter("use lumped M0inv")) {
+      useLumpedM0inv = cntxt->prec_sublist.template get<bool>("use lumped M0inv");
+    } else if (cntxt->prec_sublist.isParameter("refmaxwell: use lumped M0inv")) {
+      useLumpedM0inv = cntxt->prec_sublist.template get<bool>("refmaxwell: use lumped M0inv");
+    }
+  }
+
   matrix_RCP M0inv = useLumpedM0inv
     ? block_prec::detail::buildLumpedM0inv<Node>(cntxt->refMaxwell.D0_matrix, M1_use, nodal_map, edge_map)
     : block_prec::detail::buildM0invIdentity<Node>(nodal_map);
@@ -454,8 +483,24 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
               << " numVecs=" << cntxt->refMaxwell.nodal_coords->getNumVectors() << std::endl;
   }
 
-  Teuchos::ParameterList refmaxwellParams = assembleRefMaxwellParams(
-    blockSublist, cntxt->prec_sublist, static_cast<int>(cntxt->refMaxwell.nodal_coords->getNumVectors()));
+  // Require XML parameter file for RefMaxwell
+  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.xml_param_file.empty(), std::runtime_error,
+    "RefMaxwell preconditioner requires 'xml param file' to be specified in 'RefMaxwell Settings'. "
+    << "XML files provide complete MueLu RefMaxwell configuration. See regression tests for examples.");
+
+  Teuchos::ParameterList refmaxwellParams;
+
+  // Load parameters from XML file
+  try {
+    refmaxwellParams = *Teuchos::getParametersFromXmlFile(cntxt->refMaxwell.xml_param_file);
+    if (verbosity >= 6 && J->getComm()->getRank() == 0) {
+      std::cout << "[RefMaxwell] Loaded parameters from XML file: " << cntxt->refMaxwell.xml_param_file << std::endl;
+    }
+  } catch (const std::exception& e) {
+    TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+      "Failed to load RefMaxwell parameters from XML file '" << cntxt->refMaxwell.xml_param_file
+      << "': " << e.what());
+  }
 
   sanitizeDirectCoarseParams(refmaxwellParams.sublist("refmaxwell: 11list"));
   sanitizeDirectCoarseParams(refmaxwellParams.sublist("refmaxwell: 22list"));

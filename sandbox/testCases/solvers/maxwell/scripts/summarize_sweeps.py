@@ -326,9 +326,9 @@ def _plot_solve_time_panels(
             )
         final_time = sweep_meta.get("final_time") if sweep_meta else None
         if final_time is not None:
-            ax.set_xlabel(rf"Time step size ($T_{{\max}} = {final_time}$)")
+            ax.set_xlabel(rf"Time step size (# of steps) ($T_{{\max}} = {final_time}$)")
         else:
-            ax.set_xlabel("Time step size")
+            ax.set_xlabel("Time step size (# of steps)")
         ax.set_ylabel("Belos solve time (s)")
         if spatial_meta_map and r in spatial_meta_map:
             e = spatial_meta_map[r]

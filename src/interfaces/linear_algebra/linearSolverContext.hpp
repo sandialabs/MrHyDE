@@ -66,6 +66,17 @@ struct RefMaxwellData {
   Teuchos::RCP<LA_MultiVector> ads_null11;
   Teuchos::RCP<LA_MultiVector> ads_null22;
   bool strict_refmaxwell;  /**< Enforce that pivot block preconditioner is RefMaxwell when strict mode is active. */
+  std::string xml_param_file = "";  /**< Path to XML parameter file for RefMaxwell configuration. If provided, XML is used. */
+};
+
+/**
+ * \struct AMGData
+ * \brief Configuration data for MueLu AMG (Algebraic MultiGrid) preconditioner.
+ *
+ * Stores AMG-specific configuration. If xml_param_file is non-empty, parameters are loaded from XML.
+ */
+struct AMGData {
+  std::string xml_param_file = "";  /**< Path to XML parameter file for AMG configuration. If provided, XML is used. */
 };
 
 /** \class  LinearSolverContext
@@ -141,6 +152,8 @@ public:
   bool have_symb_factor;        /**< Indicates whether symbolic factorization exists. */
   /**< Grouped Schur and block-tri options (variant, damping, pivot block, strictness). */
   SchurConfig schur;
+  /**< AMG preconditioner configuration data including XML parameter support. */
+  AMGData amg;
   /**< RefMaxwell matrices/vectors (D0, M1, coords, nullspace) and debug/strict flags. */
   RefMaxwellData<Node> refMaxwell;
 
@@ -255,6 +268,13 @@ private:
       refMaxwell.strict_refmaxwell = pivot_block_sublist.get<bool>("strict RefMaxwell");
       strictRefMaxwellSetExplicitly = true;
     }
+    // Check for XML parameter file in AMG Settings
+    if (pivot_block_sublist.isSublist("AMG Settings")) {
+      Teuchos::ParameterList & amgSettings = pivot_block_sublist.sublist("AMG Settings");
+      if (amgSettings.isParameter("xml param file")) {
+        amg.xml_param_file = amgSettings.get<string>("xml param file");
+      }
+    }
   }
 
   void parseSchurBlockSublist(bool & strictRefMaxwellSetExplicitly) {
@@ -289,6 +309,20 @@ private:
     if (schur_block_sublist.isParameter("strict RefMaxwell")) {
       refMaxwell.strict_refmaxwell = schur_block_sublist.get<bool>("strict RefMaxwell");
       strictRefMaxwellSetExplicitly = true;
+    }
+    // Check for XML parameter file in RefMaxwell Settings
+    if (schur_block_sublist.isSublist("RefMaxwell Settings")) {
+      Teuchos::ParameterList & refmaxwellSettings = schur_block_sublist.sublist("RefMaxwell Settings");
+      if (refmaxwellSettings.isParameter("xml param file")) {
+        refMaxwell.xml_param_file = refmaxwellSettings.get<string>("xml param file");
+      }
+    }
+    // Check for XML parameter file in AMG Settings
+    if (schur_block_sublist.isSublist("AMG Settings")) {
+      Teuchos::ParameterList & amgSettings = schur_block_sublist.sublist("AMG Settings");
+      if (amgSettings.isParameter("xml param file")) {
+        amg.xml_param_file = amgSettings.get<string>("xml param file");
+      }
     }
   }
 

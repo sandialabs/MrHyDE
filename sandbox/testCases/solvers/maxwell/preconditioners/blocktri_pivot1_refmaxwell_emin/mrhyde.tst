@@ -15,11 +15,11 @@ its = mrhyde_test_support(desc)
 its.opts.verbose = True
 
 #TESTING active
-#TESTING -n 12
+#TESTING -n 4
 #TESTING -k maxwell,HCURL,blocktriangular,schur,regression
 
 _mrhyde_exe = os.path.join(_mrhyde_root, "regression", "mrhyde")
-cmd = "mpiexec -n 12 " + _mrhyde_exe + " >& mrhyde.log"
+cmd = "mpiexec -n 4 " + _mrhyde_exe + " >& mrhyde.log"
 if its.opts.verbose:
   print('---> ' + cmd)
 result = subprocess.run(cmd, shell=True)

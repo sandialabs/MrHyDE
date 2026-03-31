@@ -6,7 +6,7 @@ ANONYMOUS:
     transient BDF order: 1
     transient Butcher tableau: DIRK-1,2
     #transient Butcher tableau: CN
-    number of steps: 160
+    number of steps: 80
     final time: 2.0
     assembly partitioning: sequential
     use basis database: false

@@ -111,7 +111,7 @@ def main() -> int:
     ap.add_argument("dir", type=Path, help="Subdirectory under maxwell (e.g. preconditioners)")
     ap.add_argument(
         "--nsteps",
-        default="10, 20, 40, 80, 160", #",20,40,80,120", #",40,80", #" ,300,500,600",
+        default="10, 20, 40, 80", #",20,40,80,120", #",40,80", #" ,300,500,600",
         help="Comma-separated number of steps",
     )
     ap.add_argument(

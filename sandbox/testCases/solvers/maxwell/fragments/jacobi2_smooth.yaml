@@ -1,3 +1,0 @@
-"smoother: type": RELAXATION
-"smoother: params":
-  import: jacobi2_params.yaml
