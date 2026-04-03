@@ -8,7 +8,6 @@
 
 #include "boundaryGroup.hpp"
 #include "physicsInterface.hpp"
-
 #include <iostream>
 #include <iterator>
 
