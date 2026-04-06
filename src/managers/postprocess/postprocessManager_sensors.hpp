@@ -696,8 +696,29 @@ void PostprocessManager<Node>::importSensorsOnQuadrature(const int &objID)
   if (numFound != qdata.extent(0)) {
     // throw an error
   }
+    
+    // sensor_found needs to be an array that knows about the global number of sensors on all procs
+    Teuchos::Array<int> ldata(Comm->getSize(), 0);
+    Teuchos::Array<int> gdata(Comm->getSize(), 0);
+    ldata[Comm->getRank()] = numFound;
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, Comm->getSize(), &ldata[0], &gdata[0]);
+    
+    int totalsens = 0;
+    for (size_t i=0; i<gdata.size(); ++i) {
+        totalsens += gdata[i];
+    }
+    int start = 0;
+    for (size_t i=0; i<Comm->getRank(); ++i) {
+        start += gdata[i];
+    }
+    
+    Kokkos::View<bool *, HostDevice> gspts_found("sensors found", totalsens);
+    for (size_t i=0; i<numFound; ++i) {
+        gspts_found(start+i) = true;
+    }
+    
   objectives[objID].numSensors = numFound;
-  objectives[objID].sensor_found = spts_found;
+  objectives[objID].sensor_found = gspts_found;
   
   if (numFound > 0) {
 
@@ -796,8 +817,28 @@ void PostprocessManager<Node>::importSensorsOnBndryQuadrature(const int &objID)
   if (numFound != qdata.extent(0)) {
     // throw an error
   }
+    
+    // sensor_found needs to be an array that knows about the global number of sensors on all procs
+    Teuchos::Array<int> ldata(Comm->getSize(), 0);
+    Teuchos::Array<int> gdata(Comm->getSize(), 0);
+    ldata[Comm->getRank()] = numFound;
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, Comm->getSize(), &ldata[0], &gdata[0]);
+    
+    int totalsens = 0;
+    for (size_t i=0; i<gdata.size(); ++i) {
+        totalsens += gdata[i];
+    }
+    int start = 0;
+    for (size_t i=0; i<Comm->getRank(); ++i) {
+        start += gdata[i];
+    }
+    Kokkos::View<bool *, HostDevice> gspts_found("sensors found", totalsens);
+    for (size_t i=0; i<numFound; ++i) {
+        gspts_found(start+i) = true;
+    }
+    
   objectives[objID].numSensors = numFound;
-  objectives[objID].sensor_found = spts_found;
+  objectives[objID].sensor_found = gspts_found;
 
   if (numFound > 0) {
 
@@ -1050,7 +1091,7 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
 
             auto inRefgrp = assembler->disc->checkInclusionPhysicalData(phys_pt, cids,
                                                                         assembler->groupData[block]->cell_topo,
-                                                                        block, 1.0e-14);
+                                                                        block, 1.0e-12);
             auto inRef_host = create_mirror_view(inRefgrp);
             deep_copy(inRef_host, inRefgrp);
             if (inRef_host(0, 0))
@@ -1261,4 +1302,5 @@ void PostprocessManager<Node>::computeSensorSolution(vector<vector_RCP> &current
   
   debugger->print(1, "******** Finished PostprocessManager::computeSensorSolution ...");
 }
+
 
