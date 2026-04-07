@@ -206,10 +206,10 @@ void PostprocessManager<Node>::report()
                             
                             size_t iblock = objectives[obj].block;
                             string sidename = objectives[obj].sideset;
-                            std::complex<ScalarT> Prad = 0.0; // radiated power
+                            vector<std::complex<ScalarT>> Prad(numfreq, std::complex<ScalarT>(0.0, 0.0)); // radiated power
+                            ScalarT c0 = 299792458; // m/s (hard coded for now)
                             int prog = 0; // increments sensors
                             for (size_t t=0; t<numfreq; ++t) {
-                                ScalarT c0 = 299792458; // m/s (hard coded for now)
                                 
                                 ScalarT freq = objectives[obj].dft_frequencies[t];
                                 ScalarT k0 = 2.0 * PI * freq / c0;
@@ -259,7 +259,9 @@ void PostprocessManager<Node>::report()
                                                         					   
 					                // Sum into total radiated power at ABC
 					                //Prad = j*k0* E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E'; //Prad
-					                Prad += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
+					                if (nt==0 && np==0) {
+					                  Prad[t] += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
+                                                        }
                                                         
                                                         // Sum into the vector potentials
                                                         A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
@@ -331,7 +333,7 @@ void PostprocessManager<Node>::report()
                                         A_th(t,nt,np) = std::complex<ScalarT>(global_data_A_th_re[prog], global_data_A_th_im[prog]);
                                         A_ph(t,nt,np) = std::complex<ScalarT>(global_data_A_ph_re[prog], global_data_A_ph_im[prog]);
                                         F_th(t,nt,np) = std::complex<ScalarT>(global_data_F_th_re[prog], global_data_F_th_im[prog]);
-                                        F_ph(t,nt,np) = std::complex<ScalarT>(global_data_F_ph_re[prog], global_data_F_th_im[prog]);
+                                        F_ph(t,nt,np) = std::complex<ScalarT>(global_data_F_ph_re[prog], global_data_F_ph_im[prog]);
                                         ++prog;
                                     }
                                 }
@@ -363,12 +365,10 @@ void PostprocessManager<Node>::report()
                             ScalarT r = 1.0; // distance into the far field
                             prog = 0;
                             // ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*N0);
-                            ScalarT c0 = 299792458; // m/s (hard coded for now)
-                            // ScalarT Prad = 5.0;
-                            std::complex<ScalarT> Piso = Prad/(4*PI);
                             for (size_t t=0; t<numfreq; ++t) {
                                 ScalarT freq = objectives[obj].dft_frequencies[t];
                                 ScalarT k0 = 2.0 * PI * freq / c0;
+                                std::complex<ScalarT> Piso = Prad[t]/(4*PI);
                                 
                                 for (int nt=0; nt<numtheta; ++nt) {
                                     for (int np=0; np<numphi; ++np) {
