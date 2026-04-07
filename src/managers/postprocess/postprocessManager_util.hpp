@@ -173,21 +173,21 @@ void PostprocessManager<Node>::report()
                             if (numtheta>1) {
                                 ScalarT dtheta = (maxtheta-mintheta)/(numtheta-1);
                                 for (size_t k=0; k<numtheta; ++k) {
-                                    THETA[k] = mintheta + k*dtheta;
+                                    THETA[k] = (mintheta + k*dtheta) * PI / 180;
                                 }
                             }
                             else {
-                                THETA[0] = mintheta;
+                                THETA[0] = mintheta * PI / 180;
                             }
                             
                             if (numphi>1) {
                                 ScalarT dphi = (maxphi-minphi)/(numphi-1);
                                 for (size_t k=0; k<numphi; ++k) {
-                                    PHI[k] = minphi + k*dphi;
+                                    PHI[k] = (minphi + k*dphi) * PI / 180;
                                 }
                             }
                             else {
-                                PHI[0] = minphi;
+                                PHI[0] = minphi * PI / 180;
                             }
                             
                             auto numfreq = dft_data.extent(3);
@@ -206,6 +206,7 @@ void PostprocessManager<Node>::report()
                             
                             size_t iblock = objectives[obj].block;
                             string sidename = objectives[obj].sideset;
+                            std::complex<ScalarT> Prad = 0.0; // radiated power
                             int prog = 0; // increments sensors
                             for (size_t t=0; t<numfreq; ++t) {
                                 ScalarT c0 = 299792458; // m/s (hard coded for now)
@@ -229,9 +230,8 @@ void PostprocessManager<Node>::report()
                                                 vector<View_Sc2> normals = assembler->boundary_groups[iblock][grp]->normals;
                                                 View_Sc2 wts = assembler->boundary_groups[iblock][grp]->wts;
                                                 
-                                                
                                                 //EB
-                                                int numsols = dft_data.extent_int(1); //EB
+                                                int numsols = dft_data.extent_int(1); //EB DELETE, UNUSED
                                                 
                                                 // Cartesian to spherical transform
                                                 vector<ScalarT> r_hat = {std::sin(THETA[nt])*std::cos(PHI[np]), std::sin(THETA[nt])*std::sin(PHI[np]), std::cos(THETA[nt])};
@@ -242,80 +242,96 @@ void PostprocessManager<Node>::report()
                                                 for (size_type elem=0; elem<wts.extent(0); ++elem) {
                                                     for (size_type pt=0; pt<wts.extent(1); ++pt) {
                                                         vector<std::complex<ScalarT>> Esrc = {dft_data(prog,0,0,t), dft_data(prog,0,1,t), dft_data(prog,0,2,t)};
-                                                        prog++;
+                                                        vector<std::complex<ScalarT>> EsrcC = {std::conj(dft_data(prog,0,0,t)), std::conj(dft_data(prog,0,1,t)), std::conj(dft_data(prog,0,2,t))}; //conj(Esrc)
+                                                        
+                                                        // Compute Phase
                                                         ScalarT phase = k0*(ip[0](elem,pt)*r_hat[0] + ip[1](elem,pt)*r_hat[1] + ip[2](elem,pt)*r_hat[2]);
                                                         std::complex<ScalarT> phasor(std::cos(phase), -std::sin(phase));
                                                         
-                                                        vector<std::complex<ScalarT>> E_theta = { theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
-                                                        vector<std::complex<ScalarT>> E_phi = { phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
+                                                        vector<std::complex<ScalarT>> E_theta = {theta_hat[0]*phasor, theta_hat[1]*phasor, theta_hat[2]*phasor};
+                                                        vector<std::complex<ScalarT>> E_phi = {phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
                                                         
-                                                        // Compute normal x E_theta, normal x Escr, normal x E_phi
-                                                        vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
+                                                        // Compute normal x Escr, normal x conj(Escr), normal x E_theta, normal x E_phi
                                                         vector<std::complex<ScalarT>> n_x_Esrc = {normals[1](elem,pt)*Esrc[2] - normals[2](elem,pt)*Esrc[1], normals[2](elem,pt)*Esrc[0] - normals[0](elem,pt)*Esrc[2], normals[0](elem,pt)*Esrc[1] - normals[1](elem,pt)*Esrc[0]};
+                                                        vector<std::complex<ScalarT>> n_x_EsrcC = {normals[1](elem,pt)*EsrcC[2] - normals[2](elem,pt)*EsrcC[1], normals[2](elem,pt)*EsrcC[0] - normals[0](elem,pt)*EsrcC[2], normals[0](elem,pt)*EsrcC[1] - normals[1](elem,pt)*EsrcC[0]};
+                                                        vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
                                                         vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
+                                                        					   
+					                // Sum into total radiated power at ABC
+					                //Prad = j*k0* E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E'; //Prad
+					                Prad += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
                                                         
                                                         // Sum into the vector potentials
                                                         A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
                                                         A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
                                                         F_th(t,nt,np) += -wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
                                                         F_ph(t,nt,np) += -wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
+                                                        prog++;
                                                     }
                                                 }
                                             }
-                                            //prog += iprog;
                                         }
                                     }
-                                    //}
-                                    //prog++; //moved inside for loop
                                 }
-                                //cout << "prog: " << prog << endl;
-                                //prog++; //might need to be moved one for loop inside
-                                //EB
-                                
                             }
+                            
+                            const int numentries = numfreq * numtheta * numphi;
                             
                             // The above calculation provides the processor-local contribution to the integrated quantity
                             // Need to sum over all processors to get the global values
-                            Teuchos::Array<ScalarT> local_data_A_th(numtheta*numphi*numfreq, 0.0);
-                            Teuchos::Array<ScalarT> global_data_A_th(numtheta*numphi*numfreq, 0.0);
-                            Teuchos::Array<ScalarT> local_data_A_ph(numtheta*numphi*numfreq, 0.0);
-                            Teuchos::Array<ScalarT> global_data_A_ph(numtheta*numphi*numfreq, 0.0);
-                            Teuchos::Array<ScalarT> local_data_F_th(numtheta*numphi*numfreq, 0.0);
-                            Teuchos::Array<ScalarT> global_data_F_th(numtheta*numphi*numfreq, 0.0);
-                            Teuchos::Array<ScalarT> local_data_F_ph(numtheta*numphi*numfreq, 0.0);
-                            Teuchos::Array<ScalarT> global_data_F_ph(numtheta*numphi*numfreq, 0.0);
+                            Teuchos::Array<ScalarT> local_data_A_th_re(numentries, 0.0), global_data_A_th_re(numentries, 0.0);
+                            Teuchos::Array<ScalarT> local_data_A_th_im(numentries, 0.0), global_data_A_th_im(numentries, 0.0);
+                            
+                            Teuchos::Array<ScalarT> local_data_A_ph_re(numentries, 0.0), global_data_A_ph_re(numentries, 0.0);
+                            Teuchos::Array<ScalarT> local_data_A_ph_im(numentries, 0.0), global_data_A_ph_im(numentries, 0.0);
+                            
+                            Teuchos::Array<ScalarT> local_data_F_th_re(numentries, 0.0), global_data_F_th_re(numentries, 0.0);
+                            Teuchos::Array<ScalarT> local_data_F_th_im(numentries, 0.0), global_data_F_th_im(numentries, 0.0);
+                            
+                            Teuchos::Array<ScalarT> local_data_F_ph_re(numentries, 0.0), global_data_F_ph_re(numentries, 0.0);
+                            Teuchos::Array<ScalarT> local_data_F_ph_im(numentries, 0.0), global_data_F_ph_im(numentries, 0.0);
                             
                             // Just taking the real component for now
                             prog = 0;
                             for (int t=0; t<numfreq; ++t) {
                                 for (int nt=0; nt<numtheta; ++nt) {
                                     for (int np=0; np<numphi; ++np) {
-                                        local_data_A_th[prog] = A_th(t,nt,np).real();
-                                        local_data_A_ph[prog] = A_ph(t,nt,np).real();
-                                        local_data_F_th[prog] = F_th(t,nt,np).real();
-                                        local_data_F_ph[prog] = F_ph(t,nt,np).real();
+                                        local_data_A_th_re[prog] = A_th(t,nt,np).real();
+                                        local_data_A_th_im[prog] = A_th(t,nt,np).imag();
+                                        
+                                        local_data_A_ph_re[prog] = A_ph(t,nt,np).real();
+                                        local_data_A_ph_im[prog] = A_ph(t,nt,np).imag();
+                                        
+                                        local_data_F_th_re[prog] = F_th(t,nt,np).real();
+                                        local_data_F_th_im[prog] = F_th(t,nt,np).imag();
+                                        
+                                        local_data_F_ph_re[prog] = F_ph(t,nt,np).real();
+                                        local_data_F_ph_im[prog] = F_ph(t,nt,np).imag();
                                         ++prog;
                                     }
                                 }
                             }
                             
-                            const int numentries = numtheta*numphi*numfreq;
-                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_th[0], &global_data_A_th[0]);
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_th_re[0], &global_data_A_th_re[0]);
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_th_im[0], &global_data_A_th_im[0]);
                             
-                           //EB
-                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_ph[0], &global_data_A_ph[0]);
-                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_th[0], &global_data_F_th[0]);
-                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_ph[0], &global_data_F_ph[0]);
-                            //EB
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_ph_re[0], &global_data_A_ph_re[0]);
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_ph_im[0], &global_data_A_ph_im[0]);
+                            
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_th_re[0], &global_data_F_th_re[0]);
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_th_im[0], &global_data_F_th_im[0]);
+                            
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_ph_re[0], &global_data_F_ph_re[0]);
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_ph_im[0], &global_data_F_ph_im[0]);
                             
                             prog = 0;
                             for (int t=0; t<numfreq; ++t) {
                                 for (int nt=0; nt<numtheta; ++nt) {
                                     for (int np=0; np<numphi; ++np) {
-                                        A_th(t,nt,np) = global_data_A_th[prog];
-                                        A_ph(t,nt,np) = global_data_A_ph[prog];
-                                        F_th(t,nt,np) = global_data_F_th[prog];
-                                        F_ph(t,nt,np) = global_data_F_ph[prog];
+                                        A_th(t,nt,np) = std::complex<ScalarT>(global_data_A_th_re[prog], global_data_A_th_im[prog]);
+                                        A_ph(t,nt,np) = std::complex<ScalarT>(global_data_A_ph_re[prog], global_data_A_ph_im[prog]);
+                                        F_th(t,nt,np) = std::complex<ScalarT>(global_data_F_th_re[prog], global_data_F_th_im[prog]);
+                                        F_ph(t,nt,np) = std::complex<ScalarT>(global_data_F_ph_re[prog], global_data_F_th_im[prog]);
                                         ++prog;
                                     }
                                 }
@@ -341,76 +357,15 @@ void PostprocessManager<Node>::report()
                              }
                              }
                              */
-                            Kokkos::View<std::complex<ScalarT>**, HostDevice> sdat("sensor data", numfreq*numtheta*numphi, 7);
-                            
-                            /* Old Single CSV File Save For All Frequencies //EB
-                             ScalarT r = 1.0; // distance into the far field
-                             prog = 0;
-                             ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*N0);
-                             for (size_t t=0; t<numfreq; ++t) {
-                             for (int nt=0; nt<numtheta; ++nt) {
-                             for (int np=0; np<numphi; ++np) {
-                             sdat(prog,0) = k0/(4*PI*r)*std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np));
-                             sdat(prog,1) = k0/(4*PI*r)*std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np));
-                             
-                             sdat(prog,2) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2);
-                             sdat(prog,3) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2);
-                             
-                             sdat(prog,4) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_ph(t,nt,np) + N0*A_th(t,nt,np)),2);
-                             sdat(prog,5) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_th(t,nt,np) - N0*A_ph(t,nt,np)),2);
-                             sdat(prog,6) = sdat(prog,4) + sdat(prog,5);
-                             ++prog;
-                             }
-                             }
-                             }
-                             
-                             if (Comm->getRank() == 0) {
-                             string respfile = "integrated_dft_calc.csv";
-                             std::ofstream respOUT;
-                             
-                             bool is_open = false;
-                             int attempts = 0;
-                             int max_attempts = 100;
-                             while (!is_open && attempts < max_attempts) {
-                             respOUT.open(respfile);
-                             is_open = respOUT.is_open();
-                             attempts++;
-                             }
-                             respOUT.precision(8);
-                             
-                             // Just writing the real component for now
-                             prog = 0;
-                             for (size_t t=0; t<numfreq; ++t) {
-                             for (int nt=0; nt<numtheta; ++nt) {
-                             for (int np=0; np<numphi; ++np) {
-                             respOUT << sdat(prog,0).real() << ",  ";
-                             respOUT << sdat(prog,1).real() << ",  ";
-                             respOUT << sdat(prog,2).real() << ",  ";
-                             respOUT << sdat(prog,3).real() << ",  ";
-                             respOUT << sdat(prog,4).real() << ",  ";
-                             respOUT << sdat(prog,5).real() << ",  ";
-                             respOUT << sdat(prog,6).real() << ",  ";
-                             respOUT << endl;
-                             ++prog;
-                             }
-                             }
-                             }
-                             respOUT.close();
-                             }
-                             */ //EB
-                            
-                            
-                            
-                            
-                            
+                            Kokkos::View<std::complex<ScalarT>**, HostDevice> sdat("sensor data", numentries, 7);
                             
                             //EB
                             ScalarT r = 1.0; // distance into the far field
                             prog = 0;
-                            ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*N0);
+                            // ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*N0);
                             ScalarT c0 = 299792458; // m/s (hard coded for now)
-                            ScalarT Prad = 0.01;
-                            ScalarT Piso = Prad/(4*PI);
+                            // ScalarT Prad = 5.0;
+                            std::complex<ScalarT> Piso = Prad/(4*PI);
                             for (size_t t=0; t<numfreq; ++t) {
                                 ScalarT freq = objectives[obj].dft_frequencies[t];
                                 ScalarT k0 = 2.0 * PI * freq / c0;
@@ -432,9 +387,6 @@ void PostprocessManager<Node>::report()
                                         // Radiated Power in r_hat
                                         sdat(prog,2) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2); //P_theta
                                         sdat(prog,3) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2); //P_phi
-                                        
-                                        // Total Radiated Power at ABC
-                                        //Prad = j*k0*integral( dot( cross(normal,T) , cross(normal,T) ) ); //Prad
                                         
                                         // Gain
                                         sdat(prog,4) = sdat(prog,2)/Piso; //Gain_theta
@@ -471,12 +423,19 @@ void PostprocessManager<Node>::report()
                                     for (int nt=0; nt<numtheta; ++nt) {
                                         for (int np=0; np<numphi; ++np) {
                                             respOUT << sdat(prog,0).real() << ",  ";
+                                            respOUT << sdat(prog,0).imag() << ",  ";
                                             respOUT << sdat(prog,1).real() << ",  ";
+                                            respOUT << sdat(prog,1).imag() << ",  ";
                                             respOUT << sdat(prog,2).real() << ",  ";
+                                            respOUT << sdat(prog,2).imag() << ",  ";
                                             respOUT << sdat(prog,3).real() << ",  ";
+                                            respOUT << sdat(prog,3).imag() << ",  ";
                                             respOUT << sdat(prog,4).real() << ",  ";
+                                            respOUT << sdat(prog,4).imag() << ",  ";
                                             respOUT << sdat(prog,5).real() << ",  ";
+                                            respOUT << sdat(prog,5).imag() << ",  ";
                                             respOUT << sdat(prog,6).real() << ",  ";
+                                            respOUT << sdat(prog,6).imag() << ",  ";
                                             respOUT << endl;
                                             ++prog;
                                         }
@@ -521,13 +480,10 @@ void PostprocessManager<Node>::report()
                     
                     size_t max_numtimes = 0;
                     Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MAX, 1, &numtimes, &max_numtimes);
-                    //cout << "Here 1: " << max_numtimes << endl; //EB
                     
                     int max_numfields = 0;
                     Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MAX, 1, &numfields, &max_numfields);
                     
-                    //max_numtimes = 1; //EB
-                    //cout << "Here 2: " << max_numfields << endl; //EB
                     if (fileoutput == "text" && objectives[obj].output_type != "integrated dft") {
                         
                         for (int field = 0; field < max_numfields; ++field) {
