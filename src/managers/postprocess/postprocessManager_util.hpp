@@ -197,6 +197,8 @@ void PostprocessManager<Node>::report()
                             Kokkos::View<std::complex<ScalarT>***,HostDevice> F_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_th", numfreq, numtheta, numphi);
                             Kokkos::View<std::complex<ScalarT>***,HostDevice> F_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_ph", numfreq, numtheta, numphi);
                             
+                            vector<std::complex<ScalarT>> Prad(numfreq, std::complex<ScalarT>(0.0, 0.0)); // radiated power
+                            
                             // Need to make a few assumptions here:
                             // 1. The sensors are the boundary quadrature points on a given block
                             // 2. They are in the same order as looping through the boundary groups and quadrature points
@@ -206,7 +208,6 @@ void PostprocessManager<Node>::report()
                             
                             size_t iblock = objectives[obj].block;
                             string sidename = objectives[obj].sideset;
-                            vector<std::complex<ScalarT>> Prad(numfreq, std::complex<ScalarT>(0.0, 0.0)); // radiated power
                             ScalarT c0 = 299792458; // m/s (hard coded for now)
                             int prog = 0; // increments sensors
                             for (size_t t=0; t<numfreq; ++t) {
@@ -229,9 +230,6 @@ void PostprocessManager<Node>::report()
                                                 vector<View_Sc2> ip = assembler->boundary_groups[iblock][grp]->ip;
                                                 vector<View_Sc2> normals = assembler->boundary_groups[iblock][grp]->normals;
                                                 View_Sc2 wts = assembler->boundary_groups[iblock][grp]->wts;
-                                                
-                                                //EB
-                                                int numsols = dft_data.extent_int(1); //EB DELETE, UNUSED
                                                 
                                                 // Cartesian to spherical transform
                                                 vector<ScalarT> r_hat = {std::sin(THETA[nt])*std::cos(PHI[np]), std::sin(THETA[nt])*std::sin(PHI[np]), std::cos(THETA[nt])};
@@ -257,10 +255,10 @@ void PostprocessManager<Node>::report()
                                                         vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
                                                         vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
                                                         					   
-					                // Sum into total radiated power at ABC
-					                //Prad = j*k0* E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E'; //Prad
-					                if (nt==0 && np==0) {
-					                  Prad[t] += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
+                                                        // Sum into total radiated power at ABC
+                                                        //Prad = (1/N0) * E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E';
+                                                        if (nt==0 && np==0) {
+                                                          Prad[t] += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
                                                         }
                                                         
                                                         // Sum into the vector potentials
