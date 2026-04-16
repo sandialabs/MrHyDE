@@ -27,6 +27,7 @@
 #include "ROL_DistributionFactory.hpp"
 
 #if defined(MrHyDE_ENABLE_HDSA)
+#include "HDSA_Stream.hpp"
 #include "HDSA_Ptr.hpp"
 #include "HDSA_Comm.hpp"
 #include "HDSA_Random_Number_Generator.hpp"
