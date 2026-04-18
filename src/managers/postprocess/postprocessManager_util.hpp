@@ -566,7 +566,7 @@ void PostprocessManager<Node>::report()
 #endif // MrHyDE_USE_HDF5
         }
         else { // Second case: sensors computed response functions
-          string respfile = objectives[obj].response_file + ".out";
+          string respfile = objectives[obj].response_file + "." + blocknames[objectives[obj].block] + ".out";
           std::ofstream respOUT;
           if (Comm->getRank() == 0) {
             bool is_open = false;
