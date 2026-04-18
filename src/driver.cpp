@@ -93,11 +93,13 @@ int main(int argc,char * argv[]) {
       ////////////////////////////////////////////////////////////////////////////////
       // Set up the physics
       ////////////////////////////////////////////////////////////////////////////////
-      
+
+      std::cout << "EEP In main(): instantiating 'PhysicsInterface'" << std::endl;
       Teuchos::RCP<PhysicsInterface> physics = Teuchos::rcp( new PhysicsInterface(settings, Comm,
                                                                                   mesh->getBlockNames(),
                                                                                   mesh->getSideNames(),
                                                                                   mesh->getDimension()) );
+      std::cout << "EEP In main(): instantiated 'PhysicsInterface'" << std::endl;
       
       ////////////////////////////////////////////////////////////////////////////////
       // Mesh only needs the variable names and types to finalize
@@ -109,18 +111,24 @@ int main(int argc,char * argv[]) {
       // Define the discretization(s)
       ////////////////////////////////////////////////////////////////////////////////
       
+      std::cout << "EEP In main(): instantiating 'DiscretizationInterface'" << std::endl;
       Teuchos::RCP<DiscretizationInterface> disc = Teuchos::rcp( new DiscretizationInterface(settings, Comm,
                                                                                              mesh, physics) );
+      std::cout << "EEP In main(): instantiated 'DiscretizationInterface'" << std::endl;
       
       ////////////////////////////////////////////////////////////////////////////////
       // Create the solver object
       ////////////////////////////////////////////////////////////////////////////////
       
+      std::cout << "EEP In main(): instantiating 'ParameterManager'" << std::endl;
       Teuchos::RCP<ParameterManager<SolverNode> > params = Teuchos::rcp( new ParameterManager<SolverNode>(Comm, settings,
                                                                                                           mesh, physics, disc));
+      std::cout << "EEP In main(): instantiated 'ParameterManager'" << std::endl;
       
+      std::cout << "EEP In main(): instantiating 'AssemblyManager'" << std::endl;
       Teuchos::RCP<AssemblyManager<SolverNode> > assembler = Teuchos::rcp( new AssemblyManager<SolverNode>(Comm, settings, mesh,
                                                                                                            disc, physics, params));
+      std::cout << "EEP In main(): instantiated 'AssemblyManager'" << std::endl;
       
       //assembler->setMeshData();
       
@@ -128,6 +136,7 @@ int main(int argc,char * argv[]) {
       // Set up the subgrid discretizations/models if using multiscale method
       ////////////////////////////////////////////////////////////////////////////////
       
+      std::cout << "EEP In main(): instantiating 'MultiscaleManager'" << std::endl;
       Teuchos::RCP<MultiscaleManager> multiscale_manager = Teuchos::rcp( new MultiscaleManager(Comm, mesh, settings,
                                                                                                assembler->groups,
 #ifndef MrHyDE_NO_AD
@@ -135,24 +144,28 @@ int main(int argc,char * argv[]) {
 #else
       assembler->function_managers) );
 #endif
+      std::cout << "EEP In main(): instantiated 'MultiscaleManager'" << std::endl;
       
       ///////////////////////////////////////////////////////////////////////////////
       // Create the postprocessing object
       ////////////////////////////////////////////////////////////////////////////////
       
+      std::cout << "EEP In main(): instantiating 'PostprocessManager'" << std::endl;
       Teuchos::RCP<PostprocessManager<SolverNode> >
       postproc = Teuchos::rcp( new PostprocessManager<SolverNode>(Comm, settings, mesh,
                                                                   disc, physics,
                                                                   multiscale_manager,
                                                                   assembler, params) );
+      std::cout << "EEP In main(): instantiated 'PostprocessManager'" << std::endl;
       
       ////////////////////////////////////////////////////////////////////////////////
       // Set up the solver and finalize some objects
       ////////////////////////////////////////////////////////////////////////////////
       
+      std::cout << "EEP In main(): instantiating 'SolverManager'" << std::endl;
       Teuchos::RCP<SolverManager<SolverNode> > solve = Teuchos::rcp( new SolverManager<SolverNode>(Comm, settings, mesh,
                                                                                                    disc, physics, assembler, params) );
-      
+      std::cout << "EEP In main(): instantiated 'SolverManager'" << std::endl;
       
       solve->multiscale_manager = multiscale_manager;
       assembler->multiscale_manager = multiscale_manager;
@@ -214,13 +227,11 @@ int main(int argc,char * argv[]) {
       // Perform the requested analysis (fwd solve, adj solve, dakota run, etc.)
       ////////////////////////////////////////////////////////////////////////////////
 
-      std::cout << "EEP In main(): pos 002" << std::endl;
-      
+      std::cout << "EEP In main(): instantiating 'AnalysisManager'" << std::endl;
       Teuchos::RCP<AnalysisManager> analysis = Teuchos::rcp( new AnalysisManager(Comm, settings,
                                                                                  solve, postproc, params) );
+      std::cout << "EEP In main(): instantiated 'AnalysisManager'" << std::endl;
       
-      std::cout << "EEP In main(): pos 003" << std::endl;
-
       // Make sure all processes are caught up at this point
       Kokkos::fence();
       Comm->barrier();
@@ -234,14 +245,14 @@ int main(int argc,char * argv[]) {
         }
       }
 
-      std::cout << "EEP In main(): pos 004 (about to call analysis->run())" << std::endl;
+      std::cout << "EEP In main(): pos 002 (about to call analysis->run())" << std::endl;
       
       {
         Teuchos::TimeMonitor rtimer(*runTimer);
         analysis->run();
       }
       
-      std::cout << "EEP In main(): pos 005 (just returned from analysis->run())" << std::endl;
+      std::cout << "EEP In main(): pos 003 (just returned from analysis->run())" << std::endl;
     }
     
     

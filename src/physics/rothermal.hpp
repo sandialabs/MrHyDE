@@ -61,7 +61,7 @@ namespace MrHyDE {
 
     // distributed parameter fields
     struct DistributedFields {
-      View_Scalar1 slope;  // slope of the terrain
+      //View_Scalar1 slope;  // slope of the terrain // AquiEEP
       View_Scalar1 xSlope; // slope of the terrain in x-direction
       View_Scalar1 ySlope; // slope of the terrain in y-direction
       View_Scalar1 isFuel; // indicator function for fuel
@@ -79,6 +79,16 @@ namespace MrHyDE {
       EvalT Mf;
       EvalT St;
       EvalT Se;
+    };
+
+    struct ConstantFields2 {
+      EvalT xSlope;
+      EvalT ySlope;
+      EvalT isFuel;
+      EvalT w0; 
+      EvalT sigma; 
+      EvalT delta;
+      EvalT Mx;
     };
 
     // fields related to ROS
@@ -99,6 +109,8 @@ namespace MrHyDE {
     // ===============================
     DistributedFields distFields;
     ConstantFields constFields;
+    bool useConstantFields2;
+    ConstantFields2 constFields2;
     MeshData meshData;
 
 
@@ -160,7 +172,7 @@ namespace MrHyDE {
 
     // scaling parameters
     // ScalarT slopeFactor        = 1.0;
-    ScalarT absoluteValueScale = 1.0;
+    //ScalarT absoluteValueScale = 1.0; // AquiEEP
     ScalarT heavisideScale     = 1.0;
 
     // zero tolerance
@@ -202,7 +214,7 @@ namespace MrHyDE {
     // ===============================
     // absolute value: this is used to compute the absolute value of a scalar
     // ===============================
-    KOKKOS_FUNCTION EvalT absoluteValue(const EvalT & x);
+    //KOKKOS_FUNCTION EvalT absoluteValue(const EvalT & x); // AquiEEP
 
     // ===============================
     // heaviside: this is used to compute the heaviside function of a scalar

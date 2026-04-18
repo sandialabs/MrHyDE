@@ -46,6 +46,11 @@ void AssemblyManager<Node>::addFunction(const int & block, const string & name, 
 template<class Node>
 View_Sc2 AssemblyManager<Node>::evaluateFunction(const int & block, const string & name, const string & location) {
 
+  //std::cout << "EEP Entering AssemblyManager<>::evaluateFunction()"
+  //          << ": block = "    << block
+  //          << ", name = "     << name
+  //          << ", location = " << location
+  //          << std::endl;
   typedef typename Node::execution_space LA_exec;
 
   auto data = function_managers[block]->evaluate(name, location);
@@ -71,6 +76,7 @@ View_Sc2 AssemblyManager<Node>::evaluateFunction(const int & block, const string
     }
   });
 
+  //std::cout << "EEP Leaving AssemblyManager<>::evaluateFunction()" << std::endl;
   return outdata;
 }
     
@@ -159,16 +165,21 @@ void AssemblyManager<Node>::finalizeFunctions(Teuchos::RCP<FunctionManager<EvalT
 template<class Node>
 void AssemblyManager<Node>::createFunctions() {
     
-  
+  std::cout << "EEP Entering AssemblyManager<Node>::createFunctions()"
+            << ": blocknames.size() = " << blocknames.size()
+            << std::endl;
   for (size_t block=0; block<blocknames.size(); ++block) {
     function_managers.push_back(Teuchos::rcp(new FunctionManager<ScalarT>(blocknames[block],
                                                                      groupData[block]->num_elem,
                                                                      disc->numip[block],
                                                                      disc->numip_side[block])));
   }
+  std::cout << "EEP In AssemblyManager<Node>::createFunctions(): calling physics->defineFunctions()" << std::endl;
   physics->defineFunctions(function_managers);
+  std::cout << "EEP In AssemblyManager<Node>::createFunctions(): called physics->defineFunctions()" << std::endl;
 
 #ifndef MrHyDE_NO_AD
+  std::cout << "EEP In AssemblyManager<Node>::createFunctions(): logic for MrHyDE_AD" << std::endl;
   if (type_AD == -1) {
     for (size_t block=0; block<blocknames.size(); ++block) {
       function_managers_AD.push_back(Teuchos::rcp(new FunctionManager<AD>(blocknames[block],
@@ -242,5 +253,6 @@ void AssemblyManager<Node>::createFunctions() {
     physics->defineFunctions(function_managers_AD32);
   }
 #endif
+  std::cout << "EEP Leaving AssemblyManager<Node>::createFunctions()" << std::endl;
 }
 

@@ -42,7 +42,7 @@ void rothermal<EvalT>::initScalars()
   Fthresh = rothermalSettings_.get("Fthresh", Fthresh);
 
   // smoothing parameters
-  absoluteValueScale = rothermalSettings_.get("absoluteValueScale", absoluteValueScale);
+  //absoluteValueScale = rothermalSettings_.get("absoluteValueScale", absoluteValueScale); // AquiEEP
   heavisideScale     = rothermalSettings_.get("heavisideScale", heavisideScale);
 
   // constants for fuel, wind, and slope magnification/damping
@@ -65,7 +65,7 @@ void rothermal<EvalT>::initParameterFields()
     exoReader_->computeGridAndDomain();
 
     // save parameter fields as views
-    distFields.slope  = exoReader_->readCellToViewT<View_Scalar1>("slope");
+    //distFields.slope  = exoReader_->readCellToViewT<View_Scalar1>("slope"); // AquiEEP
     distFields.xSlope = exoReader_->readCellToViewT<View_Scalar1>("xSlope");
     distFields.ySlope = exoReader_->readCellToViewT<View_Scalar1>("ySlope");
     distFields.isFuel = exoReader_->readCellToViewT<View_Scalar1>("isFuel");
@@ -83,11 +83,21 @@ void rothermal<EvalT>::initParameterFields()
     constFields.St   = 0.0555;
     constFields.Se   = 0.010;
 
+    useConstantFields2 = true;
+
+    constFields2.xSlope = 0.;
+    constFields2.ySlope = 0.;
+    constFields2.isFuel = 1.;
+    constFields2.w0     = 0.11; 
+    constFields2.sigma  = 2900.;  
+    constFields2.delta  = 1.;
+    constFields2.Mx     = 0.2;
 }
 
 // ===============================
 // absolute value
 // ===============================
+#if 0 // AquiEEP
 template<class EvalT>
 KOKKOS_FUNCTION
 EvalT
@@ -95,6 +105,7 @@ rothermal<EvalT>::absoluteValue(const EvalT & x)
 {
     return sqrt(x * x + absoluteValueScale);
 }
+#endif
 
 // ===============================
 // heaviside
@@ -122,6 +133,19 @@ void rothermal<EvalT>::getMeshData()
     meshData.dy   = exoReader_->dy;         // element width in y-direction
     meshData.nx   = exoReader_->nx;         // number of elements in x-direction
     meshData.ny   = exoReader_->ny;         // number of elements in y-direction
+
+    std::cout << "In rothermal<EvalT>::getMeshData():"
+              << "\n meshData.Lx   = " << meshData.Lx
+              << "\n meshData.Ly   = " << meshData.Ly
+              << "\n meshData.Diag = " << meshData.Diag
+              << "\n meshData.x0   = " << meshData.x0
+              << "\n meshData.y0   = " << meshData.y0
+              << "\n meshData.dx   = " << meshData.dx
+              << "\n meshData.dy   = " << meshData.dy
+              << "\n meshData.nx   = " << meshData.nx
+              << "\n meshData.ny   = " << meshData.ny
+              << std::endl;
+    //exit(1);
 }
 
 // ===============================
@@ -268,19 +292,35 @@ rothermal<EvalT>::computeBaseEquations(
     auto St    = constFields.St;
     auto Se    = constFields.Se;
     auto MfMx  = Mf / Mx;
+    auto cMfMx = Mf / constFields2.Mx;
     
     // store equation results to struct
-    out.gammaMax = pow(sigma, 1.5) / ( 495 + 0.0594 * pow(sigma, 1.5) );
-    out.BetaOp   = 3.348 *  pow(sigma, -0.8189);
-    out.A        = 1 / ( 4.774 * pow(sigma , 0.1) - 7.27 );
-    out.etaM     = 1 - 2.59 * MfMx + 5.11 * pow(MfMx, 2) - 3.52 * pow(MfMx, 3);
+    if (useConstantFields2) {
+      out.gammaMax = pow(constFields2.sigma, 1.5) / ( 495 + 0.0594 * pow(constFields2.sigma, 1.5) );
+      out.BetaOp   = 3.348 *  pow(constFields2.sigma, -0.8189);
+      out.A        = 1 / ( 4.774 * pow(constFields2.sigma , 0.1) - 7.27 );
+      out.etaM     = 1 - 2.59 * cMfMx + 5.11 * pow(cMfMx, 2) - 3.52 * pow(cMfMx, 3);
+    }
+    else {
+      out.gammaMax = pow(sigma, 1.5) / ( 495 + 0.0594 * pow(sigma, 1.5) );
+      out.BetaOp   = 3.348 *  pow(sigma, -0.8189);
+      out.A        = 1 / ( 4.774 * pow(sigma , 0.1) - 7.27 );
+      out.etaM     = 1 - 2.59 * MfMx + 5.11 * pow(MfMx, 2) - 3.52 * pow(MfMx, 3);
+    }
     out.etaS     = 0.174 * pow(Se, -0.19);
     // out.C        = 7.47 * exp( -0.133 * pow(sigma, 0.55) );
     // out.B        = 0.02526 * pow(sigma, 0.54);
     // out.E        = 0.715 * exp( -0.000359 * sigma);
-    out.wn       = w0 / (1 + St);
-    out.rhoB     = w0 / delta;
-    out.eps      = exp(-138 / sigma);
+    if (useConstantFields2) {
+      out.wn     = constFields2.w0 / (1 + St);
+      out.rhoB   = constFields2.w0 / constFields2.delta;
+      out.eps    = exp(-138 / constFields2.sigma);
+    }
+    else {
+      out.wn     = w0 / (1 + St);
+      out.rhoB   = w0 / delta;
+      out.eps    = exp(-138 / sigma);
+    }
     out.Qig      = 250 + 1116 * Mf;
 
     return out;
@@ -326,6 +366,9 @@ rothermal<EvalT>::computeRothermals(
     // compute some ROS equations
     EvalT beta      = rhoB / rhoP;
     EvalT xi        = exp( (0.792 + 0.681 * pow(sigma, 0.5)) * (beta + 0.1) ) / (192 + 0.2595 * sigma);
+    if (useConstantFields2) {
+      xi = exp( (0.792 + 0.681 * pow(constFields2.sigma, 0.5)) * (beta + 0.1) ) / (192 + 0.2595 * constFields2.sigma);
+    }
     // EvalT phiS      = 5.275 * pow(beta, -0.3) * pow(tan(slope * Kokkos::numbers::pi / 180.0), 2);
     EvalT betaRatio = beta / betaOp;
     // EvalT phiW      = C * pow(windComponentAbs, B) * pow(betaRatio, -E);
@@ -354,7 +397,9 @@ rothermal<EvalT>::computeFields(
     Vista<EvalT>& R
 )
 {
-
+    //std::cout << "EEP Entering rothermal::computeFields()"
+    //          << ": hasExternalR = " << hasExternalR
+    //          << std::endl;
     // get element ids
     View_Int1 wksetIds = getElementIds(wkset);
 
@@ -364,7 +409,7 @@ rothermal<EvalT>::computeFields(
 
     // get mesh data and parameter fields
     auto diag   = meshData.Diag;
-    auto slope  = distFields.slope;
+    //auto slope  = distFields.slope; // AquiEEP
     auto xSlope = distFields.xSlope;
     auto ySlope = distFields.ySlope;
     auto isFuel = distFields.isFuel;
@@ -379,7 +424,7 @@ rothermal<EvalT>::computeFields(
     View_EvalT2 Rothermal_       ("Rothermal",       numElem, numQuad);
     View_EvalT2 windComponent_   ("windComponent",   numElem, numQuad);
     View_EvalT2 windCorrection_  ("windCorrection",  numElem, numQuad);
-    View_EvalT2 slopeComponent_ ("slopeComponent",   numElem, numQuad);
+    View_EvalT2 slopeComponent_  ("slopeComponent",  numElem, numQuad);
     View_EvalT2 slopeCorrection_ ("slopeCorrection", numElem, numQuad);
     View_EvalT2 Hphi_            ("Hphi",            numElem, numQuad);
 
@@ -435,7 +480,13 @@ rothermal<EvalT>::computeFields(
 
             // slope
             EvalT sx                   = xSlope(id);
+            if (useConstantFields2) {
+              sx = constFields2.xSlope;
+            }
             EvalT sy                   = ySlope(id);
+            if (useConstantFields2) {
+              sy = constFields2.ySlope;
+            }
             EvalT slopeComp            = sx * normalX + sy * normalY;
             slopeComponent_(elem, pt)  = slopeComp;
             EvalT slopeNorm            = sqrt(sx * sx + sy * sy + zero_tol * zero_tol);
@@ -449,8 +500,13 @@ rothermal<EvalT>::computeFields(
             ROS_(elem, pt) = R_here
                            * fuelCorrection_(elem, pt)
                            * windCorrection_(elem, pt)
-                           * slopeCorrection_(elem, pt)
-                           * isFuel(id);
+                           * slopeCorrection_(elem, pt);
+            if (useConstantFields2) {
+              ROS_(elem, pt) *= constFields2.isFuel;
+            }
+            else {
+              ROS_(elem, pt) *= isFuel(id);
+            }
         }
     });
 

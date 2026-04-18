@@ -89,7 +89,8 @@ template<class EvalT>
 void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT> > > & func_managers,
                                        vector<vector<vector<Teuchos::RCP<PhysicsBase<EvalT> > > > > & mods) {
 
-  
+  std::cout << "Entering PhysicsInterface::defineFunction()" << std::endl;
+
   for (size_t block=0; block<block_names.size(); ++block) {
     Teuchos::ParameterList fs;
     if (settings->sublist("Functions").isSublist(block_names[block])) {
@@ -110,6 +111,11 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
   for (size_t set=0; set<set_names.size(); set++) {
     for (size_t block=0; block<block_names.size(); ++block) {
       if (physics_settings[set][block].isSublist("Initial conditions")) {
+        std::cout << "In PhysicsInterface::defineFunction()"
+                  << ", set = " << set
+                  << ", block = " << block
+                  << ": detected 'Initial conditions'"
+                  << std::endl;
         Teuchos::ParameterList initial_conds = physics_settings[set][block].sublist("Initial conditions");
         for (size_t j=0; j<var_list[set][block].size(); j++) {
           string var = var_list[set][block][j];
@@ -444,5 +450,6 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
     }
   }
     
+  std::cout << "Leaving PhysicsInterface::defineFunction()" << std::endl;
 }
 
