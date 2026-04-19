@@ -10,14 +10,30 @@
 ////////////////////////////////////////////////////////////////////////////////
     
 void MeshInterface::setupExodusFile(const string & filename) {
+  std::cout << "EEP Entering MeshInterface::setupExodusFile()"
+            << ": filename = " << filename
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
   stk_mesh->setupExodusFile(filename);
+  std::cout << "EEP Leaving MeshInterface::setupExodusFile()"
+            << ": filename = " << filename
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 void MeshInterface::setupOptimizationExodusFile(const string & filename) {
+  std::cout << "EEP Entering MeshInterface::setupOptimizationExodusFile()"
+            << ": filename = " << filename
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
   stk_optimization_mesh->setupExodusFile(filename);
+  std::cout << "EEP Leaving MeshInterface::setupOptimizationExodusFile()"
+            << ": filename = " << filename
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
 }
     
 /////////////////////////////////////////////////////////////////////////////
@@ -25,6 +41,8 @@ void MeshInterface::setupOptimizationExodusFile(const string & filename) {
 /////////////////////////////////////////////////////////////////////////////
 
 void MeshInterface::readExodusData() {
+  std::cout << "EEP Entering MeshInterface::readExodusData()"
+            << std::endl;
   
   debugger->print("**** Starting mesh::readExodusData ...");
   
@@ -180,6 +198,8 @@ void MeshInterface::readExodusData() {
   
   debugger->print("**** Finished mesh::readExodusData");
   
+  std::cout << "EEP Leaving MeshInterface::readExodusData()"
+            << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -187,9 +207,17 @@ void MeshInterface::readExodusData() {
 ////////////////////////////////////////////////////////////////////////////////
     
 void MeshInterface::setSolutionFieldData(string var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln) {
+  std::cout << "EEP Entering MeshInterface::setSolutionFieldData()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
   if (use_stk_mesh) {
     stk_mesh->setSolutionFieldData(var, blockID, myElements, soln);
   }
+  std::cout << "EEP Leaving MeshInterface::setSolutionFieldData()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
 }
 
 // ============================================================
@@ -205,9 +233,17 @@ void MeshInterface::setCellFieldData(string var, string & blockID, vector<size_t
 // ============================================================
 
 void MeshInterface::setOptimizationSolutionFieldData(string & var, string & blockID, vector<size_t> & myElements, Kokkos::View<ScalarT**,HostDevice> soln) {
+  std::cout << "EEP Entering MeshInterface::setOptimizationSolutionFieldData()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
   if (use_stk_mesh) {
     stk_optimization_mesh->setSolutionFieldData(var, blockID, myElements, soln);
   }
+  std::cout << "EEP Leaving MeshInterface::setOptimizationSolutionFieldData()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
 }
 
 // ============================================================
@@ -223,34 +259,74 @@ void MeshInterface::setOptimizationCellFieldData(string & var, string & blockID,
 // ============================================================
 
 void MeshInterface::writeToExodus(const double & currenttime) {
+  std::cout << "EEP Entering MeshInterface::writeToExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", currenttime = " << currenttime
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
   if (use_stk_mesh) {
     stk_mesh->writeToExodus(currenttime);
   }
+  std::cout << "EEP Leaving MeshInterface::writeToExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", currenttime = " << currenttime
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
 }
 
 // ============================================================
 // ============================================================
 
 void MeshInterface::writeToExodus(const string & filename) {
+  std::cout << "EEP Entering MeshInterface::writeToExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", filename = " << filename
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
   if (use_stk_mesh) {
     stk_mesh->writeToExodus(filename);
   }
+  std::cout << "EEP Leaving MeshInterface::writeToExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", filename = " << filename
+            << ", stk_mesh = " << stk_mesh
+            << std::endl;
 }
  
 // ============================================================
 // ============================================================
 
 void MeshInterface::writeToOptimizationExodus(const double & currenttime) {
+  std::cout << "EEP Entering MeshInterface::writeToOptimizationExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", currenttime = " << currenttime
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
   if (use_stk_mesh) {
     stk_optimization_mesh->writeToExodus(currenttime);
   }
+  std::cout << "EEP Leaving MeshInterface::writeToOptimizationExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", currenttime = " << currenttime
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
 }
 
 // ============================================================
 // ============================================================
 
 void MeshInterface::writeToOptimizationExodus(const string & filename) {
+  std::cout << "EEP Entering MeshInterface::writeToOptimizationExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", filename = " << filename
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
   if (use_stk_mesh) {
     stk_optimization_mesh->writeToExodus(filename);
   }
+  std::cout << "EEP Leaving MeshInterface::writeToOptimizationExodus()"
+            << ": use_stk_mesh = " << use_stk_mesh
+            << ", filename = " << filename
+            << ", stk_optimization_mesh = " << stk_optimization_mesh
+            << std::endl;
 }

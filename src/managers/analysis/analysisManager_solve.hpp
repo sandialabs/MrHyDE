@@ -566,6 +566,7 @@ void AnalysisManager::ROLSolve()
   {
     postproc_->write_solution = true;
     string outfile = "output_after_optimization.exo";
+    std::cout << "EEP In AnalysisManager::ROLSolve(): calling postproc_->setNewExodusFile() for outfile = " << outfile << std::endl;
     postproc_->setNewExodusFile(outfile);
     ScalarT objfun = 0.0;
     solver_->forwardModel(objfun);
@@ -574,6 +575,7 @@ void AnalysisManager::ROLSolve()
       vector<bool> newflags(1, false);
       solver_->physics->updateFlags(newflags);
       string outfile = "output_only_control.exo";
+      std::cout << "EEP In AnalysisManager::ROLSolve(): calling postproc_->setNewExodusFile() for outfile = " << outfile << std::endl;
       postproc_->setNewExodusFile(outfile);
       solver_->forwardModel(objfun);
     }
@@ -756,6 +758,7 @@ void AnalysisManager::ROL2Solve()
   {
     postproc_->write_solution = true;
     string outfile = "output_after_optimization.exo";
+    std::cout << "EEP In AnalysisManager::ROL2Solve(): calling postproc_->setNewExodusFile() for outfile = " << outfile << std::endl;
     postproc_->setNewExodusFile(outfile);
     ScalarT objfun = 0.0;
     solver_->forwardModel(objfun);
@@ -764,6 +767,7 @@ void AnalysisManager::ROL2Solve()
       vector<bool> newflags(1, false);
       solver_->physics->updateFlags(newflags);
       string outfile = "output_only_control.exo";
+      std::cout << "EEP In AnalysisManager::ROL2Solve(): calling postproc_->setNewExodusFile() for outfile = " << outfile << std::endl;
       postproc_->setNewExodusFile(outfile);
       solver_->forwardModel(objfun);
     }
@@ -988,6 +992,7 @@ void AnalysisManager::ROLStochSolve()
       std::vector<ScalarT> pt_i = sampler->getMyPoint(i);
       params_->updateParams(pt_i, "stochastic");
       string outfile = "output_after_optimization_sample_" + std::to_string(i) + ".exo";
+      std::cout << "EEP In AnalysisManager::ROLStochSolve(): calling postproc_->setNewExodusFile() for outfile = " << outfile << std::endl;
       postproc_->setNewExodusFile(outfile);
       ScalarT objfun = 0.0;
       solver_->forwardModel(objfun);

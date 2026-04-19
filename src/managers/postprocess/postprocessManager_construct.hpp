@@ -55,6 +55,7 @@ PostprocessManager<Node>::PostprocessManager(const Teuchos::RCP<MpiComm> & Comm_
 
 template <class Node>
 void PostprocessManager<Node>::setup() {
+  std::cout << "EEP Entering PostprocessManager<Node>::setup()" << std::endl;
   
   debugger = Teuchos::rcp(new MrHyDE_Debugger(settings->get<int>("debug level", 0), Comm));
   
@@ -85,6 +86,12 @@ void PostprocessManager<Node>::setup() {
   write_HFACE_variables = settings->sublist("Postprocess").get("write HFACE variables", false);
   exodus_filename = settings->sublist("Postprocess").get<string>("output file", "output") + ".exo";
   write_optimization_solution = settings->sublist("Postprocess").get("create optimization movie", false);
+  std::cout << "EEP In PostprocessManager<Node>::setup()"
+            << ": write_solution = " << write_solution
+            << ", write_solution_to_file = " << write_solution_to_file
+            << ", exodus_filename = " << exodus_filename
+            << ", write_optimization_solution = " << write_optimization_solution
+            << std::endl;
   compute_objective = settings->sublist("Postprocess").get("compute objective", false);
   compute_objective_grad_param = settings->sublist("Postprocess").get("compute objective grad param", true); // only turn this off if you know what you are doing
   objective_file = settings->sublist("Postprocess").get("objective output file", "");
@@ -197,9 +204,15 @@ void PostprocessManager<Node>::setup() {
   }
   
   if (isTD && write_solution && !is_hdsa_analysis) {
+    std::cout << "EEP In PostprocessManager<Node>::setup()"
+              << ": calling mesh->setupExodusFile() for '" << exodus_filename << "'"
+              << std::endl;
     mesh->setupExodusFile(exodus_filename);
   }
   if (write_optimization_solution && !is_hdsa_analysis) {
+    std::cout << "EEP In PostprocessManager<Node>::setup()"
+              << ": calling mesh->setupOptimizationExodusFile() for 'optimization_" << exodus_filename << "'"
+              << std::endl;
     mesh->setupOptimizationExodusFile("optimization_" + exodus_filename);
   }
   
@@ -342,7 +355,7 @@ void PostprocessManager<Node>::setup() {
 #endif
   
   debugger->print("**** Finished PostprocessManager::setup()");
-  
+  std::cout << "EEP Leaving PostprocessManager<Node>::setup()" << std::endl;
 }
   // ========================================================================================
   // ========================================================================================

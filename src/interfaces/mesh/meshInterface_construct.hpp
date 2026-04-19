@@ -13,7 +13,8 @@
 MeshInterface::MeshInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                              const Teuchos::RCP<MpiComm> & comm_) :
 settings(settings_), comm(comm_) {
-  
+
+  std::cout << "EEP Entering MeshInterface::constructor()" << std::endl;
   using Teuchos::RCP;
   using Teuchos::rcp;
   
@@ -243,6 +244,7 @@ settings(settings_), comm(comm_) {
     }
   }
 
+  std::cout << "EEP Leaving MeshInterface::constructor()" << std::endl;
   debugger->print("**** Finished mesh interface constructor");
 }
 

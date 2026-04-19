@@ -12,11 +12,11 @@
 
 template<class EvalT>
 int FunctionManager<EvalT>::addFunction(const string & fname, const string & expression, const string & location) {
-  std::cout << "EEP Entering FunctionManager<>::addFunction(1)"
-            << ": fname = " << fname
-            << ", expresion = " << expression
-            << ", location = " << location
-            << std::endl;
+  //std::cout << "EEP Entering FunctionManager<>::addFunction(1)"
+  //          << ": fname = " << fname
+  //          << ", expresion = " << expression
+  //          << ", location = " << location
+  //          << std::endl;
 
   bool found = false;
   int findex = 0;
@@ -35,7 +35,7 @@ int FunctionManager<EvalT>::addFunction(const string & fname, const string & exp
       }
     }
   }
-  std::cout << "EEP Leaving FunctionManager<>::addFunction(1)" << std::endl;
+  //std::cout << "EEP Leaving FunctionManager<>::addFunction(1)" << std::endl;
   return findex;
   
 }
@@ -46,11 +46,11 @@ int FunctionManager<EvalT>::addFunction(const string & fname, const string & exp
 
 template<class EvalT>
 int FunctionManager<EvalT>::addFunction(const string & fname, ScalarT & value, const string & location) {
-  std::cout << "EEP Entering FunctionManager<>::addFunction(2)"
-            << ": fname = " << fname
-            << ", value = " << value
-            << ", location = " << location
-            << std::endl;
+  //std::cout << "EEP Entering FunctionManager<>::addFunction(2)"
+  //          << ": fname = " << fname
+  //          << ", value = " << value
+  //          << ", location = " << location
+  //          << std::endl;
 
   bool found = false;
   int findex = 0;
@@ -69,7 +69,7 @@ int FunctionManager<EvalT>::addFunction(const string & fname, ScalarT & value, c
       }
     }
   }
-  std::cout << "EEP Leaving FunctionManager<>::addFunction(2)" << std::endl;
+  //std::cout << "EEP Leaving FunctionManager<>::addFunction(2)" << std::endl;
   return findex;
   
 }

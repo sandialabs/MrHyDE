@@ -10,9 +10,20 @@
 // Main visualization routine - writes to an exodus file
 // ========================================================================================
 
+#include <unistd.h>
+
 template <class Node>
 void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, const ScalarT &currenttime)
 {
+  std::cout << "EEP Entering PostprocessManager::writeSolution()"
+            << ": currenttime = " << currenttime
+            << ", current_soln.size() = " << current_soln.size()
+            << ", exodus_filename = " << exodus_filename
+            << ", mesh = " << mesh
+            << std::endl;
+  //if (currenttime == 0.) {
+  //  sleep(30);
+  //}
 
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
 
@@ -27,6 +38,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
   {
     data_avail = false;
   }
+
+  std::cout << "EEP In PostprocessManager::writeSolution()"
+            << ": data_avail = " << data_avail
+            << std::endl;
 
   // Grab slices of Kokkos Views and push to AssembleDevice one time for each state vector
   vector<Kokkos::View<ScalarT *, AssemblyDevice>> sol_kv, params_kv;
@@ -64,6 +79,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
   // Store the current vis time (subset of solve times)
   plot_times.push_back(currenttime);
 
+  std::cout << "EEP In PostprocessManager::writeSolution()"
+            << ": blocknames.size() = " << blocknames.size()
+            << std::endl;
+
   // Loop over element blocks
   // Easier to have this as the outer loop
   for (size_t block = 0; block < blocknames.size(); ++block)
@@ -81,10 +100,20 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       myElements[i] = myElements_tmp(i);
     }
 
+    std::cout << "EEP In PostprocessManager::writeSolution()"
+              << ": block = " << block
+              << ", myElements.size() = " << myElements.size()
+              << std::endl;
+    
     // Nothing is required if this processor does not own any elements on this block
     // This happens all the time
     if (myElements.size() > 0)
     {
+
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", setnames.size() = " << setnames.size()
+                << std::endl;
 
       // Loop over physics sets
       for (size_t set = 0; set < setnames.size(); ++set)
@@ -98,11 +127,25 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
         vector<int> varorders = physics->orders[set][block];
         int numVars = physics->num_vars[set][block]; // probably redundant
 
+        std::cout << "EEP In PostprocessManager::writeSolution()"
+                  << ": block = " << block
+                  << ", set = " << set
+                  << ", numVars = " << numVars
+                  << std::endl;
+	
         // Loop over the state variables
         for (int n = 0; n < numVars; n++)
         {
 
-          if (vartypes[n] == "HGRAD")
+          std::cout << "EEP In PostprocessManager::writeSolution()"
+                    << ": block = " << block
+                    << ", set = " << set
+                    << ", numVars = " << numVars
+                    << ", n = " << n
+                    << ", vartypes[n] = " << vartypes[n]
+                    << std::endl;
+
+	  if (vartypes[n] == "HGRAD")
           {
             if (assembler->groups[block][0]->group_data->require_basis_at_nodes)
             {
@@ -130,6 +173,9 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               Kokkos::deep_copy(soln_computed, soln_dev);
               
               // Write to file
+              std::cout << "EEP In PostprocessManager::writeSolution()"
+                        << ": calling mesh->setSolutionFieldData(HGRAD, pos 001) ..."
+                        << std::endl;
               mesh->setSolutionFieldData(varlist[set][block][n] + append, blockID, myElements, soln_computed);
             }
             else
@@ -160,6 +206,9 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
               Kokkos::deep_copy(soln_computed, soln_dev);
 
               // Write to file
+              std::cout << "EEP In PostprocessManager::writeSolution()"
+                        << ": calling mesh->setSolutionFieldData(HGRAD, pos 002) ..."
+                        << std::endl;
               mesh->setSolutionFieldData(varlist[set][block][n] + append, blockID, myElements, soln_computed);
             }
           }
@@ -296,6 +345,11 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // Grab the list of discretized parameters
       vector<string> dpnames = params->discretized_param_names;
 
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", dpnames.size() = " << dpnames.size()
+                << std::endl;
+
       // Check if we actually have any
       if (dpnames.size() > 0)
       {
@@ -309,6 +363,13 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
         for (size_t n = 0; n < dpnames.size(); n++)
         {
           int bnum = dp_usebasis[n];
+          std::cout << "EEP In PostprocessManager::writeSolution()"
+                    << ": block = " << block
+                    << ", dpnames.size() = " << dpnames.size()
+                    << ", n = " << n
+                    << ", bnum = " << bnum
+                    << ", discParamTypes[bnum] = " << discParamTypes[bnum]
+                    << std::endl;
           if (discParamTypes[bnum] == "HGRAD")
           {
 
@@ -336,6 +397,9 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
             Kokkos::deep_copy(soln_computed, soln_dev);
 
             // Write to file
+            std::cout << "EEP In PostprocessManager::writeSolution()"
+                      << ": calling mesh->setSolutionFieldData(HGRAD, pos 003) ..."
+                      << std::endl;
             mesh->setSolutionFieldData(dpnames[n] + append, blockID, myElements, soln_computed);
           }
           else if (discParamTypes[bnum] == "HVOL")
@@ -420,6 +484,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // TMW: This needs to be rewritten to actually use integration points
       //      Filling with all zeros for now
       vector<string> extrafieldnames = extrafields_list[block];
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", extrafieldnames.size() = " << extrafieldnames.size()
+                << std::endl;
       for (size_t j = 0; j < extrafieldnames.size(); j++)
       {
         Kokkos::View<ScalarT **, HostDevice> efd("field data", myElements.size(), numNodesPerElem);
@@ -430,6 +498,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // Extra cell fields (PW constant fields)
       ////////////////////////////////////////////////////////////////
 
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", extracellfields_list[block].size() = " << extracellfields_list[block].size()
+                << std::endl;
       if (extracellfields_list[block].size() > 0)
       {
 
@@ -476,6 +548,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // Values averaged over each element
       ////////////////////////////////////////////////////////////////
 
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", derivedquantities_list[block].size() = " << derivedquantities_list[block].size()
+                << std::endl;
       if (derivedquantities_list[block].size() > 0)
       {
 
@@ -512,6 +588,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
           auto cdq = subview(dq, ALL(), j);
           Kokkos::View<ScalarT *, HostDevice> tmpcdq("temp dq", cdq.extent(0));
           deep_copy(tmpcdq, cdq);
+          std::cout << "EEP In PostprocessManager::writeSolution()"
+                    << ": j = " << j
+                    << ", calling mesh->setCellFieldData() ..."
+                    << std::endl;
           mesh->setCellFieldData(derivedquantities_list[block][j] + append, blockID, myElements, tmpcdq);
         }
       }
@@ -520,6 +600,12 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // Seeds for crystal elasticity/plasticity
       ////////////////////////////////////////////////////////////////
 
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", assembler->groups[block][0]->group_data->have_phi = " << assembler->groups[block][0]->group_data->have_phi
+                << ", assembler->groups[block][0]->group_data->have_rotation = " << assembler->groups[block][0]->group_data->have_rotation
+                << ", assembler->groups[block][0]->group_data->have_extra_data = " << assembler->groups[block][0]->group_data->have_extra_data
+                << std::endl;
       // Check if this data is used
       if (assembler->groups[block][0]->group_data->have_phi ||
           assembler->groups[block][0]->group_data->have_rotation ||
@@ -564,6 +650,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // Useful to see how elements get grouped together
       ////////////////////////////////////////////////////////////////
 
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", write_group_number = " << write_group_number
+                << std::endl;
       if (write_group_number)
       {
 
@@ -592,6 +682,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // Very useful to assess compression
       ////////////////////////////////////////////////////////////////
 
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", write_database_id = " << write_database_id
+                << std::endl;
       if (write_database_id)
       {
 
@@ -623,6 +717,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
       // Useful for dynamic adaptive subgrid modeling
       ////////////////////////////////////////////////////////////////
 
+      std::cout << "EEP In PostprocessManager::writeSolution()"
+                << ": block = " << block
+                << ", write_subgrid_model = " << write_subgrid_model
+                << std::endl;
       if (write_subgrid_model)
       {
 
@@ -652,7 +750,10 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
   ////////////////////////////////////////////////////////////////
   // Write to Exodus
   ////////////////////////////////////////////////////////////////
-
+  std::cout << "EEP In PostprocessManager::writeSolution()"
+            << ": isTD = " << isTD
+            << ", exodus_filename = " << exodus_filename
+            << std::endl;
   if (isTD)
   {
     mesh->writeToExodus(currenttime);
@@ -669,6 +770,8 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
   }
 
   debugger->print(1, "******** Finished PostprocessManager::writeSolution() ...");
+  std::cout << "EEP Leaving PostprocessManager::writeSolution()"
+            << std::endl;
 }
 
 // ========================================================================================
@@ -677,6 +780,8 @@ void PostprocessManager<Node>::writeSolution(vector<vector_RCP> &current_soln, c
 template <class Node>
 View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int &block, CompressedView<View_Sc2> &wts)
 {
+  std::cout << "EEP Entering PostprocessManager::getExtraCellFields()"
+            << std::endl;
 
   int numElem = wts.extent(0);
   View_Sc2 fields("grp field data", numElem, extracellfields_list[block].size());
@@ -721,6 +826,8 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int &block, Compress
     }
   }
 
+  std::cout << "EEP Leaving PostprocessManager::getExtraCellFields()"
+            << std::endl;
   return fields;
 }
 
@@ -730,6 +837,9 @@ View_Sc2 PostprocessManager<Node>::getExtraCellFields(const int &block, Compress
 template <class Node>
 void PostprocessManager<Node>::writeOptimizationSolution(const int &numEvaluations)
 {
+  std::cout << "EEP Entering PostprocessManager::writeOptimizationSolution()"
+            << ": numEvaluations = " << numEvaluations
+            << std::endl;
 
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
 
@@ -862,12 +972,18 @@ void PostprocessManager<Node>::writeOptimizationSolution(const int &numEvaluatio
 
   double timestamp = static_cast<double>(numEvaluations);
   mesh->writeToOptimizationExodus(timestamp);
+
+  std::cout << "EEP Leaving PostprocessManager::writeOptimizationSolution()"
+            << std::endl;
 }
 
 #if defined(MrHyDE_ENABLE_HDSA)
 template <class Node>
 void PostprocessManager<Node>::writeOptimizationSolution(const std::string &filename)
 {
+  std::cout << "EEP Entering PostprocessManager::writeOptimizationSolution(2)"
+            << ": filename = " << filename
+            << std::endl;
 
   Teuchos::TimeMonitor localtimer(*writeSolutionTimer);
 
@@ -999,6 +1115,9 @@ void PostprocessManager<Node>::writeOptimizationSolution(const std::string &file
   ////////////////////////////////////////////////////////////////
 
   mesh->writeToOptimizationExodus(filename);
+
+  std::cout << "EEP Leaving PostprocessManager::writeOptimizationSolution(2)"
+            << std::endl;
 }
 
 #endif
@@ -1009,8 +1128,17 @@ void PostprocessManager<Node>::writeOptimizationSolution(const std::string &file
 template <class Node>
 void PostprocessManager<Node>::setNewExodusFile(string &newfile)
 {
+  std::cout << "EEP Entering PostprocessManager::setNewExodusFile()"
+            << ": isTD = " << isTD
+            << ", write_solution = " << write_solution
+            << ", newfile = " << newfile
+            << std::endl;
+
   if (isTD && write_solution)
   {
     mesh->setupExodusFile(newfile);
   }
+
+  std::cout << "EEP Leaving PostprocessManager::setNewExodusFile()"
+            << std::endl;
 }

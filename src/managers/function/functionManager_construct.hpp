@@ -26,12 +26,12 @@ FunctionManager<EvalT>::FunctionManager(const string & blockname, const int & nu
                                         const int & num_ip, const int & num_ip_side) :
 num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(blockname) {
 
-  std::cout << "EEP Entering FunctionManager<>::constructor()"
-            << ": blockname = " << blockname
-            << ", num_elem = " << num_elem
-            << ", num_ip = " << num_ip
-            << ", num_ip_side = " << num_ip_side
-            << std::endl;
+  //std::cout << "EEP Entering FunctionManager<>::constructor()"
+  //          << ": blockname = " << blockname
+  //          << ", num_elem = " << num_elem
+  //          << ", num_ip = " << num_ip
+  //          << ", num_ip_side = " << num_ip_side
+  //          << std::endl;
   interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
 
   known_vars_ = {"x","y","z","t","pi","h"};
@@ -40,5 +40,5 @@ num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(bloc
   forests_.push_back(Forest<EvalT>("ip",num_elem_,num_ip_));
   forests_.push_back(Forest<EvalT>("side ip",num_elem_,num_ip_side_));
   forests_.push_back(Forest<EvalT>("point",1,1));
-  std::cout << "EEP Leaving FunctionManager<>::constructor()" << std::endl;
+  //std::cout << "EEP Leaving FunctionManager<>::constructor()" << std::endl;
 }

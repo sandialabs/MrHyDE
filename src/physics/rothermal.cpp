@@ -83,7 +83,7 @@ void rothermal<EvalT>::initParameterFields()
     constFields.St   = 0.0555;
     constFields.Se   = 0.010;
 
-    useConstantFields2 = true;
+    useConstantFields2 = false;
 
     constFields2.xSlope = 0.;
     constFields2.ySlope = 0.;
