@@ -1,0 +1,26 @@
+%YAML 1.1
+---
+# Block-triangular preconditioner with exact (direct) block solves for both pivot and Schur blocks.
+ANONYMOUS:
+  debug level: 0
+  verbosity: 5
+  Mesh input file: ../input_common_maxwell_hex3d.yaml
+  Physics input file: ../input_common_maxwell_hex3d.yaml
+  Discretization input file: ../input_common_maxwell_hex3d.yaml
+  Functions input file: ../input_common_maxwell_hex3d.yaml
+  Solver input file: ../input_solver_common.yaml
+  Solver:
+    max linear iters: 15 # converges in under 13 iters on macos
+    use preconditioner: true
+    preconditioner reuse type: full
+    preconditioner type: block triangular
+    Pivot Block Settings:
+      preconditioner type: Direct
+    Schur Block Settings:
+      pivot block: 1
+      approximation type: diag
+      diag use lumped pivot diagonal: true
+      preconditioner type: Direct
+  Analysis input file: ../input_common_maxwell_hex3d.yaml
+  Postprocess input file: ../input_common_maxwell_hex3d.yaml
+...

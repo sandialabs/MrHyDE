@@ -28,6 +28,7 @@ INCLUDE_DIRECTORIES ( ./
   interfaces/discretization
   interfaces/fft
   interfaces/linear_algebra
+  interfaces/linear_algebra/block_prec
   interfaces/mesh
   interfaces/physics
   interfaces/user

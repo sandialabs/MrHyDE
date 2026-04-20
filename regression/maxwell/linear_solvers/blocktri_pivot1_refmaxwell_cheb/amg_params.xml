@@ -1,0 +1,75 @@
+<ParameterList name="MueLu">
+  <!-- Complete AMG (Algebraic Multigrid) parameters with all defaults for transparency -->
+  <!-- This XML file contains comprehensive MueLu AMG parameters with their default values -->
+
+  <!-- ============================================= -->
+  <!-- Note: This file contains ONLY MueLu parameters -->
+  <!-- ============================================= -->
+  <!-- MrHyDE-specific parameters that must be in YAML:
+       - use xml params: true/false (enable XML loading)
+       - xml param file: filename (path to this XML file)
+  -->
+
+  <!-- ============================================= -->
+  <!-- Core verbosity and output control            -->
+  <!-- ============================================= -->
+  <Parameter name="verbosity" type="string" value="none"/>
+  <Parameter name="print initial parameters" type="bool" value="false"/>
+  <Parameter name="output filename" type="string" value=""/>
+  <Parameter name="parameterlist: syntax" type="string" value="muelu"/>
+
+  <!-- ============================================= -->
+  <!-- Multigrid hierarchy configuration            -->
+  <!-- ============================================= -->
+  <Parameter name="max levels" type="int" value="10"/>
+  <Parameter name="coarse: max size" type="int" value="300"/>
+  <Parameter name="multigrid algorithm" type="string" value="sa"/>
+
+  <!-- ============================================= -->
+  <!-- Problem type and symmetry                    -->
+  <!-- ============================================= -->
+  <Parameter name="problem: symmetric" type="bool" value="true"/>
+  <Parameter name="transpose: use implicit" type="bool" value="false"/>
+
+  <!-- ============================================= -->
+  <!-- Aggregation settings                         -->
+  <!-- ============================================= -->
+  <Parameter name="aggregation: type" type="string" value="uncoupled"/>
+  <Parameter name="aggregation: drop tol" type="double" value="0.0"/>
+  <Parameter name="aggregation: damping factor" type="double" value="1.333333"/>
+  <Parameter name="aggregation: min agg size" type="int" value="2"/>
+  <Parameter name="aggregation: max agg size" type="int" value="-1"/>
+
+  <!-- ============================================= -->
+  <!-- Smoother configuration (fine level)          -->
+  <!-- ============================================= -->
+  <Parameter name="smoother: type" type="string" value="RELAXATION"/>
+  <Parameter name="smoother: overlap" type="int" value="0"/>
+  <Parameter name="smoother: pre or post" type="string" value="both"/>
+  <ParameterList name="smoother: params">
+    <Parameter name="relaxation: type" type="string" value="Jacobi"/>
+    <Parameter name="relaxation: sweeps" type="int" value="2"/>
+    <Parameter name="relaxation: damping factor" type="double" value="0.66"/>
+    <Parameter name="relaxation: zero starting solution" type="bool" value="true"/>
+  </ParameterList>
+
+  <!-- ============================================= -->
+  <!-- Coarse grid solver                           -->
+  <!-- ============================================= -->
+  <Parameter name="coarse: type" type="string" value="KLU"/>
+  <ParameterList name="coarse: params">
+    <!-- Direct solver parameters can be specified here if needed -->
+  </ParameterList>
+
+  <!-- ============================================= -->
+  <!-- Eigenvalue analysis                          -->
+  <!-- ============================================= -->
+  <Parameter name="eigen-analysis: type" type="string" value="cg"/>
+
+  <!-- ============================================= -->
+  <!-- Repartitioning (disabled by default)         -->
+  <!-- ============================================= -->
+  <Parameter name="repartition: enable" type="bool" value="false"/>
+  <Parameter name="repartition: start level" type="int" value="2"/>
+
+</ParameterList>
