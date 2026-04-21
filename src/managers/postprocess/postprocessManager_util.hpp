@@ -162,11 +162,13 @@ void PostprocessManager<Node>::report()
                             ScalarT minphi = settings->sublist("Postprocess").sublist("NF2FF").get("min phi", 0.0);
                             ScalarT maxphi = settings->sublist("Postprocess").sublist("NF2FF").get("max phi", 0.0);
                             //ScalarT k0 = settings->sublist("Postprocess").sublist("NF2FF").get("wave number", 0.0); //EB
-                            ScalarT N0 = settings->sublist("Postprocess").sublist("NF2FF").get("freespace impedence", 0.0);
+                            //ScalarT N0 = settings->sublist("Postprocess").sublist("NF2FF").get("freespace impedence", 0.0); //EB
+                            ScalarT c0 = 299792458; // m/s (hard coded for now) //EB
+                            ScalarT N0 = 376.73; // free space impedance (hard coded for now) //EB
                             
-                            ScalarT EPx = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPx", 0.0);
-                            ScalarT EPy = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPy", 0.0);
-                            ScalarT EPz = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPz", 0.0);
+                            // ScalarT EPx = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPx", 0.0); //EB
+                            // ScalarT EPy = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPy", 0.0); //EB
+                            // ScalarT EPz = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPz", 0.0); //EB
                             
                             // Create the vectors of PHI and THETA
                             vector<ScalarT> THETA(numtheta), PHI(numphi);
@@ -208,7 +210,6 @@ void PostprocessManager<Node>::report()
                             
                             size_t iblock = objectives[obj].block;
                             string sidename = objectives[obj].sideset;
-                            ScalarT c0 = 299792458; // m/s (hard coded for now)
                             int prog = 0; // increments sensors
                             for (size_t t=0; t<numfreq; ++t) {
                                 
