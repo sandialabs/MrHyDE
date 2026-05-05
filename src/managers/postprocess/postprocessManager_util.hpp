@@ -192,14 +192,15 @@ void PostprocessManager<Node>::report()
                                 PHI[0] = minphi * PI / 180;
                             }
                             
-                            auto numfreq = dft_data.extent(3);
+                            const int numfreq = dft_data.extent(3);
                             // Initialize vector potentials
                             Kokkos::View<std::complex<ScalarT>***,HostDevice> A_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_th", numfreq, numtheta, numphi);
                             Kokkos::View<std::complex<ScalarT>***,HostDevice> A_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF A_ph", numfreq, numtheta, numphi);
                             Kokkos::View<std::complex<ScalarT>***,HostDevice> F_th = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_th", numfreq, numtheta, numphi);
                             Kokkos::View<std::complex<ScalarT>***,HostDevice> F_ph = Kokkos::View<std::complex<ScalarT>***,HostDevice>("NF2FF F_ph", numfreq, numtheta, numphi);
                             
-                            vector<std::complex<ScalarT>> Prad(numfreq, std::complex<ScalarT>(0.0, 0.0)); // radiated power
+                            //vector<std::complex<ScalarT>> Prad(numfreq, std::complex<ScalarT>(0.0, 0.0)); // radiated power
+                            Kokkos::View<std::complex<ScalarT>*,HostDevice> Prad = Kokkos::View<std::complex<ScalarT>*,HostDevice>("NF2FF Prad", numfreq);
                             
                             // Need to make a few assumptions here:
                             // 1. The sensors are the boundary quadrature points on a given block
@@ -251,15 +252,15 @@ void PostprocessManager<Node>::report()
                                                         vector<std::complex<ScalarT>> E_phi = {phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
                                                         
                                                         // Compute normal x Escr, normal x conj(Escr), normal x E_theta, normal x E_phi
-                                                        vector<std::complex<ScalarT>> n_x_Esrc = {normals[1](elem,pt)*Esrc[2] - normals[2](elem,pt)*Esrc[1], normals[2](elem,pt)*Esrc[0] - normals[0](elem,pt)*Esrc[2], normals[0](elem,pt)*Esrc[1] - normals[1](elem,pt)*Esrc[0]};
-                                                        vector<std::complex<ScalarT>> n_x_EsrcC = {normals[1](elem,pt)*EsrcC[2] - normals[2](elem,pt)*EsrcC[1], normals[2](elem,pt)*EsrcC[0] - normals[0](elem,pt)*EsrcC[2], normals[0](elem,pt)*EsrcC[1] - normals[1](elem,pt)*EsrcC[0]};
-                                                        vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
-                                                        vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
+                                                        vector<std::complex<ScalarT>> n_x_Esrc = {-normals[1](elem,pt)*Esrc[2] + normals[2](elem,pt)*Esrc[1], -normals[2](elem,pt)*Esrc[0] + normals[0](elem,pt)*Esrc[2], -normals[0](elem,pt)*Esrc[1] + normals[1](elem,pt)*Esrc[0]};
+                                                        vector<std::complex<ScalarT>> n_x_EsrcC = {-normals[1](elem,pt)*EsrcC[2] + normals[2](elem,pt)*EsrcC[1], -normals[2](elem,pt)*EsrcC[0] + normals[0](elem,pt)*EsrcC[2], -normals[0](elem,pt)*EsrcC[1] + normals[1](elem,pt)*EsrcC[0]};
+                                                        vector<std::complex<ScalarT>> n_x_E_theta = {-normals[1](elem,pt)*E_theta[2] + normals[2](elem,pt)*E_theta[1], -normals[2](elem,pt)*E_theta[0] + normals[0](elem,pt)*E_theta[2], -normals[0](elem,pt)*E_theta[1] + normals[1](elem,pt)*E_theta[0]};
+                                                        vector<std::complex<ScalarT>> n_x_E_phi = {-normals[1](elem,pt)*E_phi[2] + normals[2](elem,pt)*E_phi[1], -normals[2](elem,pt)*E_phi[0] + normals[0](elem,pt)*E_phi[2], -normals[0](elem,pt)*E_phi[1] + normals[1](elem,pt)*E_phi[0]};
                                                         					   
                                                         // Sum into total radiated power at ABC
                                                         //Prad = (1/N0) * E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E';
                                                         if (nt==0 && np==0) {
-                                                          Prad[t] += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
+                                                          Prad(t) += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
                                                         }
                                                         
                                                         // Sum into the vector potentials
@@ -292,9 +293,14 @@ void PostprocessManager<Node>::report()
                             Teuchos::Array<ScalarT> local_data_F_ph_re(numentries, 0.0), global_data_F_ph_re(numentries, 0.0);
                             Teuchos::Array<ScalarT> local_data_F_ph_im(numentries, 0.0), global_data_F_ph_im(numentries, 0.0);
                             
+                            Teuchos::Array<ScalarT> local_data_Prad_re(numfreq, 0.0), global_data_Prad_re(numfreq, 0.0);
+                            Teuchos::Array<ScalarT> local_data_Prad_im(numfreq, 0.0), global_data_Prad_im(numfreq, 0.0);
+                            
                             // Just taking the real component for now
                             prog = 0;
                             for (int t=0; t<numfreq; ++t) {
+                                local_data_Prad_re[t] = Prad(t).real();
+                                local_data_Prad_im[t] = Prad(t).imag();
                                 for (int nt=0; nt<numtheta; ++nt) {
                                     for (int np=0; np<numphi; ++np) {
                                         local_data_A_th_re[prog] = A_th(t,nt,np).real();
@@ -325,8 +331,12 @@ void PostprocessManager<Node>::report()
                             Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_ph_re[0], &global_data_F_ph_re[0]);
                             Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_F_ph_im[0], &global_data_F_ph_im[0]);
                             
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numfreq, &local_data_Prad_re[0], &global_data_Prad_re[0]);
+                            Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numfreq, &local_data_Prad_im[0], &global_data_Prad_im[0]);
+                            
                             prog = 0;
                             for (int t=0; t<numfreq; ++t) {
+                                Prad(t) = std::complex<ScalarT>(global_data_Prad_re[t], global_data_Prad_im[t]);
                                 for (int nt=0; nt<numtheta; ++nt) {
                                     for (int np=0; np<numphi; ++np) {
                                         A_th(t,nt,np) = std::complex<ScalarT>(global_data_A_th_re[prog], global_data_A_th_im[prog]);
