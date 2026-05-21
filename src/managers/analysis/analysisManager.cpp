@@ -28,7 +28,9 @@
 
 #if defined(MrHyDE_ENABLE_HDSA)
 #include "HDSA_Driver_MrHyDE.hpp"
+#endif
 
+#if defined(MrHyDE_ENABLE_PDRISK)
 #include "ROL_PrimalDualRisk.hpp"
 #endif
 

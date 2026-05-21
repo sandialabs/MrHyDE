@@ -922,7 +922,7 @@ void AnalysisManager::ROLStochSolve()
   }
   else
   {
-#if defined(MrHyDE_ENABLE_HDSA)
+#if defined(MrHyDE_ENABLE_PDRISK)
     ROL::Ptr<ROL::Problem<RealT>> rolProblem = ROL::makePtr<ROL::Problem<RealT>>(obj, x);
     ROL::Ptr<ROL::PrimalDualRisk<RealT>> pd_risk = ROL::makePtr<ROL::PrimalDualRisk<RealT>>(rolProblem, sampler, ROLsettings);
     pd_risk->run(*outStream);
