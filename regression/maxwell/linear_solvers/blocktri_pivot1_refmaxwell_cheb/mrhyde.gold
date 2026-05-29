@@ -1,0 +1,202 @@
+p=0 | CubeHexMesh: Building sub cells
+STK Meta data:
+   Element blocks = "eblock-0_0_0" 
+   Sidesets = "back" "bottom" "front" "left" "right" "top" 
+   Nodesets = "origin" 
+   Fields = "coordinates" "edges" "faces" "PROC_ID" "LOAD_BAL" 
+DOFManager Field Information: 
+   Element Block = eblock-0_0_0
+      "E" is field ID 0
+      "B" is field ID 1
+Time = 0, Integrated quantities:  electric_energy = 0.0624919  magnetic_energy = 0  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 1
+**** Current time is 0
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.52968
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.0782324    (overlapped vector so results may differ on multiple procs)
+Time = 0.4, Integrated quantities:  electric_energy = 0.00077351  magnetic_energy = 0.0617184  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 2
+**** Current time is 0.4
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.171063
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.612758    (overlapped vector so results may differ on multiple procs)
+Time = 0.8, Integrated quantities:  electric_energy = 0.0594361  magnetic_energy = 0.00305574  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 3
+**** Current time is 0.8
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.49306
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.208935    (overlapped vector so results may differ on multiple procs)
+Time = 1.2, Integrated quantities:  electric_energy = 0.00673369  magnetic_energy = 0.0557582  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 4
+**** Current time is 1.2
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.502627
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.567038    (overlapped vector so results may differ on multiple procs)
+Time = 1.6, Integrated quantities:  electric_energy = 0.0508666  magnetic_energy = 0.0116253  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 5
+**** Current time is 1.6
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.38148
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.333721    (overlapped vector so results may differ on multiple procs)
+Time = 2, Integrated quantities:  electric_energy = 0.0174883  magnetic_energy = 0.0450036  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 6
+**** Current time is 2
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.809072
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.493377    (overlapped vector so results may differ on multiple procs)
+Time = 2.4, Integrated quantities:  electric_energy = 0.0384594  magnetic_energy = 0.0240324  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 7
+**** Current time is 2.4
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.20022
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.442731    (overlapped vector so results may differ on multiple procs)
+Time = 2.8, Integrated quantities:  electric_energy = 0.0309338  magnetic_energy = 0.0315581  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 8
+**** Current time is 2.8
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.07728
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.395463    (overlapped vector so results may differ on multiple procs)
+Time = 3.2, Integrated quantities:  electric_energy = 0.0246413  magnetic_energy = 0.0378505  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 9
+**** Current time is 3.2
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 0.961366
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.530176    (overlapped vector so results may differ on multiple procs)
+Time = 3.6, Integrated quantities:  electric_energy = 0.0444403  magnetic_energy = 0.0180516  total_energy = 0.0624919
+
+
+*******************************************************
+
+**** Beginning Time Step 10
+**** Current time is 3.6
+
+*******************************************************
+
+
+
+*********************************************************
+***** Iteration: 0
+***** Norm of nonlinear residual: 1.29069
+***** Scaled Norm of nonlinear residual: 1
+*********************************************************
+Norm of solution: 0.278464    (overlapped vector so results may differ on multiple procs)
+Time = 4, Integrated quantities:  electric_energy = 0.0121151  magnetic_energy = 0.0503768  total_energy = 0.0624919
+
+*********************************************************
+****** Storing Integrated Quantities ******
+*********************************************************
+
+*********************************************************
+****** Integrated Quantities on block : eblock-0_0_0 ******
+*********************************************************
+electric_energy : 0.0121151
+magnetic_energy : 0.0503768
+total_energy : 0.0624919

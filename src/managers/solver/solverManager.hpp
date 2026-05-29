@@ -21,6 +21,13 @@
 #include "linearAlgebraInterface.hpp"
 #include "MrHyDE_Debugger.hpp"
 
+// For auxiliary-space setup on HCURL block.
+#include "Panzer_Interpolation.hpp"
+#include "Panzer_DOFManager.hpp"
+#include "Panzer_IntrepidFieldPattern.hpp"
+#include "Thyra_TpetraLinearOp.hpp"
+#include "Thyra_TpetraThyraWrappers.hpp"
+
 namespace MrHyDE {
 
 /**
@@ -93,6 +100,9 @@ public:
   
   /** @brief Configure fixed DOFs based on settings */
   void setupFixedDOFs(Teuchos::RCP<Teuchos::ParameterList> & settings);
+  /** @brief Build A-block auxiliary-space data (D0, M1, coords) for block-triangular RefMaxwell. */
+  void setupBlockTriangularAuxiliary(const size_t & set,
+                                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
   
   /** @brief Finalize workset allocation for assembly */
   void finalizeWorkset();
