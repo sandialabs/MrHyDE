@@ -1027,6 +1027,19 @@ def main():
   if opts.startingDir[-1] == "/":
     opts.startingDir = opts.startingDir[:-1]
 
+  def _keyword_requested(keyword_list, keyword):
+    for item in keyword_list:
+      for tok in item.split(','):
+        if tok.strip() == keyword:
+          return True
+    return False
+
+  # By default, do not run HPC tests unless explicitly requested.
+  # (HPC tests are typically environment-dependent and expensive.)
+  if not _keyword_requested(opts.include_keywords, "hpc"):
+    if not _keyword_requested(opts.exclude_keywords, "hpc"):
+      opts.exclude_keywords.append("hpc")
+
   # If test file names are specified, change to full relative path
   if opts.listOfTestFileNames != []:
     tmpList = [ os.path.join(opts.startingDir,fname) for
