@@ -252,11 +252,18 @@ void PostprocessManager<Node>::report()
                                                         vector<std::complex<ScalarT>> E_phi = {phi_hat[0]*phasor, phi_hat[1]*phasor, phi_hat[2]*phasor};
                                                         
                                                         // Compute normal x Escr, normal x conj(Escr), normal x E_theta, normal x E_phi
-                                                        vector<std::complex<ScalarT>> n_x_Esrc = {-normals[1](elem,pt)*Esrc[2] + normals[2](elem,pt)*Esrc[1], -normals[2](elem,pt)*Esrc[0] + normals[0](elem,pt)*Esrc[2], -normals[0](elem,pt)*Esrc[1] + normals[1](elem,pt)*Esrc[0]};
+                                                        vector<std::complex<ScalarT>> n_x_Esrc = {normals[1](elem,pt)*Esrc[2] - normals[2](elem,pt)*Esrc[1], normals[2](elem,pt)*Esrc[0] - normals[0](elem,pt)*Esrc[2], normals[0](elem,pt)*Esrc[1] - normals[1](elem,pt)*Esrc[0]};
+                                                        vector<std::complex<ScalarT>> n_x_EsrcC = {normals[1](elem,pt)*EsrcC[2] - normals[2](elem,pt)*EsrcC[1], normals[2](elem,pt)*EsrcC[0] - normals[0](elem,pt)*EsrcC[2], normals[0](elem,pt)*EsrcC[1] - normals[1](elem,pt)*EsrcC[0]};
+                                                        vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
+                                                        vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
+                                                        
+                                                        
+                                                        /*vector<std::complex<ScalarT>> n_x_Esrc = {-normals[1](elem,pt)*Esrc[2] + normals[2](elem,pt)*Esrc[1], -normals[2](elem,pt)*Esrc[0] + normals[0](elem,pt)*Esrc[2], -normals[0](elem,pt)*Esrc[1] + normals[1](elem,pt)*Esrc[0]};
                                                         vector<std::complex<ScalarT>> n_x_EsrcC = {-normals[1](elem,pt)*EsrcC[2] + normals[2](elem,pt)*EsrcC[1], -normals[2](elem,pt)*EsrcC[0] + normals[0](elem,pt)*EsrcC[2], -normals[0](elem,pt)*EsrcC[1] + normals[1](elem,pt)*EsrcC[0]};
                                                         vector<std::complex<ScalarT>> n_x_E_theta = {-normals[1](elem,pt)*E_theta[2] + normals[2](elem,pt)*E_theta[1], -normals[2](elem,pt)*E_theta[0] + normals[0](elem,pt)*E_theta[2], -normals[0](elem,pt)*E_theta[1] + normals[1](elem,pt)*E_theta[0]};
-                                                        vector<std::complex<ScalarT>> n_x_E_phi = {-normals[1](elem,pt)*E_phi[2] + normals[2](elem,pt)*E_phi[1], -normals[2](elem,pt)*E_phi[0] + normals[0](elem,pt)*E_phi[2], -normals[0](elem,pt)*E_phi[1] + normals[1](elem,pt)*E_phi[0]};
-                                                        					   
+                                                        vector<std::complex<ScalarT>> n_x_E_phi = {-normals[1](elem,pt)*E_phi[2] + normals[2](elem,pt)*E_phi[1], -normals[2](elem,pt)*E_phi[0] + normals[0](elem,pt)*E_phi[2], -normals[0](elem,pt)*E_phi[1] + normals[1](elem,pt)*E_phi[0]};*/
+                                                        
+                                                        
                                                         // Sum into total radiated power at ABC
                                                         //Prad = (1/N0) * E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E';
                                                         if (nt==0 && np==0) {

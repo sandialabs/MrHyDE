@@ -63,11 +63,11 @@ void maxwell_bianisotropic<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("current x",fs.get<string>("current x","0.0"),"ip");
   functionManager->addFunction("current y",fs.get<string>("current y","0.0"),"ip");
   functionManager->addFunction("current z",fs.get<string>("current z","0.0"),"ip");
-  functionManager->addFunction("mu0",fs.get<string>("permeability","1.0"),"ip");
+  functionManager->addFunction("mu0",fs.get<string>("permeability","1.2566370614e-6"),"ip");
   
   functionManager->addFunction("eta0",fs.get<string>("eta0","1.0"),"ip");
   functionManager->addFunction("refractive index",fs.get<string>("refractive index","1.0"),"ip");
-  functionManager->addFunction("epsilon0",fs.get<string>("permittivity","1.0"),"ip");
+  functionManager->addFunction("epsilon0",fs.get<string>("permittivity","8.854187817e-12"),"ip");
   
   functionManager->addFunction("epsr_xx",fs.get<string>("epsr_xx","1.0"),"ip");
   functionManager->addFunction("epsr_xy",fs.get<string>("epsr_xy","0.0"),"ip");
@@ -89,25 +89,25 @@ void maxwell_bianisotropic<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("invmur_zy",fs.get<string>("invmur_zy","0.0"),"ip");
   functionManager->addFunction("invmur_zz",fs.get<string>("invmur_zz","1.0"),"ip");
   
-  functionManager->addFunction("xir_xx",fs.get<string>("xir_xx","1.0"),"ip");
+  functionManager->addFunction("xir_xx",fs.get<string>("xir_xx","0.0"),"ip");
   functionManager->addFunction("xir_xy",fs.get<string>("xir_xy","0.0"),"ip");
   functionManager->addFunction("xir_xz",fs.get<string>("xir_xz","0.0"),"ip");
   functionManager->addFunction("xir_yx",fs.get<string>("xir_yx","0.0"),"ip");
-  functionManager->addFunction("xir_yy",fs.get<string>("xir_yy","1.0"),"ip");
+  functionManager->addFunction("xir_yy",fs.get<string>("xir_yy","0.0"),"ip");
   functionManager->addFunction("xir_yz",fs.get<string>("xir_yz","0.0"),"ip");
   functionManager->addFunction("xir_zx",fs.get<string>("xir_zx","0.0"),"ip");
   functionManager->addFunction("xir_zy",fs.get<string>("xir_zy","0.0"),"ip");
-  functionManager->addFunction("xir_zz",fs.get<string>("xir_zz","1.0"),"ip");
+  functionManager->addFunction("xir_zz",fs.get<string>("xir_zz","0.0"),"ip");
   
-  functionManager->addFunction("zetar_xx",fs.get<string>("zetar_xx","1.0"),"ip");
+  functionManager->addFunction("zetar_xx",fs.get<string>("zetar_xx","0.0"),"ip");
   functionManager->addFunction("zetar_xy",fs.get<string>("zetar_xy","0.0"),"ip");
   functionManager->addFunction("zetar_xz",fs.get<string>("zetar_xz","0.0"),"ip");
   functionManager->addFunction("zetar_yx",fs.get<string>("zetar_yx","0.0"),"ip");
-  functionManager->addFunction("zetar_yy",fs.get<string>("zetar_yy","1.0"),"ip");
+  functionManager->addFunction("zetar_yy",fs.get<string>("zetar_yy","0.0"),"ip");
   functionManager->addFunction("zetar_yz",fs.get<string>("zetar_yz","0.0"),"ip");
   functionManager->addFunction("zetar_zx",fs.get<string>("zetar_zx","0.0"),"ip");
   functionManager->addFunction("zetar_zy",fs.get<string>("zetar_zy","0.0"),"ip");
-  functionManager->addFunction("zetar_zz",fs.get<string>("zetar_zz","1.0"),"ip");
+  functionManager->addFunction("zetar_zz",fs.get<string>("zetar_zz","0.0"),"ip");
   
   functionManager->addFunction("sigma_xx",fs.get<string>("sigma_xx","0.0"),"ip");
   functionManager->addFunction("sigma_xy",fs.get<string>("sigma_xy","0.0"),"ip");
@@ -240,25 +240,25 @@ void maxwell_bianisotropic<EvalT>::volumeResidual() {
       rindex = functionManager->evaluate("refractive index","ip");
       eta0 = functionManager->evaluate("eta0","ip");
       
-      epsr_xx = functionManager->evaluate("invepsr_xx","ip");
-      epsr_xy = functionManager->evaluate("invepsr_xy","ip");
-      epsr_xz = functionManager->evaluate("invepsr_xz","ip");
-      epsr_yx = functionManager->evaluate("invepsr_yx","ip");
-      epsr_yy = functionManager->evaluate("invepsr_yy","ip");
-      epsr_yz = functionManager->evaluate("invepsr_yz","ip");
-      epsr_zx = functionManager->evaluate("invepsr_zx","ip");
-      epsr_zy = functionManager->evaluate("invepsr_yz","ip");
-      epsr_zz = functionManager->evaluate("invepsr_zz","ip");
+      epsr_xx = functionManager->evaluate("epsr_xx","ip");
+      epsr_xy = functionManager->evaluate("epsr_xy","ip");
+      epsr_xz = functionManager->evaluate("epsr_xz","ip");
+      epsr_yx = functionManager->evaluate("epsr_yx","ip");
+      epsr_yy = functionManager->evaluate("epsr_yy","ip");
+      epsr_yz = functionManager->evaluate("epsr_yz","ip");
+      epsr_zx = functionManager->evaluate("epsr_zx","ip");
+      epsr_zy = functionManager->evaluate("epsr_yz","ip");
+      epsr_zz = functionManager->evaluate("epsr_zz","ip");
       
-      invmur_xx = functionManager->evaluate("mur_xx","ip");
-      invmur_xy = functionManager->evaluate("mur_xy","ip");
-      invmur_xz = functionManager->evaluate("mur_xz","ip");
-      invmur_yx = functionManager->evaluate("mur_yx","ip");
-      invmur_yy = functionManager->evaluate("mur_yy","ip");
-      invmur_yz = functionManager->evaluate("mur_yz","ip");
-      invmur_zx = functionManager->evaluate("mur_zx","ip");
-      invmur_zy = functionManager->evaluate("mur_zy","ip");
-      invmur_zz = functionManager->evaluate("mur_zz","ip");
+      invmur_xx = functionManager->evaluate("invmur_xx","ip");
+      invmur_xy = functionManager->evaluate("invmur_xy","ip");
+      invmur_xz = functionManager->evaluate("invmur_xz","ip");
+      invmur_yx = functionManager->evaluate("invmur_yx","ip");
+      invmur_yy = functionManager->evaluate("invmur_yy","ip");
+      invmur_yz = functionManager->evaluate("invmur_yz","ip");
+      invmur_zx = functionManager->evaluate("invmur_zx","ip");
+      invmur_zy = functionManager->evaluate("invmur_zy","ip");
+      invmur_zz = functionManager->evaluate("invmur_zz","ip");
       
       xir_xx = functionManager->evaluate("xir_xx","ip");
       xir_xy = functionManager->evaluate("xir_xy","ip");
@@ -405,8 +405,9 @@ void maxwell_bianisotropic<EvalT>::boundaryResidual() {
   auto res = wkset->res;
   
   
-  double gamma = -0.9944;
-  if (include_Beqn && bcs(Bnum,cside) == "Neumann") { // Really ABC
+  //double gamma = -0.9944;
+  ScalarT c_0 = 299792458; // m/s
+  if (include_Eeqn && bcs(Enum,cside) == "Neumann") { // Really ABC
     // Contributes -<nxnxE,V> along boundary in B equation
     
     View_Sc2 nx, ny, nz;
@@ -417,8 +418,8 @@ void maxwell_bianisotropic<EvalT>::boundaryResidual() {
     auto Ey = wkset->getSolutionField("E[y]");
     auto Ez = wkset->getSolutionField("E[z]");
     
-    auto off = subview(wkset->offsets, Bnum, ALL());
-    auto basis = wkset->basis_side[wkset->usebasis[Bnum]];
+    auto off = subview(wkset->offsets, Enum, ALL());
+    auto basis = wkset->basis_side[wkset->usebasis[Enum]];
     
     parallel_for("maxwell_bianisotropic bndry resid ABC",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
@@ -428,9 +429,12 @@ void maxwell_bianisotropic<EvalT>::boundaryResidual() {
         EvalT nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
         EvalT nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
         EvalT nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
-        EvalT c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
+        /*EvalT c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
         EvalT c1 = -(1.0+gamma)*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
-        EvalT c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
+        EvalT c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);*/
+        EvalT c0 = -c_0*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
+        EvalT c1 = -c_0*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
+        EvalT c2 = -c_0*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
         for (size_type dof=0; dof<basis.extent(1); dof++ ) {
           res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
         }

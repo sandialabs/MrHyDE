@@ -359,7 +359,7 @@ void maxwell<EvalT>::boundaryResidual() {
       parallel_for("maxwell bndry resid ABC",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    MRHYDE_LAMBDA (const int elem ) {
-    
+    	
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           EvalT nce_x = ny(elem,pt)*Ez(elem,pt) - nz(elem,pt)*Ey(elem,pt);
           EvalT nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
@@ -367,9 +367,9 @@ void maxwell<EvalT>::boundaryResidual() {
           /*EvalT c0 = -(1.0+gamma)*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
           EvalT c1 = -(1.0+gamma)*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
           EvalT c2 = -(1.0+gamma)*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);*/
-          EvalT c0 = -c_0*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt); //EB
-          EvalT c1 = -c_0*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt); //EB
-          EvalT c2 = -c_0*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt); //EB
+          EvalT c0 = -c_0*(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
+          EvalT c1 = -c_0*(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
+          EvalT c2 = -c_0*(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
             res(elem,off(dof)) += c0*basis(elem,dof,pt,0) + c1*basis(elem,dof,pt,1) + c2*basis(elem,dof,pt,2);
           }
