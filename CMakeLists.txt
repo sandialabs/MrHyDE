@@ -195,6 +195,11 @@ IF(MrHyDE_ENABLE_HDSA)
   MESSAGE("-- HDSA has been enabled.")
 ENDIF()
 
+IF(MrHyDE_ENABLE_PDRISK)
+  ADD_DEFINITIONS(-DMrHyDE_ENABLE_PDRISK)
+  MESSAGE("-- PDRISK has been enabled.")
+ENDIF()
+
 IF(MrHyDE_ENABLE_PIEZO_EXTENSIONS)
   ADD_DEFINITIONS(-DMrHyDE_ENABLE_PIEZO)
   MESSAGE("-- Piezo-electro-mechanical extensions have been enabled.")

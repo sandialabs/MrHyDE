@@ -963,7 +963,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          MRHYDE_LAMBDA (const int e ) {
@@ -1025,7 +1025,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 2D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          MRHYDE_LAMBDA (const int e ) {
@@ -1113,7 +1113,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 1D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          MRHYDE_LAMBDA (const int e ) {
@@ -1171,7 +1171,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
             }
           });
           if (e_num>=0) { // include thermoelastic
-            auto T = wkset->getSolutionField("e");
+            auto T = wkset->getSolutionField("T");
             parallel_for("LE stress 3D TE",
                          RangePolicy<AssemblyExec>(0,wkset->numElem),
                          MRHYDE_LAMBDA (const int e ) {
@@ -1244,7 +1244,7 @@ void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu
           }
         });
         if (e_num>=0) { // include thermoelastic
-          auto T = wkset->getSolutionField("e");
+          auto T = wkset->getSolutionField("T");
           parallel_for("LE stress 3D TE",
                        RangePolicy<AssemblyExec>(0,wkset->numElem),
                        MRHYDE_LAMBDA (const int e ) {
