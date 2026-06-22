@@ -43,6 +43,7 @@
 #include "vlasov_fokker_planck_1d2v.hpp"
 #include "levelSet.hpp"
 #include "maxwell_bianisotropic.hpp"
+#include "maxwell_general.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -142,6 +143,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Maxwell with bianisotropic materials
     if (modname == "maxwell bianisotropic") {
       modules.push_back(Teuchos::rcp(new maxwell_bianisotropic<EvalT>(settings, dimension) ) );
+    }
+	
+    // Maxwell with general anisotropic/bianisotropic lossy materials
+    if (modname == "maxwell general") {
+      modules.push_back(Teuchos::rcp(new maxwell_general<EvalT>(settings, dimension) ) );
     }
     
     // Multiple Species PhaseField
