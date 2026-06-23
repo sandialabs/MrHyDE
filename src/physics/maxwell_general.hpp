@@ -65,6 +65,7 @@ namespace MrHyDE {
 
 		int Enum, Hnum, spaceDim;
 		bool include_Eeqn, include_Heqn;
+		string incident_source_sideset;
 
 		Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::maxwell_general::volumeResidual() - function evaluation");
 		Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::maxwell_general::volumeResidual() - evaluation of residual");

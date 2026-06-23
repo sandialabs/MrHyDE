@@ -19,6 +19,7 @@ const int & dimension_)
     spaceDim = dimension_;
     Enum = -1;
     Hnum = -1;
+	incident_source_sideset = settings.get<string>("incident source sideset", "");
 
     TEUCHOS_TEST_FOR_EXCEPTION(spaceDim != 3, std::runtime_error, "Error: maxwell_general only runs in 3D");
 	TEUCHOS_TEST_FOR_EXCEPTION(settings.get<bool>("use leap frog", false),
@@ -153,25 +154,78 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 	addTensorEntry("rho_zy", "rho_zy", "0.0");
 	addTensorEntry("rho_zz", "rho_zz", "0.0");
 
-	addTensorEntry("xisigma_xx", "xi_sigma_xx", "0.0");
-	addTensorEntry("xisigma_xy", "xi_sigma_xy", "0.0");
-	addTensorEntry("xisigma_xz", "xi_sigma_xz", "0.0");
-	addTensorEntry("xisigma_yx", "xi_sigma_yx", "0.0");
-	addTensorEntry("xisigma_yy", "xi_sigma_yy", "0.0");
-	addTensorEntry("xisigma_yz", "xi_sigma_yz", "0.0");
-	addTensorEntry("xisigma_zx", "xi_sigma_zx", "0.0");
-	addTensorEntry("xisigma_zy", "xi_sigma_zy", "0.0");
-	addTensorEntry("xisigma_zz", "xi_sigma_zz", "0.0");
+	addTensorEntry("xi_sigma_xx", "xisigma_xx", "0.0");
+	addTensorEntry("xi_sigma_xy", "xisigma_xy", "0.0");
+	addTensorEntry("xi_sigma_xz", "xisigma_xz", "0.0");
+	addTensorEntry("xi_sigma_yx", "xisigma_yx", "0.0");
+	addTensorEntry("xi_sigma_yy", "xisigma_yy", "0.0");
+	addTensorEntry("xi_sigma_yz", "xisigma_yz", "0.0");
+	addTensorEntry("xi_sigma_zx", "xisigma_zx", "0.0");
+	addTensorEntry("xi_sigma_zy", "xisigma_zy", "0.0");
+	addTensorEntry("xi_sigma_zz", "xisigma_zz", "0.0");
+	
+	addTensorEntry("zeta_rho_xx", "zetarho_xx", "0.0");
+	addTensorEntry("zeta_rho_xy", "zetarho_xy", "0.0");
+	addTensorEntry("zeta_rho_xz", "zetarho_xz", "0.0");
+	addTensorEntry("zeta_rho_yx", "zetarho_yx", "0.0");
+	addTensorEntry("zeta_rho_yy", "zetarho_yy", "0.0");
+	addTensorEntry("zeta_rho_yz", "zetarho_yz", "0.0");
+	addTensorEntry("zeta_rho_zx", "zetarho_zx", "0.0");
+	addTensorEntry("zeta_rho_zy", "zetarho_zy", "0.0");
+	addTensorEntry("zeta_rho_zz", "zetarho_zz", "0.0");
+	auto addSideFunction = [&](const string & name, const string & defaultValue) {
+		functionManager->addFunction(name, fs.get<string>(name, defaultValue), "side ip");
+	};
 
-	addTensorEntry("zetarho_xx", "zeta_rho_xx", "0.0");
-	addTensorEntry("zetarho_xy", "zeta_rho_xy", "0.0");
-	addTensorEntry("zetarho_xz", "zeta_rho_xz", "0.0");
-	addTensorEntry("zetarho_yx", "zeta_rho_yx", "0.0");
-	addTensorEntry("zetarho_yy", "zeta_rho_yy", "0.0");
-	addTensorEntry("zetarho_yz", "zeta_rho_yz", "0.0");
-	addTensorEntry("zetarho_zx", "zeta_rho_zx", "0.0");
-	addTensorEntry("zetarho_zy", "zeta_rho_zy", "0.0");
-	addTensorEntry("zetarho_zz", "zeta_rho_zz", "0.0");
+	auto addSideFunctionAlias = [&](const string & name,
+		const string & aliasName,
+		const string & defaultValue) {
+		functionManager->addFunction(name,
+		fs.get<string>(name, fs.get<string>(aliasName, defaultValue)),
+		"side ip");
+	};
+
+	addSideFunctionAlias("source_theta", "theta", "0.0");
+	addSideFunctionAlias("source_phi", "phi", "0.0");
+	addSideFunctionAlias("source_te", "te", "0.0");
+	addSideFunctionAlias("source_tm", "tm", "1.0");
+	addSideFunctionAlias("source_amplitude", "amplitude", "1.0");
+	addSideFunctionAlias("source_c0", "c0", "1.0");
+	addSideFunctionAlias("source_frequency", "frequency", "1.0");
+	addSideFunctionAlias("source_min_frequency", "min_frequency", "0.0");
+	addSideFunctionAlias("source_max_frequency", "max_frequency", "1.0");
+	addSideFunction("source_tau", "1.0");
+	addSideFunctionAlias("source_offset", "offset", "0.0");
+	addSideFunctionAlias("source_tm_phase", "tm_phase", "0.0");
+	addSideFunction("source_kx", "0.0");
+	addSideFunction("source_ky", "0.0");
+	addSideFunction("source_kz", "1.0");
+	addSideFunction("source_pte_x", "0.0");
+	addSideFunction("source_pte_y", "1.0");
+	addSideFunction("source_pte_z", "0.0");
+	addSideFunction("source_ptm_x", "1.0");
+	addSideFunction("source_ptm_y", "0.0");
+	addSideFunction("source_ptm_z", "0.0");
+	addSideFunction("source_polarization_norm", "1.0");
+	addSideFunction("source_te_weight", "0.0");
+	addSideFunction("source_tm_weight", "1.0");
+	addSideFunction("source_u", "0.0");
+	addSideFunction("source_a", "0.0");
+	addSideFunction("source_envelope", "0.0");
+	addSideFunction("source_sine_ramp", "0.0");
+	addSideFunction("source_waveform_te", "0.0");
+	addSideFunction("source_waveform_tm", "0.0");
+	addSideFunction("source_Ex", "0.0");
+	addSideFunction("source_Ey", "0.0");
+	addSideFunction("source_Ez", "0.0");
+
+	addSideFunction("incident Ex", "0.0");
+	addSideFunction("incident Ey", "0.0");
+	addSideFunction("incident Ez", "0.0");
+	addSideFunction("incident Hx", "0.0");
+	addSideFunction("incident Hy", "0.0");
+	addSideFunction("incident Hz", "0.0");
+
 }
 
 // ========================================================================================
@@ -191,8 +245,8 @@ void maxwell_general<EvalT>::volumeResidual() {
 	Vista<EvalT> zetar_xx, zetar_xy, zetar_xz, zetar_yx, zetar_yy, zetar_yz, zetar_zx, zetar_zy, zetar_zz;
 	Vista<EvalT> sigma_xx, sigma_xy, sigma_xz, sigma_yx, sigma_yy, sigma_yz, sigma_zx, sigma_zy, sigma_zz;
 	Vista<EvalT> rho_xx, rho_xy, rho_xz, rho_yx, rho_yy, rho_yz, rho_zx, rho_zy, rho_zz;
-	Vista<EvalT> xisigma_xx, xisigma_xy, xisigma_xz, xisigma_yx, xisigma_yy, xisigma_yz, xisigma_zx, xisigma_zy, xisigma_zz;
-	Vista<EvalT> zetarho_xx, zetarho_xy, zetarho_xz, zetarho_yx, zetarho_yy, zetarho_yz, zetarho_zx, zetarho_zy, zetarho_zz;
+	Vista<EvalT> xi_sigma_xx, xi_sigma_xy, xi_sigma_xz, xi_sigma_yx, xi_sigma_yy, xi_sigma_yz, xi_sigma_zx, xi_sigma_zy, xi_sigma_zz;
+	Vista<EvalT> zeta_rho_xx, zeta_rho_xy, zeta_rho_xz, zeta_rho_yx, zeta_rho_yy, zeta_rho_yz, zeta_rho_zx, zeta_rho_zy, zeta_rho_zz;
 
 	{
 		Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -268,25 +322,25 @@ void maxwell_general<EvalT>::volumeResidual() {
 		rho_zy = functionManager->evaluate("rho_zy", "ip");
 		rho_zz = functionManager->evaluate("rho_zz", "ip");
 
-		xisigma_xx = functionManager->evaluate("xisigma_xx", "ip");
-		xisigma_xy = functionManager->evaluate("xisigma_xy", "ip");
-		xisigma_xz = functionManager->evaluate("xisigma_xz", "ip");
-		xisigma_yx = functionManager->evaluate("xisigma_yx", "ip");
-		xisigma_yy = functionManager->evaluate("xisigma_yy", "ip");
-		xisigma_yz = functionManager->evaluate("xisigma_yz", "ip");
-		xisigma_zx = functionManager->evaluate("xisigma_zx", "ip");
-		xisigma_zy = functionManager->evaluate("xisigma_zy", "ip");
-		xisigma_zz = functionManager->evaluate("xisigma_zz", "ip");
+		xi_sigma_xx = functionManager->evaluate("xi_sigma_xx", "ip");
+		xi_sigma_xy = functionManager->evaluate("xi_sigma_xy", "ip");
+		xi_sigma_xz = functionManager->evaluate("xi_sigma_xz", "ip");
+		xi_sigma_yx = functionManager->evaluate("xi_sigma_yx", "ip");
+		xi_sigma_yy = functionManager->evaluate("xi_sigma_yy", "ip");
+		xi_sigma_yz = functionManager->evaluate("xi_sigma_yz", "ip");
+		xi_sigma_zx = functionManager->evaluate("xi_sigma_zx", "ip");
+		xi_sigma_zy = functionManager->evaluate("xi_sigma_zy", "ip");
+		xi_sigma_zz = functionManager->evaluate("xi_sigma_zz", "ip");
 
-		zetarho_xx = functionManager->evaluate("zetarho_xx", "ip");
-		zetarho_xy = functionManager->evaluate("zetarho_xy", "ip");
-		zetarho_xz = functionManager->evaluate("zetarho_xz", "ip");
-		zetarho_yx = functionManager->evaluate("zetarho_yx", "ip");
-		zetarho_yy = functionManager->evaluate("zetarho_yy", "ip");
-		zetarho_yz = functionManager->evaluate("zetarho_yz", "ip");
-		zetarho_zx = functionManager->evaluate("zetarho_zx", "ip");
-		zetarho_zy = functionManager->evaluate("zetarho_zy", "ip");
-		zetarho_zz = functionManager->evaluate("zetarho_zz", "ip");
+		zeta_rho_xx = functionManager->evaluate("zeta_rho_xx", "ip");
+		zeta_rho_xy = functionManager->evaluate("zeta_rho_xy", "ip");
+		zeta_rho_xz = functionManager->evaluate("zeta_rho_xz", "ip");
+		zeta_rho_yx = functionManager->evaluate("zeta_rho_yx", "ip");
+		zeta_rho_yy = functionManager->evaluate("zeta_rho_yy", "ip");
+		zeta_rho_yz = functionManager->evaluate("zeta_rho_yz", "ip");
+		zeta_rho_zx = functionManager->evaluate("zeta_rho_zx", "ip");
+		zeta_rho_zy = functionManager->evaluate("zeta_rho_zy", "ip");
+		zeta_rho_zz = functionManager->evaluate("zeta_rho_zz", "ip");
 	}
 
 	auto dHx_dt = wkset->getSolutionField("H_t[x]");
@@ -302,9 +356,9 @@ void maxwell_general<EvalT>::volumeResidual() {
 	auto Ex = wkset->getSolutionField("E[x]");
 	auto Ey = wkset->getSolutionField("E[y]");
 	auto Ez = wkset->getSolutionField("E[z]");
-	auto curlE_x = wkset->getSolutionField("curl(E)[x]");
-	auto curlE_y = wkset->getSolutionField("curl(E)[y]");
-	auto curlE_z = wkset->getSolutionField("curl(E)[z]");
+	auto curlEx = wkset->getSolutionField("curl(E)[x]");
+	auto curlEy = wkset->getSolutionField("curl(E)[y]");
+	auto curlEz = wkset->getSolutionField("curl(E)[z]");
 
 	auto wts = wkset->wts;
 	auto res = wkset->res;
@@ -326,25 +380,25 @@ void maxwell_general<EvalT>::volumeResidual() {
 			EvalT zetar_dEdt_y = zetar_yx(elem,pt)*dEx_dt(elem,pt) + zetar_yy(elem,pt)*dEy_dt(elem,pt) + zetar_yz(elem,pt)*dEz_dt(elem,pt);
 			EvalT zetar_dEdt_z = zetar_zx(elem,pt)*dEx_dt(elem,pt) + zetar_zy(elem,pt)*dEy_dt(elem,pt) + zetar_zz(elem,pt)*dEz_dt(elem,pt);
 
-			EvalT rho_H_x = rho_xx(elem,pt)*Hx(elem,pt) + rho_xy(elem,pt)*Hy(elem,pt) + rho_xz(elem,pt)*Hz(elem,pt);
-			EvalT rho_H_y = rho_yx(elem,pt)*Hx(elem,pt) + rho_yy(elem,pt)*Hy(elem,pt) + rho_yz(elem,pt)*Hz(elem,pt);
-			EvalT rho_H_z = rho_zx(elem,pt)*Hx(elem,pt) + rho_zy(elem,pt)*Hy(elem,pt) + rho_zz(elem,pt)*Hz(elem,pt);
+			EvalT rho_x = rho_xx(elem,pt)*Hx(elem,pt) + rho_xy(elem,pt)*Hy(elem,pt) + rho_xz(elem,pt)*Hz(elem,pt);
+			EvalT rho_y = rho_yx(elem,pt)*Hx(elem,pt) + rho_yy(elem,pt)*Hy(elem,pt) + rho_yz(elem,pt)*Hz(elem,pt);
+			EvalT rho_z = rho_zx(elem,pt)*Hx(elem,pt) + rho_zy(elem,pt)*Hy(elem,pt) + rho_zz(elem,pt)*Hz(elem,pt);
 
-			EvalT zetarho_E_x = zetarho_xx(elem,pt)*Ex(elem,pt) + zetarho_xy(elem,pt)*Ey(elem,pt) + zetarho_xz(elem,pt)*Ez(elem,pt);
-			EvalT zetarho_E_y = zetarho_yx(elem,pt)*Ex(elem,pt) + zetarho_yy(elem,pt)*Ey(elem,pt) + zetarho_yz(elem,pt)*Ez(elem,pt);
-			EvalT zetarho_E_z = zetarho_zx(elem,pt)*Ex(elem,pt) + zetarho_zy(elem,pt)*Ey(elem,pt) + zetarho_zz(elem,pt)*Ez(elem,pt);
+			EvalT zeta_rho_Ex = zeta_rho_xx(elem,pt)*Ex(elem,pt) + zeta_rho_xy(elem,pt)*Ey(elem,pt) + zeta_rho_xz(elem,pt)*Ez(elem,pt);
+			EvalT zeta_rho_Ey = zeta_rho_yx(elem,pt)*Ex(elem,pt) + zeta_rho_yy(elem,pt)*Ey(elem,pt) + zeta_rho_yz(elem,pt)*Ez(elem,pt);
+			EvalT zeta_rho_Ez = zeta_rho_zx(elem,pt)*Ex(elem,pt) + zeta_rho_zy(elem,pt)*Ey(elem,pt) + zeta_rho_zz(elem,pt)*Ez(elem,pt);
 
 			EvalT fx = (1.0/c0(elem,pt)*(mur_dHdt_x + zetar_dEdt_x)
-			+ 1.0/eta0(elem,pt)*rho_H_x
-			+ zetarho_E_x + curlE_x(elem,pt)
+			+ 1.0/eta0(elem,pt)*rho_x
+			+ zeta_rho_Ex + curlEx(elem,pt)
 			+ magnetic_current_x(elem,pt))*wts(elem,pt);
 			EvalT fy = (1.0/c0(elem,pt)*(mur_dHdt_y + zetar_dEdt_y)
-			+ 1.0/eta0(elem,pt)*rho_H_y
-			+ zetarho_E_y + curlE_y(elem,pt)
+			+ 1.0/eta0(elem,pt)*rho_y
+			+ zeta_rho_Ey + curlEy(elem,pt)
 			+ magnetic_current_y(elem,pt))*wts(elem,pt);
 			EvalT fz = (1.0/c0(elem,pt)*(mur_dHdt_z + zetar_dEdt_z)
-			+ 1.0/eta0(elem,pt)*rho_H_z
-			+ zetarho_E_z + curlE_z(elem,pt)
+			+ 1.0/eta0(elem,pt)*rho_z
+			+ zeta_rho_Ez + curlEz(elem,pt)
 			+ magnetic_current_z(elem,pt))*wts(elem,pt);
 
 			for (size_type dof = 0; dof < basis.extent(1); ++dof) {
@@ -374,22 +428,22 @@ void maxwell_general<EvalT>::volumeResidual() {
 			EvalT xir_dHdt_y = xir_yx(elem,pt)*dHx_dt(elem,pt) + xir_yy(elem,pt)*dHy_dt(elem,pt) + xir_yz(elem,pt)*dHz_dt(elem,pt);
 			EvalT xir_dHdt_z = xir_zx(elem,pt)*dHx_dt(elem,pt) + xir_zy(elem,pt)*dHy_dt(elem,pt) + xir_zz(elem,pt)*dHz_dt(elem,pt);
 
-			EvalT sigma_E_x = sigma_xx(elem,pt)*Ex(elem,pt) + sigma_xy(elem,pt)*Ey(elem,pt) + sigma_xz(elem,pt)*Ez(elem,pt);
-			EvalT sigma_E_y = sigma_yx(elem,pt)*Ex(elem,pt) + sigma_yy(elem,pt)*Ey(elem,pt) + sigma_yz(elem,pt)*Ez(elem,pt);
-			EvalT sigma_E_z = sigma_zx(elem,pt)*Ex(elem,pt) + sigma_zy(elem,pt)*Ey(elem,pt) + sigma_zz(elem,pt)*Ez(elem,pt);
+			EvalT sigma_Ex = sigma_xx(elem,pt)*Ex(elem,pt) + sigma_xy(elem,pt)*Ey(elem,pt) + sigma_xz(elem,pt)*Ez(elem,pt);
+			EvalT sigma_Ey = sigma_yx(elem,pt)*Ex(elem,pt) + sigma_yy(elem,pt)*Ey(elem,pt) + sigma_yz(elem,pt)*Ez(elem,pt);
+			EvalT sigma_Ez = sigma_zx(elem,pt)*Ex(elem,pt) + sigma_zy(elem,pt)*Ey(elem,pt) + sigma_zz(elem,pt)*Ez(elem,pt);
 
-			EvalT xisigma_H_x = xisigma_xx(elem,pt)*Hx(elem,pt) + xisigma_xy(elem,pt)*Hy(elem,pt) + xisigma_xz(elem,pt)*Hz(elem,pt);
-			EvalT xisigma_H_y = xisigma_yx(elem,pt)*Hx(elem,pt) + xisigma_yy(elem,pt)*Hy(elem,pt) + xisigma_yz(elem,pt)*Hz(elem,pt);
-			EvalT xisigma_H_z = xisigma_zx(elem,pt)*Hx(elem,pt) + xisigma_zy(elem,pt)*Hy(elem,pt) + xisigma_zz(elem,pt)*Hz(elem,pt);
+			EvalT xi_sigma_Hx = xi_sigma_xx(elem,pt)*Hx(elem,pt) + xi_sigma_xy(elem,pt)*Hy(elem,pt) + xi_sigma_xz(elem,pt)*Hz(elem,pt);
+			EvalT xi_sigma_Hy = xi_sigma_yx(elem,pt)*Hx(elem,pt) + xi_sigma_yy(elem,pt)*Hy(elem,pt) + xi_sigma_yz(elem,pt)*Hz(elem,pt);
+			EvalT xi_sigma_Hz = xi_sigma_zx(elem,pt)*Hx(elem,pt) + xi_sigma_zy(elem,pt)*Hy(elem,pt) + xi_sigma_zz(elem,pt)*Hz(elem,pt);
 
 			EvalT fx = (1.0/c0(elem,pt)*(epsr_dEdt_x + xir_dHdt_x)
-			+ eta0(elem,pt)*sigma_E_x + xisigma_H_x
+			+ eta0(elem,pt)*sigma_Ex + xi_sigma_Hx
 			+ eta0(elem,pt)*current_x(elem,pt))*wts(elem,pt);
 			EvalT fy = (1.0/c0(elem,pt)*(epsr_dEdt_y + xir_dHdt_y)
-			+ eta0(elem,pt)*sigma_E_y + xisigma_H_y
+			+ eta0(elem,pt)*sigma_Ey + xi_sigma_Hy
 			+ eta0(elem,pt)*current_y(elem,pt))*wts(elem,pt);
 			EvalT fz = (1.0/c0(elem,pt)*(epsr_dEdt_z + xir_dHdt_z)
-			+ eta0(elem,pt)*sigma_E_z + xisigma_H_z
+			+ eta0(elem,pt)*sigma_Ez + xi_sigma_Hz
 			+ eta0(elem,pt)*current_z(elem,pt))*wts(elem,pt);
 
 			EvalT gx = -Hx(elem,pt)*wts(elem,pt);
@@ -433,6 +487,10 @@ void maxwell_general<EvalT>::boundaryResidual() {
 		return;
 	}
 
+	const bool apply_incident_source =
+		!incident_source_sideset.empty() &&
+		wkset->sidename == incident_source_sideset;
+
 	View_Sc2 nx = wkset->getScalarField("n[x]");
 	View_Sc2 ny = wkset->getScalarField("n[y]");
 	View_Sc2 nz = wkset->getScalarField("n[z]");
@@ -440,6 +498,24 @@ void maxwell_general<EvalT>::boundaryResidual() {
 	auto Ex = wkset->getSolutionField("E[x]");
 	auto Ey = wkset->getSolutionField("E[y]");
 	auto Ez = wkset->getSolutionField("E[z]");
+
+	Vista<EvalT> incidentEx;
+	Vista<EvalT> incidentEy;
+	Vista<EvalT> incidentEz;
+	Vista<EvalT> incidentHx;
+	Vista<EvalT> incidentHy;
+	Vista<EvalT> incidentHz;
+
+	if (apply_incident_source) {
+		Teuchos::TimeMonitor funceval(*boundaryResidualFunc);
+
+		incidentEx = functionManager->evaluate("incident Ex", "side ip");
+		incidentEy = functionManager->evaluate("incident Ey", "side ip");
+		incidentEz = functionManager->evaluate("incident Ez", "side ip");
+		incidentHx = functionManager->evaluate("incident Hx", "side ip");
+		incidentHy = functionManager->evaluate("incident Hy", "side ip");
+		incidentHz = functionManager->evaluate("incident Hz", "side ip");
+	}
 
 	auto basis = wkset->basis_side[wkset->usebasis[Enum]];
 	auto off = subview(wkset->offsets, Enum, ALL());
@@ -454,9 +530,31 @@ void maxwell_general<EvalT>::boundaryResidual() {
 		EvalT nce_y = nz(elem,pt)*Ex(elem,pt) - nx(elem,pt)*Ez(elem,pt);
 		EvalT nce_z = nx(elem,pt)*Ey(elem,pt) - ny(elem,pt)*Ex(elem,pt);
 
-		EvalT fx = -(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y)*wts(elem,pt);
-		EvalT fy = -(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z)*wts(elem,pt);
-		EvalT fz = -(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x)*wts(elem,pt);
+		EvalT fx = -(ny(elem,pt)*nce_z - nz(elem,pt)*nce_y);
+		EvalT fy = -(nz(elem,pt)*nce_x - nx(elem,pt)*nce_z);
+		EvalT fz = -(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x);
+
+		if (apply_incident_source) {
+			EvalT nceinc_x = ny(elem,pt)*incidentEz(elem,pt) - nz(elem,pt)*incidentEy(elem,pt);
+			EvalT nceinc_y = nz(elem,pt)*incidentEx(elem,pt) - nx(elem,pt)*incidentEz(elem,pt);
+			EvalT nceinc_z = nx(elem,pt)*incidentEy(elem,pt) - ny(elem,pt)*incidentEx(elem,pt);
+
+			EvalT nxnxEinc_x = ny(elem,pt)*nceinc_z - nz(elem,pt)*nceinc_y;
+			EvalT nxnxEinc_y = nz(elem,pt)*nceinc_x - nx(elem,pt)*nceinc_z;
+			EvalT nxnxEinc_z = nx(elem,pt)*nceinc_y - ny(elem,pt)*nceinc_x;
+
+			EvalT nxHinc_x = ny(elem,pt)*incidentHz(elem,pt) - nz(elem,pt)*incidentHy(elem,pt);
+			EvalT nxHinc_y = nz(elem,pt)*incidentHx(elem,pt) - nx(elem,pt)*incidentHz(elem,pt);
+			EvalT nxHinc_z = nx(elem,pt)*incidentHy(elem,pt) - ny(elem,pt)*incidentHx(elem,pt);
+
+			fx += nxnxEinc_x - nxHinc_x;
+			fy += nxnxEinc_y - nxHinc_y;
+			fz += nxnxEinc_z - nxHinc_z;
+		}
+
+		fx *= wts(elem,pt);
+		fy *= wts(elem,pt);
+		fz *= wts(elem,pt);
 
 		for (size_type dof = 0; dof < basis.extent(1); ++dof) {
 			res(elem,off(dof)) += fx*basis(elem,dof,pt,0);
