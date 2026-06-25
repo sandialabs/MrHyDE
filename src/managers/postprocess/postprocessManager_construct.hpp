@@ -128,8 +128,6 @@ void PostprocessManager<Node>::setup() {
     nf2ff.nphi = nf2ff_settings.get<int>("nphi", 1);
     nf2ff.min_phi = nf2ff_settings.get<ScalarT>("min_phi", 0.0);
     nf2ff.max_phi = nf2ff_settings.get<ScalarT>("max_phi", nf2ff.min_phi);
-    nf2ff.accepted_power = nf2ff_settings.get<ScalarT>(
-      "accepted_power", nf2ff_settings.get<ScalarT>("accepted power", -1.0));
 
     if (nf2ff.save) {
       TEUCHOS_TEST_FOR_EXCEPTION(dimension != 3, std::runtime_error,
@@ -156,10 +154,67 @@ void PostprocessManager<Node>::setup() {
           nf2ff.min_frequency + (nf2ff.max_frequency - nf2ff.min_frequency) *
           static_cast<ScalarT>(i)/static_cast<ScalarT>(nf2ff.nfrequency - 1);
       }
+
       if (nf2ff.mode == "scattering") {
-        nf2ff.source_te_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
-        nf2ff.source_tm_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
+        nf2ff.source_te_dft.assign(nf2ff.nfrequency,
+          std::complex<ScalarT>(0.0, 0.0));
+        nf2ff.source_tm_dft.assign(nf2ff.nfrequency,
+          std::complex<ScalarT>(0.0, 0.0));
       }
+      else if (settings->sublist("Physics").isSublist("Lumped ports")) {
+        Teuchos::ParameterList & port_list =
+          settings->sublist("Physics").sublist("Lumped ports");
+        Teuchos::ParameterList::ConstIterator port_itr = port_list.begin();
+        while (port_itr != port_list.end()) {
+          const string port_name = port_itr->first;
+          TEUCHOS_TEST_FOR_EXCEPTION(!port_list.isSublist(port_name),
+                                     std::runtime_error,
+                                     "Each Physics: Lumped ports entry must be a sublist.");
+
+          Teuchos::ParameterList & port_settings =
+            port_list.sublist(port_name);
+          NF2FFPort port;
+          port.name = port_name;
+          port.block_name = port_settings.get<string>("block", "");
+          port.polarization_x =
+            port_settings.get<ScalarT>("polarization x", 0.0);
+          port.polarization_y =
+            port_settings.get<ScalarT>("polarization y", 0.0);
+          port.polarization_z =
+            port_settings.get<ScalarT>("polarization z", 0.0);
+          port.impedance = port_settings.get<ScalarT>("impedance", 50.0);
+          port.amplitude = port_settings.get<ScalarT>("amplitude", 1.0);
+          port.volume = port_settings.get<ScalarT>("volume", 0.0);
+          port.height = port_settings.get<ScalarT>("height", 0.0);
+          port.area = port_settings.get<ScalarT>("area", 0.0);
+          port.conductivity =
+            port_settings.get<ScalarT>("conductivity", 0.0);
+          port.tau = port_settings.get<ScalarT>("tau", 0.0);
+          port.offset = port_settings.get<ScalarT>("time offset", 0.0);
+          port.frequency = port_settings.get<ScalarT>("frequency", 0.0);
+          port.source_type =
+            port_settings.get<string>("type", "gaussian_derivative");
+          port.source_dft.assign(nf2ff.nfrequency,
+            std::complex<ScalarT>(0.0, 0.0));
+
+          TEUCHOS_TEST_FOR_EXCEPTION(port.block_name.empty() ||
+                                     port.volume <= 0.0 ||
+                                     port.height <= 0.0 ||
+                                     port.area <= 0.0 ||
+                                     port.tau <= 0.0,
+                                     std::runtime_error,
+                                     "Lumped port '" << port.name
+                                     << "' was not initialized before postprocessing.");
+
+          nf2ff_ports.push_back(port);
+          ++port_itr;
+        }
+      }
+
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.mode == "radiation" &&
+                                 nf2ff_ports.size() > 1,
+                                 std::runtime_error,
+                                 "Radiation NF2FF currently supports one lumped port per run.");
     }
   }
 
@@ -431,11 +486,11 @@ void PostprocessManager<Node>::completeSetup() {
         NF2FFSurfaceGroup surface_group;
         surface_group.block = block;
         surface_group.group = grp;
-        surface_group.surface_E_dft =
+        surface_group.electric_E_dft =
           Kokkos::View<ScalarT *****, AssemblyDevice>(
             "NF2FF surface electric-field DFT",
             nf2ff.nfrequency, wts.extent(0), wts.extent(1), 3, 2);
-        Kokkos::deep_copy(surface_group.surface_E_dft, 0.0);
+        Kokkos::deep_copy(surface_group.electric_E_dft, 0.0);
         nf2ff_surface_groups.push_back(surface_group);
         local_face_count += static_cast<int>(wts.extent(0));
       }
@@ -447,6 +502,55 @@ void PostprocessManager<Node>::completeSetup() {
     TEUCHOS_TEST_FOR_EXCEPTION(global_face_count == 0, std::runtime_error,
                                "NF2FF sideset '" << nf2ff.sideset
                                << "' does not contain any boundary quadrature points.");
+
+    nf2ff_port_groups.clear();
+    if (nf2ff.mode == "radiation") {
+      for (size_t port_index = 0; port_index < nf2ff_ports.size(); ++port_index) {
+        size_t port_block = blocknames.size();
+        for (size_t block = 0; block < blocknames.size(); ++block) {
+          if (blocknames[block] == nf2ff_ports[port_index].block_name) {
+            port_block = block;
+            break;
+          }
+        }
+
+        TEUCHOS_TEST_FOR_EXCEPTION(port_block == blocknames.size(),
+                                   std::runtime_error,
+                                   "Lumped port '" << nf2ff_ports[port_index].name
+                                   << "' references an unknown block '"
+                                   << nf2ff_ports[port_index].block_name << "'.");
+        nf2ff_ports[port_index].block = port_block;
+
+        int local_port_element_count = 0;
+        for (size_t grp = 0; grp < assembler->groups[port_block].size(); ++grp) {
+          auto wts = assembler->groups[port_block][grp]->getWts();
+          if (wts.extent(0) == 0 || wts.extent(1) == 0) {
+            continue;
+          }
+
+          NF2FFPortGroup port_group;
+          port_group.port = port_index;
+          port_group.block = port_block;
+          port_group.group = grp;
+          port_group.electric_E_dft =
+            Kokkos::View<ScalarT *****, AssemblyDevice>(
+              "NF2FF port electric-field DFT",
+              nf2ff.nfrequency, wts.extent(0), wts.extent(1), 3, 2);
+          Kokkos::deep_copy(port_group.electric_E_dft, 0.0);
+          nf2ff_port_groups.push_back(port_group);
+          local_port_element_count += static_cast<int>(wts.extent(0));
+        }
+
+        int global_port_element_count = 0;
+        Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                           &local_port_element_count,
+                           &global_port_element_count);
+        TEUCHOS_TEST_FOR_EXCEPTION(global_port_element_count == 0,
+                                   std::runtime_error,
+                                   "Lumped port '" << nf2ff_ports[port_index].name
+                                   << "' does not contain any volume quadrature points.");
+      }
+    }
   }
 
   // Write quadrature points and weights to file if requested

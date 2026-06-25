@@ -118,6 +118,8 @@ comm(comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), p
   
   // Create groups/boundary groups
   this->createGroups();
+
+  this->configureLumpedPorts();
   
   params->setupDiscretizedParameters(groups, boundary_groups);
 

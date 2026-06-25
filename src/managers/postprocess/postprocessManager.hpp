@@ -256,7 +256,7 @@ public:
                              const ScalarT & current_time, const ScalarT & deltat);
 
   /**
-   * @brief Accumulates effective electric-field DFT data on the NF2FF surface.
+   * @brief Accumulates electric-field DFT data used by the NF2FF output.
    */
   void accumulateNF2FF(vector<vector_RCP> & current_soln,
                        const ScalarT & current_time, const ScalarT & deltat);
@@ -746,7 +746,34 @@ public:
   struct NF2FFSurfaceGroup {
     size_t block = 0;
     size_t group = 0;
-    Kokkos::View<ScalarT *****, AssemblyDevice> surface_E_dft;
+    Kokkos::View<ScalarT *****, AssemblyDevice> electric_E_dft;
+  };
+
+  struct NF2FFPort {
+    string name;
+    string block_name;
+    size_t block = 0;
+    ScalarT polarization_x = 0.0;
+    ScalarT polarization_y = 0.0;
+    ScalarT polarization_z = 1.0;
+    ScalarT impedance = 50.0;
+    ScalarT amplitude = 1.0;
+    ScalarT volume = 0.0;
+    ScalarT height = 0.0;
+    ScalarT area = 0.0;
+    ScalarT conductivity = 0.0;
+    ScalarT tau = 0.0;
+    ScalarT offset = 0.0;
+    ScalarT frequency = 0.0;
+    string source_type = "gaussian_derivative";
+    vector<std::complex<ScalarT> > source_dft;
+  };
+
+  struct NF2FFPortGroup {
+    size_t port = 0;
+    size_t block = 0;
+    size_t group = 0;
+    Kokkos::View<ScalarT *****, AssemblyDevice> electric_E_dft;
   };
 
   struct NF2FFSettings {
@@ -764,7 +791,6 @@ public:
     ScalarT max_theta = 0.0;
     ScalarT min_phi = 0.0;
     ScalarT max_phi = 0.0;
-    ScalarT accepted_power = -1.0;
     vector<ScalarT> frequencies;
     Kokkos::View<ScalarT *, AssemblyDevice> frequency_device;
     vector<std::complex<ScalarT> > source_te_dft;
@@ -775,10 +801,13 @@ public:
     ScalarT c0 = 0.0;
     ScalarT eta0 = 0.0;
     bool constants_initialized = false;
+    bool scattering_source_initialized = false;
   };
 
   NF2FFSettings nf2ff;
   vector<NF2FFSurfaceGroup> nf2ff_surface_groups;
+  vector<NF2FFPort> nf2ff_ports;
+  vector<NF2FFPortGroup> nf2ff_port_groups;
 
 private:
   

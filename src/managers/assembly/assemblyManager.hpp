@@ -2072,6 +2072,11 @@ void importNewMicrostructure(int & randSeed, View_Sc2 seeds);
 vector<vector<int> > identifySubgridModels();
 
 /**
+ * @brief Configure lumped-port source and conductivity functions.
+ */
+void configureLumpedPorts();
+
+/**
  * @brief Create user-defined and physics-specific functions for the problem.
  */
 void createFunctions();
