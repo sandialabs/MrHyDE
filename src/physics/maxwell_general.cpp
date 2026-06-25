@@ -528,6 +528,7 @@ void maxwell_general<EvalT>::boundaryResidual() {
 		return;
 	}
 
+	auto bcs = wkset->var_bcs;
 	int cside = wkset->currentside;
 
 	if (bcs(Enum,cside) != "Neumann") {
