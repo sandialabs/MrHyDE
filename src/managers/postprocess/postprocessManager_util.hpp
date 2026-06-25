@@ -183,21 +183,29 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
       auto c0 = assembler->function_managers[block]->evaluate("c0", "side ip");
       auto eta0 = assembler->function_managers[block]->evaluate("eta0", "side ip");
 
-      auto source_waveform_te_host = create_mirror_view(source_waveform_te);
-      auto source_waveform_tm_host = create_mirror_view(source_waveform_tm);
-      auto source_amplitude_host = create_mirror_view(source_amplitude);
-      auto source_te_weight_host = create_mirror_view(source_te_weight);
-      auto source_tm_weight_host = create_mirror_view(source_tm_weight);
-      auto c0_host = create_mirror_view(c0);
-      auto eta0_host = create_mirror_view(eta0);
+      auto source_waveform_te_data = source_waveform_te.getData();
+      auto source_waveform_tm_data = source_waveform_tm.getData();
+      auto source_amplitude_data = source_amplitude.getData();
+      auto source_te_weight_data = source_te_weight.getData();
+      auto source_tm_weight_data = source_tm_weight.getData();
+      auto c0_data = c0.getData();
+      auto eta0_data = eta0.getData();
 
-      deep_copy(source_waveform_te_host, source_waveform_te);
-      deep_copy(source_waveform_tm_host, source_waveform_tm);
-      deep_copy(source_amplitude_host, source_amplitude);
-      deep_copy(source_te_weight_host, source_te_weight);
-      deep_copy(source_tm_weight_host, source_tm_weight);
-      deep_copy(c0_host, c0);
-      deep_copy(eta0_host, eta0);
+      auto source_waveform_te_host = create_mirror_view(source_waveform_te_data);
+      auto source_waveform_tm_host = create_mirror_view(source_waveform_tm_data);
+      auto source_amplitude_host = create_mirror_view(source_amplitude_data);
+      auto source_te_weight_host = create_mirror_view(source_te_weight_data);
+      auto source_tm_weight_host = create_mirror_view(source_tm_weight_data);
+      auto c0_host = create_mirror_view(c0_data);
+      auto eta0_host = create_mirror_view(eta0_data);
+
+      deep_copy(source_waveform_te_host, source_waveform_te_data);
+      deep_copy(source_waveform_tm_host, source_waveform_tm_data);
+      deep_copy(source_amplitude_host, source_amplitude_data);
+      deep_copy(source_te_weight_host, source_te_weight_data);
+      deep_copy(source_tm_weight_host, source_tm_weight_data);
+      deep_copy(c0_host, c0_data);
+      deep_copy(eta0_host, eta0_data);
 
       local_source_values[0] = source_waveform_te_host(0, 0);
       local_source_values[1] = source_waveform_tm_host(0, 0);
@@ -288,8 +296,9 @@ void PostprocessManager<Node>::writeNF2FF()
   if (Comm->getRank() == 0) {
     std::error_code error;
     std::filesystem::create_directories(nf2ff.directory, error);
-    TEUCHOS_TEST_FOR_EXCEPTION(error, std::runtime_error,
-                               "Could not create NF2FF output directory '" << nf2ff.directory << "'.");
+    TEUCHOS_TEST_FOR_EXCEPTION(static_cast<bool>(error), std::runtime_error,
+                               "Could not create NF2FF output directory '" << nf2ff.directory << "': "
+                               << error.message());
     const std::filesystem::path filename =
       std::filesystem::path(nf2ff.directory)/(nf2ff.name + ".csv");
     csv.open(filename.string());
