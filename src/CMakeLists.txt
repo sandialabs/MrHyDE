@@ -20,7 +20,10 @@ INCLUDE_DIRECTORIES ( ./
   ${HdsaLib_SRC_DIR}/src/core/base/vectors
   ${HdsaLib_SRC_DIR}/src/trilinos_adapter/adapters
   ${HdsaLib_SRC_DIR}/src/trilinos_adapter/core
+  ${HdsaLib_SRC_DIR}/src/core/bifidelity_correction/interfaces
+  ${HdsaLib_SRC_DIR}/src/core/bifidelity_correction/analysis
   ${HdsaLib_SRC_DIR}/interfaces/mrhyde/md_interfaces
+  ${HdsaLib_SRC_DIR}/interfaces/mrhyde/bf_interfaces
   ${HdsaLib_SRC_DIR}/interfaces/mrhyde/auxiliary
   ${HdsaLib_SRC_DIR}/interfaces/rol
   physics
