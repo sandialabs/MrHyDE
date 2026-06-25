@@ -773,8 +773,8 @@ public:
     vector<std::complex<ScalarT> > source_te_dft;
     vector<std::complex<ScalarT> > source_tm_dft;
     ScalarT source_amplitude = 0.0;
-    ScalarT source_te_weight = 0.0;
-    ScalarT source_tm_weight = 0.0;
+    ScalarT source_te = 0.0;
+    ScalarT source_tm = 0.0;
     ScalarT c0 = 0.0;
     ScalarT eta0 = 0.0;
     bool source_initialized = false;

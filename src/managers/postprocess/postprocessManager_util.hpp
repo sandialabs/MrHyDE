@@ -176,42 +176,42 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
         assembler->function_managers[block]->evaluate("source_waveform_tm", "side ip");
       auto source_amplitude =
         assembler->function_managers[block]->evaluate("source_amplitude", "side ip");
-      auto source_te_weight =
-        assembler->function_managers[block]->evaluate("source_te_weight", "side ip");
-      auto source_tm_weight =
-        assembler->function_managers[block]->evaluate("source_tm_weight", "side ip");
+      auto source_te =
+        assembler->function_managers[block]->evaluate("source_te", "side ip");
+      auto source_tm =
+        assembler->function_managers[block]->evaluate("source_tm", "side ip");
       auto c0 = assembler->function_managers[block]->evaluate("c0", "side ip");
       auto eta0 = assembler->function_managers[block]->evaluate("eta0", "side ip");
 
       auto source_waveform_te_data = source_waveform_te.getData();
       auto source_waveform_tm_data = source_waveform_tm.getData();
       auto source_amplitude_data = source_amplitude.getData();
-      auto source_te_weight_data = source_te_weight.getData();
-      auto source_tm_weight_data = source_tm_weight.getData();
+      auto source_te_data = source_te.getData();
+      auto source_tm_data = source_tm.getData();
       auto c0_data = c0.getData();
       auto eta0_data = eta0.getData();
 
       auto source_waveform_te_host = create_mirror_view(source_waveform_te_data);
       auto source_waveform_tm_host = create_mirror_view(source_waveform_tm_data);
       auto source_amplitude_host = create_mirror_view(source_amplitude_data);
-      auto source_te_weight_host = create_mirror_view(source_te_weight_data);
-      auto source_tm_weight_host = create_mirror_view(source_tm_weight_data);
+      auto source_te_host = create_mirror_view(source_te_data);
+      auto source_tm_host = create_mirror_view(source_tm_data);
       auto c0_host = create_mirror_view(c0_data);
       auto eta0_host = create_mirror_view(eta0_data);
 
       deep_copy(source_waveform_te_host, source_waveform_te_data);
       deep_copy(source_waveform_tm_host, source_waveform_tm_data);
       deep_copy(source_amplitude_host, source_amplitude_data);
-      deep_copy(source_te_weight_host, source_te_weight_data);
-      deep_copy(source_tm_weight_host, source_tm_weight_data);
+      deep_copy(source_te_host, source_te_data);
+      deep_copy(source_tm_host, source_tm_data);
       deep_copy(c0_host, c0_data);
       deep_copy(eta0_host, eta0_data);
 
       local_source_values[0] = source_waveform_te_host(0, 0);
       local_source_values[1] = source_waveform_tm_host(0, 0);
       local_source_values[2] = source_amplitude_host(0, 0);
-      local_source_values[3] = source_te_weight_host(0, 0);
-      local_source_values[4] = source_tm_weight_host(0, 0);
+      local_source_values[3] = source_te_host(0, 0);
+      local_source_values[4] = source_tm_host(0, 0);
       local_source_values[5] = c0_host(0, 0);
       local_source_values[6] = eta0_host(0, 0);
       local_source_count = 1;
@@ -236,18 +236,18 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
 
     if (!nf2ff.source_initialized) {
       nf2ff.source_amplitude = global_source_values[2]*inv_count;
-      nf2ff.source_te_weight = global_source_values[3]*inv_count;
-      nf2ff.source_tm_weight = global_source_values[4]*inv_count;
+      nf2ff.source_te = global_source_values[3]*inv_count;
+      nf2ff.source_tm = global_source_values[4]*inv_count;
       nf2ff.c0 = global_source_values[5]*inv_count;
       nf2ff.eta0 = global_source_values[6]*inv_count;
 
       TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.c0 <= 0.0 || nf2ff.eta0 <= 0.0,
                                  std::runtime_error,
                                  "NF2FF requires positive c0 and eta0 on the selected sideset.");
-      TEUCHOS_TEST_FOR_EXCEPTION(std::abs(nf2ff.source_te_weight) <= 1.0e-30 &&
-                                 std::abs(nf2ff.source_tm_weight) <= 1.0e-30,
+      TEUCHOS_TEST_FOR_EXCEPTION(std::abs(nf2ff.source_te) <= 1.0e-30 &&
+                                 std::abs(nf2ff.source_tm) <= 1.0e-30,
                                  std::runtime_error,
-                                 "NF2FF scattering mode requires a nonzero TE or TM incident-wave weight.");
+                                 "NF2FF scattering mode requires a nonzero source_te or source_tm coefficient.");
       TEUCHOS_TEST_FOR_EXCEPTION(std::abs(nf2ff.source_amplitude) <= 1.0e-30,
                                  std::runtime_error,
                                  "NF2FF scattering mode requires a nonzero source_amplitude.");
@@ -319,8 +319,6 @@ void PostprocessManager<Node>::writeNF2FF()
   }
 
   const int nangles = nf2ff.ntheta*nf2ff.nphi;
-  const ScalarT nan = std::numeric_limits<ScalarT>::quiet_NaN();
-
   for (size_t freq_index = 0; freq_index < nf2ff.frequencies.size(); ++freq_index) {
     Teuchos::Array<ScalarT> local_values(8*nangles, 0.0);
     Teuchos::Array<ScalarT> global_values(8*nangles, 0.0);
@@ -456,11 +454,17 @@ void PostprocessManager<Node>::writeNF2FF()
 
     if (Comm->getRank() == 0) {
       std::complex<ScalarT> source_dft =
-        (std::abs(nf2ff.source_te_weight) > 1.0e-30) ?
+        (std::abs(nf2ff.source_te) > 1.0e-30) ?
         nf2ff.source_te_dft[freq_index] : nf2ff.source_tm_dft[freq_index];
-      const bool normalize = std::norm(source_dft) > 1.0e-30;
-      const std::complex<ScalarT> field_norm = normalize ?
-        1.0/source_dft : std::complex<ScalarT>(nan, nan);
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        std::norm(source_dft) <= 1.0e-30, std::runtime_error,
+        "NF2FF scattering normalization failed at frequency " << frequency
+        << ". The selected source waveform has a near-zero DFT. Define "
+        << ((std::abs(nf2ff.source_te) > 1.0e-30) ?
+            "source_waveform_te" : "source_waveform_tm")
+        << " in the Functions input file, and ensure it matches the temporal "
+        << "waveform used by incident Ex/Ey/Ez.");
+      const std::complex<ScalarT> field_norm = 1.0/source_dft;
       const ScalarT field_scale = k0/(4.0*PI);
       const ScalarT power_scale = k0*k0/((4.0*PI)*(4.0*PI)*nf2ff.eta0);
       const ScalarT incident_field_squared =
