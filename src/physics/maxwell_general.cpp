@@ -7,6 +7,11 @@ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
 ************************************************************************/
 
 #include "maxwell_general.hpp"
+
+#include <algorithm>
+#include <stdexcept>
+#include <string>
+
 using namespace MrHyDE;
 
 template<class EvalT>
@@ -20,6 +25,29 @@ const int & dimension_)
     Enum = -1;
     Hnum = -1;
 	incident_source_sideset = settings.get<string>("incident source sideset", "");
+
+	if (settings.isSublist("Planewaves")) {
+		Teuchos::ParameterList & planewaves = settings.sublist("Planewaves");
+		Teuchos::ParameterList::ConstIterator source_itr = planewaves.begin();
+		while (source_itr != planewaves.end()) {
+			const string source_name = source_itr->first;
+			TEUCHOS_TEST_FOR_EXCEPTION(!planewaves.isSublist(source_name),
+			std::runtime_error,
+			"Each Physics: Planewaves entry must be a sublist.");
+
+			const string sideset =
+			planewaves.sublist(source_name).get<string>("sideset", "");
+			TEUCHOS_TEST_FOR_EXCEPTION(sideset.empty(), std::runtime_error,
+			"Planewave '" << source_name << "' requires a sideset name.");
+
+			if (std::find(automatic_planewave_sidesets.begin(),
+			              automatic_planewave_sidesets.end(),
+			              sideset) == automatic_planewave_sidesets.end()) {
+				automatic_planewave_sidesets.push_back(sideset);
+			}
+			++source_itr;
+		}
+	}
 
     TEUCHOS_TEST_FOR_EXCEPTION(spaceDim != 3, std::runtime_error, "Error: maxwell_general only runs in 3D");
 	TEUCHOS_TEST_FOR_EXCEPTION(settings.get<bool>("use leap frog", false),
@@ -227,6 +255,24 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 	addSideFunction("incident Hx", "0.0");
 	addSideFunction("incident Hy", "0.0");
 	addSideFunction("incident Hz", "0.0");
+
+	const size_t automatic_source_count =
+		std::max(static_cast<size_t>(1), automatic_planewave_sidesets.size());
+	for (size_t source = 0; source < automatic_source_count; ++source) {
+		const string prefix = "automatic_planewave_" +
+			std::to_string(source) + "_";
+		addSideFunction(prefix + "Ex", "0.0");
+		addSideFunction(prefix + "Ey", "0.0");
+		addSideFunction(prefix + "Ez", "0.0");
+		addSideFunction(prefix + "Hx", "0.0");
+		addSideFunction(prefix + "Hy", "0.0");
+		addSideFunction(prefix + "Hz", "0.0");
+		addSideFunction(prefix + "source_waveform_te", "0.0");
+		addSideFunction(prefix + "source_waveform_tm", "0.0");
+		addSideFunction(prefix + "source_amplitude", "0.0");
+		addSideFunction(prefix + "source_te", "0.0");
+		addSideFunction(prefix + "source_tm", "0.0");
+	}
 
 }
 
@@ -470,10 +516,10 @@ void maxwell_general<EvalT>::boundaryResidual() {
 	/*
 	Important ABC limitation:
 	The unit-coefficient Silver–Müller term is appropriate when the exterior boundary
-	represents the normalized free-space radiation condition used by Kairos. It is not
-	a generally exact absorbing condition for an anisotropic, bianisotropic, lossy, or
-	impedance-mismatched exterior medium. For those cases, the boundary operator would
-	need the exterior tangential admittance operator instead of simply E_t.
+	represents the normalized free-space radiation condition assumed by this formulation.
+	It is not a generally exact absorbing condition for an anisotropic, bianisotropic,
+	lossy, or impedance-mismatched exterior medium. For those cases, the boundary
+	operator would need the exterior tangential admittance operator instead of simply E_t.
 	*/
 
 	Teuchos::TimeMonitor resideval(*boundaryResidualFill);
@@ -482,16 +528,28 @@ void maxwell_general<EvalT>::boundaryResidual() {
 		return;
 	}
 
-	auto bcs = wkset->var_bcs;
 	int cside = wkset->currentside;
 
 	if (bcs(Enum,cside) != "Neumann") {
 		return;
 	}
 
-	const bool apply_incident_source =
+	const bool apply_manual_incident_source =
 		!incident_source_sideset.empty() &&
 		wkset->sidename == incident_source_sideset;
+
+	int automatic_source_index = -1;
+	for (size_t source = 0; source < automatic_planewave_sidesets.size();
+	     ++source) {
+		if (wkset->sidename == automatic_planewave_sidesets[source]) {
+			automatic_source_index = static_cast<int>(source);
+			break;
+		}
+	}
+	const bool apply_automatic_incident_source =
+		automatic_source_index >= 0;
+	const bool apply_incident_source =
+		apply_manual_incident_source || apply_automatic_incident_source;
 
 	View_Sc2 nx = wkset->getScalarField("n[x]");
 	View_Sc2 ny = wkset->getScalarField("n[y]");
@@ -507,8 +565,14 @@ void maxwell_general<EvalT>::boundaryResidual() {
 	Vista<EvalT> incidentHx;
 	Vista<EvalT> incidentHy;
 	Vista<EvalT> incidentHz;
+	Vista<EvalT> automaticIncidentEx;
+	Vista<EvalT> automaticIncidentEy;
+	Vista<EvalT> automaticIncidentEz;
+	Vista<EvalT> automaticIncidentHx;
+	Vista<EvalT> automaticIncidentHy;
+	Vista<EvalT> automaticIncidentHz;
 
-	if (apply_incident_source) {
+	if (apply_manual_incident_source) {
 		Teuchos::TimeMonitor funceval(*boundaryResidualFunc);
 
 		incidentEx = functionManager->evaluate("incident Ex", "side ip");
@@ -517,6 +581,25 @@ void maxwell_general<EvalT>::boundaryResidual() {
 		incidentHx = functionManager->evaluate("incident Hx", "side ip");
 		incidentHy = functionManager->evaluate("incident Hy", "side ip");
 		incidentHz = functionManager->evaluate("incident Hz", "side ip");
+	}
+
+	if (apply_automatic_incident_source) {
+		Teuchos::TimeMonitor funceval(*boundaryResidualFunc);
+
+		const string prefix = "automatic_planewave_" +
+			std::to_string(automatic_source_index) + "_";
+		automaticIncidentEx =
+			functionManager->evaluate(prefix + "Ex", "side ip");
+		automaticIncidentEy =
+			functionManager->evaluate(prefix + "Ey", "side ip");
+		automaticIncidentEz =
+			functionManager->evaluate(prefix + "Ez", "side ip");
+		automaticIncidentHx =
+			functionManager->evaluate(prefix + "Hx", "side ip");
+		automaticIncidentHy =
+			functionManager->evaluate(prefix + "Hy", "side ip");
+		automaticIncidentHz =
+			functionManager->evaluate(prefix + "Hz", "side ip");
 	}
 
 	auto basis = wkset->basis_side[wkset->usebasis[Enum]];
@@ -537,17 +620,41 @@ void maxwell_general<EvalT>::boundaryResidual() {
 		EvalT fz = -(nx(elem,pt)*nce_y - ny(elem,pt)*nce_x);
 
 		if (apply_incident_source) {
-			EvalT nceinc_x = ny(elem,pt)*incidentEz(elem,pt) - nz(elem,pt)*incidentEy(elem,pt);
-			EvalT nceinc_y = nz(elem,pt)*incidentEx(elem,pt) - nx(elem,pt)*incidentEz(elem,pt);
-			EvalT nceinc_z = nx(elem,pt)*incidentEy(elem,pt) - ny(elem,pt)*incidentEx(elem,pt);
+			EvalT totalIncidentEx = 0.0;
+			EvalT totalIncidentEy = 0.0;
+			EvalT totalIncidentEz = 0.0;
+			EvalT totalIncidentHx = 0.0;
+			EvalT totalIncidentHy = 0.0;
+			EvalT totalIncidentHz = 0.0;
+
+			if (apply_manual_incident_source) {
+				totalIncidentEx += incidentEx(elem,pt);
+				totalIncidentEy += incidentEy(elem,pt);
+				totalIncidentEz += incidentEz(elem,pt);
+				totalIncidentHx += incidentHx(elem,pt);
+				totalIncidentHy += incidentHy(elem,pt);
+				totalIncidentHz += incidentHz(elem,pt);
+			}
+			if (apply_automatic_incident_source) {
+				totalIncidentEx += automaticIncidentEx(elem,pt);
+				totalIncidentEy += automaticIncidentEy(elem,pt);
+				totalIncidentEz += automaticIncidentEz(elem,pt);
+				totalIncidentHx += automaticIncidentHx(elem,pt);
+				totalIncidentHy += automaticIncidentHy(elem,pt);
+				totalIncidentHz += automaticIncidentHz(elem,pt);
+			}
+
+			EvalT nceinc_x = ny(elem,pt)*totalIncidentEz - nz(elem,pt)*totalIncidentEy;
+			EvalT nceinc_y = nz(elem,pt)*totalIncidentEx - nx(elem,pt)*totalIncidentEz;
+			EvalT nceinc_z = nx(elem,pt)*totalIncidentEy - ny(elem,pt)*totalIncidentEx;
 
 			EvalT nxnxEinc_x = ny(elem,pt)*nceinc_z - nz(elem,pt)*nceinc_y;
 			EvalT nxnxEinc_y = nz(elem,pt)*nceinc_x - nx(elem,pt)*nceinc_z;
 			EvalT nxnxEinc_z = nx(elem,pt)*nceinc_y - ny(elem,pt)*nceinc_x;
 
-			EvalT nxHinc_x = ny(elem,pt)*incidentHz(elem,pt) - nz(elem,pt)*incidentHy(elem,pt);
-			EvalT nxHinc_y = nz(elem,pt)*incidentHx(elem,pt) - nx(elem,pt)*incidentHz(elem,pt);
-			EvalT nxHinc_z = nx(elem,pt)*incidentHy(elem,pt) - ny(elem,pt)*incidentHx(elem,pt);
+			EvalT nxHinc_x = ny(elem,pt)*totalIncidentHz - nz(elem,pt)*totalIncidentHy;
+			EvalT nxHinc_y = nz(elem,pt)*totalIncidentHx - nx(elem,pt)*totalIncidentHz;
+			EvalT nxHinc_z = nx(elem,pt)*totalIncidentHy - ny(elem,pt)*totalIncidentHx;
 
 			fx += nxnxEinc_x - nxHinc_x;
 			fy += nxnxEinc_y - nxHinc_y;

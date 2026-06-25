@@ -22,6 +22,7 @@
 #include "postprocessTools.hpp"
 #include "MrHyDE_Debugger.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <filesystem>
@@ -800,6 +801,9 @@ public:
     ScalarT source_tm = 0.0;
     ScalarT c0 = 0.0;
     ScalarT eta0 = 0.0;
+    string manual_incident_sideset;
+    int automatic_planewave_index = -1;
+    int automatic_planewave_count = 0;
     bool constants_initialized = false;
     bool scattering_source_initialized = false;
   };

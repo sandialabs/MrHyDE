@@ -156,6 +156,68 @@ void PostprocessManager<Node>::setup() {
       }
 
       if (nf2ff.mode == "scattering") {
+        nf2ff.manual_incident_sideset =
+          settings->sublist("Physics").get<string>(
+            "incident source sideset", "");
+
+        if (settings->sublist("Physics").isSublist("Planewaves")) {
+          Teuchos::ParameterList & planewave_list =
+            settings->sublist("Physics").sublist("Planewaves");
+          vector<string> planewave_sidesets;
+          vector<int> planewave_counts;
+
+          Teuchos::ParameterList::ConstIterator source_itr =
+            planewave_list.begin();
+          while (source_itr != planewave_list.end()) {
+            const string source_name = source_itr->first;
+            TEUCHOS_TEST_FOR_EXCEPTION(
+              !planewave_list.isSublist(source_name), std::runtime_error,
+              "Each Physics: Planewaves entry must be a sublist.");
+
+            const string sideset =
+              planewave_list.sublist(source_name).get<string>(
+                "sideset", "");
+            TEUCHOS_TEST_FOR_EXCEPTION(
+              sideset.empty(), std::runtime_error,
+              "Planewave '" << source_name
+              << "' requires a sideset name.");
+
+            size_t index = planewave_sidesets.size();
+            for (size_t i = 0; i < planewave_sidesets.size(); ++i) {
+              if (planewave_sidesets[i] == sideset) {
+                index = i;
+                break;
+              }
+            }
+            if (index == planewave_sidesets.size()) {
+              planewave_sidesets.push_back(sideset);
+              planewave_counts.push_back(0);
+            }
+            ++planewave_counts[index];
+            ++source_itr;
+          }
+
+          for (size_t i = 0; i < planewave_sidesets.size(); ++i) {
+            if (planewave_sidesets[i] == nf2ff.sideset) {
+              nf2ff.automatic_planewave_index = static_cast<int>(i);
+              nf2ff.automatic_planewave_count = planewave_counts[i];
+              break;
+            }
+          }
+        }
+
+        TEUCHOS_TEST_FOR_EXCEPTION(
+          nf2ff.automatic_planewave_count > 1, std::runtime_error,
+          "Scattering NF2FF requires one automatic planewave on sideset '"
+          << nf2ff.sideset
+          << "'. Run each incident planewave separately when RCS output is required.");
+        TEUCHOS_TEST_FOR_EXCEPTION(
+          nf2ff.automatic_planewave_count == 1 &&
+          nf2ff.manual_incident_sideset == nf2ff.sideset,
+          std::runtime_error,
+          "Scattering NF2FF cannot combine an automatic planewave with the "
+          "legacy incident-field functions on the same sideset.");
+
         nf2ff.source_te_dft.assign(nf2ff.nfrequency,
           std::complex<ScalarT>(0.0, 0.0));
         nf2ff.source_tm_dft.assign(nf2ff.nfrequency,

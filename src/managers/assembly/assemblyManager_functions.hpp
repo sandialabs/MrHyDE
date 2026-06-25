@@ -6,11 +6,13 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov)
 ************************************************************************/
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <iomanip>
 #include <limits>
 #include <sstream>
+#include <string>
 
 // ========================================================================================
 // ========================================================================================
@@ -157,6 +159,339 @@ void AssemblyManager<Node>::finalizeFunctions(Teuchos::RCP<FunctionManager<EvalT
   }
 }
 
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Configure incident plane-wave functions
+////////////////////////////////////////////////////////////////////////////////
+
+template<class Node>
+void AssemblyManager<Node>::configurePlanewaves() {
+
+  if (!settings->isSublist("Physics") ||
+      !settings->sublist("Physics").isSublist("Planewaves")) {
+    return;
+  }
+
+  Teuchos::ParameterList & planewave_list =
+    settings->sublist("Physics").sublist("Planewaves");
+  Teuchos::ParameterList & function_list = settings->sublist("Functions");
+
+  auto scalarString = [](const ScalarT & value) {
+    std::ostringstream stream;
+    stream << std::setprecision(17) << value;
+    return stream.str();
+  };
+
+  auto getScalar = [](const Teuchos::ParameterList & list,
+                      const string & name,
+                      const ScalarT & fallback) {
+    if (list.isType<ScalarT>(name)) {
+      return list.get<ScalarT>(name);
+    }
+    if (list.isType<int>(name)) {
+      return static_cast<ScalarT>(list.get<int>(name));
+    }
+    if (list.isType<string>(name)) {
+      try {
+        return static_cast<ScalarT>(std::stod(list.get<string>(name)));
+      }
+      catch (...) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+                                   "Planewave setting '" << name
+                                   << "' must be a numeric value.");
+      }
+    }
+    return fallback;
+  };
+
+  auto normalizeType = [](string source_type) {
+    for (size_t i = 0; i < source_type.size(); ++i) {
+      source_type[i] = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(source_type[i])));
+      if (source_type[i] == '-' || source_type[i] == ' ') {
+        source_type[i] = '_';
+      }
+    }
+    if (source_type == "gaussian_derivative" ||
+        source_type == "gaussian_deriv") {
+      return string("gaussian_derivative");
+    }
+    if (source_type == "gaussian_sinusoid" ||
+        source_type == "gaussian_sinusoidal") {
+      return string("gaussian_sinusoidal");
+    }
+    return source_type;
+  };
+
+  auto appendExpression = [](string & total, const string & term) {
+    total = "(" + total + ")+(" + term + ")";
+  };
+
+  vector<string> sidesets;
+  vector<int> source_counts;
+  vector<string> electric_x, electric_y, electric_z;
+  vector<string> magnetic_x, magnetic_y, magnetic_z;
+  vector<string> source_waveform_te, source_waveform_tm;
+  vector<ScalarT> source_amplitude, source_te, source_tm;
+
+  Teuchos::ParameterList::ConstIterator source_itr = planewave_list.begin();
+  while (source_itr != planewave_list.end()) {
+    const string source_name = source_itr->first;
+    TEUCHOS_TEST_FOR_EXCEPTION(!planewave_list.isSublist(source_name),
+                               std::runtime_error,
+                               "Each Physics: Planewaves entry must be a sublist.");
+
+    Teuchos::ParameterList & source_settings =
+      planewave_list.sublist(source_name);
+    const string sideset = source_settings.get<string>("sideset", "");
+
+    TEUCHOS_TEST_FOR_EXCEPTION(sideset.empty(), std::runtime_error,
+                               "Planewave '" << source_name
+                               << "' requires a sideset name.");
+
+    size_t sideset_index = sidesets.size();
+    for (size_t i = 0; i < sidesets.size(); ++i) {
+      if (sidesets[i] == sideset) {
+        sideset_index = i;
+        break;
+      }
+    }
+    if (sideset_index == sidesets.size()) {
+      sidesets.push_back(sideset);
+      source_counts.push_back(0);
+      electric_x.push_back("0.0");
+      electric_y.push_back("0.0");
+      electric_z.push_back("0.0");
+      magnetic_x.push_back("0.0");
+      magnetic_y.push_back("0.0");
+      magnetic_z.push_back("0.0");
+      source_waveform_te.push_back("0.0");
+      source_waveform_tm.push_back("0.0");
+      source_amplitude.push_back(0.0);
+      source_te.push_back(0.0);
+      source_tm.push_back(0.0);
+    }
+
+    const ScalarT theta_degrees = getScalar(source_settings, "theta", 0.0);
+    const ScalarT phi_degrees = getScalar(source_settings, "phi", 0.0);
+    const ScalarT te = getScalar(source_settings, "te", 0.0);
+    const ScalarT tm = getScalar(source_settings, "tm", 1.0);
+    const ScalarT amplitude = getScalar(source_settings, "amplitude", 1.0);
+    const ScalarT min_frequency =
+      getScalar(source_settings, "min_frequency", 0.0);
+    const ScalarT max_frequency =
+      getScalar(source_settings, "max_frequency", 0.0);
+    const ScalarT frequency =
+      getScalar(source_settings, "frequency", 0.0);
+    const ScalarT offset_multiplier =
+      getScalar(source_settings, "offset", 6.0);
+    const ScalarT tm_phase_degrees =
+      getScalar(source_settings, "tm_phase", 0.0);
+    const string source_type =
+      normalizeType(source_settings.get<string>("type",
+                                                "gaussian_derivative"));
+
+    const ScalarT polarization_norm = std::sqrt(te*te + tm*tm);
+    TEUCHOS_TEST_FOR_EXCEPTION(polarization_norm <= 1.0e-30,
+                               std::runtime_error,
+                               "Planewave '" << source_name
+                               << "' requires a nonzero TE or TM coefficient.");
+    TEUCHOS_TEST_FOR_EXCEPTION(std::abs(amplitude) <= 1.0e-30,
+                               std::runtime_error,
+                               "Planewave '" << source_name
+                               << "' requires a nonzero amplitude.");
+
+    ScalarT tau = 0.0;
+    if (source_type == "gaussian") {
+      TEUCHOS_TEST_FOR_EXCEPTION(max_frequency <= 0.0, std::runtime_error,
+                                 "Gaussian planewave '" << source_name
+                                 << "' requires max_frequency > 0.");
+      tau = std::sqrt(2.3)/(PI*max_frequency);
+    }
+    else if (source_type == "gaussian_derivative") {
+      TEUCHOS_TEST_FOR_EXCEPTION(max_frequency <= 0.0, std::runtime_error,
+                                 "Gaussian-derivative planewave '" << source_name
+                                 << "' requires max_frequency > 0.");
+      tau = std::sqrt(3.815)/(PI*max_frequency);
+    }
+    else if (source_type == "gaussian_sinusoidal") {
+      TEUCHOS_TEST_FOR_EXCEPTION(min_frequency < 0.0 ||
+                                 max_frequency <= min_frequency ||
+                                 frequency <= 0.0,
+                                 std::runtime_error,
+                                 "Gaussian-sinusoidal planewave '" << source_name
+                                 << "' requires 0 <= min_frequency < max_frequency "
+                                 << "and frequency > 0.");
+      tau = 2.0*std::sqrt(2.3)/(PI*(max_frequency - min_frequency));
+    }
+    else if (source_type == "sinusoidal") {
+      TEUCHOS_TEST_FOR_EXCEPTION(frequency <= 0.0, std::runtime_error,
+                                 "Sinusoidal planewave '" << source_name
+                                 << "' requires frequency > 0.");
+      tau = 1.5/frequency;
+    }
+    else {
+      TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+                                 "Planewave '" << source_name
+                                 << "' type must be gaussian, gaussian_derivative, "
+                                 << "gaussian_sinusoidal, or sinusoidal.");
+    }
+
+    const ScalarT theta = theta_degrees*PI/180.0;
+    const ScalarT phi = phi_degrees*PI/180.0;
+    const ScalarT tm_phase = tm_phase_degrees*PI/180.0;
+    const ScalarT kx = std::sin(theta)*std::cos(phi);
+    const ScalarT ky = std::sin(theta)*std::sin(phi);
+    const ScalarT kz = std::cos(theta);
+    const ScalarT pte_x = -std::sin(phi);
+    const ScalarT pte_y = std::cos(phi);
+    const ScalarT pte_z = 0.0;
+    const ScalarT ptm_x = std::cos(theta)*std::cos(phi);
+    const ScalarT ptm_y = std::cos(theta)*std::sin(phi);
+    const ScalarT ptm_z = -std::sin(theta);
+    const ScalarT te_weight = te/polarization_norm;
+    const ScalarT tm_weight = tm/polarization_norm;
+    const ScalarT time_offset = offset_multiplier*tau;
+
+    const string spatial_delay =
+      "((" + scalarString(kx) + "*x+" + scalarString(ky) + "*y+" +
+      scalarString(kz) + "*z)/c0)";
+    const string u = "(t-" + spatial_delay + "-" +
+      scalarString(time_offset) + ")";
+    const string reference_u = "(t-" + scalarString(time_offset) + ")";
+    const string a = "(" + u + "/" + scalarString(tau) + ")";
+    const string reference_a = "(" + reference_u + "/" +
+      scalarString(tau) + ")";
+    const string envelope = "exp(-(" + a + ")*(" + a + "))";
+    const string reference_envelope =
+      "exp(-(" + reference_a + ")*(" + reference_a + "))";
+
+    string waveform_te;
+    string waveform_tm;
+    string reference_waveform_te;
+    string reference_waveform_tm;
+    if (source_type == "gaussian") {
+      waveform_te = envelope;
+      waveform_tm = envelope;
+      reference_waveform_te = reference_envelope;
+      reference_waveform_tm = reference_envelope;
+    }
+    else if (source_type == "gaussian_derivative") {
+      waveform_te = "-2.0*" + a + "*" + envelope;
+      waveform_tm = waveform_te;
+      reference_waveform_te =
+        "-2.0*" + reference_a + "*" + reference_envelope;
+      reference_waveform_tm = reference_waveform_te;
+    }
+    else if (source_type == "gaussian_sinusoidal") {
+      waveform_te = envelope + "*cos(2.0*pi*" +
+        scalarString(frequency) + "*" + u + ")";
+      waveform_tm = envelope + "*cos(2.0*pi*" +
+        scalarString(frequency) + "*" + u + "+" +
+        scalarString(tm_phase) + ")";
+      reference_waveform_te = reference_envelope + "*cos(2.0*pi*" +
+        scalarString(frequency) + "*" + reference_u + ")";
+      reference_waveform_tm = reference_envelope + "*cos(2.0*pi*" +
+        scalarString(frequency) + "*" + reference_u + "+" +
+        scalarString(tm_phase) + ")";
+    }
+    else {
+      const string ramp_argument = "(min(" + u + ",0.0)/" +
+        scalarString(tau) + ")";
+      const string reference_ramp_argument = "(min(" + reference_u +
+        ",0.0)/" + scalarString(tau) + ")";
+      waveform_te = "exp(-" + ramp_argument + "*" + ramp_argument +
+        ")*cos(2.0*pi*" + scalarString(frequency) + "*" + u + ")";
+      waveform_tm = "exp(-" + ramp_argument + "*" + ramp_argument +
+        ")*cos(2.0*pi*" + scalarString(frequency) + "*" + u + "+" +
+        scalarString(tm_phase) + ")";
+      reference_waveform_te = "exp(-" + reference_ramp_argument +
+        "*" + reference_ramp_argument + ")*cos(2.0*pi*" +
+        scalarString(frequency) + "*" + reference_u + ")";
+      reference_waveform_tm = "exp(-" + reference_ramp_argument +
+        "*" + reference_ramp_argument + ")*cos(2.0*pi*" +
+        scalarString(frequency) + "*" + reference_u + "+" +
+        scalarString(tm_phase) + ")";
+    }
+
+    const string Ex = scalarString(amplitude) + "*(" +
+      scalarString(te_weight) + "*(" + waveform_te + ")*" +
+      scalarString(pte_x) + "+" + scalarString(tm_weight) + "*(" +
+      waveform_tm + ")*" + scalarString(ptm_x) + ")";
+    const string Ey = scalarString(amplitude) + "*(" +
+      scalarString(te_weight) + "*(" + waveform_te + ")*" +
+      scalarString(pte_y) + "+" + scalarString(tm_weight) + "*(" +
+      waveform_tm + ")*" + scalarString(ptm_y) + ")";
+    const string Ez = scalarString(amplitude) + "*(" +
+      scalarString(te_weight) + "*(" + waveform_te + ")*" +
+      scalarString(pte_z) + "+" + scalarString(tm_weight) + "*(" +
+      waveform_tm + ")*" + scalarString(ptm_z) + ")";
+
+    const string Hx = scalarString(ky) + "*(" + Ez + ")-" +
+      scalarString(kz) + "*(" + Ey + ")";
+    const string Hy = scalarString(kz) + "*(" + Ex + ")-" +
+      scalarString(kx) + "*(" + Ez + ")";
+    const string Hz = scalarString(kx) + "*(" + Ey + ")-" +
+      scalarString(ky) + "*(" + Ex + ")";
+
+    appendExpression(electric_x[sideset_index], Ex);
+    appendExpression(electric_y[sideset_index], Ey);
+    appendExpression(electric_z[sideset_index], Ez);
+    appendExpression(magnetic_x[sideset_index], Hx);
+    appendExpression(magnetic_y[sideset_index], Hy);
+    appendExpression(magnetic_z[sideset_index], Hz);
+
+    if (source_counts[sideset_index] == 0) {
+      source_waveform_te[sideset_index] = reference_waveform_te;
+      source_waveform_tm[sideset_index] = reference_waveform_tm;
+      source_amplitude[sideset_index] = amplitude;
+      source_te[sideset_index] = te;
+      source_tm[sideset_index] = tm;
+    }
+    ++source_counts[sideset_index];
+    ++source_itr;
+  }
+
+  for (size_t block = 0; block < blocknames.size(); ++block) {
+    Teuchos::ParameterList & functions =
+      function_list.isSublist(blocknames[block]) ?
+      function_list.sublist(blocknames[block]) : function_list;
+
+    for (size_t source_index = 0; source_index < sidesets.size();
+         ++source_index) {
+      const string prefix = "automatic_planewave_" +
+        std::to_string(source_index) + "_";
+      functions.set(prefix + "Ex", electric_x[source_index]);
+      functions.set(prefix + "Ey", electric_y[source_index]);
+      functions.set(prefix + "Ez", electric_z[source_index]);
+      functions.set(prefix + "Hx", magnetic_x[source_index]);
+      functions.set(prefix + "Hy", magnetic_y[source_index]);
+      functions.set(prefix + "Hz", magnetic_z[source_index]);
+
+      if (source_counts[source_index] == 1) {
+        functions.set(prefix + "source_waveform_te",
+                      source_waveform_te[source_index]);
+        functions.set(prefix + "source_waveform_tm",
+                      source_waveform_tm[source_index]);
+        functions.set(prefix + "source_amplitude",
+                      scalarString(source_amplitude[source_index]));
+        functions.set(prefix + "source_te",
+                      scalarString(source_te[source_index]));
+        functions.set(prefix + "source_tm",
+                      scalarString(source_tm[source_index]));
+      }
+      else {
+        functions.set(prefix + "source_waveform_te", "0.0");
+        functions.set(prefix + "source_waveform_tm", "0.0");
+        functions.set(prefix + "source_amplitude", "0.0");
+        functions.set(prefix + "source_te", "0.0");
+        functions.set(prefix + "source_tm", "0.0");
+      }
+    }
+  }
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////

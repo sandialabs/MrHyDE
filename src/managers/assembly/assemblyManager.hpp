@@ -2072,6 +2072,11 @@ void importNewMicrostructure(int & randSeed, View_Sc2 seeds);
 vector<vector<int> > identifySubgridModels();
 
 /**
+ * @brief Configure incident plane-wave functions.
+ */
+void configurePlanewaves();
+
+/**
  * @brief Configure lumped-port source and conductivity functions.
  */
 void configureLumpedPorts();

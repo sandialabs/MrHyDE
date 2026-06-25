@@ -95,6 +95,11 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
   }
 
   const bool scattering_mode = (nf2ff.mode == "scattering");
+  const bool use_manual_incident =
+    scattering_mode && !nf2ff.manual_incident_sideset.empty() &&
+    nf2ff.manual_incident_sideset == nf2ff.sideset;
+  const bool use_automatic_incident =
+    scattering_mode && nf2ff.automatic_planewave_index >= 0;
 
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type LA_device;
@@ -156,20 +161,60 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
     const ScalarT dt = deltat;
 
     if (scattering_mode) {
-      auto incidentEx =
-        assembler->function_managers[block]->evaluate("incident Ex", "side ip");
-      auto incidentEy =
-        assembler->function_managers[block]->evaluate("incident Ey", "side ip");
-      auto incidentEz =
-        assembler->function_managers[block]->evaluate("incident Ez", "side ip");
+      Vista<ScalarT> incidentEx;
+      Vista<ScalarT> incidentEy;
+      Vista<ScalarT> incidentEz;
+      Vista<ScalarT> automaticIncidentEx;
+      Vista<ScalarT> automaticIncidentEy;
+      Vista<ScalarT> automaticIncidentEz;
+
+      if (use_manual_incident) {
+        incidentEx =
+          assembler->function_managers[block]->evaluate(
+            "incident Ex", "side ip");
+        incidentEy =
+          assembler->function_managers[block]->evaluate(
+            "incident Ey", "side ip");
+        incidentEz =
+          assembler->function_managers[block]->evaluate(
+            "incident Ez", "side ip");
+      }
+
+      if (use_automatic_incident) {
+        const string prefix = "automatic_planewave_" +
+          std::to_string(nf2ff.automatic_planewave_index) + "_";
+        automaticIncidentEx =
+          assembler->function_managers[block]->evaluate(
+            prefix + "Ex", "side ip");
+        automaticIncidentEy =
+          assembler->function_managers[block]->evaluate(
+            prefix + "Ey", "side ip");
+        automaticIncidentEz =
+          assembler->function_managers[block]->evaluate(
+            prefix + "Ez", "side ip");
+      }
 
       parallel_for("PostprocessManager NF2FF scattering DFT",
                    RangePolicy<AssemblyExec>(0, boundary_group->numElem),
                    MRHYDE_LAMBDA(const int elem) {
         for (size_type pt = 0; pt < dft.extent(2); ++pt) {
-          const ScalarT field_x = Ex(elem, pt) - incidentEx(elem, pt);
-          const ScalarT field_y = Ey(elem, pt) - incidentEy(elem, pt);
-          const ScalarT field_z = Ez(elem, pt) - incidentEz(elem, pt);
+          ScalarT incident_x = 0.0;
+          ScalarT incident_y = 0.0;
+          ScalarT incident_z = 0.0;
+          if (use_manual_incident) {
+            incident_x += incidentEx(elem, pt);
+            incident_y += incidentEy(elem, pt);
+            incident_z += incidentEz(elem, pt);
+          }
+          if (use_automatic_incident) {
+            incident_x += automaticIncidentEx(elem, pt);
+            incident_y += automaticIncidentEy(elem, pt);
+            incident_z += automaticIncidentEz(elem, pt);
+          }
+
+          const ScalarT field_x = Ex(elem, pt) - incident_x;
+          const ScalarT field_y = Ey(elem, pt) - incident_y;
+          const ScalarT field_z = Ez(elem, pt) - incident_z;
 
           for (size_type freq = 0; freq < dft.extent(0); ++freq) {
             const ScalarT omega_t = 2.0*PI*frequencies[freq]*time;
@@ -221,19 +266,36 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
 
     if (scattering_mode && local_source_count == 0 &&
         boundary_group->numElem > 0) {
+      string prefix;
+      if (use_automatic_incident) {
+        prefix = "automatic_planewave_" +
+          std::to_string(nf2ff.automatic_planewave_index) + "_";
+      }
+
+      const string waveform_te_name = use_automatic_incident ?
+        prefix + "source_waveform_te" : "source_waveform_te";
+      const string waveform_tm_name = use_automatic_incident ?
+        prefix + "source_waveform_tm" : "source_waveform_tm";
+      const string amplitude_name = use_automatic_incident ?
+        prefix + "source_amplitude" : "source_amplitude";
+      const string te_name = use_automatic_incident ?
+        prefix + "source_te" : "source_te";
+      const string tm_name = use_automatic_incident ?
+        prefix + "source_tm" : "source_tm";
+
       auto source_waveform_te =
-        assembler->function_managers[block]->evaluate("source_waveform_te",
+        assembler->function_managers[block]->evaluate(waveform_te_name,
                                                        "side ip");
       auto source_waveform_tm =
-        assembler->function_managers[block]->evaluate("source_waveform_tm",
+        assembler->function_managers[block]->evaluate(waveform_tm_name,
                                                        "side ip");
       auto source_amplitude =
-        assembler->function_managers[block]->evaluate("source_amplitude",
+        assembler->function_managers[block]->evaluate(amplitude_name,
                                                        "side ip");
       auto source_te =
-        assembler->function_managers[block]->evaluate("source_te", "side ip");
+        assembler->function_managers[block]->evaluate(te_name, "side ip");
       auto source_tm =
-        assembler->function_managers[block]->evaluate("source_tm", "side ip");
+        assembler->function_managers[block]->evaluate(tm_name, "side ip");
 
       local_source_values[0] = firstValue(source_waveform_te);
       local_source_values[1] = firstValue(source_waveform_tm);
