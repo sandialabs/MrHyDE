@@ -110,7 +110,54 @@ void PostprocessManager<Node>::setup() {
   
   numNodesPerElem = settings->sublist("Mesh").get<int>("numNodesPerElem", 4); // actually set by mesh interface
   dimension = physics->dimension;
-  
+
+  if (settings->sublist("Postprocess").isSublist("NF2FF")) {
+    Teuchos::ParameterList & nf2ff_settings = settings->sublist("Postprocess").sublist("NF2FF");
+
+    nf2ff.save = nf2ff_settings.get<bool>("save", false);
+    nf2ff.mode = nf2ff_settings.get<string>("mode", "scattering");
+    nf2ff.sideset = nf2ff_settings.get<string>("sideset", "abc");
+    nf2ff.name = nf2ff_settings.get<string>("name", "nf2ff");
+    nf2ff.directory = nf2ff_settings.get<string>("directory", "Results");
+    nf2ff.nfrequency = nf2ff_settings.get<int>("nfrequency", 1);
+    nf2ff.min_frequency = nf2ff_settings.get<ScalarT>("min_frequency", 0.0);
+    nf2ff.max_frequency = nf2ff_settings.get<ScalarT>("max_frequency", nf2ff.min_frequency);
+    nf2ff.ntheta = nf2ff_settings.get<int>("ntheta", 1);
+    nf2ff.min_theta = nf2ff_settings.get<ScalarT>("min_theta", 0.0);
+    nf2ff.max_theta = nf2ff_settings.get<ScalarT>("max_theta", nf2ff.min_theta);
+    nf2ff.nphi = nf2ff_settings.get<int>("nphi", 1);
+    nf2ff.min_phi = nf2ff_settings.get<ScalarT>("min_phi", 0.0);
+    nf2ff.max_phi = nf2ff_settings.get<ScalarT>("max_phi", nf2ff.min_phi);
+
+    if (nf2ff.save) {
+      TEUCHOS_TEST_FOR_EXCEPTION(dimension != 3, std::runtime_error,
+                                 "NF2FF scattering mode requires a three-dimensional simulation.");
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.mode != "scattering", std::runtime_error,
+                                 "NF2FF radiation mode is not implemented.");
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.nfrequency <= 0 || nf2ff.ntheta <= 0 || nf2ff.nphi <= 0,
+                                 std::runtime_error,
+                                 "NF2FF nfrequency, ntheta, and nphi must be positive.");
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.min_frequency <= 0.0, std::runtime_error,
+                                 "NF2FF min_frequency must be positive.");
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.nfrequency > 1 && nf2ff.max_frequency <= nf2ff.min_frequency,
+                                 std::runtime_error,
+                                 "NF2FF max_frequency must be greater than min_frequency when nfrequency is greater than one.");
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.max_theta < nf2ff.min_theta || nf2ff.max_phi < nf2ff.min_phi,
+                                 std::runtime_error,
+                                 "NF2FF angular maxima must be greater than or equal to the angular minima.");
+
+      nf2ff.frequencies.resize(nf2ff.nfrequency);
+      for (int i = 0; i < nf2ff.nfrequency; ++i) {
+        nf2ff.frequencies[i] = (nf2ff.nfrequency == 1) ?
+          nf2ff.min_frequency :
+          nf2ff.min_frequency + (nf2ff.max_frequency - nf2ff.min_frequency) *
+          static_cast<ScalarT>(i)/static_cast<ScalarT>(nf2ff.nfrequency - 1);
+      }
+      nf2ff.source_te_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
+      nf2ff.source_tm_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
+    }
+  }
+
   response_type = settings->sublist("Postprocess").get("response type", "pointwise"); // or "global"
   have_sensor_data = settings->sublist("Analysis").get("have sensor data", false);    // or "global"
   save_sensor_data = settings->sublist("Analysis").get("save sensor data", false);
@@ -352,6 +399,51 @@ void PostprocessManager<Node>::completeSetup() {
   debugger->print("**** Starting PostprocessManager::completeSetup()");
   // Meeds to happen here because ip are not defined when constructor is called
   
+  if (nf2ff.save) {
+    nf2ff_surface_groups.clear();
+
+    nf2ff.frequency_device =
+      Kokkos::View<ScalarT *, AssemblyDevice>("NF2FF frequencies", nf2ff.nfrequency);
+    auto frequency_host = create_mirror_view(nf2ff.frequency_device);
+    for (int i = 0; i < nf2ff.nfrequency; ++i) {
+      frequency_host(i) = nf2ff.frequencies[i];
+    }
+    deep_copy(nf2ff.frequency_device, frequency_host);
+
+    int local_face_count = 0;
+    for (size_t block = 0; block < assembler->boundary_groups.size(); ++block) {
+      for (size_t grp = 0; grp < assembler->boundary_groups[block].size(); ++grp) {
+        auto boundary_group = assembler->boundary_groups[block][grp];
+        if (boundary_group->sidename != nf2ff.sideset) {
+          continue;
+        }
+
+        auto wts = boundary_group->wts;
+        if (wts.extent(0) == 0 || wts.extent(1) == 0) {
+          continue;
+        }
+
+        NF2FFSurfaceGroup surface_group;
+        surface_group.block = block;
+        surface_group.group = grp;
+        surface_group.scattered_E_dft =
+          Kokkos::View<ScalarT *****, AssemblyDevice>(
+            "NF2FF scattered electric-field DFT",
+            nf2ff.nfrequency, wts.extent(0), wts.extent(1), 3, 2);
+        Kokkos::deep_copy(surface_group.scattered_E_dft, 0.0);
+        nf2ff_surface_groups.push_back(surface_group);
+        local_face_count += static_cast<int>(wts.extent(0));
+      }
+    }
+
+    int global_face_count = 0;
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                       &local_face_count, &global_face_count);
+    TEUCHOS_TEST_FOR_EXCEPTION(global_face_count == 0, std::runtime_error,
+                               "NF2FF sideset '" << nf2ff.sideset
+                               << "' does not contain any boundary quadrature points.");
+  }
+
   // Write quadrature points and weights to file if requested
   // This is useful if one want to use these as sensors
   if (write_qdata) {

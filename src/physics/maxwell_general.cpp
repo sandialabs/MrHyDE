@@ -80,6 +80,11 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 	functionManager->addFunction("c0", fs.get<string>("c0", "1.0"), "ip");
 	functionManager->addFunction("eta0", fs.get<string>("eta0", "1.0"), "ip");
 
+	// The NF2FF postprocessor evaluates the exterior wave speed and impedance
+	// on the selected absorbing-boundary surface.
+	functionManager->addFunction("c0", fs.get<string>("c0", "1.0"), "side ip");
+	functionManager->addFunction("eta0", fs.get<string>("eta0", "1.0"), "side ip");
+
 	functionManager->addFunction("current x",
 	getInput("current x", "source J x", "0.0"), "ip");
 	functionManager->addFunction("current y",

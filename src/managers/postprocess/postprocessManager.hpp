@@ -22,6 +22,14 @@
 #include "postprocessTools.hpp"
 #include "MrHyDE_Debugger.hpp"
 
+#include <cmath>
+#include <complex>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <limits>
+#include <stdexcept>
+
 #if defined(MrHyDE_ENABLE_FFTW)
 #include "fftInterface.hpp"
 #endif
@@ -250,6 +258,17 @@ public:
   //                           const ScalarT & current_time);
   void computeSensorSolution(vector<vector_RCP> & current_soln,
                              const ScalarT & current_time, const ScalarT & deltat); //EB
+
+  /**
+   * @brief Accumulates scattered electric-field DFT data on the NF2FF surface.
+   */
+  void accumulateNF2FF(vector<vector_RCP> & current_soln,
+                       const ScalarT & current_time, const ScalarT & deltat);
+
+  /**
+   * @brief Writes scattering-mode NF2FF data to the configured CSV file.
+   */
+  void writeNF2FF();
   
   // ========================================================================================
   // ========================================================================================
@@ -728,6 +747,42 @@ public:
   
   bool is_hdsa_analysis; ///< Whether HDSA analysis is performed.
   
+  struct NF2FFSurfaceGroup {
+    size_t block = 0;
+    size_t group = 0;
+    Kokkos::View<ScalarT *****, AssemblyDevice> scattered_E_dft;
+  };
+
+  struct NF2FFSettings {
+    bool save = false;
+    string mode = "scattering";
+    string sideset = "abc";
+    string name = "nf2ff";
+    string directory = "Results";
+    int nfrequency = 1;
+    int ntheta = 1;
+    int nphi = 1;
+    ScalarT min_frequency = 0.0;
+    ScalarT max_frequency = 0.0;
+    ScalarT min_theta = 0.0;
+    ScalarT max_theta = 0.0;
+    ScalarT min_phi = 0.0;
+    ScalarT max_phi = 0.0;
+    vector<ScalarT> frequencies;
+    Kokkos::View<ScalarT *, AssemblyDevice> frequency_device;
+    vector<std::complex<ScalarT> > source_te_dft;
+    vector<std::complex<ScalarT> > source_tm_dft;
+    ScalarT source_amplitude = 0.0;
+    ScalarT source_te_weight = 0.0;
+    ScalarT source_tm_weight = 0.0;
+    ScalarT c0 = 0.0;
+    ScalarT eta0 = 0.0;
+    bool source_initialized = false;
+  };
+
+  NF2FFSettings nf2ff;
+  vector<NF2FFSurfaceGroup> nf2ff_surface_groups;
+
 private:
   
   Teuchos::RCP<Teuchos::Time> computeErrorTimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Postprocess::computeError"); ///< Timer for error computation.

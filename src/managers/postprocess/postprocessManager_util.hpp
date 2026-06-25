@@ -30,6 +30,10 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
         write_exodus_this_step = true;
     }
     
+    if (nf2ff.save) {
+        this->accumulateNF2FF(current_soln, current_time, deltat);
+    }
+
     // Write to exodus if requested and within user-defined time window for output
     if (write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop) {
         if (write_solution) {
@@ -76,6 +80,430 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
 // ========================================================================================
 // After simulation has completed, write to file or screen output all data saved
 // ========================================================================================
+
+
+// ========================================================================================
+// Accumulate scattered electric-field DFT data on the selected NF2FF sideset.
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
+                                                const ScalarT &current_time,
+                                                const ScalarT &deltat)
+{
+  if (!nf2ff.save) {
+    return;
+  }
+
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type LA_device;
+
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec, AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+
+  vector<Kokkos::View<ScalarT *, AssemblyDevice> > sol_kv;
+  for (size_t set = 0; set < current_soln.size(); ++set) {
+    auto vec_kv = current_soln[set]->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(AssemblyDevice::memory_space(), vec_slice);
+      Kokkos::deep_copy(vec_dev, vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+
+  ScalarT local_source_values[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  int local_source_count = 0;
+
+  for (size_t s = 0; s < nf2ff_surface_groups.size(); ++s) {
+    const size_t block = nf2ff_surface_groups[s].block;
+    const size_t group = nf2ff_surface_groups[s].group;
+    auto boundary_group = assembler->boundary_groups[block][group];
+
+    assembler->wkset[block]->isOnSide = true;
+    assembler->wkset[block]->time = current_time;
+
+    for (size_t set = 0; set < sol_kv.size(); ++set) {
+      assembler->performBoundaryGather(set, block, group, sol_kv[set], 0, 0);
+    }
+    assembler->updateWorksetBoundary(block, group, 0, 0, true);
+
+    auto Ex = assembler->wkset[block]->getSolutionField("E[x]");
+    auto Ey = assembler->wkset[block]->getSolutionField("E[y]");
+    auto Ez = assembler->wkset[block]->getSolutionField("E[z]");
+
+    auto incidentEx = assembler->function_managers[block]->evaluate("incident Ex", "side ip");
+    auto incidentEy = assembler->function_managers[block]->evaluate("incident Ey", "side ip");
+    auto incidentEz = assembler->function_managers[block]->evaluate("incident Ez", "side ip");
+
+    auto dft = nf2ff_surface_groups[s].scattered_E_dft;
+    auto frequencies = nf2ff.frequency_device;
+    const ScalarT time = current_time;
+    const ScalarT dt = deltat;
+
+    parallel_for("PostprocessManager NF2FF DFT",
+                 RangePolicy<AssemblyExec>(0, boundary_group->numElem),
+                 MRHYDE_LAMBDA(const int elem) {
+      for (size_type pt = 0; pt < dft.extent(2); ++pt) {
+        const ScalarT scatteredEx = Ex(elem, pt) - incidentEx(elem, pt);
+        const ScalarT scatteredEy = Ey(elem, pt) - incidentEy(elem, pt);
+        const ScalarT scatteredEz = Ez(elem, pt) - incidentEz(elem, pt);
+
+        for (size_type freq = 0; freq < dft.extent(0); ++freq) {
+          const ScalarT omega_t = 2.0*PI*frequencies[freq]*time;
+          const ScalarT real_scale = dt*cos(omega_t);
+          const ScalarT imag_scale = -dt*sin(omega_t);
+
+          dft(freq, elem, pt, 0, 0) += real_scale*scatteredEx;
+          dft(freq, elem, pt, 1, 0) += real_scale*scatteredEy;
+          dft(freq, elem, pt, 2, 0) += real_scale*scatteredEz;
+          dft(freq, elem, pt, 0, 1) += imag_scale*scatteredEx;
+          dft(freq, elem, pt, 1, 1) += imag_scale*scatteredEy;
+          dft(freq, elem, pt, 2, 1) += imag_scale*scatteredEz;
+        }
+      }
+    });
+
+    if (local_source_count == 0 && boundary_group->numElem > 0) {
+      auto source_waveform_te =
+        assembler->function_managers[block]->evaluate("source_waveform_te", "side ip");
+      auto source_waveform_tm =
+        assembler->function_managers[block]->evaluate("source_waveform_tm", "side ip");
+      auto source_amplitude =
+        assembler->function_managers[block]->evaluate("source_amplitude", "side ip");
+      auto source_te_weight =
+        assembler->function_managers[block]->evaluate("source_te_weight", "side ip");
+      auto source_tm_weight =
+        assembler->function_managers[block]->evaluate("source_tm_weight", "side ip");
+      auto c0 = assembler->function_managers[block]->evaluate("c0", "side ip");
+      auto eta0 = assembler->function_managers[block]->evaluate("eta0", "side ip");
+
+      auto source_waveform_te_host = create_mirror_view(source_waveform_te);
+      auto source_waveform_tm_host = create_mirror_view(source_waveform_tm);
+      auto source_amplitude_host = create_mirror_view(source_amplitude);
+      auto source_te_weight_host = create_mirror_view(source_te_weight);
+      auto source_tm_weight_host = create_mirror_view(source_tm_weight);
+      auto c0_host = create_mirror_view(c0);
+      auto eta0_host = create_mirror_view(eta0);
+
+      deep_copy(source_waveform_te_host, source_waveform_te);
+      deep_copy(source_waveform_tm_host, source_waveform_tm);
+      deep_copy(source_amplitude_host, source_amplitude);
+      deep_copy(source_te_weight_host, source_te_weight);
+      deep_copy(source_tm_weight_host, source_tm_weight);
+      deep_copy(c0_host, c0);
+      deep_copy(eta0_host, eta0);
+
+      local_source_values[0] = source_waveform_te_host(0, 0);
+      local_source_values[1] = source_waveform_tm_host(0, 0);
+      local_source_values[2] = source_amplitude_host(0, 0);
+      local_source_values[3] = source_te_weight_host(0, 0);
+      local_source_values[4] = source_tm_weight_host(0, 0);
+      local_source_values[5] = c0_host(0, 0);
+      local_source_values[6] = eta0_host(0, 0);
+      local_source_count = 1;
+    }
+  }
+
+  for (size_t s = 0; s < nf2ff_surface_groups.size(); ++s) {
+    assembler->wkset[nf2ff_surface_groups[s].block]->isOnSide = false;
+  }
+
+  ScalarT global_source_values[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  int global_source_count = 0;
+  Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 7,
+                     local_source_values, global_source_values);
+  Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                     &local_source_count, &global_source_count);
+
+  if (global_source_count > 0) {
+    const ScalarT inv_count = 1.0/static_cast<ScalarT>(global_source_count);
+    const ScalarT source_waveform_te = global_source_values[0]*inv_count;
+    const ScalarT source_waveform_tm = global_source_values[1]*inv_count;
+
+    if (!nf2ff.source_initialized) {
+      nf2ff.source_amplitude = global_source_values[2]*inv_count;
+      nf2ff.source_te_weight = global_source_values[3]*inv_count;
+      nf2ff.source_tm_weight = global_source_values[4]*inv_count;
+      nf2ff.c0 = global_source_values[5]*inv_count;
+      nf2ff.eta0 = global_source_values[6]*inv_count;
+
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.c0 <= 0.0 || nf2ff.eta0 <= 0.0,
+                                 std::runtime_error,
+                                 "NF2FF requires positive c0 and eta0 on the selected sideset.");
+      TEUCHOS_TEST_FOR_EXCEPTION(std::abs(nf2ff.source_te_weight) <= 1.0e-30 &&
+                                 std::abs(nf2ff.source_tm_weight) <= 1.0e-30,
+                                 std::runtime_error,
+                                 "NF2FF scattering mode requires a nonzero TE or TM incident-wave weight.");
+      TEUCHOS_TEST_FOR_EXCEPTION(std::abs(nf2ff.source_amplitude) <= 1.0e-30,
+                                 std::runtime_error,
+                                 "NF2FF scattering mode requires a nonzero source_amplitude.");
+
+      nf2ff.source_initialized = true;
+    }
+
+    for (size_t freq = 0; freq < nf2ff.frequencies.size(); ++freq) {
+      const ScalarT omega_t = 2.0*PI*nf2ff.frequencies[freq]*current_time;
+      const std::complex<ScalarT> kernel(deltat*cos(omega_t), -deltat*sin(omega_t));
+      nf2ff.source_te_dft[freq] += source_waveform_te*kernel;
+      nf2ff.source_tm_dft[freq] += source_waveform_tm*kernel;
+    }
+  }
+}
+
+
+// ========================================================================================
+// Write scattering-mode NF2FF data in the Kairos CSV format.
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::writeNF2FF()
+{
+  if (!nf2ff.save) {
+    return;
+  }
+
+  TEUCHOS_TEST_FOR_EXCEPTION(!nf2ff.source_initialized, std::runtime_error,
+                             "NF2FF did not accumulate an incident-wave reference spectrum.");
+
+  vector<ScalarT> theta_deg(nf2ff.ntheta);
+  vector<ScalarT> phi_deg(nf2ff.nphi);
+  for (int i = 0; i < nf2ff.ntheta; ++i) {
+    theta_deg[i] = (nf2ff.ntheta == 1) ? nf2ff.min_theta :
+      nf2ff.min_theta + (nf2ff.max_theta - nf2ff.min_theta) *
+      static_cast<ScalarT>(i)/static_cast<ScalarT>(nf2ff.ntheta - 1);
+  }
+  for (int i = 0; i < nf2ff.nphi; ++i) {
+    phi_deg[i] = (nf2ff.nphi == 1) ? nf2ff.min_phi :
+      nf2ff.min_phi + (nf2ff.max_phi - nf2ff.min_phi) *
+      static_cast<ScalarT>(i)/static_cast<ScalarT>(nf2ff.nphi - 1);
+  }
+
+  std::ofstream csv;
+  if (Comm->getRank() == 0) {
+    std::error_code error;
+    std::filesystem::create_directories(nf2ff.directory, error);
+    TEUCHOS_TEST_FOR_EXCEPTION(error, std::runtime_error,
+                               "Could not create NF2FF output directory '" << nf2ff.directory << "'.");
+    const std::filesystem::path filename =
+      std::filesystem::path(nf2ff.directory)/(nf2ff.name + ".csv");
+    csv.open(filename.string());
+    TEUCHOS_TEST_FOR_EXCEPTION(!csv, std::runtime_error,
+                               "Could not open NF2FF output file '" << filename.string() << "'.");
+
+    csv << std::setprecision(17);
+    csv << "frequency,theta_deg,phi_deg"
+        << ",A_theta_real,A_theta_imag,A_phi_real,A_phi_imag"
+        << ",F_theta_real,F_theta_imag,F_phi_real,F_phi_imag"
+        << ",E_theta_real,E_theta_imag,E_phi_real,E_phi_imag"
+        << ",H_theta_real,H_theta_imag,H_phi_real,H_phi_imag"
+        << ",P_theta,P_phi,P_total,RCS_theta,RCS_phi,RCS_total\n";
+
+    if (verbosity > 0) {
+      cout << "Writing NF2FF CSV output to " << filename.string() << endl;
+    }
+  }
+
+  const int nangles = nf2ff.ntheta*nf2ff.nphi;
+  const ScalarT nan = std::numeric_limits<ScalarT>::quiet_NaN();
+
+  for (size_t freq_index = 0; freq_index < nf2ff.frequencies.size(); ++freq_index) {
+    Teuchos::Array<ScalarT> local_values(8*nangles, 0.0);
+    Teuchos::Array<ScalarT> global_values(8*nangles, 0.0);
+
+    const ScalarT frequency = nf2ff.frequencies[freq_index];
+    const ScalarT k0 = 2.0*PI*frequency/nf2ff.c0;
+
+    for (size_t surface_index = 0; surface_index < nf2ff_surface_groups.size(); ++surface_index) {
+      const size_t block = nf2ff_surface_groups[surface_index].block;
+      const size_t group = nf2ff_surface_groups[surface_index].group;
+      auto boundary_group = assembler->boundary_groups[block][group];
+
+      auto dft_host = create_mirror_view(nf2ff_surface_groups[surface_index].scattered_E_dft);
+      deep_copy(dft_host, nf2ff_surface_groups[surface_index].scattered_E_dft);
+
+      auto wts_host = create_mirror_view(boundary_group->wts);
+      deep_copy(wts_host, boundary_group->wts);
+
+      vector<decltype(create_mirror_view(boundary_group->ip[0]))> ip_host(3);
+      vector<decltype(create_mirror_view(boundary_group->normals[0]))> normals_host(3);
+      for (int d = 0; d < 3; ++d) {
+        ip_host[d] = create_mirror_view(boundary_group->ip[d]);
+        normals_host[d] = create_mirror_view(boundary_group->normals[d]);
+        deep_copy(ip_host[d], boundary_group->ip[d]);
+        deep_copy(normals_host[d], boundary_group->normals[d]);
+      }
+
+      for (size_type elem = 0; elem < wts_host.extent(0); ++elem) {
+        for (size_type pt = 0; pt < wts_host.extent(1); ++pt) {
+          const ScalarT nx = normals_host[0](elem, pt);
+          const ScalarT ny = normals_host[1](elem, pt);
+          const ScalarT nz = normals_host[2](elem, pt);
+          const ScalarT Exr = dft_host(freq_index, elem, pt, 0, 0);
+          const ScalarT Eyr = dft_host(freq_index, elem, pt, 1, 0);
+          const ScalarT Ezr = dft_host(freq_index, elem, pt, 2, 0);
+          const ScalarT Exi = dft_host(freq_index, elem, pt, 0, 1);
+          const ScalarT Eyi = dft_host(freq_index, elem, pt, 1, 1);
+          const ScalarT Ezi = dft_host(freq_index, elem, pt, 2, 1);
+          const ScalarT nxe_r[3] = {
+            ny*Ezr - nz*Eyr,
+            nz*Exr - nx*Ezr,
+            nx*Eyr - ny*Exr
+          };
+          const ScalarT nxe_i[3] = {
+            ny*Ezi - nz*Eyi,
+            nz*Exi - nx*Ezi,
+            nx*Eyi - ny*Exi
+          };
+          const ScalarT x[3] = {
+            ip_host[0](elem, pt),
+            ip_host[1](elem, pt),
+            ip_host[2](elem, pt)
+          };
+          const ScalarT weight = wts_host(elem, pt);
+
+          for (int iphi = 0; iphi < nf2ff.nphi; ++iphi) {
+            const ScalarT phi = phi_deg[iphi]*PI/180.0;
+            const ScalarT sin_phi = sin(phi);
+            const ScalarT cos_phi = cos(phi);
+
+            for (int itheta = 0; itheta < nf2ff.ntheta; ++itheta) {
+              const ScalarT theta = theta_deg[itheta]*PI/180.0;
+              const ScalarT sin_theta = sin(theta);
+              const ScalarT cos_theta = cos(theta);
+
+              const ScalarT rhat[3] = {
+                sin_theta*cos_phi,
+                sin_theta*sin_phi,
+                cos_theta
+              };
+              const ScalarT theta_hat[3] = {
+                cos_theta*cos_phi,
+                cos_theta*sin_phi,
+                -sin_theta
+              };
+              const ScalarT phi_hat[3] = {
+                -sin_phi,
+                cos_phi,
+                0.0
+              };
+              const ScalarT nx_theta[3] = {
+                ny*theta_hat[2] - nz*theta_hat[1],
+                nz*theta_hat[0] - nx*theta_hat[2],
+                nx*theta_hat[1] - ny*theta_hat[0]
+              };
+              const ScalarT nx_phi[3] = {
+                ny*phi_hat[2] - nz*phi_hat[1],
+                nz*phi_hat[0] - nx*phi_hat[2],
+                nx*phi_hat[1] - ny*phi_hat[0]
+              };
+
+              const ScalarT phase = k0*(rhat[0]*x[0] + rhat[1]*x[1] + rhat[2]*x[2]);
+              const std::complex<ScalarT> phasor(cos(phase), sin(phase));
+              const std::complex<ScalarT> nxe_theta(
+                nx_theta[0]*nxe_r[0] + nx_theta[1]*nxe_r[1] + nx_theta[2]*nxe_r[2],
+                nx_theta[0]*nxe_i[0] + nx_theta[1]*nxe_i[1] + nx_theta[2]*nxe_i[2]);
+              const std::complex<ScalarT> nxe_phi(
+                nx_phi[0]*nxe_r[0] + nx_phi[1]*nxe_r[1] + nx_phi[2]*nxe_r[2],
+                nx_phi[0]*nxe_i[0] + nx_phi[1]*nxe_i[1] + nx_phi[2]*nxe_i[2]);
+              const std::complex<ScalarT> theta_nxe(
+                theta_hat[0]*nxe_r[0] + theta_hat[1]*nxe_r[1] + theta_hat[2]*nxe_r[2],
+                theta_hat[0]*nxe_i[0] + theta_hat[1]*nxe_i[1] + theta_hat[2]*nxe_i[2]);
+              const std::complex<ScalarT> phi_nxe(
+                phi_hat[0]*nxe_r[0] + phi_hat[1]*nxe_r[1] + phi_hat[2]*nxe_r[2],
+                phi_hat[0]*nxe_i[0] + phi_hat[1]*nxe_i[1] + phi_hat[2]*nxe_i[2]);
+
+              const std::complex<ScalarT> A_theta =
+                -(weight/nf2ff.eta0)*phasor*nxe_theta;
+              const std::complex<ScalarT> A_phi =
+                -(weight/nf2ff.eta0)*phasor*nxe_phi;
+              const std::complex<ScalarT> F_theta =
+                -weight*phasor*theta_nxe;
+              const std::complex<ScalarT> F_phi =
+                -weight*phasor*phi_nxe;
+
+              const int angle = itheta*nf2ff.nphi + iphi;
+              local_values[8*angle + 0] += A_theta.real();
+              local_values[8*angle + 1] += A_theta.imag();
+              local_values[8*angle + 2] += A_phi.real();
+              local_values[8*angle + 3] += A_phi.imag();
+              local_values[8*angle + 4] += F_theta.real();
+              local_values[8*angle + 5] += F_theta.imag();
+              local_values[8*angle + 6] += F_phi.real();
+              local_values[8*angle + 7] += F_phi.imag();
+            }
+          }
+        }
+      }
+    }
+
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 8*nangles,
+                       &local_values[0], &global_values[0]);
+
+    if (Comm->getRank() == 0) {
+      std::complex<ScalarT> source_dft =
+        (std::abs(nf2ff.source_te_weight) > 1.0e-30) ?
+        nf2ff.source_te_dft[freq_index] : nf2ff.source_tm_dft[freq_index];
+      const bool normalize = std::norm(source_dft) > 1.0e-30;
+      const std::complex<ScalarT> field_norm = normalize ?
+        1.0/source_dft : std::complex<ScalarT>(nan, nan);
+      const ScalarT field_scale = k0/(4.0*PI);
+      const ScalarT power_scale = k0*k0/((4.0*PI)*(4.0*PI)*nf2ff.eta0);
+      const ScalarT incident_field_squared =
+        nf2ff.source_amplitude*nf2ff.source_amplitude;
+
+      for (int iphi = 0; iphi < nf2ff.nphi; ++iphi) {
+        for (int itheta = 0; itheta < nf2ff.ntheta; ++itheta) {
+          const int angle = itheta*nf2ff.nphi + iphi;
+          const std::complex<ScalarT> A_theta_raw(global_values[8*angle + 0],
+                                                   global_values[8*angle + 1]);
+          const std::complex<ScalarT> A_phi_raw(global_values[8*angle + 2],
+                                                 global_values[8*angle + 3]);
+          const std::complex<ScalarT> F_theta_raw(global_values[8*angle + 4],
+                                                   global_values[8*angle + 5]);
+          const std::complex<ScalarT> F_phi_raw(global_values[8*angle + 6],
+                                                 global_values[8*angle + 7]);
+
+          const std::complex<ScalarT> A_theta = field_norm*A_theta_raw;
+          const std::complex<ScalarT> A_phi = field_norm*A_phi_raw;
+          const std::complex<ScalarT> F_theta = field_norm*F_theta_raw;
+          const std::complex<ScalarT> F_phi = field_norm*F_phi_raw;
+
+          const std::complex<ScalarT> E_theta =
+            field_scale*(nf2ff.eta0*A_theta + F_phi);
+          const std::complex<ScalarT> E_phi =
+            field_scale*(nf2ff.eta0*A_phi - F_theta);
+          const std::complex<ScalarT> H_theta = -E_phi/nf2ff.eta0;
+          const std::complex<ScalarT> H_phi = E_theta/nf2ff.eta0;
+          const ScalarT P_theta = power_scale*
+            std::norm(nf2ff.eta0*A_theta + F_phi);
+          const ScalarT P_phi = power_scale*
+            std::norm(nf2ff.eta0*A_phi - F_theta);
+          const ScalarT RCS_theta = 4.0*PI*std::norm(E_theta)/incident_field_squared;
+          const ScalarT RCS_phi = 4.0*PI*std::norm(E_phi)/incident_field_squared;
+
+          csv << frequency << ',' << theta_deg[itheta] << ',' << phi_deg[iphi]
+              << ',' << A_theta.real() << ',' << A_theta.imag()
+              << ',' << A_phi.real() << ',' << A_phi.imag()
+              << ',' << F_theta.real() << ',' << F_theta.imag()
+              << ',' << F_phi.real() << ',' << F_phi.imag()
+              << ',' << E_theta.real() << ',' << E_theta.imag()
+              << ',' << E_phi.real() << ',' << E_phi.imag()
+              << ',' << H_theta.real() << ',' << H_theta.imag()
+              << ',' << H_phi.real() << ',' << H_phi.imag()
+              << ',' << P_theta << ',' << P_phi << ',' << P_theta + P_phi
+              << ',' << RCS_theta << ',' << RCS_phi << ',' << RCS_theta + RCS_phi
+              << '\n';
+        }
+      }
+    }
+  }
+}
 
 template <class Node>
 void PostprocessManager<Node>::report()
@@ -971,6 +1399,10 @@ void PostprocessManager<Node>::report()
             respOUT << endl;
             respOUT.close();
         }
+    }
+
+    if (nf2ff.save) {
+        this->writeNF2FF();
     }
 }
 

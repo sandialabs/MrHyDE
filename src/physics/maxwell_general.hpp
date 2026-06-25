@@ -18,7 +18,7 @@ namespace MrHyDE {
 	*
 	* This class solves a three-dimensional mixed first-order Maxwell system
 	* using the normalized magnetic field H = eta0 * H_physical. The unknowns
-	* are E in H(curl) and H in H(div).
+	* are E in H(curl) and H in H(div); B is not a primary unknown.
 	*
 	* The volume equations are
 	*
