@@ -101,8 +101,6 @@ public:
    * @param current_time Current time value
    * @param stepnum      Time step number
    */
-  //void record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
-  //            const int & stepnum); //EB
   void record(vector<vector_RCP> & current_soln, const ScalarT & current_time,
               const int & stepnum, const ScalarT & deltat);
   
@@ -254,10 +252,8 @@ public:
    * @param[in] current_soln  Current solution vectors.
    * @param[in] current_time  Current time.
    */
-  //void computeSensorSolution(vector<vector_RCP> & current_soln,
-  //                           const ScalarT & current_time);
   void computeSensorSolution(vector<vector_RCP> & current_soln,
-                             const ScalarT & current_time, const ScalarT & deltat); //EB
+                             const ScalarT & current_time, const ScalarT & deltat);
 
   /**
    * @brief Accumulates scattered electric-field DFT data on the NF2FF surface.

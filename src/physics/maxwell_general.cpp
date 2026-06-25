@@ -473,8 +473,8 @@ void maxwell_general<EvalT>::boundaryResidual() {
 	/*
 	Important ABC limitation:
 	The unit-coefficient Silver–Müller term is appropriate when the exterior boundary
-	represents the normalized free-space radiation condition used by Kairos. It is not
-	a generally exact absorbing condition for an anisotropic, bianisotropic, lossy, or
+	represents the normalized free-space radiation condition. It is not a generally
+	exact absorbing condition for an anisotropic, bianisotropic, lossy, or
 	impedance-mismatched exterior medium. For those cases, the boundary operator would
 	need the exterior tangential admittance operator instead of simply E_t.
 	*/

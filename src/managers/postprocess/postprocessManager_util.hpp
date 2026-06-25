@@ -60,8 +60,7 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
             this->computeWeightedNorm(current_soln);
         }
         if (store_sensor_solution) {
-            //this->computeSensorSolution(current_soln, current_time);
-            this->computeSensorSolution(current_soln, current_time, deltat); //EB
+            this->computeSensorSolution(current_soln, current_time, deltat);
         }
     }
     
@@ -266,7 +265,7 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
 
 
 // ========================================================================================
-// Write scattering-mode NF2FF data in the Kairos CSV format.
+// Write scattering-mode NF2FF data in CSV format.
 // ========================================================================================
 
 template <class Node>
@@ -570,10 +569,8 @@ void PostprocessManager<Node>::report()
                         if (objectives[obj].output_type == "dft") {
                             auto dft_data = objectives[obj].sensor_solution_dft;
                             numtimes = dft_data.extent(3);
-                            //int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
-                            //int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
-                            int numsols = dft_data.extent_int(1); //EB
-                            int numdims = dft_data.extent_int(2); //EB
+                            int numsols = dft_data.extent_int(1);
+                            int numdims = dft_data.extent_int(2);
                             size_type numfreq = dft_data.extent(3);
                             numfields = numsols * numdims;
                             sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, numfields, numfreq);
@@ -602,14 +599,13 @@ void PostprocessManager<Node>::report()
                             int numphi = settings->sublist("Postprocess").sublist("NF2FF").get("number phi", 1);
                             ScalarT minphi = settings->sublist("Postprocess").sublist("NF2FF").get("min phi", 0.0);
                             ScalarT maxphi = settings->sublist("Postprocess").sublist("NF2FF").get("max phi", 0.0);
-                            //ScalarT k0 = settings->sublist("Postprocess").sublist("NF2FF").get("wave number", 0.0); //EB
-                            //ScalarT N0 = settings->sublist("Postprocess").sublist("NF2FF").get("freespace impedence", 0.0); //EB
-                            ScalarT c0 = 299792458; // m/s (hard coded for now) //EB
-                            ScalarT N0 = 376.73; // free space impedance (hard coded for now) //EB
-                            
-                            // ScalarT EPx = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPx", 0.0); //EB
-                            // ScalarT EPy = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPy", 0.0); //EB
-                            // ScalarT EPz = settings->sublist("Postprocess").sublist("NF2FF").get("planewave EPz", 0.0); //EB
+							
+							TEUCHOS_TEST_FOR_EXCEPTION(!nf2ff.source_initialized, std::runtime_error,
+													   "NF2FF constants were not initialized. "
+													   "Define c0 and eta0 in the input Functions file "
+													   "and enable NF2FF accumulation before reporting.");
+							const ScalarT c0 = nf2ff.c0;
+							const ScalarT eta0 = nf2ff.eta0;
                             
                             // Create the vectors of PHI and THETA
                             vector<ScalarT> THETA(numtheta), PHI(numphi);
@@ -698,22 +694,15 @@ void PostprocessManager<Node>::report()
                                                         vector<std::complex<ScalarT>> n_x_E_theta = {normals[1](elem,pt)*E_theta[2] - normals[2](elem,pt)*E_theta[1], normals[2](elem,pt)*E_theta[0] - normals[0](elem,pt)*E_theta[2], normals[0](elem,pt)*E_theta[1] - normals[1](elem,pt)*E_theta[0]};
                                                         vector<std::complex<ScalarT>> n_x_E_phi = {normals[1](elem,pt)*E_phi[2] - normals[2](elem,pt)*E_phi[1], normals[2](elem,pt)*E_phi[0] - normals[0](elem,pt)*E_phi[2], normals[0](elem,pt)*E_phi[1] - normals[1](elem,pt)*E_phi[0]};
                                                         
-                                                        
-                                                        /*vector<std::complex<ScalarT>> n_x_Esrc = {-normals[1](elem,pt)*Esrc[2] + normals[2](elem,pt)*Esrc[1], -normals[2](elem,pt)*Esrc[0] + normals[0](elem,pt)*Esrc[2], -normals[0](elem,pt)*Esrc[1] + normals[1](elem,pt)*Esrc[0]};
-                                                        vector<std::complex<ScalarT>> n_x_EsrcC = {-normals[1](elem,pt)*EsrcC[2] + normals[2](elem,pt)*EsrcC[1], -normals[2](elem,pt)*EsrcC[0] + normals[0](elem,pt)*EsrcC[2], -normals[0](elem,pt)*EsrcC[1] + normals[1](elem,pt)*EsrcC[0]};
-                                                        vector<std::complex<ScalarT>> n_x_E_theta = {-normals[1](elem,pt)*E_theta[2] + normals[2](elem,pt)*E_theta[1], -normals[2](elem,pt)*E_theta[0] + normals[0](elem,pt)*E_theta[2], -normals[0](elem,pt)*E_theta[1] + normals[1](elem,pt)*E_theta[0]};
-                                                        vector<std::complex<ScalarT>> n_x_E_phi = {-normals[1](elem,pt)*E_phi[2] + normals[2](elem,pt)*E_phi[1], -normals[2](elem,pt)*E_phi[0] + normals[0](elem,pt)*E_phi[2], -normals[0](elem,pt)*E_phi[1] + normals[1](elem,pt)*E_phi[0]};*/
-                                                        
-                                                        
                                                         // Sum into total radiated power at ABC
-                                                        //Prad = (1/N0) * E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E';
+                                                        //Prad = (1/eta0) * E * integral( dot( cross(normal,T) , cross(normal,T) ) ) * E';
                                                         if (nt==0 && np==0) {
-                                                          Prad(t) += 1.0/N0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
+                                                          Prad(t) += 1.0/eta0*wts(elem,pt)*(n_x_Esrc[0]*n_x_EsrcC[0] + n_x_Esrc[1]*n_x_EsrcC[1] + n_x_Esrc[2]*n_x_EsrcC[2]);
                                                         }
                                                         
                                                         // Sum into the vector potentials
-                                                        A_th(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
-                                                        A_ph(t,nt,np) += -1.0/N0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
+                                                        A_th(t,nt,np) += -1.0/eta0*wts(elem,pt)*(n_x_E_theta[0]*n_x_Esrc[0] + n_x_E_theta[1]*n_x_Esrc[1] + n_x_E_theta[2]*n_x_Esrc[2]);
+                                                        A_ph(t,nt,np) += -1.0/eta0*wts(elem,pt)*(n_x_E_phi[0]*n_x_Esrc[0] + n_x_E_phi[1]*n_x_Esrc[1] + n_x_E_phi[2]*n_x_Esrc[2]);
                                                         F_th(t,nt,np) += -wts(elem,pt)*(E_theta[0]*n_x_Esrc[0] + E_theta[1]*n_x_Esrc[1] + E_theta[2]*n_x_Esrc[2]);
                                                         F_ph(t,nt,np) += -wts(elem,pt)*(E_phi[0]*n_x_Esrc[0] + E_phi[1]*n_x_Esrc[1] + E_phi[2]*n_x_Esrc[2]);
                                                         prog++;
@@ -795,33 +784,12 @@ void PostprocessManager<Node>::report()
                                     }
                                 }
                             }
-                            
-                            /*
-                             auto dft_data = objectives[obj].sensor_solution_dft;
-                             size_type numfreq = dft_data.extent(3);
-                             int numsols = objectives[obj].sensor_solution_data[0].extent_int(1); // does assume this does not change in time, which it shouldn't
-                             int numdims = objectives[obj].sensor_solution_data[0].extent_int(2);
-                             numfields = numsols * numdims;
-                             // need number of integrals to compute
-                             sensor_data = Kokkos::View<ScalarT ***, HostDevice>("sensor data", numsensors, numfields, numfreq);
-                             for (size_t t = 0; t < numfreq; ++t) {
-                             for (int sens = 0; sens < numsensors; ++sens) {
-                             size_t solprog = 0;
-                             for (int sol = 0; sol < numsols; ++sol) {
-                             for (int d = 0; d < numdims; ++d) {
-                             sensor_data(sens, solprog, t) = dft_data(sens, sol, d, t).real();
-                             solprog++;
-                             }
-                             }
-                             }
-                             }
-                             */
+							
                             Kokkos::View<std::complex<ScalarT>**, HostDevice> sdat("sensor data", numentries, 7);
                             
-                            //EB
                             ScalarT r = 1.0; // distance into the far field
                             prog = 0;
-                            // ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*N0);
+                            // ScalarT Pinc = (EPx*EPx + EPy*EPy + EPz*EPz)/(2.0*eta0);
                             for (size_t t=0; t<numfreq; ++t) {
                                 ScalarT freq = objectives[obj].dft_frequencies[t];
                                 ScalarT k0 = 2.0 * PI * freq / c0;
@@ -831,30 +799,18 @@ void PostprocessManager<Node>::report()
                                     for (int np=0; np<numphi; ++np) {
                                         
                                         // Electric Field
-                                        sdat(prog,0) = k0/(4*PI*r)*std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)); //E_theta
-                                        sdat(prog,1) = k0/(4*PI*r)*std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)); //E_phi
+                                        sdat(prog,0) = k0/(4*PI*r)*std::abs(eta0*A_th(t,nt,np) + F_ph(t,nt,np)); //E_theta
+                                        sdat(prog,1) = k0/(4*PI*r)*std::abs(eta0*A_ph(t,nt,np) - F_th(t,nt,np)); //E_phi
                                         
-                                        //sdat(prog,2) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2);
-                                        //sdat(prog,3) = std::pow(k0,2)/(4*PI)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2);
-                                        //sdat(prog,4) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_ph(t,nt,np) + N0*A_th(t,nt,np)),2);
-                                        //sdat(prog,5) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_th(t,nt,np) - N0*A_ph(t,nt,np)),2);
-                                        //sdat(prog,6) = sdat(prog,4) + sdat(prog,5);
-                                        
-                                        //EB
                                         // Radiated Power in r_hat
-                                        sdat(prog,2) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_th(t,nt,np) + F_ph(t,nt,np)),2); //P_theta
-                                        sdat(prog,3) = std::pow(k0/(4*PI),2)*1.0/N0*std::pow(std::abs(N0*A_ph(t,nt,np) - F_th(t,nt,np)),2); //P_phi
+                                        sdat(prog,2) = std::pow(k0/(4*PI),2)*1.0/eta0*std::pow(std::abs(eta0*A_th(t,nt,np) + F_ph(t,nt,np)),2); //P_theta
+                                        sdat(prog,3) = std::pow(k0/(4*PI),2)*1.0/eta0*std::pow(std::abs(eta0*A_ph(t,nt,np) - F_th(t,nt,np)),2); //P_phi
                                         
                                         // Gain
                                         sdat(prog,4) = sdat(prog,2)/Piso; //Gain_theta
                                         sdat(prog,5) = sdat(prog,3)/Piso; //Gain_phi
                                         sdat(prog,6) = sdat(prog,4) + sdat(prog,5); //Gain_total
-                                        //EB
-                                        
-                                        // Radar Cross Section (RCS)
-                                        //sdat(prog,7) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_ph(t,nt,np) + N0*A_th(t,nt,np)),2); //RCS_theta
-                                        //sdat(prog,8) = std::pow(k0,2)/(8*PI*N0*Pinc)*std::pow(std::abs(F_th(t,nt,np) - N0*A_ph(t,nt,np)),2); //RCS_phi
-                                        //sdat(prog,9) = sdat(prog,7) + sdat(prog,8); //RCS_total
+										
                                         ++prog;
                                     }
                                 }
@@ -900,8 +856,6 @@ void PostprocessManager<Node>::report()
                                 }
                                 respOUT.close();
                             }
-                            //EB
-                            
                         }
                         else
                         {
@@ -1520,7 +1474,7 @@ Teuchos::Array<ScalarT> PostprocessManager<Node>::collectResponses()
     Teuchos::Array<ScalarT> globalarraydata;
     
     ////////////////////////////////
-    // First, determne how many responses have been computed
+    // First, determine how many responses have been computed
     ////////////////////////////////
     
     int totalresp = 0;
