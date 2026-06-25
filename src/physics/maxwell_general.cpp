@@ -79,9 +79,6 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 
 	functionManager->addFunction("c0", fs.get<string>("c0", "1.0"), "ip");
 	functionManager->addFunction("eta0", fs.get<string>("eta0", "1.0"), "ip");
-
-	// The NF2FF postprocessor evaluates the exterior wave speed and impedance
-	// on the selected absorbing-boundary surface.
 	functionManager->addFunction("c0", fs.get<string>("c0", "1.0"), "side ip");
 	functionManager->addFunction("eta0", fs.get<string>("eta0", "1.0"), "side ip");
 
@@ -473,8 +470,8 @@ void maxwell_general<EvalT>::boundaryResidual() {
 	/*
 	Important ABC limitation:
 	The unit-coefficient Silver–Müller term is appropriate when the exterior boundary
-	represents the normalized free-space radiation condition. It is not a generally
-	exact absorbing condition for an anisotropic, bianisotropic, lossy, or
+	represents the normalized free-space radiation condition used by Kairos. It is not
+	a generally exact absorbing condition for an anisotropic, bianisotropic, lossy, or
 	impedance-mismatched exterior medium. For those cases, the boundary operator would
 	need the exterior tangential admittance operator instead of simply E_t.
 	*/

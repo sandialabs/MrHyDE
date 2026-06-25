@@ -128,12 +128,15 @@ void PostprocessManager<Node>::setup() {
     nf2ff.nphi = nf2ff_settings.get<int>("nphi", 1);
     nf2ff.min_phi = nf2ff_settings.get<ScalarT>("min_phi", 0.0);
     nf2ff.max_phi = nf2ff_settings.get<ScalarT>("max_phi", nf2ff.min_phi);
+    nf2ff.accepted_power = nf2ff_settings.get<ScalarT>(
+      "accepted_power", nf2ff_settings.get<ScalarT>("accepted power", -1.0));
 
     if (nf2ff.save) {
       TEUCHOS_TEST_FOR_EXCEPTION(dimension != 3, std::runtime_error,
-                                 "NF2FF scattering mode requires a three-dimensional simulation.");
-      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.mode != "scattering", std::runtime_error,
-                                 "NF2FF radiation mode is not implemented.");
+                                 "NF2FF requires a three-dimensional simulation.");
+      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.mode != "scattering" &&
+                                 nf2ff.mode != "radiation", std::runtime_error,
+                                 "NF2FF mode must be scattering or radiation.");
       TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.nfrequency <= 0 || nf2ff.ntheta <= 0 || nf2ff.nphi <= 0,
                                  std::runtime_error,
                                  "NF2FF nfrequency, ntheta, and nphi must be positive.");
@@ -153,8 +156,10 @@ void PostprocessManager<Node>::setup() {
           nf2ff.min_frequency + (nf2ff.max_frequency - nf2ff.min_frequency) *
           static_cast<ScalarT>(i)/static_cast<ScalarT>(nf2ff.nfrequency - 1);
       }
-      nf2ff.source_te_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
-      nf2ff.source_tm_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
+      if (nf2ff.mode == "scattering") {
+        nf2ff.source_te_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
+        nf2ff.source_tm_dft.assign(nf2ff.nfrequency, std::complex<ScalarT>(0.0, 0.0));
+      }
     }
   }
 
@@ -426,11 +431,11 @@ void PostprocessManager<Node>::completeSetup() {
         NF2FFSurfaceGroup surface_group;
         surface_group.block = block;
         surface_group.group = grp;
-        surface_group.scattered_E_dft =
+        surface_group.surface_E_dft =
           Kokkos::View<ScalarT *****, AssemblyDevice>(
-            "NF2FF scattered electric-field DFT",
+            "NF2FF surface electric-field DFT",
             nf2ff.nfrequency, wts.extent(0), wts.extent(1), 3, 2);
-        Kokkos::deep_copy(surface_group.scattered_E_dft, 0.0);
+        Kokkos::deep_copy(surface_group.surface_E_dft, 0.0);
         nf2ff_surface_groups.push_back(surface_group);
         local_face_count += static_cast<int>(wts.extent(0));
       }

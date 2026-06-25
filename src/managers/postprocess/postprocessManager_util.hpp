@@ -82,7 +82,7 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
 
 
 // ========================================================================================
-// Accumulate scattered electric-field DFT data on the selected NF2FF sideset.
+// Accumulate effective electric-field DFT data on the selected NF2FF sideset.
 // ========================================================================================
 
 template <class Node>
@@ -93,6 +93,8 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
   if (!nf2ff.save) {
     return;
   }
+
+  const bool scattering_mode = (nf2ff.mode == "scattering");
 
   typedef typename Node::execution_space LA_exec;
   typedef typename Node::device_type LA_device;
@@ -116,8 +118,8 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
     }
   }
 
-  ScalarT local_source_values[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  int local_source_count = 0;
+  ScalarT local_values[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  int local_count = 0;
 
   for (size_t s = 0; s < nf2ff_surface_groups.size(); ++s) {
     const size_t block = nf2ff_surface_groups[s].block;
@@ -136,84 +138,116 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
     auto Ey = assembler->wkset[block]->getSolutionField("E[y]");
     auto Ez = assembler->wkset[block]->getSolutionField("E[z]");
 
-    auto incidentEx = assembler->function_managers[block]->evaluate("incident Ex", "side ip");
-    auto incidentEy = assembler->function_managers[block]->evaluate("incident Ey", "side ip");
-    auto incidentEz = assembler->function_managers[block]->evaluate("incident Ez", "side ip");
-
-    auto dft = nf2ff_surface_groups[s].scattered_E_dft;
+    auto dft = nf2ff_surface_groups[s].surface_E_dft;
     auto frequencies = nf2ff.frequency_device;
     const ScalarT time = current_time;
     const ScalarT dt = deltat;
 
-    parallel_for("PostprocessManager NF2FF DFT",
-                 RangePolicy<AssemblyExec>(0, boundary_group->numElem),
-                 MRHYDE_LAMBDA(const int elem) {
-      for (size_type pt = 0; pt < dft.extent(2); ++pt) {
-        const ScalarT scatteredEx = Ex(elem, pt) - incidentEx(elem, pt);
-        const ScalarT scatteredEy = Ey(elem, pt) - incidentEy(elem, pt);
-        const ScalarT scatteredEz = Ez(elem, pt) - incidentEz(elem, pt);
+    if (scattering_mode) {
+      auto incidentEx = assembler->function_managers[block]->evaluate("incident Ex", "side ip");
+      auto incidentEy = assembler->function_managers[block]->evaluate("incident Ey", "side ip");
+      auto incidentEz = assembler->function_managers[block]->evaluate("incident Ez", "side ip");
 
-        for (size_type freq = 0; freq < dft.extent(0); ++freq) {
-          const ScalarT omega_t = 2.0*PI*frequencies[freq]*time;
-          const ScalarT real_scale = dt*cos(omega_t);
-          const ScalarT imag_scale = -dt*sin(omega_t);
+      parallel_for("PostprocessManager NF2FF scattering DFT",
+                   RangePolicy<AssemblyExec>(0, boundary_group->numElem),
+                   MRHYDE_LAMBDA(const int elem) {
+        for (size_type pt = 0; pt < dft.extent(2); ++pt) {
+          const ScalarT field_x = Ex(elem, pt) - incidentEx(elem, pt);
+          const ScalarT field_y = Ey(elem, pt) - incidentEy(elem, pt);
+          const ScalarT field_z = Ez(elem, pt) - incidentEz(elem, pt);
 
-          dft(freq, elem, pt, 0, 0) += real_scale*scatteredEx;
-          dft(freq, elem, pt, 1, 0) += real_scale*scatteredEy;
-          dft(freq, elem, pt, 2, 0) += real_scale*scatteredEz;
-          dft(freq, elem, pt, 0, 1) += imag_scale*scatteredEx;
-          dft(freq, elem, pt, 1, 1) += imag_scale*scatteredEy;
-          dft(freq, elem, pt, 2, 1) += imag_scale*scatteredEz;
+          for (size_type freq = 0; freq < dft.extent(0); ++freq) {
+            const ScalarT omega_t = 2.0*PI*frequencies[freq]*time;
+            const ScalarT real_scale = dt*cos(omega_t);
+            const ScalarT imag_scale = -dt*sin(omega_t);
+
+            dft(freq, elem, pt, 0, 0) += real_scale*field_x;
+            dft(freq, elem, pt, 1, 0) += real_scale*field_y;
+            dft(freq, elem, pt, 2, 0) += real_scale*field_z;
+            dft(freq, elem, pt, 0, 1) += imag_scale*field_x;
+            dft(freq, elem, pt, 1, 1) += imag_scale*field_y;
+            dft(freq, elem, pt, 2, 1) += imag_scale*field_z;
+          }
         }
-      }
-    });
+      });
+    }
+    else {
+      parallel_for("PostprocessManager NF2FF radiation DFT",
+                   RangePolicy<AssemblyExec>(0, boundary_group->numElem),
+                   MRHYDE_LAMBDA(const int elem) {
+        for (size_type pt = 0; pt < dft.extent(2); ++pt) {
+          const ScalarT field_x = Ex(elem, pt);
+          const ScalarT field_y = Ey(elem, pt);
+          const ScalarT field_z = Ez(elem, pt);
 
-    if (local_source_count == 0 && boundary_group->numElem > 0) {
-      auto source_waveform_te =
-        assembler->function_managers[block]->evaluate("source_waveform_te", "side ip");
-      auto source_waveform_tm =
-        assembler->function_managers[block]->evaluate("source_waveform_tm", "side ip");
-      auto source_amplitude =
-        assembler->function_managers[block]->evaluate("source_amplitude", "side ip");
-      auto source_te =
-        assembler->function_managers[block]->evaluate("source_te", "side ip");
-      auto source_tm =
-        assembler->function_managers[block]->evaluate("source_tm", "side ip");
+          for (size_type freq = 0; freq < dft.extent(0); ++freq) {
+            const ScalarT omega_t = 2.0*PI*frequencies[freq]*time;
+            const ScalarT real_scale = dt*cos(omega_t);
+            const ScalarT imag_scale = -dt*sin(omega_t);
+
+            dft(freq, elem, pt, 0, 0) += real_scale*field_x;
+            dft(freq, elem, pt, 1, 0) += real_scale*field_y;
+            dft(freq, elem, pt, 2, 0) += real_scale*field_z;
+            dft(freq, elem, pt, 0, 1) += imag_scale*field_x;
+            dft(freq, elem, pt, 1, 1) += imag_scale*field_y;
+            dft(freq, elem, pt, 2, 1) += imag_scale*field_z;
+          }
+        }
+      });
+    }
+
+    if (local_count == 0 && boundary_group->numElem > 0) {
       auto c0 = assembler->function_managers[block]->evaluate("c0", "side ip");
       auto eta0 = assembler->function_managers[block]->evaluate("eta0", "side ip");
 
-      auto source_waveform_te_data = source_waveform_te.getData();
-      auto source_waveform_tm_data = source_waveform_tm.getData();
-      auto source_amplitude_data = source_amplitude.getData();
-      auto source_te_data = source_te.getData();
-      auto source_tm_data = source_tm.getData();
       auto c0_data = c0.getData();
       auto eta0_data = eta0.getData();
-
-      auto source_waveform_te_host = create_mirror_view(source_waveform_te_data);
-      auto source_waveform_tm_host = create_mirror_view(source_waveform_tm_data);
-      auto source_amplitude_host = create_mirror_view(source_amplitude_data);
-      auto source_te_host = create_mirror_view(source_te_data);
-      auto source_tm_host = create_mirror_view(source_tm_data);
       auto c0_host = create_mirror_view(c0_data);
       auto eta0_host = create_mirror_view(eta0_data);
-
-      deep_copy(source_waveform_te_host, source_waveform_te_data);
-      deep_copy(source_waveform_tm_host, source_waveform_tm_data);
-      deep_copy(source_amplitude_host, source_amplitude_data);
-      deep_copy(source_te_host, source_te_data);
-      deep_copy(source_tm_host, source_tm_data);
       deep_copy(c0_host, c0_data);
       deep_copy(eta0_host, eta0_data);
 
-      local_source_values[0] = source_waveform_te_host(0, 0);
-      local_source_values[1] = source_waveform_tm_host(0, 0);
-      local_source_values[2] = source_amplitude_host(0, 0);
-      local_source_values[3] = source_te_host(0, 0);
-      local_source_values[4] = source_tm_host(0, 0);
-      local_source_values[5] = c0_host(0, 0);
-      local_source_values[6] = eta0_host(0, 0);
-      local_source_count = 1;
+      local_values[5] = c0_host(0, 0);
+      local_values[6] = eta0_host(0, 0);
+
+      if (scattering_mode) {
+        auto source_waveform_te =
+          assembler->function_managers[block]->evaluate("source_waveform_te", "side ip");
+        auto source_waveform_tm =
+          assembler->function_managers[block]->evaluate("source_waveform_tm", "side ip");
+        auto source_amplitude =
+          assembler->function_managers[block]->evaluate("source_amplitude", "side ip");
+        auto source_te =
+          assembler->function_managers[block]->evaluate("source_te", "side ip");
+        auto source_tm =
+          assembler->function_managers[block]->evaluate("source_tm", "side ip");
+
+        auto source_waveform_te_data = source_waveform_te.getData();
+        auto source_waveform_tm_data = source_waveform_tm.getData();
+        auto source_amplitude_data = source_amplitude.getData();
+        auto source_te_data = source_te.getData();
+        auto source_tm_data = source_tm.getData();
+
+        auto source_waveform_te_host = create_mirror_view(source_waveform_te_data);
+        auto source_waveform_tm_host = create_mirror_view(source_waveform_tm_data);
+        auto source_amplitude_host = create_mirror_view(source_amplitude_data);
+        auto source_te_host = create_mirror_view(source_te_data);
+        auto source_tm_host = create_mirror_view(source_tm_data);
+
+        deep_copy(source_waveform_te_host, source_waveform_te_data);
+        deep_copy(source_waveform_tm_host, source_waveform_tm_data);
+        deep_copy(source_amplitude_host, source_amplitude_data);
+        deep_copy(source_te_host, source_te_data);
+        deep_copy(source_tm_host, source_tm_data);
+
+        local_values[0] = source_waveform_te_host(0, 0);
+        local_values[1] = source_waveform_tm_host(0, 0);
+        local_values[2] = source_amplitude_host(0, 0);
+        local_values[3] = source_te_host(0, 0);
+        local_values[4] = source_tm_host(0, 0);
+      }
+
+      local_count = 1;
     }
   }
 
@@ -221,28 +255,29 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
     assembler->wkset[nf2ff_surface_groups[s].block]->isOnSide = false;
   }
 
-  ScalarT global_source_values[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-  int global_source_count = 0;
-  Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 7,
-                     local_source_values, global_source_values);
-  Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
-                     &local_source_count, &global_source_count);
+  ScalarT global_values[7] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  int global_count = 0;
+  Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 7, local_values, global_values);
+  Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1, &local_count, &global_count);
 
-  if (global_source_count > 0) {
-    const ScalarT inv_count = 1.0/static_cast<ScalarT>(global_source_count);
-    const ScalarT source_waveform_te = global_source_values[0]*inv_count;
-    const ScalarT source_waveform_tm = global_source_values[1]*inv_count;
+  if (global_count == 0) {
+    return;
+  }
 
-    if (!nf2ff.source_initialized) {
-      nf2ff.source_amplitude = global_source_values[2]*inv_count;
-      nf2ff.source_te = global_source_values[3]*inv_count;
-      nf2ff.source_tm = global_source_values[4]*inv_count;
-      nf2ff.c0 = global_source_values[5]*inv_count;
-      nf2ff.eta0 = global_source_values[6]*inv_count;
+  const ScalarT inv_count = 1.0/static_cast<ScalarT>(global_count);
+  if (!nf2ff.constants_initialized) {
+    nf2ff.c0 = global_values[5]*inv_count;
+    nf2ff.eta0 = global_values[6]*inv_count;
 
-      TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.c0 <= 0.0 || nf2ff.eta0 <= 0.0,
-                                 std::runtime_error,
-                                 "NF2FF requires positive c0 and eta0 on the selected sideset.");
+    TEUCHOS_TEST_FOR_EXCEPTION(nf2ff.c0 <= 0.0 || nf2ff.eta0 <= 0.0,
+                               std::runtime_error,
+                               "NF2FF requires positive c0 and eta0 on the selected sideset.");
+
+    if (scattering_mode) {
+      nf2ff.source_amplitude = global_values[2]*inv_count;
+      nf2ff.source_te = global_values[3]*inv_count;
+      nf2ff.source_tm = global_values[4]*inv_count;
+
       TEUCHOS_TEST_FOR_EXCEPTION(std::abs(nf2ff.source_te) <= 1.0e-30 &&
                                  std::abs(nf2ff.source_tm) <= 1.0e-30,
                                  std::runtime_error,
@@ -250,10 +285,14 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
       TEUCHOS_TEST_FOR_EXCEPTION(std::abs(nf2ff.source_amplitude) <= 1.0e-30,
                                  std::runtime_error,
                                  "NF2FF scattering mode requires a nonzero source_amplitude.");
-
-      nf2ff.source_initialized = true;
     }
 
+    nf2ff.constants_initialized = true;
+  }
+
+  if (scattering_mode) {
+    const ScalarT source_waveform_te = global_values[0]*inv_count;
+    const ScalarT source_waveform_tm = global_values[1]*inv_count;
     for (size_t freq = 0; freq < nf2ff.frequencies.size(); ++freq) {
       const ScalarT omega_t = 2.0*PI*nf2ff.frequencies[freq]*current_time;
       const std::complex<ScalarT> kernel(deltat*cos(omega_t), -deltat*sin(omega_t));
@@ -263,9 +302,8 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
   }
 }
 
-
 // ========================================================================================
-// Write scattering-mode NF2FF data in CSV format.
+// Write NF2FF data in CSV format.
 // ========================================================================================
 
 template <class Node>
@@ -275,8 +313,14 @@ void PostprocessManager<Node>::writeNF2FF()
     return;
   }
 
-  TEUCHOS_TEST_FOR_EXCEPTION(!nf2ff.source_initialized, std::runtime_error,
-                             "NF2FF did not accumulate an incident-wave reference spectrum.");
+  TEUCHOS_TEST_FOR_EXCEPTION(!nf2ff.constants_initialized, std::runtime_error,
+                             "NF2FF did not accumulate surface-field data.");
+
+  const bool scattering_mode = (nf2ff.mode == "scattering");
+  const bool radiation_mode = (nf2ff.mode == "radiation");
+  TEUCHOS_TEST_FOR_EXCEPTION(!scattering_mode && !radiation_mode,
+                             std::runtime_error,
+                             "NF2FF mode must be scattering or radiation.");
 
   vector<ScalarT> theta_deg(nf2ff.ntheta);
   vector<ScalarT> phi_deg(nf2ff.nphi);
@@ -310,7 +354,16 @@ void PostprocessManager<Node>::writeNF2FF()
         << ",F_theta_real,F_theta_imag,F_phi_real,F_phi_imag"
         << ",E_theta_real,E_theta_imag,E_phi_real,E_phi_imag"
         << ",H_theta_real,H_theta_imag,H_phi_real,H_phi_imag"
-        << ",P_theta,P_phi,P_total,RCS_theta,RCS_phi,RCS_total\n";
+        << ",P_theta,P_phi,P_total";
+    if (scattering_mode) {
+      csv << ",RCS_theta,RCS_phi,RCS_total";
+    }
+    else {
+      csv << ",Directivity_theta,Directivity_phi,Directivity_total"
+          << ",Gain_theta,Gain_phi,Gain_total"
+          << ",Radiated_power,Accepted_power";
+    }
+    csv << '\n';
 
     if (verbosity > 0) {
       cout << "Writing NF2FF CSV output to " << filename.string() << endl;
@@ -318,9 +371,13 @@ void PostprocessManager<Node>::writeNF2FF()
   }
 
   const int nangles = nf2ff.ntheta*nf2ff.nphi;
+  const ScalarT nan = std::numeric_limits<ScalarT>::quiet_NaN();
+
   for (size_t freq_index = 0; freq_index < nf2ff.frequencies.size(); ++freq_index) {
     Teuchos::Array<ScalarT> local_values(8*nangles, 0.0);
     Teuchos::Array<ScalarT> global_values(8*nangles, 0.0);
+    ScalarT local_radiated_power = 0.0;
+    ScalarT global_radiated_power = 0.0;
 
     const ScalarT frequency = nf2ff.frequencies[freq_index];
     const ScalarT k0 = 2.0*PI*frequency/nf2ff.c0;
@@ -330,8 +387,8 @@ void PostprocessManager<Node>::writeNF2FF()
       const size_t group = nf2ff_surface_groups[surface_index].group;
       auto boundary_group = assembler->boundary_groups[block][group];
 
-      auto dft_host = create_mirror_view(nf2ff_surface_groups[surface_index].scattered_E_dft);
-      deep_copy(dft_host, nf2ff_surface_groups[surface_index].scattered_E_dft);
+      auto dft_host = create_mirror_view(nf2ff_surface_groups[surface_index].surface_E_dft);
+      deep_copy(dft_host, nf2ff_surface_groups[surface_index].surface_E_dft);
 
       auto wts_host = create_mirror_view(boundary_group->wts);
       deep_copy(wts_host, boundary_group->wts);
@@ -372,6 +429,10 @@ void PostprocessManager<Node>::writeNF2FF()
             ip_host[2](elem, pt)
           };
           const ScalarT weight = wts_host(elem, pt);
+
+          local_radiated_power += (weight/nf2ff.eta0)*
+            (nxe_r[0]*nxe_r[0] + nxe_r[1]*nxe_r[1] + nxe_r[2]*nxe_r[2] +
+             nxe_i[0]*nxe_i[0] + nxe_i[1]*nxe_i[1] + nxe_i[2]*nxe_i[2]);
 
           for (int iphi = 0; iphi < nf2ff.nphi; ++iphi) {
             const ScalarT phi = phi_deg[iphi]*PI/180.0;
@@ -416,13 +477,13 @@ void PostprocessManager<Node>::writeNF2FF()
                 nx_theta[0]*nxe_i[0] + nx_theta[1]*nxe_i[1] + nx_theta[2]*nxe_i[2]);
               const std::complex<ScalarT> nxe_phi(
                 nx_phi[0]*nxe_r[0] + nx_phi[1]*nxe_r[1] + nx_phi[2]*nxe_r[2],
-                nx_phi[0]*nxe_i[0] + nx_phi[1]*nxe_i[1] + nx_phi[2]*nxe_i[2]);
+                nx_phi[0]*nxe_i[0] + nx_phi[1]*nxe_r[1] + nx_phi[2]*nxe_r[2]);
               const std::complex<ScalarT> theta_nxe(
                 theta_hat[0]*nxe_r[0] + theta_hat[1]*nxe_r[1] + theta_hat[2]*nxe_r[2],
                 theta_hat[0]*nxe_i[0] + theta_hat[1]*nxe_i[1] + theta_hat[2]*nxe_i[2]);
               const std::complex<ScalarT> phi_nxe(
                 phi_hat[0]*nxe_r[0] + phi_hat[1]*nxe_r[1] + phi_hat[2]*nxe_r[2],
-                phi_hat[0]*nxe_i[0] + phi_hat[1]*nxe_i[1] + phi_hat[2]*nxe_i[2]);
+                phi_hat[0]*nxe_i[0] + phi_hat[1]*nxe_r[1] + phi_hat[2]*nxe_i[2]);
 
               const std::complex<ScalarT> A_theta =
                 -(weight/nf2ff.eta0)*phasor*nxe_theta;
@@ -450,22 +511,37 @@ void PostprocessManager<Node>::writeNF2FF()
 
     Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 8*nangles,
                        &local_values[0], &global_values[0]);
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                       &local_radiated_power, &global_radiated_power);
 
     if (Comm->getRank() == 0) {
-      std::complex<ScalarT> source_dft =
-        (std::abs(nf2ff.source_te) > 1.0e-30) ?
-        nf2ff.source_te_dft[freq_index] : nf2ff.source_tm_dft[freq_index];
-      TEUCHOS_TEST_FOR_EXCEPTION(
-        std::norm(source_dft) <= 1.0e-30, std::runtime_error,
-        "NF2FF scattering normalization failed at frequency " << frequency
-        << ". The selected source waveform has a near-zero DFT. Define "
-        << ((std::abs(nf2ff.source_te) > 1.0e-30) ?
-            "source_waveform_te" : "source_waveform_tm")
-        << " in the Functions input file, and ensure it matches the temporal "
-        << "waveform used by incident Ex/Ey/Ez.");
-      const std::complex<ScalarT> field_norm = 1.0/source_dft;
+      std::complex<ScalarT> field_norm(1.0, 0.0);
+      if (scattering_mode) {
+        const std::complex<ScalarT> source_dft =
+          (std::abs(nf2ff.source_te) > 1.0e-30) ?
+          nf2ff.source_te_dft[freq_index] : nf2ff.source_tm_dft[freq_index];
+
+        TEUCHOS_TEST_FOR_EXCEPTION(
+          std::norm(source_dft) <= 1.0e-30, std::runtime_error,
+          "NF2FF scattering normalization failed at frequency " << frequency
+          << ". The selected source waveform has a near-zero DFT. Define "
+          << ((std::abs(nf2ff.source_te) > 1.0e-30) ?
+              "source_waveform_te" : "source_waveform_tm")
+          << " in the Functions input file, and ensure it matches the temporal "
+          << "waveform used by incident Ex/Ey/Ez.");
+        field_norm = 1.0/source_dft;
+      }
+
       const ScalarT field_scale = k0/(4.0*PI);
       const ScalarT power_scale = k0*k0/((4.0*PI)*(4.0*PI)*nf2ff.eta0);
+      const ScalarT normalized_radiated_power =
+        std::norm(field_norm)*global_radiated_power;
+      const ScalarT directivity_scale =
+        (normalized_radiated_power > 1.0e-30) ?
+        4.0*PI/normalized_radiated_power : nan;
+      const ScalarT gain_scale =
+        (nf2ff.accepted_power > 1.0e-30) ?
+        4.0*PI/nf2ff.accepted_power : nan;
       const ScalarT incident_field_squared =
         nf2ff.source_amplitude*nf2ff.source_amplitude;
 
@@ -496,8 +572,7 @@ void PostprocessManager<Node>::writeNF2FF()
             std::norm(nf2ff.eta0*A_theta + F_phi);
           const ScalarT P_phi = power_scale*
             std::norm(nf2ff.eta0*A_phi - F_theta);
-          const ScalarT RCS_theta = 4.0*PI*std::norm(E_theta)/incident_field_squared;
-          const ScalarT RCS_phi = 4.0*PI*std::norm(E_phi)/incident_field_squared;
+          const ScalarT P_total = P_theta + P_phi;
 
           csv << frequency << ',' << theta_deg[itheta] << ',' << phi_deg[iphi]
               << ',' << A_theta.real() << ',' << A_theta.imag()
@@ -508,9 +583,30 @@ void PostprocessManager<Node>::writeNF2FF()
               << ',' << E_phi.real() << ',' << E_phi.imag()
               << ',' << H_theta.real() << ',' << H_theta.imag()
               << ',' << H_phi.real() << ',' << H_phi.imag()
-              << ',' << P_theta << ',' << P_phi << ',' << P_theta + P_phi
-              << ',' << RCS_theta << ',' << RCS_phi << ',' << RCS_theta + RCS_phi
-              << '\n';
+              << ',' << P_theta << ',' << P_phi << ',' << P_total;
+
+          if (scattering_mode) {
+            const ScalarT rcs_scale = (incident_field_squared > 1.0e-30) ?
+              4.0*PI/incident_field_squared : nan;
+            const ScalarT RCS_theta = rcs_scale*std::norm(E_theta);
+            const ScalarT RCS_phi = rcs_scale*std::norm(E_phi);
+            csv << ',' << RCS_theta << ',' << RCS_phi << ','
+                << RCS_theta + RCS_phi;
+          }
+          else {
+            const ScalarT Directivity_theta = directivity_scale*P_theta;
+            const ScalarT Directivity_phi = directivity_scale*P_phi;
+            const ScalarT Gain_theta = gain_scale*P_theta;
+            const ScalarT Gain_phi = gain_scale*P_phi;
+            csv << ',' << Directivity_theta << ',' << Directivity_phi << ','
+                << Directivity_theta + Directivity_phi
+                << ',' << Gain_theta << ',' << Gain_phi << ','
+                << Gain_theta + Gain_phi
+                << ',' << normalized_radiated_power
+                << ',' << nf2ff.accepted_power;
+          }
+
+          csv << '\n';
         }
       }
     }
@@ -600,7 +696,7 @@ void PostprocessManager<Node>::report()
                             ScalarT minphi = settings->sublist("Postprocess").sublist("NF2FF").get("min phi", 0.0);
                             ScalarT maxphi = settings->sublist("Postprocess").sublist("NF2FF").get("max phi", 0.0);
 							
-							TEUCHOS_TEST_FOR_EXCEPTION(!nf2ff.source_initialized, std::runtime_error,
+							TEUCHOS_TEST_FOR_EXCEPTION(!nf2ff.constants_initialized, std::runtime_error,
 													   "NF2FF constants were not initialized. "
 													   "Define c0 and eta0 in the input Functions file "
 													   "and enable NF2FF accumulation before reporting.");

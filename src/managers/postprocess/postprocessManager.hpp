@@ -256,13 +256,13 @@ public:
                              const ScalarT & current_time, const ScalarT & deltat);
 
   /**
-   * @brief Accumulates scattered electric-field DFT data on the NF2FF surface.
+   * @brief Accumulates effective electric-field DFT data on the NF2FF surface.
    */
   void accumulateNF2FF(vector<vector_RCP> & current_soln,
                        const ScalarT & current_time, const ScalarT & deltat);
 
   /**
-   * @brief Writes scattering-mode NF2FF data to the configured CSV file.
+   * @brief Writes NF2FF data to the configured CSV file.
    */
   void writeNF2FF();
   
@@ -746,7 +746,7 @@ public:
   struct NF2FFSurfaceGroup {
     size_t block = 0;
     size_t group = 0;
-    Kokkos::View<ScalarT *****, AssemblyDevice> scattered_E_dft;
+    Kokkos::View<ScalarT *****, AssemblyDevice> surface_E_dft;
   };
 
   struct NF2FFSettings {
@@ -764,6 +764,7 @@ public:
     ScalarT max_theta = 0.0;
     ScalarT min_phi = 0.0;
     ScalarT max_phi = 0.0;
+    ScalarT accepted_power = -1.0;
     vector<ScalarT> frequencies;
     Kokkos::View<ScalarT *, AssemblyDevice> frequency_device;
     vector<std::complex<ScalarT> > source_te_dft;
@@ -773,7 +774,7 @@ public:
     ScalarT source_tm = 0.0;
     ScalarT c0 = 0.0;
     ScalarT eta0 = 0.0;
-    bool source_initialized = false;
+    bool constants_initialized = false;
   };
 
   NF2FFSettings nf2ff;
