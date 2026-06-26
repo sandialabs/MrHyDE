@@ -1385,7 +1385,7 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
             port.height*global_port_values[3*port_index + 1]/port.volume);
           std::complex<ScalarT> phase(1.0, 0.0);
           if (std::norm(projection) > 1.0e-30) {
-            phase = -projection/std::abs(projection);
+            phase = projection/std::abs(projection);
           }
 
           const std::complex<ScalarT> Iinc =
