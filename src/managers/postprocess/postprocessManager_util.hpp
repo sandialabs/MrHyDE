@@ -520,6 +520,7 @@ void PostprocessManager<Node>::writeNF2FF()
     else {
       csv << ",Directivity_theta,Directivity_phi,Directivity_total"
           << ",Gain_theta,Gain_phi,Gain_total"
+          << ",Realized_gain_theta,Realized_gain_phi,Realized_gain_total"
           << ",Radiated_power,Accepted_power";
       for (size_t port_index = 0; port_index < nf2ff_ports.size();
            ++port_index) {
@@ -793,11 +794,17 @@ void PostprocessManager<Node>::writeNF2FF()
 
       vector<std::complex<ScalarT> > port_voltage(nf2ff_ports.size());
       vector<std::complex<ScalarT> > port_current(nf2ff_ports.size());
+      vector<std::complex<ScalarT> > port_input_impedance(nf2ff_ports.size());
+      vector<std::complex<ScalarT> > port_reflection_coefficient(nf2ff_ports.size());
       vector<ScalarT> port_conductance_power(nf2ff_ports.size(), nan);
       vector<ScalarT> port_source_power(nf2ff_ports.size(), nan);
       vector<ScalarT> port_accepted_power(nf2ff_ports.size(), nan);
+      vector<ScalarT> port_available_power(nf2ff_ports.size(), nan);
+      vector<ScalarT> port_mismatch_factor(nf2ff_ports.size(), nan);
 
       ScalarT accepted_power = nan;
+      ScalarT available_power = nan;
+      ScalarT mismatch_factor = nan;
       if (radiation_mode && !nf2ff_ports.empty()) {
         for (size_t port_index = 0; port_index < nf2ff_ports.size();
              ++port_index) {
@@ -809,18 +816,42 @@ void PostprocessManager<Node>::writeNF2FF()
           port_conductance_power[port_index] =
             std::norm(field_norm)*global_port_values[3*port_index + 2];
 
-          const ScalarT source_current =
-            -2.0*port.amplitude/std::sqrt(port.impedance);
+          const std::complex<ScalarT> source_current(
+            -2.0*port.amplitude/std::sqrt(port.impedance), 0.0);
           port_current[port_index] =
-            std::complex<ScalarT>(source_current, 0.0);
+            -source_current - port_voltage[port_index]/port.impedance;
           port_source_power[port_index] =
             -0.5*std::real(port_voltage[port_index]*
-                           std::conj(port_current[port_index]));
+                           std::conj(source_current));
           port_accepted_power[port_index] =
-            port_source_power[port_index] -
-            port_conductance_power[port_index];
+            0.5*std::real(port_voltage[port_index]*
+                          std::conj(port_current[port_index]));
+          port_available_power[port_index] =
+            std::norm(source_current)*port.impedance/8.0;
+
+          const ScalarT current_norm = std::norm(port_current[port_index]);
+          if (current_norm > 1.0e-30) {
+            port_input_impedance[port_index] =
+              port_voltage[port_index]/port_current[port_index];
+            const std::complex<ScalarT> denominator =
+              port_input_impedance[port_index] + port.impedance;
+            if (std::norm(denominator) > 1.0e-30) {
+              port_reflection_coefficient[port_index] =
+                (port_input_impedance[port_index] - port.impedance)/
+                denominator;
+              port_mismatch_factor[port_index] =
+                1.0 - std::norm(port_reflection_coefficient[port_index]);
+              if (port_mismatch_factor[port_index] < 0.0 &&
+                  port_mismatch_factor[port_index] > -1.0e-12) {
+                port_mismatch_factor[port_index] = 0.0;
+              }
+            }
+          }
         }
+
         accepted_power = port_accepted_power[0];
+        available_power = port_available_power[0];
+        mismatch_factor = port_mismatch_factor[0];
         const ScalarT tolerance =
           1.0e-12*std::max(ScalarT(1.0),
                             std::abs(port_source_power[0]));
@@ -838,6 +869,10 @@ void PostprocessManager<Node>::writeNF2FF()
       const ScalarT gain_scale =
         (accepted_power > 1.0e-30) ?
         4.0*PI/accepted_power : nan;
+      const ScalarT realized_gain_scale =
+        (gain_scale == gain_scale && mismatch_factor == mismatch_factor) ?
+        gain_scale*mismatch_factor :
+        ((available_power > 1.0e-30) ? 4.0*PI/available_power : nan);
 
       for (int iphi = 0; iphi < nf2ff.nphi; ++iphi) {
         for (int itheta = 0; itheta < nf2ff.ntheta; ++itheta) {
@@ -892,12 +927,22 @@ void PostprocessManager<Node>::writeNF2FF()
           else {
             const ScalarT Directivity_theta = directivity_scale*P_theta;
             const ScalarT Directivity_phi = directivity_scale*P_phi;
+            const ScalarT Directivity_total = directivity_scale*P_total;
             const ScalarT Gain_theta = gain_scale*P_theta;
             const ScalarT Gain_phi = gain_scale*P_phi;
+            const ScalarT Gain_total = gain_scale*P_total;
+            const ScalarT Realized_gain_theta =
+              realized_gain_scale*P_theta;
+            const ScalarT Realized_gain_phi =
+              realized_gain_scale*P_phi;
+            const ScalarT Realized_gain_total =
+              realized_gain_scale*P_total;
             csv << ',' << Directivity_theta << ',' << Directivity_phi << ','
-                << Directivity_theta + Directivity_phi
+                << Directivity_total
                 << ',' << Gain_theta << ',' << Gain_phi << ','
-                << Gain_theta + Gain_phi
+                << Gain_total
+                << ',' << Realized_gain_theta << ','
+                << Realized_gain_phi << ',' << Realized_gain_total
                 << ',' << normalized_radiated_power
                 << ',' << accepted_power;
 
