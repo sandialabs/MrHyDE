@@ -33,6 +33,9 @@ void PostprocessManager<Node>::record(vector<vector_RCP> &current_soln, const Sc
     if (nf2ff.save) {
         this->accumulateNF2FF(current_soln, current_time, deltat);
     }
+    if (lumped_port_parameters.save) {
+        this->accumulateLumpedPortParameters(current_soln, current_time, deltat);
+    }
 
     // Write to exodus if requested and within user-defined time window for output
     if (write_exodus_this_step && current_time + 1.0e-100 >= exodus_record_start && current_time - 1.0e-100 <= exodus_record_stop) {
@@ -458,6 +461,194 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
 }
 
 
+
+// ========================================================================================
+// Accumulate electric-field DFT data used by lumped-port parameters.
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::accumulateLumpedPortParameters(
+  vector<vector_RCP> &current_soln, const ScalarT &current_time,
+  const ScalarT &deltat)
+{
+  if (!lumped_port_parameters.save) {
+    return;
+  }
+
+  typedef typename Node::execution_space LA_exec;
+  typedef typename Node::device_type LA_device;
+
+  bool data_avail = true;
+  if (!Kokkos::SpaceAccessibility<LA_exec,
+      AssemblyDevice::memory_space>::accessible) {
+    data_avail = false;
+  }
+
+  vector<Kokkos::View<ScalarT *, AssemblyDevice> > sol_kv;
+  for (size_t set = 0; set < current_soln.size(); ++set) {
+    auto vec_kv = current_soln[set]->template getLocalView<LA_device>(
+      Tpetra::Access::ReadWrite);
+    auto vec_slice = Kokkos::subview(vec_kv, Kokkos::ALL(), 0);
+    if (data_avail) {
+      sol_kv.push_back(vec_slice);
+    }
+    else {
+      auto vec_dev = Kokkos::create_mirror(
+        AssemblyDevice::memory_space(), vec_slice);
+      Kokkos::deep_copy(vec_dev, vec_slice);
+      sol_kv.push_back(vec_dev);
+    }
+  }
+
+  for (size_t surface_index = 0;
+       surface_index < lumped_port_parameter_surface_groups.size();
+       ++surface_index) {
+    const size_t block =
+      lumped_port_parameter_surface_groups[surface_index].block;
+    const size_t group =
+      lumped_port_parameter_surface_groups[surface_index].group;
+    auto boundary_group = assembler->boundary_groups[block][group];
+
+    assembler->wkset[block]->isOnSide = true;
+    assembler->wkset[block]->time = current_time;
+
+    for (size_t set = 0; set < sol_kv.size(); ++set) {
+      assembler->performBoundaryGather(set, block, group, sol_kv[set], 0, 0);
+    }
+    assembler->updateWorksetBoundary(block, group, 0, 0, true);
+
+    auto Ex = assembler->wkset[block]->getSolutionField("E[x]");
+    auto Ey = assembler->wkset[block]->getSolutionField("E[y]");
+    auto Ez = assembler->wkset[block]->getSolutionField("E[z]");
+
+    auto dft =
+      lumped_port_parameter_surface_groups[surface_index].electric_E_dft;
+    auto frequencies = lumped_port_parameters.frequency_device;
+    const ScalarT time = current_time;
+    const ScalarT dt = deltat;
+
+    parallel_for("PostprocessManager lumped port surface DFT",
+                 RangePolicy<AssemblyExec>(0, boundary_group->numElem),
+                 MRHYDE_LAMBDA(const int elem) {
+      for (size_type pt = 0; pt < dft.extent(2); ++pt) {
+        const ScalarT field_x = Ex(elem, pt);
+        const ScalarT field_y = Ey(elem, pt);
+        const ScalarT field_z = Ez(elem, pt);
+
+        for (size_type freq = 0; freq < dft.extent(0); ++freq) {
+          const ScalarT omega_t = 2.0*PI*frequencies[freq]*time;
+          const ScalarT real_scale = dt*cos(omega_t);
+          const ScalarT imag_scale = -dt*sin(omega_t);
+
+          dft(freq, elem, pt, 0, 0) += real_scale*field_x;
+          dft(freq, elem, pt, 1, 0) += real_scale*field_y;
+          dft(freq, elem, pt, 2, 0) += real_scale*field_z;
+          dft(freq, elem, pt, 0, 1) += imag_scale*field_x;
+          dft(freq, elem, pt, 1, 1) += imag_scale*field_y;
+          dft(freq, elem, pt, 2, 1) += imag_scale*field_z;
+        }
+      }
+    });
+  }
+
+  for (size_t port_group_index = 0;
+       port_group_index < lumped_port_parameter_port_groups.size();
+       ++port_group_index) {
+    const size_t block =
+      lumped_port_parameter_port_groups[port_group_index].block;
+    const size_t group =
+      lumped_port_parameter_port_groups[port_group_index].group;
+    auto element_group = assembler->groups[block][group];
+
+    assembler->wkset[block]->isOnSide = false;
+    assembler->wkset[block]->time = current_time;
+
+    for (size_t set = 0; set < sol_kv.size(); ++set) {
+      assembler->performGather(set, block, group, sol_kv[set], 0, 0);
+    }
+    assembler->updateWorkset(block, group, 0, 0, true);
+
+    auto Ex = assembler->wkset[block]->getSolutionField("E[x]");
+    auto Ey = assembler->wkset[block]->getSolutionField("E[y]");
+    auto Ez = assembler->wkset[block]->getSolutionField("E[z]");
+
+    auto dft =
+      lumped_port_parameter_port_groups[port_group_index].electric_E_dft;
+    auto frequencies = lumped_port_parameters.frequency_device;
+    const ScalarT time = current_time;
+    const ScalarT dt = deltat;
+
+    parallel_for("PostprocessManager lumped port electric-field DFT",
+                 RangePolicy<AssemblyExec>(0, element_group->numElem),
+                 MRHYDE_LAMBDA(const int elem) {
+      for (size_type pt = 0; pt < dft.extent(2); ++pt) {
+        const ScalarT field_x = Ex(elem, pt);
+        const ScalarT field_y = Ey(elem, pt);
+        const ScalarT field_z = Ez(elem, pt);
+
+        for (size_type freq = 0; freq < dft.extent(0); ++freq) {
+          const ScalarT omega_t = 2.0*PI*frequencies[freq]*time;
+          const ScalarT real_scale = dt*cos(omega_t);
+          const ScalarT imag_scale = -dt*sin(omega_t);
+
+          dft(freq, elem, pt, 0, 0) += real_scale*field_x;
+          dft(freq, elem, pt, 1, 0) += real_scale*field_y;
+          dft(freq, elem, pt, 2, 0) += real_scale*field_z;
+          dft(freq, elem, pt, 0, 1) += imag_scale*field_x;
+          dft(freq, elem, pt, 1, 1) += imag_scale*field_y;
+          dft(freq, elem, pt, 2, 1) += imag_scale*field_z;
+        }
+      }
+    });
+  }
+
+  for (size_t surface_index = 0;
+       surface_index < lumped_port_parameter_surface_groups.size();
+       ++surface_index) {
+    assembler->wkset[
+      lumped_port_parameter_surface_groups[surface_index].block]->isOnSide =
+      false;
+  }
+
+  for (size_t port_index = 0;
+       port_index < lumped_port_parameter_ports.size(); ++port_index) {
+    const NF2FFPort & port = lumped_port_parameter_ports[port_index];
+    const ScalarT u = current_time - port.offset;
+    const ScalarT a = u/port.tau;
+    const ScalarT envelope = exp(-a*a);
+    ScalarT waveform = 0.0;
+
+    if (port.source_type == "gaussian") {
+      waveform = envelope;
+    }
+    else if (port.source_type == "gaussian_derivative") {
+      waveform = -2.0*a*envelope;
+    }
+    else if (port.source_type == "gaussian_sinusoidal") {
+      waveform = envelope*cos(2.0*PI*port.frequency*u);
+    }
+    else if (port.source_type == "sinusoidal") {
+      const ScalarT ramp = (u < 0.0) ? envelope : 1.0;
+      waveform = ramp*cos(2.0*PI*port.frequency*u);
+    }
+    else {
+      TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+                                 "Unknown lumped-port source type.");
+    }
+
+    const ScalarT source_value = port.amplitude*waveform;
+    for (size_t freq = 0;
+         freq < lumped_port_parameters.frequencies.size(); ++freq) {
+      const ScalarT omega_t =
+        2.0*PI*lumped_port_parameters.frequencies[freq]*current_time;
+      lumped_port_parameter_ports[port_index].source_dft[freq] +=
+        std::complex<ScalarT>(deltat*cos(omega_t),
+                              -deltat*sin(omega_t))*source_value;
+    }
+  }
+}
+
+
 // ========================================================================================
 // Write NF2FF data in CSV format.
 // ========================================================================================
@@ -494,13 +685,18 @@ void PostprocessManager<Node>::writeNF2FF()
 
   std::ofstream csv;
   if (Comm->getRank() == 0) {
+    std::filesystem::path filename(nf2ff.output_file);
+    if (filename.extension() != ".csv") {
+      filename += ".csv";
+    }
+
     std::error_code error;
-    std::filesystem::create_directories(nf2ff.directory, error);
+    if (!filename.parent_path().empty()) {
+      std::filesystem::create_directories(filename.parent_path(), error);
+    }
     TEUCHOS_TEST_FOR_EXCEPTION(static_cast<bool>(error), std::runtime_error,
-                               "Could not create NF2FF output directory '"
-                               << nf2ff.directory << "': " << error.message());
-    const std::filesystem::path filename =
-      std::filesystem::path(nf2ff.directory)/(nf2ff.name + ".csv");
+                               "Could not create NF2FF output directory for '"
+                               << filename.string() << "': " << error.message());
     csv.open(filename.string());
     TEUCHOS_TEST_FOR_EXCEPTION(!csv, std::runtime_error,
                                "Could not open NF2FF output file '"
@@ -967,6 +1163,289 @@ void PostprocessManager<Node>::writeNF2FF()
     }
   }
 }
+
+
+// ========================================================================================
+// Write lumped-port parameters in CSV format.
+// ========================================================================================
+
+template <class Node>
+void PostprocessManager<Node>::writeLumpedPortParameters()
+{
+  if (!lumped_port_parameters.save) {
+    return;
+  }
+
+  const ScalarT nan = std::numeric_limits<ScalarT>::quiet_NaN();
+  std::ofstream csv;
+
+  if (Comm->getRank() == 0) {
+    std::filesystem::path filename(lumped_port_parameters.output_file);
+    if (filename.extension() != ".csv") {
+      filename += ".csv";
+    }
+
+    std::error_code error;
+    if (!filename.parent_path().empty()) {
+      std::filesystem::create_directories(filename.parent_path(), error);
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(
+      static_cast<bool>(error), std::runtime_error,
+      "Could not create lumped-port output directory for '"
+      << filename.string() << "': " << error.message());
+
+    csv.open(filename.string());
+    TEUCHOS_TEST_FOR_EXCEPTION(
+      !csv, std::runtime_error,
+      "Could not open lumped-port output file '"
+      << filename.string() << "'.");
+
+    csv << std::setprecision(17);
+    csv << "frequency,port,incident_amplitude,incident_power"
+        << ",S11_real,S11_imag"
+        << ",Zin_real,Zin_imag"
+        << ",Gamma_real,Gamma_imag"
+        << ",VSWR"
+        << ",radiation_efficiency"
+        << ",realized_efficiency\n";
+
+    if (verbosity > 0) {
+      cout << "Writing lumped-port parameter CSV output to "
+           << filename.string() << endl;
+    }
+  }
+
+  const bool have_radiation_surface =
+    lumped_port_parameters.has_radiation_surface;
+  if (have_radiation_surface) {
+    TEUCHOS_TEST_FOR_EXCEPTION(
+      !nf2ff.constants_initialized || nf2ff.eta0 <= 0.0,
+      std::runtime_error,
+      "Lumped port radiation efficiency requires NF2FF radiation constants.");
+  }
+
+  for (size_t freq_index = 0;
+       freq_index < lumped_port_parameters.frequencies.size();
+       ++freq_index) {
+    ScalarT local_radiated_power = 0.0;
+    ScalarT global_radiated_power = 0.0;
+
+    if (have_radiation_surface) {
+      for (size_t surface_index = 0;
+           surface_index < lumped_port_parameter_surface_groups.size();
+           ++surface_index) {
+        const size_t block =
+          lumped_port_parameter_surface_groups[surface_index].block;
+        const size_t group =
+          lumped_port_parameter_surface_groups[surface_index].group;
+        auto boundary_group = assembler->boundary_groups[block][group];
+
+        auto dft_host = create_mirror_view(
+          lumped_port_parameter_surface_groups[surface_index].electric_E_dft);
+        deep_copy(
+          dft_host,
+          lumped_port_parameter_surface_groups[surface_index].electric_E_dft);
+
+        auto wts_host = create_mirror_view(boundary_group->wts);
+        deep_copy(wts_host, boundary_group->wts);
+
+        vector<decltype(create_mirror_view(boundary_group->normals[0]))>
+          normals_host(3);
+        for (int d = 0; d < 3; ++d) {
+          normals_host[d] = create_mirror_view(
+            boundary_group->normals[d]);
+          deep_copy(normals_host[d], boundary_group->normals[d]);
+        }
+
+        for (size_type elem = 0; elem < wts_host.extent(0); ++elem) {
+          for (size_type pt = 0; pt < wts_host.extent(1); ++pt) {
+            const ScalarT nx = normals_host[0](elem, pt);
+            const ScalarT ny = normals_host[1](elem, pt);
+            const ScalarT nz = normals_host[2](elem, pt);
+
+            const ScalarT Exr = dft_host(freq_index, elem, pt, 0, 0);
+            const ScalarT Eyr = dft_host(freq_index, elem, pt, 1, 0);
+            const ScalarT Ezr = dft_host(freq_index, elem, pt, 2, 0);
+            const ScalarT Exi = dft_host(freq_index, elem, pt, 0, 1);
+            const ScalarT Eyi = dft_host(freq_index, elem, pt, 1, 1);
+            const ScalarT Ezi = dft_host(freq_index, elem, pt, 2, 1);
+
+            const ScalarT nxe_r_x = ny*Ezr - nz*Eyr;
+            const ScalarT nxe_r_y = nz*Exr - nx*Ezr;
+            const ScalarT nxe_r_z = nx*Eyr - ny*Exr;
+            const ScalarT nxe_i_x = ny*Ezi - nz*Eyi;
+            const ScalarT nxe_i_y = nz*Exi - nx*Ezi;
+            const ScalarT nxe_i_z = nx*Eyi - ny*Exi;
+
+            local_radiated_power +=
+              wts_host(elem, pt)/nf2ff.eta0*
+              (nxe_r_x*nxe_r_x + nxe_r_y*nxe_r_y +
+               nxe_r_z*nxe_r_z + nxe_i_x*nxe_i_x +
+               nxe_i_y*nxe_i_y + nxe_i_z*nxe_i_z);
+          }
+        }
+      }
+
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                         &local_radiated_power, &global_radiated_power);
+    }
+
+    Teuchos::Array<ScalarT> local_port_values(
+      static_cast<int>(3*lumped_port_parameter_ports.size()), 0.0);
+    Teuchos::Array<ScalarT> global_port_values(
+      static_cast<int>(3*lumped_port_parameter_ports.size()), 0.0);
+
+    for (size_t port_group_index = 0;
+         port_group_index < lumped_port_parameter_port_groups.size();
+         ++port_group_index) {
+      const size_t port_index =
+        lumped_port_parameter_port_groups[port_group_index].port;
+      const size_t block =
+        lumped_port_parameter_port_groups[port_group_index].block;
+      const size_t group =
+        lumped_port_parameter_port_groups[port_group_index].group;
+      const NF2FFPort & port = lumped_port_parameter_ports[port_index];
+
+      auto dft_host = create_mirror_view(
+        lumped_port_parameter_port_groups[port_group_index].electric_E_dft);
+      deep_copy(
+        dft_host,
+        lumped_port_parameter_port_groups[port_group_index].electric_E_dft);
+
+      auto wts = assembler->groups[block][group]->getWts();
+      auto wts_host = create_mirror_view(wts);
+      deep_copy(wts_host, wts);
+
+      for (size_type elem = 0; elem < wts_host.extent(0); ++elem) {
+        for (size_type pt = 0; pt < wts_host.extent(1); ++pt) {
+          const ScalarT Exr = dft_host(freq_index, elem, pt, 0, 0);
+          const ScalarT Eyr = dft_host(freq_index, elem, pt, 1, 0);
+          const ScalarT Ezr = dft_host(freq_index, elem, pt, 2, 0);
+          const ScalarT Exi = dft_host(freq_index, elem, pt, 0, 1);
+          const ScalarT Eyi = dft_host(freq_index, elem, pt, 1, 1);
+          const ScalarT Ezi = dft_host(freq_index, elem, pt, 2, 1);
+
+          const ScalarT Epr =
+            port.polarization_x*Exr +
+            port.polarization_y*Eyr +
+            port.polarization_z*Ezr;
+          const ScalarT Epi =
+            port.polarization_x*Exi +
+            port.polarization_y*Eyi +
+            port.polarization_z*Ezi;
+          const ScalarT weight = wts_host(elem, pt);
+
+          local_port_values[3*port_index + 0] += weight*Epr;
+          local_port_values[3*port_index + 1] += weight*Epi;
+          local_port_values[3*port_index + 2] +=
+            port.conductivity*weight*(Epr*Epr + Epi*Epi);
+        }
+      }
+    }
+
+    if (!lumped_port_parameter_ports.empty()) {
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM,
+                         static_cast<int>(local_port_values.size()),
+                         &local_port_values[0], &global_port_values[0]);
+    }
+
+    if (Comm->getRank() == 0) {
+      for (size_t port_index = 0;
+           port_index < lumped_port_parameter_ports.size();
+           ++port_index) {
+        const NF2FFPort & port =
+          lumped_port_parameter_ports[port_index];
+        const ScalarT incident_amplitude = port.amplitude;
+        const ScalarT incident_power = incident_amplitude*incident_amplitude;
+        const std::complex<ScalarT> source_dft =
+          port.source_dft[freq_index];
+
+        std::complex<ScalarT> S11(nan, nan);
+        std::complex<ScalarT> Zin(nan, nan);
+        std::complex<ScalarT> Gamma(nan, nan);
+        ScalarT VSWR = nan;
+        ScalarT radiation_efficiency = nan;
+        ScalarT realized_efficiency = nan;
+
+        if (std::norm(source_dft) > 1.0e-30) {
+          ScalarT port_power =
+            global_port_values[3*port_index + 2];
+          const ScalarT tolerance =
+            1.0e-12*std::max(ScalarT(1.0), std::abs(port_power));
+          if (port_power < 0.0 && port_power > -tolerance) {
+            port_power = 0.0;
+          }
+
+          TEUCHOS_TEST_FOR_EXCEPTION(
+            port_power < 0.0, std::runtime_error,
+            "Computed negative lumped-port power. Check the port conductance sign.");
+
+          const std::complex<ScalarT> projection(
+            port.height*global_port_values[3*port_index + 0]/port.volume,
+            port.height*global_port_values[3*port_index + 1]/port.volume);
+          std::complex<ScalarT> phase(1.0, 0.0);
+          if (std::norm(projection) > 1.0e-30) {
+            phase = -projection/std::abs(projection);
+          }
+
+          const std::complex<ScalarT> Iinc =
+            source_dft/std::sqrt(port.impedance);
+          const std::complex<ScalarT> I1 =
+            std::sqrt(port_power/port.impedance)*phase;
+          const std::complex<ScalarT> Iref = I1 - Iinc;
+          S11 = Iref/Iinc;
+
+          const std::complex<ScalarT> one(1.0, 0.0);
+          const std::complex<ScalarT> zin_denominator = one - S11;
+          if (std::norm(zin_denominator) > 1.0e-30) {
+            Zin = port.impedance*(one + S11)/zin_denominator;
+            const std::complex<ScalarT> gamma_denominator =
+              Zin + port.impedance;
+            if (std::norm(gamma_denominator) > 1.0e-30) {
+              Gamma = (Zin - port.impedance)/gamma_denominator;
+              const ScalarT gamma_magnitude = std::abs(Gamma);
+              VSWR = (gamma_magnitude < 1.0) ?
+                (1.0 + gamma_magnitude)/(1.0 - gamma_magnitude) :
+                std::numeric_limits<ScalarT>::infinity();
+            }
+          }
+
+          if (have_radiation_surface) {
+            const ScalarT source_magnitude_squared =
+              std::norm(source_dft);
+            const ScalarT one_minus_s11 = 1.0 - std::norm(S11);
+            const ScalarT normalized_radiated_power =
+              global_radiated_power*incident_power/
+              source_magnitude_squared;
+
+            if (incident_power > 1.0e-30) {
+              realized_efficiency =
+                normalized_radiated_power/incident_power;
+            }
+            if (one_minus_s11 > 1.0e-30) {
+              radiation_efficiency =
+                normalized_radiated_power/
+                (incident_power*one_minus_s11);
+            }
+          }
+        }
+
+        csv << lumped_port_parameters.frequencies[freq_index]
+            << ',' << port_index
+            << ',' << incident_amplitude
+            << ',' << incident_power
+            << ',' << S11.real() << ',' << S11.imag()
+            << ',' << Zin.real() << ',' << Zin.imag()
+            << ',' << Gamma.real() << ',' << Gamma.imag()
+            << ',' << VSWR
+            << ',' << radiation_efficiency
+            << ',' << realized_efficiency
+            << '\n';
+      }
+    }
+  }
+}
+
 
 template <class Node>
 void PostprocessManager<Node>::report()
@@ -1821,6 +2300,9 @@ void PostprocessManager<Node>::report()
 
     if (nf2ff.save) {
         this->writeNF2FF();
+    }
+    if (lumped_port_parameters.save) {
+        this->writeLumpedPortParameters();
     }
 }
 

@@ -266,6 +266,18 @@ public:
    * @brief Writes NF2FF data to the configured CSV file.
    */
   void writeNF2FF();
+
+  /**
+   * @brief Accumulates electric-field DFT data used by lumped-port parameters.
+   */
+  void accumulateLumpedPortParameters(vector<vector_RCP> & current_soln,
+                                      const ScalarT & current_time,
+                                      const ScalarT & deltat);
+
+  /**
+   * @brief Writes lumped-port parameters to the configured CSV file.
+   */
+  void writeLumpedPortParameters();
   
   // ========================================================================================
   // ========================================================================================
@@ -777,12 +789,35 @@ public:
     Kokkos::View<ScalarT *****, AssemblyDevice> electric_E_dft;
   };
 
+  struct LumpedPortParameterSurfaceGroup {
+    size_t block = 0;
+    size_t group = 0;
+    Kokkos::View<ScalarT *****, AssemblyDevice> electric_E_dft;
+  };
+
+  struct LumpedPortParameterPortGroup {
+    size_t port = 0;
+    size_t block = 0;
+    size_t group = 0;
+    Kokkos::View<ScalarT *****, AssemblyDevice> electric_E_dft;
+  };
+
+  struct LumpedPortParameterSettings {
+    bool save = false;
+    string output_file = "Results/LumpedPort";
+    int nfrequency = 1;
+    ScalarT min_frequency = 0.0;
+    ScalarT max_frequency = 0.0;
+    vector<ScalarT> frequencies;
+    Kokkos::View<ScalarT *, AssemblyDevice> frequency_device;
+    bool has_radiation_surface = false;
+  };
+
   struct NF2FFSettings {
     bool save = false;
     string mode = "scattering";
     string sideset = "abc";
-    string name = "nf2ff";
-    string directory = "Results";
+    string output_file = "Results/nf2ff";
     int nfrequency = 1;
     int ntheta = 1;
     int nphi = 1;
@@ -812,6 +847,11 @@ public:
   vector<NF2FFSurfaceGroup> nf2ff_surface_groups;
   vector<NF2FFPort> nf2ff_ports;
   vector<NF2FFPortGroup> nf2ff_port_groups;
+
+  LumpedPortParameterSettings lumped_port_parameters;
+  vector<NF2FFPort> lumped_port_parameter_ports;
+  vector<LumpedPortParameterSurfaceGroup> lumped_port_parameter_surface_groups;
+  vector<LumpedPortParameterPortGroup> lumped_port_parameter_port_groups;
 
 private:
   
