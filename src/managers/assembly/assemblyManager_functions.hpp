@@ -180,7 +180,7 @@ void AssemblyManager<Node>::configurePlanewaves() {
 
   auto scalarString = [](const ScalarT & value) {
     std::ostringstream stream;
-    stream << std::setprecision(17) << value;
+    stream << std::fixed << std::setprecision(17) << value;
     return stream.str();
   };
 
@@ -515,7 +515,7 @@ void AssemblyManager<Node>::configureLumpedPorts() {
 
   auto scalarString = [](const ScalarT & value) {
     std::ostringstream stream;
-    stream << std::setprecision(17) << value;
+    stream << std::fixed << std::setprecision(17) << value;
     return stream.str();
   };
 
