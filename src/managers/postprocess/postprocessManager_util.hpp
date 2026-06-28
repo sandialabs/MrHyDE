@@ -1177,43 +1177,24 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
   }
 
   const ScalarT nan = std::numeric_limits<ScalarT>::quiet_NaN();
-  std::ofstream csv;
+  const size_t nfrequency = lumped_port_parameters.frequencies.size();
+  const size_t nports = lumped_port_parameter_ports.size();
 
-  if (Comm->getRank() == 0) {
-    std::filesystem::path filename(lumped_port_parameters.output_file);
-    if (filename.extension() != ".csv") {
-      filename += ".csv";
-    }
+  struct LumpedPortResult {
+    ScalarT incident_amplitude;
+    ScalarT incident_power;
+    std::complex<ScalarT> S11;
+    std::complex<ScalarT> Zin;
+    std::complex<ScalarT> Gamma;
+    ScalarT VSWR;
+    ScalarT radiation_efficiency;
+    ScalarT realized_efficiency;
+    ScalarT Q_Z;
+    ScalarT Q_rad;
+  };
 
-    std::error_code error;
-    if (!filename.parent_path().empty()) {
-      std::filesystem::create_directories(filename.parent_path(), error);
-    }
-    TEUCHOS_TEST_FOR_EXCEPTION(
-      static_cast<bool>(error), std::runtime_error,
-      "Could not create lumped-port output directory for '"
-      << filename.string() << "': " << error.message());
-
-    csv.open(filename.string());
-    TEUCHOS_TEST_FOR_EXCEPTION(
-      !csv, std::runtime_error,
-      "Could not open lumped-port output file '"
-      << filename.string() << "'.");
-
-    csv << std::setprecision(17);
-    csv << "frequency,port,incident_amplitude,incident_power"
-        << ",S11_real,S11_imag"
-        << ",Zin_real,Zin_imag"
-        << ",Gamma_real,Gamma_imag"
-        << ",VSWR"
-        << ",radiation_efficiency"
-        << ",realized_efficiency\n";
-
-    if (verbosity > 0) {
-      cout << "Writing lumped-port parameter CSV output to "
-           << filename.string() << endl;
-    }
-  }
+  vector<vector<LumpedPortResult> > results(
+    nfrequency, vector<LumpedPortResult>(nports));
 
   const bool have_radiation_surface =
     lumped_port_parameters.has_radiation_surface;
@@ -1224,9 +1205,7 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
       "Lumped port radiation efficiency requires NF2FF radiation constants.");
   }
 
-  for (size_t freq_index = 0;
-       freq_index < lumped_port_parameters.frequencies.size();
-       ++freq_index) {
+  for (size_t freq_index = 0; freq_index < nfrequency; ++freq_index) {
     ScalarT local_radiated_power = 0.0;
     ScalarT global_radiated_power = 0.0;
 
@@ -1291,9 +1270,9 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
     }
 
     Teuchos::Array<ScalarT> local_port_values(
-      static_cast<int>(3*lumped_port_parameter_ports.size()), 0.0);
+      static_cast<int>(3*nports), 0.0);
     Teuchos::Array<ScalarT> global_port_values(
-      static_cast<int>(3*lumped_port_parameter_ports.size()), 0.0);
+      static_cast<int>(3*nports), 0.0);
 
     for (size_t port_group_index = 0;
          port_group_index < lumped_port_parameter_port_groups.size();
@@ -1343,33 +1322,33 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
       }
     }
 
-    if (!lumped_port_parameter_ports.empty()) {
+    if (nports > 0) {
       Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM,
                          static_cast<int>(local_port_values.size()),
                          &local_port_values[0], &global_port_values[0]);
     }
 
     if (Comm->getRank() == 0) {
-      for (size_t port_index = 0;
-           port_index < lumped_port_parameter_ports.size();
-           ++port_index) {
-        const NF2FFPort & port =
-          lumped_port_parameter_ports[port_index];
-        const ScalarT incident_amplitude = port.amplitude;
-        const ScalarT incident_power = incident_amplitude*incident_amplitude;
+      for (size_t port_index = 0; port_index < nports; ++port_index) {
+        const NF2FFPort & port = lumped_port_parameter_ports[port_index];
+        LumpedPortResult & result = results[freq_index][port_index];
+        result.incident_amplitude = port.amplitude;
+        result.incident_power = result.incident_amplitude*
+                                result.incident_amplitude;
+        result.S11 = std::complex<ScalarT>(nan, nan);
+        result.Zin = std::complex<ScalarT>(nan, nan);
+        result.Gamma = std::complex<ScalarT>(nan, nan);
+        result.VSWR = nan;
+        result.radiation_efficiency = nan;
+        result.realized_efficiency = nan;
+        result.Q_Z = nan;
+        result.Q_rad = nan;
+
         const std::complex<ScalarT> source_dft =
           port.source_dft[freq_index];
 
-        std::complex<ScalarT> S11(nan, nan);
-        std::complex<ScalarT> Zin(nan, nan);
-        std::complex<ScalarT> Gamma(nan, nan);
-        ScalarT VSWR = nan;
-        ScalarT radiation_efficiency = nan;
-        ScalarT realized_efficiency = nan;
-
         if (std::norm(source_dft) > 1.0e-30) {
-          ScalarT port_power =
-            global_port_values[3*port_index + 2];
+          ScalarT port_power = global_port_values[3*port_index + 2];
           const ScalarT tolerance =
             1.0e-12*std::max(ScalarT(1.0), std::abs(port_power));
           if (port_power < 0.0 && port_power > -tolerance) {
@@ -1393,18 +1372,19 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
           const std::complex<ScalarT> I1 =
             std::sqrt(port_power/port.impedance)*phase;
           const std::complex<ScalarT> Iref = I1 - Iinc;
-          S11 = Iref/Iinc;
+          result.S11 = Iref/Iinc;
 
           const std::complex<ScalarT> one(1.0, 0.0);
-          const std::complex<ScalarT> zin_denominator = one - S11;
+          const std::complex<ScalarT> zin_denominator = one - result.S11;
           if (std::norm(zin_denominator) > 1.0e-30) {
-            Zin = port.impedance*(one + S11)/zin_denominator;
+            result.Zin = port.impedance*(one + result.S11)/zin_denominator;
             const std::complex<ScalarT> gamma_denominator =
-              Zin + port.impedance;
+              result.Zin + port.impedance;
             if (std::norm(gamma_denominator) > 1.0e-30) {
-              Gamma = (Zin - port.impedance)/gamma_denominator;
-              const ScalarT gamma_magnitude = std::abs(Gamma);
-              VSWR = (gamma_magnitude < 1.0) ?
+              result.Gamma =
+                (result.Zin - port.impedance)/gamma_denominator;
+              const ScalarT gamma_magnitude = std::abs(result.Gamma);
+              result.VSWR = (gamma_magnitude < 1.0) ?
                 (1.0 + gamma_magnitude)/(1.0 - gamma_magnitude) :
                 std::numeric_limits<ScalarT>::infinity();
             }
@@ -1413,33 +1393,165 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
           if (have_radiation_surface) {
             const ScalarT source_magnitude_squared =
               std::norm(source_dft);
-            const ScalarT one_minus_s11 = 1.0 - std::norm(S11);
+            const ScalarT one_minus_s11 = 1.0 - std::norm(result.S11);
             const ScalarT normalized_radiated_power =
-              global_radiated_power*incident_power/
+              global_radiated_power*result.incident_power/
               source_magnitude_squared;
 
-            if (incident_power > 1.0e-30) {
-              realized_efficiency =
-                normalized_radiated_power/incident_power;
+            if (result.incident_power > 1.0e-30) {
+              result.realized_efficiency =
+                normalized_radiated_power/result.incident_power;
             }
             if (one_minus_s11 > 1.0e-30) {
-              radiation_efficiency =
+              result.radiation_efficiency =
                 normalized_radiated_power/
-                (incident_power*one_minus_s11);
+                (result.incident_power*one_minus_s11);
             }
           }
         }
+      }
+    }
+  }
 
+  if (Comm->getRank() == 0) {
+    for (size_t port_index = 0; port_index < nports; ++port_index) {
+      for (size_t freq_index = 0; freq_index < nfrequency; ++freq_index) {
+        LumpedPortResult & result = results[freq_index][port_index];
+        const std::complex<ScalarT> Zin = result.Zin;
+        const ScalarT resistance = Zin.real();
+        std::complex<ScalarT> dZin_domega(nan, nan);
+
+        if (nfrequency == 2) {
+          const ScalarT omega0 =
+            2.0*PI*lumped_port_parameters.frequencies[0];
+          const ScalarT omega1 =
+            2.0*PI*lumped_port_parameters.frequencies[1];
+          const std::complex<ScalarT> Z0 = results[0][port_index].Zin;
+          const std::complex<ScalarT> Z1 = results[1][port_index].Zin;
+          if (std::isfinite(Z0.real()) && std::isfinite(Z0.imag()) &&
+              std::isfinite(Z1.real()) && std::isfinite(Z1.imag()) &&
+              std::abs(omega1 - omega0) > 1.0e-30) {
+            dZin_domega = (Z1 - Z0)/(omega1 - omega0);
+          }
+        }
+        else if (nfrequency >= 3) {
+          size_t i0 = 0;
+          size_t i1 = 1;
+          size_t i2 = 2;
+          if (freq_index > 0 && freq_index + 1 < nfrequency) {
+            i0 = freq_index - 1;
+            i1 = freq_index;
+            i2 = freq_index + 1;
+          }
+          else if (freq_index + 1 == nfrequency) {
+            i0 = nfrequency - 3;
+            i1 = nfrequency - 2;
+            i2 = nfrequency - 1;
+          }
+
+          const ScalarT omega0 =
+            2.0*PI*lumped_port_parameters.frequencies[i0];
+          const ScalarT omega1 =
+            2.0*PI*lumped_port_parameters.frequencies[i1];
+          const ScalarT omega2 =
+            2.0*PI*lumped_port_parameters.frequencies[i2];
+          const std::complex<ScalarT> Z0 = results[i0][port_index].Zin;
+          const std::complex<ScalarT> Z1 = results[i1][port_index].Zin;
+          const std::complex<ScalarT> Z2 = results[i2][port_index].Zin;
+          const ScalarT denominator0 =
+            (omega0 - omega1)*(omega0 - omega2);
+          const ScalarT denominator1 =
+            (omega1 - omega0)*(omega1 - omega2);
+          const ScalarT denominator2 =
+            (omega2 - omega0)*(omega2 - omega1);
+
+          if (std::isfinite(Z0.real()) && std::isfinite(Z0.imag()) &&
+              std::isfinite(Z1.real()) && std::isfinite(Z1.imag()) &&
+              std::isfinite(Z2.real()) && std::isfinite(Z2.imag()) &&
+              std::abs(denominator0) > 1.0e-30 &&
+              std::abs(denominator1) > 1.0e-30 &&
+              std::abs(denominator2) > 1.0e-30) {
+            const ScalarT omega =
+              2.0*PI*lumped_port_parameters.frequencies[freq_index];
+            const ScalarT coefficient0 =
+              (2.0*omega - omega1 - omega2)/denominator0;
+            const ScalarT coefficient1 =
+              (2.0*omega - omega0 - omega2)/denominator1;
+            const ScalarT coefficient2 =
+              (2.0*omega - omega0 - omega1)/denominator2;
+            dZin_domega = coefficient0*Z0 + coefficient1*Z1 +
+                           coefficient2*Z2;
+          }
+        }
+
+        const ScalarT omega =
+          2.0*PI*lumped_port_parameters.frequencies[freq_index];
+        if (std::isfinite(resistance) && resistance > 1.0e-30 &&
+            std::isfinite(dZin_domega.real()) &&
+            std::isfinite(dZin_domega.imag())) {
+          result.Q_Z = omega*std::abs(dZin_domega)/(2.0*resistance);
+        }
+
+        if (std::isfinite(result.Q_Z) &&
+            std::isfinite(result.radiation_efficiency) &&
+            result.radiation_efficiency > 1.0e-30) {
+          result.Q_rad = result.Q_Z/result.radiation_efficiency;
+        }
+      }
+    }
+
+    std::ofstream csv;
+    std::filesystem::path filename(lumped_port_parameters.output_file);
+    if (filename.extension() != ".csv") {
+      filename += ".csv";
+    }
+
+    std::error_code error;
+    if (!filename.parent_path().empty()) {
+      std::filesystem::create_directories(filename.parent_path(), error);
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(
+      static_cast<bool>(error), std::runtime_error,
+      "Could not create lumped-port output directory for '"
+      << filename.string() << "': " << error.message());
+
+    csv.open(filename.string());
+    TEUCHOS_TEST_FOR_EXCEPTION(
+      !csv, std::runtime_error,
+      "Could not open lumped-port output file '"
+      << filename.string() << "'.");
+
+    csv << std::setprecision(17);
+    csv << "frequency,port,incident_amplitude,incident_power"
+        << ",S11_real,S11_imag"
+        << ",Zin_real,Zin_imag"
+        << ",Gamma_real,Gamma_imag"
+        << ",VSWR"
+        << ",radiation_efficiency"
+        << ",realized_efficiency"
+        << ",Q_Z"
+        << ",Q_rad\n";
+
+    if (verbosity > 0) {
+      cout << "Writing lumped-port parameter CSV output to "
+           << filename.string() << endl;
+    }
+
+    for (size_t freq_index = 0; freq_index < nfrequency; ++freq_index) {
+      for (size_t port_index = 0; port_index < nports; ++port_index) {
+        const LumpedPortResult & result = results[freq_index][port_index];
         csv << lumped_port_parameters.frequencies[freq_index]
             << ',' << port_index
-            << ',' << incident_amplitude
-            << ',' << incident_power
-            << ',' << S11.real() << ',' << S11.imag()
-            << ',' << Zin.real() << ',' << Zin.imag()
-            << ',' << Gamma.real() << ',' << Gamma.imag()
-            << ',' << VSWR
-            << ',' << radiation_efficiency
-            << ',' << realized_efficiency
+            << ',' << result.incident_amplitude
+            << ',' << result.incident_power
+            << ',' << result.S11.real() << ',' << result.S11.imag()
+            << ',' << result.Zin.real() << ',' << result.Zin.imag()
+            << ',' << result.Gamma.real() << ',' << result.Gamma.imag()
+            << ',' << result.VSWR
+            << ',' << result.radiation_efficiency
+            << ',' << result.realized_efficiency
+            << ',' << result.Q_Z
+            << ',' << result.Q_rad
             << '\n';
       }
     }

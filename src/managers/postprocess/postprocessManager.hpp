@@ -268,7 +268,7 @@ public:
   void writeNF2FF();
 
   /**
-   * @brief Accumulates electric-field DFT data used by lumped-port parameters.
+   * @brief Accumulates frequency-domain field data used by lumped-port parameters.
    */
   void accumulateLumpedPortParameters(vector<vector_RCP> & current_soln,
                                       const ScalarT & current_time,
@@ -802,6 +802,14 @@ public:
     Kokkos::View<ScalarT *****, AssemblyDevice> electric_E_dft;
   };
 
+  struct LumpedPortParameterVolumeGroup {
+    size_t block = 0;
+    size_t group = 0;
+    Kokkos::View<ScalarT *****, AssemblyDevice> field_dft;
+    Kokkos::View<ScalarT ****, AssemblyDevice> energy_coefficients;
+    bool material_energy_initialized = false;
+  };
+
   struct LumpedPortParameterSettings {
     bool save = false;
     string output_file = "Results/LumpedPort";
@@ -852,6 +860,7 @@ public:
   vector<NF2FFPort> lumped_port_parameter_ports;
   vector<LumpedPortParameterSurfaceGroup> lumped_port_parameter_surface_groups;
   vector<LumpedPortParameterPortGroup> lumped_port_parameter_port_groups;
+  vector<LumpedPortParameterVolumeGroup> lumped_port_parameter_volume_groups;
 
 private:
   

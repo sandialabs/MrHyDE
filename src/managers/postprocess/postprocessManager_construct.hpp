@@ -703,6 +703,7 @@ void PostprocessManager<Node>::completeSetup() {
   if (lumped_port_parameters.save) {
     lumped_port_parameter_surface_groups.clear();
     lumped_port_parameter_port_groups.clear();
+    lumped_port_parameter_volume_groups.clear();
 
     lumped_port_parameters.frequency_device =
       Kokkos::View<ScalarT *, AssemblyDevice>(
@@ -752,6 +753,41 @@ void PostprocessManager<Node>::completeSetup() {
         global_face_count == 0, std::runtime_error,
         "Lumped port parameters could not find NF2FF sideset '"
         << nf2ff.sideset << "' for radiation-efficiency evaluation.");
+
+      int local_volume_element_count = 0;
+      for (size_t block = 0; block < assembler->groups.size(); ++block) {
+        for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp) {
+          auto wts = assembler->groups[block][grp]->getWts();
+          if (wts.extent(0) == 0 || wts.extent(1) == 0) {
+            continue;
+          }
+
+          LumpedPortParameterVolumeGroup volume_group;
+          volume_group.block = block;
+          volume_group.group = grp;
+          volume_group.field_dft =
+            Kokkos::View<ScalarT *****, AssemblyDevice>(
+              "Lumped port parameter volume-field DFT",
+              lumped_port_parameters.nfrequency, wts.extent(0),
+              wts.extent(1), 6, 2);
+          volume_group.energy_coefficients =
+            Kokkos::View<ScalarT ****, AssemblyDevice>(
+              "Lumped port parameter energy coefficients",
+              wts.extent(0), wts.extent(1), 21);
+          Kokkos::deep_copy(volume_group.field_dft, 0.0);
+          Kokkos::deep_copy(volume_group.energy_coefficients, 0.0);
+          lumped_port_parameter_volume_groups.push_back(volume_group);
+          local_volume_element_count += static_cast<int>(wts.extent(0));
+        }
+      }
+
+      int global_volume_element_count = 0;
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                         &local_volume_element_count,
+                         &global_volume_element_count);
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        global_volume_element_count == 0, std::runtime_error,
+        "Lumped port parameters could not find volume quadrature points for field-energy evaluation.");
     }
 
     for (size_t port_index = 0;
