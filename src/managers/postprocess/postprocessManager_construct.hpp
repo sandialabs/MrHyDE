@@ -312,6 +312,8 @@ void PostprocessManager<Node>::setup() {
 
     lumped_port_parameters.save =
       port_parameter_settings.get<bool>("save", false);
+    lumped_port_parameters.save_stored_energy_q =
+      port_parameter_settings.get<bool>("save stored energy Q", false);
     lumped_port_parameters.output_file =
       port_parameter_settings.get<string>(
         "output file", "Results/LumpedPort");
@@ -362,6 +364,12 @@ void PostprocessManager<Node>::setup() {
 
       lumped_port_parameters.has_radiation_surface =
         nf2ff.save && nf2ff.mode == "radiation";
+
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        lumped_port_parameters.save_stored_energy_q &&
+        !lumped_port_parameters.has_radiation_surface,
+        std::runtime_error,
+        "Stored-energy Q requires Postprocess: NF2FF with save: true and mode: radiation.");
     }
   }
 
@@ -754,6 +762,9 @@ void PostprocessManager<Node>::completeSetup() {
         "Lumped port parameters could not find NF2FF sideset '"
         << nf2ff.sideset << "' for radiation-efficiency evaluation.");
 
+    }
+
+    if (lumped_port_parameters.save_stored_energy_q) {
       int local_volume_element_count = 0;
       for (size_t block = 0; block < assembler->groups.size(); ++block) {
         for (size_t grp = 0; grp < assembler->groups[block].size(); ++grp) {
@@ -771,9 +782,9 @@ void PostprocessManager<Node>::completeSetup() {
               lumped_port_parameters.nfrequency, wts.extent(0),
               wts.extent(1), 6, 2);
           volume_group.energy_coefficients =
-            Kokkos::View<ScalarT ****, AssemblyDevice>(
+            Kokkos::View<ScalarT ***, AssemblyDevice>(
               "Lumped port parameter energy coefficients",
-              wts.extent(0), wts.extent(1), 21);
+              wts.extent(0), wts.extent(1), 22);
           Kokkos::deep_copy(volume_group.field_dft, 0.0);
           Kokkos::deep_copy(volume_group.energy_coefficients, 0.0);
           lumped_port_parameter_volume_groups.push_back(volume_group);
@@ -840,6 +851,54 @@ void PostprocessManager<Node>::completeSetup() {
         "Lumped port '"
         << lumped_port_parameter_ports[port_index].name
         << "' does not contain any volume quadrature points.");
+    }
+
+    if (lumped_port_parameters.save_stored_energy_q) {
+      ScalarT local_center_values[4] = {0.0, 0.0, 0.0, 0.0};
+      for (size_t port_group_index = 0;
+           port_group_index < lumped_port_parameter_port_groups.size();
+           ++port_group_index) {
+        const auto & port_group =
+          lumped_port_parameter_port_groups[port_group_index];
+        if (port_group.port != 0) {
+          continue;
+        }
+
+        auto element_group = assembler->groups[port_group.block][port_group.group];
+        auto wts = element_group->getWts();
+        auto wts_host = create_mirror_view(wts);
+        deep_copy(wts_host, wts);
+        auto ip = element_group->getIntegrationPts();
+        vector<decltype(create_mirror_view(ip[0]))> ip_host(3);
+        for (int d = 0; d < 3; ++d) {
+          ip_host[d] = create_mirror_view(ip[d]);
+          deep_copy(ip_host[d], ip[d]);
+        }
+
+        for (size_type elem = 0; elem < wts_host.extent(0); ++elem) {
+          for (size_type pt = 0; pt < wts_host.extent(1); ++pt) {
+            const ScalarT weight = wts_host(elem, pt);
+            local_center_values[0] += weight*ip_host[0](elem, pt);
+            local_center_values[1] += weight*ip_host[1](elem, pt);
+            local_center_values[2] += weight*ip_host[2](elem, pt);
+            local_center_values[3] += weight;
+          }
+        }
+      }
+
+      ScalarT global_center_values[4] = {0.0, 0.0, 0.0, 0.0};
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 4,
+                         local_center_values, global_center_values);
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        global_center_values[3] <= 0.0, std::runtime_error,
+        "Stored-energy Q could not determine the lumped-port center.");
+      const ScalarT inverse_weight = 1.0/global_center_values[3];
+      lumped_port_parameters.radiation_center_x =
+        global_center_values[0]*inverse_weight;
+      lumped_port_parameters.radiation_center_y =
+        global_center_values[1]*inverse_weight;
+      lumped_port_parameters.radiation_center_z =
+        global_center_values[2]*inverse_weight;
     }
   }
 

@@ -806,12 +806,13 @@ public:
     size_t block = 0;
     size_t group = 0;
     Kokkos::View<ScalarT *****, AssemblyDevice> field_dft;
-    Kokkos::View<ScalarT ****, AssemblyDevice> energy_coefficients;
+    Kokkos::View<ScalarT ***, AssemblyDevice> energy_coefficients;
     bool material_energy_initialized = false;
   };
 
   struct LumpedPortParameterSettings {
     bool save = false;
+    bool save_stored_energy_q = false;
     string output_file = "Results/LumpedPort";
     int nfrequency = 1;
     ScalarT min_frequency = 0.0;
@@ -819,6 +820,9 @@ public:
     vector<ScalarT> frequencies;
     Kokkos::View<ScalarT *, AssemblyDevice> frequency_device;
     bool has_radiation_surface = false;
+    ScalarT radiation_center_x = 0.0;
+    ScalarT radiation_center_y = 0.0;
+    ScalarT radiation_center_z = 0.0;
   };
 
   struct NF2FFSettings {
