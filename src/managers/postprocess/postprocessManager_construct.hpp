@@ -131,7 +131,11 @@ void PostprocessManager<Node>::setup() {
       Teuchos::ParameterList & port_settings = port_list.sublist(port_name);
       NF2FFPort port;
       port.name = port_name;
-      port.block_name = port_settings.get<string>("block", "");
+      TEUCHOS_TEST_FOR_EXCEPTION(port_settings.isParameter("block"),
+                                 std::runtime_error,
+                                 "Lumped port '" << port.name
+                                 << "' uses its name as the mesh block and does not accept block.");
+      port.block_name = port_name;
       port.polarization_x =
         port_settings.get<ScalarT>("polarization x", 0.0);
       port.polarization_y =
@@ -147,9 +151,10 @@ void PostprocessManager<Node>::setup() {
         port_settings.get<ScalarT>("conductivity", 0.0);
       port.tau = port_settings.get<ScalarT>("tau", 0.0);
       port.offset = port_settings.get<ScalarT>("time offset", 0.0);
-      port.frequency = port_settings.get<ScalarT>("frequency", 0.0);
+      port.carrier_frequency =
+        port_settings.get<ScalarT>("carrier frequency", 0.0);
       port.source_type =
-        port_settings.get<string>("type", "gaussian_derivative");
+        port_settings.get<string>("type", "gaussian derivative");
       port.source_dft.assign(nfrequency, std::complex<ScalarT>(0.0, 0.0));
 
       TEUCHOS_TEST_FOR_EXCEPTION(port.block_name.empty() ||
@@ -314,6 +319,8 @@ void PostprocessManager<Node>::setup() {
       port_parameter_settings.get<bool>("save", false);
     lumped_port_parameters.save_stored_energy_q =
       port_parameter_settings.get<bool>("save stored energy Q", false);
+    lumped_port_parameters.radiation_sideset =
+      port_parameter_settings.get<string>("radiation sideset", "");
     lumped_port_parameters.output_file =
       port_parameter_settings.get<string>(
         "output file", "Results/LumpedPort");
@@ -363,13 +370,13 @@ void PostprocessManager<Node>::setup() {
                                  "Lumped port parameters require Physics: Lumped ports.");
 
       lumped_port_parameters.has_radiation_surface =
-        nf2ff.save && nf2ff.mode == "radiation";
+        !lumped_port_parameters.radiation_sideset.empty();
 
       TEUCHOS_TEST_FOR_EXCEPTION(
         lumped_port_parameters.save_stored_energy_q &&
         !lumped_port_parameters.has_radiation_surface,
         std::runtime_error,
-        "Stored-energy Q requires Postprocess: NF2FF with save: true and mode: radiation.");
+        "Stored-energy Q requires a Lumped port parameters radiation sideset.");
     }
   }
 
@@ -731,7 +738,7 @@ void PostprocessManager<Node>::completeSetup() {
         for (size_t grp = 0;
              grp < assembler->boundary_groups[block].size(); ++grp) {
           auto boundary_group = assembler->boundary_groups[block][grp];
-          if (boundary_group->sidename != nf2ff.sideset) {
+          if (boundary_group->sidename != lumped_port_parameters.radiation_sideset) {
             continue;
           }
 
@@ -759,8 +766,9 @@ void PostprocessManager<Node>::completeSetup() {
                          &local_face_count, &global_face_count);
       TEUCHOS_TEST_FOR_EXCEPTION(
         global_face_count == 0, std::runtime_error,
-        "Lumped port parameters could not find NF2FF sideset '"
-        << nf2ff.sideset << "' for radiation-efficiency evaluation.");
+        "Lumped port parameters could not find radiation sideset '"
+        << lumped_port_parameters.radiation_sideset
+        << "' for radiation-efficiency evaluation.");
 
     }
 

@@ -434,15 +434,15 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
       if (port.source_type == "gaussian") {
         waveform = envelope;
       }
-      else if (port.source_type == "gaussian_derivative") {
+      else if (port.source_type == "gaussian derivative") {
         waveform = -2.0*a*envelope;
       }
-      else if (port.source_type == "gaussian_sinusoidal") {
-        waveform = envelope*cos(2.0*PI*port.frequency*u);
+      else if (port.source_type == "gaussian sinusoidal") {
+        waveform = envelope*cos(2.0*PI*port.carrier_frequency*u);
       }
       else if (port.source_type == "sinusoidal") {
         const ScalarT ramp = (u < 0.0) ? envelope : 1.0;
-        waveform = ramp*cos(2.0*PI*port.frequency*u);
+        waveform = ramp*cos(2.0*PI*port.carrier_frequency*u);
       }
       else {
         TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
@@ -463,7 +463,7 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
 
 
 // ========================================================================================
-// Accumulate electric-field DFT data used by lumped-port parameters.
+// Accumulate frequency-domain field data used by lumped-port parameters.
 // ========================================================================================
 
 template <class Node>
@@ -499,6 +499,16 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
       sol_kv.push_back(vec_dev);
     }
   }
+
+  auto firstValue = [](auto & value) {
+    auto data = value.getData();
+    auto host = create_mirror_view(data);
+    deep_copy(host, data);
+    return host(0, 0);
+  };
+
+  ScalarT local_radiation_constants[2] = {0.0, 0.0};
+  int local_radiation_constant_count = 0;
 
   for (size_t surface_index = 0;
        surface_index < lumped_port_parameter_surface_groups.size();
@@ -549,6 +559,45 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
         }
       }
     });
+
+    if (!lumped_port_parameters.radiation_constants_initialized &&
+        local_radiation_constant_count == 0 &&
+        boundary_group->numElem > 0) {
+      auto c0 = assembler->function_managers[block]->evaluate(
+        "c0", "side ip");
+      auto eta0 = assembler->function_managers[block]->evaluate(
+        "eta0", "side ip");
+      local_radiation_constants[0] = firstValue(c0);
+      local_radiation_constants[1] = firstValue(eta0);
+      local_radiation_constant_count = 1;
+    }
+  }
+
+  if (lumped_port_parameters.has_radiation_surface &&
+      !lumped_port_parameters.radiation_constants_initialized) {
+    ScalarT global_radiation_constants[2] = {0.0, 0.0};
+    int global_radiation_constant_count = 0;
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 2,
+                       local_radiation_constants,
+                       global_radiation_constants);
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                       &local_radiation_constant_count,
+                       &global_radiation_constant_count);
+
+    if (global_radiation_constant_count > 0) {
+      const ScalarT inverse_count = 1.0/
+        static_cast<ScalarT>(global_radiation_constant_count);
+      lumped_port_parameters.radiation_c0 =
+        global_radiation_constants[0]*inverse_count;
+      lumped_port_parameters.radiation_eta0 =
+        global_radiation_constants[1]*inverse_count;
+      TEUCHOS_TEST_FOR_EXCEPTION(
+        lumped_port_parameters.radiation_c0 <= 0.0 ||
+        lumped_port_parameters.radiation_eta0 <= 0.0,
+        std::runtime_error,
+        "Lumped port radiation sideset requires positive c0 and eta0.");
+      lumped_port_parameters.radiation_constants_initialized = true;
+    }
   }
 
   for (size_t port_group_index = 0;
@@ -778,15 +827,15 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
     if (port.source_type == "gaussian") {
       waveform = envelope;
     }
-    else if (port.source_type == "gaussian_derivative") {
+    else if (port.source_type == "gaussian derivative") {
       waveform = -2.0*a*envelope;
     }
-    else if (port.source_type == "gaussian_sinusoidal") {
-      waveform = envelope*cos(2.0*PI*port.frequency*u);
+    else if (port.source_type == "gaussian sinusoidal") {
+      waveform = envelope*cos(2.0*PI*port.carrier_frequency*u);
     }
     else if (port.source_type == "sinusoidal") {
       const ScalarT ramp = (u < 0.0) ? envelope : 1.0;
-      waveform = ramp*cos(2.0*PI*port.frequency*u);
+      waveform = ramp*cos(2.0*PI*port.carrier_frequency*u);
     }
     else {
       TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
@@ -1360,14 +1409,15 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
     lumped_port_parameters.save_stored_energy_q;
   if (have_radiation_surface) {
     TEUCHOS_TEST_FOR_EXCEPTION(
-      !nf2ff.constants_initialized || nf2ff.eta0 <= 0.0,
+      !lumped_port_parameters.radiation_constants_initialized ||
+      lumped_port_parameters.radiation_eta0 <= 0.0,
       std::runtime_error,
-      "Lumped port radiation efficiency requires NF2FF radiation constants.");
+      "Lumped port radiation sideset constants were not initialized.");
   }
   TEUCHOS_TEST_FOR_EXCEPTION(
     have_stored_energy_q && !have_radiation_surface,
     std::runtime_error,
-    "Stored-energy Q requires an NF2FF radiation surface.");
+    "Stored-energy Q requires a lumped-port radiation sideset.");
 
   for (size_t freq_index = 0; freq_index < nfrequency; ++freq_index) {
     ScalarT local_radiated_power = 0.0;
@@ -1423,7 +1473,7 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
             const ScalarT nxe_i_z = nx*Eyi - ny*Exi;
 
             local_radiated_power +=
-              wts_host(elem, pt)/nf2ff.eta0*
+              wts_host(elem, pt)/lumped_port_parameters.radiation_eta0*
               (nxe_r_x*nxe_r_x + nxe_r_y*nxe_r_y +
                nxe_r_z*nxe_r_z + nxe_i_x*nxe_i_x +
                nxe_i_y*nxe_i_y + nxe_i_z*nxe_i_z);

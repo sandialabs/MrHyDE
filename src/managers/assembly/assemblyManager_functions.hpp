@@ -210,17 +210,6 @@ void AssemblyManager<Node>::configurePlanewaves() {
     for (size_t i = 0; i < source_type.size(); ++i) {
       source_type[i] = static_cast<char>(
         std::tolower(static_cast<unsigned char>(source_type[i])));
-      if (source_type[i] == '-' || source_type[i] == ' ') {
-        source_type[i] = '_';
-      }
-    }
-    if (source_type == "gaussian_derivative" ||
-        source_type == "gaussian_deriv") {
-      return string("gaussian_derivative");
-    }
-    if (source_type == "gaussian_sinusoid" ||
-        source_type == "gaussian_sinusoidal") {
-      return string("gaussian_sinusoidal");
     }
     return source_type;
   };
@@ -283,15 +272,14 @@ void AssemblyManager<Node>::configurePlanewaves() {
       getScalar(source_settings, "min_frequency", 0.0);
     const ScalarT max_frequency =
       getScalar(source_settings, "max_frequency", 0.0);
-    const ScalarT frequency =
-      getScalar(source_settings, "frequency", 0.0);
+    const ScalarT bandwidth = max_frequency - min_frequency;
     const ScalarT offset_multiplier =
       getScalar(source_settings, "offset", 6.0);
     const ScalarT tm_phase_degrees =
       getScalar(source_settings, "tm_phase", 0.0);
     const string source_type =
       normalizeType(source_settings.get<string>("type",
-                                                "gaussian_derivative"));
+                                                "gaussian derivative"));
 
     const ScalarT polarization_norm = std::sqrt(te*te + tm*tm);
     TEUCHOS_TEST_FOR_EXCEPTION(polarization_norm <= 1.0e-30,
@@ -304,39 +292,46 @@ void AssemblyManager<Node>::configurePlanewaves() {
                                << "' requires a nonzero amplitude.");
 
     ScalarT tau = 0.0;
+    ScalarT carrier_frequency = 0.0;
     if (source_type == "gaussian") {
-      TEUCHOS_TEST_FOR_EXCEPTION(max_frequency <= 0.0, std::runtime_error,
-                                 "Gaussian planewave '" << source_name
-                                 << "' requires max_frequency > 0.");
-      tau = std::sqrt(2.3)/(PI*max_frequency);
-    }
-    else if (source_type == "gaussian_derivative") {
-      TEUCHOS_TEST_FOR_EXCEPTION(max_frequency <= 0.0, std::runtime_error,
-                                 "Gaussian-derivative planewave '" << source_name
-                                 << "' requires max_frequency > 0.");
-      tau = std::sqrt(3.815)/(PI*max_frequency);
-    }
-    else if (source_type == "gaussian_sinusoidal") {
       TEUCHOS_TEST_FOR_EXCEPTION(min_frequency < 0.0 ||
-                                 max_frequency <= min_frequency ||
-                                 frequency <= 0.0,
+                                 max_frequency <= min_frequency,
                                  std::runtime_error,
-                                 "Gaussian-sinusoidal planewave '" << source_name
-                                 << "' requires 0 <= min_frequency < max_frequency "
-                                 << "and frequency > 0.");
-      tau = 2.0*std::sqrt(2.3)/(PI*(max_frequency - min_frequency));
+                                 "Gaussian planewave '" << source_name
+                                 << "' requires 0 <= min_frequency < max_frequency.");
+      tau = std::sqrt(2.3)/(PI*bandwidth);
+    }
+    else if (source_type == "gaussian derivative") {
+      TEUCHOS_TEST_FOR_EXCEPTION(min_frequency < 0.0 ||
+                                 max_frequency <= min_frequency,
+                                 std::runtime_error,
+                                 "Gaussian derivative planewave '" << source_name
+                                 << "' requires 0 <= min_frequency < max_frequency.");
+      tau = std::sqrt(3.815)/(PI*bandwidth);
+    }
+    else if (source_type == "gaussian sinusoidal") {
+      TEUCHOS_TEST_FOR_EXCEPTION(min_frequency < 0.0 ||
+                                 max_frequency <= min_frequency,
+                                 std::runtime_error,
+                                 "Gaussian sinusoidal planewave '" << source_name
+                                 << "' requires 0 <= min_frequency < max_frequency.");
+      tau = 2.0*std::sqrt(2.3)/(PI*bandwidth);
+      carrier_frequency = 0.5*(min_frequency + max_frequency);
     }
     else if (source_type == "sinusoidal") {
+      const ScalarT frequency =
+        getScalar(source_settings, "frequency", 0.0);
       TEUCHOS_TEST_FOR_EXCEPTION(frequency <= 0.0, std::runtime_error,
                                  "Sinusoidal planewave '" << source_name
                                  << "' requires frequency > 0.");
       tau = 1.5/frequency;
+      carrier_frequency = frequency;
     }
     else {
       TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
                                  "Planewave '" << source_name
-                                 << "' type must be gaussian, gaussian_derivative, "
-                                 << "gaussian_sinusoidal, or sinusoidal.");
+                                 << "' type must be gaussian, gaussian derivative, "
+                                 << "gaussian sinusoidal, or sinusoidal.");
     }
 
     const ScalarT theta = theta_degrees*PI/180.0;
@@ -378,23 +373,23 @@ void AssemblyManager<Node>::configurePlanewaves() {
       reference_waveform_te = reference_envelope;
       reference_waveform_tm = reference_envelope;
     }
-    else if (source_type == "gaussian_derivative") {
+    else if (source_type == "gaussian derivative") {
       waveform_te = "-2.0*" + a + "*" + envelope;
       waveform_tm = waveform_te;
       reference_waveform_te =
         "-2.0*" + reference_a + "*" + reference_envelope;
       reference_waveform_tm = reference_waveform_te;
     }
-    else if (source_type == "gaussian_sinusoidal") {
+    else if (source_type == "gaussian sinusoidal") {
       waveform_te = envelope + "*cos(2.0*pi*" +
-        scalarString(frequency) + "*" + u + ")";
+        scalarString(carrier_frequency) + "*" + u + ")";
       waveform_tm = envelope + "*cos(2.0*pi*" +
-        scalarString(frequency) + "*" + u + "+" +
+        scalarString(carrier_frequency) + "*" + u + "+" +
         scalarString(tm_phase) + ")";
       reference_waveform_te = reference_envelope + "*cos(2.0*pi*" +
-        scalarString(frequency) + "*" + reference_u + ")";
+        scalarString(carrier_frequency) + "*" + reference_u + ")";
       reference_waveform_tm = reference_envelope + "*cos(2.0*pi*" +
-        scalarString(frequency) + "*" + reference_u + "+" +
+        scalarString(carrier_frequency) + "*" + reference_u + "+" +
         scalarString(tm_phase) + ")";
     }
     else {
@@ -403,16 +398,16 @@ void AssemblyManager<Node>::configurePlanewaves() {
       const string reference_ramp_argument = "(min(" + reference_u +
         ",0.0)/" + scalarString(tau) + ")";
       waveform_te = "exp(-" + ramp_argument + "*" + ramp_argument +
-        ")*cos(2.0*pi*" + scalarString(frequency) + "*" + u + ")";
+        ")*cos(2.0*pi*" + scalarString(carrier_frequency) + "*" + u + ")";
       waveform_tm = "exp(-" + ramp_argument + "*" + ramp_argument +
-        ")*cos(2.0*pi*" + scalarString(frequency) + "*" + u + "+" +
+        ")*cos(2.0*pi*" + scalarString(carrier_frequency) + "*" + u + "+" +
         scalarString(tm_phase) + ")";
       reference_waveform_te = "exp(-" + reference_ramp_argument +
         "*" + reference_ramp_argument + ")*cos(2.0*pi*" +
-        scalarString(frequency) + "*" + reference_u + ")";
+        scalarString(carrier_frequency) + "*" + reference_u + ")";
       reference_waveform_tm = "exp(-" + reference_ramp_argument +
         "*" + reference_ramp_argument + ")*cos(2.0*pi*" +
-        scalarString(frequency) + "*" + reference_u + "+" +
+        scalarString(carrier_frequency) + "*" + reference_u + "+" +
         scalarString(tm_phase) + ")";
     }
 
@@ -552,10 +547,11 @@ void AssemblyManager<Node>::configureLumpedPorts() {
                                "Each Physics: Lumped ports entry must be a sublist.");
 
     Teuchos::ParameterList & port_settings = port_list.sublist(port_name);
-    const string block_name = port_settings.get<string>("block", "");
-
-    TEUCHOS_TEST_FOR_EXCEPTION(block_name.empty(), std::runtime_error,
-                               "Lumped port '" << port_name << "' requires a block name.");
+    TEUCHOS_TEST_FOR_EXCEPTION(port_settings.isParameter("block"),
+                               std::runtime_error,
+                               "Lumped port '" << port_name
+                               << "' uses its name as the mesh block and does not accept block.");
+    const string block_name = port_name;
 
     size_t block = blocknames.size();
     for (size_t b = 0; b < blocknames.size(); ++b) {
@@ -601,26 +597,14 @@ void AssemblyManager<Node>::configureLumpedPorts() {
       port_settings.get<ScalarT>("min_frequency", 0.0);
     const ScalarT max_frequency =
       port_settings.get<ScalarT>("max_frequency", 0.0);
-    const ScalarT frequency =
-      port_settings.get<ScalarT>("frequency", 0.0);
+    const ScalarT bandwidth = max_frequency - min_frequency;
     const ScalarT offset_multiplier =
       port_settings.get<ScalarT>("offset", 6.0);
     string source_type =
-      port_settings.get<string>("type", "gaussian_derivative");
+      port_settings.get<string>("type", "gaussian derivative");
     for (size_t i = 0; i < source_type.size(); ++i) {
       source_type[i] = static_cast<char>(
         std::tolower(static_cast<unsigned char>(source_type[i])));
-      if (source_type[i] == '-' || source_type[i] == ' ') {
-        source_type[i] = '_';
-      }
-    }
-    if (source_type == "gaussian_derivative" ||
-        source_type == "gaussian_deriv") {
-      source_type = "gaussian_derivative";
-    }
-    else if (source_type == "gaussian_sinusoid" ||
-             source_type == "gaussian_sinusoidal") {
-      source_type = "gaussian_sinusoidal";
     }
 
     TEUCHOS_TEST_FOR_EXCEPTION(impedance <= 0.0, std::runtime_error,
@@ -632,39 +616,46 @@ void AssemblyManager<Node>::configureLumpedPorts() {
                                << "' requires a nonzero amplitude.");
 
     ScalarT tau = 0.0;
+    ScalarT carrier_frequency = 0.0;
     if (source_type == "gaussian") {
-      TEUCHOS_TEST_FOR_EXCEPTION(max_frequency <= 0.0, std::runtime_error,
-                                 "Lumped Gaussian source '" << port_name
-                                 << "' requires max_frequency > 0.");
-      tau = std::sqrt(2.3)/(PI*max_frequency);
-    }
-    else if (source_type == "gaussian_derivative") {
-      TEUCHOS_TEST_FOR_EXCEPTION(max_frequency <= 0.0, std::runtime_error,
-                                 "Lumped Gaussian-derivative source '" << port_name
-                                 << "' requires max_frequency > 0.");
-      tau = std::sqrt(3.815)/(PI*max_frequency);
-    }
-    else if (source_type == "gaussian_sinusoidal") {
       TEUCHOS_TEST_FOR_EXCEPTION(min_frequency < 0.0 ||
-                                 max_frequency <= min_frequency ||
-                                 frequency <= 0.0,
+                                 max_frequency <= min_frequency,
                                  std::runtime_error,
-                                 "Lumped Gaussian-sinusoidal source '" << port_name
-                                 << "' requires 0 <= min_frequency < max_frequency "
-                                 << "and frequency > 0.");
-      tau = 2.0*std::sqrt(2.3)/(PI*(max_frequency - min_frequency));
+                                 "Lumped Gaussian source '" << port_name
+                                 << "' requires 0 <= min_frequency < max_frequency.");
+      tau = std::sqrt(2.3)/(PI*bandwidth);
+    }
+    else if (source_type == "gaussian derivative") {
+      TEUCHOS_TEST_FOR_EXCEPTION(min_frequency < 0.0 ||
+                                 max_frequency <= min_frequency,
+                                 std::runtime_error,
+                                 "Lumped Gaussian derivative source '" << port_name
+                                 << "' requires 0 <= min_frequency < max_frequency.");
+      tau = std::sqrt(3.815)/(PI*bandwidth);
+    }
+    else if (source_type == "gaussian sinusoidal") {
+      TEUCHOS_TEST_FOR_EXCEPTION(min_frequency < 0.0 ||
+                                 max_frequency <= min_frequency,
+                                 std::runtime_error,
+                                 "Lumped Gaussian sinusoidal source '" << port_name
+                                 << "' requires 0 <= min_frequency < max_frequency.");
+      tau = 2.0*std::sqrt(2.3)/(PI*bandwidth);
+      carrier_frequency = 0.5*(min_frequency + max_frequency);
     }
     else if (source_type == "sinusoidal") {
+      const ScalarT frequency =
+        port_settings.get<ScalarT>("frequency", 0.0);
       TEUCHOS_TEST_FOR_EXCEPTION(frequency <= 0.0, std::runtime_error,
                                  "Lumped sinusoidal source '" << port_name
                                  << "' requires frequency > 0.");
       tau = 1.5/frequency;
+      carrier_frequency = frequency;
     }
     else {
       TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
                                  "Lumped port '" << port_name
-                                 << "' type must be gaussian, gaussian_derivative, "
-                                 << "gaussian_sinusoidal, or sinusoidal.");
+                                 << "' type must be gaussian, gaussian derivative, "
+                                 << "gaussian sinusoidal, or sinusoidal.");
     }
 
     ScalarT local_volume = 0.0;
@@ -767,6 +758,7 @@ void AssemblyManager<Node>::configureLumpedPorts() {
     port_settings.set("polarization x", px);
     port_settings.set("polarization y", py);
     port_settings.set("polarization z", pz);
+    port_settings.set("carrier frequency", carrier_frequency);
     port_settings.set("type", source_type);
 
     string waveform;
@@ -777,18 +769,19 @@ void AssemblyManager<Node>::configureLumpedPorts() {
     if (source_type == "gaussian") {
       waveform = envelope;
     }
-    else if (source_type == "gaussian_derivative") {
+    else if (source_type == "gaussian derivative") {
       waveform = "-2.0*" + a + "*" + envelope;
     }
-    else if (source_type == "gaussian_sinusoidal") {
-      waveform = envelope + "*cos(2.0*pi*" + scalarString(frequency) +
-                 "*" + u + ")";
+    else if (source_type == "gaussian sinusoidal") {
+      waveform = envelope + "*cos(2.0*pi*" +
+                 scalarString(carrier_frequency) + "*" + u + ")";
     }
     else {
       const string ramp_argument = "(min(" + u + ",0.0)/" +
                                    scalarString(tau) + ")";
       waveform = "exp(-" + ramp_argument + "*" + ramp_argument +
-                 ")*cos(2.0*pi*" + scalarString(frequency) + "*" + u + ")";
+                 ")*cos(2.0*pi*" + scalarString(carrier_frequency) +
+                 "*" + u + ")";
     }
 
     const string scale = "(-2.0*" + scalarString(amplitude) +

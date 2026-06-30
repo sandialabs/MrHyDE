@@ -777,8 +777,8 @@ public:
     ScalarT conductivity = 0.0;
     ScalarT tau = 0.0;
     ScalarT offset = 0.0;
-    ScalarT frequency = 0.0;
-    string source_type = "gaussian_derivative";
+    ScalarT carrier_frequency = 0.0;
+    string source_type = "gaussian derivative";
     vector<std::complex<ScalarT> > source_dft;
   };
 
@@ -819,7 +819,11 @@ public:
     ScalarT max_frequency = 0.0;
     vector<ScalarT> frequencies;
     Kokkos::View<ScalarT *, AssemblyDevice> frequency_device;
+    string radiation_sideset;
     bool has_radiation_surface = false;
+    ScalarT radiation_c0 = 0.0;
+    ScalarT radiation_eta0 = 0.0;
+    bool radiation_constants_initialized = false;
     ScalarT radiation_center_x = 0.0;
     ScalarT radiation_center_y = 0.0;
     ScalarT radiation_center_z = 0.0;
