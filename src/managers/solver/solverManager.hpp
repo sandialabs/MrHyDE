@@ -322,9 +322,10 @@ public:
   vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg; // PCG storage
   vector<vector_RCP> p_pcg_over, q_pcg_over;     // Overlapped PCG storage
   
-  Kokkos::View<ScalarT**,HostDevice> butcher_A; // RK A-matrix
-  Kokkos::View<ScalarT*,HostDevice> butcher_b;  // RK b-vector
-  Kokkos::View<ScalarT*,HostDevice> butcher_c;  // RK c-vector
+  vector<Kokkos::View<ScalarT**,HostDevice> > butcher_A; // RK A-matrix
+  vector<Kokkos::View<ScalarT*,HostDevice> > butcher_b;  // RK b-vector
+  vector<Kokkos::View<ScalarT*,HostDevice> > butcher_c;  // RK c-vector
+  vector<Kokkos::View<ScalarT*,HostDevice> > BDF_wts;  // BDF wts
   
   vector<vector<vector_RCP>> previous_adjoints;     // Adjoint history
   vector<vector<vector_RCP>> previous_incadjoints;  // Incremental adjoint history
