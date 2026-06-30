@@ -969,20 +969,20 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
   if (write_this_step)
   {
 
+#if defined(MrHyDE_ENABLE_HDSA)
+    if (hdsa_solop)
+    {
+      vector_RCP D_soln;
+      hdsa_solop_data[set]->extract(D_soln, 0, current_time);
+      grad->update(1.0, *D_soln, 1.0);
+    }
+    else
+    {
+#endif
+
     for (size_t r = 0; r < objectives.size(); ++r)
     {
       size_t block = objectives[r].block;
-
-#if defined(MrHyDE_ENABLE_HDSA)
-      if (hdsa_solop)
-      {
-        vector_RCP D_soln;
-        hdsa_solop_data[set]->extract(D_soln, 0, current_time);
-        grad->update(1.0, *D_soln, 1.0);
-      }
-      else
-      {
-#endif
 
         if (assembler->type_AD == -1)
         {
@@ -1032,10 +1032,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
                                           assembler->wkset_AD32[block],
                                           assembler->function_managers_AD32[block]);
         }
-#if defined(MrHyDE_ENABLE_HDSA)
       }
-#endif
+#if defined(MrHyDE_ENABLE_HDSA)
     }
+#endif
   }
 #endif
 
