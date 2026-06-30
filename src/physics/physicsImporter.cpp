@@ -23,6 +23,7 @@
 #include "stokes.hpp"
 #include "navierstokes.hpp"
 #include "linearelasticity.hpp"
+#include "elastodynamics.hpp"
 #include "neohookean.hpp"
 #include "helmholtz.hpp"
 #include "maxwells_fp.hpp"
@@ -166,6 +167,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Linear Elasticity
     if (modname == "linearelasticity" || modname == "linear elasticity") {
       modules.push_back(Teuchos::rcp(new linearelasticity<EvalT>(settings, dimension) ) );
+    }
+
+    // Linear Elastodynamics
+    if (modname == "elastodynamics") {
+      modules.push_back(Teuchos::rcp(new elastodynamics<EvalT>(settings, dimension) ) );
     }
 
     // Neo-Hookean hyperelasticity
