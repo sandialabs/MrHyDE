@@ -180,252 +180,260 @@ void SolverManager<Node>::setupDiscretizedParamMass() {
 template<class Node>
 void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, const int & set) {
 
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-
-    // TODO the RK scheme cannot be specified block by block
-
-    auto myTableau = tableau[set];
-
-    // only filling in the non-zero entries
-
-    if (myTableau == "BWE" || myTableau == "DIRK-1,1") {
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",1,1);
-      butcher_A(0,0) = 1.0;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",1);
-      butcher_b(0) = 1.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",1);
-      butcher_c(0) = 1.0;
-    }
-    else if (myTableau == "FWE") {
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",1,1);
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",1);
-      butcher_b(0) = 1.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",1);
-    }
-    else if (myTableau == "CN") {
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",2,2);
-      butcher_A(1,0) = 0.5;
-      butcher_A(1,1) = 0.5;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",2);
-      butcher_b(0) = 0.5;
-      butcher_b(1) = 0.5;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",2);
-      butcher_c(1) = 1.0;
-    }
-    else if (myTableau == "SSPRK-3,3") {
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",3,3);
-      butcher_A(1,0) = 1.0;
-      butcher_A(2,0) = 0.25;
-      butcher_A(2,1) = 0.25;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",3);
-      butcher_b(0) = 1.0/6.0;
-      butcher_b(1) = 1.0/6.0;
-      butcher_b(2) = 2.0/3.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",3);
-      butcher_c(1) = 1.0;
-      butcher_c(2) = 1.0/2.0;
-    }
-    else if (myTableau == "RK-4,4") { // Classical RK4
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",4,4);
-      butcher_A(1,0) = 0.5;
-      butcher_A(2,1) = 0.5;
-      butcher_A(3,2) = 1.0;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",4);
-      butcher_b(0) = 1.0/6.0;
-      butcher_b(1) = 1.0/3.0;
-      butcher_b(2) = 1.0/3.0;
-      butcher_b(3) = 1.0/6.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",4);
-      butcher_c(1) = 1.0/2.0;
-      butcher_c(2) = 1.0/2.0;
-      butcher_c(3) = 1.0;
-    }
-    else if (myTableau == "DIRK-1,2") {
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",1,1);
-      butcher_A(0,0) = 0.5;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",1);
-      butcher_b(0) = 1.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",1);
-      butcher_c(0) = 0.5;
-    }
-    else if (myTableau == "DIRK-2,2") { // 2-stage, 2nd order
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",2,2);
-      butcher_A(0,0) = 1.0/4.0;
-      butcher_A(1,0) = 1.0/2.0;
-      butcher_A(1,1) = 1.0/4.0;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",2);
-      butcher_b(0) = 1.0/2.0;
-      butcher_b(1) = 1.0/2.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",2);
-      butcher_c(0) = 1.0/4.0;
-      butcher_c(1) = 3.0/4.0;
-    }
-    else if (myTableau == "DIRK-2,3") { // 2-stage, 3rd order
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",2,2);
-      butcher_A(0,0) = 1.0/2.0 + std::sqrt(3)/6.0;
-      butcher_A(1,0) = -std::sqrt(3)/3.0;
-      butcher_A(1,1) = 1.0/2.0  + std::sqrt(3)/6.0;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",2);
-      butcher_b(0) = 1.0/2.0;
-      butcher_b(1) = 1.0/2.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",2);
-      butcher_c(0) = 1.0/2.0 + std::sqrt(3)/6.0;;
-      butcher_c(1) = 1.0/2.0 - std::sqrt(3)/6.0;;
-    }
-    else if (myTableau == "DIRK-3,3") { // 3-stage, 3rd order
-      ScalarT p = 0.4358665215;
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",3,3);
-      butcher_A(0,0) = p;
-      butcher_A(1,0) = (1.0-p)/2.0;
-      butcher_A(1,1) = p;
-      butcher_A(2,0) = -3.0*p*p/2.0+4.0*p-1.0/4.0;
-      butcher_A(2,1) = 3.0*p*p/2.0 - 5.0*p + 5.0/4.0;
-      butcher_A(2,2) = p;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",3);
-      butcher_b(0) = -3.0*p*p/2.0+4.0*p-1.0/4.0;
-      butcher_b(1) = 3.0*p*p/2.0-5.0*p+5.0/4.0;
-      butcher_b(2) = p;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",3);
-      butcher_c(0) = p;
-      butcher_c(1) = (1.0+p)/2.0;
-      butcher_c(2) = 1.0;
-    }
-    else if (myTableau == "leap-frog") { // Leap-frog for Maxwells
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",2,2);
-      butcher_A(1,0) = 1.0;
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",2);
-      butcher_b(0) = 1.0;
-      butcher_b(1) = 1.0;
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",2);
-      butcher_c(0) = 0.0;
-      butcher_c(1) = 0.0;
-    }
-    else if (myTableau == "custom") {
-
-      string delimiter = ", ";
-      string line_delimiter = "; ";
-      size_t pos = 0;
-      string b_A = settings->sublist("Solver").get<string>("transient Butcher A","1.0");
-      string b_b = settings->sublist("Solver").get<string>("transient Butcher b","1.0");
-      string b_c = settings->sublist("Solver").get<string>("transient Butcher c","1.0");
-      vector<vector<double>> A_vals;
-      if (b_A.find(delimiter) == string::npos) {
-        vector<double> row;
-        row.push_back(std::stod(b_A));
-        A_vals.push_back(row);
-      }
-      else {
-        string token;
-        size_t linepos = 0;
-        vector<string> lines;
-        while ((linepos = b_A.find(line_delimiter)) != string::npos) {
-          string line = b_A.substr(0,linepos);
-          lines.push_back(line);
-          b_A.erase(0, linepos + line_delimiter.length());
-        }
-        lines.push_back(b_A);
-        for (size_t k=0; k<lines.size(); k++) {
-          string line = lines[k];
-          vector<double> row;
-          while ((pos = line.find(delimiter)) != string::npos) {
-            token = line.substr(0, pos);
-            row.push_back(std::stod(token));
-            line.erase(0, pos + delimiter.length());
-          }
-          row.push_back(std::stod(line));
-          A_vals.push_back(row);
-        }
-      }
-      // Make sure A is square
-      size_t A_nrows = A_vals.size();
-      for (size_t i=0; i<A_nrows; i++) {
-        if (A_vals[i].size() != A_nrows) {
-          TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher A is not a square matrix");
-        }
-      }
-
-      vector<double> b_vals;
-      if (b_b.find(delimiter) == string::npos) {
-        b_vals.push_back(std::stod(b_b));
-      }
-      else {
-        string token;
-        while ((pos = b_b.find(delimiter)) != string::npos) {
-          token = b_b.substr(0, pos);
-          b_vals.push_back(std::stod(token));
-          b_b.erase(0, pos + delimiter.length());
-        }
-        b_vals.push_back(std::stod(b_b));
-      }
-
-      // Make sure size of b matches A
-      if (b_vals.size() != A_nrows) {
-        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher b does not match size of A");
-      }
-
-      vector<double> c_vals;
-      if (b_c.find(delimiter) == string::npos) {
-        c_vals.push_back(std::stod(b_c));
-      }
-      else {
-        string token;
-        while ((pos = b_c.find(delimiter)) != string::npos) {
-          token = b_c.substr(0, pos);
-          c_vals.push_back(std::stod(token));
-          b_c.erase(0, pos + delimiter.length());
-        }
-        c_vals.push_back(std::stod(b_c));
-      }
-
-      // Make sure size of c matches A
-      if (c_vals.size() != A_nrows) {
-        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher c does not match size of A");
-      }
-
-      // Create the views
-      butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",A_nrows,A_nrows);
-      butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",A_nrows);
-      butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",A_nrows);
-      for (size_t i=0; i<A_nrows; i++) {
-        for (size_t j=0; j<A_nrows; j++) {
-          butcher_A(i,j) = A_vals[i][j];
-        }
-        butcher_b(i) = b_vals[i];
-        butcher_c(i) = c_vals[i];
-      }
-
+  
+  auto myTableau = tableau[set];
+  
+  Kokkos::View<ScalarT**,HostDevice> tmp_butcher_A;
+  Kokkos::View<ScalarT*,HostDevice> tmp_butcher_b, tmp_butcher_c;
+  
+  // only filling in the non-zero entries
+  
+  if (myTableau == "BWE" || myTableau == "DIRK-1,1") {
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",1,1);
+    tmp_butcher_A(0,0) = 1.0;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",1);
+    tmp_butcher_b(0) = 1.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",1);
+    tmp_butcher_c(0) = 1.0;
+  }
+  else if (myTableau == "FWE") {
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("butcher_A",1,1);
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("butcher_b",1);
+    tmp_butcher_b(0) = 1.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("butcher_c",1);
+  }
+  else if (myTableau == "CN") {
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",2,2);
+    tmp_butcher_A(1,0) = 0.5;
+    tmp_butcher_A(1,1) = 0.5;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",2);
+    tmp_butcher_b(0) = 0.5;
+    tmp_butcher_b(1) = 0.5;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",2);
+    tmp_butcher_c(1) = 1.0;
+  }
+  else if (myTableau == "SSPRK-3,3") {
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",3,3);
+    tmp_butcher_A(1,0) = 1.0;
+    tmp_butcher_A(2,0) = 0.25;
+    tmp_butcher_A(2,1) = 0.25;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",3);
+    tmp_butcher_b(0) = 1.0/6.0;
+    tmp_butcher_b(1) = 1.0/6.0;
+    tmp_butcher_b(2) = 2.0/3.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",3);
+    tmp_butcher_c(1) = 1.0;
+    tmp_butcher_c(2) = 1.0/2.0;
+  }
+  else if (myTableau == "RK-4,4") { // Classical RK4
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",4,4);
+    tmp_butcher_A(1,0) = 0.5;
+    tmp_butcher_A(2,1) = 0.5;
+    tmp_butcher_A(3,2) = 1.0;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",4);
+    tmp_butcher_b(0) = 1.0/6.0;
+    tmp_butcher_b(1) = 1.0/3.0;
+    tmp_butcher_b(2) = 1.0/3.0;
+    tmp_butcher_b(3) = 1.0/6.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",4);
+    tmp_butcher_c(1) = 1.0/2.0;
+    tmp_butcher_c(2) = 1.0/2.0;
+    tmp_butcher_c(3) = 1.0;
+  }
+  else if (myTableau == "DIRK-1,2") {
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",1,1);
+    tmp_butcher_A(0,0) = 0.5;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",1);
+    tmp_butcher_b(0) = 1.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",1);
+    tmp_butcher_c(0) = 0.5;
+  }
+  else if (myTableau == "DIRK-2,2") { // 2-stage, 2nd order
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",2,2);
+    tmp_butcher_A(0,0) = 1.0/4.0;
+    tmp_butcher_A(1,0) = 1.0/2.0;
+    tmp_butcher_A(1,1) = 1.0/4.0;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",2);
+    tmp_butcher_b(0) = 1.0/2.0;
+    tmp_butcher_b(1) = 1.0/2.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",2);
+    tmp_butcher_c(0) = 1.0/4.0;
+    tmp_butcher_c(1) = 3.0/4.0;
+  }
+  else if (myTableau == "DIRK-2,3") { // 2-stage, 3rd order
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",2,2);
+    tmp_butcher_A(0,0) = 1.0/2.0 + std::sqrt(3)/6.0;
+    tmp_butcher_A(1,0) = -std::sqrt(3)/3.0;
+    tmp_butcher_A(1,1) = 1.0/2.0  + std::sqrt(3)/6.0;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",2);
+    tmp_butcher_b(0) = 1.0/2.0;
+    tmp_butcher_b(1) = 1.0/2.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",2);
+    tmp_butcher_c(0) = 1.0/2.0 + std::sqrt(3)/6.0;;
+    tmp_butcher_c(1) = 1.0/2.0 - std::sqrt(3)/6.0;;
+  }
+  else if (myTableau == "DIRK-3,3") { // 3-stage, 3rd order
+    ScalarT p = 0.4358665215;
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",3,3);
+    tmp_butcher_A(0,0) = p;
+    tmp_butcher_A(1,0) = (1.0-p)/2.0;
+    tmp_butcher_A(1,1) = p;
+    tmp_butcher_A(2,0) = -3.0*p*p/2.0+4.0*p-1.0/4.0;
+    tmp_butcher_A(2,1) = 3.0*p*p/2.0 - 5.0*p + 5.0/4.0;
+    tmp_butcher_A(2,2) = p;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",3);
+    tmp_butcher_b(0) = -3.0*p*p/2.0+4.0*p-1.0/4.0;
+    tmp_butcher_b(1) = 3.0*p*p/2.0-5.0*p+5.0/4.0;
+    tmp_butcher_b(2) = p;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",3);
+    tmp_butcher_c(0) = p;
+    tmp_butcher_c(1) = (1.0+p)/2.0;
+    tmp_butcher_c(2) = 1.0;
+  }
+  else if (myTableau == "leap-frog") { // Leap-frog for Maxwells
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",2,2);
+    tmp_butcher_A(1,0) = 1.0;
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",2);
+    tmp_butcher_b(0) = 1.0;
+    tmp_butcher_b(1) = 1.0;
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",2);
+    tmp_butcher_c(0) = 0.0;
+    tmp_butcher_c(1) = 0.0;
+  }
+  else if (myTableau == "custom") {
+    
+    string delimiter = ", ";
+    string line_delimiter = "; ";
+    size_t pos = 0;
+    string b_A = settings->sublist("Solver").get<string>("transient Butcher A","1.0");
+    string b_b = settings->sublist("Solver").get<string>("transient Butcher b","1.0");
+    string b_c = settings->sublist("Solver").get<string>("transient Butcher c","1.0");
+    vector<vector<double>> A_vals;
+    if (b_A.find(delimiter) == string::npos) {
+      vector<double> row;
+      row.push_back(std::stod(b_A));
+      A_vals.push_back(row);
     }
     else {
-      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized Butcher tableau:" + tableau[set]);
+      string token;
+      size_t linepos = 0;
+      vector<string> lines;
+      while ((linepos = b_A.find(line_delimiter)) != string::npos) {
+        string line = b_A.substr(0,linepos);
+        lines.push_back(line);
+        b_A.erase(0, linepos + line_delimiter.length());
+      }
+      lines.push_back(b_A);
+      for (size_t k=0; k<lines.size(); k++) {
+        string line = lines[k];
+        vector<double> row;
+        while ((pos = line.find(delimiter)) != string::npos) {
+          token = line.substr(0, pos);
+          row.push_back(std::stod(token));
+          line.erase(0, pos + delimiter.length());
+        }
+        row.push_back(std::stod(line));
+        A_vals.push_back(row);
+      }
     }
-    Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A("butcher_A on device",butcher_A.extent(0),butcher_A.extent(1));
-    Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b("butcher_b on device",butcher_b.extent(0));
-    Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_c("butcher_c on device",butcher_c.extent(0));
+    // Make sure A is square
+    size_t A_nrows = A_vals.size();
+    for (size_t i=0; i<A_nrows; i++) {
+      if (A_vals[i].size() != A_nrows) {
+        TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher A is not a square matrix");
+      }
+    }
+    
+    vector<double> b_vals;
+    if (b_b.find(delimiter) == string::npos) {
+      b_vals.push_back(std::stod(b_b));
+    }
+    else {
+      string token;
+      while ((pos = b_b.find(delimiter)) != string::npos) {
+        token = b_b.substr(0, pos);
+        b_vals.push_back(std::stod(token));
+        b_b.erase(0, pos + delimiter.length());
+      }
+      b_vals.push_back(std::stod(b_b));
+    }
+    
+    // Make sure size of b matches A
+    if (b_vals.size() != A_nrows) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher b does not match size of A");
+    }
+    
+    vector<double> c_vals;
+    if (b_c.find(delimiter) == string::npos) {
+      c_vals.push_back(std::stod(b_c));
+    }
+    else {
+      string token;
+      while ((pos = b_c.find(delimiter)) != string::npos) {
+        token = b_c.substr(0, pos);
+        c_vals.push_back(std::stod(token));
+        b_c.erase(0, pos + delimiter.length());
+      }
+      c_vals.push_back(std::stod(b_c));
+    }
+    
+    // Make sure size of c matches A
+    if (c_vals.size() != A_nrows) {
+      TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: custom Butcher c does not match size of A");
+    }
+    
+    // Create the views
+    tmp_butcher_A = Kokkos::View<ScalarT**,HostDevice>("tmp_butcher_A",A_nrows,A_nrows);
+    tmp_butcher_b = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_b",A_nrows);
+    tmp_butcher_c = Kokkos::View<ScalarT*,HostDevice>("tmp_butcher_c",A_nrows);
+    for (size_t i=0; i<A_nrows; i++) {
+      for (size_t j=0; j<A_nrows; j++) {
+        tmp_butcher_A(i,j) = A_vals[i][j];
+      }
+      tmp_butcher_b(i) = b_vals[i];
+      tmp_butcher_c(i) = c_vals[i];
+    }
+    
+  }
+  else {
+    TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: unrecognized Butcher tableau:" + tableau[set]);
+  }
+  Kokkos::View<ScalarT**,AssemblyDevice> dev_butcher_A("butcher_A on device",tmp_butcher_A.extent(0),tmp_butcher_A.extent(1));
+  Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_b("butcher_b on device",tmp_butcher_b.extent(0));
+  Kokkos::View<ScalarT*,AssemblyDevice> dev_butcher_c("butcher_c on device",tmp_butcher_c.extent(0));
   
-    auto tmp_butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
-    auto tmp_butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
-    auto tmp_butcher_c = Kokkos::create_mirror_view(dev_butcher_c);
+  auto tmp2_butcher_A = Kokkos::create_mirror_view(dev_butcher_A);
+  auto tmp2_butcher_b = Kokkos::create_mirror_view(dev_butcher_b);
+  auto tmp2_butcher_c = Kokkos::create_mirror_view(dev_butcher_c);
   
-    Kokkos::deep_copy(tmp_butcher_A, butcher_A);
-    Kokkos::deep_copy(tmp_butcher_b, butcher_b);
-    Kokkos::deep_copy(tmp_butcher_c, butcher_c);
+  Kokkos::deep_copy(tmp2_butcher_A, tmp_butcher_A);
+  Kokkos::deep_copy(tmp2_butcher_b, tmp_butcher_b);
+  Kokkos::deep_copy(tmp2_butcher_c, tmp_butcher_c);
   
-    Kokkos::deep_copy(dev_butcher_A, tmp_butcher_A);
-    Kokkos::deep_copy(dev_butcher_b, tmp_butcher_b);
-    Kokkos::deep_copy(dev_butcher_c, tmp_butcher_c);
-
-    //block_butcher_A.push_back(dev_butcher_A);
-    //block_butcher_b.push_back(dev_butcher_b);
-    //block_butcher_c.push_back(dev_butcher_c);
+  Kokkos::deep_copy(dev_butcher_A, tmp_butcher_A);
+  Kokkos::deep_copy(dev_butcher_b, tmp_butcher_b);
+  Kokkos::deep_copy(dev_butcher_c, tmp_butcher_c);
   
-    int newnumstages = butcher_A.extent(0);
-
-    maxnumstages[set] = std::max(numstages[set],newnumstages);
-    numstages[set] = newnumstages;
+  int newnumstages = tmp_butcher_A.extent(0);
   
+  maxnumstages[set] = std::max(numstages[set],newnumstages);
+  numstages[set] = newnumstages;
+  
+  for (size_t block=0; block<assembler->groups.size(); ++block) {
     assembler->setWorksetButcher(set, block, dev_butcher_A, dev_butcher_b, dev_butcher_c);
-
-  } // end for blocks
+  }
+  
+  if (butcher_A.size() > set) {
+    butcher_A[set] = tmp_butcher_A;
+    butcher_b[set] = tmp_butcher_b;
+    butcher_c[set] = tmp_butcher_c;
+  }
+  else {
+    butcher_A.push_back(tmp_butcher_A);
+    butcher_b.push_back(tmp_butcher_b);
+    butcher_c.push_back(tmp_butcher_c);
+  }
+  
 }
 
 // ========================================================================================
@@ -433,87 +441,90 @@ void SolverManager<Node>::setButcherTableau(const vector<string> & tableau, cons
 
 template<class Node>
 void SolverManager<Node>::setBackwardDifference(const vector<int> & order, const int & set) { // using order as an input to allow for dynamic changes
-
-  // TODO rearrange this? and setButcher...
-
-  for (size_t block=0; block<assembler->groups.size(); ++block) {
-
-    // TODO currently, the BDF wts cannot be specified block by block
-
-    Kokkos::View<ScalarT*,AssemblyDevice> dev_BDF_wts;
-    Kokkos::View<ScalarT*,HostDevice> BDF_wts;
-
-    // Note that these do not include 1/deltat (added in wkset)
-    // Not going to work properly for adaptive time stepping if BDForder>1
-
-    auto myOrder = order[set];
-
-    if (isTransient) {
-
-      if (myOrder == 1) {
-        BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",2);
-        BDF_wts(0) = 1.0;
-        BDF_wts(1) = -1.0;
-      }
-      else if (myOrder == 2) {
-        BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",3);
-        BDF_wts(0) = 1.5;
-        BDF_wts(1) = -2.0;
-        BDF_wts(2) = 0.5;
-      }
-      else if (myOrder == 3) {
-        BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",4);
-        BDF_wts(0) = 11.0/6.0;
-        BDF_wts(1) = -3.0;
-        BDF_wts(2) = 1.5;
-        BDF_wts(3) = -1.0/3.0;
-      }
-      else if (myOrder == 4) {
-        BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",5);
-        BDF_wts(0) = 25.0/12.0;
-        BDF_wts(1) = -4.0;
-        BDF_wts(2) = 3.0;
-        BDF_wts(3) = -4.0/3.0;
-        BDF_wts(4) = 1.0/4.0;
-      }
-      else if (myOrder == 5) {
-        BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",6);
-        BDF_wts(0) = 137.0/60.0;
-        BDF_wts(1) = -5.0;
-        BDF_wts(2) = 5.0;
-        BDF_wts(3) = -10.0/3.0;
-        BDF_wts(4) = 75.0/60.0;
-        BDF_wts(5) = -1.0/5.0;
-      }
-      else if (myOrder == 6) {
-        BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",7);
-        BDF_wts(0) = 147.0/60.0;
-        BDF_wts(1) = -6.0;
-        BDF_wts(2) = 15.0/2.0;
-        BDF_wts(3) = -20.0/3.0;
-        BDF_wts(4) = 225.0/60.0;
-        BDF_wts(5) = -72.0/60.0;
-        BDF_wts(6) = 1.0/6.0;
-      }
-
-      int newnumsteps = BDF_wts.extent(0)-1;
-
-      maxnumsteps[set] = std::max(maxnumsteps[set],newnumsteps);
-      numsteps[set] = newnumsteps;
-
-    }
-    else { // for steady state solves, u_dot = 0.0*u
-      BDF_wts = Kokkos::View<ScalarT*,HostDevice>("BDF weights to compute u_dot",1);
-      BDF_wts(0) = 1.0;
-      numsteps[set] = 1;
-      maxnumsteps[set] = 1;
-    }
-
-    dev_BDF_wts = Kokkos::View<ScalarT*,AssemblyDevice>("BDF weights on device",BDF_wts.extent(0));
-    Kokkos::deep_copy(dev_BDF_wts, BDF_wts);
+  
+  
+  Kokkos::View<ScalarT*,AssemblyDevice> dev_BDF_wts;
+  Kokkos::View<ScalarT*,HostDevice> tmp_BDF_wts;
+  
+  // Note that these do not include 1/deltat (added in wkset)
+  // Not going to work properly for adaptive time stepping if BDForder>1
+  
+  auto myOrder = order[set];
+  
+  if (isTransient) {
     
+    if (myOrder == 1) {
+      tmp_BDF_wts = Kokkos::View<ScalarT*,HostDevice>("tmp_BDF weights to compute u_dot",2);
+      tmp_BDF_wts(0) = 1.0;
+      tmp_BDF_wts(1) = -1.0;
+    }
+    else if (myOrder == 2) {
+      tmp_BDF_wts = Kokkos::View<ScalarT*,HostDevice>("tmp_BDF weights to compute u_dot",3);
+      tmp_BDF_wts(0) = 1.5;
+      tmp_BDF_wts(1) = -2.0;
+      tmp_BDF_wts(2) = 0.5;
+    }
+    else if (myOrder == 3) {
+      tmp_BDF_wts = Kokkos::View<ScalarT*,HostDevice>("tmp_BDF weights to compute u_dot",4);
+      tmp_BDF_wts(0) = 11.0/6.0;
+      tmp_BDF_wts(1) = -3.0;
+      tmp_BDF_wts(2) = 1.5;
+      tmp_BDF_wts(3) = -1.0/3.0;
+    }
+    else if (myOrder == 4) {
+      tmp_BDF_wts = Kokkos::View<ScalarT*,HostDevice>("tmp_BDF weights to compute u_dot",5);
+      tmp_BDF_wts(0) = 25.0/12.0;
+      tmp_BDF_wts(1) = -4.0;
+      tmp_BDF_wts(2) = 3.0;
+      tmp_BDF_wts(3) = -4.0/3.0;
+      tmp_BDF_wts(4) = 1.0/4.0;
+    }
+    else if (myOrder == 5) {
+      tmp_BDF_wts = Kokkos::View<ScalarT*,HostDevice>("tmp_BDF weights to compute u_dot",6);
+      tmp_BDF_wts(0) = 137.0/60.0;
+      tmp_BDF_wts(1) = -5.0;
+      tmp_BDF_wts(2) = 5.0;
+      tmp_BDF_wts(3) = -10.0/3.0;
+      tmp_BDF_wts(4) = 75.0/60.0;
+      tmp_BDF_wts(5) = -1.0/5.0;
+    }
+    else if (myOrder == 6) {
+      tmp_BDF_wts = Kokkos::View<ScalarT*,HostDevice>("tmp_BDF weights to compute u_dot",7);
+      tmp_BDF_wts(0) = 147.0/60.0;
+      tmp_BDF_wts(1) = -6.0;
+      tmp_BDF_wts(2) = 15.0/2.0;
+      tmp_BDF_wts(3) = -20.0/3.0;
+      tmp_BDF_wts(4) = 225.0/60.0;
+      tmp_BDF_wts(5) = -72.0/60.0;
+      tmp_BDF_wts(6) = 1.0/6.0;
+    }
+    
+    int newnumsteps = tmp_BDF_wts.extent(0)-1;
+    
+    maxnumsteps[set] = std::max(maxnumsteps[set],newnumsteps);
+    numsteps[set] = newnumsteps;
+    
+  }
+  else { // for steady state solves, u_dot = 0.0*u
+    tmp_BDF_wts = Kokkos::View<ScalarT*,HostDevice>("tmp_BDF weights to compute u_dot",1);
+    tmp_BDF_wts(0) = 1.0;
+    numsteps[set] = 1;
+    maxnumsteps[set] = 1;
+  }
+  
+  dev_BDF_wts = Kokkos::View<ScalarT*,AssemblyDevice>("BDF weights on device",tmp_BDF_wts.extent(0));
+  Kokkos::deep_copy(dev_BDF_wts, tmp_BDF_wts);
+  
+  for (size_t block=0; block<assembler->groups.size(); ++block) {
     assembler->setWorksetBDF(set, block, dev_BDF_wts);
   } // end loop blocks
+  
+  if (BDF_wts.size() > set) {
+    BDF_wts[set] = tmp_BDF_wts;
+  }
+  else {
+    BDF_wts.push_back(tmp_BDF_wts);
+  }
 }
 
 /////////////////////////////////////////////////////////////////////////////
