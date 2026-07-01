@@ -2107,7 +2107,7 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
                   std::isfinite(result.Zin.imag()) &&
                   result.Zin.real() > 1.0e-30) {
                 result.Q_input_field += std::abs(result.Zin.imag())/
-                  (2.0*omega*result.Zin.real());
+                  (2.0*result.Zin.real());
               }
             }
 
@@ -2122,7 +2122,7 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
                   accepted_power > 1.0e-30) {
                 result.Q_rad_field +=
                   std::abs(result.Zin.imag())/
-                  (2.0*omega*result.Zin.real())*
+                  (2.0*result.Zin.real())*
                   accepted_power/global_radiated_power;
               }
             }
