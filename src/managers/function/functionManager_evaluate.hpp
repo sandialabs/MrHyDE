@@ -950,15 +950,48 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
     });
   }
   else if (op == "power") {
-    parallel_for("funcman evaluate power",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
-                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      size_t dim1 = data.extent(1);
-      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = pow(data(elem,pt),tdata);
+    // For small integer exponents (2-4), use repeated multiply. pow on tiny
+    // bases yielded junk AD derivatives; the unrolled path avoids that
+    // division-based rule while keeping the same result.
+    double pscalar = 0.0;
+    bool useUnrolled = false;
+    if constexpr (std::is_arithmetic<T2>::value) {
+      pscalar = static_cast<double>(tdata);
+      double rounded = std::round(pscalar);
+      if (rounded >= 2.0 && rounded <= 4.0
+          && std::abs(pscalar - rounded) < 1.0e-12) {
+        useUnrolled = true;
+        pscalar = rounded;
       }
-    });
+    }
+    if (useUnrolled) {
+      const int n = static_cast<int>(pscalar);
+      parallel_for("funcman evaluate power int",
+                   TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_t dim1 = data.extent(1);
+        for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+          auto base = data(elem,pt);
+          auto acc = base;
+          for (int j=1; j<n; ++j) {
+            acc = acc * base;
+          }
+          data(elem,pt) = acc;
+        }
+      });
+    }
+    else {
+      parallel_for("funcman evaluate power",
+                   TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_t dim1 = data.extent(1);
+        for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+          data(elem,pt) = pow(data(elem,pt),tdata);
+        }
+      });
+    }
   }
   else if (op == "sin") {
     parallel_for("funcman evaluate sin",
