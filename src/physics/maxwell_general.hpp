@@ -29,9 +29,9 @@ namespace MrHyDE {
 	*     + xi_sigma * H - curl(H) = -eta0 * source_J.
 	*
 	* All material entries are scalar input functions. The compact function
-	* names epsr_*, mur_*, xir_*, zetar_*, xisigma_*, and zetarho_* are used
-	* internally. The corresponding aliases eps_r_*, mu_r_*, xi_r_*,
-	* zeta_r_*, xi_sigma_*, and zeta_rho_* are accepted in the input.
+	* names epsr_*, mur_*, xir_*, zetar_*, xi_sigma_*, and zeta_rho_*
+	* are used internally. The corresponding aliases eps_r_*, mu_r_*, xi_r_*,
+	* zeta_r_*, xisigma_*, and zetarho_* are accepted in the input.
 	*/
 
 	template<class EvalT>
@@ -65,6 +65,8 @@ namespace MrHyDE {
 
 		int Enum, Hnum, spaceDim;
 		bool include_Eeqn, include_Heqn;
+		bool has_constitutive_magnetoelectric_coupling;
+		bool has_dissipative_magnetoelectric_coupling;
 		string incident_source_sideset;
 		vector<string> automatic_planewave_sidesets;
 

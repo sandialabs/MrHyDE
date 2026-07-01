@@ -789,12 +789,22 @@ void PostprocessManager<Node>::completeSetup() {
               "Lumped port parameter volume-field DFT",
               lumped_port_parameters.nfrequency, wts.extent(0),
               wts.extent(1), 6, 2);
-          volume_group.energy_coefficients =
+          volume_group.storage_coefficients =
             Kokkos::View<ScalarT ***, AssemblyDevice>(
-              "Lumped port parameter energy coefficients",
-              wts.extent(0), wts.extent(1), 22);
+              "Lumped port parameter storage coefficients",
+              wts.extent(0), wts.extent(1), 21);
+          volume_group.loss_coefficients =
+            Kokkos::View<ScalarT ***, AssemblyDevice>(
+              "Lumped port parameter loss coefficients",
+              wts.extent(0), wts.extent(1), 21);
+          volume_group.radiation_coefficients =
+            Kokkos::View<ScalarT **, AssemblyDevice>(
+              "Lumped port parameter radiation coefficients",
+              wts.extent(0), wts.extent(1));
           Kokkos::deep_copy(volume_group.field_dft, 0.0);
-          Kokkos::deep_copy(volume_group.energy_coefficients, 0.0);
+          Kokkos::deep_copy(volume_group.storage_coefficients, 0.0);
+          Kokkos::deep_copy(volume_group.loss_coefficients, 0.0);
+          Kokkos::deep_copy(volume_group.radiation_coefficients, 0.0);
           lumped_port_parameter_volume_groups.push_back(volume_group);
           local_volume_element_count += static_cast<int>(wts.extent(0));
         }
@@ -862,51 +872,9 @@ void PostprocessManager<Node>::completeSetup() {
     }
 
     if (lumped_port_parameters.save_stored_energy_q) {
-      ScalarT local_center_values[4] = {0.0, 0.0, 0.0, 0.0};
-      for (size_t port_group_index = 0;
-           port_group_index < lumped_port_parameter_port_groups.size();
-           ++port_group_index) {
-        const auto & port_group =
-          lumped_port_parameter_port_groups[port_group_index];
-        if (port_group.port != 0) {
-          continue;
-        }
-
-        auto element_group = assembler->groups[port_group.block][port_group.group];
-        auto wts = element_group->getWts();
-        auto wts_host = create_mirror_view(wts);
-        deep_copy(wts_host, wts);
-        auto ip = element_group->getIntegrationPts();
-        vector<decltype(create_mirror_view(ip[0]))> ip_host(3);
-        for (int d = 0; d < 3; ++d) {
-          ip_host[d] = create_mirror_view(ip[d]);
-          deep_copy(ip_host[d], ip[d]);
-        }
-
-        for (size_type elem = 0; elem < wts_host.extent(0); ++elem) {
-          for (size_type pt = 0; pt < wts_host.extent(1); ++pt) {
-            const ScalarT weight = wts_host(elem, pt);
-            local_center_values[0] += weight*ip_host[0](elem, pt);
-            local_center_values[1] += weight*ip_host[1](elem, pt);
-            local_center_values[2] += weight*ip_host[2](elem, pt);
-            local_center_values[3] += weight;
-          }
-        }
-      }
-
-      ScalarT global_center_values[4] = {0.0, 0.0, 0.0, 0.0};
-      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 4,
-                         local_center_values, global_center_values);
       TEUCHOS_TEST_FOR_EXCEPTION(
-        global_center_values[3] <= 0.0, std::runtime_error,
-        "Stored-energy Q could not determine the lumped-port center.");
-      const ScalarT inverse_weight = 1.0/global_center_values[3];
-      lumped_port_parameters.radiation_center_x =
-        global_center_values[0]*inverse_weight;
-      lumped_port_parameters.radiation_center_y =
-        global_center_values[1]*inverse_weight;
-      lumped_port_parameters.radiation_center_z =
-        global_center_values[2]*inverse_weight;
+        lumped_port_parameter_ports.size() != 1, std::runtime_error,
+        "Stored-energy Q requires exactly one lumped port per run.");
     }
   }
 

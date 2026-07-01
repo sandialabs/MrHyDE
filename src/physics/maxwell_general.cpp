@@ -9,6 +9,8 @@ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
 #include "maxwell_general.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <stdexcept>
 #include <string>
 
@@ -56,6 +58,8 @@ const int & dimension_)
 
 	include_Eeqn = false;
 	include_Heqn = false;
+	has_constitutive_magnetoelectric_coupling = false;
+	has_dissipative_magnetoelectric_coupling = false;
 
 	if (settings.isParameter("active variables")) {
 		string active = settings.get<string>("active variables");
@@ -100,9 +104,49 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 	auto addTensorEntry = [&](const string & compactName,
 	const string & aliasName,
 	const string & defaultValue) {
-	functionManager->addFunction(compactName,
-	getInput(compactName, aliasName, defaultValue),
-	"ip");
+		const string value = getInput(compactName, aliasName, defaultValue);
+		functionManager->addFunction(compactName, value, "ip");
+		functionManager->addFunction(compactName, value, "side ip");
+	};
+
+	auto isConstantZero = [](const string & value) {
+		const char * begin = value.c_str();
+		while (*begin != '\0' &&
+		       std::isspace(static_cast<unsigned char>(*begin))) {
+			++begin;
+		}
+
+		char * end = nullptr;
+		const double numeric_value = std::strtod(begin, &end);
+		if (end == begin) {
+			return false;
+		}
+		while (*end != '\0' &&
+		       std::isspace(static_cast<unsigned char>(*end))) {
+			++end;
+		}
+		return *end == '\0' && numeric_value == 0.0;
+	};
+
+	auto tensorIsActive = [&](const string & compactName,
+	                          const string & aliasName) {
+		if (!fs.isParameter(compactName) && !fs.isParameter(aliasName)) {
+			return false;
+		}
+		return !isConstantZero(getInput(compactName, aliasName, "0.0"));
+	};
+
+	auto tensorHasActiveEntry = [&](const string & compactPrefix,
+	                                const string & aliasPrefix) {
+		const string entries[9] = {
+			"xx", "xy", "xz", "yx", "yy", "yz", "zx", "zy", "zz"};
+		for (int entry = 0; entry < 9; ++entry) {
+			if (tensorIsActive(compactPrefix + "_" + entries[entry],
+			                   aliasPrefix + "_" + entries[entry])) {
+				return true;
+			}
+		}
+		return false;
 	};
 
 	functionManager->addFunction("c0", fs.get<string>("c0", "1.0"), "ip");
@@ -193,7 +237,7 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 	addTensorEntry("xi_sigma_zx", "xisigma_zx", "0.0");
 	addTensorEntry("xi_sigma_zy", "xisigma_zy", "0.0");
 	addTensorEntry("xi_sigma_zz", "xisigma_zz", "0.0");
-	
+
 	addTensorEntry("zeta_rho_xx", "zetarho_xx", "0.0");
 	addTensorEntry("zeta_rho_xy", "zetarho_xy", "0.0");
 	addTensorEntry("zeta_rho_xz", "zetarho_xz", "0.0");
@@ -203,6 +247,14 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 	addTensorEntry("zeta_rho_zx", "zetarho_zx", "0.0");
 	addTensorEntry("zeta_rho_zy", "zetarho_zy", "0.0");
 	addTensorEntry("zeta_rho_zz", "zetarho_zz", "0.0");
+
+	has_constitutive_magnetoelectric_coupling =
+		tensorHasActiveEntry("xir", "xi_r") ||
+		tensorHasActiveEntry("zetar", "zeta_r");
+	has_dissipative_magnetoelectric_coupling =
+		tensorHasActiveEntry("xi_sigma", "xisigma") ||
+		tensorHasActiveEntry("zeta_rho", "zetarho");
+
 	auto addSideFunction = [&](const string & name, const string & defaultValue) {
 		functionManager->addFunction(name, fs.get<string>(name, defaultValue), "side ip");
 	};
@@ -273,7 +325,6 @@ Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
 		addSideFunction(prefix + "source_te", "0.0");
 		addSideFunction(prefix + "source_tm", "0.0");
 	}
-
 }
 
 // ========================================================================================
@@ -330,26 +381,6 @@ void maxwell_general<EvalT>::volumeResidual() {
 		mur_zy = functionManager->evaluate("mur_zy", "ip");
 		mur_zz = functionManager->evaluate("mur_zz", "ip");
 
-		xir_xx = functionManager->evaluate("xir_xx", "ip");
-		xir_xy = functionManager->evaluate("xir_xy", "ip");
-		xir_xz = functionManager->evaluate("xir_xz", "ip");
-		xir_yx = functionManager->evaluate("xir_yx", "ip");
-		xir_yy = functionManager->evaluate("xir_yy", "ip");
-		xir_yz = functionManager->evaluate("xir_yz", "ip");
-		xir_zx = functionManager->evaluate("xir_zx", "ip");
-		xir_zy = functionManager->evaluate("xir_zy", "ip");
-		xir_zz = functionManager->evaluate("xir_zz", "ip");
-
-		zetar_xx = functionManager->evaluate("zetar_xx", "ip");
-		zetar_xy = functionManager->evaluate("zetar_xy", "ip");
-		zetar_xz = functionManager->evaluate("zetar_xz", "ip");
-		zetar_yx = functionManager->evaluate("zetar_yx", "ip");
-		zetar_yy = functionManager->evaluate("zetar_yy", "ip");
-		zetar_yz = functionManager->evaluate("zetar_yz", "ip");
-		zetar_zx = functionManager->evaluate("zetar_zx", "ip");
-		zetar_zy = functionManager->evaluate("zetar_zy", "ip");
-		zetar_zz = functionManager->evaluate("zetar_zz", "ip");
-
 		sigma_xx = functionManager->evaluate("sigma_xx", "ip");
 		sigma_xy = functionManager->evaluate("sigma_xy", "ip");
 		sigma_xz = functionManager->evaluate("sigma_xz", "ip");
@@ -370,25 +401,49 @@ void maxwell_general<EvalT>::volumeResidual() {
 		rho_zy = functionManager->evaluate("rho_zy", "ip");
 		rho_zz = functionManager->evaluate("rho_zz", "ip");
 
-		xi_sigma_xx = functionManager->evaluate("xi_sigma_xx", "ip");
-		xi_sigma_xy = functionManager->evaluate("xi_sigma_xy", "ip");
-		xi_sigma_xz = functionManager->evaluate("xi_sigma_xz", "ip");
-		xi_sigma_yx = functionManager->evaluate("xi_sigma_yx", "ip");
-		xi_sigma_yy = functionManager->evaluate("xi_sigma_yy", "ip");
-		xi_sigma_yz = functionManager->evaluate("xi_sigma_yz", "ip");
-		xi_sigma_zx = functionManager->evaluate("xi_sigma_zx", "ip");
-		xi_sigma_zy = functionManager->evaluate("xi_sigma_zy", "ip");
-		xi_sigma_zz = functionManager->evaluate("xi_sigma_zz", "ip");
+		if (has_constitutive_magnetoelectric_coupling) {
+			xir_xx = functionManager->evaluate("xir_xx", "ip");
+			xir_xy = functionManager->evaluate("xir_xy", "ip");
+			xir_xz = functionManager->evaluate("xir_xz", "ip");
+			xir_yx = functionManager->evaluate("xir_yx", "ip");
+			xir_yy = functionManager->evaluate("xir_yy", "ip");
+			xir_yz = functionManager->evaluate("xir_yz", "ip");
+			xir_zx = functionManager->evaluate("xir_zx", "ip");
+			xir_zy = functionManager->evaluate("xir_zy", "ip");
+			xir_zz = functionManager->evaluate("xir_zz", "ip");
 
-		zeta_rho_xx = functionManager->evaluate("zeta_rho_xx", "ip");
-		zeta_rho_xy = functionManager->evaluate("zeta_rho_xy", "ip");
-		zeta_rho_xz = functionManager->evaluate("zeta_rho_xz", "ip");
-		zeta_rho_yx = functionManager->evaluate("zeta_rho_yx", "ip");
-		zeta_rho_yy = functionManager->evaluate("zeta_rho_yy", "ip");
-		zeta_rho_yz = functionManager->evaluate("zeta_rho_yz", "ip");
-		zeta_rho_zx = functionManager->evaluate("zeta_rho_zx", "ip");
-		zeta_rho_zy = functionManager->evaluate("zeta_rho_zy", "ip");
-		zeta_rho_zz = functionManager->evaluate("zeta_rho_zz", "ip");
+			zetar_xx = functionManager->evaluate("zetar_xx", "ip");
+			zetar_xy = functionManager->evaluate("zetar_xy", "ip");
+			zetar_xz = functionManager->evaluate("zetar_xz", "ip");
+			zetar_yx = functionManager->evaluate("zetar_yx", "ip");
+			zetar_yy = functionManager->evaluate("zetar_yy", "ip");
+			zetar_yz = functionManager->evaluate("zetar_yz", "ip");
+			zetar_zx = functionManager->evaluate("zetar_zx", "ip");
+			zetar_zy = functionManager->evaluate("zetar_zy", "ip");
+			zetar_zz = functionManager->evaluate("zetar_zz", "ip");
+		}
+
+		if (has_dissipative_magnetoelectric_coupling) {
+			xi_sigma_xx = functionManager->evaluate("xi_sigma_xx", "ip");
+			xi_sigma_xy = functionManager->evaluate("xi_sigma_xy", "ip");
+			xi_sigma_xz = functionManager->evaluate("xi_sigma_xz", "ip");
+			xi_sigma_yx = functionManager->evaluate("xi_sigma_yx", "ip");
+			xi_sigma_yy = functionManager->evaluate("xi_sigma_yy", "ip");
+			xi_sigma_yz = functionManager->evaluate("xi_sigma_yz", "ip");
+			xi_sigma_zx = functionManager->evaluate("xi_sigma_zx", "ip");
+			xi_sigma_zy = functionManager->evaluate("xi_sigma_zy", "ip");
+			xi_sigma_zz = functionManager->evaluate("xi_sigma_zz", "ip");
+
+			zeta_rho_xx = functionManager->evaluate("zeta_rho_xx", "ip");
+			zeta_rho_xy = functionManager->evaluate("zeta_rho_xy", "ip");
+			zeta_rho_xz = functionManager->evaluate("zeta_rho_xz", "ip");
+			zeta_rho_yx = functionManager->evaluate("zeta_rho_yx", "ip");
+			zeta_rho_yy = functionManager->evaluate("zeta_rho_yy", "ip");
+			zeta_rho_yz = functionManager->evaluate("zeta_rho_yz", "ip");
+			zeta_rho_zx = functionManager->evaluate("zeta_rho_zx", "ip");
+			zeta_rho_zy = functionManager->evaluate("zeta_rho_zy", "ip");
+			zeta_rho_zz = functionManager->evaluate("zeta_rho_zz", "ip");
+		}
 	}
 
 	auto dHx_dt = wkset->getSolutionField("H_t[x]");
@@ -424,29 +479,18 @@ void maxwell_general<EvalT>::volumeResidual() {
 			EvalT mur_dHdt_y = mur_yx(elem,pt)*dHx_dt(elem,pt) + mur_yy(elem,pt)*dHy_dt(elem,pt) + mur_yz(elem,pt)*dHz_dt(elem,pt);
 			EvalT mur_dHdt_z = mur_zx(elem,pt)*dHx_dt(elem,pt) + mur_zy(elem,pt)*dHy_dt(elem,pt) + mur_zz(elem,pt)*dHz_dt(elem,pt);
 
-			EvalT zetar_dEdt_x = zetar_xx(elem,pt)*dEx_dt(elem,pt) + zetar_xy(elem,pt)*dEy_dt(elem,pt) + zetar_xz(elem,pt)*dEz_dt(elem,pt);
-			EvalT zetar_dEdt_y = zetar_yx(elem,pt)*dEx_dt(elem,pt) + zetar_yy(elem,pt)*dEy_dt(elem,pt) + zetar_yz(elem,pt)*dEz_dt(elem,pt);
-			EvalT zetar_dEdt_z = zetar_zx(elem,pt)*dEx_dt(elem,pt) + zetar_zy(elem,pt)*dEy_dt(elem,pt) + zetar_zz(elem,pt)*dEz_dt(elem,pt);
-
 			EvalT rho_x = rho_xx(elem,pt)*Hx(elem,pt) + rho_xy(elem,pt)*Hy(elem,pt) + rho_xz(elem,pt)*Hz(elem,pt);
 			EvalT rho_y = rho_yx(elem,pt)*Hx(elem,pt) + rho_yy(elem,pt)*Hy(elem,pt) + rho_yz(elem,pt)*Hz(elem,pt);
 			EvalT rho_z = rho_zx(elem,pt)*Hx(elem,pt) + rho_zy(elem,pt)*Hy(elem,pt) + rho_zz(elem,pt)*Hz(elem,pt);
 
-			EvalT zeta_rho_Ex = zeta_rho_xx(elem,pt)*Ex(elem,pt) + zeta_rho_xy(elem,pt)*Ey(elem,pt) + zeta_rho_xz(elem,pt)*Ez(elem,pt);
-			EvalT zeta_rho_Ey = zeta_rho_yx(elem,pt)*Ex(elem,pt) + zeta_rho_yy(elem,pt)*Ey(elem,pt) + zeta_rho_yz(elem,pt)*Ez(elem,pt);
-			EvalT zeta_rho_Ez = zeta_rho_zx(elem,pt)*Ex(elem,pt) + zeta_rho_zy(elem,pt)*Ey(elem,pt) + zeta_rho_zz(elem,pt)*Ez(elem,pt);
-
-			EvalT fx = (1.0/c0(elem,pt)*(mur_dHdt_x + zetar_dEdt_x)
-			+ 1.0/eta0(elem,pt)*rho_x
-			+ zeta_rho_Ex + curlEx(elem,pt)
+			EvalT fx = (1.0/c0(elem,pt)*mur_dHdt_x
+			+ 1.0/eta0(elem,pt)*rho_x + curlEx(elem,pt)
 			+ magnetic_current_x(elem,pt))*wts(elem,pt);
-			EvalT fy = (1.0/c0(elem,pt)*(mur_dHdt_y + zetar_dEdt_y)
-			+ 1.0/eta0(elem,pt)*rho_y
-			+ zeta_rho_Ey + curlEy(elem,pt)
+			EvalT fy = (1.0/c0(elem,pt)*mur_dHdt_y
+			+ 1.0/eta0(elem,pt)*rho_y + curlEy(elem,pt)
 			+ magnetic_current_y(elem,pt))*wts(elem,pt);
-			EvalT fz = (1.0/c0(elem,pt)*(mur_dHdt_z + zetar_dEdt_z)
-			+ 1.0/eta0(elem,pt)*rho_z
-			+ zeta_rho_Ez + curlEz(elem,pt)
+			EvalT fz = (1.0/c0(elem,pt)*mur_dHdt_z
+			+ 1.0/eta0(elem,pt)*rho_z + curlEz(elem,pt)
 			+ magnetic_current_z(elem,pt))*wts(elem,pt);
 
 			for (size_type dof = 0; dof < basis.extent(1); ++dof) {
@@ -456,6 +500,50 @@ void maxwell_general<EvalT>::volumeResidual() {
 			}
 		}
 		});
+
+		if (has_constitutive_magnetoelectric_coupling) {
+			parallel_for("maxwell_general H constitutive coupling",
+			RangePolicy<AssemblyExec>(0, wkset->numElem),
+			MRHYDE_LAMBDA(const int elem) {
+			for (size_type pt = 0; pt < basis.extent(2); ++pt) {
+				EvalT zetar_dEdt_x = zetar_xx(elem,pt)*dEx_dt(elem,pt) + zetar_xy(elem,pt)*dEy_dt(elem,pt) + zetar_xz(elem,pt)*dEz_dt(elem,pt);
+				EvalT zetar_dEdt_y = zetar_yx(elem,pt)*dEx_dt(elem,pt) + zetar_yy(elem,pt)*dEy_dt(elem,pt) + zetar_yz(elem,pt)*dEz_dt(elem,pt);
+				EvalT zetar_dEdt_z = zetar_zx(elem,pt)*dEx_dt(elem,pt) + zetar_zy(elem,pt)*dEy_dt(elem,pt) + zetar_zz(elem,pt)*dEz_dt(elem,pt);
+
+				const EvalT fx = wts(elem,pt)*zetar_dEdt_x/c0(elem,pt);
+				const EvalT fy = wts(elem,pt)*zetar_dEdt_y/c0(elem,pt);
+				const EvalT fz = wts(elem,pt)*zetar_dEdt_z/c0(elem,pt);
+
+				for (size_type dof = 0; dof < basis.extent(1); ++dof) {
+					res(elem,off(dof)) += fx*basis(elem,dof,pt,0);
+					res(elem,off(dof)) += fy*basis(elem,dof,pt,1);
+					res(elem,off(dof)) += fz*basis(elem,dof,pt,2);
+				}
+			}
+			});
+		}
+
+		if (has_dissipative_magnetoelectric_coupling) {
+			parallel_for("maxwell_general H dissipative coupling",
+			RangePolicy<AssemblyExec>(0, wkset->numElem),
+			MRHYDE_LAMBDA(const int elem) {
+			for (size_type pt = 0; pt < basis.extent(2); ++pt) {
+				EvalT zeta_rho_Ex = zeta_rho_xx(elem,pt)*Ex(elem,pt) + zeta_rho_xy(elem,pt)*Ey(elem,pt) + zeta_rho_xz(elem,pt)*Ez(elem,pt);
+				EvalT zeta_rho_Ey = zeta_rho_yx(elem,pt)*Ex(elem,pt) + zeta_rho_yy(elem,pt)*Ey(elem,pt) + zeta_rho_yz(elem,pt)*Ez(elem,pt);
+				EvalT zeta_rho_Ez = zeta_rho_zx(elem,pt)*Ex(elem,pt) + zeta_rho_zy(elem,pt)*Ey(elem,pt) + zeta_rho_zz(elem,pt)*Ez(elem,pt);
+
+				const EvalT fx = wts(elem,pt)*zeta_rho_Ex;
+				const EvalT fy = wts(elem,pt)*zeta_rho_Ey;
+				const EvalT fz = wts(elem,pt)*zeta_rho_Ez;
+
+				for (size_type dof = 0; dof < basis.extent(1); ++dof) {
+					res(elem,off(dof)) += fx*basis(elem,dof,pt,0);
+					res(elem,off(dof)) += fy*basis(elem,dof,pt,1);
+					res(elem,off(dof)) += fz*basis(elem,dof,pt,2);
+				}
+			}
+			});
+		}
 	}
 
 	if (include_Eeqn) {
@@ -472,26 +560,18 @@ void maxwell_general<EvalT>::volumeResidual() {
 			EvalT epsr_dEdt_y = epsr_yx(elem,pt)*dEx_dt(elem,pt) + epsr_yy(elem,pt)*dEy_dt(elem,pt) + epsr_yz(elem,pt)*dEz_dt(elem,pt);
 			EvalT epsr_dEdt_z = epsr_zx(elem,pt)*dEx_dt(elem,pt) + epsr_zy(elem,pt)*dEy_dt(elem,pt) + epsr_zz(elem,pt)*dEz_dt(elem,pt);
 
-			EvalT xir_dHdt_x = xir_xx(elem,pt)*dHx_dt(elem,pt) + xir_xy(elem,pt)*dHy_dt(elem,pt) + xir_xz(elem,pt)*dHz_dt(elem,pt);
-			EvalT xir_dHdt_y = xir_yx(elem,pt)*dHx_dt(elem,pt) + xir_yy(elem,pt)*dHy_dt(elem,pt) + xir_yz(elem,pt)*dHz_dt(elem,pt);
-			EvalT xir_dHdt_z = xir_zx(elem,pt)*dHx_dt(elem,pt) + xir_zy(elem,pt)*dHy_dt(elem,pt) + xir_zz(elem,pt)*dHz_dt(elem,pt);
-
 			EvalT sigma_Ex = sigma_xx(elem,pt)*Ex(elem,pt) + sigma_xy(elem,pt)*Ey(elem,pt) + sigma_xz(elem,pt)*Ez(elem,pt);
 			EvalT sigma_Ey = sigma_yx(elem,pt)*Ex(elem,pt) + sigma_yy(elem,pt)*Ey(elem,pt) + sigma_yz(elem,pt)*Ez(elem,pt);
 			EvalT sigma_Ez = sigma_zx(elem,pt)*Ex(elem,pt) + sigma_zy(elem,pt)*Ey(elem,pt) + sigma_zz(elem,pt)*Ez(elem,pt);
 
-			EvalT xi_sigma_Hx = xi_sigma_xx(elem,pt)*Hx(elem,pt) + xi_sigma_xy(elem,pt)*Hy(elem,pt) + xi_sigma_xz(elem,pt)*Hz(elem,pt);
-			EvalT xi_sigma_Hy = xi_sigma_yx(elem,pt)*Hx(elem,pt) + xi_sigma_yy(elem,pt)*Hy(elem,pt) + xi_sigma_yz(elem,pt)*Hz(elem,pt);
-			EvalT xi_sigma_Hz = xi_sigma_zx(elem,pt)*Hx(elem,pt) + xi_sigma_zy(elem,pt)*Hy(elem,pt) + xi_sigma_zz(elem,pt)*Hz(elem,pt);
-
-			EvalT fx = (1.0/c0(elem,pt)*(epsr_dEdt_x + xir_dHdt_x)
-			+ eta0(elem,pt)*sigma_Ex + xi_sigma_Hx
+			EvalT fx = (1.0/c0(elem,pt)*epsr_dEdt_x
+			+ eta0(elem,pt)*sigma_Ex
 			+ eta0(elem,pt)*current_x(elem,pt))*wts(elem,pt);
-			EvalT fy = (1.0/c0(elem,pt)*(epsr_dEdt_y + xir_dHdt_y)
-			+ eta0(elem,pt)*sigma_Ey + xi_sigma_Hy
+			EvalT fy = (1.0/c0(elem,pt)*epsr_dEdt_y
+			+ eta0(elem,pt)*sigma_Ey
 			+ eta0(elem,pt)*current_y(elem,pt))*wts(elem,pt);
-			EvalT fz = (1.0/c0(elem,pt)*(epsr_dEdt_z + xir_dHdt_z)
-			+ eta0(elem,pt)*sigma_Ez + xi_sigma_Hz
+			EvalT fz = (1.0/c0(elem,pt)*epsr_dEdt_z
+			+ eta0(elem,pt)*sigma_Ez
 			+ eta0(elem,pt)*current_z(elem,pt))*wts(elem,pt);
 
 			EvalT gx = -Hx(elem,pt)*wts(elem,pt);
@@ -505,6 +585,50 @@ void maxwell_general<EvalT>::volumeResidual() {
 			}
 		}
 		});
+
+		if (has_constitutive_magnetoelectric_coupling) {
+			parallel_for("maxwell_general E constitutive coupling",
+			RangePolicy<AssemblyExec>(0, wkset->numElem),
+			MRHYDE_LAMBDA(const int elem) {
+			for (size_type pt = 0; pt < basis.extent(2); ++pt) {
+				EvalT xir_dHdt_x = xir_xx(elem,pt)*dHx_dt(elem,pt) + xir_xy(elem,pt)*dHy_dt(elem,pt) + xir_xz(elem,pt)*dHz_dt(elem,pt);
+				EvalT xir_dHdt_y = xir_yx(elem,pt)*dHx_dt(elem,pt) + xir_yy(elem,pt)*dHy_dt(elem,pt) + xir_yz(elem,pt)*dHz_dt(elem,pt);
+				EvalT xir_dHdt_z = xir_zx(elem,pt)*dHx_dt(elem,pt) + xir_zy(elem,pt)*dHy_dt(elem,pt) + xir_zz(elem,pt)*dHz_dt(elem,pt);
+
+				const EvalT fx = wts(elem,pt)*xir_dHdt_x/c0(elem,pt);
+				const EvalT fy = wts(elem,pt)*xir_dHdt_y/c0(elem,pt);
+				const EvalT fz = wts(elem,pt)*xir_dHdt_z/c0(elem,pt);
+
+				for (size_type dof = 0; dof < basis.extent(1); ++dof) {
+					res(elem,off(dof)) += fx*basis(elem,dof,pt,0);
+					res(elem,off(dof)) += fy*basis(elem,dof,pt,1);
+					res(elem,off(dof)) += fz*basis(elem,dof,pt,2);
+				}
+			}
+			});
+		}
+
+		if (has_dissipative_magnetoelectric_coupling) {
+			parallel_for("maxwell_general E dissipative coupling",
+			RangePolicy<AssemblyExec>(0, wkset->numElem),
+			MRHYDE_LAMBDA(const int elem) {
+			for (size_type pt = 0; pt < basis.extent(2); ++pt) {
+				EvalT xi_sigma_Hx = xi_sigma_xx(elem,pt)*Hx(elem,pt) + xi_sigma_xy(elem,pt)*Hy(elem,pt) + xi_sigma_xz(elem,pt)*Hz(elem,pt);
+				EvalT xi_sigma_Hy = xi_sigma_yx(elem,pt)*Hx(elem,pt) + xi_sigma_yy(elem,pt)*Hy(elem,pt) + xi_sigma_yz(elem,pt)*Hz(elem,pt);
+				EvalT xi_sigma_Hz = xi_sigma_zx(elem,pt)*Hx(elem,pt) + xi_sigma_zy(elem,pt)*Hy(elem,pt) + xi_sigma_zz(elem,pt)*Hz(elem,pt);
+
+				const EvalT fx = wts(elem,pt)*xi_sigma_Hx;
+				const EvalT fy = wts(elem,pt)*xi_sigma_Hy;
+				const EvalT fz = wts(elem,pt)*xi_sigma_Hz;
+
+				for (size_type dof = 0; dof < basis.extent(1); ++dof) {
+					res(elem,off(dof)) += fx*basis(elem,dof,pt,0);
+					res(elem,off(dof)) += fy*basis(elem,dof,pt,1);
+					res(elem,off(dof)) += fz*basis(elem,dof,pt,2);
+				}
+			}
+			});
+		}
 	}
 }
 

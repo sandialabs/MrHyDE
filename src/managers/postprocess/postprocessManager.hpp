@@ -806,8 +806,10 @@ public:
     size_t block = 0;
     size_t group = 0;
     Kokkos::View<ScalarT *****, AssemblyDevice> field_dft;
-    Kokkos::View<ScalarT ***, AssemblyDevice> energy_coefficients;
-    bool material_energy_initialized = false;
+    Kokkos::View<ScalarT ***, AssemblyDevice> storage_coefficients;
+    Kokkos::View<ScalarT ***, AssemblyDevice> loss_coefficients;
+    Kokkos::View<ScalarT **, AssemblyDevice> radiation_coefficients;
+    bool material_coefficients_initialized = false;
   };
 
   struct LumpedPortParameterSettings {
@@ -824,9 +826,7 @@ public:
     ScalarT radiation_c0 = 0.0;
     ScalarT radiation_eta0 = 0.0;
     bool radiation_constants_initialized = false;
-    ScalarT radiation_center_x = 0.0;
-    ScalarT radiation_center_y = 0.0;
-    ScalarT radiation_center_z = 0.0;
+    bool radiation_materials_initialized = false;
   };
 
   struct NF2FFSettings {

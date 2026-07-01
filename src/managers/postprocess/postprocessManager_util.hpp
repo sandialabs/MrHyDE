@@ -509,6 +509,8 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
 
   ScalarT local_radiation_constants[2] = {0.0, 0.0};
   int local_radiation_constant_count = 0;
+  ScalarT local_radiation_material_error = 0.0;
+  int local_radiation_material_count = 0;
 
   for (size_t surface_index = 0;
        surface_index < lumped_port_parameter_surface_groups.size();
@@ -571,6 +573,219 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
       local_radiation_constants[1] = firstValue(eta0);
       local_radiation_constant_count = 1;
     }
+
+    if (lumped_port_parameters.save_stored_energy_q &&
+        !lumped_port_parameters.radiation_materials_initialized) {
+      auto epsr_xx = assembler->function_managers[block]->evaluate(
+        "epsr_xx", "side ip");
+      auto epsr_xy = assembler->function_managers[block]->evaluate(
+        "epsr_xy", "side ip");
+      auto epsr_xz = assembler->function_managers[block]->evaluate(
+        "epsr_xz", "side ip");
+      auto epsr_yx = assembler->function_managers[block]->evaluate(
+        "epsr_yx", "side ip");
+      auto epsr_yy = assembler->function_managers[block]->evaluate(
+        "epsr_yy", "side ip");
+      auto epsr_yz = assembler->function_managers[block]->evaluate(
+        "epsr_yz", "side ip");
+      auto epsr_zx = assembler->function_managers[block]->evaluate(
+        "epsr_zx", "side ip");
+      auto epsr_zy = assembler->function_managers[block]->evaluate(
+        "epsr_zy", "side ip");
+      auto epsr_zz = assembler->function_managers[block]->evaluate(
+        "epsr_zz", "side ip");
+
+      auto mur_xx = assembler->function_managers[block]->evaluate(
+        "mur_xx", "side ip");
+      auto mur_xy = assembler->function_managers[block]->evaluate(
+        "mur_xy", "side ip");
+      auto mur_xz = assembler->function_managers[block]->evaluate(
+        "mur_xz", "side ip");
+      auto mur_yx = assembler->function_managers[block]->evaluate(
+        "mur_yx", "side ip");
+      auto mur_yy = assembler->function_managers[block]->evaluate(
+        "mur_yy", "side ip");
+      auto mur_yz = assembler->function_managers[block]->evaluate(
+        "mur_yz", "side ip");
+      auto mur_zx = assembler->function_managers[block]->evaluate(
+        "mur_zx", "side ip");
+      auto mur_zy = assembler->function_managers[block]->evaluate(
+        "mur_zy", "side ip");
+      auto mur_zz = assembler->function_managers[block]->evaluate(
+        "mur_zz", "side ip");
+
+      auto xir_xx = assembler->function_managers[block]->evaluate(
+        "xir_xx", "side ip");
+      auto xir_xy = assembler->function_managers[block]->evaluate(
+        "xir_xy", "side ip");
+      auto xir_xz = assembler->function_managers[block]->evaluate(
+        "xir_xz", "side ip");
+      auto xir_yx = assembler->function_managers[block]->evaluate(
+        "xir_yx", "side ip");
+      auto xir_yy = assembler->function_managers[block]->evaluate(
+        "xir_yy", "side ip");
+      auto xir_yz = assembler->function_managers[block]->evaluate(
+        "xir_yz", "side ip");
+      auto xir_zx = assembler->function_managers[block]->evaluate(
+        "xir_zx", "side ip");
+      auto xir_zy = assembler->function_managers[block]->evaluate(
+        "xir_zy", "side ip");
+      auto xir_zz = assembler->function_managers[block]->evaluate(
+        "xir_zz", "side ip");
+
+      auto zetar_xx = assembler->function_managers[block]->evaluate(
+        "zetar_xx", "side ip");
+      auto zetar_xy = assembler->function_managers[block]->evaluate(
+        "zetar_xy", "side ip");
+      auto zetar_xz = assembler->function_managers[block]->evaluate(
+        "zetar_xz", "side ip");
+      auto zetar_yx = assembler->function_managers[block]->evaluate(
+        "zetar_yx", "side ip");
+      auto zetar_yy = assembler->function_managers[block]->evaluate(
+        "zetar_yy", "side ip");
+      auto zetar_yz = assembler->function_managers[block]->evaluate(
+        "zetar_yz", "side ip");
+      auto zetar_zx = assembler->function_managers[block]->evaluate(
+        "zetar_zx", "side ip");
+      auto zetar_zy = assembler->function_managers[block]->evaluate(
+        "zetar_zy", "side ip");
+      auto zetar_zz = assembler->function_managers[block]->evaluate(
+        "zetar_zz", "side ip");
+
+      auto sigma_xx = assembler->function_managers[block]->evaluate(
+        "sigma_xx", "side ip");
+      auto sigma_xy = assembler->function_managers[block]->evaluate(
+        "sigma_xy", "side ip");
+      auto sigma_xz = assembler->function_managers[block]->evaluate(
+        "sigma_xz", "side ip");
+      auto sigma_yx = assembler->function_managers[block]->evaluate(
+        "sigma_yx", "side ip");
+      auto sigma_yy = assembler->function_managers[block]->evaluate(
+        "sigma_yy", "side ip");
+      auto sigma_yz = assembler->function_managers[block]->evaluate(
+        "sigma_yz", "side ip");
+      auto sigma_zx = assembler->function_managers[block]->evaluate(
+        "sigma_zx", "side ip");
+      auto sigma_zy = assembler->function_managers[block]->evaluate(
+        "sigma_zy", "side ip");
+      auto sigma_zz = assembler->function_managers[block]->evaluate(
+        "sigma_zz", "side ip");
+
+      auto rho_xx = assembler->function_managers[block]->evaluate(
+        "rho_xx", "side ip");
+      auto rho_xy = assembler->function_managers[block]->evaluate(
+        "rho_xy", "side ip");
+      auto rho_xz = assembler->function_managers[block]->evaluate(
+        "rho_xz", "side ip");
+      auto rho_yx = assembler->function_managers[block]->evaluate(
+        "rho_yx", "side ip");
+      auto rho_yy = assembler->function_managers[block]->evaluate(
+        "rho_yy", "side ip");
+      auto rho_yz = assembler->function_managers[block]->evaluate(
+        "rho_yz", "side ip");
+      auto rho_zx = assembler->function_managers[block]->evaluate(
+        "rho_zx", "side ip");
+      auto rho_zy = assembler->function_managers[block]->evaluate(
+        "rho_zy", "side ip");
+      auto rho_zz = assembler->function_managers[block]->evaluate(
+        "rho_zz", "side ip");
+
+      auto xi_sigma_xx = assembler->function_managers[block]->evaluate(
+        "xi_sigma_xx", "side ip");
+      auto xi_sigma_xy = assembler->function_managers[block]->evaluate(
+        "xi_sigma_xy", "side ip");
+      auto xi_sigma_xz = assembler->function_managers[block]->evaluate(
+        "xi_sigma_xz", "side ip");
+      auto xi_sigma_yx = assembler->function_managers[block]->evaluate(
+        "xi_sigma_yx", "side ip");
+      auto xi_sigma_yy = assembler->function_managers[block]->evaluate(
+        "xi_sigma_yy", "side ip");
+      auto xi_sigma_yz = assembler->function_managers[block]->evaluate(
+        "xi_sigma_yz", "side ip");
+      auto xi_sigma_zx = assembler->function_managers[block]->evaluate(
+        "xi_sigma_zx", "side ip");
+      auto xi_sigma_zy = assembler->function_managers[block]->evaluate(
+        "xi_sigma_zy", "side ip");
+      auto xi_sigma_zz = assembler->function_managers[block]->evaluate(
+        "xi_sigma_zz", "side ip");
+
+      auto zeta_rho_xx = assembler->function_managers[block]->evaluate(
+        "zeta_rho_xx", "side ip");
+      auto zeta_rho_xy = assembler->function_managers[block]->evaluate(
+        "zeta_rho_xy", "side ip");
+      auto zeta_rho_xz = assembler->function_managers[block]->evaluate(
+        "zeta_rho_xz", "side ip");
+      auto zeta_rho_yx = assembler->function_managers[block]->evaluate(
+        "zeta_rho_yx", "side ip");
+      auto zeta_rho_yy = assembler->function_managers[block]->evaluate(
+        "zeta_rho_yy", "side ip");
+      auto zeta_rho_yz = assembler->function_managers[block]->evaluate(
+        "zeta_rho_yz", "side ip");
+      auto zeta_rho_zx = assembler->function_managers[block]->evaluate(
+        "zeta_rho_zx", "side ip");
+      auto zeta_rho_zy = assembler->function_managers[block]->evaluate(
+        "zeta_rho_zy", "side ip");
+      auto zeta_rho_zz = assembler->function_managers[block]->evaluate(
+        "zeta_rho_zz", "side ip");
+
+      ScalarT group_error = 0.0;
+      const size_type num_side_points = boundary_group->wts.extent(1);
+      parallel_reduce("PostprocessManager lumped port radiation material",
+                      RangePolicy<AssemblyExec>(0, boundary_group->numElem),
+                      MRHYDE_LAMBDA(const int elem, ScalarT & maximum) {
+        for (size_type pt = 0; pt < num_side_points; ++pt) {
+          const ScalarT error =
+            fabs(epsr_xx(elem, pt) - 1.0) + fabs(epsr_xy(elem, pt)) +
+            fabs(epsr_xz(elem, pt)) + fabs(epsr_yx(elem, pt)) +
+            fabs(epsr_yy(elem, pt) - 1.0) + fabs(epsr_yz(elem, pt)) +
+            fabs(epsr_zx(elem, pt)) + fabs(epsr_zy(elem, pt)) +
+            fabs(epsr_zz(elem, pt) - 1.0) +
+            fabs(mur_xx(elem, pt) - 1.0) + fabs(mur_xy(elem, pt)) +
+            fabs(mur_xz(elem, pt)) + fabs(mur_yx(elem, pt)) +
+            fabs(mur_yy(elem, pt) - 1.0) + fabs(mur_yz(elem, pt)) +
+            fabs(mur_zx(elem, pt)) + fabs(mur_zy(elem, pt)) +
+            fabs(mur_zz(elem, pt) - 1.0) +
+            fabs(xir_xx(elem, pt)) + fabs(xir_xy(elem, pt)) +
+            fabs(xir_xz(elem, pt)) + fabs(xir_yx(elem, pt)) +
+            fabs(xir_yy(elem, pt)) + fabs(xir_yz(elem, pt)) +
+            fabs(xir_zx(elem, pt)) + fabs(xir_zy(elem, pt)) +
+            fabs(xir_zz(elem, pt)) +
+            fabs(zetar_xx(elem, pt)) + fabs(zetar_xy(elem, pt)) +
+            fabs(zetar_xz(elem, pt)) + fabs(zetar_yx(elem, pt)) +
+            fabs(zetar_yy(elem, pt)) + fabs(zetar_yz(elem, pt)) +
+            fabs(zetar_zx(elem, pt)) + fabs(zetar_zy(elem, pt)) +
+            fabs(zetar_zz(elem, pt)) +
+            fabs(sigma_xx(elem, pt)) + fabs(sigma_xy(elem, pt)) +
+            fabs(sigma_xz(elem, pt)) + fabs(sigma_yx(elem, pt)) +
+            fabs(sigma_yy(elem, pt)) + fabs(sigma_yz(elem, pt)) +
+            fabs(sigma_zx(elem, pt)) + fabs(sigma_zy(elem, pt)) +
+            fabs(sigma_zz(elem, pt)) +
+            fabs(rho_xx(elem, pt)) + fabs(rho_xy(elem, pt)) +
+            fabs(rho_xz(elem, pt)) + fabs(rho_yx(elem, pt)) +
+            fabs(rho_yy(elem, pt)) + fabs(rho_yz(elem, pt)) +
+            fabs(rho_zx(elem, pt)) + fabs(rho_zy(elem, pt)) +
+            fabs(rho_zz(elem, pt)) +
+            fabs(xi_sigma_xx(elem, pt)) + fabs(xi_sigma_xy(elem, pt)) +
+            fabs(xi_sigma_xz(elem, pt)) + fabs(xi_sigma_yx(elem, pt)) +
+            fabs(xi_sigma_yy(elem, pt)) + fabs(xi_sigma_yz(elem, pt)) +
+            fabs(xi_sigma_zx(elem, pt)) + fabs(xi_sigma_zy(elem, pt)) +
+            fabs(xi_sigma_zz(elem, pt)) +
+            fabs(zeta_rho_xx(elem, pt)) + fabs(zeta_rho_xy(elem, pt)) +
+            fabs(zeta_rho_xz(elem, pt)) + fabs(zeta_rho_yx(elem, pt)) +
+            fabs(zeta_rho_yy(elem, pt)) + fabs(zeta_rho_yz(elem, pt)) +
+            fabs(zeta_rho_zx(elem, pt)) + fabs(zeta_rho_zy(elem, pt)) +
+            fabs(zeta_rho_zz(elem, pt));
+          if (error > maximum) {
+            maximum = error;
+          }
+        }
+      }, Kokkos::Max<ScalarT>(group_error));
+
+      if (group_error > local_radiation_material_error) {
+        local_radiation_material_error = group_error;
+      }
+      local_radiation_material_count = 1;
+    }
   }
 
   if (lumped_port_parameters.has_radiation_surface &&
@@ -598,6 +813,26 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
         "Lumped port radiation sideset requires positive c0 and eta0.");
       lumped_port_parameters.radiation_constants_initialized = true;
     }
+  }
+
+  if (lumped_port_parameters.save_stored_energy_q &&
+      !lumped_port_parameters.radiation_materials_initialized) {
+    ScalarT global_radiation_material_error = 0.0;
+    int global_radiation_material_count = 0;
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_MAX, 1,
+                       &local_radiation_material_error,
+                       &global_radiation_material_error);
+    Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                       &local_radiation_material_count,
+                       &global_radiation_material_count);
+
+    TEUCHOS_TEST_FOR_EXCEPTION(
+      global_radiation_material_count == 0, std::runtime_error,
+      "Stored-energy Q could not evaluate the radiation sideset material.");
+    TEUCHOS_TEST_FOR_EXCEPTION(
+      global_radiation_material_error > 1.0e-12, std::runtime_error,
+      "Stored-energy Q requires a lossless free-space radiation sideset.");
+    lumped_port_parameters.radiation_materials_initialized = true;
   }
 
   for (size_t port_group_index = 0;
@@ -674,7 +909,7 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
     auto Hy = assembler->wkset[block]->getSolutionField("H[y]");
     auto Hz = assembler->wkset[block]->getSolutionField("H[z]");
 
-    if (!volume_group.material_energy_initialized) {
+    if (!volume_group.material_coefficients_initialized) {
       auto c0 = assembler->function_managers[block]->evaluate("c0", "ip");
       auto eta0 = assembler->function_managers[block]->evaluate("eta0", "ip");
 
@@ -687,7 +922,6 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
       auto epsr_zx = assembler->function_managers[block]->evaluate("epsr_zx", "ip");
       auto epsr_zy = assembler->function_managers[block]->evaluate("epsr_zy", "ip");
       auto epsr_zz = assembler->function_managers[block]->evaluate("epsr_zz", "ip");
-
       auto mur_xx = assembler->function_managers[block]->evaluate("mur_xx", "ip");
       auto mur_xy = assembler->function_managers[block]->evaluate("mur_xy", "ip");
       auto mur_xz = assembler->function_managers[block]->evaluate("mur_xz", "ip");
@@ -697,7 +931,6 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
       auto mur_zx = assembler->function_managers[block]->evaluate("mur_zx", "ip");
       auto mur_zy = assembler->function_managers[block]->evaluate("mur_zy", "ip");
       auto mur_zz = assembler->function_managers[block]->evaluate("mur_zz", "ip");
-
       auto xir_xx = assembler->function_managers[block]->evaluate("xir_xx", "ip");
       auto xir_xy = assembler->function_managers[block]->evaluate("xir_xy", "ip");
       auto xir_xz = assembler->function_managers[block]->evaluate("xir_xz", "ip");
@@ -707,7 +940,6 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
       auto xir_zx = assembler->function_managers[block]->evaluate("xir_zx", "ip");
       auto xir_zy = assembler->function_managers[block]->evaluate("xir_zy", "ip");
       auto xir_zz = assembler->function_managers[block]->evaluate("xir_zz", "ip");
-
       auto zetar_xx = assembler->function_managers[block]->evaluate("zetar_xx", "ip");
       auto zetar_xy = assembler->function_managers[block]->evaluate("zetar_xy", "ip");
       auto zetar_xz = assembler->function_managers[block]->evaluate("zetar_xz", "ip");
@@ -717,40 +949,105 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
       auto zetar_zx = assembler->function_managers[block]->evaluate("zetar_zx", "ip");
       auto zetar_zy = assembler->function_managers[block]->evaluate("zetar_zy", "ip");
       auto zetar_zz = assembler->function_managers[block]->evaluate("zetar_zz", "ip");
+      auto sigma_xx = assembler->function_managers[block]->evaluate("sigma_xx", "ip");
+      auto sigma_xy = assembler->function_managers[block]->evaluate("sigma_xy", "ip");
+      auto sigma_xz = assembler->function_managers[block]->evaluate("sigma_xz", "ip");
+      auto sigma_yx = assembler->function_managers[block]->evaluate("sigma_yx", "ip");
+      auto sigma_yy = assembler->function_managers[block]->evaluate("sigma_yy", "ip");
+      auto sigma_yz = assembler->function_managers[block]->evaluate("sigma_yz", "ip");
+      auto sigma_zx = assembler->function_managers[block]->evaluate("sigma_zx", "ip");
+      auto sigma_zy = assembler->function_managers[block]->evaluate("sigma_zy", "ip");
+      auto sigma_zz = assembler->function_managers[block]->evaluate("sigma_zz", "ip");
+      auto rho_xx = assembler->function_managers[block]->evaluate("rho_xx", "ip");
+      auto rho_xy = assembler->function_managers[block]->evaluate("rho_xy", "ip");
+      auto rho_xz = assembler->function_managers[block]->evaluate("rho_xz", "ip");
+      auto rho_yx = assembler->function_managers[block]->evaluate("rho_yx", "ip");
+      auto rho_yy = assembler->function_managers[block]->evaluate("rho_yy", "ip");
+      auto rho_yz = assembler->function_managers[block]->evaluate("rho_yz", "ip");
+      auto rho_zx = assembler->function_managers[block]->evaluate("rho_zx", "ip");
+      auto rho_zy = assembler->function_managers[block]->evaluate("rho_zy", "ip");
+      auto rho_zz = assembler->function_managers[block]->evaluate("rho_zz", "ip");
+      auto xi_sigma_xx = assembler->function_managers[block]->evaluate("xi_sigma_xx", "ip");
+      auto xi_sigma_xy = assembler->function_managers[block]->evaluate("xi_sigma_xy", "ip");
+      auto xi_sigma_xz = assembler->function_managers[block]->evaluate("xi_sigma_xz", "ip");
+      auto xi_sigma_yx = assembler->function_managers[block]->evaluate("xi_sigma_yx", "ip");
+      auto xi_sigma_yy = assembler->function_managers[block]->evaluate("xi_sigma_yy", "ip");
+      auto xi_sigma_yz = assembler->function_managers[block]->evaluate("xi_sigma_yz", "ip");
+      auto xi_sigma_zx = assembler->function_managers[block]->evaluate("xi_sigma_zx", "ip");
+      auto xi_sigma_zy = assembler->function_managers[block]->evaluate("xi_sigma_zy", "ip");
+      auto xi_sigma_zz = assembler->function_managers[block]->evaluate("xi_sigma_zz", "ip");
+      auto zeta_rho_xx = assembler->function_managers[block]->evaluate("zeta_rho_xx", "ip");
+      auto zeta_rho_xy = assembler->function_managers[block]->evaluate("zeta_rho_xy", "ip");
+      auto zeta_rho_xz = assembler->function_managers[block]->evaluate("zeta_rho_xz", "ip");
+      auto zeta_rho_yx = assembler->function_managers[block]->evaluate("zeta_rho_yx", "ip");
+      auto zeta_rho_yy = assembler->function_managers[block]->evaluate("zeta_rho_yy", "ip");
+      auto zeta_rho_yz = assembler->function_managers[block]->evaluate("zeta_rho_yz", "ip");
+      auto zeta_rho_zx = assembler->function_managers[block]->evaluate("zeta_rho_zx", "ip");
+      auto zeta_rho_zy = assembler->function_managers[block]->evaluate("zeta_rho_zy", "ip");
+      auto zeta_rho_zz = assembler->function_managers[block]->evaluate("zeta_rho_zz", "ip");
 
-      auto coefficients = volume_group.energy_coefficients;
-      parallel_for("PostprocessManager lumped port energy coefficients",
+      auto storage = volume_group.storage_coefficients;
+      auto loss = volume_group.loss_coefficients;
+      auto radiation = volume_group.radiation_coefficients;
+      parallel_for("PostprocessManager lumped port material coefficients",
                    RangePolicy<AssemblyExec>(0, element_group->numElem),
                    MRHYDE_LAMBDA(const int elem) {
-        for (size_type pt = 0; pt < coefficients.extent(1); ++pt) {
+        for (size_type pt = 0; pt < storage.extent(1); ++pt) {
           const ScalarT c = c0(elem, pt);
           const ScalarT eta = eta0(elem, pt);
-          const ScalarT scale = (c > 0.0 && eta > 0.0) ?
+          const ScalarT storage_scale = (c > 0.0 && eta > 0.0) ?
             1.0/(eta*c) : 0.0;
+          const ScalarT loss_scale = (eta > 0.0) ? 1.0/eta : 0.0;
+          const ScalarT magnetic_loss_scale =
+            (eta > 0.0) ? 1.0/(eta*eta) : 0.0;
 
-          coefficients(elem, pt, 0) = scale*epsr_xx(elem, pt);
-          coefficients(elem, pt, 1) = 0.5*scale*(epsr_xy(elem, pt) + epsr_yx(elem, pt));
-          coefficients(elem, pt, 2) = 0.5*scale*(epsr_xz(elem, pt) + epsr_zx(elem, pt));
-          coefficients(elem, pt, 3) = scale*epsr_yy(elem, pt);
-          coefficients(elem, pt, 4) = 0.5*scale*(epsr_yz(elem, pt) + epsr_zy(elem, pt));
-          coefficients(elem, pt, 5) = scale*epsr_zz(elem, pt);
+          storage(elem, pt, 0) = storage_scale*epsr_xx(elem, pt);
+          storage(elem, pt, 1) = 0.5*storage_scale*(epsr_xy(elem, pt) + epsr_yx(elem, pt));
+          storage(elem, pt, 2) = 0.5*storage_scale*(epsr_xz(elem, pt) + epsr_zx(elem, pt));
+          storage(elem, pt, 3) = storage_scale*epsr_yy(elem, pt);
+          storage(elem, pt, 4) = 0.5*storage_scale*(epsr_yz(elem, pt) + epsr_zy(elem, pt));
+          storage(elem, pt, 5) = storage_scale*epsr_zz(elem, pt);
 
-          coefficients(elem, pt, 6) = 0.5*scale*(xir_xx(elem, pt) + zetar_xx(elem, pt));
-          coefficients(elem, pt, 7) = 0.5*scale*(xir_xy(elem, pt) + zetar_yx(elem, pt));
-          coefficients(elem, pt, 8) = 0.5*scale*(xir_xz(elem, pt) + zetar_zx(elem, pt));
-          coefficients(elem, pt, 9) = 0.5*scale*(xir_yx(elem, pt) + zetar_xy(elem, pt));
-          coefficients(elem, pt, 10) = 0.5*scale*(xir_yy(elem, pt) + zetar_yy(elem, pt));
-          coefficients(elem, pt, 11) = 0.5*scale*(xir_yz(elem, pt) + zetar_zy(elem, pt));
-          coefficients(elem, pt, 12) = 0.5*scale*(xir_zx(elem, pt) + zetar_xz(elem, pt));
-          coefficients(elem, pt, 13) = 0.5*scale*(xir_zy(elem, pt) + zetar_yz(elem, pt));
-          coefficients(elem, pt, 14) = 0.5*scale*(xir_zz(elem, pt) + zetar_zz(elem, pt));
+          storage(elem, pt, 6) = 0.5*storage_scale*(xir_xx(elem, pt) + zetar_xx(elem, pt));
+          storage(elem, pt, 7) = 0.5*storage_scale*(xir_xy(elem, pt) + zetar_yx(elem, pt));
+          storage(elem, pt, 8) = 0.5*storage_scale*(xir_xz(elem, pt) + zetar_zx(elem, pt));
+          storage(elem, pt, 9) = 0.5*storage_scale*(xir_yx(elem, pt) + zetar_xy(elem, pt));
+          storage(elem, pt, 10) = 0.5*storage_scale*(xir_yy(elem, pt) + zetar_yy(elem, pt));
+          storage(elem, pt, 11) = 0.5*storage_scale*(xir_yz(elem, pt) + zetar_zy(elem, pt));
+          storage(elem, pt, 12) = 0.5*storage_scale*(xir_zx(elem, pt) + zetar_xz(elem, pt));
+          storage(elem, pt, 13) = 0.5*storage_scale*(xir_zy(elem, pt) + zetar_yz(elem, pt));
+          storage(elem, pt, 14) = 0.5*storage_scale*(xir_zz(elem, pt) + zetar_zz(elem, pt));
 
-          coefficients(elem, pt, 15) = scale*mur_xx(elem, pt);
-          coefficients(elem, pt, 16) = 0.5*scale*(mur_xy(elem, pt) + mur_yx(elem, pt));
-          coefficients(elem, pt, 17) = 0.5*scale*(mur_xz(elem, pt) + mur_zx(elem, pt));
-          coefficients(elem, pt, 18) = scale*mur_yy(elem, pt);
-          coefficients(elem, pt, 19) = 0.5*scale*(mur_yz(elem, pt) + mur_zy(elem, pt));
-          coefficients(elem, pt, 20) = scale*mur_zz(elem, pt);
+          storage(elem, pt, 15) = storage_scale*mur_xx(elem, pt);
+          storage(elem, pt, 16) = 0.5*storage_scale*(mur_xy(elem, pt) + mur_yx(elem, pt));
+          storage(elem, pt, 17) = 0.5*storage_scale*(mur_xz(elem, pt) + mur_zx(elem, pt));
+          storage(elem, pt, 18) = storage_scale*mur_yy(elem, pt);
+          storage(elem, pt, 19) = 0.5*storage_scale*(mur_yz(elem, pt) + mur_zy(elem, pt));
+          storage(elem, pt, 20) = storage_scale*mur_zz(elem, pt);
+
+          loss(elem, pt, 0) = sigma_xx(elem, pt);
+          loss(elem, pt, 1) = 0.5*(sigma_xy(elem, pt) + sigma_yx(elem, pt));
+          loss(elem, pt, 2) = 0.5*(sigma_xz(elem, pt) + sigma_zx(elem, pt));
+          loss(elem, pt, 3) = sigma_yy(elem, pt);
+          loss(elem, pt, 4) = 0.5*(sigma_yz(elem, pt) + sigma_zy(elem, pt));
+          loss(elem, pt, 5) = sigma_zz(elem, pt);
+
+          loss(elem, pt, 6) = 0.5*loss_scale*(xi_sigma_xx(elem, pt) + zeta_rho_xx(elem, pt));
+          loss(elem, pt, 7) = 0.5*loss_scale*(xi_sigma_xy(elem, pt) + zeta_rho_yx(elem, pt));
+          loss(elem, pt, 8) = 0.5*loss_scale*(xi_sigma_xz(elem, pt) + zeta_rho_zx(elem, pt));
+          loss(elem, pt, 9) = 0.5*loss_scale*(xi_sigma_yx(elem, pt) + zeta_rho_xy(elem, pt));
+          loss(elem, pt, 10) = 0.5*loss_scale*(xi_sigma_yy(elem, pt) + zeta_rho_yy(elem, pt));
+          loss(elem, pt, 11) = 0.5*loss_scale*(xi_sigma_yz(elem, pt) + zeta_rho_zy(elem, pt));
+          loss(elem, pt, 12) = 0.5*loss_scale*(xi_sigma_zx(elem, pt) + zeta_rho_xz(elem, pt));
+          loss(elem, pt, 13) = 0.5*loss_scale*(xi_sigma_zy(elem, pt) + zeta_rho_yz(elem, pt));
+          loss(elem, pt, 14) = 0.5*loss_scale*(xi_sigma_zz(elem, pt) + zeta_rho_zz(elem, pt));
+
+          loss(elem, pt, 15) = magnetic_loss_scale*rho_xx(elem, pt);
+          loss(elem, pt, 16) = 0.5*magnetic_loss_scale*(rho_xy(elem, pt) + rho_yx(elem, pt));
+          loss(elem, pt, 17) = 0.5*magnetic_loss_scale*(rho_xz(elem, pt) + rho_zx(elem, pt));
+          loss(elem, pt, 18) = magnetic_loss_scale*rho_yy(elem, pt);
+          loss(elem, pt, 19) = 0.5*magnetic_loss_scale*(rho_yz(elem, pt) + rho_zy(elem, pt));
+          loss(elem, pt, 20) = magnetic_loss_scale*rho_zz(elem, pt);
 
           const ScalarT free_space_error =
             fabs(epsr_xx(elem, pt) - 1.0) + fabs(epsr_xy(elem, pt)) +
@@ -772,12 +1069,32 @@ void PostprocessManager<Node>::accumulateLumpedPortParameters(
             fabs(zetar_xz(elem, pt)) + fabs(zetar_yx(elem, pt)) +
             fabs(zetar_yy(elem, pt)) + fabs(zetar_yz(elem, pt)) +
             fabs(zetar_zx(elem, pt)) + fabs(zetar_zy(elem, pt)) +
-            fabs(zetar_zz(elem, pt));
-          coefficients(elem, pt, 21) =
-            (free_space_error <= 1.0e-12) ? scale : 0.0;
+            fabs(zetar_zz(elem, pt)) +
+            fabs(sigma_xx(elem, pt)) + fabs(sigma_xy(elem, pt)) +
+            fabs(sigma_xz(elem, pt)) + fabs(sigma_yx(elem, pt)) +
+            fabs(sigma_yy(elem, pt)) + fabs(sigma_yz(elem, pt)) +
+            fabs(sigma_zx(elem, pt)) + fabs(sigma_zy(elem, pt)) +
+            fabs(sigma_zz(elem, pt)) +
+            fabs(rho_xx(elem, pt)) + fabs(rho_xy(elem, pt)) +
+            fabs(rho_xz(elem, pt)) + fabs(rho_yx(elem, pt)) +
+            fabs(rho_yy(elem, pt)) + fabs(rho_yz(elem, pt)) +
+            fabs(rho_zx(elem, pt)) + fabs(rho_zy(elem, pt)) +
+            fabs(rho_zz(elem, pt)) +
+            fabs(xi_sigma_xx(elem, pt)) + fabs(xi_sigma_xy(elem, pt)) +
+            fabs(xi_sigma_xz(elem, pt)) + fabs(xi_sigma_yx(elem, pt)) +
+            fabs(xi_sigma_yy(elem, pt)) + fabs(xi_sigma_yz(elem, pt)) +
+            fabs(xi_sigma_zx(elem, pt)) + fabs(xi_sigma_zy(elem, pt)) +
+            fabs(xi_sigma_zz(elem, pt)) +
+            fabs(zeta_rho_xx(elem, pt)) + fabs(zeta_rho_xy(elem, pt)) +
+            fabs(zeta_rho_xz(elem, pt)) + fabs(zeta_rho_yx(elem, pt)) +
+            fabs(zeta_rho_yy(elem, pt)) + fabs(zeta_rho_yz(elem, pt)) +
+            fabs(zeta_rho_zx(elem, pt)) + fabs(zeta_rho_zy(elem, pt)) +
+            fabs(zeta_rho_zz(elem, pt));
+          radiation(elem, pt) =
+            (free_space_error <= 1.0e-12) ? storage_scale : 0.0;
         }
       });
-      volume_group.material_energy_initialized = true;
+      volume_group.material_coefficients_initialized = true;
     }
 
     auto dft = volume_group.field_dft;
@@ -1397,7 +1714,10 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
     ScalarT realized_efficiency;
     ScalarT Q_Z;
     ScalarT Q_rad;
+    ScalarT Q_input_field;
     ScalarT Q_rad_field;
+    ScalarT stored_energy_field;
+    ScalarT material_loss_power;
   };
 
   vector<vector<LumpedPortResult> > results(
@@ -1424,6 +1744,8 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
     ScalarT global_radiated_power = 0.0;
     ScalarT local_stored_energy = 0.0;
     ScalarT global_stored_energy = 0.0;
+    ScalarT local_material_loss = 0.0;
+    ScalarT global_material_loss = 0.0;
 
     if (have_radiation_surface) {
       for (size_t surface_index = 0;
@@ -1493,20 +1815,20 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
           lumped_port_parameter_volume_groups[volume_index];
         auto dft_host = create_mirror_view(volume_group.field_dft);
         deep_copy(dft_host, volume_group.field_dft);
-        auto coefficients_host = create_mirror_view(
-          volume_group.energy_coefficients);
-        deep_copy(coefficients_host, volume_group.energy_coefficients);
+        auto storage_host = create_mirror_view(
+          volume_group.storage_coefficients);
+        deep_copy(storage_host, volume_group.storage_coefficients);
+        auto loss_host = create_mirror_view(volume_group.loss_coefficients);
+        deep_copy(loss_host, volume_group.loss_coefficients);
+        auto radiation_host = create_mirror_view(
+          volume_group.radiation_coefficients);
+        deep_copy(radiation_host, volume_group.radiation_coefficients);
 
-        auto element_group = assembler->groups[volume_group.block][volume_group.group];
+        auto element_group =
+          assembler->groups[volume_group.block][volume_group.group];
         auto wts = element_group->getWts();
         auto wts_host = create_mirror_view(wts);
         deep_copy(wts_host, wts);
-        auto ip = element_group->getIntegrationPts();
-        vector<decltype(create_mirror_view(ip[0]))> ip_host(3);
-        for (int d = 0; d < 3; ++d) {
-          ip_host[d] = create_mirror_view(ip[d]);
-          deep_copy(ip_host[d], ip[d]);
-        }
 
         for (size_type elem = 0; elem < wts_host.extent(0); ++elem) {
           for (size_type pt = 0; pt < wts_host.extent(1); ++pt) {
@@ -1547,62 +1869,74 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
               Hxr*Hzr + Hxi*Hzi,
               Hyr*Hzr + Hyi*Hzi};
 
-            const ScalarT field_energy = 0.5*(
-              coefficients_host(elem, pt, 0)*field_norm[0] +
-              2.0*coefficients_host(elem, pt, 1)*field_dot[0] +
-              2.0*coefficients_host(elem, pt, 2)*field_dot[1] +
-              coefficients_host(elem, pt, 3)*field_norm[1] +
-              2.0*coefficients_host(elem, pt, 4)*field_dot[2] +
-              coefficients_host(elem, pt, 5)*field_norm[2] +
-              2.0*coefficients_host(elem, pt, 6)*field_dot[3] +
-              2.0*coefficients_host(elem, pt, 7)*field_dot[4] +
-              2.0*coefficients_host(elem, pt, 8)*field_dot[5] +
-              2.0*coefficients_host(elem, pt, 9)*field_dot[6] +
-              2.0*coefficients_host(elem, pt, 10)*field_dot[7] +
-              2.0*coefficients_host(elem, pt, 11)*field_dot[8] +
-              2.0*coefficients_host(elem, pt, 12)*field_dot[9] +
-              2.0*coefficients_host(elem, pt, 13)*field_dot[10] +
-              2.0*coefficients_host(elem, pt, 14)*field_dot[11] +
-              coefficients_host(elem, pt, 15)*field_norm[3] +
-              2.0*coefficients_host(elem, pt, 16)*field_dot[12] +
-              2.0*coefficients_host(elem, pt, 17)*field_dot[13] +
-              coefficients_host(elem, pt, 18)*field_norm[4] +
-              2.0*coefficients_host(elem, pt, 19)*field_dot[14] +
-              coefficients_host(elem, pt, 20)*field_norm[5]);
+            const ScalarT storage_form =
+              storage_host(elem, pt, 0)*field_norm[0] +
+              2.0*storage_host(elem, pt, 1)*field_dot[0] +
+              2.0*storage_host(elem, pt, 2)*field_dot[1] +
+              storage_host(elem, pt, 3)*field_norm[1] +
+              2.0*storage_host(elem, pt, 4)*field_dot[2] +
+              storage_host(elem, pt, 5)*field_norm[2] +
+              2.0*storage_host(elem, pt, 6)*field_dot[3] +
+              2.0*storage_host(elem, pt, 7)*field_dot[4] +
+              2.0*storage_host(elem, pt, 8)*field_dot[5] +
+              2.0*storage_host(elem, pt, 9)*field_dot[6] +
+              2.0*storage_host(elem, pt, 10)*field_dot[7] +
+              2.0*storage_host(elem, pt, 11)*field_dot[8] +
+              2.0*storage_host(elem, pt, 12)*field_dot[9] +
+              2.0*storage_host(elem, pt, 13)*field_dot[10] +
+              2.0*storage_host(elem, pt, 14)*field_dot[11] +
+              storage_host(elem, pt, 15)*field_norm[3] +
+              2.0*storage_host(elem, pt, 16)*field_dot[12] +
+              2.0*storage_host(elem, pt, 17)*field_dot[13] +
+              storage_host(elem, pt, 18)*field_norm[4] +
+              2.0*storage_host(elem, pt, 19)*field_dot[14] +
+              storage_host(elem, pt, 20)*field_norm[5];
 
-            ScalarT radiating_energy = 0.0;
-            if (coefficients_host(elem, pt, 21) > 0.0) {
-              const ScalarT rx = ip_host[0](elem, pt) -
-                lumped_port_parameters.radiation_center_x;
-              const ScalarT ry = ip_host[1](elem, pt) -
-                lumped_port_parameters.radiation_center_y;
-              const ScalarT rz = ip_host[2](elem, pt) -
-                lumped_port_parameters.radiation_center_z;
-              const ScalarT radius = sqrt(rx*rx + ry*ry + rz*rz);
-              if (radius > 1.0e-30) {
-                const ScalarT poynting_x = Eyr*Hzr + Eyi*Hzi -
-                  Ezr*Hyr - Ezi*Hyi;
-                const ScalarT poynting_y = Ezr*Hxr + Ezi*Hxi -
-                  Exr*Hzr - Exi*Hzi;
-                const ScalarT poynting_z = Exr*Hyr + Exi*Hyi -
-                  Eyr*Hxr - Eyi*Hxi;
-                const ScalarT outward_poynting =
-                  (poynting_x*rx + poynting_y*ry + poynting_z*rz)/radius;
-                if (outward_poynting > 0.0) {
-                  radiating_energy = coefficients_host(elem, pt, 21)*
-                    outward_poynting;
-                }
-              }
-            }
+            const ScalarT loss_power =
+              loss_host(elem, pt, 0)*field_norm[0] +
+              2.0*loss_host(elem, pt, 1)*field_dot[0] +
+              2.0*loss_host(elem, pt, 2)*field_dot[1] +
+              loss_host(elem, pt, 3)*field_norm[1] +
+              2.0*loss_host(elem, pt, 4)*field_dot[2] +
+              loss_host(elem, pt, 5)*field_norm[2] +
+              2.0*loss_host(elem, pt, 6)*field_dot[3] +
+              2.0*loss_host(elem, pt, 7)*field_dot[4] +
+              2.0*loss_host(elem, pt, 8)*field_dot[5] +
+              2.0*loss_host(elem, pt, 9)*field_dot[6] +
+              2.0*loss_host(elem, pt, 10)*field_dot[7] +
+              2.0*loss_host(elem, pt, 11)*field_dot[8] +
+              2.0*loss_host(elem, pt, 12)*field_dot[9] +
+              2.0*loss_host(elem, pt, 13)*field_dot[10] +
+              2.0*loss_host(elem, pt, 14)*field_dot[11] +
+              loss_host(elem, pt, 15)*field_norm[3] +
+              2.0*loss_host(elem, pt, 16)*field_dot[12] +
+              2.0*loss_host(elem, pt, 17)*field_dot[13] +
+              loss_host(elem, pt, 18)*field_norm[4] +
+              2.0*loss_host(elem, pt, 19)*field_dot[14] +
+              loss_host(elem, pt, 20)*field_norm[5];
 
-            local_stored_energy += wts_host(elem, pt)*
-              (field_energy - radiating_energy);
+            const ScalarT poynting_x = Eyr*Hzr + Eyi*Hzi -
+              Ezr*Hyr - Ezi*Hyi;
+            const ScalarT poynting_y = Ezr*Hxr + Ezi*Hxi -
+              Exr*Hzr - Exi*Hzi;
+            const ScalarT poynting_z = Exr*Hyr + Exi*Hyi -
+              Eyr*Hxr - Eyi*Hxi;
+            const ScalarT radiating_energy = radiation_host(elem, pt)*
+              sqrt(poynting_x*poynting_x + poynting_y*poynting_y +
+                   poynting_z*poynting_z);
+
+            const ScalarT weight = wts_host(elem, pt);
+            local_stored_energy += weight*(0.5*storage_form -
+                                           radiating_energy);
+            local_material_loss += weight*loss_power;
           }
         }
       }
 
       Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
                          &local_stored_energy, &global_stored_energy);
+      Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, 1,
+                         &local_material_loss, &global_material_loss);
     }
 
     Teuchos::Array<ScalarT> local_port_values(
@@ -1679,7 +2013,10 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
         result.realized_efficiency = nan;
         result.Q_Z = nan;
         result.Q_rad = nan;
+        result.Q_input_field = nan;
         result.Q_rad_field = nan;
+        result.stored_energy_field = nan;
+        result.material_loss_power = nan;
 
         const std::complex<ScalarT> source_dft =
           port.source_dft[freq_index];
@@ -1746,12 +2083,49 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
             }
           }
 
-          if (have_stored_energy_q && global_radiated_power > 1.0e-30 &&
-              global_stored_energy > 0.0) {
+          if (have_stored_energy_q) {
+            result.stored_energy_field = global_stored_energy;
+            result.material_loss_power = global_material_loss;
+
+            const ScalarT loss_tolerance = 1.0e-12*
+              std::max(ScalarT(1.0), std::abs(global_radiated_power));
+            TEUCHOS_TEST_FOR_EXCEPTION(
+              global_material_loss < -loss_tolerance, std::runtime_error,
+              "Stored-energy Q requires a passive material loss matrix.");
+
+            const ScalarT accepted_power = global_radiated_power +
+              global_material_loss;
             const ScalarT omega = 2.0*PI*
               lumped_port_parameters.frequencies[freq_index];
-            result.Q_rad_field = omega*global_stored_energy/
-              global_radiated_power;
+
+            if (global_stored_energy > 0.0 && omega > 0.0 &&
+                accepted_power > 1.0e-30) {
+              result.Q_input_field = omega*global_stored_energy/
+                accepted_power;
+
+              if (std::isfinite(result.Zin.real()) &&
+                  std::isfinite(result.Zin.imag()) &&
+                  result.Zin.real() > 1.0e-30) {
+                result.Q_input_field += std::abs(result.Zin.imag())/
+                  (2.0*omega*result.Zin.real());
+              }
+            }
+
+            if (global_stored_energy > 0.0 &&
+                global_radiated_power > 1.0e-30 && omega > 0.0) {
+              result.Q_rad_field = omega*global_stored_energy/
+                global_radiated_power;
+
+              if (std::isfinite(result.Zin.real()) &&
+                  std::isfinite(result.Zin.imag()) &&
+                  result.Zin.real() > 1.0e-30 &&
+                  accepted_power > 1.0e-30) {
+                result.Q_rad_field +=
+                  std::abs(result.Zin.imag())/
+                  (2.0*omega*result.Zin.real())*
+                  accepted_power/global_radiated_power;
+              }
+            }
           }
         }
       }
@@ -1876,7 +2250,10 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
         << ",realized_efficiency"
         << ",Q_Z"
         << ",Q_rad"
-        << ",Q_rad_field\n";
+        << ",Q_input_field"
+        << ",Q_rad_field"
+        << ",stored_energy_field"
+        << ",material_loss_power\n";
 
     if (verbosity > 0) {
       cout << "Writing lumped-port parameter CSV output to "
@@ -1898,7 +2275,10 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
             << ',' << result.realized_efficiency
             << ',' << result.Q_Z
             << ',' << result.Q_rad
+            << ',' << result.Q_input_field
             << ',' << result.Q_rad_field
+            << ',' << result.stored_energy_field
+            << ',' << result.material_loss_power
             << '\n';
       }
     }
