@@ -248,7 +248,17 @@ public:
           TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Discretization sublist or a path to a Discretization settings file!");
       }
       
-      if (!have_solver) {
+      {
+        // Allow layered solver settings:
+        // 1) load a shared Solver input file (if provided)
+        // 2) re-apply any local Solver sublist as overrides
+        // This supports reusable solver configs (e.g. Maxwell/block-triangular).
+        Teuchos::RCP<Teuchos::ParameterList> solver_overrides = Teuchos::null;
+        bool had_local_solver = settings->isSublist("Solver");
+        if (had_local_solver) {
+          solver_overrides = Teuchos::rcp(new Teuchos::ParameterList(settings->sublist("Solver")));
+        }
+
         if (settings->isParameter("Solver input file")) {
           std::string filename = settings->get<std::string>("Solver input file");
           std::ifstream fn(filename.c_str());
@@ -259,14 +269,20 @@ public:
               Teuchos::updateParametersFromYamlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*solver_parlist) );
             else if (type == 1)
               Teuchos::updateParametersFromXmlFile( filename, Teuchos::Ptr<Teuchos::ParameterList>(&*solver_parlist) );
-            
+
             settings->setParameters( *solver_parlist );
           }
           else
             TEUCHOS_TEST_FOR_EXCEPTION(!fn.good(),std::runtime_error,"Error: MrHyDE could not find the solver settings file:" + filename);
         }
-        else
+
+        if (had_local_solver) {
+          settings->sublist("Solver").setParameters(*solver_overrides);
+        }
+
+        if (!settings->isSublist("Solver")) {
           TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: the input.xml needs to contain either a Solver sublist or a path to a solver settings file!");
+        }
       }
       
       if (!have_analysis) {

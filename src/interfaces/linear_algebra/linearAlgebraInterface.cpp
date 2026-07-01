@@ -11,6 +11,7 @@
 #include <BelosBlockCGSolMgr.hpp>
 #include <BelosBiCGStabSolMgr.hpp>
 #include <BelosGCRODRSolMgr.hpp>
+#include <BelosMinresSolMgr.hpp>
 #include <BelosPCPGSolMgr.hpp>
 #include <BelosPseudoBlockCGSolMgr.hpp>
 #include <BelosPseudoBlockGmresSolMgr.hpp>
@@ -23,6 +24,7 @@ using namespace MrHyDE;
 
 #include "linearAlgebraInterface_construct.hpp"
 #include "linearAlgebraInterface_matrix.hpp"
+#include "linearAlgebraInterface_blockprec.hpp"
 #include "linearAlgebraInterface_solvers.hpp"
 #include "linearAlgebraInterface_util.hpp"
 #include "linearAlgebraInterface_vector.hpp"
