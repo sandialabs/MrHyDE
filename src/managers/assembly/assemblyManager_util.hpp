@@ -814,6 +814,8 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   
   debugger->print("**** Starting AssemblyManager::importNewMicrostructure ...");
   
+  cout << "num seeds = " << seeds.extent(0) << endl;
+  
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
   
@@ -963,7 +965,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   ////////////////////////////////////////////////////////////////////////////////
   // Initialize boundary data
   ////////////////////////////////////////////////////////////////////////////////
-  
+  /*
   totalElem = 0;
   for (size_t block=0; block<boundary_groups.size(); ++block) {
     for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
@@ -1049,7 +1051,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
       }
     }
     
-  }
+  }*/
   
   meshimporttimer.stop();
   if (verbosity>5 && comm->getRank() == 0) {

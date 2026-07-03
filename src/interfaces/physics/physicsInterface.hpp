@@ -502,8 +502,9 @@ public:
   Teuchos::RCP<MpiComm> comm; ///< Parallel communicator used throughout the interface.
   int dimension, type_AD; ///< Spatial dimension and automatic differentiation type.
   vector<string> set_names, block_names, side_names; ///< Names of sets, blocks, and sides in the mesh.
+  bool compact_functions_multiblock;
   /** @} */
-
+  
   /** @name Variable & Discretization Information
    *  @{ */
   vector<vector<size_t> > num_vars; ///< Number of variables per set and block.

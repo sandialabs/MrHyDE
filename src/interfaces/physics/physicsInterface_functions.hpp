@@ -92,8 +92,24 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
   
   for (size_t block=0; block<block_names.size(); ++block) {
     Teuchos::ParameterList fs;
+    
     if (settings->sublist("Functions").isSublist(block_names[block])) {
       fs = settings->sublist("Functions").sublist(block_names[block]);
+    }
+    else if (compact_functions_multiblock) {
+      auto tmp = settings->sublist("Functions");
+      Teuchos::ParameterList::ConstIterator pl_itr = tmp.begin();
+      bool found = false;
+      while (pl_itr != tmp.end() && !found) {
+        string newvar = pl_itr->first;
+        if (tmp.isSublist(newvar)) {
+          if (newvar.find(block_names[block]) != std::string::npos) {
+            found = true;
+            fs = tmp.sublist(newvar);
+          }
+        }
+        pl_itr++;
+      }
     }
     else {
       fs = settings->sublist("Functions");
@@ -431,9 +447,26 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
     if (settings->sublist("Functions").isSublist(block_names[block])) {
       functions = settings->sublist("Functions").sublist(block_names[block]);
     }
+    else if (compact_functions_multiblock) {
+      auto tmp = settings->sublist("Functions");
+      Teuchos::ParameterList::ConstIterator pl_itr = tmp.begin();
+      bool found = false;
+      while (pl_itr != tmp.end() && !found) {
+        string newvar = pl_itr->first;
+        if (tmp.isSublist(newvar)) {
+          if (newvar.find(block_names[block]) != std::string::npos) {
+            found = true;
+            functions = tmp.sublist(newvar);
+          }
+        }
+        pl_itr++;
+      }
+    }
     else {
       functions = settings->sublist("Functions");
     }
+    
+    
     Teuchos::ParameterList::ConstIterator fnc_itr = functions.begin();
     while (fnc_itr != functions.end()) {
       string entry = functions.get<string>(fnc_itr->first);
