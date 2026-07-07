@@ -169,6 +169,8 @@ public:
    */
   int getDimension();
   
+  int getPhaseDimension();
+  
   /** \brief Returns cell topology for a block.
    *  \param blockID Block identifier.
    *  \return Cell topology reference-counted pointer.
@@ -347,7 +349,7 @@ public:
   
   bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_quadrature_data; ///< Mesh state flags
   string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag; ///< Mesh metadata tags
-  int dimension, verbosity; ///< Geometric dimension and verbosity level
+  int dimension, verbosity, phase_dimension; ///< Geometric dimension and verbosity level
   int num_nodes_per_elem, side_dim, num_sides, num_faces, num_seeds; ///< Mesh topology counts
   vector<int> random_seeds; ///< Random seeds for microstructure
   vector<topo_RCP> cell_topo, side_topo; ///< Cell and side topologies
@@ -362,7 +364,7 @@ public:
   Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas; ///< Measurement vector
   vector<vector<ScalarT> > nfield_vals, efield_vals; ///< Field value arrays
   
-  Teuchos::RCP<SimpleMeshManager<ScalarT>> simple_mesh; ///< Simple mesh manager
+  Teuchos::RCP<SimpleMeshManager<ScalarT>> simple_mesh, phase_mesh; ///< Simple mesh manager
   ///@}
   
   /** @name Private Mesh Objects */

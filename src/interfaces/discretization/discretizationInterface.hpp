@@ -827,16 +827,16 @@ public:
   std::vector<Kokkos::View<GO*,HostDevice>> dof_owned_and_shared; /**< Owned + shared DOF global IDs. */
   Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations; /**< Orientation data for basis functions. */
   
-  vector<DRV> ref_ip; /**< Reference integration points per block. */
-  vector<DRV> ref_wts; /**< Reference integration weights per block. */
+  vector<DRV> ref_ip, phase_ref_ip; /**< Reference integration points per block. */
+  vector<DRV> ref_wts, phase_ref_wts; /**< Reference integration weights per block. */
   vector<DRV> ref_side_ip; /**< Reference integration points on sides. */
   vector<DRV> ref_side_wts; /**< Reference integration weights on sides. */
   
-  vector<size_t> numip; /**< Number of volume integration points per block. */
+  vector<size_t> numip, phase_numip; /**< Number of volume integration points per block. */
   vector<size_t> numip_side; /**< Number of side integration points per block. */
-  vector<int> num_derivs_required; /**< Number of derivatives required for basis evaluation. */
+  vector<int> num_derivs_required, phase_num_derivs_required; /**< Number of derivatives required for basis evaluation. */
   
-  vector<vector<int>> cards; /**< Basis cardinals per block and basis. */
+  vector<vector<int>> cards, phase_cards; /**< Basis cardinals per block and basis. */
   vector<Kokkos::View<LO*,HostDevice>> my_elements; /**< Local element IDs for each block. */
   
   vector<vector<Kokkos::View<int****,HostDevice>>> side_info; /**< Side information, rarely used. */
@@ -845,6 +845,9 @@ public:
   
   bool have_dirichlet = false; /**< Whether Dirichlet BCs exist. */
   bool minimize_memory; /**< Whether to minimize memory footprint. */
+  
+  Teuchos::RCP<const panzer::DOFManager> phaseDOF;       // DOF manager for phase space discretization
+  std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> phase_LIDs; // Local phase DOF indices
   
   ////////////////////////////////////////////////////////////////////////////////
   // Private timers

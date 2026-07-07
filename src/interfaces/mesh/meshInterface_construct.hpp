@@ -243,6 +243,36 @@ settings(settings_), comm(comm_) {
     }
   }
 
+  // Create the mesh over phase space for Vlasov-type solves
+  if (settings->isSublist("Phase Mesh")) {
+    phase_dimension = settings->sublist("Phase Mesh").get<int>("dimension",0);
+    
+    Teuchos::ParameterList pl;
+    pl.sublist("Geometry").set("X0",     settings->sublist("Phase Mesh").get("xmin",0.0));
+    pl.sublist("Geometry").set("Width",  settings->sublist("Phase Mesh").get("xmax",1.0)-settings->sublist("Mesh").get("xmin",0.0));
+    pl.sublist("Geometry").set("NX",     settings->sublist("Phase Mesh").get("NX",20));
+    // if dim>1
+    pl.sublist("Geometry").set("Y0",     settings->sublist("Phase Mesh").get("ymin",0.0));
+    pl.sublist("Geometry").set("Height", settings->sublist("Phase Mesh").get("ymax",1.0)-settings->sublist("Mesh").get("ymin",0.0));
+    pl.sublist("Geometry").set("NY",     settings->sublist("Phase Mesh").get("NY",20));
+    // if dim>2
+    pl.sublist("Geometry").set("Z0",     settings->sublist("Phase Mesh").get("zmin",0.0));
+    pl.sublist("Geometry").set("Depth",  settings->sublist("Phase Mesh").get("zmax",1.0)-settings->sublist("Mesh").get("zmin",0.0));
+    pl.sublist("Geometry").set("NZ",     settings->sublist("Phase Mesh").get("NZ",20));
+
+    // Every processor owns a copy of the phase mesh
+    // Due to the uniform grid, the memory cost will be minimal using compression
+    if (phase_dimension == 2) {
+      phase_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+    }
+    else if (phase_dimension == 3) {
+      phase_mesh = Teuchos::RCP<SimpleMeshManager_Brick<ScalarT>>(new SimpleMeshManager_Brick<ScalarT>(pl));
+    }
+    
+  }
+  else {
+    phase_dimension = 0;
+  }
   debugger->print("**** Finished mesh interface constructor");
 }
 

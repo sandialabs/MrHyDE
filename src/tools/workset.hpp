@@ -524,6 +524,10 @@ namespace MrHyDE {
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<CompressedView<View_Sc3>> basis_div;
     
+    CompressedView<View_Sc2> phase_wts;
+    vector<CompressedView<View_Sc4>> phase_basis, phase_basis_grad, phase_basis_curl;
+    vector<CompressedView<View_Sc3>> phase_basis_div;
+    
     View_EvalT2 res, adjrhs;
     View_EvalT3 flux;
     Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;

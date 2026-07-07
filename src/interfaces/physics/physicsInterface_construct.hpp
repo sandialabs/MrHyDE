@@ -47,95 +47,85 @@ settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names
       dsetlist = settings->sublist("Discretization").sublist(set_names[set]);
       ssetlist = settings->sublist("Solver").sublist(set_names[set]);
     }
-    bool pcompact_multiblock = false;
-    if (psetlist.isParameter("compact multiblock")) {
-      pcompact_multiblock = psetlist.get<bool>("compact multiblock");
-    }
-    
-    bool dcompact_multiblock = false;
-    if (dsetlist.isParameter("compact multiblock")) {
-      dcompact_multiblock = dsetlist.get<bool>("compact multiblock");
-    }
-    
-    bool scompact_multiblock = false;
-    if (ssetlist.isParameter("compact multiblock")) {
-      scompact_multiblock = ssetlist.get<bool>("compact multiblock");
-    }
     
     vector<Teuchos::ParameterList> currpsettings, currdsettings, currssettings;
     for (size_t block=0; block<block_names.size(); ++block) {
-      if (psetlist.isSublist(block_names[block])) { // adding block overwrites the default
-        currpsettings.push_back(psetlist.sublist(block_names[block]));
-      }
-      else if (pcompact_multiblock) {
-        Teuchos::ParameterList::ConstIterator pl_itr = psetlist.begin();
-        bool found = false;
-        while (pl_itr != psetlist.end() && !found) {
-          string newvar = pl_itr->first;
+      {
+        Teuchos::ParameterList ptmp = psetlist;
+                
+        Teuchos::ParameterList::ConstIterator sl_itr = psetlist.begin();
+        while (sl_itr != psetlist.end()) {
+          string newvar = sl_itr->first;
           if (psetlist.isSublist(newvar)) {
             if (newvar.find(block_names[block]) != std::string::npos) {
-              found = true;
-              currpsettings.push_back(psetlist.sublist(newvar));
+              Teuchos::ParameterList slist = psetlist.sublist(newvar);
+              Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+              while (pl_itr != slist.end()) {
+                string newentry = pl_itr->first;
+                ptmp.setEntry(pl_itr->first, pl_itr->second);
+                pl_itr++;
+              }
             }
           }
-          pl_itr++;
+          sl_itr++;
         }
-      }
-      else { // default
-        currpsettings.push_back(psetlist);
+        
+        currpsettings.push_back(ptmp);
       }
       
-      if (dsetlist.isSublist(block_names[block])) { // adding block overwrites default
-        currdsettings.push_back(dsetlist.sublist(block_names[block]));
-      }
-      else if (dcompact_multiblock) {
-        Teuchos::ParameterList::ConstIterator pl_itr = dsetlist.begin();
-        bool found = false;
-        while (pl_itr != dsetlist.end() && !found) {
-          string newvar = pl_itr->first;
+      ///////////////////////////////
+      
+      {
+        Teuchos::ParameterList dtmp = dsetlist;
+        
+        Teuchos::ParameterList::ConstIterator sl_itr = dsetlist.begin();
+        while (sl_itr != dsetlist.end()) {
+          string newvar = sl_itr->first;
           if (dsetlist.isSublist(newvar)) {
             if (newvar.find(block_names[block]) != std::string::npos) {
-              found = true;
-              currdsettings.push_back(dsetlist.sublist(newvar));
+              Teuchos::ParameterList slist = dsetlist.sublist(newvar);
+              Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+              while (pl_itr != slist.end()) {
+                string newentry = pl_itr->first;
+                dtmp.setEntry(pl_itr->first, pl_itr->second);
+                pl_itr++;
+              }
             }
           }
-          pl_itr++;
+          sl_itr++;
         }
+        
+        currdsettings.push_back(dtmp);
       }
-      else { // default
-        currdsettings.push_back(dsetlist);
-      }
-
-      if (ssetlist.isSublist(block_names[block])) { // adding block overwrites default
-        currssettings.push_back(ssetlist.sublist(block_names[block]));
-      }
-      else if (scompact_multiblock) {
-        Teuchos::ParameterList::ConstIterator pl_itr = ssetlist.begin();
-        bool found = false;
-        while (pl_itr != ssetlist.end() && !found) {
-          string newvar = pl_itr->first;
+      
+      //////////////////////////////
+      
+      {
+        Teuchos::ParameterList stmp = ssetlist;
+        
+        Teuchos::ParameterList::ConstIterator sl_itr = ssetlist.begin();
+        while (sl_itr != ssetlist.end()) {
+          string newvar = sl_itr->first;
           if (ssetlist.isSublist(newvar)) {
             if (newvar.find(block_names[block]) != std::string::npos) {
-              found = true;
-              currssettings.push_back(ssetlist.sublist(newvar));
+              Teuchos::ParameterList slist = ssetlist.sublist(newvar);
+              Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+              while (pl_itr != slist.end()) {
+                string newentry = pl_itr->first;
+                stmp.setEntry(pl_itr->first, pl_itr->second);
+                pl_itr++;
+              }
             }
           }
-          pl_itr++;
+          sl_itr++;
         }
-      }
-      else { // default
-        currssettings.push_back(ssetlist);
+        
+        currssettings.push_back(stmp);
       }
     }
     physics_settings.push_back(currpsettings);
     disc_settings.push_back(currdsettings);
     solver_settings.push_back(currssettings);
-  }
-    
-  compact_functions_multiblock = false;
-  if (settings->sublist("Functions").isParameter("compact multiblock")) {
-    compact_functions_multiblock = settings->sublist("Functions").get<bool>("compact multiblock");
-    settings->sublist("Functions").remove("compact multiblock");
   }
   
   this->importPhysics();

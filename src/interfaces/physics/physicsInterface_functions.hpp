@@ -91,8 +91,36 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
 
   
   for (size_t block=0; block<block_names.size(); ++block) {
-    Teuchos::ParameterList fs;
+    Teuchos::ParameterList flist = settings->sublist("Functions");
     
+    Teuchos::ParameterList fs;
+    Teuchos::ParameterList::ConstIterator pl_itr = flist.begin();
+    while (pl_itr != flist.end()) {
+      string newvar = pl_itr->first;
+      if (!flist.isSublist(newvar)) {
+        fs.setEntry(pl_itr->first, pl_itr->second);
+      }
+      pl_itr++;
+    }
+    
+    Teuchos::ParameterList::ConstIterator sl_itr = flist.begin();
+    while (sl_itr != flist.end()) {
+      string newvar = sl_itr->first;
+      if (flist.isSublist(newvar)) {
+        if (newvar.find(block_names[block]) != std::string::npos) {
+          Teuchos::ParameterList slist = flist.sublist(newvar);
+          Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+          while (pl_itr != slist.end()) {
+            string newentry = pl_itr->first;
+            fs.setEntry(pl_itr->first, pl_itr->second);
+            pl_itr++;
+          }
+        }
+      }
+      sl_itr++;
+    }
+    
+    /*
     if (settings->sublist("Functions").isSublist(block_names[block])) {
       fs = settings->sublist("Functions").sublist(block_names[block]);
     }
@@ -114,6 +142,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
     else {
       fs = settings->sublist("Functions");
     }
+    */
     
     for (size_t set=0; set<mods.size(); set++) {
       for (size_t n=0; n<mods[set][block].size(); n++) {
@@ -444,6 +473,7 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
   
   for (size_t block=0; block<block_names.size(); ++block) {
     Teuchos::ParameterList functions;
+    /*
     if (settings->sublist("Functions").isSublist(block_names[block])) {
       functions = settings->sublist("Functions").sublist(block_names[block]);
     }
@@ -465,6 +495,37 @@ void PhysicsInterface::defineFunctions(vector<Teuchos::RCP<FunctionManager<EvalT
     else {
       functions = settings->sublist("Functions");
     }
+    */
+    
+    Teuchos::ParameterList flist = settings->sublist("Functions");
+    
+    //Teuchos::ParameterList fs;
+    Teuchos::ParameterList::ConstIterator pl_itr = flist.begin();
+    while (pl_itr != flist.end()) {
+      string newvar = pl_itr->first;
+      if (!flist.isSublist(newvar)) {
+        functions.setEntry(pl_itr->first, pl_itr->second);
+      }
+      pl_itr++;
+    }
+    
+    Teuchos::ParameterList::ConstIterator sl_itr = flist.begin();
+    while (sl_itr != flist.end()) {
+      string newvar = sl_itr->first;
+      if (flist.isSublist(newvar)) {
+        if (newvar.find(block_names[block]) != std::string::npos) {
+          Teuchos::ParameterList slist = flist.sublist(newvar);
+          Teuchos::ParameterList::ConstIterator pl_itr = slist.begin();
+          while (pl_itr != slist.end()) {
+            string newentry = pl_itr->first;
+            functions.setEntry(pl_itr->first, pl_itr->second);
+            pl_itr++;
+          }
+        }
+      }
+      sl_itr++;
+    }
+    
     
     
     Teuchos::ParameterList::ConstIterator fnc_itr = functions.begin();

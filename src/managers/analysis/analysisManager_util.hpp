@@ -45,6 +45,9 @@ void AnalysisManager::recoverSolution(vector_RCP &solution, string &data_type,
       sol_view(i, 0) = values[i][0];
     }
   }
+  else if (data_type == "matrix market") // might need to be the default
+  {
+  }
   else if (data_type == "exodus")
   {
   }
