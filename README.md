@@ -1,8 +1,16 @@
 # Multi-resolution Hybridized Differential Equations (MrHyDE)
+MrHyDE is a C++ library for the solution of partial differential equations.
+It includes support for multiple physics, multi-resolution subgrid solutions,
+finite element compression, mortar discretizations, multigrid preconditioners, and more.
+
+
+## Dependencies
+MrHyDE depends on the [Trilinos](https://github.com/trilinos/Trilinos) library and relies extensively on Kokkos among other packages.
+It also requires a suitable C++ compiler and CMake.
 
 ## Configuring MrHyDE
-Configuring MrHyDE is done in CMake. 
-There are only a handful of necessary options, and there are plenty of example scripts in `scripts/configure-MrHyDE/`.
+Configuring MrHyDE requires CMake. 
+There are only a handful of necessary options, and there are example scripts in `scripts/configure-MrHyDE/`.
 The required options, as shown in the file `scripts/configure-MrHyDE/configure-MrHyDE-vaporwave-serial`, are 
 ```
 -D Trilinos_SRC_DIR:PATH=${TRILINOS_SOURCE}
