@@ -30,6 +30,10 @@
 #include <MueLu_TpetraOperator.hpp>
 #include <MueLu_CreateTpetraPreconditioner.hpp>
 #include <MueLu_Utilities.hpp>
+#include <MueLu_RefMaxwell.hpp>
+#include <Xpetra_TpetraCrsMatrix.hpp>
+#include <Xpetra_TpetraMultiVector.hpp>
+#include <Xpetra_CrsMatrixWrap.hpp>
 
 // Amesos includes
 #include "Amesos2.hpp"
@@ -38,6 +42,11 @@
 #include "linearSolverContext.hpp"
 
 namespace MrHyDE {
+
+namespace block_prec {
+template<class Node>
+struct BlockSystem;
+}
 
 /** \class LinearAlgebraInterface
  *  \brief Interface wrapper to Tpetra, Belos, MueLu, and Amesos2.
@@ -57,6 +66,8 @@ class LinearAlgebraInterface {
   typedef Tpetra::Map<LO,GO,Node>                 LA_Map;
   typedef Tpetra::Operator<ScalarT,LO,GO,Node>    LA_Operator;
   typedef Tpetra::MultiVector<ScalarT,LO,GO,Node> LA_MultiVector;
+  typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
+  typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
   typedef Teuchos::RCP<LA_MultiVector>            vector_RCP;
   typedef Teuchos::RCP<LA_CrsMatrix>              matrix_RCP;
   typedef typename Node::device_type              LA_device;
@@ -494,6 +505,26 @@ public:
    */
   void linearSolver(Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                     matrix_RCP & J, vector_RCP & r, vector_RCP & soln);
+  /** @brief Build or refresh selected preconditioner and return as LA_Operator. */
+  Teuchos::RCP<LA_Operator> buildOrUpdatePreconditioner(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                        const matrix_RCP & J);
+  /** @brief Attach preconditioner to Belos linear problem honoring left/right setting. */
+  void attachPreconditionerToProblem(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                     const Teuchos::RCP<LA_LinearProblem> & problem,
+                                     const Teuchos::RCP<LA_Operator> & preconditioner) const;
+  /** @brief Create Belos solver manager from configured solver name. */
+  Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> >
+  createBelosSolverManager(const Teuchos::RCP<LA_LinearProblem> & problem,
+                           const Teuchos::RCP<Teuchos::ParameterList> & belosList,
+                           const std::string & belosType) const;
+  /** @brief Run Belos solve and enforce strict non-convergence behavior. */
+  void runBelosSolveAndHandleStatus(
+      const Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > & solver,
+      const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) const;
+  /** @brief Optionally print Belos condition estimate for supported solvers. */
+  void maybeReportConditionEstimate(
+      const Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > & solver,
+      const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) const;
   
   /**
    * @brief Solve a linear system J * soln = r for the state Jacobian associated with a set index.
@@ -577,8 +608,44 @@ public:
    */
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildAMGPreconditioner(const matrix_RCP & J,
                                                                                   const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
-  
-  
+  /** @brief Build RefMaxwell auxiliary-space preconditioner for an HCURL block.
+   *  @param blockSublist  The block-specific sublist (A Block Settings or Schur Block Settings)
+   *                       from which "RefMaxwell Settings" will be read.
+   *  @param forSchur      If true, store in schur_refmaxwell_prec and use it for reuse; else refmaxwell_prec.
+   */
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildRefMaxwellPreconditioner(const matrix_RCP & J,
+                                                                                          const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                                                          const Teuchos::ParameterList & blockSublist,
+                                                                                          const bool forSchur = false);
+  /** @brief Validate A-block + auxiliary context inputs before RefMaxwell build/reuse. */
+  void validateRefMaxwellBlockInputs(const matrix_RCP & A00,
+                                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) const;
+
+  /** @brief Build per-variable block maps from disc offsets for a set. */
+  std::vector<Teuchos::RCP<const LA_Map> > buildBlockMaps(const size_t & set);
+  /** @brief Extract diagonal block submatrix for given row/column map. */
+  matrix_RCP extractDiagonalBlock(const matrix_RCP & J,
+                                  const Teuchos::RCP<const LA_Map> & blockMap);
+  /** @brief Extract off-diagonal block submatrix for given row/column maps. */
+  matrix_RCP extractOffDiagonalBlock(const matrix_RCP & J,
+                                     const Teuchos::RCP<const LA_Map> & rowMap,
+                                     const Teuchos::RCP<const LA_Map> & colMap);
+  /** @brief Build block-diagonal preconditioner; per-block smoother from Block b Settings (preconditioner variant, default RELAXATION/Jacobi). */
+  Teuchos::RCP<LA_Operator> buildBlockDiagonalPreconditioner(const matrix_RCP & J,
+                                                             const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                             const size_t & set);
+  /** @brief Assemble Schur approximation from extracted 2x2 block system. */
+  matrix_RCP buildBlockTriangularSchurApproximation(const block_prec::BlockSystem<Node> & blocks,
+                                                    const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                    matrix_RCP * diagTermOut = nullptr);
+  /** @brief Build filtered MueLu parameters shared by block-triangular build/reuse paths. */
+  Teuchos::ParameterList getBlockTriangularMueLuParams(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt);
+  /** @brief Build or refresh block-triangular preconditioner from current Jacobian and reuse policy. */
+  Teuchos::RCP<LA_Operator> setupBlockTriangularPreconditioner(
+      const matrix_RCP & J,
+      const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+      const size_t & set);
+
   ///////////////////////////////////////////////////////////////////////////////////////////
   // Public data members
   ///////////////////////////////////////////////////////////////////////////////////////////
