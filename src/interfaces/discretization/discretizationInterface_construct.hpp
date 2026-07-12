@@ -28,6 +28,7 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   ////////////////////////////////////////////////////////////////////////////////
   
   dimension = mesh->getDimension();
+  phase_dimension = mesh->getPhaseDimension();
   block_names = mesh->getBlockNames();
   side_names = mesh->getSideNames();
 

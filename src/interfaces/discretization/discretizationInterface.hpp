@@ -659,6 +659,8 @@ public:
    */
   vector<GO> getGIDs(const size_t & set, const size_t & block, const size_t & elem);
   
+  vector<GO> getPhaseGIDs(const size_t & set, const size_t & elem);
+  
   //////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////////////////////////////////////////////////////////////////////////////
   
@@ -781,6 +783,7 @@ public:
    */
   ScalarT computeRelativeDifference(DRV data1, DRV data2);
   
+  LO getNumPhaseDOFs(const int & set);
   /**
    * @brief Clears locally stored LIDs for memory renewal.
    */
@@ -802,6 +805,7 @@ public:
   
   int verbosity; /**< Verbosity level for output and debugging. */
   int dimension; /**< Spatial dimension of the problem. */
+  int phase_dimension; /**< Dimension of the phase space. */
   int quadorder; /**< Quadrature order used for integration. */
   
   double storage_proportion; /**< Fraction of data stored for memory optimization. */
@@ -822,7 +826,7 @@ public:
   
   // Purgeable
   typedef Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> lids_view_t;
-  std::vector<lids_view_t> dof_lids; /**< Local ID lists for DOFs, purgeable. */
+  std::vector<lids_view_t> dof_lids, phase_dof_lids; /**< Local ID lists for DOFs, purgeable. */
   std::vector<Kokkos::View<GO*,HostDevice>> dof_owned; /**< Owned DOF global IDs. */
   std::vector<Kokkos::View<GO*,HostDevice>> dof_owned_and_shared; /**< Owned + shared DOF global IDs. */
   Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations; /**< Orientation data for basis functions. */
@@ -838,10 +842,11 @@ public:
   
   vector<vector<int>> cards, phase_cards; /**< Basis cardinals per block and basis. */
   vector<Kokkos::View<LO*,HostDevice>> my_elements; /**< Local element IDs for each block. */
+  vector<size_t> num_phase_dof;
   
   vector<vector<Kokkos::View<int****,HostDevice>>> side_info; /**< Side information, rarely used. */
   vector<vector<vector<vector<string>>>> var_bcs; /**< Variable boundary condition names. */
-  vector<vector<vector<vector<int>>>> offsets; /**< DOF offsets per set/block/variable. */
+  vector<vector<vector<vector<int>>>> offsets, phase_offsets; /**< DOF offsets per set/block/variable. */
   
   bool have_dirichlet = false; /**< Whether Dirichlet BCs exist. */
   bool minimize_memory; /**< Whether to minimize memory footprint. */

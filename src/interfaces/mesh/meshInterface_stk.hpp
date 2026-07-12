@@ -20,6 +20,14 @@ Teuchos::RCP<panzer::ConnManager> MeshInterface::getSTKConnManager() {
 // ============================================================
 // ============================================================
 
+Teuchos::RCP<panzer::ConnManager> MeshInterface::getPhaseSTKConnManager() {
+  Teuchos::RCP<panzer::ConnManager> conn;
+  return conn;
+}
+
+// ============================================================
+// ============================================================
+
 void MeshInterface::setSTKMesh(Teuchos::RCP<panzer_stk::STK_Interface> & new_mesh) {
   stk_mesh = new_mesh;
   stk_mesh->getElementBlockNames(block_names);

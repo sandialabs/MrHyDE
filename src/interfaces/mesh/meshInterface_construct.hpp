@@ -213,7 +213,7 @@ settings(settings_), comm(comm_) {
     }
   }
 
-  if(use_stk_mesh) {
+  if (use_stk_mesh) {
     for (size_t b=0; b<block_names.size(); b++) {
       cell_topo.push_back(stk_mesh->getCellTopology(block_names[b]));
     }
@@ -244,9 +244,12 @@ settings(settings_), comm(comm_) {
   }
 
   // Create the mesh over phase space for Vlasov-type solves
+  
+  phase_dimension = 0; // default
+  
   if (settings->isSublist("Phase Mesh")) {
     phase_dimension = settings->sublist("Phase Mesh").get<int>("dimension",0);
-    
+    phase_block_names = { "eblock-0_0" };
     Teuchos::ParameterList pl;
     pl.sublist("Geometry").set("X0",     settings->sublist("Phase Mesh").get("xmin",0.0));
     pl.sublist("Geometry").set("Width",  settings->sublist("Phase Mesh").get("xmax",1.0)-settings->sublist("Mesh").get("xmin",0.0));
@@ -263,16 +266,14 @@ settings(settings_), comm(comm_) {
     // Every processor owns a copy of the phase mesh
     // Due to the uniform grid, the memory cost will be minimal using compression
     if (phase_dimension == 2) {
-      phase_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT>>(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+      phase_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT> >(new SimpleMeshManager_Rectangle<ScalarT>(pl));
     }
     else if (phase_dimension == 3) {
-      phase_mesh = Teuchos::RCP<SimpleMeshManager_Brick<ScalarT>>(new SimpleMeshManager_Brick<ScalarT>(pl));
+      phase_mesh = Teuchos::RCP<SimpleMeshManager_Brick<ScalarT> >(new SimpleMeshManager_Brick<ScalarT>(pl));
     }
     
   }
-  else {
-    phase_dimension = 0;
-  }
+  
   debugger->print("**** Finished mesh interface constructor");
 }
 

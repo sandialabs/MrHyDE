@@ -154,6 +154,8 @@ public:
    */
   vector<string> getBlockNames();
   
+  vector<string> getPhaseBlockNames();
+  
   /** \brief Gets list of side set names.
    *  \return Vector of side names.
    */
@@ -177,10 +179,14 @@ public:
    */
   topo_RCP getCellTopology(string & blockID);
   
+  topo_RCP getPhaseCellTopology();
+  
   /** \brief Accessor for the STK connection manager.
    *  \return RCP to panzer::ConnManager.
    */
   Teuchos::RCP<panzer::ConnManager> getSTKConnManager();
+  
+  Teuchos::RCP<panzer::ConnManager> getPhaseSTKConnManager();
   
   
   
@@ -319,6 +325,7 @@ public:
    */
   void readExodusData();
   
+  int getNumPhaseElements();
   /**
    * @brief Purge unnecessary data before solve stage.
    */
@@ -353,11 +360,12 @@ public:
   int num_nodes_per_elem, side_dim, num_sides, num_faces, num_seeds; ///< Mesh topology counts
   vector<int> random_seeds; ///< Random seeds for microstructure
   vector<topo_RCP> cell_topo, side_topo; ///< Cell and side topologies
+  topo_RCP phase_topo;
   int meshmod_xvar, meshmod_yvar, meshmod_zvar; ///< Mesh modification axes
   bool meshmod_usesmoother, use_stk_mesh, use_simple_mesh; ///< Backend selection flags
   ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size; ///< Mesh modification parameters
   
-  vector<string> block_names, side_names, node_names, nfield_names, efield_names; ///< STK and field name lists
+  vector<string> block_names, phase_block_names, side_names, node_names, nfield_names, efield_names; ///< STK and field name lists
   int numResponses; ///< Number of responses
   std::default_random_engine generator; ///< RNG engine
   

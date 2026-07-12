@@ -186,7 +186,7 @@ void AssemblyManager<Node>::performGather(const size_t & set, const size_t & blo
   Kokkos::View<LO*,AssemblyDevice> numDOF;
   Kokkos::View<ScalarT***,AssemblyDevice> data;
   Kokkos::View<int**,AssemblyDevice> offsets;
-  LIDView LIDs;
+  LIDView LIDs, phaseLIDs;
   
   switch(type) {
     case 0 :
