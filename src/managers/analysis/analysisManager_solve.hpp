@@ -7,6 +7,54 @@
  ************************************************************************/
 
 // ========================================================================================
+// Run checkGradient with optional point redirect + curvature-trap hint.
+// If "FD Check Random Seed" is set, randomize x for the check only, then restore.
+// ========================================================================================
+
+template<typename CheckFn>
+static void runFDGradientCheck(Teuchos::ParameterList & ROLsettings,
+                               Teuchos::RCP<ROL::Vector<ScalarT>> x,
+                               int rank,
+                               CheckFn && checkFn) {
+  Teuchos::RCP<ROL::Vector<ScalarT>> x_save = Teuchos::null;
+  if (ROLsettings.sublist("General").isParameter("FD Check Random Seed")) {
+    int seed = ROLsettings.sublist("General").get<int>("FD Check Random Seed", 1);
+    ScalarT scale = ROLsettings.sublist("General").get<double>("FD Check Random Scale", 1.0);
+    x_save = x->clone();
+    x_save->set(*x);
+    srand(seed);
+    x->randomize(-scale, scale);
+    if (rank == 0) {
+      cout << "[FDCHECK-REDIRECT] FD check redirected to random parameter "
+           << "vector (seed=" << seed << ", scale=" << scale
+           << "). Optimizer initial iterate is unchanged.\n";
+    }
+  }
+
+  auto fd_table = checkFn();
+
+  // Warn if h=1 looks like curvature, not directional derivative.
+  // Threshold 1e6 is huge on purpose so healthy checks stay quiet.
+  if (rank == 0 && !fd_table.empty()) {
+    // Columns: [0]=h, [1]=grad'*dir, [2]=FD approx, [3]=abs error.
+    double a  = fd_table[0][1];
+    double fd = fd_table[0][2];
+    double ratio = std::abs(fd) / std::max(std::abs(a), 1.0e-30);
+    if (ratio > 1.0e6) {
+      cout << std::scientific << std::setprecision(3);
+      cout << "[FDCHECK-HINT] FD/g.d ratio at h=1 is " << ratio << " (>1e6). Diagnostics:\n"
+           << "  1) Critical point: FD sees d^T H d, not g.d. Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:.\n"
+           << "  2) Large weights degrade FD rel_err (deck-specific). Fix: rerun on a copy of the deck with all Postprocess.Objective weights O(1).\n"
+           << "  3) Nonzero regularizer weight can dominate the FD signal. Fix: zero every Regularization functions weight.\n";
+    }
+  }
+
+  if (!Teuchos::is_null(x_save)) {
+    x->set(*x_save);
+  }
+}
+
+// ========================================================================================
 // ========================================================================================
 
 void AnalysisManager::run()
@@ -493,7 +541,9 @@ void AnalysisManager::ROLSolve()
     }
 
     // check gradient and Hessian-vector computation using finite differences
-    obj->checkGradient(*x, *d, (comm_->getRank() == 0));
+    runFDGradientCheck(ROLsettings, x, comm_->getRank(), [&]() {
+      return obj->checkGradient(*x, *d, (comm_->getRank() == 0));
+    });
   }
 
   // Teuchos::Time timer("Optimization Time", true);
@@ -714,7 +764,9 @@ void AnalysisManager::ROL2Solve()
     }
 
     // check gradient and Hessian-vector computation using finite differences
-    obj->checkGradient(*x, *d, (comm_->getRank() == 0));
+    runFDGradientCheck(ROLsettings, x, comm_->getRank(), [&]() {
+      return obj->checkGradient(*x, *d, (comm_->getRank() == 0));
+    });
   }
 
   // Teuchos::Time timer("Optimization Time", true);
@@ -849,7 +901,9 @@ void AnalysisManager::ROLStochSolve()
   {
     Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
     dx->randomize();
-    obj->checkGradient(*x, *dx, true, *outStream);
+    runFDGradientCheck(ROLsettings, x, comm_->getRank(), [&]() {
+      return obj->checkGradient(*x, *dx, true, *outStream);
+    });
   }
 
   std::string init_iter_file = ROLsettings.sublist("General").get("Initial Iterate File", "error");
