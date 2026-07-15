@@ -1,0 +1,40 @@
+p= 0 | CubeHexMesh: Building sub cells
+           Step size           grad'*dir           FD approx           abs error
+           ---------           ---------           ---------           ---------
+   1.00000000000e+00   1.23278823191e-01   4.46257194435e+11   4.46257194435e+11
+   1.00000000000e-01   1.23278823191e-01   4.46257191660e+10   4.46257191659e+10
+   1.00000000000e-02   1.23278823191e-01   4.46257188794e+09   4.46257188782e+09
+   1.00000000000e-03   1.23278823191e-01   4.46257191888e+08   4.46257191765e+08
+   1.00000000000e-04   1.23278823191e-01   4.46257191829e+07   4.46257190596e+07
+   1.00000000000e-05   1.23278823191e-01   4.46257215452e+06   4.46257203124e+06
+   1.00000000000e-06   1.23278823191e-01   4.46257316155e+05   4.46257192876e+05
+   1.00000000000e-07   1.23278823191e-01   4.46258444769e+04   4.46257211980e+04
+   1.00000000000e-08   1.23278823191e-01   4.46269516745e+03   4.46257188863e+03
+   1.00000000000e-09   1.23278823191e-01   4.46380476974e+02   4.46257198151e+02
+   1.00000000000e-10   1.23278823191e-01   4.47489980564e+01   4.46257192332e+01
+   1.00000000000e-11   1.23278823191e-01   4.58585084911e+00   4.46257202592e+00
+   1.00000000000e-12   1.23278823191e-01   5.69536213837e-01   4.46257390645e-01
+[FDCHECK-HINT] FD/g.d ratio at h=1 is 3.620e+12 (>1e6). Diagnostics:
+  1) Critical point: FD sees d^T H d, not g.d. Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:.
+  2) Large weights degrade FD rel_err (deck-specific). Fix: rerun on a copy of the deck with all Postprocess.Objective weights O(1).
+  3) Nonzero regularizer weight can dominate the FD signal. Fix: zero every Regularization functions weight.
+
+Quasi-Newton Method with Limited-Memory BFGS
+Line Search: Cubic Interpolation satisfying Wolfe Conditions
+-------------------------------------------------------------------------------------------------------------
+Quasi-Newton status output definitions
+
+  iter     - Number of iterates (steps taken)
+  value    - Objective function value
+  gnorm    - Norm of the gradient
+  snorm    - Norm of the step (update to optimization vector)
+  alpha    - Line search step length
+  #fval    - Cumulative number of times the objective function was evaluated
+  #grad    - Cumulative number of times the gradient was computed
+  ls_#fval - Number of the times the objective function was evaluated during the line search
+  ls_#grad - Number of the times the gradient was evaluated during the line search
+-------------------------------------------------------------------------------------------------------------
+  iter  value          gnorm          snorm          alpha          #fval     #grad     ls_#fval  ls_#grad  
+  0     1.537928e-12   1.181603e+00   ---            ---            1         1         ---       ---       
+  1     4.713269e-13   5.382536e-01   1.804272e-12   1.526969e-12   15        2         13        0         
+Optimization Terminated with Status: Iteration Limit Exceeded

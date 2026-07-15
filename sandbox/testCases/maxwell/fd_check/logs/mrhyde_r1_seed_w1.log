@@ -1,0 +1,37 @@
+p= 0 | CubeHexMesh: Building sub cells
+[FDCHECK-REDIRECT] FD check redirected to random parameter vector (seed=42, scale=1). Optimizer initial iterate is unchanged.
+           Step size           grad'*dir           FD approx           abs error
+           ---------           ---------           ---------           ---------
+   1.00000000000e+00   2.56547139415e+00   3.31879028290e+01   3.06224314349e+01
+   1.00000000000e-01   2.56547139415e+00   5.62771453764e+00   3.06224314349e+00
+   1.00000000000e-02   2.56547139415e+00   2.87169570849e+00   3.06224314349e-01
+   1.00000000000e-03   2.56547139415e+00   2.59609382559e+00   3.06224314425e-02
+   1.00000000000e-04   2.56547139415e+00   2.56853363737e+00   3.06224322737e-03
+   1.00000000000e-05   2.56547139415e+00   2.56577762059e+00   3.06226443694e-04
+   1.00000000000e-06   2.56547139415e+00   2.56550201527e+00   3.06211273475e-05
+   1.00000000000e-07   2.56547139415e+00   2.56547437516e+00   2.98101492646e-06
+   1.00000000000e-08   2.56547139415e+00   2.56547139088e+00   3.26456373045e-09
+   1.00000000000e-09   2.56547139415e+00   2.56548560174e+00   1.42075901515e-05
+   1.00000000000e-10   2.56547139415e+00   2.56548560174e+00   1.42075901515e-05
+   1.00000000000e-11   2.56547139415e+00   2.56648036157e+00   1.00896742022e-03
+   1.00000000000e-12   2.56547139415e+00   2.57216470345e+00   6.69330930630e-03
+
+Quasi-Newton Method with Limited-Memory BFGS
+Line Search: Cubic Interpolation satisfying Wolfe Conditions
+-------------------------------------------------------------------------------------------------------------
+Quasi-Newton status output definitions
+
+  iter     - Number of iterates (steps taken)
+  value    - Objective function value
+  gnorm    - Norm of the gradient
+  snorm    - Norm of the step (update to optimization vector)
+  alpha    - Line search step length
+  #fval    - Cumulative number of times the objective function was evaluated
+  #grad    - Cumulative number of times the gradient was computed
+  ls_#fval - Number of the times the objective function was evaluated during the line search
+  ls_#grad - Number of the times the gradient was evaluated during the line search
+-------------------------------------------------------------------------------------------------------------
+  iter  value          gnorm          snorm          alpha          #fval     #grad     ls_#fval  ls_#grad  
+  0     1.537928e-47   1.181603e-35   ---            ---            1         1         ---       ---       
+  1     1.537928e-47   1.177060e-35   1.181603e-36   1.000000e-01   4         2         2         0         
+Optimization Terminated with Status: Iteration Limit Exceeded
