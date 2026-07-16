@@ -133,6 +133,8 @@ void PostprocessManager<Node>::setup() {
   for (size_t set = 0; set < setnames.size(); ++set) {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
     adj_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
+    incr_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
+    incr_adj_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
   }
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type", "forward");
   save_solution = false;

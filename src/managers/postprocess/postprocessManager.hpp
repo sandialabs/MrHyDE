@@ -652,6 +652,8 @@ public:
   
   bool save_solution = false; ///< Whether to write primal solutions.
   bool save_adjoint_solution = false; ///< Whether to write adjoint solutions.
+  bool is_incremental = false; ///< When true, record() routes to incr_soln and skips objective/output side effects.
+  bool is_incremental_adjoint = false; ///< When true, adjoint transient loop reads state from incr_soln.
   
   vector<fluxResponse> fluxes; ///< Flux responses computed on boundaries.
   vector<vector<integratedQuantity>> integratedQuantities; ///< Integrated quantities for each block.
