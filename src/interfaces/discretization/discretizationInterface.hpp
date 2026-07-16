@@ -291,6 +291,11 @@ public:
                                   vector<View_Sc4> & basis_nodes,
                                   const bool & apply_orientations = true);
   
+  void getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                               vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                               vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
+                               const bool & apply_orientations = true);
+  
   // ========================================================================================
   // ========================================================================================
   
@@ -313,6 +318,12 @@ public:
                                   vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
                                   vector<View_Sc4> & basis_nodes,
                                   const bool & apply_orientations = true);
+  
+  void getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData> & groupData, DRV nodes,
+                               Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
+                               vector<View_Sc4> & basis, vector<View_Sc4> & basis_grad,
+                               vector<View_Sc4> & basis_curl, vector<View_Sc3> & basis_div,
+                               const bool & apply_orientations = true);
   
   // ========================================================================================
   // ========================================================================================
