@@ -126,6 +126,14 @@ public:
                                   vector<View_Sc2> & ip,
                                   View_Sc2 wts);
   
+  // ========================================================================================
+  // ========================================================================================
+
+  void getPhaseIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
+                               Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip, View_Sc2 wts);
+
+  void getPhaseIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
+                               DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts);
   /**
    * \brief Computes physical quadrature points and weights via provided nodes.
    *
@@ -163,6 +171,15 @@ public:
   void getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
                                  DRV nodes, vector<View_Sc2> & ip);
   
+  void getPhaseIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                              Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip);
+
+  // ========================================================================================
+  // ========================================================================================
+
+  void getPhaseIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                              DRV nodes, vector<View_Sc2> & ip);
+  
   // ========================================================================================
   // ========================================================================================
   
@@ -189,6 +206,18 @@ public:
   void getJacobian(Teuchos::RCP<GroupMetaData> & groupData,
                    DRV nodes, DRV jacobian);
   
+  //////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  void getPhaseJacobian(Teuchos::RCP<GroupMetaData> & groupData,
+                        Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian);
+
+  // ========================================================================================
+  // ========================================================================================
+
+  void getPhaseJacobian(Teuchos::RCP<GroupMetaData> & groupData,
+                        DRV nodes, DRV jacobian);
+  
   // ========================================================================================
   // ========================================================================================
   
@@ -203,6 +232,12 @@ public:
   void getPhysicalWts(Teuchos::RCP<GroupMetaData> & groupData,
                       Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian, DRV wts);
   
+  //////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  void getPhaseWts(Teuchos::RCP<GroupMetaData> & groupData,
+                   Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian, DRV wts);
+
   // ========================================================================================
   // ========================================================================================
   
@@ -216,6 +251,12 @@ public:
   void getMeasure(Teuchos::RCP<GroupMetaData> & groupData,
                   DRV jacobian, DRV measure);
   
+  //////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////////////
+
+  void getPhaseMeasure(Teuchos::RCP<GroupMetaData> & groupData,
+                       DRV jacobian, DRV measure);
+
   // ========================================================================================
   // ========================================================================================
   
@@ -609,6 +650,8 @@ public:
    */
   void buildDOFManagers();
   
+  void buildSimpleDOFManagers();
+  
   /**
    * @brief Sets boundary condition information on the DOF manager.
    *
@@ -685,6 +728,9 @@ public:
    */
   DRV mapPointsToReference(DRV phys_pts, DRV nodes, topo_RCP & cellTopo);
   
+  DRV mapPointsToPhaseReference(DRV phys_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                topo_RCP & cellTopo);
+
   /**
    * @brief Returns reference element node coordinates.
    *
@@ -702,6 +748,8 @@ public:
    */
   DRV getMyNodes(const size_t & block, Kokkos::View<LO*,AssemblyDevice> elemIDs);
   
+  DRV getMyPhaseNodes(Kokkos::View<LO*,AssemblyDevice> elemIDs);
+   
   /**
    * @brief Maps reference points to physical space for a set of elements.
    *
@@ -724,6 +772,9 @@ public:
    */
   DRV mapPointsToPhysical(DRV ref_pts, DRV nodes, topo_RCP & cellTopo);
   
+  DRV mapPointsToPhase(DRV ref_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                       topo_RCP & cellTopo);
+
   /**
    * @brief Determines whether physical points lie within each physical element.
    *
@@ -805,7 +856,7 @@ public:
   
   int verbosity; /**< Verbosity level for output and debugging. */
   int dimension; /**< Spatial dimension of the problem. */
-  int phase_dimension; /**< Dimension of the phase space. */
+  int phase_dimension = 0; /**< Dimension of the phase space. */
   int quadorder; /**< Quadrature order used for integration. */
   
   double storage_proportion; /**< Fraction of data stored for memory optimization. */
@@ -818,6 +869,8 @@ public:
   
   vector<vector<basis_RCP>> basis_pointers; /**< Basis function pointers per block and type. */
   vector<vector<string>> basis_types; /**< Basis type names per block. */
+  vector<vector<basis_RCP> > phase_basis_pointers; /**< Basis function pointers per block and type. */
+  vector<vector<string> > phase_basis_types; /**< Basis type names per block. */
   
   vector<vector<vector<GO>>> point_dofs; /**< Point DOF IDs per set, block, and DOF. */
   vector<vector<vector<vector<LO>>>> dbc_dofs; /**< Dirichlet boundary condition DOF lists. */
@@ -831,8 +884,8 @@ public:
   std::vector<Kokkos::View<GO*,HostDevice>> dof_owned_and_shared; /**< Owned + shared DOF global IDs. */
   Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations; /**< Orientation data for basis functions. */
   
-  vector<DRV> ref_ip, phase_ref_ip; /**< Reference integration points per block. */
-  vector<DRV> ref_wts, phase_ref_wts; /**< Reference integration weights per block. */
+  vector<DRV> ref_ip, ref_phase_ip; /**< Reference integration points per block. */
+  vector<DRV> ref_wts, ref_phase_wts; /**< Reference integration weights per block. */
   vector<DRV> ref_side_ip; /**< Reference integration points on sides. */
   vector<DRV> ref_side_wts; /**< Reference integration weights on sides. */
   

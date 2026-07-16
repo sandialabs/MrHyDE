@@ -500,7 +500,7 @@ public:
    *  @{ */
   Teuchos::RCP<Teuchos::ParameterList> settings; ///< Parameter list containing physics and solver settings.
   Teuchos::RCP<MpiComm> comm; ///< Parallel communicator used throughout the interface.
-  int dimension, type_AD; ///< Spatial dimension and automatic differentiation type.
+  int dimension, phase_dimension, type_AD; ///< Spatial dimension and automatic differentiation type.
   vector<string> set_names, block_names, side_names; ///< Names of sets, blocks, and sides in the mesh.
   
   /** @} */
@@ -513,10 +513,16 @@ public:
   vector<vector<vector<int> > > var_owned; ///< Variable ownership map.
   vector<vector<vector<int> > > orders; ///< Polynomial orders of variables.
   vector<vector<vector<string> > > types; ///< Variable types.
+  vector<vector<vector<string> > > phase_var_list; ///< List of variables.
+  vector<vector<vector<int> > > phase_orders; ///< Polynomial orders of variables.
+  vector<vector<vector<string> > > phase_types; ///< Variable types.
   vector<vector<int> > unique_orders; ///< Unique polynomial orders.
   vector<vector<string> > unique_types; ///< Unique variable types.
   vector<vector<int> > unique_index; ///< Unique indices.
   string initial_type; ///< Type of initial condition.
+  vector<vector<int> > unique_phase_orders; ///< Unique polynomial orders.
+  vector<vector<string> > unique_phase_types; ///< Unique variable types.
+  
   /** @} */
 
   /** @name Function Managers

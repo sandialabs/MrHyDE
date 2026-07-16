@@ -231,9 +231,9 @@ namespace MrHyDE {
     vector<vector<View_Sc2>> ip_face, normals_face;
     vector<View_Sc2> wts_face;
     vector<View_Sc1> hsize_face;
-    Kokkos::View<LO*,AssemblyDevice> basis_index, ip_x_index, ip_y_index, ip_z_index;
+    Kokkos::View<LO*,AssemblyDevice> basis_index, phase_basis_index, ip_x_index, ip_y_index, ip_z_index;
     
-    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation, phase_orientation;
     vector<View_Sc3> sol, phi;
     View_Sc3 param, aux; // (elem,var,numdof)
     vector<View_Sc3> sol_avg, sol_alt;

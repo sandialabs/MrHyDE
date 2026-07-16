@@ -132,6 +132,81 @@ void DiscretizationInterface::setReferenceBasisData(Teuchos::RCP<GroupMetaData> 
     groupData->ref_side_basis_curl.push_back(sbasiscurl);
   }
   
+  
+  size_t phase_dimension = groupData->phase_dimension;
+  
+  if (phase_dimension > 0) {
+    
+    auto cellTopo = groupData->phase_cell_topo;
+    
+    // ------------------------------------
+    // Get refnodes
+    // ------------------------------------
+    
+    DRV refnodes("nodes on reference element",cellTopo->getNodeCount(),phase_dimension);
+    CellTools::getReferenceSubcellVertices(refnodes, phase_dimension, 0, *cellTopo);
+    groupData->ref_phase_nodes = refnodes;
+    
+    // ------------------------------------
+    // Get ref basis
+    // ------------------------------------
+    
+    groupData->phase_basis_pointers = phase_basis_pointers[0];
+    groupData->phase_basis_types = phase_basis_types[0];
+    
+    for (size_t i=0; i<phase_basis_pointers[0].size(); i++) {
+      
+      int numb = phase_basis_pointers[0][i]->getCardinality();
+      
+      DRV basisvals, basisgrad, basisdiv, basiscurl;
+      
+      if (phase_basis_types[0][i].substr(0,5) == "HGRAD") {
+        
+        basisvals = DRV("basisvals",numb, groupData->num_phase_ip);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        
+        basisgrad = DRV("basisgrad",numb, groupData->num_phase_ip, phase_dimension);
+        phase_basis_pointers[0][i]->getValues(basisgrad, groupData->ref_phase_ip, Intrepid2::OPERATOR_GRAD);
+        
+      }
+      else if (phase_basis_types[0][i].substr(0,4) == "HVOL") {
+        
+        basisvals = DRV("basisvals",numb, groupData->num_phase_ip);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        
+      }
+      else if (phase_basis_types[0][i].substr(0,4) == "HDIV") {
+        
+        basisvals = DRV("basisvals",numb, groupData->num_phase_ip, phase_dimension);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        
+        basisdiv = DRV("basisdiv",numb, groupData->num_phase_ip);
+        phase_basis_pointers[0][i]->getValues(basisdiv, groupData->ref_phase_ip, Intrepid2::OPERATOR_DIV);
+        
+      }
+      else if (phase_basis_types[0][i].substr(0,5) == "HCURL"){
+        
+        basisvals = DRV("basisvals",numb, groupData->num_phase_ip, phase_dimension);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        
+        if (dimension == 2) {
+          basiscurl = DRV("basiscurl",numb, groupData->num_phase_ip);
+        }
+        else if (dimension == 3) {
+          basiscurl = DRV("basiscurl",numb, groupData->num_phase_ip, phase_dimension);
+        }
+        phase_basis_pointers[0][i]->getValues(basiscurl, groupData->ref_phase_ip, Intrepid2::OPERATOR_CURL);
+        
+      }
+      
+      groupData->ref_phase_basis.push_back(basisvals);
+      groupData->ref_phase_basis_curl.push_back(basiscurl);
+      groupData->ref_phase_basis_grad.push_back(basisgrad);
+      groupData->ref_phase_basis_div.push_back(basisdiv);
+      
+    }
+  }
+  
 }
 
 

@@ -61,7 +61,7 @@ int main(int argc, char * argv[]) {
     wkset->createSolutionFields();
     
     // Create a function manager
-    Teuchos::RCP<FunctionManager<AD> > functionManager = Teuchos::rcp(new FunctionManager<AD>("eblock",numElem,numip,numip));
+    Teuchos::RCP<FunctionManager<AD> > functionManager = Teuchos::rcp(new FunctionManager<AD>("eblock",numElem,numip,numip,numip));
     functionManager->wkset = wkset;
     
     //----------------------------------------------------------------------

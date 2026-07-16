@@ -21,8 +21,9 @@ void AssemblyManager<Node>::createGroups() {
   
   vector<stk::mesh::Entity> all_meshElems = mesh->getMySTKElements();
   
-  
+  // Grab the local dof IDs
   auto LIDs = disc->dof_lids;
+  auto phaseLIDs = disc->phase_dof_lids;
   
   // Disc manager stores offsets as [set][block][var][dof]
   vector<vector<vector<vector<int> > > > disc_offsets = disc->offsets;
@@ -37,6 +38,20 @@ void AssemblyManager<Node>::createGroups() {
     my_offsets.push_back(block_offsets);
   }
   
+  // Disc manager stores phase offsets as [set][block][var][dof]
+  // Though phase meshes only have one block
+  vector<vector<vector<vector<int> > > > disc_phase_offsets = disc->phase_offsets;
+  
+  // We want these re-ordered as [block][set][var][dof]
+  vector<vector<vector<vector<int> > > > my_phase_offsets;
+  for (size_t block=0; block<blocknames.size(); ++block) {
+    vector<vector<vector<int> > > block_offsets;
+    for (size_t set=0; set<disc_offsets.size(); ++set) {
+      block_offsets.push_back(disc_offsets[set][0]);
+    }
+    my_phase_offsets.push_back(block_offsets);
+  }
+  
   for (size_t block=0; block<blocknames.size(); ++block) {
     Teuchos::RCP<GroupMetaData> blockGroupData;
     vector<Teuchos::RCP<Group> > block_groups;
@@ -47,13 +62,13 @@ void AssemblyManager<Node>::createGroups() {
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
     
     size_t numTotalElem;
-    if(mesh->use_stk_mesh)
+    if (mesh->use_stk_mesh)
       numTotalElem = stk_meshElems.size();
     else
       numTotalElem = mesh->simple_mesh->getNumCells();
     size_t processedElem = 0;
     
-    if (numTotalElem>0) {
+    if (numTotalElem > 0) {
       
       auto myElem = disc->my_elements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());

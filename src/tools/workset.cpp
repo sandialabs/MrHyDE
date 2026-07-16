@@ -36,7 +36,9 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   numsideip = cellinfo[4];
   numSets = cellinfo[5];
   numScalarParams = cellinfo[6];
-  
+  phase_dimension = cellinfo[7];
+  numPhaseElem = cellinfo[8];
+  numphaseip = cellinfo[9];
   isOnSide = false;
   isOnPoint = false;
 
@@ -59,22 +61,42 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   scalar_fields.push_back(ScalarField("y"));
   scalar_fields.push_back(ScalarField("z"));
   
+  scalar_fields.push_back(ScalarField("u"));
+  scalar_fields.push_back(ScalarField("v"));
+  scalar_fields.push_back(ScalarField("w"));
+  
   side_scalar_fields.push_back(ScalarField("x"));
   side_scalar_fields.push_back(ScalarField("y"));
   side_scalar_fields.push_back(ScalarField("z"));
+  
+  side_scalar_fields.push_back(ScalarField("u"));
+  side_scalar_fields.push_back(ScalarField("v"));
+  side_scalar_fields.push_back(ScalarField("w"));
   
   side_scalar_fields.push_back(ScalarField("n[x]"));
   side_scalar_fields.push_back(ScalarField("n[y]"));
   side_scalar_fields.push_back(ScalarField("n[z]"));
   
+  side_scalar_fields.push_back(ScalarField("n[u]"));
+  side_scalar_fields.push_back(ScalarField("n[v]"));
+  side_scalar_fields.push_back(ScalarField("n[w]"));
+  
   side_scalar_fields.push_back(ScalarField("t[x]"));
   side_scalar_fields.push_back(ScalarField("t[y]"));
   side_scalar_fields.push_back(ScalarField("t[z]"));
   
+  side_scalar_fields.push_back(ScalarField("t[u]"));
+  side_scalar_fields.push_back(ScalarField("t[v]"));
+  side_scalar_fields.push_back(ScalarField("t[w]"));
+  
   point_scalar_fields.push_back(ScalarField("x"));
   point_scalar_fields.push_back(ScalarField("y"));
   point_scalar_fields.push_back(ScalarField("z"));
-    
+  
+  point_scalar_fields.push_back(ScalarField("u"));
+  point_scalar_fields.push_back(ScalarField("v"));
+  point_scalar_fields.push_back(ScalarField("w"));
+  
   have_rotation = false;
   have_rotation_phi = false;
   rotation = View_Sc3("rotation matrix",1,3,3);
@@ -85,14 +107,19 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
     maxb = std::max(maxb,numb);
   }
   
-  basis = vector<CompressedView<View_Sc4>>(basis_pointers.size());
-  basis_grad = vector<CompressedView<View_Sc4>>(basis_pointers.size());
-  basis_curl = vector<CompressedView<View_Sc4>>(basis_pointers.size());
-  basis_div = vector<CompressedView<View_Sc3>>(basis_pointers.size());
+  basis = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  basis_grad = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  basis_curl = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  basis_div = vector<CompressedView<View_Sc3> >(basis_pointers.size());
   
-  basis_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
-  basis_grad_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
-  basis_curl_side = vector<CompressedView<View_Sc4>>(basis_pointers.size());
+  phase_basis = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  phase_basis_grad = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  phase_basis_curl = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  phase_basis_div = vector<CompressedView<View_Sc3> >(basis_pointers.size());
+  
+  basis_side = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  basis_grad_side = vector<CompressedView<View_Sc4> >(basis_pointers.size());
+  basis_curl_side = vector<CompressedView<View_Sc4> >(basis_pointers.size());
   
   set_BDF_wts = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
   set_butcher_A = vector<Kokkos::View<ScalarT**,AssemblyDevice> >(numSets);
@@ -132,6 +159,11 @@ void Workset<EvalT>::createSolutionFields() {
   // Check the number of DOF for each discretized parameter
   if (paramusebasis.size() > 0) {
     maxRes = std::max(maxRes,paramoffsets.extent(0)*paramoffsets.extent(1));
+  }
+  
+  // Adjust for phase dofs
+  if (phase_dimension > 0) {
+    maxRes = maxRes*phase_offsets.extent(0)*phase_offsets.extent(1);
   }
   
   size_t totalvars = 0;

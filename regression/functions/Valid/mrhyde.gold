@@ -380,6 +380,9 @@ Number of Trees: 22
         B[x]
         f14
 -----------------------------------------------------------
+Forest Name:tensor ip
+Number of Trees: 0
+-----------------------------------------------------------
 Forest Name:point
 Number of Trees: 22
     Tree: a
@@ -616,20 +619,35 @@ Currently defined side scalar fields are:
 x
 y
 z
+u
+v
+w
 n[x]
 n[y]
 n[z]
+n[u]
+n[v]
+n[w]
 t[x]
 t[y]
 t[z]
+t[u]
+t[v]
+t[w]
 Currently defined point scalar fields are: 
 x
 y
 z
+u
+v
+w
 Currently defined scalar fields are: 
 x
 y
 z
+u
+v
+w
 
 ===========================================================
 Printing functions on block: eblock-0_0
@@ -996,6 +1014,9 @@ Number of Trees: 22
         B[x]
         f14
 -----------------------------------------------------------
+Forest Name:tensor ip
+Number of Trees: 0
+-----------------------------------------------------------
 Forest Name:point
 Number of Trees: 22
     Tree: a
@@ -1232,20 +1253,35 @@ Currently defined side scalar fields are:
 x
 y
 z
+u
+v
+w
 n[x]
 n[y]
 n[z]
+n[u]
+n[v]
+n[w]
 t[x]
 t[y]
 t[z]
+t[u]
+t[v]
+t[w]
 Currently defined point scalar fields are: 
 x
 y
 z
+u
+v
+w
 Currently defined scalar fields are: 
 x
 y
 z
+u
+v
+w
 
 *********************************************
 Printing settings used by MrHyDE (ignore unused keyword):

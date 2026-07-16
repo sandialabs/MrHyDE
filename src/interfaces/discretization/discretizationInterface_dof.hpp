@@ -235,6 +235,108 @@ void DiscretizationInterface::buildDOFManagers() {
   
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+// After the mesh and the discretizations have been defined, we can create and add the physics
+// to the DOF manager
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::buildSimpleDOFManagers() {
+  
+  // GHDR: need to fill in the objects listed above (try it without the orientations and num_derivs_required)
+  
+  // GH: this simply pushes back DOFs 0,1,...,N-1 where N is the number of nodes for owned and ownedAndShared
+  //vector<GO> owned;
+  //for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
+  //  owned.push_back(((GO) i));
+  size_t num_owned = 0;
+  for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+    bool isshared = mesh->simple_mesh->isShared(i);
+    if (!isshared) {
+      if (phase_dimension > 0) {
+        num_owned++;
+      }
+    }
+  }
+  
+  Kokkos::View<GO*,HostDevice> owned("owned dofs",num_owned);
+  size_t prog = 0;
+  for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+    bool isshared = mesh->simple_mesh->isShared(i);
+    if (!isshared) {
+      owned(prog) = mesh->simple_mesh->localToGlobal(i);
+      ++prog;
+    }
+  }
+  dof_owned.push_back(owned);
+  
+  //for (size_type i=0; i<owned.extent(0); ++i) {
+  //  cout << comm->getRank() << "  " << owned(i) << endl;
+  //}
+  
+  Kokkos::View<GO*,HostDevice> owned_shared("owned and shared dofs",mesh->simple_mesh->getNumNodes());
+  for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+    owned_shared(i) = mesh->simple_mesh->localToGlobal(i);
+  }
+  
+  //for (size_type i=0; i<owned_shared.extent(0); ++i) {
+  //  cout << comm->getRank() << "  " << owned_shared(i) << endl;
+  //}
+  
+  dof_owned_and_shared.push_back(owned_shared);
+  
+  dof_lids.push_back(mesh->simple_mesh->getCellToNodeMap()); // [set](elem, dof)
+  
+  /*
+   //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof]
+   Kokkos::View<GO**,HostDevice> elemids("dof gids", dof_lids[dof_lids.size()-1].extent(0), dof_lids[dof_lids.size()-1].extent(1));
+   for(unsigned int e=0; e<dof_lids[0].extent(0); ++e) {
+   std::vector<GO> localelemids;
+   for(unsigned int i=0; i<dof_lids[0].extent(1); ++i) {
+   //localelemids.push_back(dof_lids[0](e,i));
+   elemids(e,i) = dof_lids[0](e,i);
+   }
+   //elemids.push_back(localelemids);
+   }
+   dof_gids.push_back(elemids);
+   */
+  
+  // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
+  for (size_t set=0; set<physics->set_names.size(); ++set) {
+    vector<vector<string> > varlist = physics->var_list[set];
+    vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+    for (size_t block=0; block<block_names.size(); ++block) {
+      vector<vector<int> > celloffsets;
+      for (size_t j=0; j<varlist[block].size(); j++) {
+        string var = varlist[block][j];
+        //int num = setDOF->getFieldNum(var);
+        vector<int> var_offsets = {0, 1, 3, 2}; // GH: super hacky???
+        
+        celloffsets.push_back(var_offsets);
+      }
+      set_offsets.push_back(celloffsets);
+    }
+    offsets.push_back(set_offsets);
+    
+    // more hacky stuff; can't set dbcs without dof manager, but we don't have a dof manager
+    std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
+    std::vector<std::vector<LO> > block_dbc_dofs;
+    std::vector<LO> var_dofs;
+    //var_dofs.push_back(0);
+    block_dbc_dofs.push_back(var_dofs);
+    set_dbc_dofs.push_back(block_dbc_dofs);
+    dbc_dofs.push_back(set_dbc_dofs);
+    
+    // parameter manager wants num_derivs_required
+    num_derivs_required = std::vector<int>(1);
+    
+  }
+  
+  //panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",mesh->simple_mesh->getNumCells());
+  panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",1);
+  
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 

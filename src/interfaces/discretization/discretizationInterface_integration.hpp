@@ -74,6 +74,14 @@ void DiscretizationInterface::setReferenceIntegrationData(Teuchos::RCP<GroupMeta
       groupData->ref_side_tangentsV.push_back(refSideTangentsV);
     }
   }
+  
+  if (groupData->phase_dimension > 0) {
+    
+    groupData->num_phase_ip = ref_phase_ip[0].extent(0);
+    groupData->ref_phase_ip = ref_phase_ip[0];
+    groupData->ref_phase_wts = ref_phase_wts[0];
+    
+  }
 }
 
 
@@ -143,6 +151,55 @@ void DiscretizationInterface::getPhysicalIntegrationPts(Teuchos::RCP<GroupMetaDa
   }
 }
 
+// -------------------------------------------------
+// Compute the phase integration information
+// -------------------------------------------------
+
+void DiscretizationInterface::getPhaseIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                                                     Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip) {
+  DRV nodes = this->getMyPhaseNodes(elemIDs);
+  this->getPhaseIntegrationPts(groupData, nodes, ip);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void DiscretizationInterface::getPhaseIntegrationPts(Teuchos::RCP<GroupMetaData> & groupData,
+                                                     DRV nodes, vector<View_Sc2> & ip) {
+  
+  Teuchos::TimeMonitor constructor_timer(*phys_vol_IP_timer);
+
+  int numip = groupData->ref_phase_ip.extent(0);
+  int numElem = nodes.extent(0);
+  
+  // -------------------------------------------------
+  // Compute the integration information
+  // -------------------------------------------------
+  
+  DRV tmpip("tmp ip", numElem, numip, phase_dimension);
+  
+  {
+    CellTools::mapToPhysicalFrame(tmpip, groupData->ref_phase_ip, nodes, *(groupData->phase_cell_topo));
+    View_Sc2 x("x",tmpip.extent(0), tmpip.extent(1));
+    auto tmpip_x = subview(tmpip, ALL(), ALL(),0);
+    deep_copy(x,tmpip_x);
+    ip.push_back(x);
+    if (phase_dimension > 1) {
+      View_Sc2 y("y",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_y = subview(tmpip, ALL(), ALL(),1);
+      deep_copy(y,tmpip_y);
+      ip.push_back(y);
+    }
+    if (phase_dimension > 2) {
+      View_Sc2 z("z",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_z = subview(tmpip, ALL(), ALL(),2);
+      deep_copy(z,tmpip_z);
+      ip.push_back(z);
+    }
+    
+  }
+}
+
 // ========================================================================================
 // ========================================================================================
 
@@ -203,7 +260,68 @@ void DiscretizationInterface::getPhysicalIntegrationData(Teuchos::RCP<GroupMetaD
   Kokkos::deep_copy(wts,tmpwts);
   
 }
-                    
+
+// ========================================================================================
+// ========================================================================================
+
+void DiscretizationInterface::getPhaseIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
+                                                      Kokkos::View<LO*,AssemblyDevice> elemIDs, vector<View_Sc2> & ip, View_Sc2 wts) {
+  DRV nodes = this->getMyPhaseNodes(elemIDs);
+  this->getPhaseIntegrationData(groupData, nodes, ip, wts);
+}
+
+/// @brief ////////////////////////////////////////////////////
+/// @param groupData
+/// @param nodes
+/// @param ip
+/// @param wts
+
+void DiscretizationInterface::getPhaseIntegrationData(Teuchos::RCP<GroupMetaData> & groupData,
+                                                      DRV nodes, vector<View_Sc2> & ip, View_Sc2 wts) {
+  
+  Teuchos::TimeMonitor constructor_timer(*phys_vol_IP_timer);
+
+  int dimension = groupData->phase_dimension;
+  int numip = groupData->ref_phase_ip.extent(0);
+  int numElem = nodes.extent(0);
+  
+  // -------------------------------------------------
+  // Compute the integration information
+  // -------------------------------------------------
+  
+  DRV jacobian ("jacobian", numElem, numip, dimension, dimension);
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  DRV tmpip("tmp ip", numElem, numip, dimension);
+  DRV tmpwts("tmp ip wts", numElem, numip);
+  
+  {
+    CellTools::mapToPhysicalFrame(tmpip, groupData->ref_phase_ip, nodes, *(groupData->phase_cell_topo));
+    View_Sc2 x("x",tmpip.extent(0), tmpip.extent(1));
+    auto tmpip_x = subview(tmpip, ALL(), ALL(),0);
+    deep_copy(x,tmpip_x);
+    ip.push_back(x);
+    if (dimension > 1) {
+      View_Sc2 y("y",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_y = subview(tmpip, ALL(), ALL(),1);
+      deep_copy(y,tmpip_y);
+      ip.push_back(y);
+    }
+    if (dimension > 2) {
+      View_Sc2 z("z",tmpip.extent(0), tmpip.extent(1));
+      auto tmpip_z = subview(tmpip, ALL(), ALL(),2);
+      deep_copy(z,tmpip_z);
+      ip.push_back(z);
+    }
+    
+  }
+  
+  CellTools::setJacobian(jacobian, groupData->ref_phase_ip, nodes, *(groupData->phase_cell_topo));
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  FuncTools::computeCellMeasure(tmpwts, jacobianDet, groupData->ref_phase_wts);
+  Kokkos::deep_copy(wts,tmpwts);
+  
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
@@ -224,6 +342,23 @@ void DiscretizationInterface::getJacobian(Teuchos::RCP<GroupMetaData> & groupDat
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
+void DiscretizationInterface::getPhaseJacobian(Teuchos::RCP<GroupMetaData> & groupData,
+                                               Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian) {
+  DRV nodes = this->getMyPhaseNodes(elemIDs);
+  this->getPhaseJacobian(groupData, nodes, jacobian);
+}
+
+// ========================================================================================
+// ========================================================================================
+
+void DiscretizationInterface::getPhaseJacobian(Teuchos::RCP<GroupMetaData> & groupData,
+                                               DRV nodes, DRV jacobian) {
+  CellTools::setJacobian(jacobian, groupData->ref_phase_ip, nodes, *(groupData->phase_cell_topo));
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
 void DiscretizationInterface::getPhysicalWts(Teuchos::RCP<GroupMetaData> & groupData,
                                              Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian, DRV wts) {
 
@@ -239,6 +374,21 @@ void DiscretizationInterface::getPhysicalWts(Teuchos::RCP<GroupMetaData> & group
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
+void DiscretizationInterface::getPhaseWts(Teuchos::RCP<GroupMetaData> & groupData,
+                                          Kokkos::View<LO*,AssemblyDevice> elemIDs, DRV jacobian, DRV wts) {
+
+  int numip = groupData->ref_phase_ip.extent(0);
+  int numElem = jacobian.extent(0);
+  
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  FuncTools::computeCellMeasure(wts, jacobianDet, groupData->ref_phase_wts);
+            
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
 void DiscretizationInterface::getMeasure(Teuchos::RCP<GroupMetaData> & groupData,
                                          DRV jacobian, DRV measure) {
   int numip = groupData->ref_ip.extent(0);
@@ -248,6 +398,29 @@ void DiscretizationInterface::getMeasure(Teuchos::RCP<GroupMetaData> & groupData
   CellTools::setJacobianDet(jacobianDet, jacobian);
   DRV wts("jacobian", numElem, numip);
   FuncTools::computeCellMeasure(wts, jacobianDet, groupData->ref_wts);
+
+  parallel_for("compute measure",
+               RangePolicy<AssemblyExec>(0,numElem),
+               MRHYDE_LAMBDA (const size_type elem ) {
+    for (size_type pt=0; pt<wts.extent(1); ++pt) {
+      measure(elem) += wts(elem,pt);
+    }
+  });
+        
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::getPhaseMeasure(Teuchos::RCP<GroupMetaData> & groupData,
+                                              DRV jacobian, DRV measure) {
+  int numip = groupData->ref_phase_ip.extent(0);
+  int numElem = measure.extent(0);
+  
+  DRV jacobianDet("determinant of jacobian", numElem, numip);
+  CellTools::setJacobianDet(jacobianDet, jacobian);
+  DRV wts("jacobian", numElem, numip);
+  FuncTools::computeCellMeasure(wts, jacobianDet, groupData->ref_phase_wts);
 
   parallel_for("compute measure",
                RangePolicy<AssemblyExec>(0,numElem),

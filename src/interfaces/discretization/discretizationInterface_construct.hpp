@@ -164,6 +164,70 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     
   } // block loop
   
+  if (phase_dimension > 0) {
+    vector<vector<int> > phase_orders = physics->unique_phase_orders;
+    vector<vector<string> > phase_types = physics->unique_phase_types;
+    
+    topo_RCP cellTopo = mesh->getPhaseCellTopology();
+    string shape = cellTopo->getName();
+    
+    vector<int> pcards;
+    vector<basis_RCP> pbasis;
+    
+    vector<int> doneporders;
+    vector<string> doneptypes;
+    
+    for (size_t set=0; set<physics->set_names.size(); ++set) {
+      
+      for (size_t n=0; n<phase_orders.size(); n++) {
+        bool go = true;
+        for (size_t i=0; i<doneporders.size(); i++){
+          if (doneporders[i] == phase_orders[0][n] && doneptypes[i] == phase_types[0][n]) {
+            go = false;
+          }
+        }
+        if (go) {
+          basis_RCP basis = this->getBasis(phase_dimension, cellTopo, phase_types[0][n], phase_orders[0][n]);
+          int bsize = basis->getCardinality();
+          pcards.push_back(bsize); // cardinality of the basis
+          pbasis.push_back(basis);
+          doneporders.push_back(phase_orders[0][n]);
+          doneptypes.push_back(phase_types[0][n]);
+        }
+      }
+    }
+    phase_basis_types.push_back(doneptypes);
+    phase_cards.push_back(pcards);
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // Quadrature
+    ///////////////////////////////////////////////////////////////////////////
+    
+    int mxorder = 0;
+    for (size_t i=0; i<phase_orders[0].size(); i++) {
+      if (phase_orders[0][i]>mxorder) {
+        mxorder = phase_orders[0][i];
+      }
+    }
+    
+    DRV qpts, qwts;
+    quadorder = 2*mxorder; // hard coded
+    this->getQuadrature(cellTopo, quadorder, qpts, qwts);
+    
+    ///////////////////////////////////////////////////////////////////////////
+    // Store locally
+    ///////////////////////////////////////////////////////////////////////////
+    
+    phase_basis_pointers.push_back(pbasis);
+    ref_phase_ip.push_back(qpts);
+    ref_phase_wts.push_back(qwts);
+    
+    phase_numip.push_back(qpts.extent(0));
+  }
+  else {
+    phase_numip.push_back(0);
+  }
+  
   // We do not actually store the DOF or Connectivity managers
   // Probably require:
   // std::vector<Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device>> dof_lids; [set](elem, dof)
@@ -179,96 +243,7 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     this->buildDOFManagers();
   }
   else {
-    // GHDR: need to fill in the objects listed above (try it without the orientations and num_derivs_required)
-
-    // GH: this simply pushes back DOFs 0,1,...,N-1 where N is the number of nodes for owned and ownedAndShared
-    //vector<GO> owned;
-    //for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
-    //  owned.push_back(((GO) i));
-    size_t num_owned = 0;
-    for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
-      bool isshared = mesh->simple_mesh->isShared(i);
-      if (!isshared) {
-        num_owned++;
-      }
-    }
-    
-    Kokkos::View<GO*,HostDevice> owned("owned dofs",num_owned);
-    size_t prog = 0;
-    for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
-      bool isshared = mesh->simple_mesh->isShared(i);
-      if (!isshared) {
-        owned(prog) = mesh->simple_mesh->localToGlobal(i);
-        ++prog;
-      }
-    }
-    dof_owned.push_back(owned);
-    
-    //for (size_type i=0; i<owned.extent(0); ++i) {
-    //  cout << comm->getRank() << "  " << owned(i) << endl;
-    //}
-    
-    Kokkos::View<GO*,HostDevice> owned_shared("owned and shared dofs",mesh->simple_mesh->getNumNodes());
-    for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
-      owned_shared(i) = mesh->simple_mesh->localToGlobal(i);
-    }
-    
-    //for (size_type i=0; i<owned_shared.extent(0); ++i) {
-    //  cout << comm->getRank() << "  " << owned_shared(i) << endl;
-    //}
-    
-    dof_owned_and_shared.push_back(owned_shared);
-
-    dof_lids.push_back(mesh->simple_mesh->getCellToNodeMap()); // [set](elem, dof)
-    
-    /*
-    //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof]
-    Kokkos::View<GO**,HostDevice> elemids("dof gids", dof_lids[dof_lids.size()-1].extent(0), dof_lids[dof_lids.size()-1].extent(1));
-    for(unsigned int e=0; e<dof_lids[0].extent(0); ++e) {
-      std::vector<GO> localelemids;
-      for(unsigned int i=0; i<dof_lids[0].extent(1); ++i) {
-        //localelemids.push_back(dof_lids[0](e,i));
-        elemids(e,i) = dof_lids[0](e,i);
-      }
-      //elemids.push_back(localelemids);
-    }
-    dof_gids.push_back(elemids);
-    */
-
-    // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
-    for (size_t set=0; set<physics->set_names.size(); ++set) {
-      vector<vector<string> > varlist = physics->var_list[set];
-      vector<vector<vector<int> > > set_offsets; // [block][var][dof]
-      for (size_t block=0; block<block_names.size(); ++block) {
-        vector<vector<int> > celloffsets;
-        for (size_t j=0; j<varlist[block].size(); j++) {
-          string var = varlist[block][j];
-          //int num = setDOF->getFieldNum(var);
-          vector<int> var_offsets = {0, 1, 3, 2}; // GH: super hacky???
-
-          celloffsets.push_back(var_offsets);
-        }
-        set_offsets.push_back(celloffsets);
-      }
-      offsets.push_back(set_offsets);
-
-      // more hacky stuff; can't set dbcs without dof manager, but we don't have a dof manager
-      std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
-      std::vector<std::vector<LO> > block_dbc_dofs;
-      std::vector<LO> var_dofs;
-      //var_dofs.push_back(0);
-      block_dbc_dofs.push_back(var_dofs);
-      set_dbc_dofs.push_back(block_dbc_dofs);
-      dbc_dofs.push_back(set_dbc_dofs);
-
-      // parameter manager wants num_derivs_required
-      num_derivs_required = std::vector<int>(1);
-
-    }
-    
-    //panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",mesh->simple_mesh->getNumCells());
-    panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",1);
-
+    this->buildSimpleDOFManagers();
   }
   
   //for (size_type i=0; i<dof_lids[0].extent(0); ++i) {

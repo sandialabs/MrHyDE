@@ -72,6 +72,21 @@ namespace MrHyDE {
         if (zfound!=std::string::npos) {
           component_ = 2;
         }
+        
+        size_t ufound = expression_.find("[u]");
+        if (ufound!=std::string::npos) {
+          component_ = 3;
+        }
+        
+        size_t vfound = expression_.find("[v]");
+        if (vfound!=std::string::npos) {
+          component_ = 4;
+        }
+        
+        size_t wfound = expression_.find("[w]");
+        if (wfound!=std::string::npos) {
+          component_ = 5;
+        }
       }
     
       // Check if the field is a derivative
@@ -89,6 +104,21 @@ namespace MrHyDE {
         size_t cfound = expression_.find("curl");
         if (cfound!=std::string::npos) {
           derivative_type_ = "curl";
+        }
+        
+        size_t pgfound = expression_.find("phasegrad");
+        if (pgfound!=std::string::npos) {
+          derivative_type_ = "phasegrad";
+        }
+        
+        size_t pdfound = expression_.find("phasediv");
+        if (pdfound!=std::string::npos) {
+          derivative_type_ = "phasediv";
+        }
+        
+        size_t pcfound = expression_.find("phasecurl");
+        if (pcfound!=std::string::npos) {
+          derivative_type_ = "phasecurl";
         }
         
         size_t tfound = expression_.find("_t");

@@ -286,6 +286,8 @@ public:
    */
   DRV getMyNodes(const size_t & block, vector<size_t> & elemIDs);
   
+  DRV getMyPhaseNodes(vector<size_t> & elemIDs);
+  
   /**
    * @brief Allocate internal mesh data structures.
    */

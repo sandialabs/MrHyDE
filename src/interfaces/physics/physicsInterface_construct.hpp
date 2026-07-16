@@ -198,6 +198,9 @@ void PhysicsInterface::importPhysics() {
     
     vector<vector<bool> > set_use_DG;
     vector<size_t> set_num_vars;
+    vector<vector<int> > set_phase_orders;
+    vector<vector<string> > set_phase_types;
+    vector<vector<string> > set_phase_var_list;
     
     for (size_t block=0; block<block_names.size(); ++block) { // element blocks
       vector<int> block_orders;
@@ -205,6 +208,9 @@ void PhysicsInterface::importPhysics() {
       vector<string> block_var_list;
       vector<int> block_var_owned;
       vector<bool> block_use_DG;
+      vector<int> block_phase_orders;
+      vector<string> block_phase_types;
+      vector<string> block_phase_var_list;
       
       for (size_t m=0; m<modules[set][block].size(); m++) {
         vector<string> cvars = modules[set][block][m]->myvars;
@@ -226,6 +232,26 @@ void PhysicsInterface::importPhysics() {
           
           block_var_owned.push_back(m);
           block_orders.push_back(disc_settings[set][block].sublist("order").get<int>(cvars[v],1));
+        }
+        
+        if (phase_dimension > 0) {
+          vector<string> pvars = modules[set][block][m]->myphasevars;
+          vector<string> ptypes = modules[set][block][m]->myphasebasistypes;
+          for (size_t v=0; v<pvars.size(); v++) {
+            block_phase_var_list.push_back(pvars[v]);
+            string DGflag("-DG");
+            size_t found = ptypes[v].find(DGflag);
+            if (found!=string::npos) {
+              string name = ptypes[v];
+              name.erase(name.end()-3, name.end());
+              block_phase_types.push_back(name);
+            }
+            else {
+              block_phase_types.push_back(ptypes[v]);
+            }
+            
+            block_phase_orders.push_back(disc_settings[set][block].sublist("phase order").get<int>(pvars[v],1));
+          }
         }
       }
       
@@ -266,6 +292,10 @@ void PhysicsInterface::importPhysics() {
       set_num_vars.push_back(block_var_list.size());
       set_use_DG.push_back(block_use_DG);
       
+      set_phase_orders.push_back(block_phase_orders);
+      set_phase_types.push_back(block_phase_types);
+      set_phase_var_list.push_back(block_phase_var_list);
+      
     }
     orders.push_back(set_orders);
     types.push_back(set_types);
@@ -273,6 +303,10 @@ void PhysicsInterface::importPhysics() {
     var_owned.push_back(set_var_owned);
     num_vars.push_back(set_num_vars);
     use_DG.push_back(set_use_DG);
+    phase_orders.push_back(set_phase_orders);
+    phase_types.push_back(set_phase_types);
+    phase_var_list.push_back(set_phase_var_list);
+    
   }
     
   //-----------------------------------------------------------------

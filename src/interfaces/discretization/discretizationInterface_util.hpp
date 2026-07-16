@@ -63,6 +63,24 @@ DRV DiscretizationInterface::getMyNodes(const size_t & block, Kokkos::View<LO*,A
   return nodes;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+
+DRV DiscretizationInterface::getMyPhaseNodes(Kokkos::View<LO*,AssemblyDevice> elemIDs) {
+ 
+  Teuchos::TimeMonitor constructor_timer(*get_nodes_timer);
+  vector<size_t> localIds(elemIDs.extent(0));
+  auto elemIDs_host = create_mirror_view(elemIDs);
+  deep_copy(elemIDs_host, elemIDs);
+  
+  for (size_type e=0; e<elemIDs_host.extent(0); ++e) {
+    localIds[e] = e;//my_phase_elements(elemIDs_host(e));;//elemIDs_host(e);//my_elements[block](elemIDs_host(e));
+  }
+  DRV nodes = mesh->getMyPhaseNodes(localIds);
+  
+  return nodes;
+}
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -89,6 +107,17 @@ DRV DiscretizationInterface::mapPointsToReference(DRV phys_pts, DRV nodes,
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
+DRV DiscretizationInterface::mapPointsToPhaseReference(DRV phys_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                                       topo_RCP & cellTopo) {
+  DRV nodes = this->getMyPhaseNodes(elemIDs);
+  DRV ref_pts = this->mapPointsToReference(phys_pts, nodes, cellTopo);
+  return ref_pts;
+
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
 DRV DiscretizationInterface::getReferenceNodes(topo_RCP & cellTopo) {
   int dimension = cellTopo->getDimension();
   int numnodes = cellTopo->getNodeCount();
@@ -104,6 +133,16 @@ DRV DiscretizationInterface::mapPointsToPhysical(DRV ref_pts, Kokkos::View<LO*,A
                                                  const size_t & block, topo_RCP & cellTopo) {
   DRV nodes = this->getMyNodes(block, elemIDs);
   DRV phys_pts = this->mapPointsToPhysical(ref_pts, nodes, cellTopo);
+  return phys_pts;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+DRV DiscretizationInterface::mapPointsToPhase(DRV ref_pts, Kokkos::View<LO*,AssemblyDevice> elemIDs,
+                                              topo_RCP & cellTopo) {
+  DRV nodes = this->getMyPhaseNodes(elemIDs);
+  DRV phys_pts = this->mapPointsToPhysical(ref_pts, nodes, cellTopo); //safe to reuse
   return phys_pts;
 }
 
@@ -201,6 +240,7 @@ LO DiscretizationInterface::getNumPhaseDOFs(const int & set) {
 
 void DiscretizationInterface::purgeLIDs() {
   dof_lids.clear();
+  phase_dof_lids.clear();
 }
 
 // ========================================================================================

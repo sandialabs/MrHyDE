@@ -492,9 +492,9 @@ namespace MrHyDE {
     
     bool isAdjoint, onlyTransient, isTransient, only_scalar=false;
     bool isInitialized, usebcs, isOnSide, isOnPoint;
-    topo_RCP celltopo;
-    size_t numsides, numip, numsideip, numScalarParams, numDiscParams, maxRes, maxTeamSize, current_set, numSets;
-    int dimension, numElem, current_stage;
+    topo_RCP celltopo, phase_celltopo;
+    size_t numsides, numip, numphaseip, numsideip, numScalarParams, numDiscParams, maxRes, maxTeamSize, current_set, numSets;
+    int dimension, phase_dimension, numElem, numPhaseElem, current_stage;
     size_type maxElem;
     
     vector<string> basis_types;
@@ -520,17 +520,17 @@ namespace MrHyDE {
     
     //View_Sc1 h;
     View_Sc2 wts_side;
-    CompressedView<View_Sc2> wts;
+    CompressedView<View_Sc2> wts, phase_wts;
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_side, basis_grad_side, basis_curl_side;
     vector<CompressedView<View_Sc3>> basis_div;
     
-    CompressedView<View_Sc2> phase_wts;
     vector<CompressedView<View_Sc4>> phase_basis, phase_basis_grad, phase_basis_curl;
+    vector<CompressedView<View_Sc4>> phase_basis_side, phase_basis_grad_side, phase_basis_curl_side;
     vector<CompressedView<View_Sc3>> phase_basis_div;
     
     View_EvalT2 res, adjrhs;
     View_EvalT3 flux;
-    Kokkos::View<int**,AssemblyDevice> offsets, paramoffsets, aux_offsets;
+    Kokkos::View<int**,AssemblyDevice> offsets, phase_offsets, paramoffsets, aux_offsets;
     vector<View_EvalT2> pvals;
     vector<string> param_varlist;
     vector<int> paramusebasis;
@@ -548,7 +548,7 @@ namespace MrHyDE {
     Kokkos::View<string**,HostDevice> var_bcs;
     vector<Kokkos::View<string**,HostDevice> > set_var_bcs;
     
-    vector<Kokkos::View<int**,AssemblyDevice> > set_offsets;
+    vector<Kokkos::View<int**,AssemblyDevice> > set_offsets, phase_set_offsets;
     vector<vector<string> > set_varlist;
     vector<string> varlist, aux_varlist;
     

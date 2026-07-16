@@ -80,17 +80,19 @@ namespace MrHyDE {
     
     // Geometry Information
     size_t num_nodes, num_sides, dimension, num_ip, num_side_ip, num_disc_params, current_stage=0;
-    topo_RCP cell_topo;
-    DRV ref_nodes;
+    size_t num_phase_nodes = 0, num_phase_sides = 0, phase_dimension = 0, num_phase_ip = 0;
+    topo_RCP cell_topo, phase_cell_topo;
+    DRV ref_nodes, ref_phase_nodes;
     
     // Reference element integration and basis data
-    DRV ref_ip, ref_wts;
+    DRV ref_ip, ref_wts, ref_phase_wts, ref_phase_ip;
     vector<DRV> ref_side_ip, ref_side_wts, ref_side_normals, ref_side_tangents, ref_side_tangentsU, ref_side_tangentsV;
     vector<DRV> ref_side_ip_vec, ref_side_normals_vec, ref_side_tangents_vec, ref_side_tangentsU_vec, ref_side_tangentsV_vec;
         
-    vector<string> basis_types;
-    vector<basis_RCP> basis_pointers;
+    vector<string> basis_types, phase_basis_types;
+    vector<basis_RCP> basis_pointers, phase_basis_pointers;
     vector<DRV> ref_basis, ref_basis_grad, ref_basis_div, ref_basis_curl;
+    vector<DRV> ref_phase_basis, ref_phase_basis_grad, ref_phase_basis_div, ref_phase_basis_curl;
     vector<vector<DRV> > ref_side_basis, ref_side_basis_grad, ref_side_basis_div, ref_side_basis_curl;
     vector<DRV> ref_basis_nodes; // basis functions at nodes (mostly for plotting)
         
@@ -102,7 +104,8 @@ namespace MrHyDE {
     // database of database basis information (optional)
     // Note that these are not CompressedViews.  CompressedViews use these.
     vector<View_Sc4> database_basis, database_basis_grad, database_basis_curl; // [basis type]
-    vector<View_Sc3> database_basis_div;  // [basis type]
+    vector<View_Sc4> database_phase_basis, database_phase_basis_grad, database_phase_basis_curl; // [basis type]
+    vector<View_Sc3> database_basis_div, database_phase_basis_div;  // [basis type]
     vector<View_Sc4> database_side_basis, database_side_basis_grad;
     vector<vector<View_Sc4> > database_face_basis, database_face_basis_grad;
     View_Sc2 database_wts;
@@ -113,10 +116,10 @@ namespace MrHyDE {
     vector<Teuchos::RCP<Sparse3DView > > sparse_database_mass;  // [set](dof,dof) 
 
     // these are common to all elements/groups and are often used on both devices
-    vector<Kokkos::View<int*,AssemblyDevice> > set_num_dof;
+    vector<Kokkos::View<int*,AssemblyDevice> > set_num_dof, set_phase_num_dof;
     vector<Kokkos::View<int*,HostDevice> > set_num_dof_host;
     
-    Kokkos::View<int*,AssemblyDevice> num_dof, num_param_dof, num_aux_dof;
+    Kokkos::View<int*,AssemblyDevice> num_dof, num_param_dof, num_aux_dof, num_phase_dof;
     Kokkos::View<int*,HostDevice> num_dof_host, num_param_dof_host, num_aux_dof_host;
     
     vector<View_Sc3> sol, phi;
