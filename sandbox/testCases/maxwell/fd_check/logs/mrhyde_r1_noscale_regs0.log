@@ -1,23 +1,30 @@
 p= 0 | CubeHexMesh: Building sub cells
            Step size           grad'*dir           FD approx           abs error
            ---------           ---------           ---------           ---------
-   1.00000000000e+00   1.23278823191e-01   4.46257194435e+11   4.46257194435e+11
-   1.00000000000e-01   1.23278823191e-01   4.46257191660e+10   4.46257191659e+10
-   1.00000000000e-02   1.23278823191e-01   4.46257188794e+09   4.46257188782e+09
-   1.00000000000e-03   1.23278823191e-01   4.46257191888e+08   4.46257191765e+08
-   1.00000000000e-04   1.23278823191e-01   4.46257191829e+07   4.46257190596e+07
-   1.00000000000e-05   1.23278823191e-01   4.46257215452e+06   4.46257203124e+06
-   1.00000000000e-06   1.23278823191e-01   4.46257316155e+05   4.46257192876e+05
-   1.00000000000e-07   1.23278823191e-01   4.46258444769e+04   4.46257211980e+04
-   1.00000000000e-08   1.23278823191e-01   4.46269516745e+03   4.46257188863e+03
-   1.00000000000e-09   1.23278823191e-01   4.46380476974e+02   4.46257198151e+02
-   1.00000000000e-10   1.23278823191e-01   4.47489980564e+01   4.46257192332e+01
-   1.00000000000e-11   1.23278823191e-01   4.58585084911e+00   4.46257202592e+00
-   1.00000000000e-12   1.23278823191e-01   5.69536213837e-01   4.46257390645e-01
-[FDCHECK-HINT] FD/g.d ratio at h=1 is 3.620e+12 (>1e6). Diagnostics:
-  1) Critical point: FD sees d^T H d, not g.d. Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:.
-  2) Large weights degrade FD rel_err (deck-specific). Fix: rerun on a copy of the deck with all Postprocess.Objective weights O(1).
-  3) Nonzero regularizer weight can dominate the FD signal. Fix: zero every Regularization functions weight.
+   1.00000000000e+00   4.71094871360e-02   2.49685160789e+11   2.49685160789e+11
+   1.00000000000e-01   4.71094871360e-02   2.49685168587e+10   2.49685168587e+10
+   1.00000000000e-02   4.71094871360e-02   2.49685162372e+09   2.49685162367e+09
+   1.00000000000e-03   4.71094871360e-02   2.49685161845e+08   2.49685161798e+08
+   1.00000000000e-04   4.71094871360e-02   2.49685165420e+07   2.49685164949e+07
+   1.00000000000e-05   4.71094871360e-02   2.49685166744e+06   2.49685162033e+06
+   1.00000000000e-06   4.71094871360e-02   2.49685208114e+05   2.49685161005e+05
+   1.00000000000e-07   4.71094871360e-02   2.49685632664e+04   2.49685161569e+04
+   1.00000000000e-08   4.71094871360e-02   2.49689873472e+03   2.49685162524e+03
+   1.00000000000e-09   4.71094871360e-02   2.49732268537e+02   2.49685159050e+02
+   1.00000000000e-10   4.71094871360e-02   2.50156259664e+01   2.49685164792e+01
+   1.00000000000e-11   4.71094871360e-02   2.54396105664e+00   2.49685156950e+00
+   1.00000000000e-12   4.71094871360e-02   2.96794628874e-01   2.49685141738e-01
+[FDCHECK-HINT] FD approx at h=1 differs from grad'*dir by ratio 5.300e+12.
+  Likely causes and fixes:
+    1) Degenerate start point: g.d is at the noise floor, so FD sees
+       curvature and noise, not the gradient.
+       Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:
+       (does not change the optimizer's initial iterate).
+    2) A dominant regularizer weight makes the check validate the reg
+       path, not the state-adjoint objective path.
+       Fix: zero every Regularization functions weight. If the
+       remaining signal is below FD noise, raise 'FD Check Random
+       Scale' (default 1.0).
 
 Quasi-Newton Method with Limited-Memory BFGS
 Line Search: Cubic Interpolation satisfying Wolfe Conditions

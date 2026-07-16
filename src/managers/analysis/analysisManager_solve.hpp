@@ -42,10 +42,17 @@ static void runFDGradientCheck(Teuchos::ParameterList & ROLsettings,
     double ratio = std::abs(fd) / std::max(std::abs(a), 1.0e-30);
     if (ratio > 1.0e6) {
       cout << std::scientific << std::setprecision(3);
-      cout << "[FDCHECK-HINT] FD/g.d ratio at h=1 is " << ratio << " (>1e6). Diagnostics:\n"
-           << "  1) Critical point: FD sees d^T H d, not g.d. Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:.\n"
-           << "  2) Large weights degrade FD rel_err (deck-specific). Fix: rerun on a copy of the deck with all Postprocess.Objective weights O(1).\n"
-           << "  3) Nonzero regularizer weight can dominate the FD signal. Fix: zero every Regularization functions weight.\n";
+      cout << "[FDCHECK-HINT] FD approx at h=1 differs from grad'*dir by ratio " << ratio << ".\n"
+           << "  Likely causes and fixes:\n"
+           << "    1) Degenerate start point: g.d is at the noise floor, so FD sees\n"
+           << "       curvature and noise, not the gradient.\n"
+           << "       Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:\n"
+           << "       (does not change the optimizer's initial iterate).\n"
+           << "    2) A dominant regularizer weight makes the check validate the reg\n"
+           << "       path, not the state-adjoint objective path.\n"
+           << "       Fix: zero every Regularization functions weight. If the\n"
+           << "       remaining signal is below FD noise, raise 'FD Check Random\n"
+           << "       Scale' (default 1.0).\n";
     }
   }
 
