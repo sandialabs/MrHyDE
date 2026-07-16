@@ -213,9 +213,10 @@ void DiscretizationInterface::setReferenceBasisData(Teuchos::RCP<GroupMetaData> 
 //////////////////////////////////////////////////////////////////////////////////////
 // Create a pointer to an Intrepid or Panzer basis
 // Note that these always use double rather than ScalarT
+
 //////////////////////////////////////////////////////////////////////////////////////
 
-basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RCP & cellTopo,
+basis_RCP DiscretizationInterface::getBasis(const int & dim, const topo_RCP & cellTopo,
                                             const string & type, const int & degree) {
   using namespace Intrepid2;
   
@@ -224,10 +225,10 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
   string shape = cellTopo->getName();
   
   if (type == "HGRAD") {
-    if (dimension == 1) {
+    if (dim == 1) {
       basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
     }
-    if (dimension == 2) {
+    if (dim == 2) {
       if (shape == "Quadrilateral_4") {
         if (degree == 1) {
           basis = Teuchos::rcp(new Basis_HGRAD_QUAD_C1_FEM<PHX::Device::execution_space,double,double>());
@@ -240,7 +241,7 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
         basis = Teuchos::rcp(new Basis_HGRAD_TRI_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_WARPBLEND) );
       }
     }
-    if (dimension == 3) {
+    if (dim == 3) {
       if (shape == "Hexahedron_8") {
         if (degree == 1) {
           basis = Teuchos::rcp(new Basis_HGRAD_HEX_C1_FEM<PHX::Device::execution_space,double,double>() );
@@ -259,10 +260,10 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
     basis = Teuchos::rcp(new Basis_HVOL_C0_FEM<PHX::Device::execution_space,double,double>(*cellTopo));
   }
   else if (type == "HDIV") {
-    if (dimension == 1) {
+    if (dim == 1) {
       basis = Teuchos::rcp(new Basis_HGRAD_LINE_Cn_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
     }
-    else if (dimension == 2) {
+    else if (dim == 2) {
       if (shape == "Quadrilateral_4") {
         basis = Teuchos::rcp(new Basis_HDIV_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
@@ -270,7 +271,7 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
         basis = Teuchos::rcp(new Basis_HDIV_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
-    else if (dimension == 3) {
+    else if (dim == 3) {
       if (shape == "Hexahedron_8") {
         basis = Teuchos::rcp(new Basis_HDIV_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
@@ -281,7 +282,7 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
     
   }
   else if (type == "HDIV_AC") {
-    if (dimension == 2) {
+    if (dim == 2) {
       if (shape == "Quadrilateral_4") {
         if (degree == 1) {
           basis = Teuchos::rcp(new Basis_HDIV_AC_QUAD_I1_FEM<PHX::Device::execution_space,double,double>() );
@@ -299,10 +300,10 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
     }
   }
   else if (type == "HCURL") {
-    if (dimension == 1) {
+    if (dim == 1) {
       // need to throw an error
     }
-    else if (dimension == 2) {
+    else if (dim == 2) {
       if (shape == "Quadrilateral_4") {
         basis = Teuchos::rcp(new Basis_HCURL_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
@@ -310,7 +311,7 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
         basis = Teuchos::rcp(new Basis_HCURL_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
-    else if (dimension == 3) {
+    else if (dim == 3) {
       if (shape == "Hexahedron_8") {
         basis = Teuchos::rcp(new Basis_HCURL_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
@@ -321,7 +322,7 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
     
   }
   else if (type == "HFACE") {
-    if (dimension == 2) {
+    if (dim == 2) {
       if (shape == "Quadrilateral_4") {
         basis = Teuchos::rcp(new Basis_HFACE_QUAD_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
@@ -329,7 +330,7 @@ basis_RCP DiscretizationInterface::getBasis(const int & dimension, const topo_RC
         basis = Teuchos::rcp(new Basis_HFACE_TRI_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
     }
-    if (dimension == 3) {
+    if (dim == 3) {
       if (shape == "Hexahedron_8") {
         basis = Teuchos::rcp(new Basis_HFACE_HEX_In_FEM<PHX::Device::execution_space,double,double>(degree,POINTTYPE_EQUISPACED) );
       }
