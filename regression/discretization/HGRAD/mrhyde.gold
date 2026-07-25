@@ -50,6 +50,7 @@ Using the following physicsTest settings:
 description = ProjectionHexDeg1Quadr2   [unused]
 discretization = HGRAD
 operator = projection
+p=0 | CubeHexMesh: Building sub cells
 Using the following physicsTest settings: 
 description = ProjectionHexDeg1Quadr2   [unused]
 discretization = HGRAD
@@ -122,6 +123,7 @@ Using the following physicsTest settings:
 description = LaplaceHexDeg1Quadr2   [unused]
 discretization = HGRAD
 operator = Laplace
+p=0 | CubeHexMesh: Building sub cells
 Using the following physicsTest settings: 
 description = LaplaceHexDeg1Quadr2   [unused]
 discretization = HGRAD

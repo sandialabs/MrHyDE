@@ -297,15 +297,17 @@ void PostprocessManager<Node>::importSensorsFromFiles(const int &objID)
 
   bool addproc = settings->sublist("Postprocess").get<bool>("add processor rank to sensor files",false);
   if (addproc) {
-    if (objectives[objID].sensor_points_file.ends_with(".dat")) {
+    if (objectives[objID].sensor_points_file.size() >= 4 &&
+        objectives[objID].sensor_points_file.compare(objectives[objID].sensor_points_file.size() - 4, 4, ".dat") == 0) {
       objectives[objID].sensor_points_file.resize(objectives[objID].sensor_points_file.size() - 4);
     }
     std::stringstream sfile;
     sfile << objectives[objID].sensor_points_file << "." << Comm->getRank() << ".dat";
     objectives[objID].sensor_points_file = sfile.str();
-  
+
     if (objectives[objID].sensor_data_file != "") {
-      if (objectives[objID].sensor_data_file.ends_with(".dat")) {
+      if (objectives[objID].sensor_data_file.size() >= 4 &&
+          objectives[objID].sensor_data_file.compare(objectives[objID].sensor_data_file.size() - 4, 4, ".dat") == 0) {
         objectives[objID].sensor_data_file.resize(objectives[objID].sensor_points_file.size() - 4);
       }
       
