@@ -246,8 +246,12 @@ settings(settings_), comm(comm_) {
   // Create the mesh over phase space for Vlasov-type solves
   
   phase_dimension = 0; // default
+  use_phase_simple_mesh = false;
+  use_phase_stk_mesh = false;
   
   if (settings->isSublist("Phase Mesh")) {
+    use_phase_simple_mesh = true;
+    use_phase_stk_mesh = false;
     phase_dimension = settings->sublist("Phase Mesh").get<int>("dimension",0);
     phase_block_names = { "eblock-0_0" };
     Teuchos::ParameterList pl;

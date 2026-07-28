@@ -226,6 +226,12 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   }
   else {
     phase_numip.push_back(0);
+    for (size_t block=0; block<physics->block_names.size(); ++block) {
+      vector<basis_RCP> pbasis;
+      vector<string> doneptypes;
+      phase_basis_types.push_back(doneptypes);
+      phase_basis_pointers.push_back(pbasis);
+    }
   }
   
   // We do not actually store the DOF or Connectivity managers
@@ -246,6 +252,14 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
     this->buildSimpleDOFManagers();
   }
   
+  if (mesh->getPhaseDimension() > 0) {
+    if (mesh->use_phase_stk_mesh) {
+      this->buildPhaseDOFManagers();
+    }
+    else {
+      this->buildSimplePhaseDOFManagers();
+    }
+  }
   //for (size_type i=0; i<dof_lids[0].extent(0); ++i) {
   //  cout << i << "  ";
   //  for (size_type j=0; j<dof_lids[0].extent(1); ++j) {

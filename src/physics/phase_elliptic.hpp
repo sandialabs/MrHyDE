@@ -29,6 +29,8 @@ public:
   using PhysicsBase<EvalT>::label;
   using PhysicsBase<EvalT>::myvars;
   using PhysicsBase<EvalT>::mybasistypes;
+  using PhysicsBase<EvalT>::myphasevars;
+  using PhysicsBase<EvalT>::myphasebasistypes;
   
   typedef Kokkos::View<EvalT*,ContLayout,AssemblyDevice> View_EvalT1;
   typedef Kokkos::View<EvalT**,ContLayout,AssemblyDevice> View_EvalT2;

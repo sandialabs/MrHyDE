@@ -79,8 +79,10 @@ public:
   PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings,
                    Teuchos::RCP<MpiComm> & Comm_,
                    std::vector<string> block_names_,
+                   std::vector<string> phase_block_names_,
                    std::vector<string> side_names_,
-                   int dimension_);
+                   int dimension_,
+                   int phase_dimension_);
   
   /**
    * @brief Load and initialize physics modules and variables.
@@ -299,6 +301,7 @@ public:
    */
   int getUniqueIndex(const int & set, const int & block, const std::string & var);
 
+  int getUniquePhaseIndex(const int & set, const int & block, const std::string & var);
 
   /////////////////////////////////////////////////////////////////////////////////////////////
   // RESIDUAL ASSEMBLY ROUTINES
@@ -501,13 +504,14 @@ public:
   Teuchos::RCP<Teuchos::ParameterList> settings; ///< Parameter list containing physics and solver settings.
   Teuchos::RCP<MpiComm> comm; ///< Parallel communicator used throughout the interface.
   int dimension, phase_dimension, type_AD; ///< Spatial dimension and automatic differentiation type.
-  vector<string> set_names, block_names, side_names; ///< Names of sets, blocks, and sides in the mesh.
+  vector<string> set_names, block_names, phase_block_names, side_names; ///< Names of sets, blocks, and sides in the mesh.
   
   /** @} */
   
   /** @name Variable & Discretization Information
    *  @{ */
   vector<vector<size_t> > num_vars; ///< Number of variables per set and block.
+  vector<vector<size_t> > phase_num_vars; ///< Number of variables per set and block.
   vector<int> num_derivs_required; ///< Number of derivatives required by the AD system.
   vector<vector<vector<string> > > var_list; ///< List of variables.
   vector<vector<vector<int> > > var_owned; ///< Variable ownership map.
@@ -522,7 +526,8 @@ public:
   string initial_type; ///< Type of initial condition.
   vector<vector<int> > unique_phase_orders; ///< Unique polynomial orders.
   vector<vector<string> > unique_phase_types; ///< Unique variable types.
-  
+  vector<vector<int> > unique_phase_index; ///< Unique indices.
+  ///<
   /** @} */
 
   /** @name Function Managers

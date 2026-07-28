@@ -94,6 +94,27 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
+void Group::addPhaseNodes(DRV phase_nodes_) {
+  phase_haveBasis = false;
+  phase_storeAll = false;
+  phase_have_nodes = true;
+  
+  phase_numElem = phase_nodes_.extent(0);
+  phase_nodes = phase_nodes_;
+  phase_orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",phase_numElem);
+  disc->getPhaseOrientations(phase_orientation);
+  
+  phase_localElemID = Kokkos::View<LO*,AssemblyDevice>("local phase elements",phase_numElem);
+  parallel_for("bcell hsize",
+               RangePolicy<AssemblyExec>(0,phase_numElem),
+               MRHYDE_LAMBDA (const int e ) {
+    phase_localElemID(e) = e;
+  });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
 void Group::computeFaceSize() {
 
   size_t dimension = group_data->dimension;
@@ -126,7 +147,16 @@ void Group::initializeBasisIndex() {
                MRHYDE_LAMBDA (const int e ) {
     basis_index(e) = e;
   });
-}  
+  
+  if (group_data->phase_dimension > 0) {
+    phase_basis_index = Kokkos::View<LO*,AssemblyDevice>("basis index", phase_numElem);
+    parallel_for("compute hsize",
+                 RangePolicy<AssemblyExec>(0,phase_basis_index.extent(0)),
+                 MRHYDE_LAMBDA (const int e ) {
+      phase_basis_index(e) = e;
+    });
+  }
+}
   
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -245,6 +275,97 @@ void Group::computeBasis(const bool & keepnodes) {
 ///////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////
 
+void Group::computePhaseBasis(const bool & keepnodes) {
+  
+  // Set up the integration points
+  
+  if (!phase_have_ip) {
+    if (group_data->use_ip_database) {
+      CompressedView<View_Sc2> ip_u(group_data->phase_database_u, ip_u_index);
+      phase_ip.push_back(ip_u);
+      if (group_data->phase_dimension > 1) {
+        CompressedView<View_Sc2> ip_v(group_data->phase_database_v, ip_v_index);
+        phase_ip.push_back(ip_v);
+      }
+      if (group_data->phase_dimension > 2) {
+        CompressedView<View_Sc2> ip_w(group_data->phase_database_w, ip_w_index);
+        phase_ip.push_back(ip_w);
+      }
+    }
+    else {
+      vector<View_Sc2> newip;
+      disc->getPhaseIntegrationPts(group_data, phase_nodes, newip);
+      
+      CompressedView<View_Sc2> ip_u(newip[0]);
+      phase_ip.push_back(ip_u);
+      if (group_data->phase_dimension > 1) {
+        CompressedView<View_Sc2> ip_v(newip[1]);
+        phase_ip.push_back(ip_v);
+      }
+      if (group_data->phase_dimension > 2) {
+        CompressedView<View_Sc2> ip_w(newip[2]);
+        phase_ip.push_back(ip_w);
+      }
+    }
+    phase_have_ip = true;
+  }
+  
+  if (phase_storeAll) {
+    
+    View_Sc2 twts = this->getPhaseWts();
+    phase_wts = CompressedView<View_Sc2>(twts);
+  
+    if (!haveBasis) {
+      // Compute integration data and basis functions
+      vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+      vector<View_Sc3> tbasis_div;
+      if (phase_have_nodes) {
+        disc->getPhaseVolumetricBasis(group_data, phase_nodes, phase_orientation,
+                                         tbasis, tbasis_grad, tbasis_curl,
+                                         tbasis_div, true);
+      }
+      else {
+        disc->getPhysicalVolumetricBasis(group_data, phase_localElemID,
+                                         tbasis, tbasis_grad, tbasis_curl,
+                                         tbasis_div, tbasis_nodes, true);
+      }
+
+      for (size_t i=0; i<tbasis.size(); ++i) {
+        phase_basis.push_back(CompressedView<View_Sc4>(tbasis[i]));
+        phase_basis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
+        phase_basis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
+        phase_basis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
+      }
+      phase_haveBasis = true;
+    }
+    if (!keepnodes) {
+      //nodes = DRV("empty nodes",1);
+      phase_orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",1);
+    }
+  }
+  else if (group_data->use_basis_database) {
+    wts = CompressedView<View_Sc2>(group_data->phase_database_wts,phase_basis_index);
+    for (size_t i=0; i<group_data->database_basis.size(); ++i) {
+      phase_basis.push_back(CompressedView<View_Sc4>(group_data->phase_database_basis[i],
+                                                     phase_basis_index));
+      phase_basis_grad.push_back(CompressedView<View_Sc4>(group_data->phase_database_basis_grad[i],
+                                                          phase_basis_index));
+      phase_basis_div.push_back(CompressedView<View_Sc3>(group_data->phase_database_basis_div[i],
+                                                         phase_basis_index));
+      phase_basis_curl.push_back(CompressedView<View_Sc4>(group_data->phase_database_basis_curl[i],
+                                                     phase_basis_index));
+    }
+    if (!keepnodes) {
+      //nodes = DRV("empty nodes",1);
+      phase_orientation = Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device>("kv to orients",1);
+    }
+  }
+  
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
 void Group::createHostLIDs() {
   
   bool data_avail = false;
@@ -265,6 +386,24 @@ void Group::createHostLIDs() {
       deep_copy(currLIDs_host,LIDs_tmp);
       LIDs_host[set] = currLIDs_host;
     }
+  }
+  
+  if (group_data->phase_dimension > 0) {
+    phase_LIDs_host = vector<LIDView_host>(phase_LIDs.size());
+    for (size_t set=0; set<LIDs.size(); ++set) {
+      if (data_avail) {
+        phase_LIDs_host[set] = phase_LIDs[set];
+      }
+      else {
+        auto LIDs_tmp = create_mirror_view(phase_LIDs[set]);
+        deep_copy(LIDs_tmp,phase_LIDs[set]);
+        
+        LIDView_host currLIDs_host("LIDs on host",phase_LIDs[set].extent(0), phase_LIDs[set].extent(1));
+        deep_copy(currLIDs_host,LIDs_tmp);
+        phase_LIDs_host[set] = currLIDs_host;
+      }
+    }
+    
   }
   
 }
@@ -706,6 +845,114 @@ View_Sc2 Group::getWts() {
 // Recompute the wts or decompress them
 ///////////////////////////////////////////////////////////////////////////////////////
 
+View_Sc2 Group::getPhaseWts() {
+  View_Sc2 newwts;
+  if (phase_wts.extent(0) > 0) {
+    if (phase_wts.getHaveKey()) {
+      auto vdata = phase_wts.getView();
+      auto vkey = phase_wts.getKey();
+      newwts = View_Sc2("temp wts",phase_numElem, vdata.extent(1));
+      parallel_for("grp wts decompress",
+               RangePolicy<AssemblyExec>(0,phase_numElem),
+               MRHYDE_LAMBDA (const size_type elem ) {
+        for (size_type i=0; i<vdata.extent(1); ++i) {
+          newwts(elem,i) = vdata(vkey(elem),i);
+        }
+      });
+    }
+    else {
+      newwts = phase_wts.getView();
+    }
+  }
+  else {
+    size_type numip = group_data->phase_ref_ip.extent(0);
+    newwts = View_Sc2("temp physical wts",phase_numElem, numip);
+    vector<View_Sc2> tip;
+    if (phase_have_nodes) {
+      disc->getPhaseIntegrationData(group_data, phase_nodes, tip, newwts);
+    }
+    else {
+      disc->getPhaseIntegrationData(group_data, phase_localElemID, tip, newwts);
+    }
+  }
+  return newwts;
+}
+///////////////////////////////////////////////////////////////////////////////////////
+// Recompute the wts or decompress them
+///////////////////////////////////////////////////////////////////////////////////////
+
+View_Sc2 Group::getTensorWts() {
+  View_Sc2 newwts;
+  View_Sc2 space_wts, ph_wts;
+  
+  if (wts.extent(0) > 0) {
+    
+    if (wts.getHaveKey()) {
+      auto vdata = wts.getView();
+      auto vkey = wts.getKey();
+      space_wts = View_Sc2("temp wts",numElem, vdata.extent(1));
+      parallel_for("grp wts decompress",
+               RangePolicy<AssemblyExec>(0,numElem),
+               MRHYDE_LAMBDA (const size_type elem ) {
+        for (size_type i=0; i<vdata.extent(1); ++i) {
+          space_wts(elem,i) = vdata(vkey(elem),i);
+        }
+      });
+    }
+    else {
+      space_wts = wts.getView();
+    }
+    
+    if (phase_wts.getHaveKey()) {
+      auto vdata = phase_wts.getView();
+      auto vkey = phase_wts.getKey();
+      ph_wts = View_Sc2("temp wts",numElem, vdata.extent(1));
+      parallel_for("grp wts decompress",
+               RangePolicy<AssemblyExec>(0,numElem),
+               MRHYDE_LAMBDA (const size_type elem ) {
+        for (size_type i=0; i<vdata.extent(1); ++i) {
+          ph_wts(elem,i) = vdata(vkey(elem),i);
+        }
+      });
+    }
+    else {
+      ph_wts = phase_wts.getView();
+    }
+  }
+  else {
+    //size_type numphaseip = group_data->ref_phase_ip.extent(0);
+    //ph_wts = View_Sc2("temp physical wts",numPhaseElem, numphaseip);
+    //vector<View_Sc2> tip;
+    //if (have_nodes) {
+    //  disc->getPhaseIntegrationData(group_data, phase_nodes, tip, ph_wts);
+    //}
+    //else {
+    //  disc->getPhaseIntegrationData(group_data, localElemID, tip, ph_wts);
+    //}
+  }
+  
+  // Now create tensor product
+  newwts = View_Sc2("temp wts", numElem, space_wts.extent(1)*ph_wts.extent(0)*ph_wts.extent(1));
+  parallel_for("grp wts decompress",
+           RangePolicy<AssemblyExec>(0,numElem),
+           MRHYDE_LAMBDA (const size_type elem ) {
+    size_t prog = 0;
+    for (size_type wt=0; wt<space_wts.extent(1); ++wt) {
+      for (size_type pelem=0; pelem<ph_wts.extent(0); ++pelem) {
+        for (size_type pip=0; pip<ph_wts.extent(1); ++pip) {
+          newwts(elem,prog) = space_wts(elem,wt)*ph_wts(pelem,pip);
+          prog++;
+        }
+      }
+    }
+  });
+  return newwts;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Recompute the wts or decompress them
+///////////////////////////////////////////////////////////////////////////////////////
+
 vector<View_Sc2> Group::getIntegrationPts() {
   vector<View_Sc2> newpts;
   if (ip.size() > 0) {
@@ -732,7 +979,212 @@ vector<View_Sc2> Group::getIntegrationPts() {
   else {
     size_type numip = group_data->ref_ip.extent(0);
     View_Sc2 newwts = View_Sc2("temp physical wts",numElem, numip);
-    cout << "have nodes = " << have_nodes << endl;
+    
+    if (have_nodes) {
+      disc->getPhysicalIntegrationData(group_data, nodes, newpts, newwts);
+    }
+    else {
+      disc->getPhysicalIntegrationData(group_data, localElemID, newpts, newwts);
+    }
+  }
+  return newpts;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Recompute the wts or decompress them
+///////////////////////////////////////////////////////////////////////////////////////
+
+vector<View_Sc2> Group::getTensorIntegrationPts() {
+  vector<View_Sc2> newpts;
+  vector<View_Sc2> space_pts, ph_pts;
+  int numip, phase_numip;
+  if (ip.size() > 0) {
+    for (size_t dim=0; dim<ip.size(); ++dim) {
+      View_Sc2 pts;
+      if (ip[dim].getHaveKey()) {
+        auto vdata = ip[dim].getView();
+        auto vkey = ip[dim].getKey();
+        numip = vdata.extent(1);
+        pts = View_Sc2("temp pts",numElem, vdata.extent(1));
+        parallel_for("grp pts decompress",
+                     RangePolicy<AssemblyExec>(0,numElem),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type i=0; i<vdata.extent(1); ++i) {
+            pts(elem,i) = vdata(vkey(elem),i);
+          }
+        });
+      }
+      else {
+        pts = ip[dim].getView();
+      }
+      space_pts.push_back(pts);
+    }
+    
+    for (size_t dim=0; dim<phase_ip.size(); ++dim) {
+      View_Sc2 pts;
+      if (phase_ip[dim].getHaveKey()) {
+        auto vdata = phase_ip[dim].getView();
+        auto vkey = phase_ip[dim].getKey();
+        phase_numip = vdata.extent(1);
+        pts = View_Sc2("temp pts",phase_numElem, vdata.extent(1));
+        parallel_for("grp pts decompress",
+                     RangePolicy<AssemblyExec>(0,phase_numElem),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type i=0; i<vdata.extent(1); ++i) {
+            pts(elem,i) = vdata(vkey(elem),i);
+          }
+        });
+      }
+      else {
+        pts = phase_ip[dim].getView();
+      }
+      ph_pts.push_back(pts);
+    }
+    
+    // Now take the tensor product
+    
+    if (ip.size() > 0) { // x component
+      View_Sc2 pts = View_Sc2("temp pts",numElem, numip*phase_numElem*phase_numip);
+      View_Sc2 xpts = space_pts[0];
+      parallel_for("grp pts decompress",
+                   RangePolicy<AssemblyExec>(0,numElem),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        size_t prog = 0;
+        for (size_type pt=0; pt<xpts.extent(1); ++pt) {
+          for (size_type pelem=0; pelem<phase_numElem; ++pelem) {
+            for (size_type pip=0; pip<phase_numip; ++pip) {
+              pts(elem,prog) = xpts(elem,pt);
+              prog++;
+            }
+          }
+        }
+      });
+      newpts.push_back(pts);
+    }
+    else {
+      View_Sc2 pts = View_Sc2("temp pts", 1, 1);
+      newpts.push_back(pts);
+    }
+    
+    if (ip.size() > 1) { // y component
+      View_Sc2 pts = View_Sc2("temp pts",numElem, numip*phase_numElem*phase_numip);
+      View_Sc2 ypts = space_pts[1];
+      parallel_for("grp pts decompress",
+                   RangePolicy<AssemblyExec>(0,numElem),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        size_t prog = 0;
+        for (size_type pt=0; pt<ypts.extent(1); ++pt) {
+          for (size_type pelem=0; pelem<phase_numElem; ++pelem) {
+            for (size_type pip=0; pip<phase_numip; ++pip) {
+              pts(elem,prog) = ypts(elem,pt);
+              prog++;
+            }
+          }
+        }
+      });
+      newpts.push_back(pts);
+    }
+    else {
+      View_Sc2 pts = View_Sc2("temp pts", 1, 1);
+      newpts.push_back(pts);
+    }
+    
+    if (ip.size() > 2) { // z component
+      View_Sc2 pts = View_Sc2("temp pts",numElem, numip*phase_numElem*phase_numip);
+      View_Sc2 zpts = space_pts[2];
+      parallel_for("grp pts decompress",
+                   RangePolicy<AssemblyExec>(0,numElem),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        size_t prog = 0;
+        for (size_type pt=0; pt<zpts.extent(1); ++pt) {
+          for (size_type pelem=0; pelem<phase_numElem; ++pelem) {
+            for (size_type pip=0; pip<phase_numip; ++pip) {
+              pts(elem,prog) = zpts(elem,pt);
+              prog++;
+            }
+          }
+        }
+      });
+      newpts.push_back(pts);
+    }
+    else {
+      View_Sc2 pts = View_Sc2("temp pts", 1, 1);
+      newpts.push_back(pts);
+    }
+    
+    if (phase_ip.size() > 0) { // u component
+      View_Sc2 pts = View_Sc2("temp pts",numElem, numip*phase_numElem*phase_numip);
+      View_Sc2 upts = ph_pts[0];
+      parallel_for("grp pts decompress",
+                   RangePolicy<AssemblyExec>(0,numElem),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        size_t prog = 0;
+        for (size_type pt=0; pt<upts.extent(1); ++pt) {
+          for (size_type pelem=0; pelem<phase_numElem; ++pelem) {
+            for (size_type pip=0; pip<phase_numip; ++pip) {
+              pts(elem,prog) = upts(pelem,pip);
+              prog++;
+            }
+          }
+        }
+      });
+      newpts.push_back(pts);
+    }
+    else {
+      View_Sc2 pts = View_Sc2("temp pts", 1, 1);
+      newpts.push_back(pts);
+    }
+    
+    if (phase_ip.size() > 1) { // v component
+      View_Sc2 pts = View_Sc2("temp pts",numElem, numip*phase_numElem*phase_numip);
+      View_Sc2 vpts = ph_pts[1];
+      parallel_for("grp pts decompress",
+                   RangePolicy<AssemblyExec>(0,numElem),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        size_t prog = 0;
+        for (size_type pt=0; pt<vpts.extent(1); ++pt) {
+          for (size_type pelem=0; pelem<phase_numElem; ++pelem) {
+            for (size_type pip=0; pip<phase_numip; ++pip) {
+              pts(elem,prog) = vpts(pelem,pip);
+              prog++;
+            }
+          }
+        }
+      });
+      newpts.push_back(pts);
+    }
+    else {
+      View_Sc2 pts = View_Sc2("temp pts", 1, 1);
+      newpts.push_back(pts);
+    }
+    
+    if (phase_ip.size() > 2) { // w component
+      View_Sc2 pts = View_Sc2("temp pts",numElem, numip*phase_numElem*phase_numip);
+      View_Sc2 wpts = ph_pts[2];
+      parallel_for("grp pts decompress",
+                   RangePolicy<AssemblyExec>(0,numElem),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        size_t prog = 0;
+        for (size_type pt=0; pt<wpts.extent(1); ++pt) {
+          for (size_type pelem=0; pelem<phase_numElem; ++pelem) {
+            for (size_type pip=0; pip<phase_numip; ++pip) {
+              pts(elem,prog) = wpts(pelem,pip);
+              prog++;
+            }
+          }
+        }
+      });
+      newpts.push_back(pts);
+    }
+    else {
+      View_Sc2 pts = View_Sc2("temp pts", 1, 1);
+      newpts.push_back(pts);
+    }
+    
+  }
+  else {
+    size_type numip = group_data->ref_ip.extent(0);
+    View_Sc2 newwts = View_Sc2("temp physical wts",numElem, numip);
     
     if (have_nodes) {
       disc->getPhysicalIntegrationData(group_data, nodes, newpts, newwts);

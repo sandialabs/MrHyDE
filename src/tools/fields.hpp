@@ -53,6 +53,7 @@ namespace MrHyDE {
       // defaults
       derivative_type_ = ""; // grad, curl, div, time
       component_ = 0; //component_; // x, y, z
+      phase_component_ = 0; // u, v, w
       is_updated_ = false;
       is_initialized_ = false;
       
@@ -75,17 +76,17 @@ namespace MrHyDE {
         
         size_t ufound = expression_.find("[u]");
         if (ufound!=std::string::npos) {
-          component_ = 3;
+          phase_component_ = 0;
         }
         
         size_t vfound = expression_.find("[v]");
         if (vfound!=std::string::npos) {
-          component_ = 4;
+          phase_component_ = 1;
         }
         
         size_t wfound = expression_.find("[w]");
         if (wfound!=std::string::npos) {
-          component_ = 5;
+          phase_component_ = 2;
         }
       }
     
@@ -140,9 +141,16 @@ namespace MrHyDE {
     // ========================================================================================
     // ========================================================================================
   
+    void reset() {
+      Kokkos::deep_copy(data_, 0.0);
+    }
+    
+    // ========================================================================================
+    // ========================================================================================
+  
   //private:
     string expression_, variable_type_, basis_type_, derivative_type_;
-    size_t set_index_, variable_index_, component_;
+    size_t set_index_, variable_index_, component_, phase_component_;
     bool is_updated_, is_initialized_;
     View_EvalT2 data_;
     
@@ -183,6 +191,13 @@ namespace MrHyDE {
     void initialize(const int & dim0, const int & dim1) {
       data_ = View_Sc2("scalar field for " + expression_, dim0, dim1);
       is_initialized_ = true;
+    }
+    
+    // ========================================================================================
+    // ========================================================================================
+  
+    void reset() {
+      Kokkos::deep_copy(data_, 0.0);
     }
     
     // ========================================================================================

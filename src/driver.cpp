@@ -94,8 +94,10 @@ int main(int argc,char * argv[]) {
       
       Teuchos::RCP<PhysicsInterface> physics = Teuchos::rcp( new PhysicsInterface(settings, Comm,
                                                                                   mesh->getBlockNames(),
+                                                                                  mesh->getPhaseBlockNames(),
                                                                                   mesh->getSideNames(),
-                                                                                  mesh->getDimension()) );
+                                                                                  mesh->getDimension(),
+                                                                                  mesh->getPhaseDimension()) );
       
       ////////////////////////////////////////////////////////////////////////////////
       // Mesh only needs the variable names and types to finalize

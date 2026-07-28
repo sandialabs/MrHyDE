@@ -14,9 +14,12 @@
 PhysicsInterface::PhysicsInterface(Teuchos::RCP<Teuchos::ParameterList> & settings_,
                                    Teuchos::RCP<MpiComm> & comm_,
                                    std::vector<string> block_names_,
+                                   std::vector<string> phase_block_names_,
                                    std::vector<string> side_names_,
-                                   int dimension_) :
-settings(settings_), comm(comm_), dimension(dimension_), block_names(block_names_), side_names(side_names_) {
+                                   int dimension_,
+                                   int phase_dimension_) :
+settings(settings_), comm(comm_), dimension(dimension_), phase_dimension(phase_dimension_),
+block_names(block_names_), phase_block_names(phase_block_names_), side_names(side_names_) {
   
   RCP<Teuchos::Time> constructortime = Teuchos::TimeMonitor::getNewCounter("MrHyDE::PhysicsInterface - constructor");
   Teuchos::TimeMonitor constructortimer(*constructortime);
@@ -198,9 +201,11 @@ void PhysicsInterface::importPhysics() {
     
     vector<vector<bool> > set_use_DG;
     vector<size_t> set_num_vars;
+    
     vector<vector<int> > set_phase_orders;
     vector<vector<string> > set_phase_types;
     vector<vector<string> > set_phase_var_list;
+    vector<size_t> set_phase_num_vars;
     
     for (size_t block=0; block<block_names.size(); ++block) { // element blocks
       vector<int> block_orders;
@@ -295,7 +300,7 @@ void PhysicsInterface::importPhysics() {
       set_phase_orders.push_back(block_phase_orders);
       set_phase_types.push_back(block_phase_types);
       set_phase_var_list.push_back(block_phase_var_list);
-      
+      set_phase_num_vars.push_back(block_phase_var_list.size());
     }
     orders.push_back(set_orders);
     types.push_back(set_types);
@@ -306,7 +311,7 @@ void PhysicsInterface::importPhysics() {
     phase_orders.push_back(set_phase_orders);
     phase_types.push_back(set_phase_types);
     phase_var_list.push_back(set_phase_var_list);
-    
+    phase_num_vars.push_back(set_phase_num_vars);
   }
     
   //-----------------------------------------------------------------
@@ -377,6 +382,39 @@ void PhysicsInterface::importPhysics() {
     unique_index.push_back(block_unique_index);
     
   }
+  
+  std::vector<int> block_phase_unique_orders;
+  std::vector<string> block_phase_unique_types;
+  std::vector<int> block_phase_unique_index;
+  
+  if (phase_dimension > 0) {
+    int currnum_vars = 0;
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      currnum_vars += phase_var_list[set][0].size();
+    }
+    TEUCHOS_TEST_FOR_EXCEPTION(currnum_vars==0,std::runtime_error,"Error: no variable were added on phase block: " + phase_block_names[0]);
+    
+    for (size_t set=0; set<set_names.size(); set++) { // physics sets
+      for (size_t j=0; j<phase_orders[set][0].size(); j++) {
+        bool is_unique = true;
+        for (size_t k=0; k<block_phase_unique_orders.size(); k++) {
+          if (block_phase_unique_orders[k] == phase_orders[set][0][j] && block_phase_unique_types[k] == phase_types[set][0][j]) {
+            is_unique = false;
+            block_phase_unique_index.push_back(k);
+          }
+        }
+        if (is_unique) {
+          block_phase_unique_orders.push_back(phase_orders[set][0][j]);
+          block_phase_unique_types.push_back(phase_types[set][0][j]);
+          block_phase_unique_index.push_back(block_phase_unique_orders.size()-1);
+        }
+      }
+    }
+  }
+  
+  unique_phase_orders.push_back(block_phase_unique_orders);
+  unique_phase_types.push_back(block_phase_unique_types);
+  unique_phase_index.push_back(block_phase_unique_index);
   
   debugger->print("**** Finished PhysicsInterface::importPhysics ...");
   

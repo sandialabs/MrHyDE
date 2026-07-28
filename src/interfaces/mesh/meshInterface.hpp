@@ -364,7 +364,7 @@ public:
   vector<topo_RCP> cell_topo, side_topo; ///< Cell and side topologies
   topo_RCP phase_topo;
   int meshmod_xvar, meshmod_yvar, meshmod_zvar; ///< Mesh modification axes
-  bool meshmod_usesmoother, use_stk_mesh, use_simple_mesh; ///< Backend selection flags
+  bool meshmod_usesmoother, use_stk_mesh, use_simple_mesh, use_phase_stk_mesh, use_phase_simple_mesh; ///< Backend selection flags
   ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size; ///< Mesh modification parameters
   
   vector<string> block_names, phase_block_names, side_names, node_names, nfield_names, efield_names; ///< STK and field name lists

@@ -369,6 +369,8 @@ public:
                                Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation,
                                const bool & use_block);
   
+  void getPhaseOrientations(Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation);
+  
   // ========================================================================================
   // ========================================================================================
   
@@ -663,6 +665,10 @@ public:
   
   void buildSimpleDOFManagers();
   
+  void buildPhaseDOFManagers();
+  
+  void buildSimplePhaseDOFManagers();
+  
   /**
    * @brief Sets boundary condition information on the DOF manager.
    *
@@ -893,7 +899,7 @@ public:
   std::vector<lids_view_t> dof_lids, phase_dof_lids; /**< Local ID lists for DOFs, purgeable. */
   std::vector<Kokkos::View<GO*,HostDevice>> dof_owned; /**< Owned DOF global IDs. */
   std::vector<Kokkos::View<GO*,HostDevice>> dof_owned_and_shared; /**< Owned + shared DOF global IDs. */
-  Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations; /**< Orientation data for basis functions. */
+  Kokkos::View<Intrepid2::Orientation*,HostDevice> panzer_orientations, phase_panzer_orientations; /**< Orientation data for basis functions. */
   
   vector<DRV> ref_ip, ref_phase_ip; /**< Reference integration points per block. */
   vector<DRV> ref_wts, ref_phase_wts; /**< Reference integration weights per block. */

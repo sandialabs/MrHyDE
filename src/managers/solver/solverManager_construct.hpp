@@ -86,13 +86,15 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   
   // needed information from the mesh
   blocknames = physics->block_names;
+  phase_blocknames = physics->phase_block_names;
   
   // needed information from the physics interface
   numVars = physics->num_vars; //
   vector<vector<vector<string> > > phys_varlist = physics->var_list;
+  vector<vector<vector<string> > > phase_varlist = physics->phase_var_list;
   size_t numSets = setnames.size();
   
-  // needed information from the disc interface
+  // needed physical space information from the disc interface
   vector<vector<int> > cards = disc->cards;
   
   for (size_t set=0; set<numSets; ++set) {
@@ -128,6 +130,46 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
     useBasis.push_back(set_useBasis);
     numBasis.push_back(set_numBasis);
     maxBasis.push_back(set_maxBasis);
+    
+  }
+  
+  // needed phase space information from the disc interface
+  vector<vector<int> > phase_cards = disc->phase_cards;
+  phase_numVars = physics->phase_num_vars;
+  
+  for (size_t set=0; set<numSets; ++set) {
+    vector<vector<int> > set_useBasis;
+    vector<vector<int> > set_numBasis;
+    vector<vector<string> > set_varlist;
+    
+    vector<size_t> set_maxBasis;
+    
+    for (size_t block=0; block<phase_blocknames.size(); ++block) {
+      
+      vector<int> block_useBasis(phase_numVars[set][block]);
+      vector<int> block_numBasis(phase_numVars[set][block]);
+      vector<string> block_varlist(phase_numVars[set][block]);
+      
+      int block_maxBasis = 0;
+      for (size_t j=0; j<phase_numVars[set][block]; j++) {
+        string var = phase_varlist[set][block][j];
+        int vub = physics->getUniquePhaseIndex(set,block,var);
+        block_varlist[j] = var;
+        block_useBasis[j] = vub;
+        block_numBasis[j] = phase_cards[block][vub];
+        block_maxBasis = std::max(block_maxBasis,phase_cards[block][vub]);
+      }
+      
+      set_varlist.push_back(block_varlist);
+      set_useBasis.push_back(block_useBasis);
+      set_numBasis.push_back(block_numBasis);
+      set_maxBasis.push_back((size_t)block_maxBasis);
+      
+    }
+    phase_varlist.push_back(set_varlist);
+    phase_useBasis.push_back(set_useBasis);
+    phase_numBasis.push_back(set_numBasis);
+    phase_maxBasis.push_back(set_maxBasis);
     
   }
 
