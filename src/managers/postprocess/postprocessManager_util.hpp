@@ -449,12 +449,13 @@ void PostprocessManager<Node>::accumulateNF2FF(vector<vector_RCP> &current_soln,
                                    "Unknown lumped-port source type.");
       }
 
+      const ScalarT source_value = port.amplitude*waveform;
       for (size_t freq = 0; freq < nf2ff.frequencies.size(); ++freq) {
         const ScalarT omega_t =
           2.0*PI*nf2ff.frequencies[freq]*current_time;
         nf2ff_ports[port_index].source_dft[freq] +=
           std::complex<ScalarT>(deltat*cos(omega_t),
-                                -deltat*sin(omega_t))*waveform;
+                                -deltat*sin(omega_t))*source_value;
       }
     }
   }
@@ -1536,7 +1537,7 @@ void PostprocessManager<Node>::writeNF2FF()
             std::norm(field_norm)*global_port_values[3*port_index + 2];
 
           const std::complex<ScalarT> source_current(
-            -2.0*port.amplitude/std::sqrt(port.impedance), 0.0);
+            -2.0/std::sqrt(port.impedance), 0.0);
           port_current[port_index] =
             -source_current - port_voltage[port_index]/port.impedance;
           port_source_power[port_index] =
@@ -2033,30 +2034,26 @@ void PostprocessManager<Node>::writeLumpedPortParameters()
             port_power < 0.0, std::runtime_error,
             "Computed negative lumped-port power. Check the port conductance sign.");
 
-          const std::complex<ScalarT> projection(
+          const std::complex<ScalarT> voltage(
             port.height*global_port_values[3*port_index + 0]/port.volume,
             port.height*global_port_values[3*port_index + 1]/port.volume);
-          std::complex<ScalarT> phase(1.0, 0.0);
-          if (std::norm(projection) > 1.0e-30) {
-            phase = projection/std::abs(projection);
-          }
-
-          const std::complex<ScalarT> Iinc =
+          const std::complex<ScalarT> incident_current =
             source_dft/std::sqrt(port.impedance);
-          const std::complex<ScalarT> I1 =
-            std::sqrt(port_power/port.impedance)*phase;
-          const std::complex<ScalarT> Iref = I1 - Iinc;
-          result.S11 = Iref/Iinc;
+          const std::complex<ScalarT> source_current =
+            2.0*incident_current;
+          const std::complex<ScalarT> resistance_current =
+            voltage/port.impedance;
+          const std::complex<ScalarT> port_current =
+            source_current - resistance_current;
 
-          const std::complex<ScalarT> one(1.0, 0.0);
-          const std::complex<ScalarT> zin_denominator = one - result.S11;
-          if (std::norm(zin_denominator) > 1.0e-30) {
-            result.Zin = port.impedance*(one + result.S11)/zin_denominator;
+          if (std::norm(port_current) > 1.0e-30) {
+            result.Zin = voltage/port_current;
             const std::complex<ScalarT> gamma_denominator =
               result.Zin + port.impedance;
             if (std::norm(gamma_denominator) > 1.0e-30) {
               result.Gamma =
                 (result.Zin - port.impedance)/gamma_denominator;
+              result.S11 = result.Gamma;
               const ScalarT gamma_magnitude = std::abs(result.Gamma);
               result.VSWR = (gamma_magnitude < 1.0) ?
                 (1.0 + gamma_magnitude)/(1.0 - gamma_magnitude) :
