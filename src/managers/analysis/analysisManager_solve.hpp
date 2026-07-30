@@ -34,7 +34,6 @@ static void runFDGradientCheck(Teuchos::ParameterList & ROLsettings,
   auto fd_table = checkFn();
 
   // Warn if h=1 looks like curvature, not directional derivative.
-  // Threshold 1e6 is huge on purpose so healthy checks stay quiet.
   if (rank == 0 && !fd_table.empty()) {
     // Columns: [0]=h, [1]=grad'*dir, [2]=FD approx, [3]=abs error.
     double a  = fd_table[0][1];
@@ -58,6 +57,83 @@ static void runFDGradientCheck(Teuchos::ParameterList & ROLsettings,
 
   if (!Teuchos::is_null(x_save)) {
     x->set(*x_save);
+  }
+}
+
+// ========================================================================================
+// FD-check direction. seed_offset keeps checkHessSym directions distinct.
+// ========================================================================================
+
+static void seedDirection(Teuchos::ParameterList & ROLsettings,
+                          Teuchos::RCP<ROL::Vector<ScalarT>> & dir,
+                          int seed_offset) {
+  auto & general = ROLsettings.sublist("General");
+  if (general.get("FD Check Use Ones Vector", false)) {
+    dir->setScalar(1.0);
+    return;
+  }
+  if (general.isParameter("FD Check Seed")) {
+    int seed = general.get<int>("FD Check Seed", 1);
+    srand(seed + seed_offset);
+  }
+  else {
+    srand(time(NULL));
+  }
+  dir->randomize();
+  if (general.isParameter("FD Scale")) {
+    ScalarT scale = general.get<double>("FD Scale", 1.0);
+    dir->scale(scale);
+  }
+}
+
+// ========================================================================================
+// Shared FD / hessVec / secant checks for ROLSolve and ROL2Solve.
+// ========================================================================================
+
+static void runOptCheckBlock(Teuchos::ParameterList & ROLsettings,
+                             Teuchos::RCP<ROL::Vector<ScalarT>> x,
+                             Teuchos::RCP<ROL::Objective<ScalarT>> obj,
+                             int rank) {
+  Teuchos::RCP<ROL::Vector<ScalarT>> d = x->clone();
+  seedDirection(ROLsettings, d, 0);
+
+  runFDGradientCheck(ROLsettings, x, rank, [&]() {
+    return obj->checkGradient(*x, *d, (rank == 0));
+  });
+
+  auto & general = ROLsettings.sublist("General");
+
+  if (general.get("Do exact hessvec check", false)) {
+    runFDGradientCheck(ROLsettings, x, rank, [&]() {
+      return obj->checkHessVec(*x, *d, (rank == 0));
+    });
+    Teuchos::RCP<ROL::Vector<ScalarT>> d2 = x->clone();
+    seedDirection(ROLsettings, d2, 1);
+    obj->checkHessSym(*x, *d, *d2, (rank == 0));
+  }
+
+  if (general.get("Do secant identity check", false)) {
+    // For LQ / affine grad: Hv = grad(x+v) - grad(x) at unit step.
+    Teuchos::RCP<ROL::Vector<ScalarT>> gx  = x->clone();
+    Teuchos::RCP<ROL::Vector<ScalarT>> gxv = x->clone();
+    Teuchos::RCP<ROL::Vector<ScalarT>> xv  = x->clone();
+    Teuchos::RCP<ROL::Vector<ScalarT>> hv  = x->clone();
+    ScalarT gtol = 1.0e-14;
+
+    obj->gradient(*gx, *x, gtol);
+    xv->set(*x);
+    xv->axpy(1.0, *d);
+    obj->gradient(*gxv, *xv, gtol);
+    obj->hessVec(*hv, *d, *x, gtol);
+
+    gxv->axpy(-1.0, *gx);
+    ScalarT ref = gxv->norm();
+    gxv->axpy(-1.0, *hv);
+    ScalarT err = gxv->norm();
+    if (rank == 0) {
+      std::cout << "[SECANT-IDENTITY] || Hv - (grad(x+v) - grad(x)) || = " << err
+                << "   relative = " << (ref > 0 ? err/ref : err) << std::endl;
+    }
   }
 }
 
@@ -519,38 +595,7 @@ void AnalysisManager::ROLSolve()
   // Comparing a gradient/Hessian with finite difference approximation
   if (ROLsettings.sublist("General").get("Do grad+hessvec check", true))
   {
-    // Gradient and Hessian check
-    // direction for gradient check
-
-    Teuchos::RCP<ROL::Vector<ScalarT>> d = x->clone();
-
-    if (ROLsettings.sublist("General").get("FD Check Use Ones Vector", false))
-    {
-      d->setScalar(1.0);
-    }
-    else
-    {
-      if (ROLsettings.sublist("General").isParameter("FD Check Seed"))
-      {
-        int seed = ROLsettings.get("FD Check Seed", 1);
-        srand(seed);
-      }
-      else
-      {
-        srand(time(NULL)); // initialize random seed
-      }
-      d->randomize();
-      if (ROLsettings.sublist("General").isParameter("FD Scale"))
-      {
-        ScalarT scale = ROLsettings.sublist("General").get<double>("FD Scale", 1.0);
-        d->scale(scale);
-      }
-    }
-
-    // check gradient and Hessian-vector computation using finite differences
-    runFDGradientCheck(ROLsettings, x, comm_->getRank(), [&]() {
-      return obj->checkGradient(*x, *d, (comm_->getRank() == 0));
-    });
+    runOptCheckBlock(ROLsettings, x, obj, comm_->getRank());
   }
 
   // Teuchos::Time timer("Optimization Time", true);
@@ -742,38 +787,7 @@ void AnalysisManager::ROL2Solve()
   // Comparing a gradient/Hessian with finite difference approximation
   if (ROLsettings.sublist("General").get("Do grad+hessvec check", true))
   {
-    // Gradient and Hessian check
-    // direction for gradient check
-
-    Teuchos::RCP<ROL::Vector<ScalarT>> d = x->clone();
-
-    if (ROLsettings.sublist("General").get("FD Check Use Ones Vector", false))
-    {
-      d->setScalar(1.0);
-    }
-    else
-    {
-      if (ROLsettings.sublist("General").isParameter("FD Check Seed"))
-      {
-        int seed = ROLsettings.get("FD Check Seed", 1);
-        srand(seed);
-      }
-      else
-      {
-        srand(time(NULL)); // initialize random seed
-      }
-      d->randomize();
-      if (ROLsettings.sublist("General").isParameter("FD Scale"))
-      {
-        ScalarT scale = ROLsettings.sublist("General").get<double>("FD Scale", 1.0);
-        d->scale(scale);
-      }
-    }
-
-    // check gradient and Hessian-vector computation using finite differences
-    runFDGradientCheck(ROLsettings, x, comm_->getRank(), [&]() {
-      return obj->checkGradient(*x, *d, (comm_->getRank() == 0));
-    });
+    runOptCheckBlock(ROLsettings, x, obj, comm_->getRank());
   }
 
   // Teuchos::Time timer("Optimization Time", true);
