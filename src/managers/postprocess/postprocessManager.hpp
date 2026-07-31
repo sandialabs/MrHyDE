@@ -138,6 +138,15 @@ public:
    * @param[out] objectiveval  The computed value of the objective function.
    */
   void reportObjective(ScalarT & objectiveval);
+
+  // ========================================================================================
+  // ========================================================================================
+
+  /**
+   * @brief Prints per-term unweighted magnitudes gathered during a forward
+   *        solve when the "Do magnitude scan" flag is active. Rank 0 only.
+   */
+  void reportUnweightedMagnitudes();
   
   // ========================================================================================
   // ========================================================================================
@@ -664,6 +673,7 @@ public:
   ScalarT exodus_record_stop; ///< Exodus output stop time.
   
   bool compute_objective; ///< Whether to compute objective values.
+  bool magnitude_scan_active = false; ///< When true, computeObjective stores per-term unweighted values.
   bool compute_flux_response; ///< Whether to compute flux responses.
   bool compute_integrated_quantities; ///< Whether to compute integrated quantities.
   bool write_solution_to_file;

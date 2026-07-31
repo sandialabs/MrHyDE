@@ -18,6 +18,7 @@ namespace {
   };
 
   // RAII: set scalar param to 0 on entry, 1 on exit (including throw).
+  // sacadoizeParams pushes paramvals into the workset View; setParam alone does not.
   template<class ParamsPtr>
   struct ScalarParamGuard {
     ParamsPtr & params_;
@@ -26,10 +27,12 @@ namespace {
       : params_(p), name_(name) {
       vector<ScalarT> off = {0.0};
       params_->setParam(off, name_);
+      params_->sacadoizeParams(false);
     }
     ~ScalarParamGuard() {
       vector<ScalarT> on = {1.0};
       params_->setParam(on, name_);
+      params_->sacadoizeParams(false);
     }
     ScalarParamGuard(const ScalarParamGuard &) = delete;
     ScalarParamGuard & operator=(const ScalarParamGuard &) = delete;

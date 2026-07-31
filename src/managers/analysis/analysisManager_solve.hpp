@@ -87,6 +87,69 @@ static void seedDirection(Teuchos::ParameterList & ROLsettings,
 }
 
 // ========================================================================================
+// Algebraic HessVec checks for LQ problems (H*0, bilinearity, Rayleigh).
+// ========================================================================================
+
+static void runAlgebraicHvChecks(Teuchos::ParameterList & ROLsettings,
+                                 Teuchos::RCP<ROL::Vector<ScalarT>> x,
+                                 Teuchos::RCP<ROL::Objective<ScalarT>> obj,
+                                 int rank) {
+  Teuchos::RCP<ROL::Vector<ScalarT>> v1 = x->clone();
+  Teuchos::RCP<ROL::Vector<ScalarT>> v2 = x->clone();
+  seedDirection(ROLsettings, v1, 2);
+  seedDirection(ROLsettings, v2, 3);
+
+  Teuchos::RCP<ROL::Vector<ScalarT>> Hv1 = x->clone();
+  Teuchos::RCP<ROL::Vector<ScalarT>> Hv2 = x->clone();
+  Teuchos::RCP<ROL::Vector<ScalarT>> zero_v = x->clone();
+  Teuchos::RCP<ROL::Vector<ScalarT>> Hz    = x->clone();
+  ScalarT tol = 1.0e-14;
+
+  // [HV-ZERO] H*0 must be exactly zero.
+  zero_v->zero();
+  Hz->zero();
+  obj->hessVec(*Hz, *zero_v, *x, tol);
+  ScalarT hv0 = Hz->norm();
+
+  Hv1->zero();
+  Hv2->zero();
+  obj->hessVec(*Hv1, *v1, *x, tol);
+  obj->hessVec(*Hv2, *v2, *x, tol);
+
+  // [HV-BILINEARITY] H(a*v1 + b*v2) - (a*Hv1 + b*Hv2) must be zero (exact identity on LQ).
+  const ScalarT a = 1.7;
+  const ScalarT b = -0.3;
+  Teuchos::RCP<ROL::Vector<ScalarT>> vc = x->clone();
+  Teuchos::RCP<ROL::Vector<ScalarT>> Hvc = x->clone();
+  vc->zero();
+  vc->axpy(a, *v1);
+  vc->axpy(b, *v2);
+  Hvc->zero();
+  obj->hessVec(*Hvc, *vc, *x, tol);
+  Teuchos::RCP<ROL::Vector<ScalarT>> ref = x->clone();
+  ref->zero();
+  ref->axpy(a, *Hv1);
+  ref->axpy(b, *Hv2);
+  ScalarT ref_norm = ref->norm();
+  ref->axpy(-1.0, *Hvc);
+  ScalarT bilin_abs = ref->norm();
+  ScalarT bilin_rel = (ref_norm > 0.0 ? bilin_abs / ref_norm : bilin_abs);
+
+  // [HV-RAYLEIGH] <v_i, H v_i> must be nonneg on convex LQ.
+  // Check for accidental sign flip in the second-order adjoint RHS.
+  ScalarT ray1 = v1->dot(*Hv1);
+  ScalarT ray2 = v2->dot(*Hv2);
+
+  if (rank == 0) {
+    std::cout << "[HV-ZERO] || H*0 || = " << hv0 << std::endl;
+    std::cout << "[HV-BILINEARITY] || H(a*v1+b*v2) - (a*Hv1 + b*Hv2) || = " << bilin_abs
+              << "   relative = " << bilin_rel << std::endl;
+    std::cout << "[HV-RAYLEIGH] <v1, H v1> = " << ray1
+              << "   <v2, H v2> = " << ray2 << std::endl;
+  }
+}
+
+// ========================================================================================
 // Shared FD / hessVec / secant checks for ROLSolve and ROL2Solve.
 // ========================================================================================
 
@@ -110,6 +173,10 @@ static void runOptCheckBlock(Teuchos::ParameterList & ROLsettings,
     Teuchos::RCP<ROL::Vector<ScalarT>> d2 = x->clone();
     seedDirection(ROLsettings, d2, 1);
     obj->checkHessSym(*x, *d, *d2, (rank == 0));
+  }
+
+  if (general.get("Do algebraic hessvec check", false)) {
+    runAlgebraicHvChecks(ROLsettings, x, obj, rank);
   }
 
   if (general.get("Do secant identity check", false)) {
@@ -784,8 +851,39 @@ void AnalysisManager::ROL2Solve()
     // std::cout << "Finished generating data for inversion " << std::endl;
   }
 
+  // diagnostic flags
+  const bool do_scan = ROLsettings.sublist("General").get<bool>("Do magnitude scan", false);
+  const bool do_gh_check = ROLsettings.sublist("General").get("Do grad+hessvec check", true);
+
+  // Magnitude scan: one forward solve, then restore x if we redirected the probe.
+  if (do_scan)
+  {
+    Teuchos::RCP<ROL::Vector<ScalarT>> x_save = Teuchos::null;
+    if (ROLsettings.sublist("General").isParameter("FD Check Random Seed")) {
+      int seed = ROLsettings.sublist("General").get<int>("FD Check Random Seed", 1);
+      ScalarT scale = ROLsettings.sublist("General").get<double>("FD Check Random Scale", 1.0);
+      x_save = x->clone();
+      x_save->set(*x);
+      srand(seed);
+      x->randomize(-scale, scale);
+      if (comm_->getRank() == 0) {
+        cout << "\n[MAGNITUDE-SCAN] probe at seeded random ctrl (seed=" << seed
+             << ", scale=" << scale << ").\n";
+      }
+    }
+    else if (comm_->getRank() == 0) {
+      cout << "\n[MAGNITUDE-SCAN] probe at the deck's initial iterate.\n";
+    }
+    RealT tol = 1.0e-14;
+    obj->value(*x, tol);
+    postproc_->reportUnweightedMagnitudes();
+    if (!Teuchos::is_null(x_save)) {
+      x->set(*x_save);
+    }
+  }
+
   // Comparing a gradient/Hessian with finite difference approximation
-  if (ROLsettings.sublist("General").get("Do grad+hessvec check", true))
+  if (do_gh_check)
   {
     runOptCheckBlock(ROLsettings, x, obj, comm_->getRank());
   }
