@@ -34,8 +34,8 @@ ANONYMOUS:
       B: 1
     quadrature: 2
     side quadrature: 2
-  Parameters input file: other_decks/input_params.yaml
-  Functions input file: other_decks/input_functions.yaml
+  Parameters input file: OTHER_DECKS_PLACEHOLDER/input_params.yaml
+  Functions input file: OTHER_DECKS_PLACEHOLDER/input_functions.yaml
   Solver:
     solver: 'transient'
     transient BDF order: 1
