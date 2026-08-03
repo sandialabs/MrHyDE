@@ -32,7 +32,7 @@ computed:
 
 ## Diagnostics figure
 
-![Trust-region race diagnostics](analyze_tr.png)
+![Trust-region race diagnostics](./logs/analyze_tr.png)
 
 Produced by `analyze_tr.py` from `logs/mrhyde_r1_{exact,fd}.log`:
 
