@@ -1,0 +1,33 @@
+p= 0 | CubeHexMesh: Building sub cells
+
+[MAGNITUDE-SCAN] probe at seeded random ctrl (seed=42, scale=0.001).
+  Per-term contributions at the probe point (ROL iter-0 may differ if
+  the initial iterate is initialized differently):
+  term                            type      unweighted        weight      weighted
+  --------------------------------------------------------------------------------
+  EM Energy                       obj        4.067e-29     1.000e+13     4.067e-16
+  RegObj                          obj        0.000e+00     0.000e+00     0.000e+00
+  RegObj/l2reg                    reg        1.058e-20     1.000e+05     1.058e-15
+  RegObj/curlreg                  reg        1.216e-09     1.000e-05     1.216e-14
+  --------------------------------------------------------------------------------
+  TOTAL                                      1.216e-09                   1.362e-14
+
+
+Quasi-Newton Method with Limited-Memory BFGS
+Line Search: Cubic Interpolation satisfying Wolfe Conditions
+-------------------------------------------------------------------------------------------------------------
+Quasi-Newton status output definitions
+
+  iter     - Number of iterates (steps taken)
+  value    - Objective function value
+  gnorm    - Norm of the gradient
+  snorm    - Norm of the step (update to optimization vector)
+  alpha    - Line search step length
+  #fval    - Cumulative number of times the objective function was evaluated
+  #grad    - Cumulative number of times the gradient was computed
+  ls_#fval - Number of the times the objective function was evaluated during the line search
+  ls_#grad - Number of the times the gradient was evaluated during the line search
+-------------------------------------------------------------------------------------------------------------
+  iter  value          gnorm          snorm          alpha          #fval     #grad     ls_#fval  ls_#grad  
+  0     6.975289e-15   1.050707e-13   ---            ---            1         1         ---       ---       
+Optimization Terminated with Status: Iteration Limit Exceeded

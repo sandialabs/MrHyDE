@@ -14,22 +14,29 @@ linear-quadratic, so `H(x)` is constant and
 python plot_hess_vec_check.py
 ```
 
+Sample check output in `logs/`:
+- broken FD grad (iterate, non-seeded): `logs/mrhyde_hv_r1_baseline_fd.log`
+- healthy seeded exact: `logs/mrhyde_hv_r1_seed_exact.log`
+
 Both ROL decks under `rol_decks/` set:
 
 ```yaml
-Do grad+hessvec check: true    # checkGradient + checkHessVec + checkHessSym
-Do secant identity check: true # Hv vs (grad(x+v) - grad(x))
-FD Check Seed: 3               # random direction dir for (J(x+h*dir)-J(x))/h
+Do grad+hessvec check: true       # checkGradient + checkHessVec + checkHessSym
+Do exact hessvec check: true
+Do algebraic hessvec check: true
+Do secant identity check: true    # Hv vs (grad(x+v) - grad(x))
+FD Check Seed: 3                  # random direction dir for (J(x+h*dir)-J(x))/h
 ```
 
-Modes named `seed*` use `rol_seed_hess.yaml`, which also sets:
+Modes named `seed*` use `rol_seed_hess.yaml`, which also sets
+(for FD check only; optimizer iterate unchanged):
 
 ```yaml
-FD Check Random Seed: 42       # replace iterate x with a random vector (FD check only)
+FD Check Random Seed: 42
 FD Check Random Scale: 1.0
 ```
 
-The other four modes use `rol_noscale_hess.yaml` (probe at optimizer iterate).
+The other modes use `rol_noscale_hess.yaml` (probe at optimizer iterate).
 
 ### Exact vs FD HessVec
 
@@ -44,80 +51,78 @@ current x: 'src_gate*(gt*exp(-2*timebub*(t<toff))*(z<zmax)*(z>zmin))'
 `other_decks_fd/` omits the wrapper, so `Objective_MILO::hessVec` falls back
 to `ROL::Objective::hessVec` (FD-of-gradients).
 
-## FD gradient results
+## Failure modes you will hit
+
+**Degenerate iterate.** Modes without `seed` start at `ctrl_current = 0`,
+so `grad'*dir` is at the noise floor and FD grad fails (e.g, 
+`baseline` - `best rel_err ~ 2e1`). The log prints:
+
+```txt
+[FDCHECK-HINT] best rel_err > 1.
+  Likely causes and fixes:
+    1) Degenerate start point: g.d is at the noise floor, so FD sees
+       curvature and noise, not the gradient.
+       Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:
+       (does not change the optimizer's initial iterate).
+    2) A dominant regularizer weight makes the check validate the reg
+       path, not the state-adjoint objective path.
+       Fix: zero every Regularization functions weight. If the
+       remaining signal is below FD noise, raise 'FD Check Random
+       Scale' (default 1.0).
+```
+
+Set `ctrl_current > 0` or `FD Check Random Seed` on your own deck for a real FD-grad check.
+
+## Healthy criteria
+
+Judge relative error, not absolute error (large `w_EM` inflates abs values).
+
+| Check | Healthy relative residual |
+|-------|---------------------------|
+| FD gradient (`[GRAD-CHECK] best rel_err`) | ~`1e-4` or better with a random probe; `> 1` prints `[FDCHECK-HINT]` |
+| Exact secant (`[SECANT-IDENTITY] relative`) | ~`1e-7` to `1e-8` on the state path |
+| FD-of-gradients secant | ~`1e-5` on the state path (looser; still OK) |
+| Bilinearity (`[HV-BILINEARITY] relative`) | ~`1e-7` (exact) / ~`1e-5` (FD) on the state path |
+| `H*0` | exactly 0 |
+| Rayleigh `<v, Hv>` | positive (LQ is convex) |
+
+If curlreg dominates, HessVec residuals can look machine-eps even when the
+state-adjoint path is unchecked. Zero or shrink reg weights when probing
+the EM path.
+
+## Results
+
+### FD gradient
 
 Path-independent: same numbers in exact and fd logs.
+`w_EM` = EM Energy weight; `w_curlreg` = curlreg weight (`l2reg` is 0).
 
-| Param config  | w_EM  | w_reg | Probe    | grad'*dir  | best abs_err @ h    | rel_err   |
-|---------------|-------|-------|----------|------------|---------------------|-----------|
-| baseline      | 1e35  | 1e5   | iterate  | +3.10e-02  | 6.40e-01 @ 1e-12    | 2.1e+01   |
-| regs0         | 1e35  | 0     | iterate  | +3.10e-02  | 6.40e-01 @ 1e-12    | 2.1e+01   |
-| w1            | 1     | 1e5   | iterate  | +3.10e-37  | 3.09e-11 @ 1e-12    | 1.0e+26   |
-| w1_regs1      | 1     | 1     | iterate  | +3.10e-37  | 3.09e-16 @ 1e-12    | 1.0e+21   |
-| seed          | 1e35  | 1e5   | random   | +6.69e+11  | 3.04e+08 @ 1e-04    | 4.5e-04   |
-| seed_regs0    | 1e35  | 0     | random   | +6.69e+11  | 3.04e+08 @ 1e-04    | 4.5e-04   |
-| seed_w1       | 1     | 1e5   | random   | +2.69e-01  | 3.95e-07 @ 1e-08    | 1.5e-06   |
-| seed_w1_regs1 | 1     | 1     | random   | +2.69e-06  | 7.07e-12 @ 1e-08    | 2.6e-06   |
-| seed_w1_regs0 | 1     | 0     | random   | +6.69e-24  | 3.04e-27 @ 1e-04    | 4.5e-04   |
+| Param config  | w_EM  | w_curlreg | Probe    | grad'*dir  | best abs_err @ h    | rel_err   |
+|---------------|-------|----------:|----------|------------|---------------------|-----------|
+| baseline      | 1e35  | 1e5       | iterate  | +3.10e-02  | 6.40e-01 @ 1e-12    | 2.1e+01   |
+| regs0         | 1e35  | 0         | iterate  | +3.10e-02  | 6.40e-01 @ 1e-12    | 2.1e+01   |
+| w1            | 1     | 1e5       | iterate  | +3.10e-37  | 3.09e-11 @ 1e-12    | 1.0e+26   |
+| w1_regs1      | 1     | 1         | iterate  | +3.10e-37  | 3.09e-16 @ 1e-12    | 1.0e+21   |
+| seed          | 1e35  | 1e5       | random   | +6.69e+11  | 3.04e+08 @ 1e-04    | 4.5e-04   |
+| seed_regs0    | 1e35  | 0         | random   | +6.69e+11  | 3.04e+08 @ 1e-04    | 4.5e-04   |
+| seed_w1       | 1     | 1e5       | random   | +2.69e-01  | 3.95e-07 @ 1e-08    | 1.5e-06   |
+| seed_w1_regs1 | 1     | 1         | random   | +2.69e-06  | 7.07e-12 @ 1e-08    | 2.6e-06   |
+| seed_w1_regs0 | 1     | 0         | random   | +6.69e-24  | 3.04e-27 @ 1e-04    | 4.5e-04   |
 
-Probe:
-
-- **iterate** (`rol_noscale_hess.yaml`):
-  - `ctrl_current` starts at 0, so fields collapse, EM path vanishes, `grad'*dir` at the noise floor.
-- **random** (`rol_seed_hess.yaml`):
-  - random `x` for the FD check only (fixed seeds).
-
+Iterate rows are the degenerate case above. Random-probe rows are the
+healthy FD-grad check (`seed` / `seed_regs0`: rel_err `~4.5e-4` at `h=1e-4`).
 
 ![FD grad check paired](logs/grad_check_abs_error_paired.png)
 
-## HessVec results: exact (e) vs FD (f)
+### HessVec: exact vs FD
 
-| Param config      | Path | w_EM | w_curlreg | \|hsym\|   | \|secant\|/ref | \|hv0\| | \|bilin\|/ref | <v,Hv>_min |
-|-------------------|------|-----:|----------:|-----------:|---------------:|--------:|--------------:|-----------:|
-| baseline          | e    | 1e35 | 1e5       | 2.99e+04   | 3.83e-08       | 0       | 7.24e-08      | 9.42e+11   |
-| **baseline**      | f    | 1e35 | 1e5       | 8.79e+03   | 1.35e-05       | 0       | 6.89e-05      | 9.42e+11   |
-| regs0             | e    | 1e35 | 0         | 2.99e+04   | 3.83e-08       | 0       | 7.24e-08      | 9.42e+11   |
-| **regs0**         | f    | 1e35 | 0         | 8.79e+03   | 1.35e-05       | 0       | 6.89e-05      | 9.42e+11   |
-| seed              | e    | 1e35 | 1e5       | 1.41e+04   | 3.83e-08       | 0       | 1.16e-07      | 8.09e+11   |
-| **seed**          | f    | 1e35 | 1e5       | 7.81e+03   | 1.35e-05       | 0       | 8.56e-05      | 8.09e+11   |
-| seed_regs0        | e    | 1e35 | 0         | 1.41e+04   | 3.83e-08       | 0       | 1.16e-07      | 8.09e+11   |
-| **seed_regs0**    | f    | 1e35 | 0         | 7.81e+03   | 1.35e-05       | 0       | 8.56e-05      | 8.09e+11   |
-| seed_w1           | e    | 1    | 1e5       | 2.22e-16   | 0              | 0       | 2.92e-16      | 6.11e+01   |
-| **seed_w1**       | f    | 1    | 1e5       | 2.22e-16   | 2.80e-16       | 0       | 3.27e-16      | 6.11e+01   |
-| seed_w1_regs0     | e    | 1    | 0         | 7.68e-32   | 3.73e-08       | 0       | 1.23e-07      | 8.09e-24   |
-| **seed_w1_regs0** | f    | 1    | 0         | 1.06e-31   | 2.73e-05       | 0       | 7.37e-05      | 8.09e-24   |
-| seed_w1_regs1     | e    | 1    | 1         | 3.81e-21   | 0              | 0       | 3.01e-16      | 6.11e-04   |
-| **seed_w1_regs1** | f    | 1    | 1         | 3.81e-21   | 2.84e-16       | 0       | 3.20e-16      | 6.11e-04   |
-| w1                | e    | 1    | 1e5       | 1.67e-16   | 0              | 0       | 3.02e-16      | 5.85e+01   |
-| **w1**            | f    | 1    | 1e5       | 1.67e-16   | 2.80e-16       | 0       | 3.31e-16      | 5.85e+01   |
-| w1_regs1          | e    | 1    | 1         | 1.29e-20   | 0              | 0       | 2.98e-16      | 5.85e+01   |
-| **w1_regs1**      | f    | 1    | 1         | 1.29e-20   | 2.84e-16       | 0       | 3.31e-16      | 5.85e+01   |
+Both paths recover the same operator; differences are noise floor and cost.
 
-### Columns
-
-- `|hsym|` -- asymmetry `|<v1,Hv2> - <v2,Hv1>|`. Noise floor tracks the
-  dominant weight (~1e4 at w_EM=1e35, ~1e-16 at unit w_EM with analytic
-  reg, ~1e-31 for pure state path at unit weights).
 - `|secant|/ref` -- `|Hv - (grad(x+v)-grad(x))| / |grad(x+v)-grad(x)|`.
-  On LQ this is a true operator check. Exact: machine/solver noise.
-  Non-noise nonzero is a bug.
-- `|hv0|` -- `||H*0||`. Sanity check - must be 0 (passes everywhere).
-- `|bilin|/ref` -- relative linearity residual. ~1e-7 (state-adjoint),
-  ~1e-16 (analytic-reg).
-- `<v,Hv>_min` -- min Rayleigh over two random directions. Positive
-  (LQ is convex). Magnitude tracks w_EM vs w_curlreg: at unit w_EM,
-  w_curlreg=1e5 jumps `<v,Hv>` from 8.09e-24 to 6.11e+01.
-
-### Exact vs FD on LQ
-
-Both paths recover the same operator; differences are noise floor only.
-The FD penalty shows up only where the misfit/state path dominates.
-
-| Metric | Exact | FD |
-|--------|-------|-----|
-| `|secant|/ref` | ~4e-8 (or 0 when reg dominates) | ~3e-5 (amplified solver noise; or ~3e-16 when reg dominates) |
-| `|bilin|/ref` | ~1e-7 (state) / ~1e-16 (reg) | ~1e-5 (or ~3e-16 when reg dominates) |
-| `|hsym|`, `<v,Hv>_min` | similar | similar (probe error cancels) |
+  On LQ this is a true operator check. Exact should sit at solver noise;
+  a non-noise nonzero is a bug.
+- `|hv0|` -- `||H*0||`. Must be 0 (helpful sanity check).
+- `|bilin|/ref` -- relative linearity residual.
+- `<v,Hv>_min` -- always positive here (LQ is convex).
 
 ![HessVec check paired](logs/hess_vec_check_abs_error_paired.png)
-
