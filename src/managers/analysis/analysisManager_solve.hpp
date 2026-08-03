@@ -7,14 +7,50 @@
  ************************************************************************/
 
 // ========================================================================================
+// Rank-0 section banner.
+// ========================================================================================
+
+static void printSectionBanner(int rank, const std::string & title) {
+  if (rank != 0) return;
+  static const std::string rule(65, '=');
+  std::cout << "\n" << rule << "\n"
+            << "  " << title << "\n"
+            << rule << std::endl;
+}
+
+// ========================================================================================
+// Best rel err over ROL FD table rows [h, analytic, FD, abs_err].
+// ========================================================================================
+
+static std::pair<double,double>
+computeBestRelErr(const std::vector<std::vector<ScalarT>> & fd_table) {
+  double best_rel = std::numeric_limits<double>::infinity();
+  double best_h   = 0.0;
+  if (fd_table.empty()) return {0.0, 0.0};
+  for (const auto & row : fd_table) {
+    if (row.size() < 4) continue;
+    double h       = row[0];
+    double a       = row[1];
+    double abs_err = row[3];
+    double denom   = std::max(std::abs(a), 1.0e-300);
+    double rel     = std::abs(abs_err) / denom;
+    if (rel < best_rel) { best_rel = rel; best_h = h; }
+  }
+  if (!std::isfinite(best_rel)) best_rel = 0.0;
+  return {best_rel, best_h};
+}
+
+// ========================================================================================
 // Run checkGradient with optional point redirect + curvature-trap hint.
 // If "FD Check Random Seed" is set, randomize x for the check only, then restore.
+// Summary tag, e.g. GRAD-CHECK.
 // ========================================================================================
 
 template<typename CheckFn>
 static void runFDGradientCheck(Teuchos::ParameterList & ROLsettings,
                                Teuchos::RCP<ROL::Vector<ScalarT>> x,
                                int rank,
+                               const char * tag,
                                CheckFn && checkFn) {
   Teuchos::RCP<ROL::Vector<ScalarT>> x_save = Teuchos::null;
   if (ROLsettings.sublist("General").isParameter("FD Check Random Seed")) {
@@ -25,6 +61,7 @@ static void runFDGradientCheck(Teuchos::ParameterList & ROLsettings,
     srand(seed);
     x->randomize(-scale, scale);
     if (rank == 0) {
+      cout << std::scientific << std::setprecision(2);
       cout << "[FDCHECK-REDIRECT] FD check redirected to random parameter "
            << "vector (seed=" << seed << ", scale=" << scale
            << "). Optimizer initial iterate is unchanged.\n";
@@ -33,15 +70,14 @@ static void runFDGradientCheck(Teuchos::ParameterList & ROLsettings,
 
   auto fd_table = checkFn();
 
-  // Warn if h=1 looks like curvature, not directional derivative.
+  // Best rel err across tested h; hint if check fails (best_rel > 1).
   if (rank == 0 && !fd_table.empty()) {
-    // Columns: [0]=h, [1]=grad'*dir, [2]=FD approx, [3]=abs error.
-    double a  = fd_table[0][1];
-    double fd = fd_table[0][2];
-    double ratio = std::abs(fd) / std::max(std::abs(a), 1.0e-30);
-    if (ratio > 1.0e6) {
-      cout << std::scientific << std::setprecision(3);
-      cout << "[FDCHECK-HINT] FD approx at h=1 differs from grad'*dir by ratio " << ratio << ".\n"
+    auto [best_rel, best_h] = computeBestRelErr(fd_table);
+    cout << std::scientific << std::setprecision(2);
+    cout << "[" << tag << "] best rel_err = " << best_rel
+         << "   at h = " << best_h << "\n";
+    if (best_rel > 1.0) {
+      cout << "[FDCHECK-HINT] best rel_err > 1.\n"
            << "  Likely causes and fixes:\n"
            << "    1) Degenerate start point: g.d is at the noise floor, so FD sees\n"
            << "       curvature and noise, not the gradient.\n"
@@ -160,26 +196,32 @@ static void runOptCheckBlock(Teuchos::ParameterList & ROLsettings,
   Teuchos::RCP<ROL::Vector<ScalarT>> d = x->clone();
   seedDirection(ROLsettings, d, 0);
 
-  runFDGradientCheck(ROLsettings, x, rank, [&]() {
+  printSectionBanner(rank, "Gradient check");
+  runFDGradientCheck(ROLsettings, x, rank, "GRAD-CHECK", [&]() {
     return obj->checkGradient(*x, *d, (rank == 0));
   });
 
   auto & general = ROLsettings.sublist("General");
 
   if (general.get("Do exact hessvec check", false)) {
-    runFDGradientCheck(ROLsettings, x, rank, [&]() {
+    printSectionBanner(rank, "Hessian-vector check");
+    runFDGradientCheck(ROLsettings, x, rank, "HESSVEC-CHECK", [&]() {
       return obj->checkHessVec(*x, *d, (rank == 0));
     });
+
+    printSectionBanner(rank, "Hessian symmetry check");
     Teuchos::RCP<ROL::Vector<ScalarT>> d2 = x->clone();
     seedDirection(ROLsettings, d2, 1);
     obj->checkHessSym(*x, *d, *d2, (rank == 0));
   }
 
   if (general.get("Do algebraic hessvec check", false)) {
+    printSectionBanner(rank, "Algebraic Hessian-vector checks");
     runAlgebraicHvChecks(ROLsettings, x, obj, rank);
   }
 
   if (general.get("Do secant identity check", false)) {
+    printSectionBanner(rank, "Secant identity check");
     // For LQ / affine grad: Hv = grad(x+v) - grad(x) at unit step.
     Teuchos::RCP<ROL::Vector<ScalarT>> gx  = x->clone();
     Teuchos::RCP<ROL::Vector<ScalarT>> gxv = x->clone();
@@ -1020,7 +1062,9 @@ void AnalysisManager::ROLStochSolve()
   {
     Teuchos::RCP<ROL::Vector<ScalarT>> dx = x->clone();
     dx->randomize();
-    runFDGradientCheck(ROLsettings, x, comm_->getRank(), [&]() {
+    printSectionBanner(comm_->getRank(), "Gradient check");
+    runFDGradientCheck(ROLsettings, x, comm_->getRank(),
+                       "GRAD-CHECK", [&]() {
       return obj->checkGradient(*x, *dx, true, *outStream);
     });
   }
