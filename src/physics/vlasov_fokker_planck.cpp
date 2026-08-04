@@ -6,7 +6,7 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov)
  ************************************************************************/
 
-#include "vlasov_fokker_planck_0d2v.hpp"
+#include "vlasov_fokker_planck.hpp"
 using namespace MrHyDE;
 
 // ========================================================================================
@@ -14,21 +14,19 @@ using namespace MrHyDE;
 // ========================================================================================
 
 template<class EvalT>
-VFP0d2v<EvalT>::VFP0d2v(Teuchos::ParameterList & settings, const int & dimension_)
-: PhysicsBase<EvalT>(settings, dimension_)
-{
+VFP<EvalT>::VFP(Teuchos::ParameterList & settings, const int & dimension_)
+: PhysicsBase<EvalT>(settings, dimension_) {
     
-    label = "VFP0d2v";
+    label = "VFP";
+    
+    // save spaceDim here because it is needed (potentially) before workset is finalized
+    // TODO is this needed?
+    
+    spaceDim = dimension_;
     
     // MrHyDE should provide a 2D mesh corresponding to the 2 velocity dimensions
     
-    if (dimension_ != 2) {
-        
-    }
-    
-    spaceDim = 0;
-    velDim = 2;
-    
+  phaseDim = 2; // hard coded for now
     // Species: Helium, Carbon, Gold, electrons
     
     myvars.push_back("H");
@@ -58,7 +56,7 @@ VFP0d2v<EvalT>::VFP0d2v(Teuchos::ParameterList & settings, const int & dimension
 // ========================================================================================
 
 template<class EvalT>
-void VFP0d2v<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+void VFP<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
                                      Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
     
     functionManager = functionManager_;
@@ -68,22 +66,24 @@ void VFP0d2v<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
     functionManager->addFunction("source_C",fs.get<string>("source_C","0.0"),"ip");
     functionManager->addFunction("source_G",fs.get<string>("source_G","0.0"),"ip");
     functionManager->addFunction("source_E",fs.get<string>("source_E","0.0"),"ip");
-    //functionManager->addFunction("v_1",fs.get<string>("v_1","x"),"ip");
-    //functionManager->addFunction("v_2", fs.get<string>("v_2", "y"),"ip");
-    //functionManager->addFunction("Egrad_1", fs.get<string>("Egrad_1", "(2/3)*grad(E)[x]/"),"ip");
-    //functionManager->addFunction("Egrad_2", fs.get<string>("Egrad_2", "y"),"ip");
-    
+    functionManager->addFunction("v_1",fs.get<string>("v_1","y"),"ip");
+    functionManager->addFunction("v_2", fs.get<string>("v_2", "z"),"ip");
+    functionManager->addFunction("Egrad_1", fs.get<string>("Egrad_1", "(2/3)*grad(E)[x]/"),"ip");
+    functionManager->addFunction("Egrad_2", fs.get<string>("Egrad_2", "y"),"ip");
 }
 
 // ========================================================================================
 // ========================================================================================
 
 template<class EvalT>
-void VFP0d2v<EvalT>::volumeResidual() {
+void VFP<EvalT>::volumeResidual() {
+    
+    Vista<EvalT> source_rho, source_rhoux, source_rhouy, source_rhouz, source_rhoE;
     
     auto wts = wkset->wts;
     auto res = wkset->res;
-    
+  auto phase_wts = wkset->phase_wts;
+  
     Vista<EvalT> source, v_1, v_2;
     
     //v_1 = functionManager->evaluate("v_1","ip");
@@ -115,9 +115,9 @@ void VFP0d2v<EvalT>::volumeResidual() {
      ScalarT e = 1.602e-19;
      Z_eff = (Z_H*Z_H*n_H + Z_C*Z_C*n_C + Z_G*Z_G*n_G)/(e*n_E);
      
-    gamma_0 = (25.0*Z_eff*(433.0*Z_eff + 180.0*std::sqrt(2)))/(4.0*(217.0*Z_eff*Z_eff + 604*std::sqrt(2)*Z_eff+288));
-    beta_0 = (30.0*Z_eff*(11.0*Z_eff+15*std::sqrt(2)))/(217.0*Z_eff*Z_eff+604*std::sqrt(2)*Z_eff+288.0);
-    alpha_0 = (4.0*(16.0*Z_eff*Z_eff+61.0*std::sqrt(2)*Z_eff+72.0))/(217*Z_eff*Z_eff+604*std::sqrt(2)*Z_eff+288);
+     gamma_0 = (25.0*Z_eff*(433.0*Z_eff + 180.0*std::sqrt(2)))/(4.0*(217.0*Z_eff*Z_eff + 604*std::sqrt(2)*Z_eff+288));
+     beta_0 = (30.0*Z_eff*(11.0*Z_eff+15*std::sqrt(2)))/(217.0*Z_eff*Z_eff+604*std::sqrt(2)*Z_eff+288.0);
+     alpha_0 = (4.0*(16.0*Z_eff*Z_eff+61.0*std::sqrt(2)*Z_eff+72.0))/(217*Z_eff*Z_eff+604*std::sqrt(2)*Z_eff+288);
      */
     // VFP for Helium
     {
@@ -125,6 +125,9 @@ void VFP0d2v<EvalT>::volumeResidual() {
         auto basis = wkset->basis[H_basis_num];
         auto basis_grad = wkset->basis_grad[H_basis_num]; // velocity grad only
         
+      auto phase_basis = wkset->phase_basis[H_basis_num];
+      auto phase_basis_grad = wkset->phase_basis_grad[H_basis_num]; // velocity grad only
+      
         Vista<EvalT> source;
         
         Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -317,16 +320,17 @@ void VFP0d2v<EvalT>::volumeResidual() {
                 }
             }
         });
-         
+        
     }
     
 }
+
 
 // ========================================================================================
 // ========================================================================================
 
 template<class EvalT>
-void VFP0d2v<EvalT>::boundaryResidual() {
+void VFP<EvalT>::boundaryResidual() {
     
     auto bcs = wkset->var_bcs;
     
@@ -340,39 +344,9 @@ void VFP0d2v<EvalT>::boundaryResidual() {
 // ========================================================================================
 
 template<class EvalT>
-void VFP0d2v<EvalT>::computeFlux() {
+void VFP<EvalT>::computeFlux() {
     
-}
-
-// ========================================================================================
-// ========================================================================================
-// ========================================================================================
-// ========================================================================================
-
-template<class EvalT>
-void VFP0d2v<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
     
-    wkset = wkset_;
-    
-    vector<string> varlist = wkset->varlist;
-    
-    for (size_t i=0; i<varlist.size(); i++) {
-        if (varlist[i] == "H")
-            H_num = i;
-        if (varlist[i] == "C")
-            C_num = i;
-        if (varlist[i] == "G")
-            G_num = i;
-        if (varlist[i] == "E")
-            E_num = i;
-    }
-    
-    // First 3 are first moments, next 6 are second moments
-    // These are just scalars for this problem
-    int IQ_start = wkset->addIntegratedQuantities(9);
-    if (IQ_start != 8) {
-        //throw an error
-    }
 }
 
 // ========================================================================================
@@ -380,7 +354,7 @@ void VFP0d2v<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 // ========================================================================================
 
 template<class EvalT>
-std::vector< std::vector<string> > VFP0d2v<EvalT>::setupIntegratedQuantities(const int & spaceDim) {
+std::vector< std::vector<string> > VFP<EvalT>::setupIntegratedQuantities(const int & spaceDim) {
     
     std::vector< std::vector<string> > integrandsNamesAndTypes;
     
@@ -408,23 +382,55 @@ std::vector< std::vector<string> > VFP0d2v<EvalT>::setupIntegratedQuantities(con
     return integrandsNamesAndTypes;
     
 }
+// ========================================================================================
+// ========================================================================================
+// ========================================================================================
+// ========================================================================================
+
+template<class EvalT>
+void VFP<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
+    
+    wkset = wkset_;
+    
+    vector<string> varlist = wkset->varlist;
+    
+    for (size_t i=0; i<varlist.size(); i++) {
+        if (varlist[i] == "H")
+            H_num = i;
+        if (varlist[i] == "C")
+            C_num = i;
+        if (varlist[i] == "G")
+            G_num = i;
+        if (varlist[i] == "E")
+            E_num = i;
+    }
+    
+    // First 3 are first moments, next 6 are second moments
+    // These are just scalars for this problem
+    int IQ_start = wkset->addIntegratedQuantities(9);
+    if (IQ_start != 8) {
+        //throw an error
+    }
+}
+
+
 
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-template class MrHyDE::VFP0d2v<ScalarT>;
+template class MrHyDE::VFP<ScalarT>;
 
 #ifndef MrHyDE_NO_AD
 // Custom AD type
-template class MrHyDE::VFP0d2v<AD>;
+template class MrHyDE::VFP<AD>;
 
 // Standard built-in types
-template class MrHyDE::VFP0d2v<AD2>;
-template class MrHyDE::VFP0d2v<AD4>;
-template class MrHyDE::VFP0d2v<AD8>;
-template class MrHyDE::VFP0d2v<AD16>;
-template class MrHyDE::VFP0d2v<AD18>;
-template class MrHyDE::VFP0d2v<AD24>;
-template class MrHyDE::VFP0d2v<AD32>;
+template class MrHyDE::VFP<AD2>;
+template class MrHyDE::VFP<AD4>;
+template class MrHyDE::VFP<AD8>;
+template class MrHyDE::VFP<AD16>;
+template class MrHyDE::VFP<AD18>;
+template class MrHyDE::VFP<AD24>;
+template class MrHyDE::VFP<AD32>;
 #endif

@@ -155,14 +155,28 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     //auto owned = disc->dof_owned[set];
     //auto ownedAndShared = disc->dof_owned_and_shared[set];
     
-    LO numUnknowns = (LO)disc->dof_owned[set].extent(0);
-    //LO numUnknowns = (LO)owned.size();
-    GO localNumUnknowns = numUnknowns;
+    // These are just the spatial unknowns
+    Kokkos::View<GO*,HostDevice> dof_owned = disc->dof_owned[set];
+    LO numUnknowns = (LO)dof_owned.extent(0);
+    
+    // Need to multiply by the phase dofs
+    LO num_phase_dof = disc->getNumPhaseDOFs(set); // this function returns 1 if no phase space
+    
+    Kokkos::View<GO*,HostDevice> total_local_dof("all dofs", numUnknowns*num_phase_dof);
+    int prog = 0;
+    for (size_t dof=0; dof<numUnknowns; dof++) {
+      for (size_t pdof=0; pdof<num_phase_dof; ++pdof) {
+        total_local_dof[prog] = dof_owned(dof)*num_phase_dof + pdof;
+        ++prog;
+      }
+    }
+    GO localNumUnknowns = numUnknowns*num_phase_dof;
     GO globalNumUnknowns = 0;
 
     Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
     
-    owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, disc->dof_owned[set], 0, comm)));
+    //owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, disc->dof_owned[set], 0, comm)));
+    owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, total_local_dof, 0, comm)));
     
     bool allocate_matrices = true;
     if (settings->sublist("Solver").get<bool>("fully explicit",false) && settings->sublist("Solver").get<bool>("matrix free",false) ) {
@@ -173,7 +187,19 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       have_overlapped = false;
     }
     if (have_overlapped) {
-      overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, disc->dof_owned_and_shared[set], 0, comm)));
+      Kokkos::View<GO*,HostDevice> dof_os = disc->dof_owned_and_shared[set];
+      LO numOSUnknowns = (LO)dof_os.extent(0);
+      
+      Kokkos::View<GO*,HostDevice> total_os_dof("all odofs", numOSUnknowns*num_phase_dof);
+      
+      int prog = 0;
+      for (size_t dof=0; dof<numOSUnknowns; dof++) {
+        for (size_t pdof=0; pdof<num_phase_dof; ++pdof) {
+          total_os_dof[prog] = dof_os(dof)*num_phase_dof + pdof;
+          ++prog;
+        }
+      }
+      overlapped_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, total_os_dof, 0, comm)));
       if (!allocate_matrices) {
         disc->dof_owned_and_shared[set] = Kokkos::View<GO*>("empty dof",1);
       }
@@ -188,16 +214,23 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       vector<size_t> max_entriesPerRow(overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
         auto EIDs = disc->my_elements[b];
-        for (size_t e=0; e<EIDs.extent(0); e++) {
+        for (size_t e=0; e<EIDs.extent(0); e++) { // loop over owned spatial elements
           size_t elemID = EIDs(e);
-          vector<GO> gids = disc->getGIDs(set,b,elemID); //
+          vector<GO> gids = disc->getGIDs(set,b,elemID);
           for (size_t i=0; i<gids.size(); i++) {
-            LO ind1 = overlapped_map[set]->getLocalElement(gids[i]);
-            max_entriesPerRow[ind1] += gids.size();
+            int num_phase_elem = disc->mesh->getNumPhaseElements(); // returns 1 if no phase
+            for (size_t pelem=0; pelem<num_phase_elem; pelem++) {
+              vector<GO> pgids = disc->getPhaseGIDs(set,pelem);
+              for (size_t j=0; j<pgids.size(); j++) {
+                LO ind1 = overlapped_map[set]->getLocalElement(num_phase_dof*gids[i]+j);
+                max_entriesPerRow[ind1] += gids.size()*pgids.size();
+              }
+            }
           }
         }
       }
       
+      // This might need to adjusted for phase dofs
       size_t curr_max_entries = 0;
       for (size_t m=0; m<max_entriesPerRow.size(); ++m) {
         curr_max_entries = std::max(curr_max_entries, max_entriesPerRow[m]);
@@ -217,8 +250,14 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
           vector<GO> gids = disc->getGIDs(set,b,elemID);
           //disc->DOF[set]->getElementGIDs(elemID, gids, blocknames[b]);
           for (size_t i=0; i<gids.size(); i++) {
-            GO ind1 = gids[i];
-            overlapped_graph[set]->insertGlobalIndices(ind1,gids);
+            int num_phase_elem = disc->mesh->getNumPhaseElements(); // returns 1 if no phase
+            for (size_t pelem=0; pelem<num_phase_elem; pelem++) {
+              vector<GO> pgids = disc->getPhaseGIDs(set,pelem);
+              for (size_t j=0; j<pgids.size(); j++) {
+                GO ind1 = num_phase_dof*gids[i]+j;
+                overlapped_graph[set]->insertGlobalIndices(ind1,gids);
+              }
+            }
           }
         }
       }

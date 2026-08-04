@@ -6,9 +6,8 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
 ************************************************************************/
 
-#include "linearelasticity.hpp"
-#include "CrystalElasticity.hpp"
-#include <string>
+#include "elastodynamics.hpp"
+
 using namespace MrHyDE;
 
 typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_EvalT2;
@@ -18,25 +17,24 @@ typedef Kokkos::View<AD**,ContLayout,AssemblyDevice> View_EvalT2;
 // ========================================================================================
 
 template<class EvalT>
-linearelasticity<EvalT>::linearelasticity(Teuchos::ParameterList & settings, const int & dimension_)
-  : PhysicsBase<EvalT>(settings, dimension_)
-{
-  
-  label = "linearelasticity";
+elastodynamics<EvalT>::elastodynamics(Teuchos::ParameterList & settings, const int & dimension_)
+  : PhysicsBase<EvalT>(settings, dimension_) {
+
+  label = "elastodynamics";
   
   spaceDim = dimension_;
   
   if (spaceDim == 1) {
-    myvars = {"dx"};
-    mybasistypes = {"HGRAD"};
-  }
-  else if (spaceDim == 2) {
-    myvars = {"dx","dy"};
+    myvars = {"dx","vx"};
     mybasistypes = {"HGRAD","HGRAD"};
   }
+  else if (spaceDim == 2) {
+    myvars = {"dx","dy","vx","vy"};
+    mybasistypes = {"HGRAD","HGRAD","HGRAD","HGRAD"};
+  }
   else if (spaceDim == 3) {
-    myvars = {"dx","dy","dz"};
-    mybasistypes = {"HGRAD","HGRAD","HGRAD"};
+    myvars = {"dx","dy","dz","vx","vy","vz"};
+    mybasistypes = {"HGRAD","HGRAD","HGRAD","HGRAD","HGRAD","HGRAD"};
   }
   
   useCE = settings.get<bool>("use crystal elasticity",false);
@@ -56,7 +54,7 @@ linearelasticity<EvalT>::linearelasticity(Teuchos::ParameterList & settings, con
   modelparams_host(2) = settings.get<ScalarT>("Biot alpha",0.0);
   modelparams_host(3) = settings.get<ScalarT>("T_ambient",0.0);
   modelparams_host(4) = settings.get<ScalarT>("alpha_T",1.0e-6);
-  
+    
   Kokkos::deep_copy(modelparams, modelparams_host);
 }
 
@@ -64,18 +62,20 @@ linearelasticity<EvalT>::linearelasticity(Teuchos::ParameterList & settings, con
 // ========================================================================================
 
 template<class EvalT>
-void linearelasticity<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
+void elastodynamics<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
                                        Teuchos::RCP<FunctionManager<EvalT> > & functionManager_) {
   
   functionManager = functionManager_;
   
   functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"ip");
   functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"ip");
+  functionManager->addFunction("rho",fs.get<string>("rho","1.0"),"ip");
   functionManager->addFunction("source dx",fs.get<string>("source dx","0.0"),"ip");
   functionManager->addFunction("source dy",fs.get<string>("source dy","0.0"),"ip");
   functionManager->addFunction("source dz",fs.get<string>("source dz","0.0"),"ip");
   functionManager->addFunction("lambda",fs.get<string>("lambda","1.0"),"side ip");
   functionManager->addFunction("mu",fs.get<string>("mu","0.5"),"side ip");
+  
   
   stress_vol = View_EvalT4("stress tensor", functionManager->num_elem_,
                         functionManager->num_ip_, spaceDim, spaceDim);
@@ -86,13 +86,15 @@ void linearelasticity<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
 }
 
 // ========================================================================================
+// \rho \dd/dt = v
+// dv/dt = \nalba \cdot \sigma(d) + f
 // ========================================================================================
 
 template<class EvalT>
-void linearelasticity<EvalT>::volumeResidual() {
+void elastodynamics<EvalT>::volumeResidual() {
   
   int spaceDim = wkset->dimension;
-  Vista<EvalT> lambda, mu, source_dx, source_dy, source_dz;
+  Vista<EvalT> lambda, mu, rho, source_dx, source_dy, source_dz;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -105,6 +107,7 @@ void linearelasticity<EvalT>::volumeResidual() {
     }
     lambda = functionManager->evaluate("lambda","ip");
     mu = functionManager->evaluate("mu","ip");
+    rho = functionManager->evaluate("rho","ip");
   }
   
   // fills in stress tensor
@@ -116,20 +119,40 @@ void linearelasticity<EvalT>::volumeResidual() {
   auto res = wkset->res;
   
   if (spaceDim == 1) {
-    int dx_basis = wkset->usebasis[dx_num];
-    auto basis = wkset->basis[dx_basis];
-    auto basis_grad = wkset->basis_grad[dx_basis];
-    auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
     
-    parallel_for("LE volume resid 1D",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 MRHYDE_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) - source_dx(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
+    {
+      int dx_basis = wkset->usebasis[dx_num];
+      auto basis = wkset->basis[dx_basis];
+      auto basis_grad = wkset->basis_grad[dx_basis];
+      auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
+      auto dvxdt = wkset->getSolutionField("vx_t");
+      parallel_for("LE volume resid 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   MRHYDE_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + (dvxdt(elem,pt) - source_dx(elem,pt))*basis(elem,dof,pt,0))*wts(elem,pt);
+          }
         }
-      }
-    });
+      });
+    }
+    
+    {
+      int vx_basis = wkset->usebasis[vx_num];
+      auto basis = wkset->basis[vx_basis];
+      auto off = Kokkos::subview( wkset->offsets, vx_num, Kokkos::ALL());
+      auto duxdt = wkset->getSolutionField("dx_t");
+      auto vx = wkset->getSolutionField("vx");
+      parallel_for("LE volume resid 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   MRHYDE_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (rho(elem,pt)*duxdt(elem,pt) - vx(elem,pt))*basis(elem,dof,pt,0)*wts(elem,pt);
+          }
+        }
+      });
+    }
   }
   else if (spaceDim == 2) {
     
@@ -139,13 +162,14 @@ void linearelasticity<EvalT>::volumeResidual() {
       auto basis = wkset->basis[dx_basis];
       auto basis_grad = wkset->basis_grad[dx_basis];
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
-      
+      auto dvxdt = wkset->getSolutionField("vx_t");
+    
       parallel_for("LE ux volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) - source_dx(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
+            res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) + (dvxdt(elem,pt) -  source_dx(elem,pt))*basis(elem,dof,pt,0))*wts(elem,pt);
           }
         }
       });
@@ -157,13 +181,46 @@ void linearelasticity<EvalT>::volumeResidual() {
       auto basis = wkset->basis[dy_basis];
       auto basis_grad = wkset->basis_grad[dy_basis];
       auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
-      
+      auto dvydt = wkset->getSolutionField("vy_t");
       parallel_for("LE uy volume resid 2D",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
           for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) - source_dy(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
+            res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) + (dvydt(elem,pt) - source_dy(elem,pt))*basis(elem,dof,pt,0))*wts(elem,pt);
+          }
+        }
+      });
+    }
+    
+    {
+      int vx_basis = wkset->usebasis[vx_num];
+      auto basis = wkset->basis[vx_basis];
+      auto off = Kokkos::subview( wkset->offsets, vx_num, Kokkos::ALL());
+      auto duxdt = wkset->getSolutionField("dx_t");
+      auto vx = wkset->getSolutionField("vx");
+      parallel_for("LE volume resid 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   MRHYDE_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (rho(elem,pt)*duxdt(elem,pt) - vx(elem,pt))*basis(elem,dof,pt,0)*wts(elem,pt);
+          }
+        }
+      });
+    }
+    {
+      int vy_basis = wkset->usebasis[vy_num];
+      auto basis = wkset->basis[vy_basis];
+      auto off = Kokkos::subview( wkset->offsets, vy_num, Kokkos::ALL());
+      auto duydt = wkset->getSolutionField("dy_t");
+      auto vy = wkset->getSolutionField("vy");
+      parallel_for("LE volume resid 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   MRHYDE_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (rho(elem,pt)*duydt(elem,pt) - vy(elem,pt))*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
@@ -177,7 +234,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       auto basis = wkset->basis[dx_basis];
       auto basis_grad = wkset->basis_grad[dx_basis];
       auto off = Kokkos::subview( wkset->offsets, dx_num, Kokkos::ALL());
-      
+      auto dvxdt = wkset->getSolutionField("vx_t");
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
       
       parallel_for("LE ux volume resid 3D",
@@ -186,7 +243,7 @@ void linearelasticity<EvalT>::volumeResidual() {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-            res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,0,2)*basis_grad(elem,dof,pt,2) - source_dx(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
+            res(elem,off(dof)) += (stress(elem,pt,0,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,0,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,0,2)*basis_grad(elem,dof,pt,2) + (dvxdt(elem,pt) - source_dx(elem,pt))*basis(elem,dof,pt,0))*wts(elem,pt);
           }
         }
       });
@@ -198,7 +255,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       auto basis = wkset->basis[dy_basis];
       auto basis_grad = wkset->basis_grad[dy_basis];
       auto off = Kokkos::subview( wkset->offsets, dy_num, Kokkos::ALL());
-      
+      auto dvydt = wkset->getSolutionField("vy_t");
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
       
       parallel_for("LE uy volume resid 3D",
@@ -207,7 +264,7 @@ void linearelasticity<EvalT>::volumeResidual() {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-            res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,1,2)*basis_grad(elem,dof,pt,2) - source_dy(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
+            res(elem,off(dof)) += (stress(elem,pt,1,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,1,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,1,2)*basis_grad(elem,dof,pt,2) + (dvydt(elem,pt) - source_dy(elem,pt))*basis(elem,dof,pt,0))*wts(elem,pt);
           }
         }
       });
@@ -219,7 +276,7 @@ void linearelasticity<EvalT>::volumeResidual() {
       auto basis = wkset->basis[dz_basis];
       auto basis_grad = wkset->basis_grad[dz_basis];
       auto off = Kokkos::subview( wkset->offsets, dz_num, Kokkos::ALL());
-      
+      auto dvzdt = wkset->getSolutionField("vz_t");
       size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
       
       parallel_for("LE uz volume resid 3D",
@@ -228,7 +285,56 @@ void linearelasticity<EvalT>::volumeResidual() {
         int elem = team.league_rank();
         for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
           for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-            res(elem,off(dof)) += (stress(elem,pt,2,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,2,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,2,2)*basis_grad(elem,dof,pt,2) - source_dz(elem,pt)*basis(elem,dof,pt,0))*wts(elem,pt);
+            res(elem,off(dof)) += (stress(elem,pt,2,0)*basis_grad(elem,dof,pt,0) + stress(elem,pt,2,1)*basis_grad(elem,dof,pt,1) + stress(elem,pt,2,2)*basis_grad(elem,dof,pt,2) + (dvzdt(elem,pt) - source_dz(elem,pt))*basis(elem,dof,pt,0))*wts(elem,pt);
+          }
+        }
+      });
+    }
+    
+    {
+      int vx_basis = wkset->usebasis[vx_num];
+      auto basis = wkset->basis[vx_basis];
+      auto off = Kokkos::subview( wkset->offsets, vx_num, Kokkos::ALL());
+      auto duxdt = wkset->getSolutionField("dx_t");
+      auto vx = wkset->getSolutionField("vx");
+      parallel_for("LE volume resid 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   MRHYDE_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (rho(elem,pt)*duxdt(elem,pt) - vx(elem,pt))*basis(elem,dof,pt,0)*wts(elem,pt);
+          }
+        }
+      });
+    }
+    {
+      int vy_basis = wkset->usebasis[vy_num];
+      auto basis = wkset->basis[vy_basis];
+      auto off = Kokkos::subview( wkset->offsets, vx_num, Kokkos::ALL());
+      auto duydt = wkset->getSolutionField("dy_t");
+      auto vy = wkset->getSolutionField("vy");
+      parallel_for("LE volume resid 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   MRHYDE_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (rho(elem,pt)*duydt(elem,pt) - vy(elem,pt))*basis(elem,dof,pt,0)*wts(elem,pt);
+          }
+        }
+      });
+    }
+    {
+      int vz_basis = wkset->usebasis[vz_num];
+      auto basis = wkset->basis[vz_basis];
+      auto off = Kokkos::subview( wkset->offsets, vz_num, Kokkos::ALL());
+      auto duzdt = wkset->getSolutionField("dz_t");
+      auto vz = wkset->getSolutionField("vz");
+      parallel_for("LE volume resid 1D",
+                   RangePolicy<AssemblyExec>(0,wkset->numElem),
+                   MRHYDE_LAMBDA (const int elem ) {
+        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+          for (size_type dof=0; dof<basis.extent(1); dof++ ) {
+            res(elem,off(dof)) += (rho(elem,pt)*duzdt(elem,pt) - vz(elem,pt))*basis(elem,dof,pt,0)*wts(elem,pt);
           }
         }
       });
@@ -241,7 +347,7 @@ void linearelasticity<EvalT>::volumeResidual() {
 // ========================================================================================
 
 template<class EvalT>
-void linearelasticity<EvalT>::boundaryResidual() {
+void elastodynamics<EvalT>::boundaryResidual() {
   
   int spaceDim = wkset->dimension;
   auto bcs = wkset->var_bcs;
@@ -674,7 +780,7 @@ void linearelasticity<EvalT>::boundaryResidual() {
 // ========================================================================================
 
 template<class EvalT>
-void linearelasticity<EvalT>::computeFlux() {
+void elastodynamics<EvalT>::computeFlux() {
   
   
   int cside = wkset->currentside;
@@ -857,7 +963,7 @@ void linearelasticity<EvalT>::computeFlux() {
 // ========================================================================================
 
 template<class EvalT>
-void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
+void elastodynamics<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 
   wkset = wkset_;
   
@@ -865,6 +971,10 @@ void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_)
   dx_num = -1;
   dy_num = -1;
   dz_num = -1;
+  vx_num = -1;
+  vy_num = -1;
+  vz_num = -1;
+  
   e_num = -1;
   p_num = -1;
   for (size_t i=0; i<varlist.size(); i++) {
@@ -874,6 +984,12 @@ void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_)
       dy_num = i;
     else if (varlist[i] == "dz")
       dz_num = i;
+    else if (varlist[i] == "vx")
+      vx_num = i;
+    else if (varlist[i] == "vy")
+      vy_num = i;
+    else if (varlist[i] == "vz")
+      vz_num = i;
     else if (varlist[i] == "T")
       e_num = i;
     else if (varlist[i] == "p")
@@ -913,7 +1029,7 @@ void linearelasticity<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_)
 // ========================================================================================
 
 template<class EvalT>
-void linearelasticity<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, const bool & onside) {
+void elastodynamics<EvalT>::computeStress(Vista<EvalT> lambda, Vista<EvalT> mu, const bool & onside) {
   
   Teuchos::TimeMonitor localtime(*fillStress);
            
@@ -1292,7 +1408,7 @@ void linearelasticity<EvalT>::updateParameters(const vector<Teuchos::RCP<vector<
 // ========================================================================================
 
 template<class EvalT>
-std::vector<string> linearelasticity<EvalT>::getDerivedNames() {
+std::vector<string> elastodynamics<EvalT>::getDerivedNames() {
   std::vector<string> derived;
   derived.push_back("VM stress");
   derived.push_back("MAG stress");
@@ -1303,7 +1419,7 @@ std::vector<string> linearelasticity<EvalT>::getDerivedNames() {
 // ========================================================================================
 
 template<class EvalT>
-std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > linearelasticity<EvalT>::getDerivedValues() {
+std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > elastodynamics<EvalT>::getDerivedValues() {
   std::vector<View_EvalT2> derived;
   
   auto lambda = functionManager->evaluate("lambda","ip");
@@ -1369,18 +1485,18 @@ std::vector<Kokkos::View<EvalT**,ContLayout,AssemblyDevice> > linearelasticity<E
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
 
-template class MrHyDE::linearelasticity<ScalarT>;
+template class MrHyDE::elastodynamics<ScalarT>;
 
 #ifndef MrHyDE_NO_AD
 // Custom AD type
-template class MrHyDE::linearelasticity<AD>;
+template class MrHyDE::elastodynamics<AD>;
 
 // Standard built-in types
-template class MrHyDE::linearelasticity<AD2>;
-template class MrHyDE::linearelasticity<AD4>;
-template class MrHyDE::linearelasticity<AD8>;
-template class MrHyDE::linearelasticity<AD16>;
-template class MrHyDE::linearelasticity<AD18>;
-template class MrHyDE::linearelasticity<AD24>;
-template class MrHyDE::linearelasticity<AD32>;
+template class MrHyDE::elastodynamics<AD2>;
+template class MrHyDE::elastodynamics<AD4>;
+template class MrHyDE::elastodynamics<AD8>;
+template class MrHyDE::elastodynamics<AD16>;
+template class MrHyDE::elastodynamics<AD18>;
+template class MrHyDE::elastodynamics<AD24>;
+template class MrHyDE::elastodynamics<AD32>;
 #endif

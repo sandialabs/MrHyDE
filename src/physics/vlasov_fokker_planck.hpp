@@ -12,15 +12,15 @@
  *
  */
 
-#ifndef MRHYDE_VFP1d2v_H
-#define MRHYDE_VFP1d2v_H
+#ifndef MRHYDE_VFP_H
+#define MRHYDE_VFP_H
 
 #include "physicsBase.hpp"
 
 namespace MrHyDE {
   
   template<class EvalT>
-  class VFP1d2v : public PhysicsBase<EvalT> {
+  class VFP : public PhysicsBase<EvalT> {
   public:
 
     // These are necessary due to the combination of templating and inheritance
@@ -36,15 +36,15 @@ namespace MrHyDE {
     typedef Kokkos::View<EvalT****,ContLayout,AssemblyDevice> View_EvalT4;
     
 
-    VFP1d2v() {} ;
+    VFP() {} ;
     
-    ~VFP1d2v() {};
+    ~VFP() {};
     
     // ========================================================================================
     /* Constructor to set up the problem */
     // ========================================================================================
     
-    VFP1d2v(Teuchos::ParameterList & settings, const int & dimension);
+    VFP(Teuchos::ParameterList & settings, const int & dimension);
     
     // ========================================================================================
     // ========================================================================================
@@ -84,11 +84,11 @@ namespace MrHyDE {
       std::vector< std::vector<string> > setupIntegratedQuantities(const int & spaceDim);
       
       
-      int spaceDim, velDim, H_num, C_num, G_num, E_num;
+      int spaceDim, phaseDim, H_num, C_num, G_num, E_num;
       ScalarT m_C, m_H, m_G, m_E, Z_C, Z_H, Z_G, Z_E, gamma_h;
       
-      Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP0d2v::volumeResidual() - function evaluation");
-      Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP0d2v::volumeResidual() - evaluation of residual");
+      Teuchos::RCP<Teuchos::Time> volumeResidualFunc = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP::volumeResidual() - function evaluation");
+      Teuchos::RCP<Teuchos::Time> volumeResidualFill = Teuchos::TimeMonitor::getNewCounter("MrHyDE::VFP::volumeResidual() - evaluation of residual");
       
   };
   

@@ -329,6 +329,12 @@ DRV MeshInterface::getMyNodes(const size_t & block, vector<size_t> & elemIDs) {
   return currnodes;
 }
 
+DRV MeshInterface::getMyPhaseNodes(vector<size_t> & elemIDs) {
+  DRV currnodes = simple_mesh->getCellNodes(elemIDs);
+  return currnodes;
+}
+
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -374,8 +380,22 @@ void MeshInterface::purgeMemory() {
 // ============================================================
 // ============================================================
 
+int MeshInterface::getPhaseDimension() {
+  return phase_dimension;
+}
+
+// ============================================================
+// ============================================================
+
 vector<string> MeshInterface::getBlockNames() {
   return block_names;
+}
+
+// ============================================================
+// ============================================================
+
+vector<string> MeshInterface::getPhaseBlockNames() {
+  return phase_block_names;
 }
 
 // ============================================================
@@ -411,7 +431,25 @@ topo_RCP MeshInterface::getCellTopology(string & blockID) {
   }
   return currtopo;
 }
-  
+
+// ============================================================
+// ============================================================
+
+topo_RCP MeshInterface::getPhaseCellTopology() {
+  return phase_topo;
+}
+
+// ============================================================
+// ============================================================
+
+int MeshInterface::getNumPhaseElements() {
+  int npe = 1;
+  if (phase_dimension > 0) {
+    npe = phase_mesh->getNumCells();
+  }
+  return npe;
+}
+
 // ============================================================
 // ============================================================
 

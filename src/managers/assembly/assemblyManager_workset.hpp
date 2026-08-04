@@ -27,6 +27,9 @@ void AssemblyManager<Node>::createWorkset() {
       info.push_back(groupData[block]->num_side_ip);
       info.push_back(physics->set_names.size());
       info.push_back(params->num_active_params);
+      info.push_back(mesh->getPhaseDimension());
+      info.push_back(mesh->getNumPhaseElements());
+      info.push_back(disc->phase_numip[block]);
       vector<size_t> numVars;
       for (size_t set=0; set<groupData[block]->set_num_dof.size(); ++set) {
         numVars.push_back(groupData[block]->set_num_dof[set].extent(0));
@@ -44,7 +47,10 @@ void AssemblyManager<Node>::createWorkset() {
                                                          disc->basis_types[block],
                                                          disc->basis_pointers[block],
                                                          params->discretized_param_basis,
-                                                         groupData[block]->cell_topo)));
+                                                         disc->phase_basis_types[block],
+                                                         disc->phase_basis_pointers[block],
+                                                         groupData[block]->cell_topo,
+                                                         groupData[block]->phase_cell_topo)));
       wkset[block]->block = block;
       wkset[block]->blockname = blocknames[block];
       wkset[block]->set_var_bcs = bcs;
@@ -66,7 +72,10 @@ void AssemblyManager<Node>::createWorkset() {
                                                            disc->basis_types[block],
                                                            disc->basis_pointers[block],
                                                            params->discretized_param_basis,
-                                                           groupData[block]->cell_topo)));
+                                                           disc->phase_basis_types[block],
+                                                           disc->phase_basis_pointers[block],
+                                                           groupData[block]->cell_topo,
+                                                           groupData[block]->phase_cell_topo)));
         wkset_AD2[block]->block = block;
         wkset_AD2[block]->blockname = blocknames[block];
         wkset_AD2[block]->set_var_bcs = bcs;
@@ -80,10 +89,13 @@ void AssemblyManager<Node>::createWorkset() {
       if (requires_AD && !found && type_AD == 4 ) {
         // AD4 workset
         wkset_AD4.push_back(Teuchos::rcp( new Workset<AD4>(info, numVars, isTransient,
-                                                             disc->basis_types[block],
-                                                             disc->basis_pointers[block],
-                                                             params->discretized_param_basis,
-                                                             groupData[block]->cell_topo)));
+                                                           disc->basis_types[block],
+                                                           disc->basis_pointers[block],
+                                                           params->discretized_param_basis,
+                                                           disc->phase_basis_types[block],
+                                                           disc->phase_basis_pointers[block],
+                                                           groupData[block]->cell_topo,
+                                                           groupData[block]->phase_cell_topo)));
         wkset_AD4[block]->block = block;
         wkset_AD4[block]->blockname = blocknames[block];
         wkset_AD4[block]->set_var_bcs = bcs;
@@ -97,10 +109,13 @@ void AssemblyManager<Node>::createWorkset() {
       if (requires_AD && !found && type_AD == 8 ) {
         // AD8 workset
         wkset_AD8.push_back(Teuchos::rcp( new Workset<AD8>(info, numVars, isTransient,
-                                                             disc->basis_types[block],
-                                                             disc->basis_pointers[block],
-                                                             params->discretized_param_basis,
-                                                             groupData[block]->cell_topo)));
+                                                           disc->basis_types[block],
+                                                           disc->basis_pointers[block],
+                                                           params->discretized_param_basis,
+                                                           disc->phase_basis_types[block],
+                                                           disc->phase_basis_pointers[block],
+                                                           groupData[block]->cell_topo,
+                                                           groupData[block]->phase_cell_topo)));
         wkset_AD8[block]->block = block;
         wkset_AD8[block]->blockname = blocknames[block];
         wkset_AD8[block]->set_var_bcs = bcs;
@@ -114,10 +129,13 @@ void AssemblyManager<Node>::createWorkset() {
       if (requires_AD && !found && type_AD == 16 ) {
         // AD16 workset
         wkset_AD16.push_back(Teuchos::rcp( new Workset<AD16>(info, numVars, isTransient,
-                                                               disc->basis_types[block],
-                                                               disc->basis_pointers[block],
-                                                               params->discretized_param_basis,
-                                                               groupData[block]->cell_topo)));
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             disc->phase_basis_types[block],
+                                                             disc->phase_basis_pointers[block],
+                                                             groupData[block]->cell_topo,
+                                                             groupData[block]->phase_cell_topo)));
         wkset_AD16[block]->block = block;
         wkset_AD16[block]->blockname = blocknames[block];
         wkset_AD16[block]->set_var_bcs = bcs;
@@ -131,10 +149,13 @@ void AssemblyManager<Node>::createWorkset() {
       if (requires_AD && !found && type_AD == 18 ) {
         // AD18 workset
         wkset_AD18.push_back(Teuchos::rcp( new Workset<AD18>(info, numVars, isTransient,
-                                                               disc->basis_types[block],
-                                                               disc->basis_pointers[block],
-                                                               params->discretized_param_basis,
-                                                               groupData[block]->cell_topo)));
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             disc->phase_basis_types[block],
+                                                             disc->phase_basis_pointers[block],
+                                                             groupData[block]->cell_topo,
+                                                             groupData[block]->phase_cell_topo)));
         wkset_AD18[block]->block = block;
         wkset_AD18[block]->blockname = blocknames[block];
         wkset_AD18[block]->set_var_bcs = bcs;
@@ -148,10 +169,13 @@ void AssemblyManager<Node>::createWorkset() {
       if (requires_AD && !found && type_AD == 24 ) {
         // AD24 workset
         wkset_AD24.push_back(Teuchos::rcp( new Workset<AD24>(info, numVars, isTransient,
-                                                               disc->basis_types[block],
-                                                               disc->basis_pointers[block],
-                                                               params->discretized_param_basis,
-                                                               groupData[block]->cell_topo)));
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             disc->phase_basis_types[block],
+                                                             disc->phase_basis_pointers[block],
+                                                             groupData[block]->cell_topo,
+                                                             groupData[block]->phase_cell_topo)));
         wkset_AD24[block]->block = block;
         wkset_AD24[block]->blockname = blocknames[block];
         wkset_AD24[block]->set_var_bcs = bcs;
@@ -165,10 +189,13 @@ void AssemblyManager<Node>::createWorkset() {
       if (requires_AD && !found && type_AD == 32 ) {
         // AD32 workset
         wkset_AD32.push_back(Teuchos::rcp( new Workset<AD32>(info, numVars, isTransient,
-                                                               disc->basis_types[block],
-                                                               disc->basis_pointers[block],
-                                                               params->discretized_param_basis,
-                                                               groupData[block]->cell_topo)));
+                                                             disc->basis_types[block],
+                                                             disc->basis_pointers[block],
+                                                             params->discretized_param_basis,
+                                                             disc->phase_basis_types[block],
+                                                             disc->phase_basis_pointers[block],
+                                                             groupData[block]->cell_topo,
+                                                             groupData[block]->phase_cell_topo)));
         wkset_AD32[block]->block = block;
         wkset_AD32[block]->blockname = blocknames[block];
         wkset_AD32[block]->set_var_bcs = bcs;
@@ -185,7 +212,10 @@ void AssemblyManager<Node>::createWorkset() {
                                                          disc->basis_types[block],
                                                          disc->basis_pointers[block],
                                                          params->discretized_param_basis,
-                                                         groupData[block]->cell_topo)));
+                                                         disc->phase_basis_types[block],
+                                                         disc->phase_basis_pointers[block],
+                                                         groupData[block]->cell_topo,
+                                                         groupData[block]->phase_cell_topo)));
         wkset_AD[block]->block = block;
         wkset_AD[block]->blockname = blocknames[block];
         wkset_AD[block]->set_var_bcs = bcs;
@@ -972,23 +1002,51 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
   wset->numElem = groups[block][grp]->numElem;
   this->updateGroupData(wset, block, grp);
   
-  wset->wts = groups[block][grp]->wts;
   //wset->h = groups[block][grp]->hsize;
-  vector<View_Sc2> ip = groups[block][grp]->getIntegrationPts();
-  wset->setScalarField(ip[0],"x");
-  if (ip.size() > 1) {
-    wset->setScalarField(ip[1],"y");
+  if (mesh->getPhaseDimension() > 0) {
+    wset->wts = groups[block][grp]->getTensorWts();
+    int space_dim = mesh->getDimension();
+    int phase_dim = mesh->getPhaseDimension();
+    // this function will always return 6 sets of points, but some may be empty
+    vector<View_Sc2> ip = groups[block][grp]->getTensorIntegrationPts();
+    wset->setScalarField(ip[0],"x");
+    if (space_dim > 1) {
+      wset->setScalarField(ip[1],"y");
+    }
+    if (space_dim > 2) {
+      wset->setScalarField(ip[2],"z");
+    }
+    wset->setScalarField(ip[3],"u");
+    if (phase_dim > 1) {
+      wset->setScalarField(ip[4],"v");
+    }
+    if (phase_dim > 2) {
+      wset->setScalarField(ip[5],"w");
+    }
   }
-  if (ip.size() > 2) {
-    wset->setScalarField(ip[2],"z");
+  else {
+    wset->wts = groups[block][grp]->wts;
+    vector<View_Sc2> ip = groups[block][grp]->getIntegrationPts();
+    wset->setScalarField(ip[0],"x");
+    if (ip.size() > 1) {
+      wset->setScalarField(ip[1],"y");
+    }
+    if (ip.size() > 2) {
+      wset->setScalarField(ip[2],"z");
+    }
   }
-
   // Update the integration info and basis in workset
   if (groups[block][grp]->storeAll || groups[block][grp]->group_data->use_basis_database) {
     wset->basis = groups[block][grp]->basis;
     wset->basis_grad = groups[block][grp]->basis_grad;
     wset->basis_div = groups[block][grp]->basis_div;
     wset->basis_curl = groups[block][grp]->basis_curl;
+    if (mesh->getPhaseDimension() > 0) {
+      wset->phase_basis = groups[block][grp]->phase_basis;
+      wset->phase_basis_grad = groups[block][grp]->phase_basis_grad;
+      wset->phase_basis_curl = groups[block][grp]->phase_basis_curl;
+      wset->phase_basis_div = groups[block][grp]->phase_basis_div;
+    }
   }
   else {
     vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
@@ -1009,6 +1067,26 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
     wset->basis_grad = tcbasis_grad;
     wset->basis_div = tcbasis_div;
     wset->basis_curl = tcbasis_curl;
+    
+    if (mesh->getPhaseDimension() > 0) {
+      vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
+      vector<View_Sc3> tbasis_div;
+      disc->getPhaseVolumetricBasis(groups[block][grp]->group_data, groups[block][grp]->localElemID,
+                                      tbasis, tbasis_grad, tbasis_curl, tbasis_div);
+
+      vector<CompressedView<View_Sc4>> tcbasis, tcbasis_grad, tcbasis_curl;
+      vector<CompressedView<View_Sc3>> tcbasis_div;
+      for (size_t i=0; i<tbasis.size(); ++i) {
+        tcbasis.push_back(CompressedView<View_Sc4>(tbasis[i]));
+        tcbasis_grad.push_back(CompressedView<View_Sc4>(tbasis_grad[i]));
+        tcbasis_div.push_back(CompressedView<View_Sc3>(tbasis_div[i]));
+        tcbasis_curl.push_back(CompressedView<View_Sc4>(tbasis_curl[i]));
+      }
+      wset->phase_basis = tcbasis;
+      wset->phase_basis_grad = tcbasis_grad;
+      wset->phase_basis_div = tcbasis_div;
+      wset->phase_basis_curl = tcbasis_curl;
+    }
   }
   
   // Map the gathered solution to seeded version in workset
