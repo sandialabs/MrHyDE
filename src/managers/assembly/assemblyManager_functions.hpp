@@ -162,9 +162,10 @@ void AssemblyManager<Node>::createFunctions() {
   
   for (size_t block=0; block<blocknames.size(); ++block) {
     function_managers.push_back(Teuchos::rcp(new FunctionManager<ScalarT>(blocknames[block],
-                                                                     groupData[block]->num_elem,
-                                                                     disc->numip[block],
-                                                                     disc->numip_side[block])));
+                                                                          groupData[block]->num_elem,
+                                                                          disc->numip[block],
+                                                                          disc->numip_side[block],
+                                                                          disc->phase_numip[0])));
   }
   physics->defineFunctions(function_managers);
 
@@ -174,7 +175,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD.push_back(Teuchos::rcp(new FunctionManager<AD>(blocknames[block],
                                                                           groupData[block]->num_elem,
                                                                           disc->numip[block],
-                                                                          disc->numip_side[block])));
+                                                                          disc->numip_side[block],
+                                                                          disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD);
   }
@@ -183,7 +185,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD2.push_back(Teuchos::rcp(new FunctionManager<AD2>(blocknames[block],
                                                                             groupData[block]->num_elem,
                                                                             disc->numip[block],
-                                                                            disc->numip_side[block])));
+                                                                            disc->numip_side[block],
+                                                                            disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD2);
   }
@@ -192,7 +195,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD4.push_back(Teuchos::rcp(new FunctionManager<AD4>(blocknames[block],
                                                                             groupData[block]->num_elem,
                                                                             disc->numip[block],
-                                                                            disc->numip_side[block])));
+                                                                            disc->numip_side[block],
+                                                                            disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD4);
   }
@@ -201,7 +205,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD8.push_back(Teuchos::rcp(new FunctionManager<AD8>(blocknames[block],
                                                                             groupData[block]->num_elem,
                                                                             disc->numip[block],
-                                                                            disc->numip_side[block])));
+                                                                            disc->numip_side[block],
+                                                                            disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD8);
   }
@@ -210,7 +215,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD16.push_back(Teuchos::rcp(new FunctionManager<AD16>(blocknames[block],
                                                                               groupData[block]->num_elem,
                                                                               disc->numip[block],
-                                                                              disc->numip_side[block])));
+                                                                              disc->numip_side[block],
+                                                                              disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD16);
   }
@@ -219,7 +225,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD18.push_back(Teuchos::rcp(new FunctionManager<AD18>(blocknames[block],
                                                                               groupData[block]->num_elem,
                                                                               disc->numip[block],
-                                                                              disc->numip_side[block])));
+                                                                              disc->numip_side[block],
+                                                                              disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD18);
   }
@@ -228,7 +235,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD24.push_back(Teuchos::rcp(new FunctionManager<AD24>(blocknames[block],
                                                                               groupData[block]->num_elem,
                                                                               disc->numip[block],
-                                                                              disc->numip_side[block])));
+                                                                              disc->numip_side[block],
+                                                                              disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD24);
   }
@@ -237,7 +245,8 @@ void AssemblyManager<Node>::createFunctions() {
       function_managers_AD32.push_back(Teuchos::rcp(new FunctionManager<AD32>(blocknames[block],
                                                                               groupData[block]->num_elem,
                                                                               disc->numip[block],
-                                                                              disc->numip_side[block])));
+                                                                              disc->numip_side[block],
+                                                                              disc->phase_numip[0])));
     }
     physics->defineFunctions(function_managers_AD32);
   }

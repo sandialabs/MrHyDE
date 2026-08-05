@@ -1185,7 +1185,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
       if (data_avail)
       {
-        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set]);
+        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set],
+                              assembler->groups[block][grp]->phase_LIDs[set]);
       }
       else
       {
@@ -1193,14 +1194,17 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
         if (use_host_LIDs)
         { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set],
+                                assembler->groups[block][grp]->phase_LIDs_host[set]);
         }
         else
         { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
           auto LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->LIDs[set]);
+          auto phase_LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->phase_LIDs[set]);
           Kokkos::deep_copy(LIDs_dev, assembler->groups[block][grp]->LIDs[set]);
-          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev);
+          Kokkos::deep_copy(phase_LIDs_dev, assembler->groups[block][grp]->phase_LIDs[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev, phase_LIDs_dev);
         }
       }
     }
@@ -1293,7 +1297,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
       if (data_avail)
       {
-        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set]);
+        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set],
+                              assembler->groups[block][grp]->phase_LIDs[set]);
       }
       else
       {
@@ -1301,14 +1306,17 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
         if (use_host_LIDs)
         { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set],
+                                assembler->groups[block][grp]->phase_LIDs_host[set]);
         }
         else
         { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
           auto LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->LIDs[set]);
+          auto phase_LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->phase_LIDs[set]);
           Kokkos::deep_copy(LIDs_dev, assembler->groups[block][grp]->LIDs[set]);
-          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev);
+          Kokkos::deep_copy(phase_LIDs_dev, assembler->groups[block][grp]->phase_LIDs[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev, phase_LIDs_dev);
         }
       }
     }
@@ -1490,7 +1498,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
           }
         }
 
-        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set]);
+        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set],
+                              assembler->groups[block][grp]->phase_LIDs[set]);
 
         wset->isOnSide = false;
       }

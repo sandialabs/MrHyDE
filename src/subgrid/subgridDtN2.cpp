@@ -195,9 +195,12 @@ void SubGridDtN2::setUpSubgridModels() {
   // Define the sub-grid physics
   /////////////////////////////////////////////////////////////////////////////////////
   
-  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm, sub_mesh->getBlockNames(),
+  sub_physics = Teuchos::rcp( new PhysicsInterface(settings, LocalComm,
+                                                   sub_mesh->getBlockNames(),
+                                                   sub_mesh->getPhaseBlockNames(),
                                                    sub_mesh->getSideNames(),
-                                                   sub_mesh->getDimension()) );
+                                                   sub_mesh->getDimension(),
+                                                   sub_mesh->getPhaseDimension()) );
   
   /////////////////////////////////////////////////////////////////////////////////////
   // Set up the subgrid discretizations

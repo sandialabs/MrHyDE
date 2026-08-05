@@ -220,17 +220,65 @@ void AssemblyManager<Node>::performGather(const size_t & set, const size_t & blo
     default :
       cout << "ERROR - NOTHING WAS GATHERED" << endl;
   }
+  if (mesh->getPhaseDimension() > 0 && type < 3) {
+    this->performGatherWithPhase(set, block, grp, vec_dev,
+                                 LIDs, numDOF, data, offsets);
+  }
+  else {
+    auto cvec = vec_dev;
+    parallel_for("assembly gather",
+                 RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      for (size_type var=0; var<offsets.extent(0); var++) {
+        for(int dof=0; dof<numDOF(var); dof++ ) {
+          data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
+        }
+      }
+    });
+  }
+  
+}
+
+// ========================================================================================
+//
+// ========================================================================================
+
+template<class Node>
+template<class ViewType>
+void AssemblyManager<Node>::performGatherWithPhase(const size_t & set, const size_t & block, const size_t & grp,
+                                                   ViewType vec_dev, LIDView LIDs,
+                                                   Kokkos::View<LO*,AssemblyDevice> numDOF,
+                                                   Kokkos::View<ScalarT***,AssemblyDevice> data,
+                                                   Kokkos::View<int**,AssemblyDevice> offsets) {
+  
+  LIDView phase_LIDs = groups[block][grp]->phase_LIDs[set];
+  Kokkos::View<LO*,AssemblyDevice> phase_numDOF = groupData[block]->phase_set_num_dof[set];
+  Kokkos::View<int**,AssemblyDevice> phase_offsets = wkset[block]->phase_set_offsets[set];
+  int phase_num_elem = wkset[block]->phase_numElem;
   auto cvec = vec_dev;
+  int numtotalphase = 0;
+  for (int pvar=0; pvar<phase_numDOF.extent(0); pvar++ ) {
+    numtotalphase += phase_numDOF(pvar);
+  }
+  numtotalphase *= phase_num_elem;
   parallel_for("assembly gather",
                RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
                MRHYDE_LAMBDA (const int elem ) {
     for (size_type var=0; var<offsets.extent(0); var++) {
-      for(int dof=0; dof<numDOF(var); dof++ ) {
-        data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
+      for (int dof=0; dof<numDOF(var); dof++ ) {
+        for (int pelem=0; pelem<phase_num_elem; pelem++ ) {
+          for (size_type pvar=0; pvar<phase_offsets.extent(0); pvar++) {
+            for (int pdof=0; pdof<phase_numDOF(pvar); pdof++ ) {
+              int dofind1 = dof*numtotalphase + pdof;
+              int dofind2 = LIDs(elem,offsets(var,dof))*numtotalphase + phase_LIDs(var,pdof);
+              //data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
+              data(elem,var,dofind1) = cvec(dofind2);
+            }
+          }
+        }
       }
     }
   });
-  
 }
 
 // ========================================================================================
@@ -277,18 +325,67 @@ void AssemblyManager<Node>::performGather4D(const size_t & set, const size_t & b
       cout << "ERROR - NOTHING WAS GATHERED" << endl;
   }
   
-  auto cvec = vec_dev;
-  parallel_for("assembly gather",
-               RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
-               MRHYDE_LAMBDA (const int elem ) {
-    for (size_type var=0; var<offsets.extent(0); var++) {
-      for(int dof=0; dof<numDOF(var); dof++ ) {
-        data(elem,var,dof,local_entry) = cvec(LIDs(elem,offsets(var,dof)));
+  if (mesh->getPhaseDimension() > 0 && type < 3) {
+    this->performGatherWithPhase4D(set, block, grp, local_entry, vec_dev,
+                                 LIDs, numDOF, data, offsets);
+  }
+  else {
+    auto cvec = vec_dev;
+    parallel_for("assembly gather",
+                 RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      for (size_type var=0; var<offsets.extent(0); var++) {
+        for(int dof=0; dof<numDOF(var); dof++ ) {
+          data(elem,var,dof,local_entry) = cvec(LIDs(elem,offsets(var,dof)));
+        }
       }
-    }
-  });
+    });
+  }
   
 }
+
+  // ========================================================================================
+  //
+  // ========================================================================================
+
+  template<class Node>
+  template<class ViewType>
+  void AssemblyManager<Node>::performGatherWithPhase4D(const size_t & set, const size_t & block,
+                                                       const size_t & grp, const size_t & local_entry,
+                                                       ViewType vec_dev, LIDView LIDs,
+                                                       Kokkos::View<LO*,AssemblyDevice> numDOF,
+                                                       Kokkos::View<ScalarT****,AssemblyDevice> data,
+                                                       Kokkos::View<int**,AssemblyDevice> offsets) {
+    
+    LIDView phaseLIDs = groups[block][grp]->phase_LIDs[set];
+    Kokkos::View<LO*,AssemblyDevice> phase_numDOF = groupData[block]->phase_set_num_dof[set];
+    Kokkos::View<int**,AssemblyDevice> phase_offsets = wkset[block]->phase_set_offsets[set];
+    int num_phase_elem = wkset[block]->phase_numElem;
+    auto cvec = vec_dev;
+    int numtotalphase = 0;
+    for (int pvar=0; pvar<phase_numDOF.extent(0); pvar++ ) {
+      numtotalphase += phase_numDOF(pvar);
+    }
+    numtotalphase *= num_phase_elem;
+    parallel_for("assembly gather",
+                 RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
+                 MRHYDE_LAMBDA (const int elem ) {
+      for (size_type var=0; var<offsets.extent(0); var++) {
+        for (int dof=0; dof<numDOF(var); dof++ ) {
+          for (int pelem=0; pelem<num_phase_elem; pelem++ ) {
+            for (size_type pvar=0; pvar<phase_offsets.extent(0); pvar++) {
+              for (int pdof=0; pdof<phase_numDOF(pvar); pdof++ ) {
+                int dofind1 = dof*numtotalphase + pdof;
+                int dofind2 = LIDs(elem,offsets(var,dof))*numtotalphase + phaseLIDs(var,pdof);
+                //data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
+                data(elem,var,dofind1,local_entry) = cvec(dofind2);
+              }
+            }
+          }
+        }
+      }
+    });
+  }
 
 // ========================================================================================
 //

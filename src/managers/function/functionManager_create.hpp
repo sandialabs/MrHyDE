@@ -81,7 +81,7 @@ void FunctionManager<EvalT>::decomposeFunctions() {
     
     for (size_t fiter=0; fiter<forests_.size(); fiter++) {
       
-      int maxiter = 50; // maximum number of recursions
+      int maxiter = 100; // maximum number of recursions
       
       for (size_t titer=0; titer<forests_[fiter].trees_.size(); titer++) {
         
@@ -149,7 +149,7 @@ void FunctionManager<EvalT>::decomposeFunctions() {
                   j++;
                 }
               }
-              else {
+              else if (forests_[fiter].location_ == "ip") {
                 bool found = 0;
                 size_t j=0;
                 while (!found && j<wkset->soln_fields.size()) {
@@ -168,6 +168,7 @@ void FunctionManager<EvalT>::decomposeFunctions() {
                   j++;
                 }
               }
+              // what about tensor ip or phase ip?
             }
             
             // Is it a Scalar data stored in the workset?

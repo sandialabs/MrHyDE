@@ -56,6 +56,11 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
+    void addPhaseNodes(DRV phase_nodes_);
+    
+    ///////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////
+    
     void computeFaceSize();
     
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -68,6 +73,8 @@ namespace MrHyDE {
     
     void computeBasis(const bool & keepnodes);
     
+    void computePhaseBasis(const bool & keepnodes);
+      
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
     
@@ -193,11 +200,17 @@ namespace MrHyDE {
     // ========================================================================================
   
     View_Sc2 getWts();
+    
+    View_Sc2 getPhaseWts();
+    
+    View_Sc2 getTensorWts();
 
     // ========================================================================================
     // ========================================================================================
   
     vector<View_Sc2> getIntegrationPts();
+    
+    vector<View_Sc2> getTensorIntegrationPts();
 
     ///////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////
@@ -205,19 +218,19 @@ namespace MrHyDE {
     // Public data
     
     // Data created elsewhere
-    vector<LIDView> LIDs;
+    vector<LIDView> LIDs, phase_LIDs;
     LIDView paramLIDs, auxLIDs;
     
     // Creating LIDs on host device for host assembly
-    vector<LIDView_host> LIDs_host;
+    vector<LIDView_host> LIDs_host, phase_LIDs_host;
     LIDView_host paramLIDs_host;
     
     Teuchos::RCP<GroupMetaData> group_data;
     
     vector<Teuchos::RCP<SubGridModel> > subgridModels;
-    Kokkos::View<LO*,AssemblyDevice> localElemID;
+    Kokkos::View<LO*,AssemblyDevice> localElemID, phase_localElemID;
     vector<Kokkos::View<int****,HostDevice> > sideinfo; // may need to move this to Assembly
-    DRV nodes;
+    DRV nodes, phase_nodes;
     vector<size_t> data_seed, data_seedindex;
     size_t subgrid_model_index; // which subgrid model is used for each time step
     size_t subgrid_usernum; // what is the index for this group in the subgrid model (should be deprecated)
@@ -225,15 +238,17 @@ namespace MrHyDE {
     Teuchos::RCP<DiscretizationInterface> disc;
     
     // Data created here (Views should all be AssemblyDevice)
-    size_t numElem;
-    vector<CompressedView<View_Sc2> > ip;
-    //View_Sc2 wts; 
+    size_t numElem, phase_numElem;
+    vector<CompressedView<View_Sc2> > ip, phase_ip;
+    //View_Sc2 wts;
     vector<vector<View_Sc2>> ip_face, normals_face;
     vector<View_Sc2> wts_face;
     vector<View_Sc1> hsize_face;
-    Kokkos::View<LO*,AssemblyDevice> basis_index, ip_x_index, ip_y_index, ip_z_index;
+    Kokkos::View<LO*,AssemblyDevice> basis_index, phase_basis_index;
+    Kokkos::View<LO*,AssemblyDevice> ip_x_index, ip_y_index, ip_z_index;
+    Kokkos::View<LO*,AssemblyDevice> ip_u_index, ip_v_index, ip_w_index;
     
-    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation;
+    Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation, phase_orientation;
     vector<View_Sc3> sol, phi;
     View_Sc3 param, aux; // (elem,var,numdof)
     vector<View_Sc3> sol_avg, sol_alt;
@@ -243,8 +258,11 @@ namespace MrHyDE {
     // basis information
     vector<CompressedView<View_Sc4>> basis, basis_grad, basis_curl, basis_nodes;
     vector<CompressedView<View_Sc3>> basis_div, local_mass, local_jacobian;
+    vector<CompressedView<View_Sc4>> phase_basis, phase_basis_grad, phase_basis_curl;
+    vector<CompressedView<View_Sc3>> phase_basis_div;
+    
     CompressedView<View_Sc3> local_param_mass;
-    CompressedView<View_Sc2> wts;
+    CompressedView<View_Sc2> wts, phase_wts;
 
     vector<vector<CompressedView<View_Sc4>>> basis_face, basis_grad_face;
     View_Sc1 hsize;
@@ -258,7 +276,7 @@ namespace MrHyDE {
     vector<vector<DRV> > auxside_basis, auxside_basisGrad;
     
     // Storage information
-    bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false, have_sols = false, have_nodes;
+    bool active, storeAll, storeMass, usealtsol = false, haveBasis, have_ip = false, have_sols = false, have_nodes, phase_have_nodes, phase_have_ip=false, phase_storeAll, phase_haveBasis;
 
     Kokkos::View<ScalarT**,AssemblyDevice> subgradient, data;
     vector<ScalarT> data_distance;
