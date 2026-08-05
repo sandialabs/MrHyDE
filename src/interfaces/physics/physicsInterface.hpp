@@ -265,7 +265,8 @@ public:
    * @return std::vector<View_Sc2>  Vector of 3 2D arrays for (x,y,z) components.
    */
   std::vector<View_Sc2> getDirichletVector(const int & var, const int & set,
-                                           const int & block, const std::string & sidename);
+                                           const int & block, const std::string & sidename,
+                                           const int & boundary_numElem);
 
 
   /////////////////////////////////////////////////////////////////////////////////////////////
