@@ -11,7 +11,7 @@ DOFManager Field Information:
       "q" is field ID 3
  - Processor 0 has 4 elements
  - Processor 0 has 8 boundary elements
- - Processor 0 is using 0.005736 MB to store volumetric data
+ - Processor 0 is using 0.005224 MB to store volumetric data
  - Processor 0 is using 0 MB to store face data
  - Processor 0 is using 0.00496 MB to store boundary data
 
