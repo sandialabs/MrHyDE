@@ -493,11 +493,18 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
         
         {
           Teuchos::TimeMonitor localtimer(*phys_vol_data_basis_curl_curl_timer);
-        
+
+          // 2D curl is scalar; 3D curl is vector.
           DRV bcurl1, bcurl2;
-          bcurl1 = DRV("basis",numElem,numb,numip,dimension);
-          bcurl2 = DRV("basis tmp",numElem,numb,numip,dimension);
-          
+          if (dimension == 2) {
+            bcurl1 = DRV("basis",numElem,numb,numip);
+            bcurl2 = DRV("basis tmp",numElem,numb,numip);
+          }
+          else {
+            bcurl1 = DRV("basis",numElem,numb,numip,dimension);
+            bcurl2 = DRV("basis tmp",numElem,numb,numip,dimension);
+          }
+
           FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, groupData->ref_basis_curl[i]);
           if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
@@ -506,8 +513,16 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           else {
             bcurl2 = bcurl1;
           }
-          basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
-          Kokkos::deep_copy(basis_curl_vals, bcurl2);
+          // Keep rank-4 storage; trailing dim is 1 in 2D.
+          if (dimension == 2) {
+            basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, 1);
+            auto basis_curl_slice = Kokkos::subview(basis_curl_vals, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+            Kokkos::deep_copy(basis_curl_slice, bcurl2);
+          }
+          else {
+            basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dimension);
+            Kokkos::deep_copy(basis_curl_vals, bcurl2);
+          }
         }
       }
       basis.push_back(basis_vals);

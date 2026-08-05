@@ -1116,8 +1116,8 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
     size_t vindex = side_soln_fields[fieldnum].variable_index_;
     
     View_EvalT2 solvals;
-    size_t uindex = sol_vals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
     if (side_soln_fields[fieldnum].variable_type_ == "solution") { // solution
+      size_t uindex = sol_vals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
       if (side_soln_fields[fieldnum].derivative_type_ == "time" ) {
         solvals = sol_dot_vals[uindex];
       }
