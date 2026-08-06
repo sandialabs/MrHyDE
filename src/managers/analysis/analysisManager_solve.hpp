@@ -45,9 +45,8 @@ void AnalysisManager::run(std::string &analysis_type) {
       solver_->recoverForwardStateFromFile(statefilebase);
     }
     else if (fwdrecovery == "checkpointing") {
-      // not actually implemented yet
-      // in addition, it would need to be tightly intertwined with the time integrator to avoid just recomputing and storing the full forward state
-      TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: checkointing is not implemented yet.");
+      // Nothing to recover: the checkpointed adjoint owns the forward sweep and
+      // recomputes what it needs from Revolve's checkpoints, starting at u_0.
     }
     else if (fwdrecovery == "recompute") {
       this->forwardSolve();

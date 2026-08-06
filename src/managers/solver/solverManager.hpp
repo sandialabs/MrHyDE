@@ -18,6 +18,7 @@
 #include "parameterManager.hpp"
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
+#include "revolve.hpp"
 #include "linearAlgebraInterface.hpp"
 #include "MrHyDE_Debugger.hpp"
 
@@ -114,6 +115,17 @@ public:
   
   /** @brief Executes adjoint solve for gradient computation */
   void adjointModel(MrHyDE_OptVector & gradient);
+
+  /**
+   * @brief Transient adjoint using Revolve (Algorithm 799) checkpointing.
+   *
+   * Computes the same gradient as adjointModel, but stores only num_checkpoints
+   * states instead of the full trajectory and recomputes the rest.  The gradient
+   * is exact -- recomputation, not approximation.  Cost is
+   * num_steps + Revolve::minExtraForwardSteps(num_steps, num_checkpoints)
+   * forward solves instead of num_steps.
+   */
+  void checkpointedAdjointModel(MrHyDE_OptVector & gradient);
   
   /** @brief Incremental forward solve (for Hessian-vector products) */
   void incrementalForwardModel(ScalarT & objective);
@@ -297,6 +309,10 @@ public:
   bool store_adjPrev;            // Whether adjoints from previous steps are stored
   bool use_meas_as_dbcs;         // Use measurements as Dirichlet conditions
   bool compute_fwd_sens;         // Whether forward sensitivities are computed
+
+  bool use_checkpointing;        // Use Revolve checkpointing for the transient adjoint
+  int num_checkpoints;           // Checkpoint budget when use_checkpointing is true
+  int num_ckpt_state_solves;     // Forward solves used by the last checkpointed gradient
   
   vector<bool> scalarDirichletData;   // True if scalar Dirichlet values exist
   vector<bool> staticDirichletData;   // True if static Dirichlet data provided
