@@ -171,8 +171,15 @@ namespace MrHyDE {
         reachable = reachable*(depth + num_checkpoints)/depth;
       }
 
-      return std::llround(depth*num_steps - std::llround(reachable*depth/(num_checkpoints + 1.0)));
+      // Widen before multiplying.  depth*num_steps is quadratic in num_steps for
+      // a small budget (depth reaches num_steps-1 when num_checkpoints is 1), so
+      // an int product overflows at 46342 steps -- well inside realistic sizes.
+      const long long total = static_cast<long long>(depth)*num_steps;
+      const long long saved = std::llround(reachable*depth/(num_checkpoints + 1.0));
+
+      return static_cast<long>(total - saved);
     }
+
     /**
      * @brief How far ahead to place the next checkpoint, given a subrange of
      *        range_length steps, free_checkpoints free slots, and depth sweeps.

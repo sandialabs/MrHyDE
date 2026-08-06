@@ -134,7 +134,25 @@ public:
   void transientSolver(vector<vector_RCP> & initial,
                        MrHyDE_OptVector & gradient,
                        ScalarT & start_time, ScalarT & end_time);
-  
+
+   /**
+   * @brief Advance one physics set by a single forward time step.
+   * @param[in] set Physics set index
+   * @param[in,out] sol Current state; on exit holds the new step's solution
+   * @param[in,out] sol_prev Step history for this set (shifted in place)
+   * @param[in] stepProg 0-based index of the step being taken
+   * @return 0 if the nonlinear solve converged
+   *
+   * Does not advance current_time and does not record to the postprocessor --
+   * the caller owns both.  This is what lets a checkpointed adjoint recompute
+   * forward steps without duplicating the time integrator or double-counting
+   * the objective.
+   */
+   int takeForwardStep(const size_t & set,
+                      vector<vector_RCP> & sol,
+                      vector<vector_RCP> & sol_prev,
+                      const int & stepProg);
+
   /** @brief Nonlinear solve for a specific stage */
   int nonlinearSolver(const size_t & set, const size_t & stage,
                       vector<vector_RCP> & sol,

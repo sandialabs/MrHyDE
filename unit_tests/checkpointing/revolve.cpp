@@ -1,17 +1,24 @@
 #include "revolve.hpp"
-#include <iostream>
 
-using namespace MrHyDE;
+#include <iostream>
+#include <stdexcept>
 #include <vector>
 
+using namespace MrHyDE;
+
+/// What one complete schedule did.
 struct ScheduleStats {
-    std::vector<int> stores;
-    int forward_solves = 0;
+    std::vector<int> stores;          ///< step number of each checkpoint, in order stored
+    std::vector<int> restores;        ///< step number each Restore landed on
+    std::vector<int> reversed_steps;  ///< time step reversed, in the order reversed
+    int forward_solves = 0;           ///< advance steps, plus one recompute per reversal
     int reversals      = 0;
+    int first_reverses = 0;           ///< how many FirstReverse actions were emitted
     int max_stored     = 0;
     bool terminated    = false;
 };
-/// Drive a Revolve schedule to completion with no PDE solves, just schedule 
+
+/// Drive a Revolve schedule to completion with no PDE solves, just schedule
 ScheduleStats runSchedule(const int & num_steps, const int & num_checkpoints) {
 
     ScheduleStats stats;
@@ -33,7 +40,15 @@ ScheduleStats runSchedule(const int & num_steps, const int & num_checkpoints) {
         else if (action == RevolveAction::Store) {
             stats.stores.push_back(r.getRangeStart());
         }
+        else if (action == RevolveAction::Restore) {
+            stats.restores.push_back(r.getRangeStart());
+        }
         else if (action == RevolveAction::Reverse || action == RevolveAction::FirstReverse) {
+            if (action == RevolveAction::FirstReverse) {
+                ++stats.first_reverses;
+            }
+            // a reversal at range_start handles time step range_start+1
+            stats.reversed_steps.push_back(r.getRangeStart() + 1);
             ++stats.reversals;
             ++stats.forward_solves;   // each reversal recomputes one state
         }
@@ -144,7 +159,80 @@ int main(){
                         << s.forward_solves << " solves, want " << want << std::endl;
                 ++num_failures;
             }
+
+            // exactly one FirstReverse per schedule: it is what tells the driver to
+            // seed the terminal adjoint condition instead of propagating one
+            if (s.first_reverses != 1) {
+                std::cout << "FAIL: schedule (" << n << "," << c << ") emitted "
+                        << s.first_reverses << " FirstReverse actions, want 1" << std::endl;
+                ++num_failures;
+            }
+
+            // steps must be reversed n, n-1, ..., 1: strictly decreasing, none
+            // skipped and none repeated
+            bool order_ok = (s.reversed_steps.size() == static_cast<size_t>(n));
+            for (size_t i = 0; order_ok && i < s.reversed_steps.size(); ++i) {
+                if (s.reversed_steps[i] != n - static_cast<int>(i)) {
+                    order_ok = false;
+                }
+            }
+            if (!order_ok) {
+                std::cout << "FAIL: schedule (" << n << "," << c
+                        << ") did not reverse steps in strict order n..1" << std::endl;
+                ++num_failures;
+            }
+
+            // every Restore must land on a step that was checkpointed earlier
+            for (size_t i = 0; i < s.restores.size(); ++i) {
+                bool was_stored = false;
+                for (size_t j = 0; j < s.stores.size(); ++j) {
+                    if (s.stores[j] == s.restores[i]) {
+                        was_stored = true;
+                    }
+                }
+                if (!was_stored) {
+                    std::cout << "FAIL: schedule (" << n << "," << c << ") restored step "
+                            << s.restores[i] << ", which was never stored" << std::endl;
+                    ++num_failures;
+                }
+            }
         }
+    }
+
+    // --- the first reversal must be FirstReverse, and Restore must actually be used
+    if (fig1.reversed_steps.empty() || fig1.first_reverses != 1) {
+        std::cout << "FAIL: Figure 1 should emit exactly one FirstReverse" << std::endl;
+        ++num_failures;
+    }
+    if (fig1.restores.empty()) {
+        std::cout << "FAIL: Figure 1 must use Restore to rewind to checkpoints" << std::endl;
+        ++num_failures;
+    }
+
+    // --- the constructor must reject budgets it cannot honour
+    bool threw_on_zero_checkpoints = false;
+    try {
+        Revolve bad(10, 0);
+    }
+    catch (const std::invalid_argument &) {
+        threw_on_zero_checkpoints = true;
+    }
+    if (!threw_on_zero_checkpoints) {
+        std::cout << "FAIL: Revolve(10,0) should throw -- a schedule needs at least one checkpoint"
+                << std::endl;
+        ++num_failures;
+    }
+
+    bool threw_on_zero_steps = false;
+    try {
+        Revolve bad(0, 3);
+    }
+    catch (const std::invalid_argument &) {
+        threw_on_zero_steps = true;
+    }
+    if (!threw_on_zero_steps) {
+        std::cout << "FAIL: Revolve(0,3) should throw -- there is nothing to reverse" << std::endl;
+        ++num_failures;
     }
 
     // --- two special cases
