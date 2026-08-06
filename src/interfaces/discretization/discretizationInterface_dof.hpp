@@ -744,6 +744,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
     //auto currDOF = DOF[set];
     
     std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
+    bool set_has_dirichlet = false;
     
     for (size_t block=0; block<block_names.size(); ++block) {
       
@@ -767,7 +768,8 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
           bool isDiri = false;
           if (dbc_settings.sublist(var).isParameter("all boundaries") || dbc_settings.sublist(var).isParameter(sideName)) {
             isDiri = true;
-            have_dirichlet = true;
+            have_dirichlet = true;     // Some set has Dirichlet BCs.
+            set_has_dirichlet = true;  // This set has Dirichlet BCs.
           }
           
           // For HCURL/HDIV variables, also check for component sublists (Ex, Ey, Ez)
@@ -782,6 +784,7 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
                   dbc_settings.sublist(var_comp).isParameter(sideName)) {
                 isDiri = true;
                 have_dirichlet = true;
+                set_has_dirichlet = true;
                 break;
               }
             }
@@ -819,9 +822,95 @@ void DiscretizationInterface::setDirichletData(const size_t & set, Teuchos::RCP<
     }
     
     dbc_dofs.push_back(set_dbc_dofs);
-    
+
+    // All ranks that touch a Dirichlet DOF must agree it is fixed.
+    // The issue (first identified in tet meshes) is that local side scans
+    // can miss shared copies on some ranks. When that happens, a rank can
+    // still write PDE terms into a fixed row.
+    //
+    // Before solving, make sure all ranks agree on which DOFs are fixed:
+    // 1) Build a 0/1 marker on shared DOFs (1 = fixed on this rank).
+    // 2) Send 0/1 markers to owner; owner takes max across sharing ranks (ABSMAX).
+    // 3) Copy owner's final value back to all sharing ranks.
+    // After this, all touching ranks use the same fixed/not-fixed flag.
+    if (set_has_dirichlet) {
+      typedef Tpetra::Map<LO,GO,SolverNode>          UnifyMap;
+      typedef Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> UnifyMV;
+      typedef Tpetra::Export<LO,GO,SolverNode>       UnifyExport;
+
+      // Build maps used for owner <-> shared communication.
+      const Tpetra::global_size_t invalidGSize =
+        Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid();
+      auto owned_gids     = dof_owned[set];
+      auto owned_shared_gids = dof_owned_and_shared[set];
+      Teuchos::ArrayView<const GO> owned_view(owned_gids.data(),  owned_gids.extent(0));
+      Teuchos::ArrayView<const GO> os_view   (owned_shared_gids.data(), owned_shared_gids.extent(0));
+      auto owned_map     = Teuchos::rcp(new UnifyMap(invalidGSize, owned_view, 0, comm));
+      auto overlapped_map = Teuchos::rcp(new UnifyMap(invalidGSize, os_view,    0, comm));
+      UnifyExport exporter(overlapped_map, owned_map);
+
+      // Shared marker vector: 1 for pinned LIDs, else 0.
+      auto over_vec = Teuchos::rcp(new UnifyMV(overlapped_map, 1));
+      over_vec->putScalar(0.0);
+      {
+        auto view = over_vec->getLocalView<HostDevice>(Tpetra::Access::ReadWrite);
+        // Walk block -> variable -> LID and mark each local DBC.
+        for (size_t block=0; block<set_dbc_dofs.size(); ++block) {
+          for (size_t var=0; var<set_dbc_dofs[block].size(); ++var) {
+            for (size_t k=0; k<set_dbc_dofs[block][var].size(); ++k) {
+              LO lid = set_dbc_dofs[block][var][k];
+              view(lid, 0) = 1.0;
+            }
+          }
+        }
+      }
+
+      // Exchange markers:
+      // - export(ABSMAX): owner gets 1 if any sharing rank sent 1
+      // - import(REPLACE): every shared copy gets owner result
+      auto owned_vec = Teuchos::rcp(new UnifyMV(owned_map, 1));
+      owned_vec->putScalar(0.0);
+      owned_vec->doExport(*over_vec, exporter, Tpetra::ABSMAX);
+      over_vec->doImport(*owned_vec, exporter, Tpetra::REPLACE);
+
+      // Add newly discovered fixed LIDs to dbc_dofs on this rank.
+      {
+        auto view = over_vec->getLocalView<HostDevice>(Tpetra::Access::ReadOnly);
+        // Track LIDs already present in dbc_dofs.
+        std::vector<char> already_known(view.extent(0), 0);
+        // Mark known LIDs from original DBC lists.
+        for (size_t block=0; block<set_dbc_dofs.size(); ++block) {
+          for (size_t var=0; var<set_dbc_dofs[block].size(); ++var) {
+            for (LO lid : set_dbc_dofs[block][var]) {
+              already_known[lid] = 1;
+            }
+          }
+        }
+        std::vector<LO> added;
+        added.reserve(view.extent(0));
+        // Keep only propagated fixed LIDs that are new here.
+        for (size_t lid=0; lid<view.extent(0); ++lid) {
+          if (view(lid, 0) > 0.5 && !already_known[lid]) {
+            added.push_back((LO)lid);
+          }
+        }
+        // Merge if we have new LIDs and a destination slot.
+        if (!added.empty() && !set_dbc_dofs.empty() && !set_dbc_dofs[0].empty()) {
+          auto & first_slot = dbc_dofs.back()[0][0];
+          std::vector<LO> merged;
+          merged.reserve(first_slot.size() + added.size());
+          std::merge(first_slot.begin(), first_slot.end(),
+                     added.begin(), added.end(),
+                     std::back_inserter(merged));
+          merged.erase(std::unique(merged.begin(), merged.end()), merged.end());
+          first_slot.swap(merged);
+        }
+      }
+    }
+    // ---------------------------------------------------------------------
+
   //}
-  
+
   debugger->print("**** Finished DiscretizationInterface::setDirichletData");
 }
 
