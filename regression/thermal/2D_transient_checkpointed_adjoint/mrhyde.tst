@@ -28,7 +28,7 @@ budgets = [2, 3, 5]  # checkpoint budgets to sweep
 
 # These comments are for testing with the runtest.py utility.
 #TESTING active
-#TESTING -n 1
+#TESTING -n 4
 #TESTING -k thermal,transient,adjoint,checkpointing
 
 # ==============================================================================
@@ -56,14 +56,14 @@ def read_gradient(filename):
 # ------------------------------
 # Reference: store the whole trajectory.
 
-status += its.call('mpiexec -n 1 ../../mrhyde input_stored.yaml')
+status += its.call('mpiexec -n 4 ../../mrhyde input_stored.yaml')
 reference = read_gradient('grad_stored.scalar.0.dat')
 
 # ------------------------------
 # Checkpointed runs must reproduce it exactly.
 
 for budget in budgets:
-  status += its.call('mpiexec -n 1 ../../mrhyde input_ckpt%d.yaml > ckpt%d.log' % (budget, budget))
+  status += its.call('mpiexec -n 4 ../../mrhyde input_ckpt%d.yaml > ckpt%d.log' % (budget, budget))
 
   gradient = read_gradient('grad_ckpt%d.scalar.0.dat' % budget)
 
