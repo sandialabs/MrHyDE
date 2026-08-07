@@ -119,11 +119,9 @@ public:
   /**
    * @brief Transient adjoint using Revolve (Algorithm 799) checkpointing.
    *
-   * Computes the same gradient as adjointModel, but stores only num_checkpoints
-   * states instead of the full trajectory and recomputes the rest.  The gradient
-   * is exact -- recomputation, not approximation.  Cost is
-   * num_steps + Revolve::minExtraForwardSteps(num_steps, num_checkpoints)
-   * forward solves instead of num_steps.
+   * Same gradient as adjointModel, but stores num_checkpoints states instead of
+   * the whole trajectory and recomputes the rest, so the result is exact rather
+   * than approximate.  Costs num_steps + minExtraForwardSteps forward solves.
    */
   void checkpointedAdjointModel(MrHyDE_OptVector & gradient);
   
@@ -147,20 +145,19 @@ public:
                        MrHyDE_OptVector & gradient,
                        ScalarT & start_time, ScalarT & end_time);
 
-   /**
+  /**
    * @brief Advance one physics set by a single forward time step.
    * @param[in] set Physics set index
    * @param[in,out] sol Current state; on exit holds the new step's solution
    * @param[in,out] sol_prev Step history for this set (shifted in place)
    * @param[in] stepProg 0-based index of the step being taken
-   * @return 0 if the nonlinear solve converged
+   * @return nonlinear solver status
    *
-   * Does not advance current_time and does not record to the postprocessor --
-   * the caller owns both.  This is what lets a checkpointed adjoint recompute
-   * forward steps without duplicating the time integrator or double-counting
-   * the objective.
+   * Leaves current_time alone and does not record to the postprocessor, so a
+   * checkpointed adjoint can recompute steps without double-counting the
+   * objective or duplicating the time integrator.
    */
-   int takeForwardStep(const size_t & set,
+  int takeForwardStep(const size_t & set,
                       vector<vector_RCP> & sol,
                       vector<vector_RCP> & sol_prev,
                       const int & stepProg);
@@ -312,7 +309,7 @@ public:
 
   bool use_checkpointing;        // Use Revolve checkpointing for the transient adjoint
   int num_checkpoints;           // Checkpoint budget when use_checkpointing is true
-  int num_ckpt_state_solves;     // Forward solves used by the last checkpointed gradient
+  int num_forward_solves;        // Forward solves used by the last checkpointed gradient
   
   vector<bool> scalarDirichletData;   // True if scalar Dirichlet values exist
   vector<bool> staticDirichletData;   // True if static Dirichlet data provided

@@ -72,7 +72,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   use_checkpointing = (settings->sublist("Analysis").get<string>("forward state recovery type","file")
                        == "checkpointing");
   num_checkpoints = settings->sublist("Analysis").get<int>("number of checkpoints",10);
-  num_ckpt_state_solves = 0;
+  num_forward_solves = 0;
   amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
   
   use_param_mass = settings->sublist("Solver").get<bool>("use parameter mass",false);

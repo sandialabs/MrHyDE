@@ -160,16 +160,15 @@ int main(){
                 ++num_failures;
             }
 
-            // exactly one FirstReverse per schedule: it is what tells the driver to
-            // seed the terminal adjoint condition instead of propagating one
+            // FirstReverse is what tells the driver to seed the terminal adjoint
+            // condition, so there must be exactly one
             if (s.first_reverses != 1) {
                 std::cout << "FAIL: schedule (" << n << "," << c << ") emitted "
                         << s.first_reverses << " FirstReverse actions, want 1" << std::endl;
                 ++num_failures;
             }
 
-            // steps must be reversed n, n-1, ..., 1: strictly decreasing, none
-            // skipped and none repeated
+            // steps must come out n, n-1, ..., 1 with none skipped or repeated
             bool order_ok = (s.reversed_steps.size() == static_cast<size_t>(n));
             for (size_t i = 0; order_ok && i < s.reversed_steps.size(); ++i) {
                 if (s.reversed_steps[i] != n - static_cast<int>(i)) {
@@ -199,7 +198,7 @@ int main(){
         }
     }
 
-    // --- the first reversal must be FirstReverse, and Restore must actually be used
+    // --- Figure 1 must actually use both FirstReverse and Restore
     if (fig1.reversed_steps.empty() || fig1.first_reverses != 1) {
         std::cout << "FAIL: Figure 1 should emit exactly one FirstReverse" << std::endl;
         ++num_failures;
@@ -235,16 +234,16 @@ int main(){
         ++num_failures;
     }
 
-    // --- two special cases
-    ScheduleStats sierra_gap = runSchedule(5, 2);
-    if (sierra_gap.forward_solves != 11) {
+    // --- budgets where Sierra's heuristic version misbehaves
+    ScheduleStats tight_budget = runSchedule(5, 2);
+    if (tight_budget.forward_solves != 11) {
         std::cout << "FAIL: (5,2) should cost 11 solves (Sierra pays 12), got "
-                << sierra_gap.forward_solves << std::endl;
+                << tight_budget.forward_solves << std::endl;
         ++num_failures;
     }
 
-    ScheduleStats tiny = runSchedule(2, 3);      // more checkpoints than steps
-    if (!tiny.terminated || tiny.reversals != 2) {
+    ScheduleStats tiny_range = runSchedule(2, 3);      // more checkpoints than steps
+    if (!tiny_range.terminated || tiny_range.reversals != 2) {
         std::cout << "FAIL: (2,3) should terminate with 2 reversals (Sierra throws here)"
                 << std::endl;
         ++num_failures;

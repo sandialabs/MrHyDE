@@ -171,13 +171,12 @@ namespace MrHyDE {
         reachable = reachable*(depth + num_checkpoints)/depth;
       }
 
-      // Widen before multiplying.  depth*num_steps is quadratic in num_steps for
-      // a small budget (depth reaches num_steps-1 when num_checkpoints is 1), so
-      // an int product overflows at 46342 steps -- well inside realistic sizes.
-      const long long total = static_cast<long long>(depth)*num_steps;
-      const long long saved = std::llround(reachable*depth/(num_checkpoints + 1.0));
+      // widen before multiplying: depth*num_steps is quadratic for a small
+      // budget and overflows int at 46342 steps
+      const long long total_steps = static_cast<long long>(depth)*num_steps;
+      const long long saved_steps = std::llround(reachable*depth/(num_checkpoints + 1.0));
 
-      return static_cast<long>(total - saved);
+      return static_cast<long>(total_steps - saved_steps);
     }
 
     /**

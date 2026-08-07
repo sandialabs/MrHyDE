@@ -45,8 +45,10 @@ void AnalysisManager::run(std::string &analysis_type) {
       solver_->recoverForwardStateFromFile(statefilebase);
     }
     else if (fwdrecovery == "checkpointing") {
-      // Nothing to recover: the checkpointed adjoint owns the forward sweep and
-      // recomputes what it needs from Revolve's checkpoints, starting at u_0.
+      // The checkpointed adjoint recomputes states from its own checkpoints, but
+      // the objective still has to be evaluated along the trajectory once, so run
+      // a forward pass.  Storage is off, so nothing is kept.
+      this->forwardSolve();
     }
     else if (fwdrecovery == "recompute") {
       this->forwardSolve();

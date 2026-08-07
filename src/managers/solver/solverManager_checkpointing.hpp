@@ -18,30 +18,27 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
   const size_t set = 0;
   const size_t stage = 0;
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Scope guards.  Revolve assumes a fixed, known number of steps and a state
-  // that is fully described by the vectors we hand it.  Each of these breaks
-  // one of those assumptions, so refuse loudly rather than return a gradient
-  // that is quietly wrong.
-  ////////////////////////////////////////////////////////////////////////////
+  // Revolve needs a fixed step count and a state fully described by the vectors
+  // we hand it.  Each case below breaks one of those, so refuse rather than
+  // return a gradient that is quietly wrong.
 
   TEUCHOS_TEST_FOR_EXCEPTION(solver_type != "transient", std::runtime_error,
     "Error: checkpointed adjoints require a transient solve.");
 
   TEUCHOS_TEST_FOR_EXCEPTION(setnames.size() != 1, std::runtime_error,
-    "Error: checkpointed adjoints are only implemented for a single physics set.");
+    "Error: checkpointed adjoints only support a single physics set.");
 
+  // a multistep method would need more than one previous state per reverse step
   TEUCHOS_TEST_FOR_EXCEPTION(numsteps[set] != 1, std::runtime_error,
-    "Error: checkpointed adjoints require a single-step time integrator (BDF1). "
-    "A multistep method needs more than one previous state per reverse step.");
+    "Error: checkpointed adjoints require a single-step time integrator (BDF1).");
 
   TEUCHOS_TEST_FOR_EXCEPTION(numstages[set] != 1, std::runtime_error,
     "Error: checkpointed adjoints require a single-stage time integrator.");
 
+  // subgrid state lives outside the macro solution vector, so restoring a
+  // checkpoint would not restore all of it
   TEUCHOS_TEST_FOR_EXCEPTION(multiscale_manager->subgridModels.size() > 0, std::runtime_error,
-    "Error: checkpointed adjoints are not supported with subgrid models. Subgrid "
-    "models carry state that is not in the macro solution vector, so restoring a "
-    "checkpoint would not restore the full state.");
+    "Error: checkpointed adjoints do not support subgrid models.");
 
   const int num_steps = static_cast<int>(std::round((final_time - initial_time)/deltat));
 
@@ -51,46 +48,40 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
   TEUCHOS_TEST_FOR_EXCEPTION(num_checkpoints < 1, std::runtime_error,
     "Error: 'Analysis: number of checkpoints' must be at least 1.");
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Storage.  This is the point of the exercise: num_checkpoints states, not
-  // num_steps.  Allocate once and reuse the slots.
-  ////////////////////////////////////////////////////////////////////////////
-
-  vector<vector_RCP> cp_state(num_checkpoints);
-  vector<ScalarT>    cp_time(num_checkpoints, initial_time);
+  // the point of the exercise: num_checkpoints states, not num_steps
+  vector<vector_RCP> checkpoint_state(num_checkpoints);
+  vector<ScalarT> checkpoint_time(num_checkpoints, initial_time);
   for (int i=0; i<num_checkpoints; ++i) {
-    cp_state[i] = linalg->getNewOverlappedVector(set);
+    checkpoint_state[i] = linalg->getNewOverlappedVector(set);
   }
 
-  // The state travelling along the schedule, plus the BDF history that
-  // takeForwardStep shifts.  After a step, work_prev[0] holds the state we
-  // came from -- which is exactly what the adjoint step needs.
   params->sacadoizeParams(false);
   linalg->resetAllJacobian();
 
+  // state at the schedule's current position, starting at u_0
   is_adjoint = false;
-  vector<vector_RCP> sol = this->setInitial();
+  vector<vector_RCP> sol_carried = this->setInitial();
   if (usestrongDBCs) {
     assembler->updatePhysicsSet(set);
-    this->setDirichlet(set, sol[set]);
+    this->setDirichlet(set, sol_carried[set]);
   }
   current_time = initial_time;
 
-  vector<vector_RCP> work_prev;
+  // takeForwardStep shifts this and leaves the state we came from in slot 0,
+  // which is what the adjoint step needs as its previous solution
+  vector<vector_RCP> step_history;
   for (int i=0; i<maxnumsteps[set]; ++i) {
-    work_prev.push_back(linalg->getNewOverlappedVector(set));
+    step_history.push_back(linalg->getNewOverlappedVector(set));
   }
 
-  // Scratch for the recomputed u_k, so the carried state u_{k-1} survives.
-  vector<vector_RCP> sol_k, sol_stage, phi, phi_prev, phi_stage;
-  sol_k.push_back(linalg->getNewOverlappedVector(set));
+  vector<vector_RCP> sol, sol_stage, phi, phi_prev, phi_stage;
+  sol.push_back(linalg->getNewOverlappedVector(set));
   sol_stage.push_back(linalg->getNewOverlappedVector(set));
   phi.push_back(linalg->getNewOverlappedVector(set));
   phi_prev.push_back(linalg->getNewOverlappedVector(set));
   phi_stage.push_back(linalg->getNewOverlappedVector(set));
 
-  // Transient adjoints carry Jacobian-vector products from the step above;
-  // same allocation as the stored-state path in transientSolver.
+  // transient adjoints carry Jacobian-vector products from the step above
   if (previous_adjoints.size() == 0) {
     for (size_t i=0; i<numsteps[set]; ++i) {
       vector<vector_RCP> ivecs;
@@ -110,21 +101,19 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
     }
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // Run the schedule.  Revolve decides; this loop carries the decisions out.
-  ////////////////////////////////////////////////////////////////////////////
+  // Revolve decides what to do; this loop carries it out
 
   Revolve schedule(num_steps, num_checkpoints);
 
-  num_ckpt_state_solves = 0;
+  num_forward_solves = 0;
   is_final_time = true;
   bool done = false;
   int guard = 0;
-  const int guard_max = 1000*(num_steps + num_checkpoints);
+  const int max_actions = 1000*(num_steps + num_checkpoints);
 
   while (!done) {
 
-    TEUCHOS_TEST_FOR_EXCEPTION(guard++ > guard_max, std::runtime_error,
+    TEUCHOS_TEST_FOR_EXCEPTION(guard++ > max_actions, std::runtime_error,
       "Error: the Revolve schedule did not terminate.");
 
     const int prev_position = schedule.getRangeStart();
@@ -132,55 +121,52 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
 
     if (action == RevolveAction::Advance) {
 
-      // Recompute forward, storing nothing.
+      // recompute forward, storing nothing
       for (int k=prev_position+1; k<=schedule.getRangeStart(); ++k) {
         params->updateDynamicParams(k-1);
         assembler->updateTimeStep(k-1);
-        int status = this->takeForwardStep(set, sol, work_prev, k-1);
+        int status = this->takeForwardStep(set, sol_carried, step_history, k-1);
         TEUCHOS_TEST_FOR_EXCEPTION(status != 0, std::runtime_error,
-          "Error: a forward step failed while recomputing for a checkpointed adjoint. "
-          "The schedule assumes a fixed time step, so a step cut cannot be recovered from.");
+          "Error: a forward step failed during checkpointed recomputation. The "
+          "schedule assumes a fixed time step, so a step cut cannot be recovered from.");
         current_time += deltat;
-        ++num_ckpt_state_solves;
+        ++num_forward_solves;
       }
     }
     else if (action == RevolveAction::Store) {
 
-      // Slot numbering is 1-based in the schedule, 0-based in the array.
+      // slots are 1-based in the schedule, 0-based here
       const int slot = schedule.getNumCheckpointsStored() - 1;
-      cp_state[slot]->assign(*(sol[set]));
-      cp_time[slot] = current_time;
+      checkpoint_state[slot]->assign(*(sol_carried[set]));
+      checkpoint_time[slot] = current_time;
     }
     else if (action == RevolveAction::Restore) {
 
       const int slot = schedule.getNumCheckpointsStored() - 1;
-      sol[set]->assign(*(cp_state[slot]));
-      // Restore the recorded time rather than recomputing it: accumulating
-      // initial_time + k*deltat rounds differently than the forward march did,
-      // and the objective is evaluated at this time.
-      current_time = cp_time[slot];
+      sol_carried[set]->assign(*(checkpoint_state[slot]));
+      // use the recorded time, not initial_time + k*deltat: the objective is
+      // evaluated here and the two round differently
+      current_time = checkpoint_time[slot];
     }
     else if (action == RevolveAction::FirstReverse || action == RevolveAction::Reverse) {
 
-      // A reversal at position range_start handles time step k = range_start+1.
-      // On entry sol holds u_{k-1} and current_time is t_{k-1}.
+      // a reversal at position range_start handles step k, entering with
+      // u_{k-1} carried and current_time already at t_{k-1}
       const int k = schedule.getRangeStart() + 1;
 
-      // Recompute u_k into scratch, keeping u_{k-1} in sol.  takeForwardStep
-      // leaves u_{k-1} in work_prev[0], which is what the adjoint step wants.
-      sol_k[set]->assign(*(sol[set]));
+      sol[set]->assign(*(sol_carried[set]));
       params->updateDynamicParams(k-1);
       assembler->updateTimeStep(k-1);
-      int status = this->takeForwardStep(set, sol_k, work_prev, k-1);
+      int status = this->takeForwardStep(set, sol, step_history, k-1);
       TEUCHOS_TEST_FOR_EXCEPTION(status != 0, std::runtime_error,
-        "Error: a forward step failed while recomputing for a checkpointed adjoint.");
-      ++num_ckpt_state_solves;
+        "Error: a forward step failed during checkpointed recomputation.");
+      ++num_forward_solves;
 
-      // ---- one adjoint step, mirroring the stored-state path ----
+      // one adjoint step, mirroring the stored-state path in transientSolver
       is_adjoint = true;
       is_final_time = (action == RevolveAction::FirstReverse);
 
-      if (Comm->getRank() == 0 && verbosity > 0) {
+      if (Comm->getRank() == 0 && verbosity > 1) {
         cout << endl << "**** Checkpointed adjoint step " << k
              << " (time " << current_time << ")" << endl;
       }
@@ -192,13 +178,13 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
       postproc->setTimeIndex(k);
       assembler->updateStage(stage, current_time, deltat);
 
-      sol_stage[set]->assign(*(sol_k[set]));
+      sol_stage[set]->assign(*(sol[set]));
 
-      status = this->nonlinearSolver(set, stage, sol_k, sol_stage, work_prev,
+      status = this->nonlinearSolver(set, stage, sol, sol_stage, step_history,
                                      phi, phi_stage, phi_prev);
 
       phi[set]->update(1.0, *(phi_stage[0]), 0.0);
-      postproc->computeSensitivities(sol_k, sol_stage, work_prev, phi,
+      postproc->computeSensitivities(sol, sol_stage, step_history, phi,
                                      current_time, k, deltat, gradient);
 
       is_adjoint = false;
@@ -218,8 +204,8 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
   if (Comm->getRank() == 0 && verbosity > 0) {
     const long extra = Revolve::minExtraForwardSteps(num_steps, num_checkpoints);
 
-    // The trajectory should NOT be in the postprocessor's storage -- that is the
-    // memory saving.  Ask without indexing, since the container may be empty.
+    // the trajectory should not be in full storage - that is the memory saving.
+    // ask without indexing, since the container may be empty
     size_t states_in_storage = 0;
     vector<vector<ScalarT> > all_times = postproc->soln[set]->extractAllTimes();
     if (all_times.size() > 0) {
@@ -229,10 +215,10 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
     cout << endl << "**** Checkpointed adjoint complete" << endl;
     cout << "****   time steps               : " << num_steps << endl;
     cout << "****   checkpoints stored       : " << num_checkpoints << endl;
-    cout << "****   forward solves used      : " << num_ckpt_state_solves
+    cout << "****   forward solves used      : " << num_forward_solves
          << "  (predicted " << num_steps + extra << ")" << endl;
     cout << "****   states in full storage   : " << states_in_storage
-         << "  (stored-state path would hold " << num_steps + 1 << ")" << endl;
+         << "  (full storage would hold " << num_steps + 1 << ")" << endl;
   }
 
   debugger->print("**** Finished SolverManager::checkpointedAdjointModel");
