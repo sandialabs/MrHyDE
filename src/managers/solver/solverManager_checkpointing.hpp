@@ -6,7 +6,9 @@
  Questions? Contact Tim Wildey (tmwilde@sandia.gov)
 ************************************************************************/
 
+// ========================================================================================
 /* transient adjoint driven by a Revolve (Algorithm 799) checkpointing schedule */
+// ========================================================================================
 
 template<class Node>
 void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) {
@@ -120,10 +122,10 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
   Revolve schedule(num_steps, num_checkpoints);
 
   num_forward_solves = 0;
-  is_final_time = true;
+  is_final_time = false;
   bool done = false;
-  int guard = 0;
-  const int max_actions = 1000*(num_steps + num_checkpoints);
+  long long guard = 0;
+  const long long max_actions = 1000LL*(static_cast<long long>(num_steps) + num_checkpoints);
 
   while (!done) {
 
@@ -149,7 +151,7 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
     }
     else if (action == RevolveAction::Store) {
 
-      // slots are 1-based in the schedule, 0-based here
+      // next() has already claimed the slot, so the count points one past it
       const int slot = schedule.getNumCheckpointsStored() - 1;
       checkpoint_state[slot]->assign(*(sol_carried[set]));
       checkpoint_time[slot] = current_time;

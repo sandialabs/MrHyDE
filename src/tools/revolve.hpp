@@ -138,6 +138,11 @@ namespace MrHyDE {
      * @brief beta(s,t) = C(s+t,s): the most time steps reversible with
      *        num_checkpoints checkpoints and num_sweeps forward sweeps.
      *        Griewank & Walther, Algorithm 799, eq. (1), p.23.
+     *
+     * Returns 0 for a negative argument and 1 for a zero sweep count; both
+     * conventions are relied on by placementOffset.  Accumulated in double, so
+     * the result is exact while C(s+t,s) stays below 2^53 -- far beyond the
+     * subrange lengths next() evaluates it at.
      */
     static long maxReversibleSteps(const int & num_checkpoints, const int & num_sweeps) {
 
@@ -212,7 +217,7 @@ namespace MrHyDE {
   private:
 
     int max_checkpoints_;         ///< storage budget (never changes)
-    int num_checkpoints_stored_;  ///< how many are held; also names the newest slot
+    int num_checkpoints_stored_;  ///< how many are held; the newest is in slot num_checkpoints_stored_-1
     int range_start_;             ///< first step of the subrange left to reverse (0-based)
     int range_end_;               ///< last step of that subrange (0-based)
     int status_;                  ///< 0 = OK; >0 = irregular termination code

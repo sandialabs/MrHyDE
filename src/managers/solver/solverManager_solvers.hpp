@@ -32,7 +32,9 @@ void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
 
 }
 
+// ========================================================================================
 /* advance one physics set by a single forward time step */
+// ========================================================================================
 
 template<class Node>
 int SolverManager<Node>::takeForwardStep(const size_t & set,
@@ -94,6 +96,8 @@ int SolverManager<Node>::takeForwardStep(const size_t & set,
     }
 
     // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
+
+    // if num_stages = 1, then we might be able to skip this
     if (maxnumstages[set] > 1) {
       sol[set]->update(1.0, *(sol_stage[stage]), 1.0);
       sol[set]->update(-1.0, *(sol_prev[0]), 1.0);

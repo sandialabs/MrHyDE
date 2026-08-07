@@ -16,6 +16,7 @@ struct ScheduleStats {
     int first_reverses = 0;           ///< how many FirstReverse actions were emitted
     int max_stored     = 0;
     bool terminated    = false;
+    bool slots_consistent = true;     ///< the driver's slot bookkeeping held throughout
 };
 
 /// Drive a Revolve schedule to completion with no PDE solves, just schedule
@@ -24,6 +25,14 @@ ScheduleStats runSchedule(const int & num_steps, const int & num_checkpoints) {
     ScheduleStats stats;
     Revolve r(num_steps, num_checkpoints);
     int guard = 0;
+
+    // Mirror what solverManager_checkpointing.hpp does with the schedule: keep the
+    // carried state's step number and the contents of each storage slot, indexing
+    // by getNumCheckpointsStored()-1 exactly as the driver does.  Without this the
+    // test would pass on a next() that got every count right but handed the driver
+    // the wrong slot.
+    int carried_step = 0;
+    std::vector<int> slot(num_checkpoints, -1);
 
     while (guard < 100000) {
 
@@ -36,18 +45,37 @@ ScheduleStats runSchedule(const int & num_steps, const int & num_checkpoints) {
 
         if (action == RevolveAction::Advance) {
             stats.forward_solves += r.getRangeStart() - prev;
+            carried_step = r.getRangeStart();
         }
         else if (action == RevolveAction::Store) {
             stats.stores.push_back(r.getRangeStart());
+            const int index = r.getNumCheckpointsStored() - 1;
+            if (index < 0 || index >= num_checkpoints || carried_step != r.getRangeStart()) {
+                stats.slots_consistent = false;
+            }
+            else {
+                slot[index] = carried_step;
+            }
         }
         else if (action == RevolveAction::Restore) {
             stats.restores.push_back(r.getRangeStart());
+            const int index = r.getNumCheckpointsStored() - 1;
+            if (index < 0 || index >= num_checkpoints || slot[index] != r.getRangeStart()) {
+                stats.slots_consistent = false;
+            }
+            else {
+                carried_step = slot[index];
+            }
         }
         else if (action == RevolveAction::Reverse || action == RevolveAction::FirstReverse) {
             if (action == RevolveAction::FirstReverse) {
                 ++stats.first_reverses;
             }
-            // a reversal at range_start handles time step range_start+1
+            // a reversal at range_start handles time step range_start+1, and the
+            // driver enters it holding the state at range_start
+            if (carried_step != r.getRangeStart()) {
+                stats.slots_consistent = false;
+            }
             stats.reversed_steps.push_back(r.getRangeStart() + 1);
             ++stats.reversals;
             ++stats.forward_solves;   // each reversal recomputes one state
@@ -85,6 +113,17 @@ int main(){
         std::cout << "Fail: beta(10,10) should be 184756, got " << beta_10_10 << std::endl;
         ++num_failures;
     }
+    // placementOffset leans on these conventions: beta is 1 for zero sweeps and
+    // 0 for a negative argument, which is how the paper's special cases fall out
+    if (Revolve::maxReversibleSteps(3,0) != 1 || Revolve::maxReversibleSteps(0,5) != 1) {
+        std::cout << "FAIL: beta with a zero argument should be 1" << std::endl;
+        ++num_failures;
+    }
+    if (Revolve::maxReversibleSteps(3,-1) != 0 || Revolve::maxReversibleSteps(-1,3) != 0) {
+        std::cout << "FAIL: beta with a negative argument should be 0" << std::endl;
+        ++num_failures;
+    }
+
     long p_10_3 = Revolve::minExtraForwardSteps(10,3);
     if (p_10_3 != 15) {
         std::cout << "FAIL: p(10,3) should be 15, got " << p_10_3 << std::endl;
@@ -98,6 +137,17 @@ int main(){
     if (Revolve::placementOffset(6,2,2) != 3) {
         std::cout << "FAIL: placementOffset(6,2,2) should be 3, got "
                 << Revolve::placementOffset(6,2,2) << std::endl;
+        ++num_failures;
+    }
+    // the two above both land in the second case; pin the other two as well
+    if (Revolve::placementOffset(4,2,2) != 1) {
+        std::cout << "FAIL: placementOffset(4,2,2) should be 1, got "
+                << Revolve::placementOffset(4,2,2) << std::endl;
+        ++num_failures;
+    }
+    if (Revolve::placementOffset(5,2,2) != 2) {
+        std::cout << "FAIL: placementOffset(5,2,2) should be 2, got "
+                << Revolve::placementOffset(5,2,2) << std::endl;
         ++num_failures;
     }
 
@@ -119,8 +169,7 @@ int main(){
                 << r.getNumCheckpointsStored() << std::endl;
         ++num_failures;
     }
-    // run a whole schedule and check it completes correctly
-        // --- Figure 1, Algorithm 799 p.24: 10 steps, 3 checkpoints -> checkpoints at 0, 4, 7
+    // --- Figure 1, Algorithm 799 p.24: 10 steps, 3 checkpoints -> checkpoints at 0, 4, 7
     ScheduleStats fig1 = runSchedule(10, 3);
 
     if (fig1.stores.size() < 3 ||
@@ -178,6 +227,12 @@ int main(){
             if (!order_ok) {
                 std::cout << "FAIL: schedule (" << n << "," << c
                         << ") did not reverse steps in strict order n..1" << std::endl;
+                ++num_failures;
+            }
+
+            if (!s.slots_consistent) {
+                std::cout << "FAIL: schedule (" << n << "," << c
+                        << ") broke the slot contract the driver relies on" << std::endl;
                 ++num_failures;
             }
 
@@ -258,5 +313,5 @@ int main(){
     }
     
 
-    return num_failures;
+    return num_failures == 0 ? 0 : 1;
 }
