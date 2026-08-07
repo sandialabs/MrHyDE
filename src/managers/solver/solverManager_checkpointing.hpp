@@ -28,11 +28,13 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
   TEUCHOS_TEST_FOR_EXCEPTION(setnames.size() != 1, std::runtime_error,
     "Error: checkpointed adjoints only support a single physics set.");
 
-  // a multistep method would need more than one previous state per reverse step
-  TEUCHOS_TEST_FOR_EXCEPTION(numsteps[set] != 1, std::runtime_error,
+  // A multistep method would need more than one previous state per reverse step.
+  // Guard on maxnumsteps too: BDF2 with a BDF1 startup leaves numsteps at 1 while
+  // maxnumsteps stays 2, and that is what sizes the history handed to the adjoint.
+  TEUCHOS_TEST_FOR_EXCEPTION(numsteps[set] != 1 || maxnumsteps[set] != 1, std::runtime_error,
     "Error: checkpointed adjoints require a single-step time integrator (BDF1).");
 
-  TEUCHOS_TEST_FOR_EXCEPTION(numstages[set] != 1, std::runtime_error,
+  TEUCHOS_TEST_FOR_EXCEPTION(numstages[set] != 1 || maxnumstages[set] != 1, std::runtime_error,
     "Error: checkpointed adjoints require a single-stage time integrator.");
 
   // subgrid state lives outside the macro solution vector, so restoring a
@@ -40,7 +42,19 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
   TEUCHOS_TEST_FOR_EXCEPTION(multiscale_manager->subgridModels.size() > 0, std::runtime_error,
     "Error: checkpointed adjoints do not support subgrid models.");
 
-  const int num_steps = static_cast<int>(std::round((final_time - initial_time)/deltat));
+  // Count steps the way transientSolver's loop does.  Rounding
+  // (final_time-initial_time)/deltat disagrees with it whenever deltat does not
+  // divide the interval, and the reverse sweep would then cover a range the
+  // forward pass never took.
+  int num_steps = 0;
+  {
+    const ScalarT timetol = final_time*1.0e-6;
+    ScalarT step_time = initial_time;
+    while (step_time < final_time - timetol) {
+      step_time += deltat;
+      ++num_steps;
+    }
+  }
 
   TEUCHOS_TEST_FOR_EXCEPTION(num_steps < 1, std::runtime_error,
     "Error: checkpointed adjoints need at least one time step.");
@@ -166,6 +180,13 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
       is_adjoint = true;
       is_final_time = (action == RevolveAction::FirstReverse);
 
+      // Drop any cached Jacobian.  The stored-state path assembles only adjoint
+      // Jacobians between resets, but this sweep alternates forward and adjoint
+      // operators, so with "reuse Jacobian" on the adjoint solve would otherwise
+      // reuse the forward matrix.
+      linalg->resetJacobian();
+      linalg->resetPrevJacobian();
+
       if (Comm->getRank() == 0 && verbosity > 1) {
         cout << endl << "**** Checkpointed adjoint step " << k
              << " (time " << current_time << ")" << endl;
@@ -188,6 +209,8 @@ void SolverManager<Node>::checkpointedAdjointModel(MrHyDE_OptVector & gradient) 
                                      current_time, k, deltat, gradient);
 
       is_adjoint = false;
+      linalg->resetJacobian();
+      linalg->resetPrevJacobian();
     }
     else if (action == RevolveAction::Terminate) {
       done = true;
