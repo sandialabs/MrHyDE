@@ -1,0 +1,58 @@
+## ---------------------------------------------------------------
+## Spherical inclusion embedded in a full cubic matrix
+## ---------------------------------------------------------------
+
+reset
+undo group begin
+
+## Geometry
+sphere radius 1                      ## the inclusion, kept
+brick x 8                            ## the matrix
+sphere radius 1                      ## sacrificial cutting tool
+
+## Hollow out the matrix. The boolean result may take a new id,
+## so compress to force inclusion -> 1, matrix -> 2.
+subtract volume 3 from volume 2
+compress ids
+list volume                          ## expect exactly 2 volumes
+
+## Keep temporary two-block membership so scheme assignment survives webcuts.
+block 1 volume 1
+block 2 volume 2
+
+## Partition into octants for meshability
+webcut volume all with plane xplane
+webcut volume all with plane yplane
+webcut volume all with plane zplane
+
+## Sidesets AFTER the webcuts, picked geometrically
+sideset 1 surface with x_coord < -3.999
+sideset 1 name "xmin"
+
+## Enforce a contiguous mesh across the inclusion/matrix interface
+imprint volume all
+merge all
+
+## Mesh schemes by temporary blocks (applies to all split child volumes).
+volume in block 1 scheme tetprimitive
+volume in block 2 scheme polyhedron
+
+## Mesh size
+volume all size 0.2
+
+## Generate the mesh
+mesh volume all
+
+## Collapse to one exported element block for thermal input convention.
+delete block 1
+delete block 2
+block 1 hex all
+block 1 name "eblock-0_0_0"
+
+undo group end
+
+## Sanity checks
+list block all
+quality volume all
+
+export Genesis "mesh.exo" dimension 3 block 1 overwrite

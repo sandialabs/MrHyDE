@@ -1,0 +1,4 @@
+*.exo*
+thermal/runs/
+mrhyde.exe
+**/np*/
