@@ -32,6 +32,9 @@ PhaseElliptic<EvalT>::PhaseElliptic(Teuchos::ParameterList & settings, const int
   myvars.push_back("T");
   
   mybasistypes.push_back("HGRAD");
+  myphasevars.push_back("T");
+  
+  myphasebasistypes.push_back("HGRAD");
   
 }
 
@@ -128,20 +131,20 @@ void PhaseElliptic<EvalT>::volumeResidual() {
     
     size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
     
-    size_t numPhaseElem = wkset->numPhaseElem;
-    size_type numPhaseIP = phase_wts.extent(0)*phase_wts.extent(1);
-    size_type numPhaseOff = poff.extent(0);
+    size_t phase_numElem = wkset->phase_numElem;
+    size_type phase_numip = phase_wts.extent(0)*phase_wts.extent(1);
+    size_type phase_numoff = poff.extent(0);
     parallel_for("T residual",
                  TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
                  MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
-          for (size_type pelem=0; pelem<numPhaseElem; ++pelem ) {
+          for (size_type pelem=0; pelem<phase_numElem; ++pelem ) {
             for (size_type pdof=0; pdof<phase_basis.extent(1); ++pdof ) {
               for (size_type ppt=0; ppt<phase_basis.extent(2); ++ppt ) {
-                auto offind = off(dof)*(numPhaseOff) + poff(pdof);
-                auto ptind = pt*numPhaseIP + ppt;
+                auto offind = off(dof)*(phase_numoff) + poff(pdof);
+                auto ptind = pt*phase_numip + ppt;
                 res(elem,offind) += (dTdt(elem,ptind) - source(elem,ptind))*wts(elem,pt)*phase_wts(pelem,ppt)*basis(elem,dof,pt,0)*phase_basis(pelem,pdof,ppt,0);
               }
             }

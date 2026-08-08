@@ -573,7 +573,7 @@ void maxwells_fp<EvalT>::boundaryResidual() {
   }
   
   
-  for (size_type e=0; e<res.extent(0); e++) { // elements in workset
+  for (size_type e=0; e<wkset->numElem; e++) { // elements on this boundary side
     
     for( size_type k=0; k<ip_x.extent(1); k++) {
       

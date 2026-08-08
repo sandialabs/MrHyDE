@@ -335,13 +335,15 @@ public:
   matrix_RCP paramMass;                      // Parameter mass matrix
   
   vector<string> blocknames;      // Element block names
+  vector<string> phase_blocknames;      // Element block names
   vector<string> setnames;        // Physics set names
   vector<vector<vector<string>>> varlist; // Variable names per set/block
+  vector<vector<vector<string>>> phase_varlist; // Variable names per set/block
   
-  vector<vector<vector<LO>>> numBasis;   // Number of basis functions per var
-  vector<vector<size_t>> maxBasis;       // Maximum basis per block
-  vector<vector<size_t>> numVars;        // Number of variables per set/block
-  vector<vector<vector<LO>>> useBasis;   // Whether basis is actually used
+  vector<vector<vector<LO>>> numBasis, phase_numBasis;   // Number of basis functions per var
+  vector<vector<size_t>> maxBasis, phase_maxBasis;       // Maximum basis per block
+  vector<vector<size_t>> numVars, phase_numVars;        // Number of variables per set/block
+  vector<vector<vector<LO>>> useBasis, phase_useBasis;   // Whether basis is actually used
   
   vector<vector_RCP> res;                // Residual vectors
   vector<vector_RCP> res_over;           // Overlapped residuals

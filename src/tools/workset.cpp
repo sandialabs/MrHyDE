@@ -15,13 +15,18 @@ using namespace MrHyDE;
 
 template<class EvalT>
 Workset<EvalT>::Workset(const vector<int> & cellinfo,
-                 const vector<size_t> & numVars_,
-                 const bool & isTransient_,
-                 const vector<string> & basis_types_,
-                 const vector<basis_RCP> & basis_pointers_, const vector<basis_RCP> & param_basis_,
-                 const topo_RCP & topo) :
-isTransient(isTransient_), celltopo(topo),
-basis_types(basis_types_), basis_pointers(basis_pointers_) {
+                        const vector<size_t> & numVars_,
+                        const bool & isTransient_,
+                        const vector<string> & basis_types_,
+                        const vector<basis_RCP> & basis_pointers_,
+                        const vector<basis_RCP> & param_basis_,
+                        const vector<string> & phase_basis_types_,
+                        const vector<basis_RCP> & phase_basis_pointers_,
+                        const topo_RCP & topo,
+                        const topo_RCP & phase_topo) :
+isTransient(isTransient_), celltopo(topo), phase_celltopo(phase_topo),
+basis_types(basis_types_), phase_basis_types(phase_basis_types_),
+basis_pointers(basis_pointers_), phase_basis_pointers(phase_basis_pointers_) {
 
   isInitialized = true;
   
@@ -37,8 +42,8 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   numSets = cellinfo[5];
   numScalarParams = cellinfo[6];
   phase_dimension = cellinfo[7];
-  numPhaseElem = cellinfo[8];
-  numphaseip = cellinfo[9];
+  phase_numElem = cellinfo[8];
+  phase_numip = cellinfo[9];
   isOnSide = false;
   isOnPoint = false;
 
@@ -100,12 +105,6 @@ basis_types(basis_types_), basis_pointers(basis_pointers_) {
   have_rotation = false;
   have_rotation_phi = false;
   rotation = View_Sc3("rotation matrix",1,3,3);
-  
-  int maxb = 0;
-  for (size_t i=0; i<basis_pointers.size(); i++) {
-    int numb = basis_pointers[i]->getCardinality();
-    maxb = std::max(maxb,numb);
-  }
   
   basis = vector<CompressedView<View_Sc4> >(basis_pointers.size());
   basis_grad = vector<CompressedView<View_Sc4> >(basis_pointers.size());
@@ -184,15 +183,31 @@ void Workset<EvalT>::createSolutionFields() {
   for (size_t set=0; set<numSets; ++set) {
     
     vector<size_t> set_uindex;
-
+    vector<int> set_numDOF, phase_set_numDOF;
+    
     vector<int> set_vars_HGRAD, set_vars_HVOL, set_vars_HDIV, set_vars_HCURL, set_vars_HFACE;
     vector<string> set_varlist_HGRAD, set_varlist_HVOL, set_varlist_HDIV, set_varlist_HCURL, set_varlist_HFACE;
     
+    int sumdof = 0;
+    int phase_sumdof = 0;
+    
     for (size_t i=0; i<set_usebasis[set].size(); i++) {
+      
       int bind = set_usebasis[set][i];
       string var = set_varlist[set][i];
       
       int numb = basis_pointers[bind]->getCardinality();
+      set_numDOF.push_back(numb);
+      sumdof += numb;
+      // Assume that all vars have both space and phase discretization if both are present
+      if (phase_dimension > 0) {
+        int pbind = phase_set_usebasis[set][i];
+        phase_sumdof += pbind;
+        
+        phase_set_numDOF.push_back(pbind);
+        int pnumb = phase_basis_pointers[pbind]->getCardinality();
+        numb *= pnumb*phase_numElem;
+      }
       View_EvalT2 newsol("seeded sol_vals",numElem, numb);
       sol_vals[uprog] = newsol;
       if (isTransient) {
@@ -238,7 +253,10 @@ void Workset<EvalT>::createSolutionFields() {
     varlist_HDIV.push_back(set_varlist_HDIV);
     varlist_HCURL.push_back(set_varlist_HCURL);
     varlist_HFACE.push_back(set_varlist_HFACE);
-    
+    numDOF.push_back(set_numDOF);
+    phase_numDOF.push_back(phase_set_numDOF);
+    totalDOF.push_back(sumdof);
+    phase_totalDOF.push_back(phase_sumdof);
   }
   
   soltype = "param";
@@ -350,15 +368,24 @@ void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
     soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[x]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[y]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[z]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[u]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[v]", set_index, soltype, var_index));
+    soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[w]", set_index, soltype, var_index));
     soln_fields.push_back(SolutionField<EvalT>(var+"_t", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[x]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[y]", set_index, soltype, var_index));
     side_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[z]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[u]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[v]", set_index, soltype, var_index));
+    side_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[w]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>(var, set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[x]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[y]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>("grad("+var+")[z]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[u]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[v]", set_index, soltype, var_index));
+    point_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[w]", set_index, soltype, var_index));
   
   }
   else if (basistype.substr(0,4) == "HDIV" ) {
@@ -539,57 +566,138 @@ void Workset<ScalarT>::computeSolnTransientSeeded(const size_t & set,
  
   // Seed the current stage solution
   if (set == current_set) {
-    for (size_type var=0; var<u.extent(1); var++ ) {
-      size_t uindex = sol_vals_index[set][var];
-      auto u_AD = sol_vals[uindex];
-      auto u_dot_AD = sol_dot_vals[uindex];
-      auto off = subview(set_offsets[set],var,ALL());
-      auto cu = subview(u,ALL(),var,ALL());
-      auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-      auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+    
+    if (phase_dimension > 0) {
+      
+      for (size_type var=0; var<u.extent(1); var++ ) {
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto u_dot_AD = sol_dot_vals[uindex];
+        auto off = subview(set_offsets[set],var,ALL());
+        auto cu = subview(u,ALL(),var,ALL());
+        auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+        auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+        int vardof = numDOF[set][var]; // number of dofs for this variable
+        int totdof = totalDOF[set]; // total for this set
+        int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+        int ptotdof = phase_totalDOF[set]; // total for this set
         
-      parallel_for("wkset transient sol seedwhat 1",
-                   TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        ScalarT beta_u, beta_t;
-        ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-        ScalarT timewt = one/dt/b_b(stage);
-        ScalarT alpha_t = BDF(0)*timewt;
-        for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
-          // Get the stage solution
-          ScalarT stageval = cu(elem,dof);
-          // Compute the evaluating solution
-          beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
-          for (int s=0; s<stage; s++) {
-            beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+        parallel_for("wkset transient sol seedwhat 1",
+                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          ScalarT beta_u, beta_t;
+          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+          ScalarT timewt = one/dt/b_b(stage);
+          ScalarT alpha_t = BDF(0)*timewt;
+          for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+            for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+              for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                
+                // Get the stage solution
+                ScalarT stageval = cu(elem,ind0);
+                // Compute the evaluating solution
+                beta_u = (one-alpha_u)*cu_prev(elem,ind0,0);
+                for (int s=0; s<stage; s++) {
+                  beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,ind0,s) - cu_prev(elem,ind0,0));
+                }
+                u_AD(elem,ind0) = alpha_u*stageval+beta_u;
+                
+                // Compute the time derivative
+                beta_t = zero;
+                for (size_type s=1; s<BDF.extent(0); s++) {
+                  beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+                }
+                beta_t *= timewt;
+                u_dot_AD(elem,ind0) = alpha_t*stageval + beta_t;
+              }
+            }
           }
-          u_AD(elem,dof) = alpha_u*stageval+beta_u;
+        });
+      }
+    }
+    else {
+      for (size_type var=0; var<u.extent(1); var++ ) {
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto u_dot_AD = sol_dot_vals[uindex];
+        auto off = subview(set_offsets[set],var,ALL());
+        auto cu = subview(u,ALL(),var,ALL());
+        auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+        auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+        int vardof = numDOF[set][var]; // number of dofs for this variable
+        
+        parallel_for("wkset transient sol seedwhat 1",
+                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          ScalarT beta_u, beta_t;
+          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+          ScalarT timewt = one/dt/b_b(stage);
+          ScalarT alpha_t = BDF(0)*timewt;
+          for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+            // Get the stage solution
+            ScalarT stageval = cu(elem,dof);
+            // Compute the evaluating solution
+            beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+            for (int s=0; s<stage; s++) {
+              beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+            }
+            u_AD(elem,dof) = alpha_u*stageval+beta_u;
             
-          // Compute the time derivative
-          beta_t = zero;
-          for (size_type s=1; s<BDF.extent(0); s++) {
-            beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+            // Compute the time derivative
+            beta_t = zero;
+            for (size_type s=1; s<BDF.extent(0); s++) {
+              beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+            }
+            beta_t *= timewt;
+            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
           }
-          beta_t *= timewt;
-          u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-        }
-      });
+        });
+      }
     }
   }
   else {
-    for (size_type var=0; var<u.extent(1); var++ ) {
-      size_t uindex = sol_vals_index[set][var];
-      auto u_AD = sol_vals[uindex];
-      auto cu = subview(u,ALL(),var,ALL());
-      
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   MRHYDE_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
-          u_AD(elem,dof) = cu(elem,dof);
-        }
-      });
+    if (phase_dimension > 0) {
+      for (size_type var=0; var<u.extent(1); var++ ) {
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto cu = subview(u,ALL(),var,ALL());
+        int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+        int ptotdof = phase_totalDOF[set]; // total for this set
+        int vardof = numDOF[set][var]; // number of dofs for this variable
+        int totdof = totalDOF[set]; // total for this set
+        
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+            for (size_type dof=0; dof<vardof; dof++ ) {
+              for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                u_AD(elem,ind0) = cu(elem,ind0);
+              }
+            }
+          }
+        });
+      }
+    }
+    else {
+      for (size_type var=0; var<u.extent(1); var++ ) {
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto cu = subview(u,ALL(),var,ALL());
+        int vardof = numDOF[set][var]; // number of dofs for this variable
+        
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<vardof; dof++ ) {
+            u_AD(elem,dof) = cu(elem,dof);
+          }
+        });
+      }
     }
   }
   
@@ -620,214 +728,506 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
   // Seed the current stage solution
   if (set == current_set) {
     if (seedwhat == 1) {
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = sol_vals_index[set][var];
-        auto u_AD = sol_vals[uindex];
-        auto u_dot_AD = sol_dot_vals[uindex];
-        auto off = subview(set_offsets[set],var,ALL());
-        auto cu = subview(u,ALL(),var,ALL());
-        auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-        auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-        parallel_for("wkset transient sol seedwhat 1",
-                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          ScalarT beta_u, beta_t;
-          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-          ScalarT timewt = one/dt/b_b(stage);
-          ScalarT alpha_t = BDF(0)*timewt;
-          EvalT dummyval = 0.0;
-          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
-            
-            // Seed the stage solution
-#ifndef MrHyDE_NO_AD
-            EvalT stageval = EvalT(dummyval.size(),off(dof),cu(elem,dof));
-#else
-            EvalT stageval = cu(elem,dof);
-#endif
-            // Compute the evaluating solution
-            beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
-            
-            for (int s=0; s<stage; s++) {
-              beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
-            }
-            u_AD(elem,dof) = alpha_u*stageval+beta_u;
-            
-            // Compute the time derivative
-            beta_t = zero;
-            for (size_type s=1; s<BDF.extent(0); s++) {
-              beta_t += BDF(s)*cu_prev(elem,dof,s-1);
-            }
-            beta_t *= timewt;
-            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-          }
+      if (phase_dimension > 0) {
+        
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          int totdof = totalDOF[set]; // total for this set
+          int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+          int ptotdof = phase_totalDOF[set]; // total for this set
+          auto poff = subview(phase_set_offsets[set],var,ALL());
           
-        });
-
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            ScalarT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            EvalT dummyval = 0.0;
+            for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+              for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+                for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                  size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                  size_type ind1 = off(dof)*ptotdof + poff(pdof);
+                  // Seed the stage solution
+    #ifndef MrHyDE_NO_AD
+                  EvalT stageval = EvalT(dummyval.size(),off(ind1),cu(elem,ind0));
+    #else
+                  EvalT stageval = cu(elem,ind0);
+    #endif
+                  // Compute the evaluating solution
+                  beta_u = (one-alpha_u)*cu_prev(elem,ind0,0);
+                  
+                  for (int s=0; s<stage; s++) {
+                    beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,ind0,s) - cu_prev(elem,ind0,0));
+                  }
+                  u_AD(elem,ind0) = alpha_u*stageval+beta_u;
+                  
+                  // Compute the time derivative
+                  beta_t = zero;
+                  for (size_type s=1; s<BDF.extent(0); s++) {
+                    beta_t += BDF(s)*cu_prev(elem,ind0,s-1);
+                  }
+                  beta_t *= timewt;
+                  u_dot_AD(elem,ind0) = alpha_t*stageval + beta_t;
+                }
+              }
+            }
+          });
+        }
+      }
+      else {
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            ScalarT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            EvalT dummyval = 0.0;
+            for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+              
+              // Seed the stage solution
+#ifndef MrHyDE_NO_AD
+              EvalT stageval = EvalT(dummyval.size(),off(dof),cu(elem,dof));
+#else
+              EvalT stageval = cu(elem,dof);
+#endif
+              // Compute the evaluating solution
+              beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+              
+              for (int s=0; s<stage; s++) {
+                beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_AD(elem,dof) = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = zero;
+              for (size_type s=1; s<BDF.extent(0); s++) {
+                beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
+            }
+            
+          });
+          
+        }
       }
     }
     else if (seedwhat == 2) { // Seed one of the previous step solutions
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = sol_vals_index[set][var];
-        auto u_AD = sol_vals[uindex];
-        auto u_dot_AD = sol_dot_vals[uindex];
-        auto off = subview(set_offsets[set],var,ALL());
-        auto cu = subview(u,ALL(),var,ALL());
-        auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-        auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+      if (phase_dimension > 0) {
         
-        parallel_for("wkset transient sol seedwhat 1",
-                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          EvalT beta_u, beta_t;
-          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-          ScalarT timewt = one/dt/b_b(stage);
-          ScalarT alpha_t = BDF(0)*timewt;
-          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
-            
-            // Get the stage solution
-            ScalarT stageval = cu(elem,dof);
-            
-            // Compute the evaluating solution
-            EvalT u_prev_val = cu_prev(elem,dof,0);
-            if (index == 0) {
-#ifndef MrHyDE_NO_AD
-              u_prev_val = EvalT(u_prev_val.size(),off(dof),cu_prev(elem,dof,0));
-#else
-              u_prev_val = cu_prev(elem,dof,0);
-#endif
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          int totdof = totalDOF[set]; // total for this set
+          int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+          int ptotdof = phase_totalDOF[set]; // total for this set
+          auto poff = subview(phase_set_offsets[set],var,ALL());
+          
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            EvalT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            EvalT dummyval = 0.0;
+            for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+              for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+                for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                  size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                  size_type ind1 = off(dof)*ptotdof + poff(pdof);
+                  
+                  // Get the stage solution
+                  ScalarT stageval = cu(elem,ind0);
+                  
+                  // Compute the evaluating solution
+                  EvalT u_prev_val = cu_prev(elem,ind0,0);
+                  if (index == 0) {
+    #ifndef MrHyDE_NO_AD
+                    u_prev_val = EvalT(u_prev_val.size(),ind1,cu_prev(elem,ind0,0));
+    #else
+                    u_prev_val = cu_prev(elem,ind0,0);
+    #endif
+                  }
+                  
+                  beta_u = (one-alpha_u)*u_prev_val;
+                  for (int s=0; s<stage; s++) {
+                    beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,ind0,s) - u_prev_val);
+                  }
+                  u_AD(elem,ind0) = alpha_u*stageval+beta_u;
+                  
+                  // Compute and seed the time derivative
+                  beta_t = zero;
+                  for (int s=1; s<BDF.extent_int(0); s++) {
+                    EvalT u_prev_val = cu_prev(elem,dof,s-1);
+                    if (index == (s-1)) {
+    #ifndef MrHyDE_NO_AD
+                      u_prev_val = EvalT(u_prev_val.size(),ind1,cu_prev(elem,ind0,s-1));
+    #else
+                      u_prev_val = cu_prev(elem,ind0,s-1);
+    #endif
+                    }
+                    beta_t += BDF(s)*u_prev_val;
+                  }
+                  beta_t *= timewt;
+                  u_dot_AD(elem,ind0) = alpha_t*stageval + beta_t;
+                }
+              }
             }
-            
-            beta_u = (one-alpha_u)*u_prev_val;
-            for (int s=0; s<stage; s++) {
-              beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - u_prev_val);
-            }
-            u_AD(elem,dof) = alpha_u*stageval+beta_u;
-            
-            // Compute and seed the time derivative
-            beta_t = zero;
-            for (int s=1; s<BDF.extent_int(0); s++) {
-              EvalT u_prev_val = cu_prev(elem,dof,s-1);
-              if (index == (s-1)) {
+          });
+        }
+      }
+      else {
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            EvalT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            EvalT dummyval = 0.0;
+            for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+              
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
+              
+              // Compute the evaluating solution
+              EvalT u_prev_val = cu_prev(elem,dof,0);
+              if (index == 0) {
 #ifndef MrHyDE_NO_AD
-                u_prev_val = EvalT(u_prev_val.size(),off(dof),cu_prev(elem,dof,s-1));
+                u_prev_val = EvalT(u_prev_val.size(),off(dof),cu_prev(elem,dof,0));
 #else
-                u_prev_val = cu_prev(elem,dof,s-1);
+                u_prev_val = cu_prev(elem,dof,0);
 #endif
               }
-              beta_t += BDF(s)*u_prev_val;
+              
+              beta_u = (one-alpha_u)*u_prev_val;
+              for (int s=0; s<stage; s++) {
+                beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - u_prev_val);
+              }
+              u_AD(elem,dof) = alpha_u*stageval+beta_u;
+              
+              // Compute and seed the time derivative
+              beta_t = zero;
+              for (int s=1; s<BDF.extent_int(0); s++) {
+                EvalT u_prev_val = cu_prev(elem,dof,s-1);
+                if (index == (s-1)) {
+#ifndef MrHyDE_NO_AD
+                  u_prev_val = EvalT(u_prev_val.size(),off(dof),cu_prev(elem,dof,s-1));
+#else
+                  u_prev_val = cu_prev(elem,dof,s-1);
+#endif
+                }
+                beta_t += BDF(s)*u_prev_val;
+              }
+              beta_t *= timewt;
+              u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
             }
-            beta_t *= timewt;
-            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-          }
-        });
+          });
+        }
       }
     }
     else if (seedwhat == 3) { // Seed one of the previous stage solutions
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = sol_vals_index[set][var];
-        auto u_AD = sol_vals[uindex];
-        auto u_dot_AD = sol_dot_vals[uindex];
-        auto off = subview(set_offsets[set],var,ALL());
-        auto cu = subview(u,ALL(),var,ALL());
-        auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-        auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
-        parallel_for("wkset transient sol seedwhat 1",
-                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          EvalT beta_u, beta_t;
-          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-          ScalarT timewt = one/dt/b_b(stage);
-          ScalarT alpha_t = BDF(0)*timewt;
-          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
-            
-            // Get the stage solution
-            ScalarT stageval = cu(elem,dof);
-            
-            // Compute the evaluating solution
-            ScalarT u_prev_val = cu_prev(elem,dof,0);
-            
-            beta_u = (one-alpha_u)*u_prev_val;
-            for (int s=0; s<stage; s++) {
-              EvalT u_stage_val = cu_stage(elem,dof,s);
-              if (index == s) {
-#ifndef MrHyDE_NO_AD
-                u_stage_val = EvalT(u_stage_val.size(),off(dof),cu_stage(elem,dof,s));
-#else
-                u_stage_val = cu_stage(elem,dof,s);
-#endif
+      if (phase_dimension > 0) {
+        
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          int totdof = totalDOF[set]; // total for this set
+          int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+          int ptotdof = phase_totalDOF[set]; // total for this set
+          auto poff = subview(phase_set_offsets[set],var,ALL());
+          
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            EvalT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            EvalT dummyval = 0.0;
+            for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+              for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+                for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                  size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                  size_type ind1 = off(dof)*ptotdof + poff(pdof);
+                  
+                  // Get the stage solution
+                  ScalarT stageval = cu(elem,ind0);
+                  
+                  // Compute the evaluating solution
+                  ScalarT u_prev_val = cu_prev(elem,ind0,0);
+                  
+                  beta_u = (one-alpha_u)*u_prev_val;
+                  for (int s=0; s<stage; s++) {
+                    EvalT u_stage_val = cu_stage(elem,ind0,s);
+                    if (index == s) {
+    #ifndef MrHyDE_NO_AD
+                      u_stage_val = EvalT(u_stage_val.size(),ind1,cu_stage(elem,ind0,s));
+    #else
+                      u_stage_val = cu_stage(elem,ind0,s);
+    #endif
+                    }
+                    beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
+                  }
+                  u_AD(elem,ind0) = alpha_u*stageval+beta_u;
+                  
+                  // Compute and seed the time derivative
+                  beta_t = zero;
+                  for (size_type s=1; s<BDF.extent(0); s++) {
+                    ScalarT u_prev_val = cu_prev(elem,ind0,s-1);
+                    beta_t += BDF(s)*u_prev_val;
+                  }
+                  beta_t *= timewt;
+                  u_dot_AD(elem,ind0) = alpha_t*stageval + beta_t;
+                }
               }
-              beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
             }
-            u_AD(elem,dof) = alpha_u*stageval+beta_u;
-            
-            // Compute and seed the time derivative
-            beta_t = zero;
-            for (size_type s=1; s<BDF.extent(0); s++) {
-              ScalarT u_prev_val = cu_prev(elem,dof,s-1);
-              beta_t += BDF(s)*u_prev_val;
+          });
+        }
+      }
+      else {
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            EvalT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+              
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
+              
+              // Compute the evaluating solution
+              ScalarT u_prev_val = cu_prev(elem,dof,0);
+              
+              beta_u = (one-alpha_u)*u_prev_val;
+              for (int s=0; s<stage; s++) {
+                EvalT u_stage_val = cu_stage(elem,dof,s);
+                if (index == s) {
+#ifndef MrHyDE_NO_AD
+                  u_stage_val = EvalT(u_stage_val.size(),off(dof),cu_stage(elem,dof,s));
+#else
+                  u_stage_val = cu_stage(elem,dof,s);
+#endif
+                }
+                beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
+              }
+              u_AD(elem,dof) = alpha_u*stageval+beta_u;
+              
+              // Compute and seed the time derivative
+              beta_t = zero;
+              for (size_type s=1; s<BDF.extent(0); s++) {
+                ScalarT u_prev_val = cu_prev(elem,dof,s-1);
+                beta_t += BDF(s)*u_prev_val;
+              }
+              beta_t *= timewt;
+              u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
             }
-            beta_t *= timewt;
-            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-          }
-        });
+          });
+        }
       }
     }
     else { // Seed nothing
-      for (size_type var=0; var<u.extent(1); var++ ) {
-        size_t uindex = sol_vals_index[set][var];
-        auto u_AD = sol_vals[uindex];
-        auto u_dot_AD = sol_dot_vals[uindex];
-        auto off = subview(set_offsets[set],var,ALL());
-        auto cu = subview(u,ALL(),var,ALL());
-        auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
-        auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+      if (phase_dimension > 0) {
         
-        parallel_for("wkset transient sol seedwhat 1",
-                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
-                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-          int elem = team.league_rank();
-          ScalarT beta_u, beta_t;
-          ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
-          ScalarT timewt = one/dt/b_b(stage);
-          ScalarT alpha_t = BDF(0)*timewt;
-          for (size_type dof=team.team_rank(); dof<u_AD.extent(1); dof+=team.team_size() ) {
-            // Get the stage solution
-            ScalarT stageval = cu(elem,dof);
-            // Compute the evaluating solution
-            beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
-            for (int s=0; s<stage; s++) {
-              beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          int totdof = totalDOF[set]; // total for this set
+          int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+          int ptotdof = phase_totalDOF[set]; // total for this set
+          
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            ScalarT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+              for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+                for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                  size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                  
+                  // Get the stage solution
+                  ScalarT stageval = cu(elem,ind0);
+                  // Compute the evaluating solution
+                  beta_u = (one-alpha_u)*cu_prev(elem,ind0,0);
+                  for (int s=0; s<stage; s++) {
+                    beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,ind0,s) - cu_prev(elem,ind0,0));
+                  }
+                  u_AD(elem,ind0) = alpha_u*stageval+beta_u;
+                  
+                  // Compute the time derivative
+                  beta_t = zero;
+                  for (size_type s=1; s<BDF.extent(0); s++) {
+                    beta_t += BDF(s)*cu_prev(elem,ind0,s-1);
+                  }
+                  beta_t *= timewt;
+                  u_dot_AD(elem,ind0) = alpha_t*stageval + beta_t;
+                  
+                }
+              }
             }
-            u_AD(elem,dof) = alpha_u*stageval+beta_u;
-            
-            // Compute the time derivative
-            beta_t = zero;
-            for (size_type s=1; s<BDF.extent(0); s++) {
-              beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+          });
+        }
+      }
+      else {
+        for (size_type var=0; var<u.extent(1); var++ ) {
+          size_t uindex = sol_vals_index[set][var];
+          auto u_AD = sol_vals[uindex];
+          auto u_dot_AD = sol_dot_vals[uindex];
+          auto off = subview(set_offsets[set],var,ALL());
+          auto cu = subview(u,ALL(),var,ALL());
+          auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+          auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+          int vardof = numDOF[set][var]; // number of dofs for this variable
+          
+          parallel_for("wkset transient sol seedwhat 1",
+                       TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                       MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+            int elem = team.league_rank();
+            ScalarT beta_u, beta_t;
+            ScalarT alpha_u = b_A(stage,stage)/b_b(stage);
+            ScalarT timewt = one/dt/b_b(stage);
+            ScalarT alpha_t = BDF(0)*timewt;
+            for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+              // Get the stage solution
+              ScalarT stageval = cu(elem,dof);
+              // Compute the evaluating solution
+              beta_u = (one-alpha_u)*cu_prev(elem,dof,0);
+              for (int s=0; s<stage; s++) {
+                beta_u += b_A(stage,s)/b_b(s) * (cu_stage(elem,dof,s) - cu_prev(elem,dof,0));
+              }
+              u_AD(elem,dof) = alpha_u*stageval+beta_u;
+              
+              // Compute the time derivative
+              beta_t = zero;
+              for (size_type s=1; s<BDF.extent(0); s++) {
+                beta_t += BDF(s)*cu_prev(elem,dof,s-1);
+              }
+              beta_t *= timewt;
+              u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
             }
-            beta_t *= timewt;
-            u_dot_AD(elem,dof) = alpha_t*stageval + beta_t;
-          }
-        });
+          });
+        }
       }
     }
   }
   else {
-    for (size_type var=0; var<u.extent(1); var++ ) {
-      size_t uindex = sol_vals_index[set][var];
-      auto u_AD = sol_vals[uindex];
-      auto cu = subview(u,ALL(),var,ALL());
+    if (phase_dimension > 0) {
       
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   MRHYDE_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
-          u_AD(elem,dof) = cu(elem,dof);
-        }
-      });
+      for (size_type var=0; var<u.extent(1); var++ ) {
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto u_dot_AD = sol_dot_vals[uindex];
+        auto off = subview(set_offsets[set],var,ALL());
+        auto cu = subview(u,ALL(),var,ALL());
+        auto cu_prev = subview(u_prev,ALL(),var,ALL(),ALL());
+        auto cu_stage = subview(u_stage,ALL(),var,ALL(),ALL());
+        int vardof = numDOF[set][var]; // number of dofs for this variable
+        int totdof = totalDOF[set]; // total for this set
+        int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+        int ptotdof = phase_totalDOF[set]; // total for this set
+        
+        parallel_for("wkset transient sol seedwhat 1",
+                     TeamPolicy<AssemblyExec>(cu.extent(0), Kokkos::AUTO, VECTORSIZE),
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+            for (size_type dof=team.team_rank(); dof<vardof; dof+=team.team_size() ) {
+              for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                u_AD(elem,ind0) = cu(elem,ind0);
+              }
+            }
+          }
+        });
+      }
+    }
+    else {
+      for (size_type var=0; var<u.extent(1); var++ ) {
+        size_t uindex = sol_vals_index[set][var];
+        auto u_AD = sol_vals[uindex];
+        auto cu = subview(u,ALL(),var,ALL());
+        int vardof = numDOF[set][var]; // number of dofs for this variable
+        
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<vardof; dof++ ) {
+            u_AD(elem,dof) = cu(elem,dof);
+          }
+        });
+      }
     }
   }
   
@@ -851,13 +1251,35 @@ void Workset<ScalarT>::computeSolnSteadySeeded(const size_t & set,
     auto u_AD = sol_vals[uindex];
     auto off = subview(set_offsets[set],var,ALL());
     auto cu = subview(u,ALL(),var,ALL());
-    parallel_for("wkset steady soln",
-                 RangePolicy<AssemblyExec>(0,u.extent(0)),
-                 MRHYDE_LAMBDA (const size_type elem ) {
-      for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
-        u_AD(elem,dof) = cu(elem,dof);
-      }
-    });
+    int vardof = numDOF[set][var]; // number of dofs for this variable
+    int totdof = totalDOF[set]; // total for this set
+    
+    if (phase_dimension > 0) {
+      int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+      int ptotdof = phase_totalDOF[set]; // total for this set
+      auto poff = subview(phase_set_offsets[set],var,ALL());
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,u.extent(0)),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+          for (size_type dof=0; dof<vardof; dof++ ) {
+            for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+              size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+              u_AD(elem,ind0) = cu(elem,ind0);
+            }
+          }
+        }
+      });
+    }
+    else {
+      parallel_for("wkset steady soln",
+                   RangePolicy<AssemblyExec>(0,u.extent(0)),
+                   MRHYDE_LAMBDA (const size_type elem ) {
+        for (size_type dof=0; dof<vardof; dof++ ) {
+          u_AD(elem,dof) = cu(elem,dof);
+        }
+      });
+    }
   }
 }
 
@@ -872,30 +1294,82 @@ void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
     
     size_t uindex = sol_vals_index[set][var];
     auto u_AD = sol_vals[uindex];
+     
     auto off = subview(set_offsets[set],var,ALL());
     auto cu = subview(u,ALL(),var,ALL());
+    int vardof = numDOF[set][var]; // number of dofs for this variable
+    int totdof = totalDOF[set]; // total for this set
+    
     if (seedwhat == 1 && set == current_set) {
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   MRHYDE_LAMBDA (const size_type elem ) {
-        EvalT dummyval = 0.0;
-        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+      if (phase_dimension > 0) {
+        int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+        int ptotdof = phase_totalDOF[set]; // total for this set
+        
+        auto poff = subview(phase_set_offsets[set],var,ALL());
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          EvalT dummyval = 0.0;
+          for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+            for (size_type dof=0; dof<vardof; dof++ ) {
+              for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                size_type ind1 = off(dof)*ptotdof + poff(pdof);
 #ifndef MrHyDE_NO_AD
-          u_AD(elem,dof) = EvalT(dummyval.size(), off(dof), cu(elem,dof));
+                u_AD(elem,ind0) = EvalT(dummyval.size(), ind1, cu(elem,ind0));
 #else
-          u_AD(elem,dof) = cu(elem,dof);
+                u_AD(elem,ind0) = cu(elem,ind0);
 #endif
-        }
-      });
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          EvalT dummyval = 0.0;
+          //for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+          for (size_type dof=0; dof<vardof; dof++ ) {
+            size_type ind0 = dof;
+            size_type ind1 = off(dof);
+#ifndef MrHyDE_NO_AD
+            u_AD(elem,ind0) = EvalT(dummyval.size(), ind1, cu(elem,ind0));
+#else
+            u_AD(elem,ind0) = cu(elem,ind0);
+#endif
+          }
+        });
+      }
     }
     else {
-      parallel_for("wkset steady soln",
-                   RangePolicy<AssemblyExec>(0,u.extent(0)),
-                   MRHYDE_LAMBDA (const size_type elem ) {
-        for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
-          u_AD(elem,dof) = cu(elem,dof);
-        }
-      });
+      if (phase_dimension > 0) {
+        int pvardof = phase_numDOF[set][var]; // number of dofs for this variable
+        int ptotdof = phase_totalDOF[set]; // total for this set
+        auto poff = subview(phase_set_offsets[set],var,ALL());
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type pelem=0; pelem<phase_numElem; pelem++ ) {
+            for (size_type dof=0; dof<vardof; dof++ ) {
+              for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
+                size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
+                u_AD(elem,ind0) = cu(elem,ind0);
+              }
+            }
+          }
+        });
+      }
+      else {
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,u.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<u_AD.extent(1); dof++ ) {
+            u_AD(elem,dof) = cu(elem,dof);
+          }
+        });
+      }
     }
   }
 }
@@ -1009,13 +1483,13 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
     size_t vindex = soln_fields[fieldnum].variable_index_;
     
     View_EvalT2 solvals;
-    size_t uindex = sol_vals_index[soln_fields[fieldnum].set_index_][soln_fields[fieldnum].variable_index_];
+    size_t solindex = sol_vals_index[soln_fields[fieldnum].set_index_][soln_fields[fieldnum].variable_index_];
     if (soln_fields[fieldnum].variable_type_ == "solution") { // solution
       if (soln_fields[fieldnum].derivative_type_ == "time" ) {
-        solvals = sol_dot_vals[uindex];
+        solvals = sol_dot_vals[solindex];
       }
       else {
-        solvals = sol_vals[uindex];
+        solvals = sol_vals[solindex];
       }
     }
 
@@ -1036,32 +1510,61 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
     int component = soln_fields[fieldnum].component_;
     
     if (soln_fields[fieldnum].derivative_type_ == "div" || (soln_fields[fieldnum].derivative_type_ == "div" && dimension == 2)) {
-      auto sbasis = basis_div[basis_id];
-      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
-      
-      parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VECTORSIZE),
-                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
-        }
-        for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
-          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+      if (phase_dimension > 0) {
+        auto sbasis = basis_div[basis_id];
+        int pbasis_id = phase_set_usebasis[sindex][vindex];
+        auto pbasis = phase_basis[pbasis_id];
+        
+        // Manual reset - may change later
+        Kokkos::deep_copy(fielddata, 0.0);
+        int phase_component = soln_fields[fieldnum].phase_component_;
+        
+        // Note: removed the teams for simplicity.  Will add again later when optimizing.
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,sbasis.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<sbasis.extent(1); dof++ ) {
+            for (size_type pt=0; pt<sbasis.extent(2); pt++ ) {
+              for (size_type pelem=0; pelem<pbasis.extent(0); pelem++ ) {
+                for (size_type ppt=0; ppt<pbasis.extent(2); ppt++ ) {
+                  for (size_type pdof=0; pdof<pbasis.extent(1); pdof++ ) {
+                    int ind0 = dof*sbasis.extent(2)*pbasis.extent(2) + pdof;
+                    int ind1 = pt*sbasis.extent(1)*pbasis.extent(1) + ppt;
+                    fielddata(elem,ind1) += solvals(elem,ind0)*sbasis(elem,dof,pt)*pbasis(pelem,pdof,ppt,phase_component);
+                  }
+                }
+              }
+            }
           }
-        }
-      });
-      
+        });
+      }
+      else {
+        auto sbasis = basis_div[basis_id];
+        size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+        
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VECTORSIZE),
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt);
+          }
+          for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+              fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt);
+            }
+          }
+        });
+      }
     }
     else {
-      CompressedView<View_Sc4> cbasis;
+      CompressedView<View_Sc4> sbasis;
       if (soln_fields[fieldnum].derivative_type_ == "grad") {
         if (isOnSide) {
-          cbasis = basis_grad_side[basis_id];
+          sbasis = basis_grad_side[basis_id];
         }
         else {
-          cbasis = basis_grad[basis_id];
+          sbasis = basis_grad[basis_id];
         }
       }
       else if (soln_fields[fieldnum].derivative_type_ == "curl") {
@@ -1069,20 +1572,20 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
           // not implemented
         }
         else {
-          cbasis = basis_curl[basis_id];
+          sbasis = basis_curl[basis_id];
         }
       }
       else {
         if (isOnSide) {
-          cbasis = basis_side[basis_id];
+          sbasis = basis_side[basis_id];
         }
         else {
-          cbasis = basis[basis_id];
+          sbasis = basis[basis_id];
         }
       }
       
-      size_t teamSize = std::min(maxTeamSize,cbasis.extent(2));
-      size_type basis_dim = cbasis.extent(3);
+      size_t teamSize = std::min(maxTeamSize,sbasis.extent(2));
+      size_type basis_dim = sbasis.extent(3);
       
       if (component >= basis_dim) {
         Kokkos::deep_copy(fielddata, 0.0);
@@ -1090,19 +1593,70 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
         return;
       }
       
-      parallel_for("wkset soln ip HGRAD",
-                   TeamPolicy<AssemblyExec>(cbasis.extent(0), teamSize, VECTORSIZE),
-                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-        int elem = team.league_rank();
-        for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-          fielddata(elem,pt) = solvals(elem,0)*cbasis(elem,0,pt,component);
-        }
-        for (size_type dof=1; dof<cbasis.extent(1); dof++ ) {
-          for (size_type pt=team.team_rank(); pt<cbasis.extent(2); pt+=team.team_size() ) {
-            fielddata(elem,pt) += solvals(elem,dof)*cbasis(elem,dof,pt,component);
+      if (phase_dimension > 0) {
+        CompressedView<View_Sc4> pbasis;
+        int pbasis_id = phase_set_usebasis[sindex][vindex];
+        if (soln_fields[fieldnum].derivative_type_ == "phasegrad") {
+          if (isOnSide) {
+            pbasis = phase_basis_grad_side[pbasis_id];
+          }
+          else {
+            pbasis = phase_basis_grad[pbasis_id];
           }
         }
-      });
+        else if (soln_fields[fieldnum].derivative_type_ == "phasecurl") {
+          if (isOnSide) {
+            // not implemented
+          }
+          else {
+            pbasis = phase_basis_curl[pbasis_id];
+          }
+        }
+        else {
+          if (isOnSide) {
+            pbasis = phase_basis_side[pbasis_id];
+          }
+          else {
+            pbasis = phase_basis[pbasis_id];
+          }
+        }
+        
+        // Note: removed the teams for simplicity.  Will add again later when optimizing.
+        int phase_component = soln_fields[fieldnum].phase_component_;
+        parallel_for("wkset steady soln",
+                     RangePolicy<AssemblyExec>(0,sbasis.extent(0)),
+                     MRHYDE_LAMBDA (const size_type elem ) {
+          for (size_type dof=0; dof<sbasis.extent(1); dof++ ) {
+            for (size_type pt=0; pt<sbasis.extent(2); pt++ ) {
+              for (size_type pelem=0; pelem<pbasis.extent(0); pelem++ ) {
+                for (size_type ppt=0; ppt<pbasis.extent(2); ppt++ ) {
+                  for (size_type pdof=0; pdof<pbasis.extent(1); pdof++ ) {
+                    int ind0 = dof*sbasis.extent(2)*pbasis.extent(2) + pdof;
+                    int ind1 = pt*sbasis.extent(1)*pbasis.extent(1) + ppt;
+                    fielddata(elem,ind1) += solvals(elem,ind0)*sbasis(elem,dof,pt,component)*pbasis(pelem,pdof,ppt,phase_component);
+                  }
+                }
+              }
+            }
+          }
+        });
+        
+      }
+      else {
+        parallel_for("wkset soln ip HGRAD",
+                     TeamPolicy<AssemblyExec>(sbasis.extent(0), teamSize, VECTORSIZE),
+                     MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+          int elem = team.league_rank();
+          for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+            fielddata(elem,pt) = solvals(elem,0)*sbasis(elem,0,pt,component);
+          }
+          for (size_type dof=1; dof<sbasis.extent(1); dof++ ) {
+            for (size_type pt=team.team_rank(); pt<sbasis.extent(2); pt+=team.team_size() ) {
+              fielddata(elem,pt) += solvals(elem,dof)*sbasis(elem,dof,pt,component);
+            }
+          }
+        });
+      }
     }
     
     soln_fields[fieldnum].is_updated_ = true;
@@ -1148,8 +1702,8 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
     size_t vindex = side_soln_fields[fieldnum].variable_index_;
     
     View_EvalT2 solvals;
-    size_t uindex = sol_vals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
     if (side_soln_fields[fieldnum].variable_type_ == "solution") { // solution
+      size_t uindex = sol_vals_index[side_soln_fields[fieldnum].set_index_][side_soln_fields[fieldnum].variable_index_];
       if (side_soln_fields[fieldnum].derivative_type_ == "time" ) {
         solvals = sol_dot_vals[uindex];
       }
@@ -1238,6 +1792,7 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
 // TMW: this function should be deprecated
 // Gets used only in the boundaryCell flux calculation
 // Will not work properly for multi-stage or multi-step
+// Not updating to include phase discretization
 
 template<class EvalT>
 void Workset<EvalT>::computeSolnSideIP(const int & side) { 

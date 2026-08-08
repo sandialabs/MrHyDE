@@ -145,7 +145,7 @@ void DiscretizationInterface::setReferenceBasisData(Teuchos::RCP<GroupMetaData> 
     
     DRV refnodes("nodes on reference element",cellTopo->getNodeCount(),phase_dimension);
     CellTools::getReferenceSubcellVertices(refnodes, phase_dimension, 0, *cellTopo);
-    groupData->ref_phase_nodes = refnodes;
+    groupData->phase_ref_nodes = refnodes;
     
     // ------------------------------------
     // Get ref basis
@@ -162,47 +162,47 @@ void DiscretizationInterface::setReferenceBasisData(Teuchos::RCP<GroupMetaData> 
       
       if (phase_basis_types[0][i].substr(0,5) == "HGRAD") {
         
-        basisvals = DRV("basisvals",numb, groupData->num_phase_ip);
-        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        basisvals = DRV("basisvals",numb, groupData->phase_num_ip);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->phase_ref_ip, Intrepid2::OPERATOR_VALUE);
         
-        basisgrad = DRV("basisgrad",numb, groupData->num_phase_ip, phase_dimension);
-        phase_basis_pointers[0][i]->getValues(basisgrad, groupData->ref_phase_ip, Intrepid2::OPERATOR_GRAD);
+        basisgrad = DRV("basisgrad",numb, groupData->phase_num_ip, phase_dimension);
+        phase_basis_pointers[0][i]->getValues(basisgrad, groupData->phase_ref_ip, Intrepid2::OPERATOR_GRAD);
         
       }
       else if (phase_basis_types[0][i].substr(0,4) == "HVOL") {
         
-        basisvals = DRV("basisvals",numb, groupData->num_phase_ip);
-        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        basisvals = DRV("basisvals",numb, groupData->phase_num_ip);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->phase_ref_ip, Intrepid2::OPERATOR_VALUE);
         
       }
       else if (phase_basis_types[0][i].substr(0,4) == "HDIV") {
         
-        basisvals = DRV("basisvals",numb, groupData->num_phase_ip, phase_dimension);
-        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        basisvals = DRV("basisvals",numb, groupData->phase_num_ip, phase_dimension);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->phase_ref_ip, Intrepid2::OPERATOR_VALUE);
         
-        basisdiv = DRV("basisdiv",numb, groupData->num_phase_ip);
-        phase_basis_pointers[0][i]->getValues(basisdiv, groupData->ref_phase_ip, Intrepid2::OPERATOR_DIV);
+        basisdiv = DRV("basisdiv",numb, groupData->phase_num_ip);
+        phase_basis_pointers[0][i]->getValues(basisdiv, groupData->phase_ref_ip, Intrepid2::OPERATOR_DIV);
         
       }
       else if (phase_basis_types[0][i].substr(0,5) == "HCURL"){
         
-        basisvals = DRV("basisvals",numb, groupData->num_phase_ip, phase_dimension);
-        phase_basis_pointers[0][i]->getValues(basisvals, groupData->ref_phase_ip, Intrepid2::OPERATOR_VALUE);
+        basisvals = DRV("basisvals",numb, groupData->phase_num_ip, phase_dimension);
+        phase_basis_pointers[0][i]->getValues(basisvals, groupData->phase_ref_ip, Intrepid2::OPERATOR_VALUE);
         
         if (dimension == 2) {
-          basiscurl = DRV("basiscurl",numb, groupData->num_phase_ip);
+          basiscurl = DRV("basiscurl",numb, groupData->phase_num_ip);
         }
         else if (dimension == 3) {
-          basiscurl = DRV("basiscurl",numb, groupData->num_phase_ip, phase_dimension);
+          basiscurl = DRV("basiscurl",numb, groupData->phase_num_ip, phase_dimension);
         }
-        phase_basis_pointers[0][i]->getValues(basiscurl, groupData->ref_phase_ip, Intrepid2::OPERATOR_CURL);
+        phase_basis_pointers[0][i]->getValues(basiscurl, groupData->phase_ref_ip, Intrepid2::OPERATOR_CURL);
         
       }
       
-      groupData->ref_phase_basis.push_back(basisvals);
-      groupData->ref_phase_basis_curl.push_back(basiscurl);
-      groupData->ref_phase_basis_grad.push_back(basisgrad);
-      groupData->ref_phase_basis_div.push_back(basisdiv);
+      groupData->phase_ref_basis.push_back(basisvals);
+      groupData->phase_ref_basis_curl.push_back(basiscurl);
+      groupData->phase_ref_basis_grad.push_back(basisgrad);
+      groupData->phase_ref_basis_div.push_back(basisdiv);
       
     }
   }
@@ -584,11 +584,19 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
         
         {
           Teuchos::TimeMonitor localtimer(*phys_vol_data_basis_curl_curl_timer);
-        
+
+          // 2D curl is scalar; 3D curl is vector.
           DRV bcurl1, bcurl2;
-          bcurl1 = DRV("basis",numElem,numb,numip,dim);
-          bcurl2 = DRV("basis tmp",numElem,numb,numip,dim);
-          
+          if (dim == 2) {
+            bcurl1 = DRV("basis",numElem,numb,numip);
+            bcurl2 = DRV("basis tmp",numElem,numb,numip);
+          }
+          else {
+            bcurl1 = DRV("basis",numElem,numb,numip,dim);
+            bcurl2 = DRV("basis tmp",numElem,numb,numip,dim);
+          }
+
+
           FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, groupData->ref_basis_curl[i]);
           if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
@@ -597,8 +605,16 @@ void DiscretizationInterface::getPhysicalVolumetricBasis(Teuchos::RCP<GroupMetaD
           else {
             bcurl2 = bcurl1;
           }
-          basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dim);
-          Kokkos::deep_copy(basis_curl_vals, bcurl2);
+          // Keep rank-4 storage; trailing dim is 1 in 2D.
+          if (dim == 2) {
+            basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, 1);
+            auto basis_curl_slice = Kokkos::subview(basis_curl_vals, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+            Kokkos::deep_copy(basis_curl_slice, bcurl2);
+          }
+          else {
+            basis_curl_vals = View_Sc4("basis curl values", numElem, numb, numip, dim);
+            Kokkos::deep_copy(basis_curl_vals, bcurl2);
+          }
         }
       }
       basis.push_back(basis_vals);
@@ -638,7 +654,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
   
   {
     Teuchos::TimeMonitor localtimer(*phys_vol_data_set_jac_timer);
-    CellTools::setJacobian(jacobian, groupData->ref_phase_ip, nodes, *(groupData->phase_cell_topo));
+    CellTools::setJacobian(jacobian, groupData->phase_ref_ip, nodes, *(groupData->phase_cell_topo));
   }
   
   {
@@ -669,7 +685,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
           bvals1 = DRV("basis",numElem,numb,numip);
           bvals2 = DRV("basis tmp",numElem,numb,numip);
           
-          FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_phase_basis[i]);
+          FuncTools::HGRADtransformVALUE(bvals1, groupData->phase_ref_basis[i]);
           if (apply_orientations && groupData->phase_basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                                   groupData->phase_basis_pointers[i].get());
@@ -685,7 +701,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
           bgrad1 = DRV("basis grad tmp",numElem,numb,numip,dim);
           bgrad2 = DRV("basis grad",numElem,numb,numip,dim);
           
-          FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, groupData->ref_phase_basis_grad[i]);
+          FuncTools::HGRADtransformGRAD(bgrad1, jacobianInv, groupData->phase_ref_basis_grad[i]);
           if (apply_orientations && groupData->phase_basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bgrad2, bgrad1, orientation,
                                                   groupData->phase_basis_pointers[i].get());
@@ -703,7 +719,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
         DRV bvals1;
         bvals1 = DRV("basis",numElem,numb,numip);
         
-        FuncTools::HGRADtransformVALUE(bvals1, groupData->ref_phase_basis[i]);
+        FuncTools::HGRADtransformVALUE(bvals1, groupData->phase_ref_basis[i]);
         
         basis_vals = View_Sc4("basis values", numElem, numb, numip, 1); // needs to be rank-4
         auto basis_vals_slice = Kokkos::subview(basis_vals,Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
@@ -717,7 +733,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
           bvals1 = DRV("basis",numElem,numb,numip,dim);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dim);
           
-          FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, groupData->ref_phase_basis[i]);
+          FuncTools::HDIVtransformVALUE(bvals1, jacobian, jacobianDet, groupData->phase_ref_basis[i]);
           if (apply_orientations && groupData->basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                                   groupData->phase_basis_pointers[i].get());
@@ -736,7 +752,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
           bdiv1 = DRV("basis",numElem,numb,numip);
           bdiv2 = DRV("basis tmp",numElem,numb,numip);
           
-          FuncTools::HDIVtransformDIV(bdiv1, jacobianDet, groupData->ref_phase_basis_div[i]);
+          FuncTools::HDIVtransformDIV(bdiv1, jacobianDet, groupData->phase_ref_basis_div[i]);
           if (apply_orientations && groupData->phase_basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bdiv2, bdiv1, orientation,
                                                   groupData->phase_basis_pointers[i].get());
@@ -756,7 +772,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
           bvals1 = DRV("basis",numElem,numb,numip,dim);
           bvals2 = DRV("basis tmp",numElem,numb,numip,dim);
           
-          FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, groupData->ref_phase_basis[i]);
+          FuncTools::HCURLtransformVALUE(bvals1, jacobianInv, groupData->phase_ref_basis[i]);
           if (apply_orientations && groupData->phase_basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bvals2, bvals1, orientation,
                                                   groupData->phase_basis_pointers[i].get());
@@ -775,7 +791,7 @@ void DiscretizationInterface::getPhaseVolumetricBasis(Teuchos::RCP<GroupMetaData
           bcurl1 = DRV("basis",numElem,numb,numip,dim);
           bcurl2 = DRV("basis tmp",numElem,numb,numip,dim);
           
-          FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, groupData->ref_phase_basis_curl[i]);
+          FuncTools::HCURLtransformCURL(bcurl1, jacobian, jacobianDet, groupData->phase_ref_basis_curl[i]);
           if (apply_orientations && groupData->phase_basis_pointers[i]->requireOrientation()) {
             OrientTools::modifyBasisByOrientation(bcurl2, bcurl1, orientation,
                                                   groupData->phase_basis_pointers[i].get());
@@ -949,6 +965,21 @@ void DiscretizationInterface::getPhysicalOrientations(Teuchos::RCP<GroupMetaData
     else { // account for simple mesh, which only needs 1 orientation
       orientation_host(i) = panzer_orientations(0);
     }
+  }
+  deep_copy(orientation,orientation_host);
+}
+
+// -------------------------------------------------
+// Get the element orientations
+// -------------------------------------------------
+
+void DiscretizationInterface::getPhaseOrientations(Kokkos::DynRankView<Intrepid2::Orientation,PHX::Device> orientation) {
+  
+  Teuchos::TimeMonitor localtimer(*phys_orient_timer);
+  
+  auto orientation_host = create_mirror_view(orientation);
+  for (size_type i=0; i<orientation.extent(0); i++) {
+    orientation_host(i) = phase_panzer_orientations(0);
   }
   deep_copy(orientation,orientation_host);
 }

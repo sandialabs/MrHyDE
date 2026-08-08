@@ -71,22 +71,22 @@ View_Sc2 PhysicsInterface::getDirichlet(const int & var,
 std::vector<View_Sc2> PhysicsInterface::getDirichletVector(const int & var,
                                                            const int & set,
                                                            const int & block,
-                                                           const std::string & sidename) {
-  
+                                                           const std::string & sidename,
+                                                           const int & boundary_numElem) {
+  // Use boundary_numElem to match side-ip view extents.
   std::vector<View_Sc2> dvals_vec(3);
   string varname = var_list[set][block][var];
   std::vector<string> components = {"x", "y", "z"};
-  
-  // check if vector component functions exist (e.g., "Dirichlet Ex bottom")
+
   bool has_components = function_managers[block]->hasFunction("Dirichlet " + varname + "x " + sidename);
-  
+
   if (has_components) {
     // use component-wise Dirichlet data
     for (size_t d=0; d<3; d++) {
       string label = "Dirichlet " + varname + components[d] + " " + sidename;
       if (function_managers[block]->hasFunction(label)) {
         auto tdvals = function_managers[block]->evaluate(label, "side ip");
-        View_Sc2 dvals("dirichlet component", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
+        View_Sc2 dvals("dirichlet component", boundary_numElem, function_managers[block]->num_ip_side_);
         parallel_for("physics fill Dirichlet vector component",
                      RangePolicy<AssemblyExec>(0,dvals.extent(0)),
                      MRHYDE_LAMBDA (const int e) {
@@ -98,7 +98,7 @@ std::vector<View_Sc2> PhysicsInterface::getDirichletVector(const int & var,
       }
       else {
         // use zero, if component not specified
-        View_Sc2 dvals("dirichlet component zero", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
+        View_Sc2 dvals("dirichlet component zero", boundary_numElem, function_managers[block]->num_ip_side_);
         Kokkos::deep_copy(dvals, 0.0);
         dvals_vec[d] = dvals;
       }
@@ -108,7 +108,7 @@ std::vector<View_Sc2> PhysicsInterface::getDirichletVector(const int & var,
     // fall back to scalar Dirichlet data broadcast to all components
     auto tdvals = function_managers[block]->evaluate("Dirichlet " + varname + " " + sidename, "side ip");
     for (size_t d=0; d<3; d++) {
-      View_Sc2 dvals("dirichlet component broadcast", function_managers[block]->num_elem_, function_managers[block]->num_ip_side_);
+      View_Sc2 dvals("dirichlet component broadcast", boundary_numElem, function_managers[block]->num_ip_side_);
       parallel_for("physics fill Dirichlet broadcast",
                    RangePolicy<AssemblyExec>(0,dvals.extent(0)),
                    MRHYDE_LAMBDA (const int e) {
@@ -119,7 +119,7 @@ std::vector<View_Sc2> PhysicsInterface::getDirichletVector(const int & var,
       dvals_vec[d] = dvals;
     }
   }
-  
+
   return dvals_vec;
 }
 

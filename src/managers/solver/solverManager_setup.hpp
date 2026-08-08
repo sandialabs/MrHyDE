@@ -585,6 +585,32 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
         }
 
       }
+      
+      if (mesh->getPhaseDimension() > 0) {
+        for (size_t set=0; set<physics->set_names.size(); set++) {
+          vector<vector<int> > voffsets = disc->phase_offsets[set][0];
+          size_t maxoff = 0;
+          for (size_t i=0; i<voffsets.size(); i++) {
+            if (voffsets[i].size() > maxoff) {
+              maxoff = voffsets[i].size();
+            }
+          }
+          
+          Kokkos::View<int**,AssemblyDevice> offsets_view("offsets on assembly device",voffsets.size(),maxoff);
+          auto host_offsets = Kokkos::create_mirror_view(offsets_view);
+          for (size_t i=0; i<voffsets.size(); i++) {
+            for (size_t j=0; j<voffsets[i].size(); j++) {
+              host_offsets(i,j) = voffsets[i][j];
+            }
+          }
+          Kokkos::deep_copy(offsets_view,host_offsets);
+          wkset[block]->phase_set_offsets.push_back(offsets_view);
+          if (set == 0) {
+            wkset[block]->phase_offsets = offsets_view;
+          }
+
+        }
+      }
     }
   }
   
@@ -603,6 +629,20 @@ void SolverManager<Node>::finalizeWorkset(vector<Teuchos::RCP<Workset<EvalT> > >
       wkset[block]->usebasis = block_useBasis[0];
       wkset[block]->varlist = block_varlist[0];
       
+      if (mesh->getPhaseDimension() > 0) {
+        vector<vector<int> > block_useBasis;
+        vector<vector<string> > block_varlist;
+        
+        for (size_t set=0; set<phase_useBasis.size(); ++set) {
+          block_useBasis.push_back(phase_useBasis[set][0]);
+          block_varlist.push_back(phase_varlist[set][0]);
+        }
+        wkset[block]->phase_set_usebasis = block_useBasis;
+        wkset[block]->phase_set_varlist = block_varlist;
+        wkset[block]->phase_usebasis = block_useBasis[0];
+        wkset[block]->phase_varlist = block_varlist[0];
+        
+      }
     }
   }
   

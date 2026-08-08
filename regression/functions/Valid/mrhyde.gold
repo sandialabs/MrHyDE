@@ -11,7 +11,7 @@ DOFManager Field Information:
       "q" is field ID 3
  - Processor 0 has 4 elements
  - Processor 0 has 8 boundary elements
- - Processor 0 is using 0.005736 MB to store volumetric data
+ - Processor 0 is using 0.005224 MB to store volumetric data
  - Processor 0 is using 0 MB to store face data
  - Processor 0 is using 0.00496 MB to store boundary data
 
@@ -569,6 +569,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 T_t
 B[x]
 B[y]
@@ -592,6 +595,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -606,6 +612,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -1203,6 +1212,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 T_t
 B[x]
 B[y]
@@ -1226,6 +1238,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -1240,6 +1255,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -1379,6 +1397,7 @@ Solver ->
  use basis database = 0   [default]
  use mass database = 0   [default]
  use ip database = 0   [default]
+ use phase database = 1   [default]
  store mass = 1   [default]
  have multidata = 0   [default]
  fully explicit = 0   [default]
