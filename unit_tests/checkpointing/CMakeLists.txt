@@ -49,3 +49,25 @@ SET_TARGET_PROPERTIES(dense_kernels PROPERTIES
 TARGET_LINK_LIBRARIES(dense_kernels ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
 
 ADD_TEST(NAME checkpointing_dense_kernels COMMAND dense_kernels)
+
+ADD_EXECUTABLE(sketch_window
+sketch_window.cpp)
+
+SET_TARGET_PROPERTIES(sketch_window PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON)
+
+TARGET_LINK_LIBRARIES(sketch_window ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
+
+ADD_TEST(NAME checkpointing_sketch_window COMMAND sketch_window)
+
+ADD_EXECUTABLE(svd_window
+svd_window.cpp)
+
+SET_TARGET_PROPERTIES(svd_window PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON)
+
+TARGET_LINK_LIBRARIES(svd_window ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
+
+ADD_TEST(NAME checkpointing_svd_window COMMAND svd_window)

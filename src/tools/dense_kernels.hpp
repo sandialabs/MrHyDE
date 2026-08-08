@@ -34,6 +34,11 @@ extern "C" {
     double* x, const int* incx);
   void MRHYDE_FORTRAN_NAME(dgeqrf)(const int* m, const int* n, double* a,
     const int* lda, double* tau, double* work, const int* lwork, int* info);
+  // dgeqp3 is not listed in sierra_blas_lapack.h, but it is standard LAPACK
+  // (3.0, 1999) and present in any conforming liblapack, including the ones
+  // Sierra and Trilinos already link -- no new library is introduced.
+  void MRHYDE_FORTRAN_NAME(dgeqp3)(const int* m, const int* n, double* a,
+    const int* lda, int* jpvt, double* tau, double* work, const int* lwork, int* info);
   void MRHYDE_FORTRAN_NAME(dorgqr)(const int* m, const int* n, const int* k,
     double* a, const int* lda, const double* tau, double* work,
     const int* lwork, int* info);
@@ -166,13 +171,72 @@ namespace dense {
   }
 
   /**
+   * @brief Column-pivoted QR factorization in place (dgeqp3).  On exit A holds
+   *        the reflectors and R in packed form, tau the reflector scalars, and
+   *        perm the 0-based column permutation.
+   */
+  inline void qrPivotedFactor(const int & m, const int & n, std::vector<double> & A,
+                              std::vector<double> & tau, std::vector<int> & perm) {
+
+    const int q = (m < n) ? m : n;
+    tau.assign(q, 0.0);
+    std::vector<int> jpvt(n, 0);      // zero = every column free to pivot
+    int info = 0;
+    double wsize = 0.0;
+    int lwork = -1;
+    MRHYDE_FORTRAN_NAME(dgeqp3)(&m, &n, A.data(), &m, jpvt.data(), tau.data(),
+                                &wsize, &lwork, &info);
+    check(info, "qrPivotedFactor(dgeqp3 query)");
+    lwork = static_cast<int>(wsize);
+    std::vector<double> work(lwork);
+    MRHYDE_FORTRAN_NAME(dgeqp3)(&m, &n, A.data(), &m, jpvt.data(), tau.data(),
+                                work.data(), &lwork, &info);
+    check(info, "qrPivotedFactor(dgeqp3)");
+
+    perm.assign(n, 0);
+    for (int j=0; j<n; ++j) {
+      perm[j] = jpvt[j] - 1;          // LAPACK returns 1-based indices
+    }
+  }
+
+  /**
+   * @brief Overwrite the packed factorization from qrPivotedFactor (or dgeqrf)
+   *        with the first num_cols orthonormal columns of Q.
+   */
+  inline void formQ(const int & m, const int & num_cols, const int & num_reflectors,
+                    std::vector<double> & A, const std::vector<double> & tau) {
+
+    int info = 0;
+    double wsize = 0.0;
+    int lwork = -1;
+    MRHYDE_FORTRAN_NAME(dorgqr)(&m, &num_cols, &num_reflectors, A.data(), &m,
+                                tau.data(), &wsize, &lwork, &info);
+    check(info, "formQ(dorgqr query)");
+    lwork = static_cast<int>(wsize);
+    std::vector<double> work(lwork);
+    MRHYDE_FORTRAN_NAME(dorgqr)(&m, &num_cols, &num_reflectors, A.data(), &m,
+                                tau.data(), work.data(), &lwork, &info);
+    check(info, "formQ(dorgqr)");
+  }
+
+  /**
+   * @brief General triangular solve, B overwritten with the solution.
+   *        side='L': solve op(A)*X = B; side='R': solve X*op(A) = B.
+   */
+  inline void trsm(const char & side, const char & uplo, const char & trans,
+                   const int & m, const int & n, const double* A, const int & lda,
+                   double* B, const int & ldb) {
+    const char diag = 'N';
+    const double one = 1.0;
+    MRHYDE_FORTRAN_NAME(dtrsm)(&side, &uplo, &trans, &diag, &m, &n, &one, A, &lda, B, &ldb);
+  }
+
+  /**
    * @brief Solve R*X = B in place, R upper triangular n x n, B n x nrhs.
    */
   inline void solveUpper(const int & n, const int & nrhs, const double* R,
                          double* B) {
-    const char side = 'L', uplo = 'U', trans = 'N', diag = 'N';
-    const double one = 1.0;
-    MRHYDE_FORTRAN_NAME(dtrsm)(&side, &uplo, &trans, &diag, &n, &nrhs, &one, R, &n, B, &n);
+    trsm('L', 'U', 'N', n, nrhs, R, n, B, n);
   }
 
   /**
