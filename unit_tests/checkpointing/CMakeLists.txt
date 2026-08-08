@@ -18,3 +18,12 @@ SET_TARGET_PROPERTIES(revolve PROPERTIES
   CXX_STANDARD_REQUIRED ON)
 
 ADD_TEST(NAME checkpointing_revolve COMMAND revolve)
+
+ADD_EXECUTABLE(bsw_revolve
+bsw_revolve.cpp)
+
+SET_TARGET_PROPERTIES(bsw_revolve PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON)
+
+ADD_TEST(NAME checkpointing_bsw_revolve COMMAND bsw_revolve)
