@@ -19,13 +19,14 @@ ANONYMOUS:
   Discretization:
     eblock-0_0_0:
       order:
-        T: 1
-      quadrature: 2
+        T: T_ORDER_PLACEHOLDER
+      quadrature: QUAD_ORDER_PLACEHOLDER
   Functions:
     thermal source: 12*(pi*pi)*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z)
   Solver:
     solver: steady-state
     workset size: 10
+    max linear iters: 500
   Analysis: 
     analysis type: forward
   Postprocess: 
