@@ -8,7 +8,7 @@
 
 using namespace MrHyDE;
 
-/// Column-major M x n matrix with deterministic normal entries.
+/// Test data seeded apart from the library's own streams.
 std::vector<double> randomMatrix(const int & M, const int & n, const uint64_t & stream) {
     Threefry rng(99, stream);
     std::vector<double> A(static_cast<size_t>(M)*n);

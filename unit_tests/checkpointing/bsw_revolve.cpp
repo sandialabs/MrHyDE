@@ -234,43 +234,43 @@ int main(){
     {
         const int n = 500, block = 50, pool = 125, zeta = 3;
 
-        for (int num_sketched=0; num_sketched<=7; ++num_sketched) {
+        for (int Ks=0; Ks<=7; ++Ks) {
 
             std::vector<int> ids;
-            for (int j=1; j<=num_sketched; ++j) { ids.push_back(j); }
+            for (int j=1; j<=Ks; ++j) { ids.push_back(j); }
             const WindowTable w = BswRevolve::uniformWindows(n, block, ids);
 
-            const int slots = pool - (num_sketched*block)/zeta;
-            const int outside = n - num_sketched*block;
+            const int slots = pool - (Ks*block)/zeta;
+            const int outside = n - Ks*block;
 
             BswStats s = runSchedule(n, w, slots);
             BswRevolve::GradientSolves p = BswRevolve::predictGradientSolves(n, w, slots);
 
             if (!s.terminated || !s.invariants_ok) {
-                std::cout << "FAIL: proposal schedule Ks=" << num_sketched
+                std::cout << "FAIL: proposal schedule Ks=" << Ks
                         << " broke an invariant" << std::endl;
                 ++num_failures;
             }
             if (s.advance_solves != p.advance_solves || s.reverse_solves != p.reverse_solves) {
                 std::cout << "FAIL: predictGradientSolves disagrees with the schedule at Ks="
-                        << num_sketched << std::endl;
+                        << Ks << std::endl;
                 ++num_failures;
             }
-            if (num_sketched == 0 && s.advance_solves != 873) {
+            if (Ks == 0 && s.advance_solves != 873) {
                 std::cout << "FAIL: the classic row should cost exactly 873 advances, got "
                         << s.advance_solves << std::endl;
                 ++num_failures;
             }
-            if (s.reverse_solves != outside || s.window_reverses != num_sketched) {
-                std::cout << "FAIL: Ks=" << num_sketched << " reversed "
+            if (s.reverse_solves != outside || s.window_reverses != Ks) {
+                std::cout << "FAIL: Ks=" << Ks << " reversed "
                         << s.reverse_solves << "+" << s.window_reverses
-                        << ", want " << outside << "+" << num_sketched << std::endl;
+                        << ", want " << outside << "+" << Ks << std::endl;
                 ++num_failures;
             }
             // the condensed axis bounds the advance cost
-            const long bound = Revolve::minExtraForwardSteps(outside + num_sketched, slots);
+            const long bound = Revolve::minExtraForwardSteps(outside + Ks, slots);
             if (s.advance_solves > bound) {
-                std::cout << "FAIL: Ks=" << num_sketched << " advances "
+                std::cout << "FAIL: Ks=" << Ks << " advances "
                         << s.advance_solves << " exceed the condensed bound "
                         << bound << std::endl;
                 ++num_failures;

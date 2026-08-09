@@ -1,8 +1,8 @@
-# Unit tests for the Revolve checkpointing schedule (Griewank & Walther,
-# "Algorithm 799: Revolve", ACM TOMS 26(1), 2000).
-#
-# revolve.hpp has no Trilinos, Kokkos or MPI dependencies, so this test
-# deliberately links nothing and builds in a second.
+# Unit tests for the checkpointing stack: classic Revolve (Griewank &
+# Walther, "Algorithm 799: Revolve", ACM TOMS 26(1), 2000), the BSW
+# scheduler, and the window compressors.  revolve, bsw_revolve and threefry
+# link nothing and build in a second; the window and dense-kernel tests bind
+# to the BLAS/LAPACK already in the Trilinos link interface.
 
 INCLUDE_DIRECTORIES ( ./
   ../../src/tools

@@ -84,7 +84,7 @@ used, predicted, windows = read_report('bsw.log')
 if windows != 2:
   print('  Failure: expected 2 committed windows, got %s.' % windows)
   status += 1
-if used != predicted:
+if used is None or used != predicted:
   print('  Failure: windowed run used %s solves, schedule predicted %s.'
         % (used, predicted))
   status += 1

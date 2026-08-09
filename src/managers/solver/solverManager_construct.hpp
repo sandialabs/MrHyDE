@@ -82,14 +82,14 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
       "Error: sketched checkpointing currently requires a serial run.");
 
     BswManagerOptions window_options;
-    window_options.total_budget_se = settings->sublist("Analysis").get<double>("state budget",0.0);
+    window_options.total_budget_se = settings->sublist("Analysis").get<double>("total budget SE",0.0);
     window_options.min_checkpoints = num_checkpoints;
     window_options.base_rank = settings->sublist("Analysis").get<int>("window rank",2);
     window_options.tol = settings->sublist("Analysis").get<double>("window tolerance",1.0e-8);
-    window_options.rho = settings->sublist("Analysis").get<int>("window monitor stride",5);
+    window_options.rho = settings->sublist("Analysis").get<int>("window monitor cadence",5);
     window_options.min_commit = settings->sublist("Analysis").get<int>("window min commit",4);
     window_options.rank_max = settings->sublist("Analysis").get<int>("window rank cap",15);
-    window_options.master_seed = settings->sublist("Analysis").get<int>("sketch seed",0);
+    window_options.master_seed = settings->sublist("Analysis").get<int>("master seed",0);
 
     // planned spans from a uniform partition; no block ids means greedy discovery
     int block_size = settings->sublist("Analysis").get<int>("window block size",0);

@@ -74,10 +74,10 @@ namespace MrHyDE {
     virtual double getTime(const int & k) const = 0;
 
     /// SE held by committed payloads and anchors.
-    virtual double getSpentSE() const = 0;
+    virtual double spentSE() const = 0;
 
     /// Largest transient SE any window held while recording (honest count).
-    virtual double getPeakSE() const = 0;
+    virtual double peakSE() const = 0;
 
     /// One line per window: edges, status, rank, error.  For the layout log.
     virtual std::vector<std::string> layoutReport() const = 0;
@@ -98,7 +98,7 @@ namespace MrHyDE {
    * streaming-transient model A*m + C (honest count, resident test matrices
    * included) against the unspent pool decides the horizon.  A window that
    * cannot verify its tolerance cuts or falls back on its own; those steps
-   * simply stay on the classic axis.  The rank hint a struggling window
+   * stay on the classic axis.  The rank hint a struggling window
    * leaves behind seeds the next window's rank.
    */
   template<class WindowT>
@@ -109,11 +109,17 @@ namespace MrHyDE {
     BswWindowManager(const BswManagerOptions & options)
       : options_(options) {
       if (!options_.planned_windows.empty()) {
-        // validated properly by BswRevolve later; catch cheap mistakes here
+        // reject bad tables here: an unsorted entry would otherwise pin the
+        // planner and silently skip every later window
         for (size_t i=0; i<options_.planned_windows.size(); ++i) {
           if (options_.planned_windows[i].second - options_.planned_windows[i].first < 2) {
             throw std::invalid_argument(
               "BswWindowManager: a planned window must cover at least 2 steps.");
+          }
+          if (i > 0 && (options_.planned_windows[i].first <= options_.planned_windows[i-1].first ||
+                        options_.planned_windows[i].first < options_.planned_windows[i-1].second)) {
+            throw std::invalid_argument(
+              "BswWindowManager: planned windows must be sorted and disjoint.");
           }
         }
       }
@@ -179,7 +185,7 @@ namespace MrHyDE {
 
       // flow-back: every state-equivalent the windows did not keep becomes a
       // checkpoint slot for the classic axis
-      const double unspent = windowBudget() - spent_se_;
+      const double unspent = windowBudgetSE() - spent_se_;
       slots_ = options_.min_checkpoints + std::max(0, static_cast<int>(unspent));
       swept_ = true;
     }
@@ -208,8 +214,8 @@ namespace MrHyDE {
       return times_[k];
     }
 
-    double getSpentSE() const override { return spent_se_; }
-    double getPeakSE()  const override { return peak_se_; }
+    double spentSE() const override { return spent_se_; }
+    double peakSE()  const override { return peak_se_; }
 
     std::vector<std::string> layoutReport() const override {
       std::vector<std::string> lines;
@@ -223,7 +229,8 @@ namespace MrHyDE {
           + ": steps " + std::to_string(w.getA()+1) + ".." + std::to_string(w.getB())
           + " -> " + status
           + " (served through " + std::to_string(w.getBEff())
-          + ", rank " + std::to_string(w.getPayloadColumns())
+          + ", rank " + std::to_string(w.getRank())
+          + ", payload cols " + std::to_string(w.getPayloadColumns())
           + ", errMaxCol " + std::to_string(w.getErrMaxCol()) + ")");
       }
       return lines;
@@ -233,7 +240,7 @@ namespace MrHyDE {
 
     /// The share of the pool windows may hold (10 SE of work vectors and the
     /// checkpoint floor are always kept out of their reach).
-    double windowBudget() const {
+    double windowBudgetSE() const {
       return std::max(0.0, options_.total_budget_se - 10.0 - options_.min_checkpoints);
     }
 
@@ -254,7 +261,7 @@ namespace MrHyDE {
       else {
         double A = 0.0, C = 0.0;
         WindowT::rollingStreamCoeffs(M_, current_rank_, options_.rho, A, C);
-        const double room = windowBudget() - spent_se_ - C;
+        const double room = windowBudgetSE() - spent_se_ - C;
         if (room <= 0.0) { return; }
         const int horizon = static_cast<int>(room/A);
         b = std::min(a + horizon, num_steps_);

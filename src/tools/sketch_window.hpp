@@ -497,7 +497,6 @@ namespace MrHyDE {
 
       std::vector<double> U, VT;
       dense::svd(rk1, rk2, pW_, U, pSv_, VT);
-      peek_valid_ = true;
     }
 
     // Reconstruct column jj from the current peek factors.
@@ -585,7 +584,6 @@ namespace MrHyDE {
       pE2_.clear();
       pSv_.clear();
       p_rk1_ = p_rk2_ = 0;
-      peek_valid_ = false;
     }
 
     // O(k) state-equivalents: V2 rows are immutable so V2 needs no snapshot,
@@ -659,7 +657,7 @@ namespace MrHyDE {
     }
 
     // Rolling failure resolution.  No retries here: the raw states are gone.
-    // The failing columns are simply lost; the classic revolve axis recomputes them.
+    // The failing columns are lost; the classic revolve axis recomputes them.
     void cutRolling() {
       if (last_good_ >= minCommitEff() && has_snapshot_) {
         restoreSnapshot();
@@ -888,7 +886,6 @@ namespace MrHyDE {
     std::vector<double> pQ1_, pW_, pR2_, pSv_;
     std::vector<int> pE2_;
     int p_rk1_ = 0, p_rk2_ = 0;
-    bool peek_valid_ = false;
   };
 
 }

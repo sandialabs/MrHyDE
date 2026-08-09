@@ -490,8 +490,8 @@ void SolverManager<Node>::bswAdjointModel(MrHyDE_OptVector & gradient) {
     cout << "****   checkpoint slots         : " << num_slots << endl;
     cout << "****   forward solves used      : " << num_forward_solves
          << "  (predicted " << predicted.total << ")" << endl;
-    cout << "****   window storage           : " << bsw_manager->getSpentSE()
-         << " SE spent, " << bsw_manager->getPeakSE() << " SE peak" << endl;
+    cout << "****   window storage           : " << bsw_manager->spentSE()
+         << " SE spent, " << bsw_manager->peakSE() << " SE peak" << endl;
     std::vector<std::string> layout = bsw_manager->layoutReport();
     for (size_t i=0; i<layout.size(); ++i) {
       cout << "****   " << layout[i] << endl;

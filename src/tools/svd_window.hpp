@@ -24,7 +24,7 @@ namespace MrHyDE {
    * and there is no retry logic.  'rank' is a CAP: the working rank starts at
    * zero and grows in place one direction at a time, up to the cap.
    *
-   * The growth tolerance is the design pivot: 1e-12 in static/full mode (grow
+   * The growth tolerance is the design pivot: 1e-12 in static mode (grow
    * for anything above machine noise), policy.tol in rolling mode (grow only
    * for directions that matter at the requested accuracy).  In rolling mode
    * the overflow pre-check uses the same threshold as the in-span test, so a
@@ -229,7 +229,7 @@ namespace MrHyDE {
 
     double peakSE() const { return peak_se_; }
 
-    /// Interface parity with SketchWindow; there is no retry logic here.
+    /// No retry logic here; kept so the manager treats both compressors alike.
     void bumpRetry() { ++retry_attempt_; }
 
     int getA()            const { return a_; }
@@ -535,7 +535,7 @@ namespace MrHyDE {
     int a_, b_, m_;
     int rank_;                       ///< the cap on the working rank
     int window_id_;
-    uint64_t master_seed_;           ///< stored for interface parity, unused
+    uint64_t master_seed_;           ///< unused (deterministic)
     int retry_attempt_ = 0;
     int M_ = 0;
     bool adaptive_ = false;

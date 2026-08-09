@@ -38,7 +38,7 @@ ANONYMOUS:
   Analysis:
     analysis type: forward+adjoint
     forward state recovery type: sketched checkpointing
-    state budget: 40.0
+    total budget SE: 40.0
     number of checkpoints: 2
     window compressor: sketch
     window rank: 2

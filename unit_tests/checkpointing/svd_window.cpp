@@ -8,6 +8,7 @@
 
 using namespace MrHyDE;
 
+// same helpers as sketch_window.cpp, different seed family
 std::vector<double> randomMatrix(const int & M, const int & n, const uint64_t & stream) {
     Threefry rng(77, stream);
     std::vector<double> A(static_cast<size_t>(M)*n);

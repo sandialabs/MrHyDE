@@ -89,14 +89,14 @@ int main(){
 
         // budget honesty: slots = floor + floor(unspent), spent > 0, and the
         // recorded times come back verbatim
-        if (manager.getSpentSE() <= 0.0 ||
+        if (manager.spentSE() <= 0.0 ||
             manager.numCheckpointSlots() < opt.min_checkpoints) {
             std::cout << "FAIL: budget accounting is inconsistent" << std::endl;
             ++num_failures;
         }
         const double expected_slots = opt.min_checkpoints
             + std::floor(opt.total_budget_se - 10.0 - opt.min_checkpoints
-                         - manager.getSpentSE());
+                         - manager.spentSE());
         if (manager.numCheckpointSlots() != static_cast<int>(expected_slots)) {
             std::cout << "FAIL: flow-back slots " << manager.numCheckpointSlots()
                     << ", want " << expected_slots << std::endl;
@@ -144,11 +144,11 @@ int main(){
             std::cout << "FAIL: greedy should commit at least one window on the band" << std::endl;
             ++num_failures;
         }
-        if (manager.getSpentSE() > 120.0 - 10.0 - opt.min_checkpoints) {
+        if (manager.spentSE() > 120.0 - 10.0 - opt.min_checkpoints) {
             std::cout << "FAIL: greedy overspent the window pool" << std::endl;
             ++num_failures;
         }
-        if (manager.getPeakSE() <= 0.0) {
+        if (manager.peakSE() <= 0.0) {
             std::cout << "FAIL: peak transient SE should be tracked" << std::endl;
             ++num_failures;
         }

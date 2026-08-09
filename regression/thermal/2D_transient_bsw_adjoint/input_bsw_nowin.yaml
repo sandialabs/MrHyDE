@@ -38,7 +38,7 @@ ANONYMOUS:
   Analysis:
     analysis type: forward+adjoint
     forward state recovery type: sketched checkpointing
-    state budget: 0.0
+    total budget SE: 0.0
     number of checkpoints: 3
     write gradient to file: true
     gradient storage file: grad_nowin

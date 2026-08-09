@@ -30,7 +30,7 @@ namespace MrHyDE {
     int k1 = 0;             ///< SolveRange: first step of the run
     int k2 = 0;             ///< SolveRange: last step of the run
     int win = -1;           ///< JumpAnchor/ReverseWindow: 0-based window index
-    int step = 0;           ///< JumpAnchor/Store/Restore: the state's step; ReverseStep: the step reversed
+    int step = 0;           ///< JumpAnchor/Store/Restore: the state's step; ReverseStep: the step reversed (MATLAB field k)
     int slot = -1;          ///< Store/Restore: 0-based checkpoint slot
     int a = 0;              ///< ReverseWindow: left edge (state u_a is exact on entry)
     int b = 0;              ///< ReverseWindow: right edge
@@ -55,7 +55,7 @@ namespace MrHyDE {
    * states come from reconstructions).
    *
    * Condensed axis: the N_eff = N - sum(m_i) outside steps, in order, plus one
-   * macro-step per window: N_c = N_eff + num_windows.
+   * macro-step per window: N_c = N_eff + K_s.
    *
    * With no windows this reduces action-for-action to classic Revolve.
    * Rank/compression profitability guards live with the window payloads, not
@@ -290,7 +290,7 @@ namespace MrHyDE {
 
     int N_;                                      ///< real time steps
     std::vector<std::pair<int,int> > windows_;   ///< [a,b] rows, sorted, disjoint
-    int Nc_ = 0;                                 ///< condensed steps = Neff + num windows
+    int Nc_ = 0;                                 ///< condensed steps = Neff + Ks
     int Neff_ = 0;                               ///< real steps outside windows
     std::vector<int> step_of_c_;                 ///< real position reached after condensed step
     std::vector<int> win_of_c_;                  ///< window collapsed by that step (-1 = none)
