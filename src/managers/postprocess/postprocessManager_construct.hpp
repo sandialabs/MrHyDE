@@ -144,8 +144,8 @@ void PostprocessManager<Node>::setup() {
     // Revolve checkpointing recomputes the trajectory instead of storing it.
     // Without this the full trajectory would be allocated as well, and the
     // memory saving -- the entire point -- would silently not happen.
-    if (settings->sublist("Analysis").get<string>("forward state recovery type","file")
-        == "checkpointing") {
+    string recovery = settings->sublist("Analysis").get<string>("forward state recovery type","file");
+    if (recovery == "checkpointing" || recovery == "sketched checkpointing") {
       save_solution = false;
     }
 

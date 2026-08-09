@@ -150,6 +150,18 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
     int numCuts = 0;
     int maxCuts = maxTimeStepCuts; // TMW: make this a user-defined input
     double timetol = end_time*1.0e-6; // just need to get close enough to final time
+
+    // sketched checkpointing streams every accepted state into its windows
+    if (use_bsw && !bsw_manager.is_null()) {
+      int num_steps = 0;
+      ScalarT step_time = start_time;
+      while (step_time < end_time - timetol) {
+        step_time += deltat;
+        ++num_steps;
+      }
+      auto sol_view = sol[0]->template getLocalView<LA_device>(Tpetra::Access::ReadOnly);
+      bsw_manager->beginSweep(static_cast<int>(sol_view.extent(0)), num_steps, current_time);
+    }
     
     while (current_time < (end_time-timetol) && numCuts<=maxCuts) {
       int status = 0;
@@ -173,7 +185,16 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
         stepProg += 1;
         multiscale_manager->completeTimeStep();
         postproc->record(sol,current_time,stepProg);
-        
+
+        if (use_bsw && !bsw_manager.is_null()) {
+          auto sol_view = sol[0]->template getLocalView<LA_device>(Tpetra::Access::ReadOnly);
+          std::vector<double> raw_state(sol_view.extent(0));
+          for (size_t i=0; i<sol_view.extent(0); ++i) {
+            raw_state[i] = sol_view(i,0);
+          }
+          bsw_manager->recordState(stepProg, raw_state.data(), current_time);
+        }
+
       }
       else { // something went wrong, cut time step and try again
         deltat *= 0.5;
@@ -194,6 +215,10 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
     // If the final step doesn't fall when a write is requested, catch that here  
     if (stepProg % postproc->write_frequency != 0 && postproc->write_solution) {
       postproc->writeSolution(sol, current_time);
+    }
+
+    if (use_bsw && !bsw_manager.is_null()) {
+      bsw_manager->endSweep();
     }
   }
   else { // adjoint solve - fixed time stepping based on forward solve

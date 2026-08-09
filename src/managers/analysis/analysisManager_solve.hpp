@@ -44,10 +44,11 @@ void AnalysisManager::run(std::string &analysis_type) {
       string statefilebase = settings_->sublist("Analysis").get<string>("state recovery file", "state");
       solver_->recoverForwardStateFromFile(statefilebase);
     }
-    else if (fwdrecovery == "checkpointing") {
+    else if (fwdrecovery == "checkpointing" || fwdrecovery == "sketched checkpointing") {
       // The checkpointed adjoint recomputes states from its own checkpoints, but
       // the objective still has to be evaluated along the trajectory once, so run
-      // a forward pass.  Storage is off, so nothing is kept.
+      // a forward pass.  Storage is off, so nothing is kept; the sketched variant
+      // additionally streams this sweep's states into its windows.
       this->forwardSolve();
     }
     else if (fwdrecovery == "recompute") {

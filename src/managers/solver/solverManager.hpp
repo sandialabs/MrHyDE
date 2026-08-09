@@ -19,6 +19,8 @@
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
 #include "revolve.hpp"
+#include "bsw_revolve.hpp"
+#include "bsw_window_manager.hpp"
 #include "linearAlgebraInterface.hpp"
 #include "MrHyDE_Debugger.hpp"
 
@@ -124,6 +126,17 @@ public:
    * than approximate.  Costs num_steps + minExtraForwardSteps forward solves.
    */
   void checkpointedAdjointModel(MrHyDE_OptVector & gradient);
+
+  /**
+   * @brief Transient adjoint with sketched windows on the checkpointing axis.
+   *
+   * Executes the BswRevolve schedule over the windows the forward sweep
+   * committed: window interiors come from reconstructions at zero solves,
+   * anchors seed the forward crossings, and classic checkpointing covers
+   * everything else.  Exact where no window serves; window steps carry the
+   * committed reconstruction tolerance.
+   */
+  void bswAdjointModel(MrHyDE_OptVector & gradient);
   
   /** @brief Incremental forward solve (for Hessian-vector products) */
   void incrementalForwardModel(ScalarT & objective);
@@ -310,6 +323,9 @@ public:
   bool use_checkpointing;        // Use Revolve checkpointing for the transient adjoint
   int num_checkpoints;           // Checkpoint budget when use_checkpointing is true
   int num_forward_solves;        // Forward solves used by the last checkpointed gradient
+
+  bool use_bsw;                  // Sketch windows on top of the checkpointing axis
+  Teuchos::RCP<BswWindowManagerBase> bsw_manager; // Window lifecycle and budget governor
   
   vector<bool> scalarDirichletData;   // True if scalar Dirichlet values exist
   vector<bool> staticDirichletData;   // True if static Dirichlet data provided

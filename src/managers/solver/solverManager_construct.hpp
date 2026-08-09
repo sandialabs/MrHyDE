@@ -69,10 +69,43 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   // Revolve checkpointing for the transient adjoint.  Selected by
   //   Analysis: forward state recovery type: checkpointing
   // with the storage budget given by "number of checkpoints".
-  use_checkpointing = (settings->sublist("Analysis").get<string>("forward state recovery type","file")
-                       == "checkpointing");
+  string recovery_type = settings->sublist("Analysis").get<string>("forward state recovery type","file");
+  use_checkpointing = (recovery_type == "checkpointing");
+  use_bsw = (recovery_type == "sketched checkpointing");
   num_checkpoints = settings->sublist("Analysis").get<int>("number of checkpoints",10);
   num_forward_solves = 0;
+
+  if (use_bsw) {
+    // window mathematics is serial for now: sketching a distributed state
+    // needs global reductions the windows do not yet perform
+    TEUCHOS_TEST_FOR_EXCEPTION(Comm->getSize() > 1, std::runtime_error,
+      "Error: sketched checkpointing currently requires a serial run.");
+
+    BswManagerOptions window_options;
+    window_options.total_budget_se = settings->sublist("Analysis").get<double>("state budget",0.0);
+    window_options.min_checkpoints = num_checkpoints;
+    window_options.base_rank = settings->sublist("Analysis").get<int>("window rank",2);
+    window_options.tol = settings->sublist("Analysis").get<double>("window tolerance",1.0e-8);
+    window_options.rho = settings->sublist("Analysis").get<int>("window monitor stride",5);
+    window_options.min_commit = settings->sublist("Analysis").get<int>("window min commit",4);
+    window_options.rank_max = settings->sublist("Analysis").get<int>("window rank cap",15);
+    window_options.master_seed = settings->sublist("Analysis").get<int>("sketch seed",0);
+
+    // planned spans from a uniform partition; no block ids means greedy discovery
+    int block_size = settings->sublist("Analysis").get<int>("window block size",0);
+    string block_ids = settings->sublist("Analysis").get<string>("window block ids","");
+    if (block_size > 0 && block_ids != "") {
+      vector<int> ids;
+      std::stringstream ss(block_ids);
+      int id;
+      while (ss >> id) { ids.push_back(id); }
+      int nsteps = settings->sublist("Solver").get<int>("number of steps",1);
+      window_options.planned_windows = BswRevolve::uniformWindows(nsteps, block_size, ids);
+    }
+
+    string compressor = settings->sublist("Analysis").get<string>("window compressor","sketch");
+    bsw_manager = Teuchos::rcp(makeBswWindowManager(compressor, window_options).release());
+  }
   amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
   
   use_param_mass = settings->sublist("Solver").get<bool>("use parameter mass",false);

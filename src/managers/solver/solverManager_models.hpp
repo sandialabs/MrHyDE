@@ -74,6 +74,11 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
   // Revolve checkpointing owns both the forward recomputation and the reverse
   // sweep, so it replaces this whole routine rather than sitting inside it.
+  if (use_bsw && solver_type == "transient") {
+    this->bswAdjointModel(gradient);
+    debugger->print("**** Finished SolverManager::adjointModel");
+    return;
+  }
   if (use_checkpointing && solver_type == "transient") {
     this->checkpointedAdjointModel(gradient);
     debugger->print("**** Finished SolverManager::adjointModel");
