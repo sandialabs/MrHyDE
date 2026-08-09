@@ -4,49 +4,43 @@
 #include "revolve.hpp"
 
 #include <algorithm>
-#include <array>
 #include <deque>
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace MrHyDE {
 
-  /**
-   * @brief The primitive directives a BswRevolve schedule can emit.
-   */
+  /// The seven primitive directives a BSW schedule can issue.
   enum class BswAction {
     SolveRange,     ///< run the forward model for real steps k1..k2
-    JumpAnchor,     ///< set the state from window win's stored right-edge anchor u_b
+    JumpAnchor,     ///< set the state to window win's exact right-edge anchor u_b
     Store,          ///< copy the current state (= u_step) into checkpoint slot
-    Restore,        ///< load checkpoint slot back (state becomes u_step)
-    ReverseStep,    ///< classic reverse of real step k (is_first: terminal adjoint step)
-    ReverseWindow,  ///< adjoint sweep k = b..a+1 of window win from reconstructions;
-                    ///< on entry the state is u_a EXACT (the classic invariant)
-    Terminate,      ///< the reversal is complete
-    Error           ///< the inner schedule is inconsistent; see getStatus()
+    Restore,        ///< load slot back; the current state becomes u_step
+    ReverseStep,    ///< classic reverse of real step k (is_first: terminal adjoint)
+    ReverseWindow,  ///< adjoint sweep k = b..a+1 from reconstructions; entry state u_a EXACT
+    Terminate       ///< the schedule is complete
   };
 
-  /**
-   * @brief One schedule directive.  Only the fields for its action are set;
-   *        the rest stay at their defaults.
-   */
+  /// One directive; only the fields for its action are meaningful.
   struct BswDirective {
-    BswAction action = BswAction::Error;
-    int k1 = -1;            ///< SolveRange: first real step
-    int k2 = -1;            ///< SolveRange: last real step
+    BswAction action = BswAction::Terminate;
+    int k1 = 0;             ///< SolveRange: first step of the run
+    int k2 = 0;             ///< SolveRange: last step of the run
     int win = -1;           ///< JumpAnchor/ReverseWindow: 0-based window index
-    int step = -1;          ///< JumpAnchor/Store/Restore: real position after the action
+    int step = 0;           ///< JumpAnchor/Store/Restore: the state's step; ReverseStep: the step reversed
     int slot = -1;          ///< Store/Restore: 0-based checkpoint slot
-    int k = -1;             ///< ReverseStep: real step to reverse
-    int a = -1;             ///< ReverseWindow: window left edge (state on entry is u_a)
-    int b = -1;             ///< ReverseWindow: window right edge
-    bool is_first = false;  ///< ReverseStep/ReverseWindow: terminal adjoint step
+    int a = 0;              ///< ReverseWindow: left edge (state u_a is exact on entry)
+    int b = 0;              ///< ReverseWindow: right edge
+    bool is_first = false;  ///< ReverseStep/ReverseWindow: terminal adjoint path
   };
 
   /**
    * @class BswRevolve
-   * @brief Block-Sketched-Windows scheduler on a condensed revolve axis.
+   * @brief Block-Sketched-Windows scheduler on a condensed revolve axis
+   *        (port of BswRevolve.m).
    *
    * Wraps the certified classic Revolve (Algorithm 799): each sketched window
    * of consecutive time steps becomes ONE macro-step of a condensed time axis;
@@ -54,75 +48,66 @@ namespace MrHyDE {
    * into primitive directives on the real axis.  Pure integers: no physics, no
    * vectors, no storage.
    *
-   * Real axis: steps 1..N (1-based, driver convention).  Window i covers the
-   * consecutive real steps a_i+1 .. b_i (windows[i] = {a_i, b_i}, with
-   * m_i = b_i - a_i >= 2).  Windows are disjoint, sorted, may be adjacent.
-   * Crossing a window forward is free (the driver stores the window's exact
-   * right-edge anchor u_b); reversing it is free (interior states come from
-   * sketch reconstructions).
+   * Real axis: steps 1..N.  Window i covers the consecutive real steps
+   * a_i+1..b_i (m_i = b_i - a_i >= 2); windows are disjoint, sorted, may be
+   * adjacent.  Crossing a window forward is free (the driver holds the
+   * window's exact right-edge anchor u_b); reversing it is free (interior
+   * states come from reconstructions).
    *
    * Condensed axis: the N_eff = N - sum(m_i) outside steps, in order, plus one
-   * macro-step per window: N_c = N_eff + K_s, run by Revolve(N_c, num_checkpoints).
+   * macro-step per window: N_c = N_eff + num_windows.
    *
-   * With no windows this reduces action-for-action to classic Revolve (the unit
-   * test replays both side by side).  Rank/compression profitability guards
-   * live with the sketch payload, not here.  Known cosmetic waste: a condensed
+   * With no windows this reduces action-for-action to classic Revolve.
+   * Rank/compression profitability guards live with the window payloads, not
+   * here.  Known cosmetic waste, carried over from the MATLAB: a condensed
    * Store can land right after a JumpAnchor, duplicating that window's anchor
    * into a checkpoint slot -- correct, but the memory model should either
    * charge or waive it explicitly.
-   *
-   * Differences from the MATLAB reference (BswRevolve.m): window indices and
-   * checkpoint slots are 0-based here; the directive stream is otherwise
-   * identical.
    */
   class BswRevolve {
 
   public:
 
-    /**
-     * @brief Build a schedule for N real steps with the given sketched windows
-     *        and checkpoint budget.  windows[i] = {a, b} covers steps a+1..b.
-     */
-    BswRevolve(const int & num_steps, const std::vector<std::array<int,2> > & windows,
+    BswRevolve(const int & num_steps,
+               const std::vector<std::pair<int,int> > & windows,
                const int & num_checkpoints)
-      : windows_(windows) {
+      : N_(num_steps), windows_(windows) {
 
       if (num_checkpoints < 1) {
         throw std::invalid_argument("BswRevolve: num_checkpoints must be at least 1.");
       }
       validateWindows(num_steps, windows);
 
-      // condensed maps: walk the real axis, collapsing windows
-      const int num_windows = static_cast<int>(windows.size());
+      // condensed maps: walk the real axis, collapsing windows.  Entry jc
+      // (1-based condensed step) records the real position reached after it
+      // and which window it collapses (-1 = a plain real step).
+      const int num_windows = static_cast<int>(windows_.size());
       int wi = 0;
       int k = 1;
-      while (k <= num_steps) {
-        if (wi < num_windows && k == windows[wi][0] + 1) {
-          step_of_condensed_.push_back(windows[wi][1]);   // macro-step ends at b
-          window_of_condensed_.push_back(wi);
-          k = windows[wi][1] + 1;
+      while (k <= N_) {
+        if (wi < num_windows && k == windows_[wi].first + 1) {
+          step_of_c_.push_back(windows_[wi].second);
+          win_of_c_.push_back(wi);
+          k = windows_[wi].second + 1;
           ++wi;
         }
         else {
-          step_of_condensed_.push_back(k);
-          window_of_condensed_.push_back(-1);             // plain real step
-          k = k + 1;
+          step_of_c_.push_back(k);
+          win_of_c_.push_back(-1);
+          ++k;
         }
       }
 
-      num_condensed_ = static_cast<int>(step_of_condensed_.size());
-      num_effective_ = num_steps;
-      for (size_t i=0; i<windows.size(); ++i) {
-        num_effective_ -= windows[i][1] - windows[i][0];
+      Nc_ = static_cast<int>(step_of_c_.size());
+      Neff_ = N_;
+      for (size_t i=0; i<windows_.size(); ++i) {
+        Neff_ -= windows_[i].second - windows_[i].first;
       }
 
-      inner_ = std::unique_ptr<Revolve>(new Revolve(num_condensed_, num_checkpoints));
+      inner_.reset(new Revolve(Nc_, num_checkpoints));
     }
 
-    /**
-     * @brief The next primitive directive.  One inner Revolve action can expand
-     *        to several directives; they are queued and handed out one at a time.
-     */
+    /// The next primitive directive; translates inner Revolve actions on demand.
     BswDirective next() {
       while (queue_.empty()) {
         translate();
@@ -132,27 +117,30 @@ namespace MrHyDE {
       return d;
     }
 
-    int getNumCondensedSteps()  const { return num_condensed_; }
-    int getNumEffectiveSteps()  const { return num_effective_; }
-    int getStatus()             const { return inner_->getStatus(); }
+    int getNumSteps()          const { return N_; }
+    int getNumCondensedSteps() const { return Nc_; }
+    int getNumOutsideSteps()   const { return Neff_; }
+    int getNumWindows()        const { return static_cast<int>(windows_.size()); }
 
     /**
-     * @brief Reject malformed window tables: out of range, shorter than 2 steps
-     *        (that is a plain checkpoint), unsorted, or overlapping.
+     * @brief Reject malformed window tables: out of range, shorter than 2
+     *        steps (that is a plain checkpoint), unsorted or overlapping.
      */
     static void validateWindows(const int & num_steps,
-                                const std::vector<std::array<int,2> > & windows) {
+                                const std::vector<std::pair<int,int> > & windows) {
       for (size_t i=0; i<windows.size(); ++i) {
-        const int a = windows[i][0];
-        const int b = windows[i][1];
+        const int a = windows[i].first;
+        const int b = windows[i].second;
         if (a < 0 || b > num_steps) {
-          throw std::invalid_argument("BswRevolve: window out of range.");
+          throw std::invalid_argument("BswRevolve: window out of range [0,"
+                                      + std::to_string(num_steps) + "].");
         }
         if (b - a < 2) {
           throw std::invalid_argument(
-            "BswRevolve: window shorter than 2 steps is a plain checkpoint -- reject.");
+            "BswRevolve: a window shorter than 2 steps is a plain checkpoint -- reject.");
         }
-        if (i > 0 && (windows[i][0] <= windows[i-1][0] || windows[i][0] < windows[i-1][1])) {
+        if (i > 0 && (windows[i].first <= windows[i-1].first ||
+                      windows[i].first < windows[i-1].second)) {
           throw std::invalid_argument(
             "BswRevolve: windows must be sorted and disjoint (adjacent is fine).");
         }
@@ -160,57 +148,52 @@ namespace MrHyDE {
     }
 
     /**
-     * @brief Windows = the given blocks of the uniform block_size-partition of
-     *        1..num_steps: block j (1-based) covers steps (j-1)*block_size+1 .. j*block_size.
+     * @brief Blocks of the uniform m-partition of 1..N: block j (1-based)
+     *        covers steps (j-1)*m+1 .. j*m, i.e. the window [(j-1)*m, j*m].
      */
-    static std::vector<std::array<int,2> > uniformWindows(const int & num_steps,
-                                                          const int & block_size,
-                                                          std::vector<int> block_ids) {
+    static std::vector<std::pair<int,int> > uniformWindows(const int & num_steps,
+                                                           const int & block_size,
+                                                           const std::vector<int> & block_ids) {
       const int num_blocks = num_steps/block_size;
-      for (size_t i=0; i<block_ids.size(); ++i) {
-        if (block_ids[i] < 1 || block_ids[i] > num_blocks) {
-          throw std::invalid_argument("BswRevolve: block id out of range.");
+      std::vector<int> ids = block_ids;
+      std::sort(ids.begin(), ids.end());
+      std::vector<std::pair<int,int> > windows;
+      for (size_t i=0; i<ids.size(); ++i) {
+        if (ids[i] < 1 || ids[i] > num_blocks) {
+          throw std::invalid_argument("BswRevolve: block ids must lie in 1.."
+                                      + std::to_string(num_blocks) + ".");
         }
-      }
-      std::sort(block_ids.begin(), block_ids.end());
-      std::vector<std::array<int,2> > windows;
-      for (size_t i=0; i<block_ids.size(); ++i) {
-        const int j = block_ids[i];
-        windows.push_back({(j-1)*block_size, j*block_size});
+        windows.push_back(std::make_pair((ids[i]-1)*block_size, ids[i]*block_size));
       }
       return windows;
     }
 
     /// Solve counts for one gradient, by kind.
-    struct SolveCounts {
-      long advance_solves = 0;    ///< forward solves outside reversals
-      long reverse_solves = 0;    ///< one recompute per real-step reverse
-      long anchor_jumps = 0;      ///< free forward window crossings
-      long window_reverses = 0;   ///< free window reversals
-      long total = 0;             ///< advance_solves + reverse_solves
+    struct GradientSolves {
+      long advance_solves = 0;   ///< forward solves inside SolveRange runs
+      long reverse_solves = 0;   ///< one recompute per ReverseStep
+      long anchor_jumps = 0;
+      long window_reverses = 0;
+      long total = 0;            ///< advance + reverse (window interiors are free)
     };
 
     /**
-     * @brief Integer simulation of one gradient: con.solve counts by kind.
-     *        Sketches and anchors are built during the objective sweep, so a
-     *        gradient costs only advance solves plus one recompute per
-     *        real-step reverse.
+     * @brief Integer simulation of one gradient.  Sketches and anchors are
+     *        built during the forward sweep, so a gradient costs only the
+     *        advance solves plus one recompute per real-step reverse.
      */
-    static SolveCounts predictGradientSolves(const int & num_steps,
-                                             const std::vector<std::array<int,2> > & windows,
-                                             const int & num_checkpoints) {
-      BswRevolve bsw(num_steps, windows, num_checkpoints);
-      SolveCounts s;
+    static GradientSolves predictGradientSolves(const int & num_steps,
+                                                const std::vector<std::pair<int,int> > & windows,
+                                                const int & num_checkpoints) {
+      BswRevolve schedule(num_steps, windows, num_checkpoints);
+      GradientSolves s;
       while (true) {
-        BswDirective d = bsw.next();
+        BswDirective d = schedule.next();
         if (d.action == BswAction::SolveRange)         { s.advance_solves += d.k2 - d.k1 + 1; }
         else if (d.action == BswAction::ReverseStep)   { s.reverse_solves += 1; }
         else if (d.action == BswAction::JumpAnchor)    { s.anchor_jumps += 1; }
         else if (d.action == BswAction::ReverseWindow) { s.window_reverses += 1; }
         else if (d.action == BswAction::Terminate)     { break; }
-        else if (d.action == BswAction::Error) {
-          throw std::runtime_error("BswRevolve: inner Revolve returned an error.");
-        }
       }
       s.total = s.advance_solves + s.reverse_solves;
       return s;
@@ -218,42 +201,42 @@ namespace MrHyDE {
 
   private:
 
-    /// Run one inner Revolve action and queue its real-axis directives.
+    // Expand one inner Revolve action into primitive directives on the real axis.
     void translate() {
 
-      const int prev = inner_->getRangeStart();   // condensed position BEFORE
-      RevolveAction action = inner_->next();
+      const int prev = inner_->getRangeStart();
+      const RevolveAction action = inner_->next();
 
       if (action == RevolveAction::Advance) {
 
-        // expand condensed steps prev+1..range_start on the real axis, merging
-        // contiguous real steps into one SolveRange
+        // expand condensed steps prev+1..rangeStart, merging contiguous real
+        // steps into one SolveRange and crossing windows by anchor jump
         int run_start = 0;
         for (int jc=prev+1; jc<=inner_->getRangeStart(); ++jc) {
-          if (windowOf(jc) >= 0) {
+          if (win_of_c_[jc-1] >= 0) {
             if (run_start > 0) {
               BswDirective d;
               d.action = BswAction::SolveRange;
               d.k1 = run_start;
-              d.k2 = stepOf(jc-1);
+              d.k2 = step_of_c_[jc-2];
               queue_.push_back(d);
               run_start = 0;
             }
             BswDirective d;
             d.action = BswAction::JumpAnchor;
-            d.win = windowOf(jc);
-            d.step = stepOf(jc);
+            d.win = win_of_c_[jc-1];
+            d.step = step_of_c_[jc-1];
             queue_.push_back(d);
           }
           else if (run_start == 0) {
-            run_start = stepOf(jc);
+            run_start = step_of_c_[jc-1];
           }
         }
         if (run_start > 0) {
           BswDirective d;
           d.action = BswAction::SolveRange;
           d.k1 = run_start;
-          d.k2 = stepOf(inner_->getRangeStart());
+          d.k2 = step_of_c_[inner_->getRangeStart()-1];
           queue_.push_back(d);
         }
       }
@@ -273,19 +256,19 @@ namespace MrHyDE {
       }
       else if (action == RevolveAction::FirstReverse || action == RevolveAction::Reverse) {
 
-        const int jc = inner_->getRangeStart() + 1;   // condensed step reversed
-        const int w = windowOf(jc);
+        const int jc = inner_->getRangeStart() + 1;    // condensed step being reversed
+        const int w = win_of_c_[jc-1];
         BswDirective d;
         d.is_first = (action == RevolveAction::FirstReverse);
         if (w >= 0) {
           d.action = BswAction::ReverseWindow;
           d.win = w;
-          d.a = windows_[w][0];
-          d.b = windows_[w][1];
+          d.a = windows_[w].first;
+          d.b = windows_[w].second;
         }
         else {
           d.action = BswAction::ReverseStep;
-          d.k = stepOf(jc);
+          d.step = step_of_c_[jc-1];
         }
         queue_.push_back(d);
       }
@@ -295,26 +278,22 @@ namespace MrHyDE {
         queue_.push_back(d);
       }
       else {
-        BswDirective d;
-        d.action = BswAction::Error;
-        queue_.push_back(d);
+        throw std::runtime_error("BswRevolve: inner Revolve reported an inconsistent "
+                                 "state (status " + std::to_string(inner_->getStatus()) + ").");
       }
     }
 
-    /// Real position reached after condensed step jc (1-based jc, like the maps).
-    int stepOf(const int & jc)   const { return step_of_condensed_[jc-1]; }
-    /// Window id of condensed step jc, or -1 for a plain real step.
-    int windowOf(const int & jc) const { return window_of_condensed_[jc-1]; }
-    /// Real position after pc condensed steps (pc = 0 -> position 0).
-    int realPosition(const int & pc) const { return (pc == 0) ? 0 : stepOf(pc); }
+    /// Real position after pc condensed steps (pc = 0 means position 0 = u_0).
+    int realPosition(const int & pc) const {
+      return (pc == 0) ? 0 : step_of_c_[pc-1];
+    }
 
-    std::vector<std::array<int,2> > windows_;    ///< {a,b}: window covers steps a+1..b
-    int num_condensed_;                          ///< condensed steps = num_effective_ + #windows
-    int num_effective_;                          ///< real steps outside windows
-
-    std::vector<int> step_of_condensed_;         ///< real position reached after condensed step j
-    std::vector<int> window_of_condensed_;       ///< window id of macro-step j (-1 = real step)
-
+    int N_;                                      ///< real time steps
+    std::vector<std::pair<int,int> > windows_;   ///< [a,b] rows, sorted, disjoint
+    int Nc_ = 0;                                 ///< condensed steps = Neff + num windows
+    int Neff_ = 0;                               ///< real steps outside windows
+    std::vector<int> step_of_c_;                 ///< real position reached after condensed step
+    std::vector<int> win_of_c_;                  ///< window collapsed by that step (-1 = none)
     std::unique_ptr<Revolve> inner_;             ///< classic Revolve on the condensed axis
     std::deque<BswDirective> queue_;             ///< pending primitive directives
   };

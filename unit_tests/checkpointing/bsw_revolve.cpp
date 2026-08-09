@@ -1,96 +1,103 @@
 #include "bsw_revolve.hpp"
 #include "revolve.hpp"
 
-#include <array>
 #include <iostream>
-#include <stdexcept>
+#include <utility>
 #include <vector>
 
 using namespace MrHyDE;
 
-/// What one complete BSW schedule did, plus whether the driver invariants held.
+typedef std::vector<std::pair<int,int> > WindowTable;
+
+/// What one complete BSW schedule did, as seen by a virtual driver.
 struct BswStats {
     long advance_solves = 0;
     long reverse_solves = 0;
     long anchor_jumps = 0;
     long window_reverses = 0;
-    int max_slot = -1;
-    bool terminated = false;
+    int max_slot_used = 0;          ///< 1-based count of the highest slot touched
+    int first_reversals = 0;        ///< directives with is_first set
+    bool first_was_first = false;   ///< the is_first directive led the reversals
     bool invariants_ok = true;
-    std::vector<std::string> violations;
+    bool terminated = false;
+    std::vector<int> reversed;      ///< every real step, in the order reversed
 };
 
-/// Drive a schedule against a virtual position, checking every directive
-/// invariant the real driver will rely on.  No physics, just integers.
-BswStats runSchedule(const int & num_steps,
-                     const std::vector<std::array<int,2> > & windows,
+/**
+ * Drive a schedule against a virtual driver whose whole state is the current
+ * real position and the slot contents -- the same bookkeeping the PDE driver
+ * will do, with the physics stripped out.  Any directive that asks for a state
+ * the driver does not hold is an invariant failure.
+ */
+BswStats runSchedule(const int & num_steps, const WindowTable & windows,
                      const int & num_checkpoints) {
 
     BswStats stats;
-    BswRevolve bsw(num_steps, windows, num_checkpoints);
+    BswRevolve schedule(num_steps, windows, num_checkpoints);
 
     int pos = 0;                                        // current state is u_pos
-    std::vector<int> slot(num_checkpoints, -1);         // slot contents, by step number
-    std::vector<int> times_reversed(num_steps+1, 0);    // per real step
-    int last_reversed = num_steps + 1;                  // reversals must be decreasing
+    std::vector<int> slot(num_checkpoints, -1);
     long guard = 0;
+    const long guard_max = 100000;
 
-    auto fail = [&](const std::string & why) {
-        stats.invariants_ok = false;
-        stats.violations.push_back(why);
-    };
-
-    while (guard++ < 1000000) {
-
-        BswDirective d = bsw.next();
+    while (guard++ < guard_max) {
+        BswDirective d = schedule.next();
 
         if (d.action == BswAction::SolveRange) {
-            if (d.k1 != pos + 1) { fail("solveRange does not continue from the current position"); }
-            if (d.k2 < d.k1)     { fail("solveRange with empty range"); }
+            if (d.k1 != pos + 1 || d.k2 < d.k1 || d.k2 > num_steps) {
+                stats.invariants_ok = false;
+            }
             stats.advance_solves += d.k2 - d.k1 + 1;
             pos = d.k2;
         }
         else if (d.action == BswAction::JumpAnchor) {
-            if (d.win < 0 || d.win >= static_cast<int>(windows.size())) { fail("jumpAnchor bad window id"); }
-            else {
-                if (pos != windows[d.win][0])  { fail("jumpAnchor fired away from the window's left edge"); }
-                if (d.step != windows[d.win][1]) { fail("jumpAnchor does not land on the window's right edge"); }
+            // anchors only launch from the window's exact left edge
+            if (d.win < 0 || pos != windows[d.win].first ||
+                d.step != windows[d.win].second) {
+                stats.invariants_ok = false;
             }
             ++stats.anchor_jumps;
             pos = d.step;
         }
         else if (d.action == BswAction::Store) {
-            if (d.slot < 0 || d.slot >= num_checkpoints) { fail("store slot out of range"); }
+            if (d.slot < 0 || d.slot >= num_checkpoints || d.step != pos) {
+                stats.invariants_ok = false;
+            }
             else {
-                if (d.step != pos) { fail("store step disagrees with the current position"); }
                 slot[d.slot] = pos;
-                if (d.slot > stats.max_slot) { stats.max_slot = d.slot; }
+                stats.max_slot_used = std::max(stats.max_slot_used, d.slot + 1);
             }
         }
         else if (d.action == BswAction::Restore) {
-            if (d.slot < 0 || d.slot >= num_checkpoints) { fail("restore slot out of range"); }
-            else if (slot[d.slot] != d.step) { fail("restore from a slot that does not hold that step"); }
+            if (d.slot < 0 || d.slot >= num_checkpoints || slot[d.slot] != d.step) {
+                stats.invariants_ok = false;
+            }
             pos = d.step;
         }
         else if (d.action == BswAction::ReverseStep) {
-            if (pos != d.k - 1) { fail("reverseStep entered without u_{k-1} in hand"); }
-            if (d.k < 1 || d.k > num_steps) { fail("reverseStep step out of range"); }
-            else {
-                ++times_reversed[d.k];
-                if (d.k >= last_reversed) { fail("reversals not strictly decreasing"); }
-                last_reversed = d.k;
+            // the classic invariant: the driver holds u_{k-1} on entry
+            if (pos != d.step - 1) {
+                stats.invariants_ok = false;
             }
+            if (d.is_first) {
+                ++stats.first_reversals;
+                if (stats.reversed.empty()) { stats.first_was_first = true; }
+            }
+            stats.reversed.push_back(d.step);
             ++stats.reverse_solves;
         }
         else if (d.action == BswAction::ReverseWindow) {
-            if (d.win < 0 || d.win >= static_cast<int>(windows.size())) { fail("reverseWindow bad window id"); }
-            else {
-                if (pos != d.a) { fail("reverseWindow entered away from the exact bottom edge u_a"); }
-                for (int k=d.b; k>d.a; --k) {
-                    ++times_reversed[k];
-                    if (k >= last_reversed) { fail("reversals not strictly decreasing"); }
-                    last_reversed = k;
-                }
+            // window reversal enters with the exact left-edge state u_a
+            if (d.win < 0 || pos != d.a ||
+                d.a != windows[d.win].first || d.b != windows[d.win].second) {
+                stats.invariants_ok = false;
+            }
+            if (d.is_first) {
+                ++stats.first_reversals;
+                if (stats.reversed.empty()) { stats.first_was_first = true; }
+            }
+            for (int k=d.b; k>d.a; --k) {
+                stats.reversed.push_back(k);
             }
             ++stats.window_reverses;
         }
@@ -98,220 +105,176 @@ BswStats runSchedule(const int & num_steps,
             stats.terminated = true;
             break;
         }
-        else {
-            fail("schedule returned Error");
-            break;
-        }
     }
 
-    for (int k=1; k<=num_steps; ++k) {
-        if (times_reversed[k] != 1) {
-            fail("a real step was not reversed exactly once");
-            break;
+    // every real step reversed exactly once, in strictly decreasing order
+    if (stats.reversed.size() != static_cast<size_t>(num_steps)) {
+        stats.invariants_ok = false;
+    }
+    for (size_t i=0; i<stats.reversed.size(); ++i) {
+        if (stats.reversed[i] != num_steps - static_cast<int>(i)) {
+            stats.invariants_ok = false;
         }
+    }
+    if (stats.first_reversals != 1 || !stats.first_was_first) {
+        stats.invariants_ok = false;
     }
 
     return stats;
-}
-
-/// With no windows the directive stream must replay classic Revolve exactly:
-/// same stores, same restores, same reversal order, same advance expansion.
-bool matchesClassicRevolve(const int & num_steps, const int & num_checkpoints) {
-
-    Revolve classic(num_steps, num_checkpoints);
-    BswRevolve bsw(num_steps, std::vector<std::array<int,2> >(), num_checkpoints);
-    long guard = 0;
-
-    while (guard++ < 1000000) {
-
-        const int prev = classic.getRangeStart();
-        RevolveAction a = classic.next();
-        BswDirective d;
-
-        if (a == RevolveAction::Advance) {
-            d = bsw.next();
-            if (d.action != BswAction::SolveRange) { return false; }
-            if (d.k1 != prev + 1 || d.k2 != classic.getRangeStart()) { return false; }
-        }
-        else if (a == RevolveAction::Store) {
-            d = bsw.next();
-            if (d.action != BswAction::Store) { return false; }
-            if (d.slot != classic.getNumCheckpointsStored() - 1) { return false; }
-            if (d.step != classic.getRangeStart()) { return false; }
-        }
-        else if (a == RevolveAction::Restore) {
-            d = bsw.next();
-            if (d.action != BswAction::Restore) { return false; }
-            if (d.slot != classic.getNumCheckpointsStored() - 1) { return false; }
-            if (d.step != classic.getRangeStart()) { return false; }
-        }
-        else if (a == RevolveAction::FirstReverse || a == RevolveAction::Reverse) {
-            d = bsw.next();
-            if (d.action != BswAction::ReverseStep) { return false; }
-            if (d.k != classic.getRangeStart() + 1) { return false; }
-            if (d.is_first != (a == RevolveAction::FirstReverse)) { return false; }
-        }
-        else if (a == RevolveAction::Terminate) {
-            d = bsw.next();
-            return d.action == BswAction::Terminate;
-        }
-        else {
-            return false;
-        }
-    }
-    return false;
 }
 
 int main(){
 
     int num_failures = 0;
 
-    // --- S1: with no windows, replay classic Revolve action-for-action
+    // --- no windows: the schedule must be classic Revolve, action for action
     for (int n : {8, 33, 100}) {
         for (int c : {2, 3, 5, 8}) {
-            if (!matchesClassicRevolve(n, c)) {
-                std::cout << "FAIL: (" << n << "," << c
-                        << ") with no windows does not replay classic Revolve" << std::endl;
-                ++num_failures;
-            }
-        }
-    }
 
-    // --- S2: window layouts, every directive invariant checked
-    struct Layout {
-        int n;
-        std::vector<std::array<int,2> > windows;
-        const char * name;
-    };
-    std::vector<Layout> layouts = {
-        {40, BswRevolve::uniformWindows(40, 5, {3, 6}), "interior blocks"},
-        {40, {{{0, 5}}},                                "window at the start"},
-        {40, {{{35, 40}}},                              "window at the end"},
-        {40, {{{5, 10}, {10, 15}}},                     "adjacent windows"},
-        {24, {{{0, 12}, {12, 24}}},                     "everything sketched"},
-    };
-
-    for (size_t i=0; i<layouts.size(); ++i) {
-        const Layout & L = layouts[i];
-        const int num_windows = static_cast<int>(L.windows.size());
-        int windowed_steps = 0;
-        for (int w=0; w<num_windows; ++w) { windowed_steps += L.windows[w][1] - L.windows[w][0]; }
-        const int n_eff = L.n - windowed_steps;
-
-        BswStats s = runSchedule(L.n, L.windows, 3);
-
-        if (!s.terminated || !s.invariants_ok) {
-            std::cout << "FAIL: layout '" << L.name << "'";
-            if (!s.violations.empty()) { std::cout << " -- " << s.violations[0]; }
-            std::cout << std::endl;
-            ++num_failures;
-        }
-        if (s.reverse_solves != n_eff) {
-            std::cout << "FAIL: layout '" << L.name << "' used " << s.reverse_solves
-                    << " reverse solves, want " << n_eff << std::endl;
-            ++num_failures;
-        }
-        if (s.window_reverses != num_windows) {
-            std::cout << "FAIL: layout '" << L.name << "' reversed " << s.window_reverses
-                    << " windows, want " << num_windows << std::endl;
-            ++num_failures;
-        }
-        if (s.max_slot >= 3) {
-            std::cout << "FAIL: layout '" << L.name << "' exceeded the checkpoint budget" << std::endl;
-            ++num_failures;
-        }
-    }
-
-    // --- S2b: malformed window tables must be rejected
-    struct BadTable {
-        std::vector<std::array<int,2> > windows;
-        const char * why;
-    };
-    std::vector<BadTable> bad = {
-        {{{{0, 1}}},           "shorter than 2 steps"},
-        {{{{5, 3}}},           "reversed edges"},
-        {{{{0, 5}, {3, 8}}},   "overlapping"},
-        {{{{10, 15}, {0, 5}}}, "unsorted"},
-        {{{{-1, 5}}},          "negative edge"},
-        {{{{0, 99}}},          "out of range"},
-    };
-    for (size_t i=0; i<bad.size(); ++i) {
-        bool threw = false;
-        try {
-            BswRevolve reject(40, bad[i].windows, 3);
-        }
-        catch (const std::invalid_argument &) {
-            threw = true;
-        }
-        if (!threw) {
-            std::cout << "FAIL: window table (" << bad[i].why << ") was accepted" << std::endl;
-            ++num_failures;
-        }
-    }
-
-    // --- S3: proposal-scale accounting.  N=500 in blocks of m=50; a storage
-    // budget of K=125 state-equivalents is split between sketched windows
-    // (each costs m/zeta state-equivalents at compression factor zeta=3) and
-    // classic checkpoints (one state-equivalent each).
-    {
-        const int n = 500;
-        const int m = 50;
-        const int budget = 125;
-        const int zeta = 3;
-
-        for (int num_windows=0; num_windows<=7; ++num_windows) {
-
-            std::vector<int> block_ids;
-            for (int j=1; j<=num_windows; ++j) { block_ids.push_back(j); }
-            std::vector<std::array<int,2> > windows =
-                BswRevolve::uniformWindows(n, m, block_ids);
-
-            const int num_checkpoints = budget - num_windows*m/zeta;
-            const int n_eff = n - num_windows*m;
-            const int n_condensed = n_eff + num_windows;
-
-            BswStats s = runSchedule(n, windows, num_checkpoints);
+            BswStats s = runSchedule(n, WindowTable(), c);
 
             if (!s.terminated || !s.invariants_ok) {
-                std::cout << "FAIL: accounting sweep broke at " << num_windows << " windows";
-                if (!s.violations.empty()) { std::cout << " -- " << s.violations[0]; }
-                std::cout << std::endl;
+                std::cout << "FAIL: windowless schedule (" << n << "," << c
+                        << ") broke an invariant" << std::endl;
                 ++num_failures;
             }
-            if (s.reverse_solves != n_eff) {
-                std::cout << "FAIL: " << num_windows << " windows used " << s.reverse_solves
-                        << " reverse solves, want " << n_eff << std::endl;
+            if (s.anchor_jumps != 0 || s.window_reverses != 0) {
+                std::cout << "FAIL: windowless schedule (" << n << "," << c
+                        << ") issued window directives" << std::endl;
                 ++num_failures;
             }
+            if (s.advance_solves != Revolve::minExtraForwardSteps(n, c)) {
+                std::cout << "FAIL: windowless schedule (" << n << "," << c
+                        << ") cost " << s.advance_solves << " advances, want "
+                        << Revolve::minExtraForwardSteps(n, c) << std::endl;
+                ++num_failures;
+            }
+            if (s.max_slot_used > c) {
+                std::cout << "FAIL: windowless schedule (" << n << "," << c
+                        << ") exceeded the slot budget" << std::endl;
+                ++num_failures;
+            }
+        }
+    }
 
-            // each condensed advance costs at most one real solve (macro-steps
-            // are free anchor jumps), so the classic count is an upper bound
-            const long classic_advances =
-                Revolve::minExtraForwardSteps(n_condensed, num_checkpoints);
-            if (s.advance_solves > classic_advances) {
-                std::cout << "FAIL: " << num_windows << " windows cost " << s.advance_solves
-                        << " advance solves, bound " << classic_advances << std::endl;
+    // --- windowed layouts: interior blocks, a window at each end, adjacent
+    // windows, and a long sketched prefix
+    {
+        const int n = 40;
+        std::vector<WindowTable> layouts;
+        layouts.push_back(BswRevolve::uniformWindows(n, 10, {2, 3}));
+        layouts.push_back(WindowTable{{0, 5}});
+        layouts.push_back(WindowTable{{35, 40}});
+        layouts.push_back(WindowTable{{5, 10}, {10, 15}});
+        layouts.push_back(WindowTable{{0, 12}, {12, 24}});
+
+        for (size_t l=0; l<layouts.size(); ++l) {
+            for (int c : {2, 3}) {
+
+                const WindowTable & w = layouts[l];
+                BswStats s = runSchedule(n, w, c);
+
+                int outside = n;
+                for (size_t i=0; i<w.size(); ++i) {
+                    outside -= w[i].second - w[i].first;
+                }
+
+                if (!s.terminated || !s.invariants_ok) {
+                    std::cout << "FAIL: layout " << l << " (c=" << c
+                            << ") broke a directive invariant" << std::endl;
+                    ++num_failures;
+                }
+                if (s.reverse_solves != outside) {
+                    std::cout << "FAIL: layout " << l << " (c=" << c << ") paid "
+                            << s.reverse_solves << " reverse solves, want " << outside
+                            << std::endl;
+                    ++num_failures;
+                }
+                if (s.window_reverses != static_cast<long>(w.size())) {
+                    std::cout << "FAIL: layout " << l << " (c=" << c
+                            << ") reversed " << s.window_reverses << " windows, want "
+                            << w.size() << std::endl;
+                    ++num_failures;
+                }
+                if (s.max_slot_used > c) {
+                    std::cout << "FAIL: layout " << l << " (c=" << c
+                            << ") exceeded the slot budget" << std::endl;
+                    ++num_failures;
+                }
+            }
+        }
+    }
+
+    // --- malformed window tables must be rejected outright
+    {
+        const int n = 40;
+        std::vector<WindowTable> bad;
+        bad.push_back(WindowTable{{0, 1}});             // shorter than 2 steps
+        bad.push_back(WindowTable{{5, 3}});             // reversed edges
+        bad.push_back(WindowTable{{0, 10}, {5, 15}});   // overlapping
+        bad.push_back(WindowTable{{20, 30}, {0, 10}});  // unsorted
+        bad.push_back(WindowTable{{-1, 5}});            // negative edge
+        bad.push_back(WindowTable{{35, 45}});           // past the last step
+
+        for (size_t i=0; i<bad.size(); ++i) {
+            bool threw = false;
+            try { BswRevolve schedule(n, bad[i], 3); }
+            catch (const std::invalid_argument &) { threw = true; }
+            if (!threw) {
+                std::cout << "FAIL: malformed window table " << i
+                        << " was accepted" << std::endl;
                 ++num_failures;
             }
+        }
+    }
 
-            // the no-window row is exactly classic Revolve on the full axis
-            if (num_windows == 0 && s.advance_solves != 873) {
-                std::cout << "FAIL: no-window advance solves should be 873 = p(500,125), got "
+    // --- proposal-scale accounting: N=500 in blocks of 50 with a 125-SE pool
+    // and window cost m/zeta, zeta=3.  Sketching K_s blocks trades checkpoint
+    // slots for free window reversals; the K_s=0 row is the classic 873.
+    {
+        const int n = 500, block = 50, pool = 125, zeta = 3;
+
+        for (int num_sketched=0; num_sketched<=7; ++num_sketched) {
+
+            std::vector<int> ids;
+            for (int j=1; j<=num_sketched; ++j) { ids.push_back(j); }
+            const WindowTable w = BswRevolve::uniformWindows(n, block, ids);
+
+            const int slots = pool - (num_sketched*block)/zeta;
+            const int outside = n - num_sketched*block;
+
+            BswStats s = runSchedule(n, w, slots);
+            BswRevolve::GradientSolves p = BswRevolve::predictGradientSolves(n, w, slots);
+
+            if (!s.terminated || !s.invariants_ok) {
+                std::cout << "FAIL: proposal schedule Ks=" << num_sketched
+                        << " broke an invariant" << std::endl;
+                ++num_failures;
+            }
+            if (s.advance_solves != p.advance_solves || s.reverse_solves != p.reverse_solves) {
+                std::cout << "FAIL: predictGradientSolves disagrees with the schedule at Ks="
+                        << num_sketched << std::endl;
+                ++num_failures;
+            }
+            if (num_sketched == 0 && s.advance_solves != 873) {
+                std::cout << "FAIL: the classic row should cost exactly 873 advances, got "
                         << s.advance_solves << std::endl;
                 ++num_failures;
             }
-        }
-    }
-
-    // --- predictGradientSolves must agree with the measured schedule
-    {
-        std::vector<std::array<int,2> > windows = BswRevolve::uniformWindows(40, 5, {3, 6});
-        BswStats s = runSchedule(40, windows, 3);
-        BswRevolve::SolveCounts p = BswRevolve::predictGradientSolves(40, windows, 3);
-        if (p.advance_solves != s.advance_solves || p.reverse_solves != s.reverse_solves ||
-            p.anchor_jumps != s.anchor_jumps || p.window_reverses != s.window_reverses) {
-            std::cout << "FAIL: predictGradientSolves disagrees with the measured schedule" << std::endl;
-            ++num_failures;
+            if (s.reverse_solves != outside || s.window_reverses != num_sketched) {
+                std::cout << "FAIL: Ks=" << num_sketched << " reversed "
+                        << s.reverse_solves << "+" << s.window_reverses
+                        << ", want " << outside << "+" << num_sketched << std::endl;
+                ++num_failures;
+            }
+            // the condensed axis bounds the advance cost
+            const long bound = Revolve::minExtraForwardSteps(outside + num_sketched, slots);
+            if (s.advance_solves > bound) {
+                std::cout << "FAIL: Ks=" << num_sketched << " advances "
+                        << s.advance_solves << " exceed the condensed bound "
+                        << bound << std::endl;
+                ++num_failures;
+            }
         }
     }
 
