@@ -61,6 +61,13 @@ namespace MrHyDE {
       return p;
     }
 
+    /// Smallest prefix worth committing; the factors are exact, so two
+    /// columns already pay for themselves.
+    static int minCommitForRank(const int & rank, const int & min_commit) {
+      (void)rank;
+      return std::max(min_commit, 2);
+    }
+
     /// Streaming-transient cost model for the greedy planner.
     static void rollingStreamCoeffs(const int & M, const int & q, const int & rho,
                                     double & A, double & C) {

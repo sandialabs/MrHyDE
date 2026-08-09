@@ -82,9 +82,19 @@ namespace MrHyDE {
       return WindowPolicy();
     }
 
+    /// Smallest prefix worth committing at this rank: at least one genuinely
+    /// verified monitor pass (young passes stop at j = k2+1).
+    static int minCommitForRank(const int & rank, const int & min_commit) {
+      return std::max(min_commit, 2*rank + 3);
+    }
+
     /**
      * @brief Streaming-transient cost model for the greedy planner: holding a
      *        rolling window of length m costs about A*m + C state-equivalents.
+     *
+     * Unlike the MATLAB, the fixed test matrices (Omega2 at k2 SE, Phi1' at
+     * s1 SE) are charged here even though they could be regenerated from
+     * their seeds -- the budget counts what is actually resident.
      */
     static void rollingStreamCoeffs(const int & M, const int & r, const int & rho,
                                     double & A, double & C) {
@@ -93,7 +103,7 @@ namespace MrHyDE {
       const int s1 = 2*k1 + 1;
       const int s2 = 2*k2 + 1;
       A = 2.0*k2/M;
-      C = rho + 2.0 + 4.0*k1
+      C = rho + 2.0 + 4.0*k1 + k2 + s1
         + (2.0*s1*s2 + 2.0*s1*k1 + 2.0*s2*k2 + 1.0*k1*k2)/M;
     }
 
@@ -132,7 +142,7 @@ namespace MrHyDE {
       }
       j_cur_ = j;
 
-      ingest(u, j);
+      addColumn(u, j);
 
       if (policy_.rolling) {
         std::copy(u, u + M_, buf_roll_.begin() + static_cast<size_t>((j-1)%policy_.rho)*M_);
@@ -338,8 +348,14 @@ namespace MrHyDE {
         rollingStreamCoeffs(M_, r, policy_.rho, A, C);
         return A*m_ + C;
       }
+      // buf, V1, V2, B1, Q2, anchor, plus the resident test matrices and the
+      // small accumulators -- everything actually held is charged
       const double k = 2.0*r + 1.0;
-      const double doubles = static_cast<double>(M_)*m_ + M_*k + m_*k + M_*k + m_*k + M_;
+      const double s1 = 2.0*std::min(static_cast<int>(k), M_) + 1.0;
+      const double s2 = 2.0*k + 1.0;
+      const double doubles = static_cast<double>(M_)*m_ + M_*k + m_*k + M_*k + m_*k + M_
+                           + M_*k + M_*s1
+                           + s1*s2 + s1*k + s2*k;
       return doubles/M_;
     }
 
@@ -347,7 +363,7 @@ namespace MrHyDE {
 
     // One column update: V1 += u*om1, V2 row j = u'*Om2, and the incremental
     // projections H, G1, G2.  O(M*(k1+k2+s1)) once the caches exist.
-    void ingest(const double* u, const int & j) {
+    void addColumn(const double* u, const int & j) {
 
       ensureCaches();
 
@@ -744,7 +760,7 @@ namespace MrHyDE {
       G1_.assign(static_cast<size_t>(s1_)*k1_, 0.0);
       G2_.assign(static_cast<size_t>(s2_)*k2_, 0.0);
       for (int jj=1; jj<=j; ++jj) {
-        ingest(buf_.data() + static_cast<size_t>(jj-1)*M_, jj);
+        addColumn(buf_.data() + static_cast<size_t>(jj-1)*M_, jj);
       }
     }
 

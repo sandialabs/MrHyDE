@@ -71,3 +71,14 @@ SET_TARGET_PROPERTIES(svd_window PROPERTIES
 TARGET_LINK_LIBRARIES(svd_window ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
 
 ADD_TEST(NAME checkpointing_svd_window COMMAND svd_window)
+
+ADD_EXECUTABLE(bsw_window_manager
+bsw_window_manager.cpp)
+
+SET_TARGET_PROPERTIES(bsw_window_manager PROPERTIES
+  CXX_STANDARD 17
+  CXX_STANDARD_REQUIRED ON)
+
+TARGET_LINK_LIBRARIES(bsw_window_manager ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})
+
+ADD_TEST(NAME checkpointing_bsw_window_manager COMMAND bsw_window_manager)
