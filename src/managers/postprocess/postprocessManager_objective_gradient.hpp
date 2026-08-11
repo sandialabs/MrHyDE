@@ -1112,9 +1112,11 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
   }
 
   // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  // paramLIDs (see assemblyManager_gather.hpp case 4) are indexed against the
+  // overlapped parameter map; use the overlapped vector, not the owned one.
   vector<Kokkos::View<ScalarT *, AssemblyDevice>> params_kv;
 
-  auto Psol = params->getDiscretizedParams();
+  auto Psol = params->getDiscretizedParamsOver();
   auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
 
