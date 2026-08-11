@@ -1,0 +1,40 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  Mesh:
+    dimension: 3
+    mesh file: MESH_FILE_PLACEHOLDER
+    shape: MESH_SHAPE_PLACEHOLDER
+    source: Exodus
+  Physics:
+    eblock-0_0_0:
+      modules: porous mixed
+      Dirichlet conditions:
+        p:
+          all boundaries: '0.0'
+  Discretization:
+    eblock-0_0_0:
+      order:
+        p: 0
+        u: 1
+      quadrature: 2
+  Functions:
+    source: 3*(pi*pi)*sin(pi*x)*sin(pi*y)*sin(pi*z)
+  Solver:
+    solver: steady-state
+    workset size: 10
+    max nonlinear iters: 2
+    use direct solver: true
+  Analysis:
+    analysis type: forward
+  Postprocess:
+    compute errors: true
+    write solution: false
+    True solutions:
+      p: sin(pi*x)*sin(pi*y)*sin(pi*z)
+      'u[x]': -pi*cos(pi*x)*sin(pi*y)*sin(pi*z)
+      'u[y]': -pi*sin(pi*x)*cos(pi*y)*sin(pi*z)
+      'u[z]': -pi*sin(pi*x)*sin(pi*y)*cos(pi*z)
+...
