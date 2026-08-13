@@ -1,0 +1,230 @@
+%YAML 1.1
+---
+# Magnitude-scan probe on a Maxwell E-B control problem: reports each objective
+# and regularization term in unweighted and weighted forms so YAML weights can
+# be sanity-checked before a long ROL run.
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh:
+    dimension: 3
+    shape: hex
+    xmin: -10.0e-6
+    xmax: 10.0e-6
+    ymin: -10.0e-6
+    ymax: 10.0e-6
+    zmin: -40.0e-6
+    zmax: 40.0e-6
+    NX: 2
+    NY: 2
+    NZ: 44
+    Xprocs: 1
+    Yprocs: 1
+    Zprocs: 11
+    Xblocks: 1
+    Yblocks: 1
+    Zblocks: 9
+    blocknames: eblock-0_0_0 eblock-0_0_1 eblock-0_0_2 eblock-0_0_3 eblock-0_0_4 eblock-0_0_5 eblock-0_0_6 eblock-0_0_7 eblock-0_0_8
+    Periodic BCs:
+      Count: 2
+      Periodic Condition 1: 'xz-all 1e-10: top;bottom'
+      Periodic Condition 2: 'yz-all 1e-10: left;right'
+  Physics:
+    modules: maxwell
+    active controls: true
+    Initial conditions:
+      scalar data: true
+      E: 0.0
+      B: 0.0
+    Dirichlet conditions:
+      scalar data: false
+      Ex:
+        back: '0.0'
+        front: '0.0'
+      Ey:
+        back: '0.0'
+        front: '0.0'
+      Ez:
+        back: '0.0'
+        front: '0.0'
+    Mass weights:
+      E: 1.0
+      B: 1.0
+    Norm weights:
+      E: permittivity
+      B: 1/permeability
+  Discretization:
+    order:
+      E: 1
+      B: 1
+    quadrature: 2
+    side quadrature: 2
+  Parameters:
+    ctrl_current:
+      type: HCURL
+      order: 1
+      usage: discretized
+      initial_value: 0.0
+      dynamic: true
+  Functions:
+    eblock-0_0_4:
+      current x: 'gt*exp(-2*timebub*(t<toff))*(z<zmax)*(z>zmin)'
+      current y: '0'
+      current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      fc: '75.0e12'
+      fb: '40.0e12'
+      bs: '2.3548'
+      sigmaJ: fb/bs
+      gt: 'cos(2*pi*fc*(t-toff))'
+      timebub: '(pi*sigmaJ*(t-toff))*(pi*sigmaJ*(t-toff))'
+      toff: '50.0e-15'
+      zmin: '-0.404e-6'
+      zmax: '0.404e-6'
+    eblock-0_0_3:
+      current x: 'curl(ctrl_current)[x]'
+      current y: 'curl(ctrl_current)[y]'
+      current z: 'curl(ctrl_current)[z]'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_5:
+      current x: 'curl(ctrl_current)[x]'
+      current y: 'curl(ctrl_current)[y]'
+      current z: 'curl(ctrl_current)[z]'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_0:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      conductivity: 'alpha*zmindist*zmincut + alpha*zmaxdist*zmaxcut'
+      alpha: 'max_sigma/(abs(zmaxend-zmaxstart)^3)'
+      max_sigma: "1.0e4"
+      zmaxd: 'abs(z-zmaxstart)'
+      zmaxdist: 'zmaxd*zmaxd*zmaxd'
+      zmaxcut: '(z>zmaxstart)'
+      zmaxstart: '32.0e-6'
+      zmaxend: '40.0e-6'
+      zmind: 'abs(z-zminstart)'
+      zmindist: 'zmind*zmind*zmind'
+      zmincut: '(z<zminstart)'
+      zminstart: '-32.0e-6'
+      zminend: '-40.0e-6'
+    eblock-0_0_8:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+      conductivity: 'alpha*zmindist*zmincut + alpha*zmaxdist*zmaxcut'
+      alpha: 'max_sigma/(abs(zmaxend-zmaxstart)^3)'
+      max_sigma: "1.0e4"
+      zmaxd: 'abs(z-zmaxstart)'
+      zmaxdist: 'zmaxd*zmaxd*zmaxd'
+      zmaxcut: '(z>zmaxstart)'
+      zmaxstart: '32.0e-6'
+      zmaxend: '40.0e-6'
+      zmind: 'abs(z-zminstart)'
+      zmindist: 'zmind*zmind*zmind'
+      zmincut: '(z<zminstart)'
+      zminstart: '-32.0e-6'
+      zminend: '-40.0e-6'
+    eblock-0_0_1:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_2:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_6:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+    eblock-0_0_7:
+      current x: '0'
+      current y: '0'
+      current z: '0'
+      permittivity: '8.854187817e-12'
+      permeability: '1.2566370614e-6'
+  Solver:
+    solver: 'transient'
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    workset size: 100
+    final time: 2.0e-13
+    number of steps: 10
+    assembly partitioning: sequential
+    use basis database: false
+    use mass database: false
+    database TOL: 1.0e-13
+    linear TOL: 1.0e-14
+    max linear iters: 200
+    nonlinear TOL: 1.0e-12
+    max nonlinear iters: 1
+    use preconditioner: true
+    preconditioner type: Ifpack2
+    preconditioner variant: RELAXATION
+    right preconditioner: true
+    use direct solver: false
+    reuse preconditioner: true
+    reuse Jacobian: true
+    preconditioner reuse type: full
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Belos solver: 'BiCGStab'
+    enable autotune: true
+    Preconditioner Settings:
+      "relaxation: type": "Jacobi"
+      "relaxation: damping factor": 0.5
+      "relaxation: backward mode": false
+      "relaxation: sweeps": 2
+    dump jacobian: false
+  Analysis:
+    analysis type: ROL2
+    ROL2:
+      General:
+        Output Level: 2
+        Do magnitude scan: true
+        FD Check Random Seed: 42
+        FD Check Random Scale: 1.0e-8
+        Do grad+hessvec check: false
+      Step:
+        Type: Line Search
+      Status Test:
+        Iteration Limit: 0
+  Postprocess:
+    write solution: false
+    compute objective: true
+    Objective functions:
+      EM Energy:
+        type: integrated control
+        function: '0.5*permittivity*(E[x]*E[x]+E[y]*E[y]+E[z]*E[z]) + 0.5/permeability*(B[x]*B[x]+B[y]*B[y]+B[z]*B[z])'
+        weight: 1.0e35
+        blocks: 'eblock-0_0_0 eblock-0_0_1 eblock-0_0_2 eblock-0_0_6 eblock-0_0_7 eblock-0_0_8'
+      RegObj:
+        type: integrated control
+        function: '0.0'
+        weight: 0.0
+        blocks: 'eblock-0_0_3 eblock-0_0_5'
+        Regularization functions:
+          l2reg:
+            type: integrated
+            location: volume
+            function: '0.5*(ctrl_current[x]*ctrl_current[x])+0.5*(ctrl_current[y]*ctrl_current[y])+0.5*(ctrl_current[z]*ctrl_current[z])'
+            weight: 1.0e5
+          curlreg:
+            type: integrated
+            location: volume
+            function: '0.5*(curl(ctrl_current)[x]*curl(ctrl_current)[x])+0.5*(curl(ctrl_current)[y]*curl(ctrl_current)[y])+0.5*(curl(ctrl_current)[z]*curl(ctrl_current)[z])'
+            weight: 1.0e5
+...
