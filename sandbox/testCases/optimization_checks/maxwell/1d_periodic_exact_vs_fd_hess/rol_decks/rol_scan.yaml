@@ -1,0 +1,62 @@
+%YAML 1.1
+---
+# Magnitude scan only. Confirms w_EM=1e13, w_reg=1e5 gives balanced
+# weighted contributions at the seeded probe point before we spend compute
+# on the race. Iteration Limit: 0 -> ROL exits after the scan.
+ANONYMOUS:
+  Analysis:
+    analysis type: ROL2
+    parameter gradient preconditioner type: none
+    ROL2:
+      General:
+        Output Level: 2
+        Do magnitude scan: true
+        FD Check Random Seed: 42
+        FD Check Random Scale: 1.0e-3
+        Do grad+hessvec check: false
+        Do exact hessvec check: false
+        Do algebraic hessvec check: false
+        Do secant identity check: false
+        Bound Optimization Variables: false
+        Inexact Objective Function: false
+        Inexact Gradient: false
+        Inexact Hessian-Times-A-Vector: false
+        Projected Gradient Criticality Measure: false
+        HessVec Precond Mode: identity
+        Secant:
+          Type: Limited-Memory BFGS
+          Use as Preconditioner: false
+          Use as Hessian: false
+          Maximum Storage: 20
+          Barzilai-Borwein Type: 1
+          Use Default Scaling: true
+        Krylov:
+          Type: Conjugate Gradients
+          Absolute Tolerance: 1.0e-14
+          Relative Tolerance: 1.0e-10
+          Iteration Limit: 10
+      Step:
+        Type: Line Search
+        Line Search:
+          Function Evaluation Limit: 20
+          Sufficient Decrease Tolerance: 1.0e-04
+          Initial Step Size: 1.0e-8
+          User Defined Initial Step Size: false
+          Accept Linesearch Minimizer: false
+          Accept Last Alpha: false
+          Descent Method:
+            Type: Quasi-Newton
+            Nonlinear CG Type: Hestenes-Stiefel
+          Curvature Condition:
+            Type: Null Curvature Conditions
+          Line-Search Method:
+            Type: Cubic Interpolation
+            Backtracking Rate: 5.0e-01
+            Bracketing Tolerance: 1.0e-8
+      Status Test:
+        Gradient Tolerance: 1.0e-6
+        Use Relative Tolerances: true
+        Constraint Tolerance: 1.0e-08
+        Step Tolerance: 1.0e-50
+        Iteration Limit: 0
+...
