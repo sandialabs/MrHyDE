@@ -824,3 +824,11 @@ void PostprocessManager<Node>::resetObjectives()
     }
   }
 }
+
+template <class Node>
+void PostprocessManager<Node>::resetErrors()
+{
+  error_times.clear();
+  errors.clear();
+  subgrid_errors.clear();
+}

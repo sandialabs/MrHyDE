@@ -959,14 +959,22 @@ void AnalysisManager::ROL2Solve()
    }
    */
 
-  if (postproc_plot)
-  {
-    postproc_->write_solution = true;
-    string outfile = "output_after_optimization.exo";
-    postproc_->setNewExodusFile(outfile);
+  bool want_report = postproc_plot
+                     || postproc_->compute_error
+                     || postproc_->compute_response
+                     || postproc_->compute_integrated_quantities
+                     || postproc_->compute_flux_response;
+  if (want_report) {
+    postproc_->resetErrors(); // report() otherwise dumps all ROL forwards
+    postproc_->write_solution = postproc_plot;
+    if (postproc_plot) {
+      string outfile = "output_after_optimization.exo";
+      postproc_->setNewExodusFile(outfile);
+    }
     ScalarT objfun = 0.0;
     solver_->forwardModel(objfun);
-    if (ROLsettings.sublist("General").get("Disable source on final output", false))
+    if (postproc_plot
+        && ROLsettings.sublist("General").get("Disable source on final output", false))
     {
       vector<bool> newflags(1, false);
       solver_->physics->updateFlags(newflags);
@@ -974,8 +982,9 @@ void AnalysisManager::ROL2Solve()
       postproc_->setNewExodusFile(outfile);
       solver_->forwardModel(objfun);
     }
+    postproc_->report();
   }
-  
+
   if (settings_->sublist("Analysis").get("save parameters to file",false) ) {
     string filebase = settings_->sublist("Analysis").get("parameters file","params");
     MrHyDE_OptVector xtmp = params_->getCurrentVector();
