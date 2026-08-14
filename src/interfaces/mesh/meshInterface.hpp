@@ -154,6 +154,8 @@ public:
    */
   vector<string> getBlockNames();
   
+  vector<string> getPhaseBlockNames();
+  
   /** \brief Gets list of side set names.
    *  \return Vector of side names.
    */
@@ -169,16 +171,22 @@ public:
    */
   int getDimension();
   
+  int getPhaseDimension();
+  
   /** \brief Returns cell topology for a block.
    *  \param blockID Block identifier.
    *  \return Cell topology reference-counted pointer.
    */
   topo_RCP getCellTopology(string & blockID);
   
+  topo_RCP getPhaseCellTopology();
+  
   /** \brief Accessor for the STK connection manager.
    *  \return RCP to panzer::ConnManager.
    */
   Teuchos::RCP<panzer::ConnManager> getSTKConnManager();
+  
+  Teuchos::RCP<panzer::ConnManager> getPhaseSTKConnManager();
   
   
   
@@ -278,6 +286,8 @@ public:
    */
   DRV getMyNodes(const size_t & block, vector<size_t> & elemIDs);
   
+  DRV getMyPhaseNodes(vector<size_t> & elemIDs);
+  
   /**
    * @brief Allocate internal mesh data structures.
    */
@@ -317,6 +327,7 @@ public:
    */
   void readExodusData();
   
+  int getNumPhaseElements();
   /**
    * @brief Purge unnecessary data before solve stage.
    */
@@ -347,22 +358,23 @@ public:
   
   bool have_mesh_data, compute_mesh_data, have_rotations, have_rotation_phi, have_quadrature_data; ///< Mesh state flags
   string shape, mesh_data_file_tag, mesh_data_pts_tag, mesh_data_tag; ///< Mesh metadata tags
-  int dimension, verbosity; ///< Geometric dimension and verbosity level
+  int dimension, verbosity, phase_dimension; ///< Geometric dimension and verbosity level
   int num_nodes_per_elem, side_dim, num_sides, num_faces, num_seeds; ///< Mesh topology counts
   vector<int> random_seeds; ///< Random seeds for microstructure
   vector<topo_RCP> cell_topo, side_topo; ///< Cell and side topologies
+  topo_RCP phase_topo;
   int meshmod_xvar, meshmod_yvar, meshmod_zvar; ///< Mesh modification axes
-  bool meshmod_usesmoother, use_stk_mesh, use_simple_mesh; ///< Backend selection flags
+  bool meshmod_usesmoother, use_stk_mesh, use_simple_mesh, use_phase_stk_mesh, use_phase_simple_mesh; ///< Backend selection flags
   ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size; ///< Mesh modification parameters
   
-  vector<string> block_names, side_names, node_names, nfield_names, efield_names; ///< STK and field name lists
+  vector<string> block_names, phase_block_names, side_names, node_names, nfield_names, efield_names; ///< STK and field name lists
   int numResponses; ///< Number of responses
   std::default_random_engine generator; ///< RNG engine
   
   Teuchos::RCP<Tpetra::MultiVector<ScalarT,LO,GO,SolverNode> > meas; ///< Measurement vector
   vector<vector<ScalarT> > nfield_vals, efield_vals; ///< Field value arrays
   
-  Teuchos::RCP<SimpleMeshManager<ScalarT>> simple_mesh; ///< Simple mesh manager
+  Teuchos::RCP<SimpleMeshManager<ScalarT>> simple_mesh, phase_mesh; ///< Simple mesh manager
   ///@}
   
   /** @name Private Mesh Objects */

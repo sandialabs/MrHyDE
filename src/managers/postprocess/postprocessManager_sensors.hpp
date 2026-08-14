@@ -1007,8 +1007,14 @@ void PostprocessManager<Node>::locateSensorPoints(const int & block,
         for (size_type p = 0; p < nodebox.extent(0); ++p)
         {
           double xbuff = 0.1 * (nodebox(p, 0, 1) - nodebox(p, 0, 0));
-          double ybuff = 0.1 * (nodebox(p, 1, 1) - nodebox(p, 1, 0));
-          double zbuff = 0.1 * (nodebox(p, 2, 1) - nodebox(p, 2, 0));
+          double ybuff = 0.0;
+          double zbuff = 0.0;
+          if (dimension > 1) {
+            ybuff = 0.1 * (nodebox(p, 1, 1) - nodebox(p, 1, 0));
+          }
+          if (dimension > 2) {
+            zbuff = 0.1 * (nodebox(p, 2, 1) - nodebox(p, 2, 0));
+          }
           bool proceed = true;
           if (spts_host(pt, 0) < nodebox(p, 0, 0) - xbuff || spts_host(pt, 0) > nodebox(p, 0, 1) + xbuff)
           {

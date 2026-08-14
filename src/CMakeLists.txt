@@ -12,9 +12,12 @@ INCLUDE_DIRECTORIES ( ./
   ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/interfaces/z_prior_interfaces
   ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/prior
   ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/posterior
+  ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/posterior/continuation
   ${HdsaLib_SRC_DIR}/src/core/model_discrepancy/analysis/auxiliary
-  ${HdsaLib_SRC_DIR}/src/core/parametric_continuation/interfaces
-  ${HdsaLib_SRC_DIR}/src/core/parametric_continuation/analysis
+  ${HdsaLib_SRC_DIR}/src/core/pseudo_time_continuation/interfaces
+  ${HdsaLib_SRC_DIR}/src/core/pseudo_time_continuation/analysis
+  ${HdsaLib_SRC_DIR}/src/core/pseudo_time_continuation/analysis/preconditioners
+  ${HdsaLib_SRC_DIR}/src/core/pseudo_time_continuation/analysis/trajectories
   ${HdsaLib_SRC_DIR}/src/core/base/auxiliary
   ${HdsaLib_SRC_DIR}/src/core/base/linear_algebra
   ${HdsaLib_SRC_DIR}/src/core/base/vectors

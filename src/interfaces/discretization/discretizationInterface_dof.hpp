@@ -47,6 +47,7 @@ void DiscretizationInterface::buildDOFManagers() {
     }
     
     setDOF->buildGlobalUnknowns();
+      
 #ifndef MrHyDE_NO_AD
     for (size_t block=0; block<block_names.size(); ++block) {
       int numGIDs = setDOF->getElementBlockGIDCount(block_names[block]);
@@ -67,7 +68,7 @@ void DiscretizationInterface::buildDOFManagers() {
     Kokkos::View<const LO**, Kokkos::LayoutRight, PHX::Device> setLIDs = setDOF->getLIDs();
     
     dof_lids.push_back(setLIDs);
-    
+        
     {
       vector<GO> owned;
       setDOF->getOwnedIndices(owned);
@@ -86,7 +87,7 @@ void DiscretizationInterface::buildDOFManagers() {
       }
       dof_owned_and_shared.push_back(ownedas_kv);
     }
-
+    
     vector<vector<string> > varlist = physics->var_list[set];
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
     for (size_t block=0; block<block_names.size(); ++block) {
@@ -101,7 +102,6 @@ void DiscretizationInterface::buildDOFManagers() {
       set_offsets.push_back(celloffsets);
     }
     offsets.push_back(set_offsets);
-    
 
     this->setBCData(set,setDOF);
 
@@ -164,6 +164,267 @@ void DiscretizationInterface::buildDOFManagers() {
   debugger->print("**** Finished discretization::buildDOF");
   
 }
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+// After the mesh and the discretizations have been defined, we can create and add the physics
+// to the DOF manager
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::buildSimpleDOFManagers() {
+  
+  // GHDR: need to fill in the objects listed above (try it without the orientations and num_derivs_required)
+  
+  // GH: this simply pushes back DOFs 0,1,...,N-1 where N is the number of nodes for owned and ownedAndShared
+  //vector<GO> owned;
+  //for(unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i)
+  //  owned.push_back(((GO) i));
+  size_t num_owned = 0;
+  for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+    bool isshared = mesh->simple_mesh->isShared(i);
+    if (!isshared) {
+      if (phase_dimension > 0) {
+        num_owned++;
+      }
+    }
+  }
+  
+  Kokkos::View<GO*,HostDevice> owned("owned dofs",num_owned);
+  size_t prog = 0;
+  for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+    bool isshared = mesh->simple_mesh->isShared(i);
+    if (!isshared) {
+      owned(prog) = mesh->simple_mesh->localToGlobal(i);
+      ++prog;
+    }
+  }
+  dof_owned.push_back(owned);
+  
+  //for (size_type i=0; i<owned.extent(0); ++i) {
+  //  cout << comm->getRank() << "  " << owned(i) << endl;
+  //}
+  
+  Kokkos::View<GO*,HostDevice> owned_shared("owned and shared dofs",mesh->simple_mesh->getNumNodes());
+  for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
+    owned_shared(i) = mesh->simple_mesh->localToGlobal(i);
+  }
+  
+  //for (size_type i=0; i<owned_shared.extent(0); ++i) {
+  //  cout << comm->getRank() << "  " << owned_shared(i) << endl;
+  //}
+  
+  dof_owned_and_shared.push_back(owned_shared);
+  
+  dof_lids.push_back(mesh->simple_mesh->getCellToNodeMap()); // [set](elem, dof)
+  
+  /*
+   //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof]
+   Kokkos::View<GO**,HostDevice> elemids("dof gids", dof_lids[dof_lids.size()-1].extent(0), dof_lids[dof_lids.size()-1].extent(1));
+   for(unsigned int e=0; e<dof_lids[0].extent(0); ++e) {
+   std::vector<GO> localelemids;
+   for(unsigned int i=0; i<dof_lids[0].extent(1); ++i) {
+   //localelemids.push_back(dof_lids[0](e,i));
+   elemids(e,i) = dof_lids[0](e,i);
+   }
+   //elemids.push_back(localelemids);
+   }
+   dof_gids.push_back(elemids);
+   */
+  
+  // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
+  for (size_t set=0; set<physics->set_names.size(); ++set) {
+    vector<vector<string> > varlist = physics->var_list[set];
+    vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+    for (size_t block=0; block<block_names.size(); ++block) {
+      vector<vector<int> > celloffsets;
+      for (size_t j=0; j<varlist[block].size(); j++) {
+        string var = varlist[block][j];
+        //int num = setDOF->getFieldNum(var);
+        vector<int> var_offsets = {0, 1, 3, 2}; // GH: super hacky???
+        
+        celloffsets.push_back(var_offsets);
+      }
+      set_offsets.push_back(celloffsets);
+    }
+    offsets.push_back(set_offsets);
+    
+    // more hacky stuff; can't set dbcs without dof manager, but we don't have a dof manager
+    std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
+    std::vector<std::vector<LO> > block_dbc_dofs;
+    std::vector<LO> var_dofs;
+    //var_dofs.push_back(0);
+    block_dbc_dofs.push_back(var_dofs);
+    set_dbc_dofs.push_back(block_dbc_dofs);
+    dbc_dofs.push_back(set_dbc_dofs);
+    
+    // parameter manager wants num_derivs_required
+    num_derivs_required = std::vector<int>(1);
+    
+  }
+  
+  //panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",mesh->simple_mesh->getNumCells());
+  panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",1);
+  
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+// After the mesh and the discretizations have been defined, we can create and add the physics
+// to the DOF manager
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::buildPhaseDOFManagers() {
+  
+  Teuchos::TimeMonitor localtimer(*dofmgr_timer);
+  
+  debugger->print("**** Starting discretization::buildPhaseDOF ...");
+  
+  Teuchos::RCP<panzer::ConnManager> conn = mesh->getPhaseSTKConnManager();
+  
+  // num_derivs_required = vector<int>(block_names.size(),0);
+  
+  // DOF manager for the primary variables
+  for (size_t set=0; set<physics->set_names.size(); ++set) {
+        
+    // Build the dofs for the phase space discretization
+    
+    int phase_dimension = mesh->getPhaseDimension();
+    vector<string> phase_block_names;
+    Teuchos::RCP<panzer::DOFManager> setPhaseDOF = Teuchos::rcp(new panzer::DOFManager());
+    
+    if (phase_dimension > 0) {
+      TEUCHOS_TEST_FOR_EXCEPTION(block_names.size() > 1,std::runtime_error,"Probable Error: Pretty sure you cannot combine multiple physical blocks with phase space at this time");
+      
+      Teuchos::RCP<panzer::ConnManager> phase_conn = mesh->getPhaseSTKConnManager();
+      Teuchos::RCP<panzer::DOFManager> setPhaseDOF = Teuchos::rcp(new panzer::DOFManager());
+      setPhaseDOF->setConnManager(phase_conn,*(comm->getRawMpiComm()));
+      setPhaseDOF->setOrientationsRequired(true);
+      
+      phase_block_names = mesh->getPhaseBlockNames(); // should just one block
+      for (size_t j=0; j<physics->var_list[set][0].size(); j++) {
+        topo_RCP cellTopo = mesh->getPhaseCellTopology();
+        basis_RCP basis_pointer = this->getBasis(phase_dimension, cellTopo,
+                                                 physics->types[set][0][j],
+                                                 physics->orders[set][0][j]);
+        
+        Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
+        
+        if (physics->use_DG[set][0][j]) {
+          setPhaseDOF->addField(phase_block_names[0], physics->var_list[set][0][j], Pattern, panzer::FieldType::DG);
+        }
+        else {
+          setPhaseDOF->addField(phase_block_names[0], physics->var_list[set][0][j], Pattern, panzer::FieldType::CG);
+        }
+        
+      }
+      
+      setPhaseDOF->buildGlobalUnknowns();
+      
+    }
+      
+#ifndef MrHyDE_NO_AD
+    for (size_t block=0; block<block_names.size(); ++block) {
+      int numPhaseGIDs = setPhaseDOF->getElementBlockGIDCount(phase_block_names[0]);
+      num_derivs_required[block] *= numPhaseGIDs;
+      
+      TEUCHOS_TEST_FOR_EXCEPTION(num_derivs_required[block] > MAXDERIVS,std::runtime_error,"Error: MAXDERIVS is not large enough to support the number of degrees of freedom per element on block: " + block_names[block]);
+    }
+#endif
+    if (verbosity>1) {
+      if (comm->getRank() == 0) {
+        setPhaseDOF->printFieldInformation(cout);
+      }
+    }
+
+    // Instead of storing the DOF manager, which holds onto the mesh, we extract what we need
+    //DOF.push_back(setDOF);
+    
+    vector<GO> phase_owned;
+    setPhaseDOF->getOwnedIndices(phase_owned);
+    num_phase_dof.push_back(phase_owned.size());
+    
+    vector<vector<string> > varlist = physics->var_list[set];
+    vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+      //for (size_t block=0; block<block_names.size(); ++block) {
+    vector<vector<int> > celloffsets;
+    for (size_t j=0; j<varlist[0].size(); j++) {
+      string var = varlist[0][j];
+      int num = setPhaseDOF->getFieldNum(var);
+      vector<int> var_offsets = setPhaseDOF->getGIDFieldOffsets(phase_block_names[0],num);
+          
+      celloffsets.push_back(var_offsets);
+    }
+    set_offsets.push_back(celloffsets);
+      //}
+    phase_offsets.push_back(set_offsets);
+    
+  }
+
+  // Create the vector of panzer orientations
+  // Using the panzer orientation interface works, except when also
+  // using an MPI subcommunicator, e.g., in the subgrid models
+  // Leaving here for testing purposes
+
+  //auto pOInt = panzer::OrientationsInterface(DOF[0]);
+  //auto pO_orients = pOInt.getOrientations();
+  //panzer_orientations = *pO_orients;
+  
+  {
+    auto oconn = conn->noConnectivityClone();
+    
+    shards::CellTopology topology;
+    std::vector<shards::CellTopology> elementBlockTopologies;
+    oconn->getElementBlockTopologies(elementBlockTopologies);
+
+    topology = elementBlockTopologies.at(0);
+  
+    const int num_nodes_per_cell = topology.getVertexCount();
+
+    size_t totalElem = mesh->getNumPhaseElements();
+    
+    // Make sure the conn is setup for a nodal connectivity
+    panzer::NodalFieldPattern pattern(topology);
+    oconn->buildConnectivity(pattern);
+
+    // Initialize the orientations vector
+    //panzer_orientations.clear();
+    phase_panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orients",totalElem);
+  
+    using NodeView = Kokkos::View<GO*, Kokkos::DefaultHostExecutionSpace>;
+    
+    // Add owned orientations
+    {
+      for (size_t block=0; block<block_names.size(); ++block) {
+        for (size_t c=0; c<totalElem; ++c) {
+          size_t elemID = c;
+          const GO * nodes = oconn->getConnectivity(elemID);
+          NodeView node_view("nodes",num_nodes_per_cell);
+          for (int node=0; node<num_nodes_per_cell; ++node) {
+            node_view(node) = nodes[node];
+          }
+          phase_panzer_orientations(elemID) = Intrepid2::Orientation::getOrientation(topology, node_view);
+          
+        }
+      }
+    }
+  }
+  
+  debugger->print("**** Finished discretization::buildPhaseDOF");
+  
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+// After the mesh and the discretizations have been defined, we can create and add the physics
+// to the DOF manager
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+void DiscretizationInterface::buildSimplePhaseDOFManagers() {
+  
+  phase_dof_lids.push_back(mesh->phase_mesh->getCellToNodeMap()); // [set](elem, dof)
+  
+  phase_panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",1);
+  
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -457,6 +718,11 @@ void DiscretizationInterface::setBCData(const size_t & set, Teuchos::RCP<panzer:
     
   //} // sets
   
+  // Possibly modify for phase space discretization
+  
+  
+  
+  
   debugger->print("**** Finished DiscretizationInterface::setBCData");
 }
 
@@ -614,6 +880,18 @@ vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & b
     //gids.push_back(dof_gids[set](elem,k));
   }
   return gids;//dof_gids[set][elem];
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+vector<GO> DiscretizationInterface::getPhaseGIDs(const size_t & set, const size_t & elem) {
+  vector<GO> gids;
+  int num_phase_dof = this->getNumPhaseDOFs(set);
+  for (int j=0; j<num_phase_dof; j++) {
+    gids.push_back(j);
+  }
+  return gids;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

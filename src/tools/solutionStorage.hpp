@@ -275,8 +275,8 @@ namespace MrHyDE {
     LO max_storage_;
     ScalarT time_rel_TOL_;
     
-    vector<vector<ScalarT> > times_;
-    vector<vector<Teuchos::RCP<V> > > data_;
+    vector<vector<ScalarT> > times_; // [set][timestep]
+    vector<vector<Teuchos::RCP<V> > > data_; // [set][timestep]
     
     // Additional data needed for ML
     vector<vector<Kokkos::View<ScalarT*,V_device> > > inputs_;

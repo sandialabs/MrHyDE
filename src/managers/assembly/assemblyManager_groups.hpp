@@ -21,8 +21,9 @@ void AssemblyManager<Node>::createGroups() {
   
   vector<stk::mesh::Entity> all_meshElems = mesh->getMySTKElements();
   
-  
+  // Grab the local dof IDs
   auto LIDs = disc->dof_lids;
+  auto phaseLIDs = disc->phase_dof_lids;
   
   // Disc manager stores offsets as [set][block][var][dof]
   vector<vector<vector<vector<int> > > > disc_offsets = disc->offsets;
@@ -37,6 +38,33 @@ void AssemblyManager<Node>::createGroups() {
     my_offsets.push_back(block_offsets);
   }
   
+  // Disc manager stores phase offsets as [set][block][var][dof]
+  // Though phase meshes only have one block
+  vector<vector<vector<vector<int> > > > disc_phase_offsets = disc->phase_offsets;
+  
+  // We want these re-ordered as [block][set][var][dof]
+  vector<vector<vector<vector<int> > > > my_phase_offsets;
+  if (mesh->getPhaseDimension() > 0) {
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      vector<vector<vector<int> > > block_offsets;
+      for (size_t set=0; set<disc_phase_offsets.size(); ++set) {
+        block_offsets.push_back(disc_phase_offsets[set][0]);
+      }
+      my_phase_offsets.push_back(block_offsets);
+    }
+  }
+  else {
+    for (size_t block=0; block<blocknames.size(); ++block) {
+      vector<vector<vector<int> > > block_offsets;
+      for (size_t set=0; set<disc_offsets.size(); ++set) {
+        vector<vector<int> > set_offsets;
+        block_offsets.push_back(set_offsets);
+      }
+      my_phase_offsets.push_back(block_offsets);
+    }
+  }
+  
+  
   for (size_t block=0; block<blocknames.size(); ++block) {
     Teuchos::RCP<GroupMetaData> blockGroupData;
     vector<Teuchos::RCP<Group> > block_groups;
@@ -47,13 +75,13 @@ void AssemblyManager<Node>::createGroups() {
     topo_RCP cellTopo = mesh->getCellTopology(blocknames[block]);
     
     size_t numTotalElem;
-    if(mesh->use_stk_mesh)
+    if (mesh->use_stk_mesh)
       numTotalElem = stk_meshElems.size();
     else
       numTotalElem = mesh->simple_mesh->getNumCells();
     size_t processedElem = 0;
     
-    if (numTotalElem>0) {
+    if (numTotalElem > 0) {
       
       auto myElem = disc->my_elements[block];
       Kokkos::View<LO*,AssemblyDevice> eIDs("local element IDs on device",myElem.size());
@@ -84,6 +112,22 @@ void AssemblyManager<Node>::createGroups() {
                                                        aface, sideSets,
                                                        params->num_discretized_params));
       
+      int phase_dimension = mesh->getPhaseDimension();
+      if (phase_dimension > 0) {
+        topo_RCP phase_topo = mesh->getPhaseCellTopology();
+        blockGroupData->phase_dimension = phase_dimension;
+        blockGroupData->phase_cell_topo = phase_topo;
+        blockGroupData->phase_num_nodes = phase_topo->getNodeCount();
+        if (phase_dimension == 1) {
+          blockGroupData->phase_num_sides = 2;
+        }
+        else if (phase_dimension == 2) {
+          blockGroupData->phase_num_sides = phase_topo->getSideCount();
+        }
+        else if (phase_dimension == 3) {
+          blockGroupData->phase_num_sides = phase_topo->getFaceCount();
+        }
+      }
       disc->setReferenceData(blockGroupData);
       
       blockGroupData->require_basis_at_nodes = settings->sublist("Postprocess").get<bool>("plot solution at nodes",false);
@@ -98,6 +142,8 @@ void AssemblyManager<Node>::createGroups() {
           }
         }
       }
+      
+      // Set the number of DOFs
       vector<vector<vector<int> > > curroffsets = my_offsets[block];
       vector<Kokkos::View<LO*,AssemblyDevice> > set_numDOF;
       vector<Kokkos::View<LO*,HostDevice> > set_numDOF_host;
@@ -118,6 +164,30 @@ void AssemblyManager<Node>::createGroups() {
       
       blockGroupData->num_dof = set_numDOF[0];
       blockGroupData->num_dof_host = set_numDOF_host[0];
+      
+      // Set the number of phase DOFs
+      if (phase_dimension > 0) {
+        vector<vector<vector<int> > > curr_phase_offsets = my_phase_offsets[block];
+        vector<Kokkos::View<LO*,AssemblyDevice> > set_phase_numDOF;
+        vector<Kokkos::View<LO*,HostDevice> > set_phase_numDOF_host;
+        
+        for (size_t set=0; set<curr_phase_offsets.size(); ++set) {
+          Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",curr_phase_offsets[set].size());
+          Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curr_phase_offsets[set].size());
+          for (size_t k=0; k<curr_phase_offsets[set].size(); k++) {
+            numDOF_host(k) = static_cast<LO>(curr_phase_offsets[set][k].size());
+          }
+          Kokkos::deep_copy(numDOF_KV, numDOF_host);
+          set_phase_numDOF.push_back(numDOF_KV);
+          set_phase_numDOF_host.push_back(numDOF_host);
+        }
+        
+        blockGroupData->phase_set_num_dof = set_phase_numDOF;
+        blockGroupData->phase_set_num_dof_host = set_phase_numDOF_host;
+        
+        blockGroupData->phase_num_dof = set_phase_numDOF[0];
+        blockGroupData->phase_num_dof_host = set_phase_numDOF_host[0];
+      }
       
       //////////////////////////////////////////////////////////////////////////////////
       // Boundary groups
@@ -203,7 +273,7 @@ void AssemblyManager<Node>::createGroups() {
                 Kokkos::deep_copy(eIndex,host_eIndex);
                 Kokkos::deep_copy(host_eIndex2,host_eIndex);
                 
-                // Build the Kokkos View of the group LIDs ------
+                // Build the Kokkos View of the group physical LIDs ------
                 vector<LIDView> set_LIDs;
                 for (size_t set=0; set<LIDs.size(); ++set) {
                   LIDView groupLIDs("LIDs",currElem,LIDs[set].extent(1));
@@ -217,6 +287,31 @@ void AssemblyManager<Node>::createGroups() {
                     }
                   });
                   set_LIDs.push_back(groupLIDs);
+                }
+                
+                // Build the Kokkos View of the group physical LIDs ------
+                vector<LIDView> set_phase_LIDs;
+                if (mesh->getPhaseDimension() > 0) {
+                  for (size_t set=0; set<phaseLIDs.size(); ++set) {
+                    int numPhaseElem = mesh->getNumPhaseElements();
+                    LIDView groupLIDs("LIDs",numPhaseElem,phaseLIDs[set].extent(1));
+                    auto currLIDs = phaseLIDs[set];
+                    parallel_for("assembly copy LIDs bgrp",
+                                 RangePolicy<AssemblyExec>(0,numPhaseElem),
+                                 MRHYDE_LAMBDA (const int e ) {
+                      size_t elemID = e;
+                      for (size_type j=0; j<currLIDs.extent(1); j++) {
+                        groupLIDs(e,j) = currLIDs(elemID,j);
+                      }
+                    });
+                    set_phase_LIDs.push_back(groupLIDs);
+                  }
+                }
+                else {
+                  for (size_t set=0; set<LIDs.size(); ++set) {
+                    LIDView groupLIDs("LIDs",1,1);
+                    set_phase_LIDs.push_back(groupLIDs);
+                  }
                 }
                 
                 //-----------------------------------------------
@@ -237,6 +332,8 @@ void AssemblyManager<Node>::createGroups() {
                                                                                disc, storeThis)));
                 size_t cindex = block_boundary_groups.size()-1;
                 block_boundary_groups[cindex]->LIDs = set_LIDs;
+                block_boundary_groups[cindex]->phase_LIDs = set_phase_LIDs;
+                block_boundary_groups[cindex]->phase_numElem = mesh->getNumPhaseElements();
                 block_boundary_groups[cindex]->createHostLIDs();
                 block_boundary_groups[cindex]->sideinfo = set_sideinfo;
                 prog += currElem;
@@ -395,6 +492,8 @@ void AssemblyManager<Node>::createGroups() {
         }
         Kokkos::deep_copy(eIndex,host_eIndex);
         Kokkos::deep_copy(host_eIndex2,host_eIndex);
+        
+        // Take care of the physical local IDs
         vector<LIDView> set_LIDs;
         for (size_t set=0; set<LIDs.size(); ++set) {
           auto currLIDs = LIDs[set];
@@ -409,6 +508,32 @@ void AssemblyManager<Node>::createGroups() {
           });
           set_LIDs.push_back(groupLIDs);
         }
+        
+        // Take care of the phase local IDs
+        vector<LIDView> set_phase_LIDs;
+        if (mesh->getPhaseDimension() > 0) {
+          for (size_t set=0; set<phaseLIDs.size(); ++set) {
+            auto currLIDs = phaseLIDs[set];
+            int numPhaseElem = mesh->getNumPhaseElements();
+            LIDView groupLIDs("LIDs on device",numPhaseElem,currLIDs.extent(1));
+            parallel_for("assembly copy nodes",
+                         RangePolicy<AssemblyExec>(0,numPhaseElem),
+                         MRHYDE_LAMBDA (const int e ) {
+              LO elemID = e;
+              for (size_type j=0; j<currLIDs.extent(1); j++) {
+                groupLIDs(e,j) = currLIDs(elemID,j);
+              }
+            });
+            set_phase_LIDs.push_back(groupLIDs);
+          }
+        }
+        else {
+          for (size_t set=0; set<LIDs.size(); ++set) {
+            LIDView groupLIDs("LIDs on device",1,1);
+            set_phase_LIDs.push_back(groupLIDs);
+          }
+        }
+        
         vector<size_t> local_grp(elem_groups[grp].size());
         for (size_t e=0; e<local_grp.size(); ++e) {
           local_grp[e] = host_eIDs(elem_groups[grp][e]);
@@ -416,7 +541,7 @@ void AssemblyManager<Node>::createGroups() {
         
         // Set the side information (soon to be removed)-
         vector<Kokkos::View<int****,HostDevice> > set_sideinfo;
-        if(mesh->use_stk_mesh) {
+        if (mesh->use_stk_mesh) {
           for (size_t set=0; set<LIDs.size(); ++set) {
             Kokkos::View<int****,HostDevice> sideinfo = disc->getSideInfo(set,block,host_eIndex2);
             set_sideinfo.push_back(sideinfo);
@@ -435,9 +560,18 @@ void AssemblyManager<Node>::createGroups() {
         }
         size_t cindex = block_groups.size()-1;
         block_groups[cindex]->LIDs = set_LIDs;
+        block_groups[cindex]->phase_LIDs = set_phase_LIDs;
         block_groups[cindex]->createHostLIDs();
         block_groups[cindex]->sideinfo = set_sideinfo;
         
+        if (mesh->getPhaseDimension() > 0) {
+          vector<size_t> phase_elemIDs(mesh->getNumPhaseElements());
+          for (size_t e=0; e<mesh->getNumPhaseElements(); ++e) {
+            phase_elemIDs[e] = e;
+          }
+          DRV phase_nodes = mesh->getMyPhaseNodes(phase_elemIDs);
+          block_groups[cindex]->addPhaseNodes(phase_nodes);
+        }
         prog += elemPerGroup;
         
       }
@@ -489,12 +623,18 @@ void AssemblyManager<Node>::allocateGroupStorage() {
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       groups[block][grp]->computeBasis(keepnodes);
+      if (mesh->getPhaseDimension() > 0) {
+        groups[block][grp]->computePhaseBasis(keepnodes);
+      }
     }
   }
   
   for (size_t block=0; block<boundary_groups.size(); ++block) {
     for (size_t grp=0; grp<boundary_groups[block].size(); ++grp) {
       boundary_groups[block][grp]->computeBasis(keepnodes);
+      if (mesh->getPhaseDimension() > 0) {
+        boundary_groups[block][grp]->computePhaseBasis(keepnodes);
+      }
     }
   }
   

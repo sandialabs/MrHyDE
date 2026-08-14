@@ -42,6 +42,8 @@
 #include "hartmann.hpp"
 #include "vlasov_fokker_planck_0d2v.hpp"
 #include "vlasov_fokker_planck_1d2v.hpp"
+#include "vlasov_fokker_planck.hpp"
+#include "phase_elliptic.hpp"
 #include "levelSet.hpp"
 #include "maxwell_bianisotropic.hpp"
 
@@ -227,6 +229,16 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // VFP1d2v equations
     if (modname == "VFP1d2v" ){
       modules.push_back(Teuchos::rcp(new VFP1d2v<EvalT>(settings, dimension) ) );
+    }
+    
+    // VFP equations (arbitrary dimensions)
+    if (modname == "VFP" ){
+      modules.push_back(Teuchos::rcp(new VFP<EvalT>(settings, dimension) ) );
+    }
+    
+    // Phase equation for testing
+    if (modname == "phase elliptic" ){
+      modules.push_back(Teuchos::rcp(new PhaseElliptic<EvalT>(settings, dimension) ) );
     }
     
     // Incompressible saturation equation

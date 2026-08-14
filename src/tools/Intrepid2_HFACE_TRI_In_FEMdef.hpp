@@ -95,7 +95,7 @@ namespace Intrepid2 {
           // left side (x=0) first
           {
             bool on_edge = false;
-            if (std::abs(input_x(0)-0.0)<1.0e-12) {
+            if (std::abs(input_x.access(0)-0.0)<1.0e-12) {
               on_edge = true;
             }
             if (on_edge) {
@@ -121,7 +121,7 @@ namespace Intrepid2 {
           // bottom side (y=0)
           {
             bool on_edge = false;
-            if (std::abs(input_y(0)-0.0)<1.0e-12) {
+            if (std::abs(input_y.access(0)-0.0)<1.0e-12) {
               on_edge = true;
             }
             
@@ -149,7 +149,7 @@ namespace Intrepid2 {
           // angle side (x+y=1)
           {
             bool on_edge = false;
-            if (std::abs(input_x(0)+input_y(0)-1.0)<1.0e-12) {
+            if (std::abs(input_x.access(0)+input_y.access(0)-1.0)<1.0e-12) {
               on_edge = true;
             }
             if (on_edge) {
