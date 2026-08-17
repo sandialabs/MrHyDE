@@ -304,15 +304,11 @@ KOKKOS_FUNCTION EvalT levelSet<EvalT>::computeTau(
   const ScalarT & h
 ) const
 {
-  
-  constexpr ScalarT C = 0.5;
-  EvalT nvel          = 0.0;  
-  nvel                = xvl*xvl + yvl*yvl;
-  
-  if (nvel > 1E-12)
-    nvel = sqrt(nvel);
-  
-  return C * h / (2 * nvel);
+
+  constexpr ScalarT alpha = 0.5;
+  const EvalT nvel = sqrt(xvl * xvl + yvl * yvl + zero_tol * zero_tol);
+
+  return alpha * h / (2 * nvel);
 }
 
 // ========================================================================================

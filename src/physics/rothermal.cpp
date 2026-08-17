@@ -383,6 +383,9 @@ rothermal<EvalT>::computeFields(
     // output struct
     ResponseFields fields;
 
+    const ScalarT windGain  = windConstant / (1.0 + windConstant);
+    const ScalarT slopeGain = slopeConstant / (1.0 + slopeConstant);
+
     // loop over elements
     Kokkos::parallel_for("rothermal computeFields",
         Kokkos::RangePolicy<AssemblyExec>(0, numElem),
@@ -418,25 +421,28 @@ rothermal<EvalT>::computeFields(
             EvalT normalX     = dphi_dx(elem,pt) * invGradNorm;
             EvalT normalY     = dphi_dy(elem,pt) * invGradNorm;
 
-            // fuel fraction
-            EvalT fuelArg             = burnConstant * phiScaled;
-            fuelCorrection_(elem, pt) = heaviside(fuelArg - Fthresh);
+            // fuel
+            EvalT fuelGateArgument      = burnConstant * phiScaled - Fthresh;
+            fuelCorrection_(elem, pt)   = heaviside(fuelGateArgument);
 
             // wind
-            EvalT windComp            = xvel(elem,pt) * normalX + yvel(elem,pt) * normalY;
-            windComponent_(elem, pt)  = windComp;
-            EvalT windNorm            = sqrt(xvel(elem,pt) * xvel(elem,pt) + yvel(elem,pt) * yvel(elem,pt) + zero_tol * zero_tol);
-            EvalT windArg             = phiGate * windConstant * (windComp / (1.0 + windNorm));
-            windCorrection_(elem, pt) = exp(windArg);
+            EvalT windProjection             = xvel(elem,pt) * normalX + yvel(elem,pt) * normalY;
+            EvalT windSpeed                  = sqrt(xvel(elem,pt) * xvel(elem,pt)
+                                                  + yvel(elem,pt) * yvel(elem,pt)
+                                                  + zero_tol * zero_tol);
+            EvalT windNormalizedProjection   = windProjection / (1.0 + windSpeed);
+            windComponent_(elem, pt)         = windNormalizedProjection;
+            windCorrection_(elem, pt)        = 1.0 + phiGate * windGain * windNormalizedProjection;
 
             // slope
-            EvalT sx                   = xSlope(id);
-            EvalT sy                   = ySlope(id);
-            EvalT slopeComp            = sx * normalX + sy * normalY;
-            slopeComponent_(elem, pt)  = slopeComp;
-            EvalT slopeNorm            = sqrt(sx * sx + sy * sy + zero_tol * zero_tol);
-            EvalT slopeArg             = phiGate * slopeConstant * slopeComp / (1.0 + slopeNorm);
-            slopeCorrection_(elem, pt) = exp(slopeArg);
+            const EvalT sx   = xSlope(id);
+            const EvalT sy   = ySlope(id);
+            const EvalT invLen = 1.0 / sqrt(sx * sx + sy * sy + zero_tol * zero_tol);
+            const EvalT align  = (sx * normalX + sy * normalY) * invLen;
+            const EvalT grade  = tan(slope(id) * (PI / 180.0));
+            const EvalT gradeF = grade / (1.0 + grade);
+            slopeComponent_(elem, pt)  = align;
+            slopeCorrection_(elem, pt) = 1.0 + phiGate * slopeGain * gradeF * align;
 
             // * either use suppplied or computed rothermals base ROS
             const EvalT R_here = hasExternalR ? R(elem,pt) : R0_elem;
