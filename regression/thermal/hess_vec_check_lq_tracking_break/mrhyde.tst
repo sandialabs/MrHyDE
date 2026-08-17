@@ -8,10 +8,8 @@ from mrhyde_test_support import *
 # ==============================================================================
 # Parsing input
 
-desc = ''' Tracking-target HessVec breakdown with exact path physics. For
-objective 0.5*(T-Td)^2 with Td=1.0, computeObjectiveGradState uses M*(w-Td)
-instead of f_yy*w=M*w on the incremental trajectory. The extra -M*Td term
-corrupts H. Algebraic checks [HV-ZERO], [HV-BILINEARITY], checkHessSym, and
+desc = ''' Tracking-target HessVec breakdown with exact path physics. 
+Algebraic checks [HV-ZERO], [HV-BILINEARITY], checkHessSym, and
 [SECANT-IDENTITY] are large, and [HV-RAYLEIGH] is negative. '''
 
 its = mrhyde_test_support(desc)
@@ -55,10 +53,6 @@ def _second_scalar(tag):
       return None
   return _e
 
-# All four algebraic checks fire. Observed values (steady 3D Poisson, N=6, 4 ranks):
-# [HV-ZERO]=1.56e-3, [HV-BILINEARITY] rel=2.90e-1, checkHessSym abs=1.45e-3
-# (ref ~9e-3, rel ~1.6e-1), [SECANT-IDENTITY] rel=7.00e+1.
-# Thresholds are about 10x below observed values, so partial fixes still fail.
 checks = [
   ('[HV-ZERO] || H*0 || > 1e-5 (breakdown)',
    pred_scalar_gt('[HV-ZERO] || H*0 || =', 1.0e-5)),

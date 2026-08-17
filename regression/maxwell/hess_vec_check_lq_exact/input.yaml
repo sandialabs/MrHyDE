@@ -1,9 +1,5 @@
 %YAML 1.1
 ---
-# Exact HessVec identity checks on a small Maxwell E-B control problem.
-# Wraps the physical source with src_gate so the tangent sweep has zero
-# affine offset; asserts [HV-ZERO] at roundoff and checkHessSym at the
-# transient exact-adjoint tolerance floor.
 ANONYMOUS:
   debug level: 0
   verbosity: 0
