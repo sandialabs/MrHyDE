@@ -15,6 +15,7 @@ to answer three questions before long runs:
 - `maxwell/hess_vec_check_lq/`: LQ correctness checks for gradient and HessVec.
 - `maxwell/1d_periodic_exact_vs_fd_hess/`: runtime race, exact HessVec vs FD fallback.
 - `thermal/hess_vec_check_lq/`: thermal LQ checks and mesh sweep with exact vs FD.
+- `thermal/hess_vec_check_lq_tracking/`: same problem with a tracking target `Td != 0`; `trk_gate` keeps the exact path inside LQ.
 
 ## Activation flags
 
