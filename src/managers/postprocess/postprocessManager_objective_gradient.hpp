@@ -1327,6 +1327,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
     // Right now grad_over = dresponse/du
     // We want   grad_over = 2.0*wt*(response - target)*dresponse/du
+    TEUCHOS_TEST_FOR_EXCEPTION(this->is_incremental_adjoint, std::runtime_error,
+      "Exact hessVec does not support 'integrated response' in incremental-adjoint mode: "
+      "(response-target)^2 is quartic in state for quadratic response, so not LQ. "
+      "Use 'integrated control' with 0.5*(T-trk_gate*Td)^2 or use FD-of-gradients.");
     grad_over->scale(2.0 * objectives[obj].weight * (value - objectives[obj].target));
 
     linalg->exportVectorFromOverlapped(set, grad_tmp, grad_over);
@@ -1346,7 +1350,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
       u_no->doExport(*(current_soln), *(linalg->exporter[set]), Tpetra::REPLACE);
       D_no->doExport(*D_soln, *(linalg->exporter[set]), Tpetra::REPLACE);
       diff->update(1.0, *u_no, 0.0);
-      diff->update(-1.0, *D_no, 1.0);
+      // Incremental-adjoint uses current_soln = w; drop target term so grad is f_yy w.
+      if (!this->is_incremental_adjoint) {
+        diff->update(-1.0, *D_no, 1.0);
+      }
       grad->update(-2.0 * dt * objectives[obj].weight, *diff, 1.0);
     }
     else
@@ -1356,6 +1363,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
   }
   else if (objectives[obj].type == "sensors")
   {
+    TEUCHOS_TEST_FOR_EXCEPTION(this->is_incremental_adjoint, std::runtime_error,
+      "Exact hessVec does not support 'sensors' in incremental-adjoint mode: "
+      "(response-sensor_data)^2 is quartic in state for quadratic response, so not LQ. "
+      "Use 'integrated control' with 0.5*(T-trk_gate*Td)^2 or use FD-of-gradients.");
 
     auto grad_over = linalg->getNewOverlappedVector(set);
     auto grad_tmp = linalg->getNewVector(set);

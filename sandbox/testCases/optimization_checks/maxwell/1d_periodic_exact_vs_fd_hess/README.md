@@ -1,8 +1,7 @@
-# 1D-periodic Maxwell control: exact-Hv vs FD-of-gradients
+# 1D periodic Maxwell: exact Hv vs FD Hv
 
-Timed ROL trust-region Newton-CG runs on the same LQ Maxwell control problem.
-The only difference between the two runs is how Hessian-vector products are
-computed:
+This sandbox compares trust-region Newton-CG performance for two HessVec
+paths on the same LQ Maxwell problem:
 
 - **exact**: uses [Heinkenschloss Alg 4.1](https://repository.rice.edu/bitstreams/ccc225f5-d89c-4b43-81f4-983f7cfe5dd0/download)
   (1 tangent + 1 second-order adjoint = 2 sweeps per hessVec).

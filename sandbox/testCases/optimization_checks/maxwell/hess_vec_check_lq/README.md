@@ -1,86 +1,55 @@
-# FD gradient and Hessian-vector checks (LQ)
+# FD gradient and HessVec checks (LQ Maxwell)
 
-This sandbox checks FD gradients and Hessian-vector products `H v` for a
-quadratic Maxwell control objective (`0.5*eps*|E|^2 + 0.5/mu*|B|^2`). 
+This sandbox validates gradient and Hessian-vector checks on a linear
+quadratic Maxwell control objective. It is the quick correctness gate
+before longer trust-region studies.
 
-## Run
+## How to run
 
 ```bash
-./run_exact_sweep.sh          # exact tangent+adjoint HessVec path
-./run_fd_sweep.sh             # ROL FD-of-gradients HessVec path
-python plot_hess_vec_check.py # optional: text summaries and PNGs
+./run_exact_sweep.sh
+./run_fd_sweep.sh
+python plot_hess_vec_check.py
 ```
 
-### Configs
+## Activation flags
 
-- `baseline`: FD probe stays at the optimizer iterate (`ctrl = 0`), which is
-  intentionally degenerate for gradient checking.
-- `seed`: adds `FD Check Random Seed: 42` so the FD probe is random/nonzero
-  while keeping the optimizer iterate unchanged.
-
-Both decks in `rol_decks/` enable:
+Under `Analysis:ROL2:General:`:
 
 ```yaml
-Do grad+hessvec check: true       # checkGradient + checkHessVec + checkHessSym
+Do grad+hessvec check: true
 Do exact hessvec check: true
 Do algebraic hessvec check: true
-Do secant identity check: true    # Hv vs (grad(x+v) - grad(x))
-FD Check Seed: 3                  # FD direction seed
+Do secant identity check: true
+FD Check Seed: 3
 ```
 
-## Exact vs FD HessVec paths
+`seed` modes add `FD Check Random Seed: 42` so diagnostic probes use a
+nonzero random control while the optimizer iterate stays unchanged.
 
-Exact HessVec uses a tangent solve with source disabled. In
-`other_decks_exact/`, current is gated as:
+## Exact vs FD path in this test
 
-```yaml
-current x: 'src_gate*(gt*exp(-2*timebub*(t<toff))*(z<zmax)*(z>zmin))'
-```
+- `other_decks_exact/` has `src_gate` and uses exact HessVec.
+- `other_decks_fd/` omits `src_gate` and uses FD-of-gradients fallback.
 
-`incrementalForwardModel` sets `src_gate=0` for tangent, then restores `1`.
-In `other_decks_fd/`, there is no gate, so `Objective_MILO::hessVec` falls
-back to `ROL::Objective::hessVec` (FD-of-gradients).
+## Expected results
 
-## Failure mode this sandbox catches
+- Seeded FD gradient checks should be healthy (`rel_err` around `1e-4` to
+  `1e-3` in current logs).
+- Baseline checks at `ctrl = 0` are intentionally degenerate and can show
+  large FD relative error.
+- `|hv0|` should be zero.
+- Exact path should give smaller secant and bilinearity residuals than the
+  FD fallback in this LQ case.
 
-**Degenerate iterate.** With `ctrl_current = 0`, `grad'*dir` is at the
-noise floor and FD gradient reports `best rel_err ~ 20`. The log prints:
+### FD gradient table
 
-```txt
-[FDCHECK-HINT] best rel_err > 1.
-  Likely causes and fixes:
-    1) Degenerate start point: g.d is at the noise floor, so FD sees
-       curvature and noise, not the gradient.
-       Fix: 'FD Check Random Seed: 42' under Analysis:ROL2:General:
-       (does not change the optimizer's initial iterate).
-    2) A dominant regularizer weight makes the check validate the reg
-       path, not the state-adjoint objective path.
-       Fix: zero every Regularization functions weight. If the
-       remaining signal is below FD noise, raise 'FD Check Random
-       Scale' (default 1.0).
-```
+| Config   | Probe   | `grad'*dir` | best abs_err @ h | rel_err | Take-away                   |
+| :------- | :------ | :---------- | :--------------- | :------ | :-------------------------- |
+| baseline | iterate | +3.10e-02   | 6.40e-01 @ 1e-12 | 2.1e+01 | Degenerate `g.d` near noise |
+| seed     | random  | +6.69e+11   | 3.04e+08 @ 1e-04 | 4.5e-04 | Healthy random probe        |
 
-For a meaningful FD gradient check on your own deck, use `ctrl_current > 0` or
-set an FD random seed.
-
-## Results
-
-### FD gradient
-
-Path-independent (same values in exact/fd logs):
-
-| Config   | Probe   | `grad'*dir` | best abs_err @ h | rel_err | Take-away                    |
-| :------- | :------ | :---------- | :--------------- | :------ | :--------------------------- |
-| baseline | iterate | +3.10e-02   | 6.40e-01 @ 1e-12 | 2.1e+01 | Degenerate `g.d` near noise  |
-| seed     | random  | +6.69e+11   | 3.04e+08 @ 1e-04 | 4.5e-04 | Healthy random probe         |
-
-### HessVec: exact vs FD
-
-`|secant|/ref` checks
-`|Hv - (grad(x+v)-grad(x))| / |grad(x+v)-grad(x)|`.
-`|hv0| = ||H*0||` should be 0.
-`|bilin|/ref` is linearity residual.
-`<v,Hv>_min` stays positive for this convex LQ problem.
+### HessVec table (exact vs FD)
 
 | Config   | path  | `|secant|/ref` | `|bilin|/ref` | `|hv0|` | `<v,Hv>_min` |
 | :------- | :---- | -------------: | ------------: | ------: | -----------: |
@@ -89,3 +58,10 @@ Path-independent (same values in exact/fd logs):
 | seed     | exact |       3.83e-08 |      1.16e-07 |       0 |     8.09e+11 |
 | seed     | fd    |       1.35e-05 |      8.56e-05 |       0 |     8.09e+11 |
 
+## Common failure and fix
+
+If FD gradient check reports large relative error:
+
+- Add `FD Check Random Seed: 42`.
+- If regularization dominates, lower or zero regularization weights for
+  the diagnostic run.

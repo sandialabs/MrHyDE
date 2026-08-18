@@ -1,56 +1,51 @@
 # Magnitude scan
 
-Use this check to choose objective weights before a long ROL run.
+Use this check to tune objective and regularization weights before long
+optimization runs.
 
-It prints each objective and regularization term as:
+## What it checks
+
+For each term, MrHyDE prints:
+
 - `unweighted`
 - `weight`
 - `weighted = unweighted * weight`
 
-Start from the `unweighted` column, then choose `weight` values so the
-`weighted` terms are in a reasonable balance.
+Pick weights so weighted terms are in a useful balance.
 
-## Enable
+## How to run
 
-Set these under `Analysis:ROL2:General:`:
+Set under `Analysis:ROL2:General:`:
 
 ```yaml
 Do magnitude scan: true
-FD Check Random Seed: 42        # optional
-FD Check Random Scale: 1.0e-8   # optional (default is 1.0)
+FD Check Random Seed: 42
+FD Check Random Scale: 1.0e-8
 ```
 
-For scan-only runs, set `Iteration Limit: 0` under `Status Test:` and
-leave other FD/HessVec checks off.
+For scan-only runs, set `Iteration Limit: 0` in `Status Test:` and keep
+other FD or HessVec checks off.
 
-## What you get
+## Expected output
 
-```
+The run prints one table like:
+
+```text
 [MAGNITUDE-SCAN] probe at seeded random ctrl (seed=42, scale=1e-08).
-  Per-term contributions at the probe point (ROL iter-0 may differ if
-  the initial iterate is initialized differently):
   term                            type      unweighted        weight      weighted
   --------------------------------------------------------------------------------
   EM Energy                       obj        2.007e-39     1.000e+35     2.007e-04
-  RegObj                          obj        0.000e+00     0.000e+00     0.000e+00
   RegObj/l2reg                    reg        1.110e-30     1.000e+05     1.110e-25
   RegObj/curlreg                  reg        1.221e-19     1.000e+05     1.221e-14
   --------------------------------------------------------------------------------
   TOTAL                                      1.221e-19                   2.007e-04
 ```
 
-## Important note about iter-0
+`TOTAL weighted` can differ from ROL iter-0 value because the scan uses a
+temporary probe control, then restores the optimizer iterate.
 
-The scan evaluates at a redirected control set by
-`FD Check Random Scale`, then restores the control before ROL starts.
+## Artifacts
 
-So `TOTAL weighted` from the scan can differ from ROL iter-0 `value`
-when the deck starts from `ctrl_current = 0`.
-
-## Logs in this folder
-
-- Regenerate both logs with `./run_scan.sh`.
-- `logs/scan.log`: nonzero probe (`scale=1e-8`)
-- `logs/scan_scale_0.log`: zero probe (`scale=0`)
-
-Use these logs if you want to verify the probe-point behavior in detail.
+- `./run_scan.sh` regenerates logs.
+- `logs/scan.log` uses nonzero probe scale.
+- `logs/scan_scale_0.log` uses zero probe scale.

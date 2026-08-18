@@ -224,6 +224,12 @@ void SolverManager<Node>::incrementalAdjointModel(MrHyDE_OptVector & hessvec) {
     is_adjoint = true;
     BoolFlagGuard adj_guard(postproc->is_incremental_adjoint);
 
+    // Optionally zero Td on incremental sweep.
+    std::unique_ptr<ScalarParamGuard<decltype(params)>> trk_guard;
+    if (params->isParameter("trk_gate")) {
+      trk_guard = std::make_unique<ScalarParamGuard<decltype(params)>>(params, "trk_gate");
+    }
+
     params->sacadoizeParams(false);
     // Need J^T; do not reuse the tangent-sweep Jacobian.
     linalg->resetAllJacobian();
