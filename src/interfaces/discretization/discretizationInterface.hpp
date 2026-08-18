@@ -852,6 +852,9 @@ public:
   ScalarT computeRelativeDifference(DRV data1, DRV data2);
   
   LO getNumPhaseDOFs(const int & set);
+  
+  vector<LO> getPhaseLIDs(const size_t & set, const size_t & pelem);
+  
   /**
    * @brief Clears locally stored LIDs for memory renewal.
    */

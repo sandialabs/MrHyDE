@@ -330,7 +330,7 @@ DRV MeshInterface::getMyNodes(const size_t & block, vector<size_t> & elemIDs) {
 }
 
 DRV MeshInterface::getMyPhaseNodes(vector<size_t> & elemIDs) {
-  DRV currnodes = simple_mesh->getCellNodes(elemIDs);
+  DRV currnodes = phase_mesh->getCellNodes(elemIDs);
   return currnodes;
 }
 
@@ -436,7 +436,7 @@ topo_RCP MeshInterface::getCellTopology(string & blockID) {
 // ============================================================
 
 topo_RCP MeshInterface::getPhaseCellTopology() {
-  return phase_topo;
+  return phase_cell_topo;
 }
 
 // ============================================================

@@ -161,7 +161,6 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     
     // Need to multiply by the phase dofs
     LO num_phase_dof = disc->getNumPhaseDOFs(set); // this function returns 1 if no phase space
-    
     Kokkos::View<GO*,HostDevice> total_local_dof("all dofs", numUnknowns*num_phase_dof);
     int prog = 0;
     for (size_t dof=0; dof<numUnknowns; dof++) {
@@ -172,7 +171,7 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     }
     GO localNumUnknowns = numUnknowns*num_phase_dof;
     GO globalNumUnknowns = 0;
-
+    
     Teuchos::reduceAll<LO,GO>(*comm,Teuchos::REDUCE_SUM,1,&localNumUnknowns,&globalNumUnknowns);
     
     //owned_map.push_back(Teuchos::rcp(new LA_Map(globalNumUnknowns, disc->dof_owned[set], 0, comm)));
@@ -209,7 +208,6 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
     if (!allocate_matrices) {
       disc->dof_owned[set] = Kokkos::View<GO*>("empty dof",1);
     }
-    
     if (allocate_matrices) {
       vector<size_t> max_entriesPerRow(overlapped_map[set]->getLocalNumElements(), 0);
       for (size_t b=0; b<blocknames.size(); b++) {
@@ -218,13 +216,19 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
           size_t elemID = EIDs(e);
           vector<GO> gids = disc->getGIDs(set,b,elemID);
           for (size_t i=0; i<gids.size(); i++) {
-            int num_phase_elem = disc->mesh->getNumPhaseElements(); // returns 1 if no phase
-            for (size_t pelem=0; pelem<num_phase_elem; pelem++) {
-              vector<GO> pgids = disc->getPhaseGIDs(set,pelem);
-              for (size_t j=0; j<pgids.size(); j++) {
-                LO ind1 = overlapped_map[set]->getLocalElement(num_phase_dof*gids[i]+j);
-                max_entriesPerRow[ind1] += gids.size()*pgids.size();
+            if (disc->mesh->getPhaseDimension() > 0) {
+              int num_phase_elem = disc->mesh->getNumPhaseElements(); // returns 1 if no phase
+              for (size_t pelem=0; pelem<num_phase_elem; pelem++) {
+                vector<LO> plids = disc->getPhaseLIDs(set,pelem);
+                for (size_t j=0; j<plids.size(); j++) {
+                  LO ind1 = overlapped_map[set]->getLocalElement(num_phase_dof*gids[i]+plids[j]);
+                  max_entriesPerRow[ind1] += gids.size()*plids.size();
+                }
               }
+            }
+            else {
+              LO ind1 = overlapped_map[set]->getLocalElement(gids[i]);
+              max_entriesPerRow[ind1] += gids.size();
             }
           }
         }
@@ -235,7 +239,8 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
       for (size_t m=0; m<max_entriesPerRow.size(); ++m) {
         curr_max_entries = std::max(curr_max_entries, max_entriesPerRow[m]);
       }
-      
+      //curr_max_entries = 1048;
+      //cout << "max entries = " << curr_max_entries << endl;
       //curr_max_entries = static_cast<size_t>(settings->sublist("Solver").get<int>("max entries per row",
       //                                                                      static_cast<int>(curr_max_entries)));
       max_entries = std::max(max_entries,curr_max_entries);
@@ -253,9 +258,17 @@ void LinearAlgebraInterface<Node>::setupLinearAlgebra() {
             int num_phase_elem = disc->mesh->getNumPhaseElements(); // returns 1 if no phase
             for (size_t pelem=0; pelem<num_phase_elem; pelem++) {
               vector<GO> pgids = disc->getPhaseGIDs(set,pelem);
+              vector<GO> tgids;
+              for (size_t ii=0; ii<gids.size(); ii++) {
+                for (size_t j=0; j<pgids.size(); j++) {
+                  GO ind1 = num_phase_dof*gids[ii]+pgids[j];
+                  tgids.push_back(ind1);
+                }
+              }
+              
               for (size_t j=0; j<pgids.size(); j++) {
-                GO ind1 = num_phase_dof*gids[i]+j;
-                overlapped_graph[set]->insertGlobalIndices(ind1,gids);
+                GO ind1 = num_phase_dof*gids[i]+pgids[j];
+                overlapped_graph[set]->insertGlobalIndices(ind1,tgids);
               }
             }
           }

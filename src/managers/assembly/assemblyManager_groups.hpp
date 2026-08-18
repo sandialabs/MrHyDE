@@ -118,6 +118,7 @@ void AssemblyManager<Node>::createGroups() {
         blockGroupData->phase_dimension = phase_dimension;
         blockGroupData->phase_cell_topo = phase_topo;
         blockGroupData->phase_num_nodes = phase_topo->getNodeCount();
+        blockGroupData->phase_num_elem = mesh->getNumPhaseElements();
         if (phase_dimension == 1) {
           blockGroupData->phase_num_sides = 2;
         }
@@ -170,7 +171,6 @@ void AssemblyManager<Node>::createGroups() {
         vector<vector<vector<int> > > curr_phase_offsets = my_phase_offsets[block];
         vector<Kokkos::View<LO*,AssemblyDevice> > set_phase_numDOF;
         vector<Kokkos::View<LO*,HostDevice> > set_phase_numDOF_host;
-        
         for (size_t set=0; set<curr_phase_offsets.size(); ++set) {
           Kokkos::View<LO*,AssemblyDevice> numDOF_KV("number of DOF per variable",curr_phase_offsets[set].size());
           Kokkos::View<LO*,HostDevice> numDOF_host("numDOF on host",curr_phase_offsets[set].size());
@@ -558,6 +558,7 @@ void AssemblyManager<Node>::createGroups() {
           block_groups.push_back(Teuchos::rcp(new Group(blockGroupData, eIndex,
                                                         disc, storeThis)));
         }
+        
         size_t cindex = block_groups.size()-1;
         block_groups[cindex]->LIDs = set_LIDs;
         block_groups[cindex]->phase_LIDs = set_phase_LIDs;
@@ -597,7 +598,7 @@ void AssemblyManager<Node>::allocateGroupStorage() {
   
   debugger->print("**** Starting AssemblyManager::allocateGroupStorage");
   
-  bool keepnodes = false;
+  bool keepnodes = true;
   // There are a few scenarios where we want the groups to keep their nodes
   if (settings->sublist("Solver").get<string>("initial type","L2-projection") == "interpolation") {
     keepnodes = true;

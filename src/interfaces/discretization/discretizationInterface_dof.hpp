@@ -183,9 +183,7 @@ void DiscretizationInterface::buildSimpleDOFManagers() {
   for (unsigned int i=0; i < (unsigned int) mesh->simple_mesh->getNumNodes(); ++i) {
     bool isshared = mesh->simple_mesh->isShared(i);
     if (!isshared) {
-      if (phase_dimension > 0) {
-        num_owned++;
-      }
+      num_owned++;
     }
   }
   
@@ -217,21 +215,6 @@ void DiscretizationInterface::buildSimpleDOFManagers() {
   
   dof_lids.push_back(mesh->simple_mesh->getCellToNodeMap()); // [set](elem, dof)
   
-  /*
-   //std::vector<std::vector<std::vector<GO>>> dof_gids; // [set][elem][dof]
-   Kokkos::View<GO**,HostDevice> elemids("dof gids", dof_lids[dof_lids.size()-1].extent(0), dof_lids[dof_lids.size()-1].extent(1));
-   for(unsigned int e=0; e<dof_lids[0].extent(0); ++e) {
-   std::vector<GO> localelemids;
-   for(unsigned int i=0; i<dof_lids[0].extent(1); ++i) {
-   //localelemids.push_back(dof_lids[0](e,i));
-   elemids(e,i) = dof_lids[0](e,i);
-   }
-   //elemids.push_back(localelemids);
-   }
-   dof_gids.push_back(elemids);
-   */
-  
-  // vector<vector<vector<vector<int> > > > offsets; // [set][block][var][dof]
   for (size_t set=0; set<physics->set_names.size(); ++set) {
     vector<vector<string> > varlist = physics->var_list[set];
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
@@ -239,9 +222,13 @@ void DiscretizationInterface::buildSimpleDOFManagers() {
       vector<vector<int> > celloffsets;
       for (size_t j=0; j<varlist[block].size(); j++) {
         string var = varlist[block][j];
-        //int num = setDOF->getFieldNum(var);
-        vector<int> var_offsets = {0, 1, 3, 2}; // GH: super hacky???
-        
+        vector<int> var_offsets;
+        if (dimension == 2) {
+          var_offsets = {0, 1, 3, 2}; // GH: super hacky???
+        }
+        else if (dimension == 3) {
+          var_offsets = {0, 1, 3, 2, 4, 5, 7, 6}; // GH: super hacky???
+        }
         celloffsets.push_back(var_offsets);
       }
       set_offsets.push_back(celloffsets);
@@ -252,13 +239,12 @@ void DiscretizationInterface::buildSimpleDOFManagers() {
     std::vector<std::vector<std::vector<LO> > > set_dbc_dofs;
     std::vector<std::vector<LO> > block_dbc_dofs;
     std::vector<LO> var_dofs;
-    //var_dofs.push_back(0);
     block_dbc_dofs.push_back(var_dofs);
     set_dbc_dofs.push_back(block_dbc_dofs);
     dbc_dofs.push_back(set_dbc_dofs);
     
     // parameter manager wants num_derivs_required
-    num_derivs_required = std::vector<int>(1);
+    num_derivs_required = std::vector<int>(4); // 
     
   }
   
@@ -289,37 +275,35 @@ void DiscretizationInterface::buildPhaseDOFManagers() {
     
     int phase_dimension = mesh->getPhaseDimension();
     vector<string> phase_block_names;
-    Teuchos::RCP<panzer::DOFManager> setPhaseDOF = Teuchos::rcp(new panzer::DOFManager());
+    //Teuchos::RCP<panzer::DOFManager> setPhaseDOF = Teuchos::rcp(new panzer::DOFManager());
     
-    if (phase_dimension > 0) {
-      TEUCHOS_TEST_FOR_EXCEPTION(block_names.size() > 1,std::runtime_error,"Probable Error: Pretty sure you cannot combine multiple physical blocks with phase space at this time");
+    TEUCHOS_TEST_FOR_EXCEPTION(block_names.size() > 1,std::runtime_error,"Probable Error: Pretty sure you cannot combine multiple physical blocks with phase space at this time");
+    
+    Teuchos::RCP<panzer::ConnManager> phase_conn = mesh->getPhaseSTKConnManager();
+    Teuchos::RCP<panzer::DOFManager> setPhaseDOF = Teuchos::rcp(new panzer::DOFManager());
+    setPhaseDOF->setConnManager(phase_conn,*(comm->getRawMpiComm()));
+    setPhaseDOF->setOrientationsRequired(true);
+    
+    phase_block_names = mesh->getPhaseBlockNames(); // should just one block
+    for (size_t j=0; j<physics->var_list[set][0].size(); j++) {
+      topo_RCP cellTopo = mesh->getPhaseCellTopology();
+      basis_RCP basis_pointer = this->getBasis(phase_dimension, cellTopo,
+                                               physics->types[set][0][j],
+                                               physics->orders[set][0][j]);
       
-      Teuchos::RCP<panzer::ConnManager> phase_conn = mesh->getPhaseSTKConnManager();
-      Teuchos::RCP<panzer::DOFManager> setPhaseDOF = Teuchos::rcp(new panzer::DOFManager());
-      setPhaseDOF->setConnManager(phase_conn,*(comm->getRawMpiComm()));
-      setPhaseDOF->setOrientationsRequired(true);
+      Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
       
-      phase_block_names = mesh->getPhaseBlockNames(); // should just one block
-      for (size_t j=0; j<physics->var_list[set][0].size(); j++) {
-        topo_RCP cellTopo = mesh->getPhaseCellTopology();
-        basis_RCP basis_pointer = this->getBasis(phase_dimension, cellTopo,
-                                                 physics->types[set][0][j],
-                                                 physics->orders[set][0][j]);
-        
-        Teuchos::RCP<const panzer::Intrepid2FieldPattern> Pattern = Teuchos::rcp(new panzer::Intrepid2FieldPattern(basis_pointer));
-        
-        if (physics->use_DG[set][0][j]) {
-          setPhaseDOF->addField(phase_block_names[0], physics->var_list[set][0][j], Pattern, panzer::FieldType::DG);
-        }
-        else {
-          setPhaseDOF->addField(phase_block_names[0], physics->var_list[set][0][j], Pattern, panzer::FieldType::CG);
-        }
-        
+      if (physics->use_DG[set][0][j]) {
+        setPhaseDOF->addField(phase_block_names[0], physics->var_list[set][0][j], Pattern, panzer::FieldType::DG);
+      }
+      else {
+        setPhaseDOF->addField(phase_block_names[0], physics->var_list[set][0][j], Pattern, panzer::FieldType::CG);
       }
       
-      setPhaseDOF->buildGlobalUnknowns();
-      
     }
+    
+    setPhaseDOF->buildGlobalUnknowns();
+    
       
 #ifndef MrHyDE_NO_AD
     for (size_t block=0; block<block_names.size(); ++block) {
@@ -421,6 +405,52 @@ void DiscretizationInterface::buildSimplePhaseDOFManagers() {
   
   phase_dof_lids.push_back(mesh->phase_mesh->getCellToNodeMap()); // [set](elem, dof)
   
+  size_t num_owned = mesh->phase_mesh->getNumNodes();
+  
+  num_phase_dof.push_back(num_owned);
+  
+  for (size_t set=0; set<physics->set_names.size(); ++set) {
+    vector<vector<string> > varlist = physics->var_list[set];
+    vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+    for (size_t block=0; block<block_names.size(); ++block) {
+      vector<vector<int> > celloffsets;
+      for (size_t j=0; j<varlist[block].size(); j++) {
+        string var = varlist[block][j];
+        vector<int> var_offsets;
+        if (dimension == 1) {
+          var_offsets = {0, 1}; // GH: super hacky???
+        }
+        else if (dimension == 2) {
+          var_offsets = {0, 1, 3, 2}; // GH: super hacky???
+        }
+        else if (dimension == 3) {
+          var_offsets = {0, 1, 3, 2, 4, 5, 7, 6}; // GH: super hacky???
+        }
+        celloffsets.push_back(var_offsets);
+      }
+      set_offsets.push_back(celloffsets);
+    }
+    phase_offsets.push_back(set_offsets);
+  }
+  
+#ifndef MrHyDE_NO_AD
+  vector<string> phase_block_names = mesh->getPhaseBlockNames();
+  for (size_t block=0; block<block_names.size(); ++block) {
+    int numPhaseGIDs = 1;
+    if (phase_dimension == 1) {
+      numPhaseGIDs = 2; // GH: super hacky???
+    }
+    else if (phase_dimension == 2) {
+      numPhaseGIDs = 4; // GH: super hacky???
+    }
+    else if (phase_dimension == 3) {
+      numPhaseGIDs = 8;
+    }
+    num_derivs_required[block] *= numPhaseGIDs;
+    
+    TEUCHOS_TEST_FOR_EXCEPTION(num_derivs_required[block] > MAXDERIVS,std::runtime_error,"Error: MAXDERIVS is not large enough to support the number of degrees of freedom per element on block: " + block_names[block]);
+  }
+#endif
   phase_panzer_orientations = Kokkos::View<Intrepid2::Orientation*,HostDevice>("panzer orient",1);
   
 }
@@ -885,13 +915,25 @@ vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & b
 /////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
-vector<GO> DiscretizationInterface::getPhaseGIDs(const size_t & set, const size_t & elem) {
+vector<GO> DiscretizationInterface::getPhaseGIDs(const size_t & set, const size_t & pelem) {
   vector<GO> gids;
   int num_phase_dof = this->getNumPhaseDOFs(set);
   for (int j=0; j<num_phase_dof; j++) {
     gids.push_back(j);
   }
   return gids;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+vector<LO> DiscretizationInterface::getPhaseLIDs(const size_t & set, const size_t & pelem) {
+  vector<LO> lids;
+  int num_phase_local_dof = phase_dof_lids[set].extent(1);
+  for (int j=0; j<num_phase_local_dof; j++) {
+    lids.push_back(phase_dof_lids[set](pelem,j));
+  }
+  return lids;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

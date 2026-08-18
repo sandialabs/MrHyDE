@@ -73,6 +73,8 @@ namespace MrHyDE {
     
     size_t my_block, my_level, num_sets;
     int num_elem=0; // safeguard against case where a proc does not own any elem on a block
+    int phase_num_elem; // set automatically
+    
     Teuchos::RCP<PhysicsInterface> physics;
     string response_type;
     vector<string> side_names;

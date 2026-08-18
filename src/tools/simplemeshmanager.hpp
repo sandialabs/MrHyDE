@@ -1116,7 +1116,26 @@ public:
     return numNodes_;
   } // getNumNodes
 
+  void allocateDataStructures() const {
+    
+  }
 
+  void deallocateMaps() const {
+    
+  }
+
+  GO localToGlobal(int lid) const {
+    return (GO)lid;
+  }
+  
+  int globalToLocal(GO gid) const {
+    return (int)gid;
+  }
+
+  bool isShared(int lid) const {
+    return false;
+  }
+  
 private:
 
   void computeNodes() {

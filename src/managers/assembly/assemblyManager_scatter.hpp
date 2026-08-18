@@ -52,17 +52,17 @@ void AssemblyManager<Node>::scatterJac(const size_t & set, MatType J_kcrs, Local
                    MRHYDE_LAMBDA (const int elem ) {
         const size_type numVals = LIDs.extent(1)*phaseLIDs.extent(1);
         const size_type numPhase = phaseLIDs.extent(1);
-        LO cols[MAXDERIVS];
-        ScalarT vals[MAXDERIVS];
         for (size_type row=0; row<LIDs.extent(1); row++ ) {
           if (!fixedDOF(LIDs(elem,row))) {
             for (size_type pelem=0; pelem<phaseLIDs.extent(0); pelem++ ) {
               for (size_type prow=0; prow<phaseLIDs.extent(1); prow++ ) {
-                LO rowIndex = LIDs(elem,row)*numPhase + phaseLIDs(pelem,prow);
+                LO cols[MAXDERIVS];
+                ScalarT vals[MAXDERIVS];
+                LO rowIndex = LIDs(elem,row)*numPhase*phaseLIDs.extent(0) + numPhase*pelem + phaseLIDs(pelem,prow);
                 for (size_type col=0; col<LIDs.extent(1); col++ ) {
                   for (size_type pcol=0; pcol<phaseLIDs.extent(1); pcol++ ) {
                     vals[col*numPhase + pcol] = local_J(elem,row*numPhase + prow, col*numPhase + pcol);
-                    cols[col*numPhase + pcol] = LIDs(elem,col)*numPhase + phaseLIDs(pelem,pcol);
+                    cols[col*numPhase + pcol] = LIDs(elem,col)*numPhase*phaseLIDs.extent(0) + numPhase*pelem + phaseLIDs(pelem,pcol);
                   }
                 }
                 J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
@@ -119,17 +119,25 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
   }
   
   if (mesh->getPhaseDimension() > 0) {
+    int set = 0;  // hard coding for now
+    LO num_phase_global = disc->getNumPhaseDOFs(set);
+    LO num_dof_local = local_res.extent(1)/phaseLIDs.extent(0);
+    
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
                  MRHYDE_LAMBDA (const int elem ) {
-      const size_type numPhase = phaseLIDs.extent(1);
-      for (size_type row=0; row<LIDs.extent(1); row++ ) {
-        if (!fixedDOF(LIDs(elem,row))) {
-          for (size_type g=0; g<local_res.extent(2); g++) {
-            for (size_type pelem=0; pelem<phaseLIDs.extent(0); pelem++ ) {
-              for (size_type prow=0; prow<phaseLIDs.extent(1); prow++ ) {
-                LO rowIndex = LIDs(elem,row)*numPhase + phaseLIDs(pelem,prow);
-                ScalarT val = local_res(elem, row*numPhase+prow, g);
+      for (size_type pelem=0; pelem<phaseLIDs.extent(0); pelem++ ) {
+        int resstart = num_dof_local*pelem;
+        int resprog = 0;
+        for (size_type row=0; row<LIDs.extent(1); row++ ) {
+          if (!fixedDOF(LIDs(elem,row))) {
+            for (size_type prow=0; prow<phaseLIDs.extent(1); prow++ ) {
+            
+              LO resrow = resstart + resprog;
+              LO rowIndex = LIDs(elem,row)*num_phase_global + phaseLIDs(pelem,prow);
+              
+              for (size_type g=0; g<local_res.extent(2); g++) {
+                ScalarT val = local_res(elem, resrow, g);
                 if (use_atomics_) {
                   Kokkos::atomic_add(&(res_view(rowIndex,g)), val);
                 }
@@ -137,6 +145,12 @@ void AssemblyManager<Node>::scatterRes(VecViewType res_view, LocalViewType local
                   res_view(rowIndex,g) += val;
                 }
               }
+              resprog++;
+            }
+          }
+          else { // still increment for fixed dofs
+            for (size_type prow=0; prow<phaseLIDs.extent(1); prow++ ) {
+              resprog++;
             }
           }
         }
@@ -252,106 +266,132 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
     
     auto phase_offsets = wset->phase_offsets;
     auto phase_numDOF = groupData[block]->phase_num_dof;
+    
     // Need the total number of phase DOFs
-    size_type numPhase = phaseLIDs.extent(1);
+    size_type num_phase_local = phaseLIDs.extent(1);
+    size_type num_space_local = LIDs.extent(1);
+    size_type num_dof_local = num_phase_local*num_space_local;
+    LO num_phase_global = disc->getNumPhaseDOFs(set);
     
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
                  MRHYDE_LAMBDA (const int elem ) {
       
-      int row = 0;
-      LO rowIndex = 0;
+      for (size_type pelem=0; pelem<phaseLIDs.extent(0); pelem++ ) {
+        int resstart = num_dof_local*pelem;
+        int resprog = 0;
       
-      // Residual scatter
-      for (size_type n=0; n<numDOF.extent(0); ++n) {
-        for (int j=0; j<numDOF(n); j++) {
-          if (!fixedDOF(LIDs(elem,offsets(n,j)))) {
-            for (size_type pelem=0; pelem<phaseLIDs.extent(0); ++pelem) {
-              for (size_type pn=0; pn<phase_numDOF.extent(0); ++pn) {
-                for (int pj=0; pj<phase_numDOF(pn); pj++) {
-                  row = offsets(n,j)*numPhase + phase_offsets(pn,pj);
-                  rowIndex = LIDs(elem,offsets(n,j))*numPhase + phaseLIDs(pelem,phase_offsets(pn,pj));
-                  
-                  if (compute_sens_) {
+        int row = 0;
+        LO rowIndex = 0;
+        
+        // Residual scatter
+        for (size_type var=0; var<numDOF.extent(0); ++var) {
+          for (int dof=0; dof<numDOF(var); dof++) {
+            if (!fixedDOF(LIDs(elem,offsets(var,dof)))) {
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                
+                row = resstart + resprog;
+                rowIndex = LIDs(elem,offsets(var,dof))*num_phase_global + phaseLIDs(pelem,phase_offsets(var,pdof));
+                
+                if (compute_sens_) {
 #ifndef MrHyDE_NO_AD
-                    if (use_atomics_) {
-                      for (size_type r=0; r<res_view.extent(1); ++r) {
-                        ScalarT val = -res(elem,row).fastAccessDx(r);
-                        Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
-                      }
+                  if (use_atomics_) {
+                    for (size_type r=0; r<res_view.extent(1); ++r) {
+                      ScalarT val = -res(elem,row).fastAccessDx(r);
+                      Kokkos::atomic_add(&(res_view(rowIndex,r)), val);
                     }
-                    else {
-                      for (size_type r=0; r<res_view.extent(1); ++r) {
-                        ScalarT val = -res(elem,row).fastAccessDx(r);
-                        res_view(rowIndex,r) += val;
-                      }
-                    }
-#endif
                   }
                   else {
-#ifndef MrHyDE_NO_AD
-                    ScalarT val = -res(elem,row).val();
-#else
-                    ScalarT val = -res(elem,row);
-#endif
-                    if (use_atomics_) {
-                      Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
-                    }
-                    else {
-                      res_view(rowIndex,0) += val;
+                    for (size_type r=0; r<res_view.extent(1); ++r) {
+                      ScalarT val = -res(elem,row).fastAccessDx(r);
+                      res_view(rowIndex,r) += val;
                     }
                   }
+#endif
                 }
+                else {
+#ifndef MrHyDE_NO_AD
+                  ScalarT val = -res(elem,row).val();
+#else
+                  ScalarT val = -res(elem,row);
+#endif
+                  if (use_atomics_) {
+                    Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
+                  }
+                  else {
+                    res_view(rowIndex,0) += val;
+                  }
+                }
+                resprog++;
               }
             }
+            else {
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                resprog++;
+              }
+            }
+            
           }
         }
       }
-      
+
 #ifndef MrHyDE_NO_AD
       // Jacobian scatter
       if (compute_jacobian_) {
         const size_type numVals = LIDs.extent(1)*phaseLIDs.extent(1);
         
-        int col = 0;
-        LO cols[MAXDERIVS];
-        ScalarT vals[MAXDERIVS];
-        for (size_type n=0; n<numDOF.extent(0); ++n) {
-          for (int j=0; j<numDOF(n); j++) {
-            if (!fixedDOF(LIDs(elem,offsets(n,j)))) {
-              for (size_type pelem=0; pelem<phaseLIDs.extent(0); ++pelem) {
-                for (size_type pn=0; pn<phase_numDOF.extent(0); ++pn) {
-                  for (int pj=0; pj<phase_numDOF(pn); pj++) {
-                    
-                    row = offsets(n,j)*numPhase + phase_offsets(pn,pj);
-                    rowIndex = LIDs(elem,offsets(n,j))*numPhase + phaseLIDs(pelem, phase_offsets(pn,pj));
-                    
-                    for (size_type m=0; m<numDOF.extent(0); m++) {
-                      for (int k=0; k<numDOF(m); k++) {
-                        for (size_type pm=0; pm<phase_numDOF.extent(0); pm++) {
-                          for (int pk=0; pk<phase_numDOF(pm); pk++) {
-                            col = offsets(m,k)*numPhase + phase_offsets(pm,pk);
-                            if (isAdjoint_) {
-                              vals[col] = res(elem,row).fastAccessDx(row);
-                            }
-                            else {
-                              vals[col] = res(elem,row).fastAccessDx(col);
-                            }
-                            if (lump_mass_) {
-                              cols[col] = rowIndex;
-                            }
-                            else {
-                              cols[col] = LIDs(elem,col);
-                            }
-                          }
+        for (size_type pelem=0; pelem<phaseLIDs.extent(0); ++pelem) {
+          int resstart = num_dof_local*pelem;
+          int resprog = 0;
+          LO cols[MAXDERIVS];
+          ScalarT vals[MAXDERIVS];
+          int row = 0;
+          LO rowIndex = 0;
+          
+          for (size_type var=0; var<numDOF.extent(0); ++var) {
+            for (int dof=0; dof<numDOF(var); dof++) {
+              if (!fixedDOF(LIDs(elem,offsets(var,dof)))) {
+                for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                  row = resstart + resprog;
+                  rowIndex = LIDs(elem,offsets(var,dof))*num_phase_global + phaseLIDs(pelem,phase_offsets(var,pdof));
+                  int col = 0;
+                  int colIndex = 0;
+                  
+                  for (size_type ivar=0; ivar<numDOF.extent(0); ivar++) {
+                    for (int idof=0; idof<numDOF(ivar); idof++) {
+                      for (int ipdof=0; ipdof<phase_numDOF(ivar); ipdof++) {
+                        colIndex = LIDs(elem,offsets(ivar,idof))*num_phase_global + phaseLIDs(pelem,phase_offsets(ivar,ipdof));
+                        if (isAdjoint_) {
+                          vals[col] = res(elem,row).fastAccessDx(resprog);
                         }
+                        else {
+                          vals[col] = res(elem,row).fastAccessDx(resprog);
+                        }
+                        if (lump_mass_) {
+                          cols[col] = rowIndex;
+                        }
+                        else {
+                          cols[col] = colIndex;
+                        }
+                        col++;
+                        //cout << rowIndex << "  " << colIndex << endl;
+                        
                       }
                     }
-                    J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
+                    
                   }
+                  resprog++;
+                  J_kcrs.sumIntoValues(rowIndex, cols, numVals, vals, false, use_atomics_); // isSorted, useAtomics
+                
+                }
+              }
+              else {
+                for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                  resprog++;
                 }
               }
             }
+            
           }
         }
       }
@@ -442,6 +482,7 @@ void AssemblyManager<Node>::scatter(Teuchos::RCP<Workset<EvalT> > & wset, const 
 #endif
     });
   }
+  
 }
 
 
@@ -478,41 +519,52 @@ void AssemblyManager<Node>::scatterRes(const size_t & set, VecViewType res_view,
     
     auto phase_offsets = wkset[block]->phase_offsets;
     auto phase_numDOF = groupData[block]->phase_num_dof;
-    // Need the total number of phase DOFs
-    size_type num_phase = phase_LIDs.extent(1);
     
+    // Need the total number of phase DOFs
+    size_type num_phase_local = phase_LIDs.extent(1);
+    size_type num_space_local = LIDs.extent(1);
+    size_type num_dof_local = num_phase_local*num_space_local;
+    LO num_phase_global = disc->getNumPhaseDOFs(set);
     
     parallel_for("assembly insert Jac",
                  RangePolicy<LA_exec>(0,LIDs.extent(0)),
                  MRHYDE_LAMBDA (const int elem ) {
-      
-      int row = 0;
-      LO rowIndex = 0;
-      
-      // Residual scatter
-      for (size_type n=0; n<numDOF.extent(0); ++n) {
-        for (int j=0; j<numDOF(n); j++) {
-          if (!fixedDOF(LIDs(elem,offsets(n,j)))) {
-            for (size_type pelem=0; pelem<phase_LIDs.extent(0); ++pelem) {
-              for (size_type pn=0; pn<phase_numDOF.extent(0); ++pn) {
-                for (int pj=0; pj<phase_numDOF(pn); pj++) {
-                  row = offsets(n,j)*num_phase + phase_offsets(pn,pj);
-                  rowIndex = LIDs(elem,offsets(n,j))*num_phase + phase_LIDs(pelem,phase_offsets(pn,pj));
-                  ScalarT val = -res(elem,row);
-                  
-                  if (use_atomics_) {
-                    Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
-                  }
-                  else {
-                    res_view(rowIndex,0) += val;
-                  }
+      for (size_type pelem=0; pelem<phase_LIDs.extent(0); ++pelem) {
+        int resstart = num_dof_local*pelem;
+        int resprog = 0;
+        int row = 0;
+        LO rowIndex = 0;
+        // Residual scatter
+        for (size_type var=0; var<numDOF.extent(0); ++var) {
+          for (int dof=0; dof<numDOF(var); dof++) {
+            if (!fixedDOF(LIDs(elem,offsets(var,dof)))) {
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                
+                //row = offsets(n,j)*num_phase*phase_LIDs.extent(0) + num_phase*pelem + phase_offsets(pn,pj);
+                //rowIndex = LIDs(elem,offsets(n,j))*num_total_phase_dof + phase_LIDs(pelem,phase_offsets(pn,pj));
+                row = resstart + resprog;
+                rowIndex = LIDs(elem,offsets(var,dof))*num_phase_global + phase_LIDs(pelem,phase_offsets(var,pdof));
+                
+                ScalarT val = -res(elem,row);
+                if (use_atomics_) {
+                  Kokkos::atomic_add(&(res_view(rowIndex,0)), val);
                 }
+                else {
+                  res_view(rowIndex,0) += val;
+                }
+                resprog++;
+              }
+            }
+            else {
+              for (int pdof=0; pdof<phase_numDOF(var); pdof++) {
+                resprog++;
               }
             }
           }
         }
       }
     });
+    
   }
   else {
     parallel_for("assembly insert Jac",

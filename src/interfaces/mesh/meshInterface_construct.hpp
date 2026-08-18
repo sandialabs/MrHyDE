@@ -200,13 +200,20 @@ settings(settings_), comm(comm_) {
     stk_mesh->getNodesetNames(node_names);
   }
   else if (use_simple_mesh) {
-    block_names = { "eblock-0_0" };
+    
     // GHDR: Need to define block_names, side_names, node_names
+    if (dimension == 1) {
+      block_names = { "eblock-0" };
+      cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));
+      side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Node>() )));
+    }
     if (dimension == 2) {
+      block_names = { "eblock-0_0" };
       cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>())));
       side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));
     }
     else if (dimension == 3) {
+      block_names = { "eblock-0_0_0" };
       cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<> >())));
       side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >())));
                                                                 
@@ -269,13 +276,18 @@ settings(settings_), comm(comm_) {
 
     // Every processor owns a copy of the phase mesh
     // Due to the uniform grid, the memory cost will be minimal using compression
-    if (phase_dimension == 2) {
+    if (phase_dimension == 1) {
+      phase_mesh = Teuchos::RCP<SimpleMeshManager_Interval<ScalarT> >(new SimpleMeshManager_Interval<ScalarT>(pl));
+      phase_cell_topo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>()));
+    }
+    else if (phase_dimension == 2) {
       phase_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT> >(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+      phase_cell_topo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>()));
     }
     else if (phase_dimension == 3) {
       phase_mesh = Teuchos::RCP<SimpleMeshManager_Brick<ScalarT> >(new SimpleMeshManager_Brick<ScalarT>(pl));
+      phase_cell_topo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<> >()));
     }
-    
   }
   
   debugger->print("**** Finished mesh interface constructor");

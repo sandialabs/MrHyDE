@@ -362,7 +362,7 @@ public:
   int num_nodes_per_elem, side_dim, num_sides, num_faces, num_seeds; ///< Mesh topology counts
   vector<int> random_seeds; ///< Random seeds for microstructure
   vector<topo_RCP> cell_topo, side_topo; ///< Cell and side topologies
-  topo_RCP phase_topo;
+  topo_RCP phase_cell_topo;
   int meshmod_xvar, meshmod_yvar, meshmod_zvar; ///< Mesh modification axes
   bool meshmod_usesmoother, use_stk_mesh, use_simple_mesh, use_phase_stk_mesh, use_phase_simple_mesh; ///< Backend selection flags
   ScalarT meshmod_TOL, meshmod_center, meshmod_layer_size; ///< Mesh modification parameters
