@@ -90,19 +90,23 @@ void DiscretizationInterface::buildDOFManagers() {
     
     vector<vector<string> > varlist = physics->var_list[set];
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+    vector<size_t> set_num_dof;
     for (size_t block=0; block<block_names.size(); ++block) {
       vector<vector<int> > celloffsets;
+      size_t block_num_dof = 0;
       for (size_t j=0; j<varlist[block].size(); j++) {
         string var = varlist[block][j];
         int num = setDOF->getFieldNum(var);
         vector<int> var_offsets = setDOF->getGIDFieldOffsets(block_names[block],num);
 
         celloffsets.push_back(var_offsets);
+        block_num_dof += var_offsets.size();
       }
       set_offsets.push_back(celloffsets);
+      set_num_dof.push_back(block_num_dof);
     }
     offsets.push_back(set_offsets);
-
+    num_dof.push_back(set_num_dof);
     this->setBCData(set,setDOF);
 
     this->setDirichletData(set,setDOF);
@@ -218,8 +222,10 @@ void DiscretizationInterface::buildSimpleDOFManagers() {
   for (size_t set=0; set<physics->set_names.size(); ++set) {
     vector<vector<string> > varlist = physics->var_list[set];
     vector<vector<vector<int> > > set_offsets; // [block][var][dof]
+    vector<size_t> set_num_dof;
     for (size_t block=0; block<block_names.size(); ++block) {
       vector<vector<int> > celloffsets;
+      size_t block_num_dof = 0;
       for (size_t j=0; j<varlist[block].size(); j++) {
         string var = varlist[block][j];
         vector<int> var_offsets;
@@ -230,9 +236,12 @@ void DiscretizationInterface::buildSimpleDOFManagers() {
           var_offsets = {0, 1, 3, 2, 4, 5, 7, 6}; // GH: super hacky???
         }
         celloffsets.push_back(var_offsets);
+        block_num_dof += var_offsets.size();
       }
+      set_num_dof.push_back(block_num_dof);
       set_offsets.push_back(celloffsets);
     }
+    num_dof.push_back(set_num_dof);
     offsets.push_back(set_offsets);
     
     // more hacky stuff; can't set dbcs without dof manager, but we don't have a dof manager
@@ -992,13 +1001,11 @@ vector<vector<int> > DiscretizationInterface::getOffsets(const int & set, const 
 
 vector<GO> DiscretizationInterface::getGIDs(const size_t & set, const size_t & block, const size_t & elem) {
   vector<GO> gids;
-  for (size_t k=0; k<dof_lids[set].extent(1); ++k) {
+  for (size_t k=0; k<num_dof[set][block]; ++k) {
     GO gid = dof_owned_and_shared[set](dof_lids[set](elem,k));
-    //GO gid = dof_owned_and_shared[set][dof_lids[set](elem,k)];
     gids.push_back(gid);
-    //gids.push_back(dof_gids[set](elem,k));
   }
-  return gids;//dof_gids[set][elem];
+  return gids;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

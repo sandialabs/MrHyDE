@@ -310,7 +310,7 @@ void elastodynamics<EvalT>::volumeResidual() {
     {
       int vy_basis = wkset->usebasis[vy_num];
       auto basis = wkset->basis[vy_basis];
-      auto off = Kokkos::subview( wkset->offsets, vx_num, Kokkos::ALL());
+      auto off = Kokkos::subview( wkset->offsets, vy_num, Kokkos::ALL());
       auto duydt = wkset->getSolutionField("dy_t");
       auto vy = wkset->getSolutionField("vy");
       parallel_for("LE volume resid 1D",
