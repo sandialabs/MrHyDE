@@ -778,6 +778,9 @@ void AssemblyManager<Node>::updateGroupData(Teuchos::RCP<Workset<EvalT> > & wset
   else if (groupData[block]->have_extra_data) {
     wset->extra_data = groups[block][grp]->data;
   }
+  else if (groupData[block]->have_quadrature_data) {
+    wset->extra_data = groups[block][grp]->data;
+  }
   
 }
 

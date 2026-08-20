@@ -618,12 +618,13 @@ void AssemblyManager<Node>::importQuadratureData() {
   }
   */
   
-  string mesh_data_pts_file = mesh->mesh_data_pts_tag + ".dat";
-  string mesh_data_file = mesh->mesh_data_tag + ".dat";
-  
-  Teuchos::RCP<Data> qpt_data = Teuchos::rcp(new Data("mesh data", mesh->dimension, mesh_data_pts_file,
-                                                      mesh_data_file, false));
   for (size_t block=0; block<groups.size(); ++block) {
+    string mesh_data_pts_file = mesh->mesh_data_pts_tag + "." + blocknames[block] + ".dat";
+    string mesh_data_file = mesh->mesh_data_tag + "." + blocknames[block] + ".dat";
+    
+    Teuchos::RCP<Data> qpt_data = Teuchos::rcp(new Data("mesh data", mesh->dimension, mesh_data_pts_file,
+                                                        mesh_data_file, false));
+    
     int numip = disc->numip[block];
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       DRV nodes = groups[block][grp]->nodes;

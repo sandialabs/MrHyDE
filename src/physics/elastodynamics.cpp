@@ -44,6 +44,7 @@ elastodynamics<EvalT>::elastodynamics(Teuchos::ParameterList & settings, const i
   
   incplanestress = settings.get<bool>("incplanestress",false);
   useLame = settings.get<bool>("use Lame parameters",true);
+  use_quadrature_data = settings.get<bool>("use quadrature data",false);
   addBiot = settings.get<bool>("Biot",false);
   
   modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for LE",5); 
@@ -105,7 +106,12 @@ void elastodynamics<EvalT>::volumeResidual() {
     if (spaceDim > 2) {
       source_dz = functionManager->evaluate("source dz","ip");
     }
-    lambda = functionManager->evaluate("lambda","ip");
+    if (use_quadrature_data) {
+      lambda = Vista<EvalT>(wkset->extra_data);
+    }
+    else {
+      lambda = functionManager->evaluate("lambda","ip");
+    }
     mu = functionManager->evaluate("mu","ip");
     rho = functionManager->evaluate("rho","ip");
   }
