@@ -83,13 +83,23 @@ settings(settings_), comm(comm_) {
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
-    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
-    
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
     have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
     have_quadrature_data = settings->sublist("Mesh").get<bool>("have mesh quadrature data",false);
   }
+  mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","none");
+  if (mesh_data_pts_tag == "none" && (mesh_data_tag != "none" || compute_mesh_data)) {
+    string seed_file = "microstructure_seeds";
+    if (comm->getRank() == 0) {
+      int randSeed = settings->sublist("Mesh").get<int>("microstructure random seed",1234);
+      View_Sc2 seeds = this->generateNewMicrostructure(randSeed);
+      this->writeToFile(seeds, seed_file);
+    }
+    Kokkos::fence(); // putting a fence here to make other procs wait for data file to be written
+    mesh_data_pts_tag = seed_file;
+  }
+  
   
   meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);
   meshmod_yvar = settings->sublist("Solver").get<int>("solution for y-mesh mod",-1);
@@ -329,12 +339,21 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
-    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
-    
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
-    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
+    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
     have_quadrature_data = settings->sublist("Mesh").get<bool>("have mesh quadrature data",false);
+  }
+  mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","none");
+  if (mesh_data_pts_tag == "none" && (mesh_data_tag != "none" || compute_mesh_data)) {
+    string seed_file = "microstructure_seeds";
+    if (comm->getRank() == 0) {
+      int randSeed = settings->sublist("Mesh").get<int>("microstructure random seed",1234);
+      View_Sc2 seeds = this->generateNewMicrostructure(randSeed);
+      this->writeToFile(seeds, seed_file);
+    }
+    Kokkos::fence(); // putting a fence here to make other procs wait for data file to be written
+    mesh_data_pts_tag = seed_file;
   }
   
   meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);

@@ -327,6 +327,8 @@ public:
    */
   void readExodusData();
   
+  void writeToFile(View_Sc2 data, const string & filename);
+
   int getNumPhaseElements();
   /**
    * @brief Purge unnecessary data before solve stage.
