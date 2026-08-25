@@ -26,7 +26,7 @@ PhaseElliptic<EvalT>::PhaseElliptic(Teuchos::ParameterList & settings, const int
   
   // MrHyDE should provide a 2D mesh corresponding to the 2 velocity dimensions
   
-  phaseDim = 2; // hard coded for now
+  phaseDim = 1; // hard coded for now
   // Species: Helium, Carbon, Gold, electrons
   
   myvars.push_back("T");
@@ -47,7 +47,7 @@ void PhaseElliptic<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   
   functionManager = functionManager_;
   
-  functionManager->addFunction("source",fs.get<string>("source","0.0"),"tensor ip");
+  functionManager->addFunction("source",fs.get<string>("source","0.0"),"ip");
   
 }
 
@@ -123,35 +123,56 @@ void PhaseElliptic<EvalT>::volumeResidual() {
     auto off = subview( wkset->offsets, T_num, ALL());
     auto poff = subview( wkset->phase_offsets, T_num, ALL());
     
-    auto dTdx = wkset->getSolutionField("grad(T)[x]");
-    auto dTdy = wkset->getSolutionField("grad(T)[y]");
+    //auto dTdx = wkset->getSolutionField("grad(T)[x]");
+    //auto dTdy = wkset->getSolutionField("grad(T)[y]");
     
-    auto dTdu = wkset->getSolutionField("phasegrad(T)[u]");
-    auto dTdv = wkset->getSolutionField("phasegrad(T)[v]");
+    //auto dTdu = wkset->getSolutionField("phasegrad(T)[u]");
+    //auto dTdv = wkset->getSolutionField("phasegrad(T)[v]");
     
-    size_t teamSize = std::min(wkset->maxTeamSize,basis.extent(1));
+    size_t teamSize = 1;
     
     size_t phase_numElem = wkset->phase_numElem;
     size_type phase_numip = phase_wts.extent(0)*phase_wts.extent(1);
     size_type phase_numoff = poff.extent(0);
+    
     parallel_for("T residual",
                  TeamPolicy<AssemblyExec>(wkset->numElem, teamSize, VECTORSIZE),
                  MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
       int elem = team.league_rank();
       for (size_type dof=team.team_rank(); dof<basis.extent(1); dof+=team.team_size() ) {
         for (size_type pt=0; pt<basis.extent(2); ++pt ) {
+          
           for (size_type pelem=0; pelem<phase_numElem; ++pelem ) {
             for (size_type pdof=0; pdof<phase_basis.extent(1); ++pdof ) {
               for (size_type ppt=0; ppt<phase_basis.extent(2); ++ppt ) {
-                auto offind = off(dof)*(phase_numoff) + poff(pdof);
-                auto ptind = pt*phase_numip + ppt;
-                res(elem,offind) += (dTdt(elem,ptind) - source(elem,ptind))*wts(elem,pt)*phase_wts(pelem,ppt)*basis(elem,dof,pt,0)*phase_basis(pelem,pdof,ppt,0);
+                auto offind = off(dof)*(phase_numoff)*phase_numElem + phase_numoff*pelem + poff(pdof);
+                auto ptind = pt*phase_numip + pelem*phase_basis.extent(2) + ppt;
+                //cout << ptind << "  " << T(elem,ptind) << endl;
+                //cout << off(dof) << "  " << poff(pdof) << "  " << offind << endl;
+                //res(elem,offind) += (dTdt(elem,ptind) - source(elem,ptind))*wts(elem,pt)*phase_wts(pelem,ppt)*basis(elem,dof,pt,0)*phase_basis(pelem,pdof,ppt,0);
+                //cout << source(elem,ptind) << endl;
+                
+                res(elem,offind) += (T(elem,ptind) -  source(elem,ptind));//*wts(elem,pt)*phase_wts(pelem,ppt)*basis(elem,dof,pt,0)*phase_basis(pelem,pdof,ppt,0);
               }
             }
           }
         }
       }
     });
+    for (size_type i=0; i<res.extent(0); ++i ) {
+      for (size_type j=0; j<res.extent(1); ++j ) {
+        cout << res(i,j) << " ";
+      }
+      cout << endl;
+    }
+    
+    //for (size_type elem=0; elem<res.extent(0); ++elem ) {
+    //  for (size_type pdof=0; pdof<res.extent(1); ++pdof ) {
+    //    cout << res(elem,pdof) << " ";
+    //  }
+    //  cout << endl;
+    //}
+      
   }
   
 }

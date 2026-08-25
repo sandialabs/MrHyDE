@@ -410,6 +410,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       resnorm_scaled[0] = resnorm[0]/resnorm_first[0];
     }
     
+    //KokkosTools::print(current_res);
     // hard code these for adjoint solves since residual is computed below and only one iteration is needed
     if (is_adjoint) {
       resnorm[0] = 1.0;
@@ -477,6 +478,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         linalg->fillComplete(J);
       }
             
+      //KokkosTools::print(J);
       // This is where the adjoint residual is computed
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*transientadjointrhstimer);
@@ -612,6 +614,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         else {
           sol[set]->update(alpha, *(current_du_over), 1.0);
         }
+        
       }
     }
     NLiter++; // increment number of nonlinear iterations

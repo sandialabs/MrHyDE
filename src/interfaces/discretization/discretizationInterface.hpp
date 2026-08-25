@@ -852,6 +852,9 @@ public:
   ScalarT computeRelativeDifference(DRV data1, DRV data2);
   
   LO getNumPhaseDOFs(const int & set);
+  
+  vector<LO> getPhaseLIDs(const size_t & set, const size_t & pelem);
+  
   /**
    * @brief Clears locally stored LIDs for memory renewal.
    */
@@ -913,7 +916,7 @@ public:
   vector<vector<int>> cards, phase_cards; /**< Basis cardinals per block and basis. */
   vector<Kokkos::View<LO*,HostDevice>> my_elements; /**< Local element IDs for each block. */
   vector<size_t> num_phase_dof;
-  
+  vector<vector<size_t> > num_dof; // [set][block]
   vector<vector<Kokkos::View<int****,HostDevice>>> side_info; /**< Side information, rarely used. */
   vector<vector<vector<vector<string>>>> var_bcs; /**< Variable boundary condition names. */
   vector<vector<vector<vector<int>>>> offsets, phase_offsets; /**< DOF offsets per set/block/variable. */

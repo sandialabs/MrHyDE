@@ -1,10 +1,10 @@
 /***********************************************************************
  MrHyDE - a framework for solving Multi-resolution Hybridized
- Differential Equations and enabling beyond forward simulation for 
+ Differential Equations and enabling beyond forward simulation for
  large-scale multiphysics and multiscale systems.
  
- Questions? Contact Tim Wildey (tmwilde@sandia.gov) 
-************************************************************************/
+ Questions? Contact Tim Wildey (tmwilde@sandia.gov)
+ ************************************************************************/
 
 #include "workset.hpp"
 using namespace MrHyDE;
@@ -27,7 +27,7 @@ Workset<EvalT>::Workset(const vector<int> & cellinfo,
 isTransient(isTransient_), celltopo(topo), phase_celltopo(phase_topo),
 basis_types(basis_types_), phase_basis_types(phase_basis_types_),
 basis_pointers(basis_pointers_), phase_basis_pointers(phase_basis_pointers_) {
-
+  
   isInitialized = true;
   
   // Settings that should not change
@@ -46,7 +46,7 @@ basis_pointers(basis_pointers_), phase_basis_pointers(phase_basis_pointers_) {
   phase_numip = cellinfo[9];
   isOnSide = false;
   isOnPoint = false;
-
+  
   if (dimension == 2) {
     numsides = celltopo->getSideCount();
   }
@@ -124,7 +124,7 @@ basis_pointers(basis_pointers_), phase_basis_pointers(phase_basis_pointers_) {
   set_butcher_A = vector<Kokkos::View<ScalarT**,AssemblyDevice> >(numSets);
   set_butcher_b = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
   set_butcher_c = vector<Kokkos::View<ScalarT*,AssemblyDevice> >(numSets);
-    
+  
 #if defined(MrHyDE_ASSEMBLYSPACE_CUDA)
   maxTeamSize = 256 / VECTORSIZE;
 #else
@@ -143,7 +143,7 @@ basis_pointers(basis_pointers_), phase_basis_pointers(phase_basis_pointers_) {
 
 template<class EvalT>
 void Workset<EvalT>::createSolutionFields() {
-
+  
   // Need to first allocate the residual view
   // This is the largest view in the code (due to the AD) so we are careful with the size
   
@@ -162,7 +162,7 @@ void Workset<EvalT>::createSolutionFields() {
   
   // Adjust for phase dofs
   if (phase_dimension > 0) {
-    maxRes = maxRes*phase_offsets.extent(0)*phase_offsets.extent(1);
+    maxRes = maxRes*phase_offsets.extent(0)*phase_offsets.extent(1)*phase_numElem;
   }
   
   size_t totalvars = 0;
@@ -202,10 +202,10 @@ void Workset<EvalT>::createSolutionFields() {
       // Assume that all vars have both space and phase discretization if both are present
       if (phase_dimension > 0) {
         int pbind = phase_set_usebasis[set][i];
-        phase_sumdof += pbind;
-        
-        phase_set_numDOF.push_back(pbind);
         int pnumb = phase_basis_pointers[pbind]->getCardinality();
+        phase_set_numDOF.push_back(pnumb);
+        phase_sumdof += pnumb;
+        
         numb *= pnumb*phase_numElem;
       }
       View_EvalT2 newsol("seeded sol_vals",numElem, numb);
@@ -360,7 +360,7 @@ void Workset<EvalT>::addSolutionFields(vector<string> & vars, vector<string> & t
 
 template<class EvalT>
 void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
-                               size_t & var_index, string & basistype, string & soltype) {
+                                      size_t & var_index, string & basistype, string & soltype) {
   
   if (basistype.substr(0,5) == "HGRAD") {
     
@@ -386,7 +386,7 @@ void Workset<EvalT>::addSolutionField(string & var, size_t & set_index,
     point_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[u]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[v]", set_index, soltype, var_index));
     point_soln_fields.push_back(SolutionField<EvalT>("phasegrad("+var+")[w]", set_index, soltype, var_index));
-  
+    
   }
   else if (basistype.substr(0,4) == "HDIV" ) {
     
@@ -546,11 +546,11 @@ void Workset<EvalT>::resetResidual() {
 
 template<>
 void Workset<ScalarT>::computeSolnTransientSeeded(const size_t & set,
-                                         View_Sc3 u,
-                                         View_Sc4 u_prev,
-                                         View_Sc4 u_stage,
-                                         const int & seedwhat,
-                                         const int & index) {
+                                                  View_Sc3 u,
+                                                  View_Sc4 u_prev,
+                                                  View_Sc4 u_stage,
+                                                  const int & seedwhat,
+                                                  const int & index) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
@@ -560,10 +560,10 @@ void Workset<ScalarT>::computeSolnTransientSeeded(const size_t & set,
   auto b_A = butcher_A;
   auto b_b = butcher_b;
   auto BDF = BDF_wts;
-
+  
   ScalarT one = 1.0;
   ScalarT zero = 0.0;
- 
+  
   // Seed the current stage solution
   if (set == current_set) {
     
@@ -707,11 +707,11 @@ void Workset<ScalarT>::computeSolnTransientSeeded(const size_t & set,
 
 template<class EvalT>
 void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
-                                         View_Sc3 u,
-                                         View_Sc4 u_prev,
-                                         View_Sc4 u_stage,
-                                         const int & seedwhat,
-                                         const int & index) {
+                                                View_Sc3 u,
+                                                View_Sc4 u_prev,
+                                                View_Sc4 u_stage,
+                                                const int & seedwhat,
+                                                const int & index) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
@@ -721,10 +721,10 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
   auto b_A = butcher_A;
   auto b_b = butcher_b;
   auto BDF = BDF_wts;
-
+  
   ScalarT one = 1.0;
   ScalarT zero = 0.0;
- 
+  
   // Seed the current stage solution
   if (set == current_set) {
     if (seedwhat == 1) {
@@ -758,12 +758,13 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
                 for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
                   size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
                   size_type ind1 = off(dof)*ptotdof + poff(pdof);
+                  
                   // Seed the stage solution
-    #ifndef MrHyDE_NO_AD
+#ifndef MrHyDE_NO_AD
                   EvalT stageval = EvalT(dummyval.size(),off(ind1),cu(elem,ind0));
-    #else
+#else
                   EvalT stageval = cu(elem,ind0);
-    #endif
+#endif
                   // Compute the evaluating solution
                   beta_u = (one-alpha_u)*cu_prev(elem,ind0,0);
                   
@@ -873,11 +874,11 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
                   // Compute the evaluating solution
                   EvalT u_prev_val = cu_prev(elem,ind0,0);
                   if (index == 0) {
-    #ifndef MrHyDE_NO_AD
+#ifndef MrHyDE_NO_AD
                     u_prev_val = EvalT(u_prev_val.size(),ind1,cu_prev(elem,ind0,0));
-    #else
+#else
                     u_prev_val = cu_prev(elem,ind0,0);
-    #endif
+#endif
                   }
                   
                   beta_u = (one-alpha_u)*u_prev_val;
@@ -891,11 +892,11 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
                   for (int s=1; s<BDF.extent_int(0); s++) {
                     EvalT u_prev_val = cu_prev(elem,dof,s-1);
                     if (index == (s-1)) {
-    #ifndef MrHyDE_NO_AD
+#ifndef MrHyDE_NO_AD
                       u_prev_val = EvalT(u_prev_val.size(),ind1,cu_prev(elem,ind0,s-1));
-    #else
+#else
                       u_prev_val = cu_prev(elem,ind0,s-1);
-    #endif
+#endif
                     }
                     beta_t += BDF(s)*u_prev_val;
                   }
@@ -1010,11 +1011,11 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
                   for (int s=0; s<stage; s++) {
                     EvalT u_stage_val = cu_stage(elem,ind0,s);
                     if (index == s) {
-    #ifndef MrHyDE_NO_AD
+#ifndef MrHyDE_NO_AD
                       u_stage_val = EvalT(u_stage_val.size(),ind1,cu_stage(elem,ind0,s));
-    #else
+#else
                       u_stage_val = cu_stage(elem,ind0,s);
-    #endif
+#endif
                     }
                     beta_u += b_A(stage,s)/b_b(s) * (u_stage_val - u_prev_val);
                   }
@@ -1240,8 +1241,8 @@ void Workset<EvalT>::computeSolnTransientSeeded(const size_t & set,
 
 template<>
 void Workset<ScalarT>::computeSolnSteadySeeded(const size_t & set,
-                                      View_Sc3 u,
-                                      const int & seedwhat) {
+                                               View_Sc3 u,
+                                               const int & seedwhat) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
@@ -1285,16 +1286,17 @@ void Workset<ScalarT>::computeSolnSteadySeeded(const size_t & set,
 
 template<class EvalT>
 void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
-                                      View_Sc3 u,
-                                      const int & seedwhat) {
+                                             View_Sc3 u,
+                                             const int & seedwhat) {
   
   Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
   
   for (size_type var=0; var<u.extent(1); var++ ) {
     
+    //cout << u.extent(0) << "  " << u.extent(1) << "  " << u.extent(2) << endl;
     size_t uindex = sol_vals_index[set][var];
     auto u_AD = sol_vals[uindex];
-     
+    
     auto off = subview(set_offsets[set],var,ALL());
     auto cu = subview(u,ALL(),var,ALL());
     int vardof = numDOF[set][var]; // number of dofs for this variable
@@ -1315,6 +1317,7 @@ void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
               for (size_type pdof=0; pdof<pvardof; pdof++ ) { // might cause issue with mixed types
                 size_type ind0 = pelem*totdof*ptotdof + dof*ptotdof + pdof;
                 size_type ind1 = off(dof)*ptotdof + poff(pdof);
+                
 #ifndef MrHyDE_NO_AD
                 u_AD(elem,ind0) = EvalT(dummyval.size(), ind1, cu(elem,ind0));
 #else
@@ -1380,11 +1383,11 @@ void Workset<EvalT>::computeSolnSteadySeeded(const size_t & set,
 
 template<>
 void Workset<ScalarT>::computeParamSteadySeeded(View_Sc3 param,
-                                      const int & seedwhat) {
+                                                const int & seedwhat) {
   
   if (numDiscParams>0) {
     Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
-  
+    
     for (size_type var=0; var<param.extent(1); var++ ) {
       
       auto p_AD = pvals[var];
@@ -1406,11 +1409,11 @@ void Workset<ScalarT>::computeParamSteadySeeded(View_Sc3 param,
 
 template<class EvalT>
 void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
-                                      const int & seedwhat) {
+                                              const int & seedwhat) {
   
   if (numDiscParams>0) {
     Teuchos::TimeMonitor seedtimer(*worksetComputeSolnSeededTimer);
-  
+    
     for (size_type var=0; var<param.extent(1); var++ ) {
       
       auto p_AD = pvals[var];
@@ -1451,9 +1454,9 @@ void Workset<EvalT>::computeParamSteadySeeded(View_Sc3 param,
 
 template<class EvalT>
 void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
-
+  
   auto fielddata = soln_fields[fieldnum].data_;
-
+  
   bool proceed = true;
   if (soln_fields[fieldnum].derivative_type_ == "time" ) {
     if (!isTransient) {
@@ -1492,7 +1495,7 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
         solvals = sol_vals[solindex];
       }
     }
-
+    
     int basis_id;
     
     if (soln_fields[fieldnum].variable_type_ == "param") { // discr. params
@@ -1528,8 +1531,8 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
               for (size_type pelem=0; pelem<pbasis.extent(0); pelem++ ) {
                 for (size_type ppt=0; ppt<pbasis.extent(2); ppt++ ) {
                   for (size_type pdof=0; pdof<pbasis.extent(1); pdof++ ) {
-                    int ind0 = dof*sbasis.extent(2)*pbasis.extent(2) + pdof;
-                    int ind1 = pt*sbasis.extent(1)*pbasis.extent(1) + ppt;
+                    int ind0 = pelem*sbasis.extent(1)*pbasis.extent(1) + dof*pbasis.extent(1) + pdof;
+                    int ind1 = pelem*sbasis.extent(2)*pbasis.extent(2) + pt*pbasis.extent(2) + ppt;
                     fielddata(elem,ind1) += solvals(elem,ind0)*sbasis(elem,dof,pt)*pbasis(pelem,pdof,ppt,phase_component);
                   }
                 }
@@ -1623,19 +1626,28 @@ void Workset<EvalT>::evaluateSolutionField(const int & fieldnum) {
         
         // Note: removed the teams for simplicity.  Will add again later when optimizing.
         int phase_component = soln_fields[fieldnum].phase_component_;
+        int ptotdof = phase_totalDOF[0]; // total for this set
+        //cout << pbasis.extent(0) << " " << pbasis.extent(1) << " " << pbasis.extent(2) << endl;
+        //cout << sbasis.extent(0) << " " << sbasis.extent(1) << " " << sbasis.extent(2) << endl;
         parallel_for("wkset steady soln",
                      RangePolicy<AssemblyExec>(0,sbasis.extent(0)),
                      MRHYDE_LAMBDA (const size_type elem ) {
-          for (size_type dof=0; dof<sbasis.extent(1); dof++ ) {
-            for (size_type pt=0; pt<sbasis.extent(2); pt++ ) {
-              for (size_type pelem=0; pelem<pbasis.extent(0); pelem++ ) {
-                for (size_type ppt=0; ppt<pbasis.extent(2); ppt++ ) {
-                  for (size_type pdof=0; pdof<pbasis.extent(1); pdof++ ) {
-                    int ind0 = dof*sbasis.extent(2)*pbasis.extent(2) + pdof;
-                    int ind1 = pt*sbasis.extent(1)*pbasis.extent(1) + ppt;
-                    fielddata(elem,ind1) += solvals(elem,ind0)*sbasis(elem,dof,pt,component)*pbasis(pelem,pdof,ppt,phase_component);
+          int dofprog = 0;
+          for (size_type pelem=0; pelem<pbasis.extent(0); pelem++ ) {
+            
+            for (size_type dof=0; dof<sbasis.extent(1); dof++ ) {
+              for (size_type pdof=0; pdof<pbasis.extent(1); pdof++ ) {
+                for (size_type pt=0; pt<sbasis.extent(2); pt++ ) {
+                  for (size_type ppt=0; ppt<pbasis.extent(2); ppt++ ) {
+                    //int dofind = pelem*sbasis.extent(1)*pbasis.extent(1) + dof*pbasis.extent(1) + pdof;
+                    //int ptind = pelem*sbasis.extent(2)*pbasis.extent(2) + pt*pbasis.extent(2) + ppt;
+                    int dofind = dofprog; //pelem*sbasis.extent(1)*pbasis.extent(1) + dof*5 + pdof;
+                    int ptind = pelem*sbasis.extent(2)*pbasis.extent(2) + pt*pbasis.extent(2)*pbasis.extent(0) + ppt;
+          //          cout << dofind << "  " << ptind << "  " << solvals(elem,dofind) << endl;
+                    fielddata(elem,ptind) += solvals(elem,dofind)*sbasis(elem,dof,pt,component)*pbasis(pelem,pdof,ppt,phase_component);
                   }
                 }
+                dofprog++;
               }
             }
           }
@@ -1711,7 +1723,7 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
         solvals = sol_vals[uindex];
       }
     }
-
+    
     int basis_id;
     
     if (side_soln_fields[fieldnum].variable_type_ == "param") { // discr. params
@@ -1795,7 +1807,7 @@ void Workset<EvalT>::evaluateSideSolutionField(const int & fieldnum) {
 // Not updating to include phase discretization
 
 template<class EvalT>
-void Workset<EvalT>::computeSolnSideIP(const int & side) { 
+void Workset<EvalT>::computeSolnSideIP(const int & side) {
   
   {
     Teuchos::TimeMonitor basistimer(*worksetComputeSolnSideTimer);
@@ -1973,7 +1985,7 @@ void Workset<EvalT>::addAux(const vector<string> & auxvars, Kokkos::View<int**,A
       res = View_EvalT2("residual",numElem, maxRes);
     }
   }
-
+  
   for (size_t i=0; i<aux_varlist.size(); ++i) {
     string var = aux_varlist[i];
     
@@ -2036,19 +2048,19 @@ void Workset<EvalT>::setStage(const int & newstage) {
 
 template<class EvalT>
 int Workset<EvalT>::addIntegratedQuantities(const int & nRequested) {
-
+  
   int startingIndex = this->integrated_quantities.extent(0);
-
+  
   // this should only be called when setting up the physics module
   // in the case of multiple physics defined on the same block requesting IQs,
   // integrated_quantities will get re-initialized until it's big
   // enough for all of them (we anticipate nTotal to be small here).
-
-  this->integrated_quantities = 
-    View_Sc1("integrated quantities",startingIndex+nRequested);
-
+  
+  this->integrated_quantities =
+  View_Sc1("integrated quantities",startingIndex+nRequested);
+  
   return startingIndex;
-
+  
 }
 
 //----------------------------------------------------------------
@@ -2086,11 +2098,11 @@ void Workset<EvalT>::printScalarFields() {
 }
 
 //////////////////////////////////////////////////////////////
-// 
+//
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
-Kokkos::View<EvalT**,ContLayout,AssemblyDevice> Workset<EvalT>::getSolutionField(const string & label, const bool & evaluate, 
+Kokkos::View<EvalT**,ContLayout,AssemblyDevice> Workset<EvalT>::getSolutionField(const string & label, const bool & evaluate,
                                                                                  const bool & markUpdated) {
   
   Teuchos::TimeMonitor basistimer(*worksetgetDataTimer);
@@ -2180,7 +2192,7 @@ Kokkos::View<EvalT**,ContLayout,AssemblyDevice> Workset<EvalT>::getSolutionField
 }
 
 //////////////////////////////////////////////////////////////
-// 
+//
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
@@ -2188,7 +2200,12 @@ void Workset<EvalT>::checkSolutionFieldAllocation(const size_t & ind) {
   
   if (isOnSide) {
     if (!side_soln_fields[ind].is_initialized_) {
-      side_soln_fields[ind].initialize(maxElem,numsideip);
+      if (phase_dimension > 0) {
+        side_soln_fields[ind].initialize(maxElem,numsideip); // not doing anything different yet
+      }
+      else {
+        side_soln_fields[ind].initialize(maxElem,numsideip);
+      }
     }
   }
   else if (isOnPoint) {
@@ -2198,14 +2215,20 @@ void Workset<EvalT>::checkSolutionFieldAllocation(const size_t & ind) {
   }
   else {
     if (!soln_fields[ind].is_initialized_) {
-      soln_fields[ind].initialize(maxElem,numip);
+      if (phase_dimension > 0) {
+        soln_fields[ind].initialize(maxElem,numip*phase_numip*phase_numElem);
+      }
+      else {
+        soln_fields[ind].initialize(maxElem,numip);
+      }
+      
     }
   }
   
 }
 
 //////////////////////////////////////////////////////////////
-// 
+//
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
@@ -2229,7 +2252,7 @@ void Workset<EvalT>::checkScalarFieldAllocation(const size_t & ind) {
 }
 
 //////////////////////////////////////////////////////////////
-// 
+//
 //////////////////////////////////////////////////////////////
 
 template<class EvalT>
@@ -2239,7 +2262,7 @@ View_Sc2 Workset<EvalT>::getScalarField(const string & label) {
   View_Sc2 outdata;
   bool found = false;
   size_t ind = 0;
-    
+  
   if (isOnSide) {
     while (!found && ind<side_scalar_fields.size()) {
       if (label == side_scalar_fields[ind].expression_) {
@@ -2257,7 +2280,7 @@ View_Sc2 Workset<EvalT>::getScalarField(const string & label) {
       this->checkScalarFieldAllocation(ind);
       outdata = side_scalar_fields[ind].data_;
     }
-  
+    
   }
   else if (isOnPoint) {
     while (!found && ind<point_scalar_fields.size()) {
@@ -2276,7 +2299,7 @@ View_Sc2 Workset<EvalT>::getScalarField(const string & label) {
       this->checkScalarFieldAllocation(ind);
       outdata = point_scalar_fields[ind].data_;
     }
-  
+    
   }
   else {
     while (!found && ind<scalar_fields.size()) {
@@ -2295,9 +2318,9 @@ View_Sc2 Workset<EvalT>::getScalarField(const string & label) {
       this->checkScalarFieldAllocation(ind);
       outdata = scalar_fields[ind].data_;
     }
-  
+    
   }
-
+  
   return outdata;
 }
 
@@ -2397,7 +2420,7 @@ View_Sc2 Workset<EvalT>::getSideWeights() {
 
 template<class EvalT>
 CompressedView<View_Sc4> Workset<EvalT>::getBasis(const string & var) {
-
+  
   CompressedView<View_Sc4> dataout;
   int basisindex;
   
@@ -2690,7 +2713,7 @@ void Workset<EvalT>::setScalarField(View_Sc2 newdata, const string & expression)
     else {
       scalar_fields[ind].data_ = newdata;
       scalar_fields[ind].is_initialized_ = true;
-    }  
+    }
   }
   
 }
@@ -2954,7 +2977,7 @@ void Workset<EvalT>::setSolutionGradPoint(View_EvalT2 newsol) {
       });
     }
   }
-
+  
 }
 
 //////////////////////////////////////////////////////////////
@@ -3149,14 +3172,14 @@ void Workset<EvalT>::setParamGradPoint(View_EvalT2 newsol) {
       });
     }
   }
-
+  
 }
 
 template<class EvalT>
 void Workset<EvalT>::setAux(View_EvalT4 newsol, const string & pfix) {
   // newsol has dims numElem x numvars x numip x dimension
   // however, this numElem may be smaller than the size of the data arrays
-
+  
   // currently the new solution must be ordered appropriately
   
   for (size_t i=0; i<aux_varlist.size(); i++) {
@@ -3171,8 +3194,8 @@ void Workset<EvalT>::setAux(View_EvalT4 newsol, const string & pfix) {
 template<class EvalT>
 string Workset<EvalT>::getParamBasisType(string & name) {
   string type = "none";
-
-  bool found = false; 
+  
+  bool found = false;
   for (size_t i=0; i<paramvarlist_HGRAD.size(); ++i) {
     if (!found && paramvarlist_HGRAD[i] == name) {
       type = "HGRAD";
@@ -3205,7 +3228,7 @@ string Workset<EvalT>::getParamBasisType(string & name) {
   }
   
   return type;
-
+  
 }
 
 //////////////////////////////////////////////////////////////
@@ -3214,7 +3237,7 @@ string Workset<EvalT>::getParamBasisType(string & name) {
 
 /**
  * @brief Update the set-specific workset attributes
- * 
+ *
  * @param[in] current_set_ The index of the current physics set
  */
 

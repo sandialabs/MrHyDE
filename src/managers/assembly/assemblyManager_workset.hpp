@@ -1004,10 +1004,16 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
   
   //wset->h = groups[block][grp]->hsize;
   if (mesh->getPhaseDimension() > 0) {
-    wset->wts = groups[block][grp]->getTensorWts();
+    
+    //wset->wts = groups[block][grp]->getTensorWts();
+    
+    wset->wts = groups[block][grp]->getWts();//wts;
+    wset->phase_wts = groups[block][grp]->getPhaseWts();//phase_wts;
+    
     int space_dim = mesh->getDimension();
     int phase_dim = mesh->getPhaseDimension();
     // this function will always return 6 sets of points, but some may be empty
+    
     vector<View_Sc2> ip = groups[block][grp]->getTensorIntegrationPts();
     wset->setScalarField(ip[0],"x");
     if (space_dim > 1) {
@@ -1023,6 +1029,7 @@ void AssemblyManager<Node>::updateWorkset(Teuchos::RCP<Workset<EvalT> > & wset, 
     if (phase_dim > 2) {
       wset->setScalarField(ip[5],"w");
     }
+    
   }
   else {
     wset->wts = groups[block][grp]->wts;

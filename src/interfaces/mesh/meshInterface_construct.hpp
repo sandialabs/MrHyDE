@@ -83,13 +83,23 @@ settings(settings_), comm(comm_) {
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
-    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
-    
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
     have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
     have_quadrature_data = settings->sublist("Mesh").get<bool>("have mesh quadrature data",false);
   }
+  mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","none");
+  if (mesh_data_pts_tag == "none" && (mesh_data_tag != "none" || compute_mesh_data)) {
+    string seed_file = "microstructure_seeds";
+    if (comm->getRank() == 0) {
+      int randSeed = settings->sublist("Mesh").get<int>("microstructure random seed",1234);
+      View_Sc2 seeds = this->generateNewMicrostructure(randSeed);
+      this->writeToFile(seeds, seed_file);
+    }
+    Kokkos::fence(); // putting a fence here to make other procs wait for data file to be written
+    mesh_data_pts_tag = seed_file;
+  }
+  
   
   meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);
   meshmod_yvar = settings->sublist("Solver").get<int>("solution for y-mesh mod",-1);
@@ -200,13 +210,20 @@ settings(settings_), comm(comm_) {
     stk_mesh->getNodesetNames(node_names);
   }
   else if (use_simple_mesh) {
-    block_names = { "eblock-0_0" };
+    
     // GHDR: Need to define block_names, side_names, node_names
+    if (dimension == 1) {
+      block_names = { "eblock-0" };
+      cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));
+      side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Node>() )));
+    }
     if (dimension == 2) {
+      block_names = { "eblock-0_0" };
       cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>())));
       side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>())));
     }
     else if (dimension == 3) {
+      block_names = { "eblock-0_0_0" };
       cell_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<> >())));
       side_topo.push_back(Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<> >())));
                                                                 
@@ -269,13 +286,18 @@ settings(settings_), comm(comm_) {
 
     // Every processor owns a copy of the phase mesh
     // Due to the uniform grid, the memory cost will be minimal using compression
-    if (phase_dimension == 2) {
+    if (phase_dimension == 1) {
+      phase_mesh = Teuchos::RCP<SimpleMeshManager_Interval<ScalarT> >(new SimpleMeshManager_Interval<ScalarT>(pl));
+      phase_cell_topo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Line<>>()));
+    }
+    else if (phase_dimension == 2) {
       phase_mesh = Teuchos::RCP<SimpleMeshManager_Rectangle<ScalarT> >(new SimpleMeshManager_Rectangle<ScalarT>(pl));
+      phase_cell_topo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<>>()));
     }
     else if (phase_dimension == 3) {
       phase_mesh = Teuchos::RCP<SimpleMeshManager_Brick<ScalarT> >(new SimpleMeshManager_Brick<ScalarT>(pl));
+      phase_cell_topo = Teuchos::rcp(new shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<> >()));
     }
-    
   }
   
   debugger->print("**** Finished mesh interface constructor");
@@ -317,12 +339,21 @@ settings(settings_), comm(comm_), mesh_factory(mesh_factory_), stk_mesh(stk_mesh
   
   mesh_data_tag = settings->sublist("Mesh").get<string>("data file","none");
   if (mesh_data_tag != "none") {
-    mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","mesh_data_pts");
-    
     have_mesh_data = true;
     have_rotation_phi = settings->sublist("Mesh").get<bool>("have mesh data phi",false);
-    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",true);
+    have_rotations = settings->sublist("Mesh").get<bool>("have mesh data rotations",false);
     have_quadrature_data = settings->sublist("Mesh").get<bool>("have mesh quadrature data",false);
+  }
+  mesh_data_pts_tag = settings->sublist("Mesh").get<string>("data points file","none");
+  if (mesh_data_pts_tag == "none" && (mesh_data_tag != "none" || compute_mesh_data)) {
+    string seed_file = "microstructure_seeds";
+    if (comm->getRank() == 0) {
+      int randSeed = settings->sublist("Mesh").get<int>("microstructure random seed",1234);
+      View_Sc2 seeds = this->generateNewMicrostructure(randSeed);
+      this->writeToFile(seeds, seed_file);
+    }
+    Kokkos::fence(); // putting a fence here to make other procs wait for data file to be written
+    mesh_data_pts_tag = seed_file;
   }
   
   meshmod_xvar = settings->sublist("Solver").get<int>("solution for x-mesh mod",-1);

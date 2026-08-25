@@ -24,7 +24,9 @@ group_data(group_data_), localElemID(localID_), disc(disc_)
   
   active = true;
   storeAll = storeAll_;
+  phase_storeAll = storeAll_;
   haveBasis = false;
+  phase_haveBasis = false;
   storeMass = true;
   have_nodes = false; // specific to this constructor
   
@@ -60,7 +62,9 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
   
   active = true;
   storeAll = storeAll_;
+  phase_storeAll = storeAll_;
   haveBasis = false;
+  phase_haveBasis = false;
   storeMass = true;
   have_nodes = true; // specific to this constructor
 
@@ -96,7 +100,7 @@ group_data(group_data_), localElemID(localID_), nodes(nodes_), disc(disc_)
 
 void Group::addPhaseNodes(DRV phase_nodes_) {
   phase_haveBasis = false;
-  phase_storeAll = false;
+  phase_storeAll = true;
   phase_have_nodes = true;
   
   phase_numElem = phase_nodes_.extent(0);
@@ -204,7 +208,7 @@ void Group::computeBasis(const bool & keepnodes) {
     
     View_Sc2 twts = this->getWts();
     wts = CompressedView<View_Sc2>(twts);
-  
+    
     if (!haveBasis) {
       // Compute integration data and basis functions
       vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
@@ -277,10 +281,13 @@ void Group::computeBasis(const bool & keepnodes) {
 
 void Group::computePhaseBasis(const bool & keepnodes) {
   
+  
   // Set up the integration points
   
   if (!phase_have_ip) {
+    
     if (group_data->use_ip_database) {
+      
       CompressedView<View_Sc2> ip_u(group_data->phase_database_u, ip_u_index);
       phase_ip.push_back(ip_u);
       if (group_data->phase_dimension > 1) {
@@ -315,19 +322,20 @@ void Group::computePhaseBasis(const bool & keepnodes) {
     View_Sc2 twts = this->getPhaseWts();
     phase_wts = CompressedView<View_Sc2>(twts);
   
-    if (!haveBasis) {
+    if (!phase_haveBasis) {
       // Compute integration data and basis functions
-      vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl, tbasis_nodes;
+      vector<View_Sc4> tbasis, tbasis_grad, tbasis_curl;
       vector<View_Sc3> tbasis_div;
+      
       if (phase_have_nodes) {
         disc->getPhaseVolumetricBasis(group_data, phase_nodes, phase_orientation,
                                          tbasis, tbasis_grad, tbasis_curl,
                                          tbasis_div, true);
       }
       else {
-        disc->getPhysicalVolumetricBasis(group_data, phase_localElemID,
+        disc->getPhaseVolumetricBasis(group_data, phase_localElemID,
                                          tbasis, tbasis_grad, tbasis_curl,
-                                         tbasis_div, tbasis_nodes, true);
+                                         tbasis_div, true);
       }
 
       for (size_t i=0; i<tbasis.size(); ++i) {
@@ -345,7 +353,7 @@ void Group::computePhaseBasis(const bool & keepnodes) {
   }
   else if (group_data->use_basis_database) {
     wts = CompressedView<View_Sc2>(group_data->phase_database_wts,phase_basis_index);
-    for (size_t i=0; i<group_data->database_basis.size(); ++i) {
+    for (size_t i=0; i<group_data->phase_database_basis.size(); ++i) {
       phase_basis.push_back(CompressedView<View_Sc4>(group_data->phase_database_basis[i],
                                                      phase_basis_index));
       phase_basis_grad.push_back(CompressedView<View_Sc4>(group_data->phase_database_basis_grad[i],
@@ -810,6 +818,7 @@ size_t Group::getFaceStorage() {
 
 View_Sc2 Group::getWts() {
   View_Sc2 newwts;
+  
   if (wts.extent(0) > 0) {
     if (wts.getHaveKey()) {
       auto vdata = wts.getView();
@@ -838,6 +847,7 @@ View_Sc2 Group::getWts() {
       disc->getPhysicalIntegrationData(group_data, localElemID, tip, newwts);
     }
   }
+  
   return newwts;
 }
 
@@ -847,6 +857,7 @@ View_Sc2 Group::getWts() {
 
 View_Sc2 Group::getPhaseWts() {
   View_Sc2 newwts;
+  
   if (phase_wts.extent(0) > 0) {
     if (phase_wts.getHaveKey()) {
       auto vdata = phase_wts.getView();
@@ -874,6 +885,7 @@ View_Sc2 Group::getPhaseWts() {
     else {
       disc->getPhaseIntegrationData(group_data, phase_localElemID, tip, newwts);
     }
+    
   }
   return newwts;
 }
@@ -920,6 +932,8 @@ View_Sc2 Group::getTensorWts() {
     }
   }
   else {
+    
+    
     //size_type numphaseip = group_data->ref_phase_ip.extent(0);
     //ph_wts = View_Sc2("temp physical wts",numPhaseElem, numphaseip);
     //vector<View_Sc2> tip;
@@ -932,6 +946,7 @@ View_Sc2 Group::getTensorWts() {
   }
   
   // Now create tensor product
+  
   newwts = View_Sc2("temp wts", numElem, space_wts.extent(1)*ph_wts.extent(0)*ph_wts.extent(1));
   parallel_for("grp wts decompress",
            RangePolicy<AssemblyExec>(0,numElem),

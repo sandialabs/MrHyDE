@@ -1,0 +1,73 @@
+## ---------------------------------------------------------------
+## Spherical inclusion embedded in a unit-cube matrix, domain [0,1]^3
+## ---------------------------------------------------------------
+reset
+undo group begin
+
+## ---- Parameters -----------------------------------------------
+#{L     = 1.0}          ## cube edge -> domain [0,L]^3
+#{RAD   = 0.25}         ## inclusion radius
+#{ESIZE = 0.025}          ## target element size
+#{HALF  = L/2}
+#{TOL   = L/1.0e4}      ## geometric picking tolerance
+
+## ---- Geometry (built centered on origin, shifted at the end) ----
+sphere radius {RAD}                  ## the inclusion, kept
+brick x {L}                          ## the matrix
+sphere radius {RAD}                  ## sacrificial cutting tool
+
+## Hollow out the matrix. Boolean result may take a new id,
+## so compress to force inclusion -> 1, matrix -> 2.
+subtract volume 3 from volume 2
+compress ids
+list volume                          ## expect exactly 2 volumes
+
+## Temporary block membership so scheme assignment survives webcuts.
+block 1 volume 1
+block 2 volume 2
+
+## Partition into octants for meshability.
+## Planes pass through the origin, which is still the sphere center.
+webcut volume all with plane xplane
+webcut volume all with plane yplane
+webcut volume all with plane zplane
+
+## Shift so the matrix occupies [0,L]^3 (mesh not built yet, nothing merged yet)
+move volume all x {HALF} y {HALF} z {HALF}
+
+## Enforce a contiguous mesh across the inclusion/matrix interface
+imprint volume all
+merge all
+
+## ---- Sidesets, picked geometrically on the shifted geometry -----
+sideset 1 surface with x_coord < {TOL}
+sideset 1 name "left"
+sideset 2 surface with x_coord > {L-TOL}
+sideset 2 name "right"
+sideset 3 surface with y_coord < {TOL}
+sideset 3 name "front"
+sideset 4 surface with y_coord > {L-TOL}
+sideset 4 name "back"
+sideset 5 surface with z_coord < {TOL}
+sideset 5 name "bottom"
+sideset 6 surface with z_coord > {L-TOL}
+sideset 6 name "top"
+
+## ---- Meshing ----------------------------------------------------
+volume in block 1 scheme tetprimitive
+volume in block 2 scheme polyhedron
+volume all size {ESIZE}
+mesh volume all
+
+## Collapse to one exported element block for thermal input convention.
+delete block 1
+delete block 2
+block 1 hex all
+block 1 name "eblock-0_0_0"
+undo group end
+
+## ---- Sanity checks ----------------------------------------------
+list block all
+list sideset all
+quality volume all
+export Genesis "mesh.exo" dimension 3 block 1 overwrite

@@ -165,6 +165,7 @@ settings(settings_), comm(Comm_), mesh(mesh_), physics(physics_) {
   } // block loop
   
   if (phase_dimension > 0) {
+    
     vector<vector<int> > phase_orders = physics->unique_phase_orders;
     vector<vector<string> > phase_types = physics->unique_phase_types;
     

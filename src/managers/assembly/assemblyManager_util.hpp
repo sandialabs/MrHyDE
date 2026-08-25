@@ -375,7 +375,7 @@ void AssemblyManager<Node>::setMeshData() {
     this->importMeshData();
   }
   else if (mesh->compute_mesh_data) {
-    int randSeed = settings->sublist("Mesh").get<int>("random seed", 1234);
+    int randSeed = settings->sublist("Mesh").get<int>("microstructure random seed", 1234);
     auto seeds = mesh->generateNewMicrostructure(randSeed);
     this->importNewMicrostructure(randSeed, seeds);
   }
@@ -509,7 +509,7 @@ void AssemblyManager<Node>::importMeshData() {
         auto centers = mesh->getElementCenters(nodes, groups[block][grp]->group_data->cell_topo);
         
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
+        Kokkos::View<int*, HostDevice> cnode("cnode",numElem);
         
         mesh_data->findClosestPoint(centers,cnode,distance);
         
@@ -544,7 +544,7 @@ void AssemblyManager<Node>::importMeshData() {
         auto centers = mesh->getElementCenters(nodes, boundary_groups[block][grp]->group_data->cell_topo);
         
         Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-        Kokkos::View<int*, CompadreDevice> cnode("cnode",numElem);
+        Kokkos::View<int*, HostDevice> cnode("cnode",numElem);
         
         mesh_data->findClosestPoint(centers,cnode,distance);
 
@@ -618,12 +618,13 @@ void AssemblyManager<Node>::importQuadratureData() {
   }
   */
   
-  string mesh_data_pts_file = mesh->mesh_data_pts_tag + ".dat";
-  string mesh_data_file = mesh->mesh_data_tag + ".dat";
-  
-  Teuchos::RCP<Data> qpt_data = Teuchos::rcp(new Data("mesh data", mesh->dimension, mesh_data_pts_file,
-                                                      mesh_data_file, false));
   for (size_t block=0; block<groups.size(); ++block) {
+    string mesh_data_pts_file = mesh->mesh_data_pts_tag + "." + blocknames[block] + ".dat";
+    string mesh_data_file = mesh->mesh_data_tag + "." + blocknames[block] + ".dat";
+    
+    Teuchos::RCP<Data> qpt_data = Teuchos::rcp(new Data("mesh data", mesh->dimension, mesh_data_pts_file,
+                                                        mesh_data_file, false));
+    
     int numip = disc->numip[block];
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       DRV nodes = groups[block][grp]->nodes;
@@ -646,7 +647,7 @@ void AssemblyManager<Node>::importQuadratureData() {
       }
       Kokkos::deep_copy(qpts, qpts_mirror);
       Kokkos::View<ScalarT*, AssemblyDevice> distance("distance", numElem*numip);
-      Kokkos::View<int*, CompadreDevice> cnode("cnode", numElem*numip);
+      Kokkos::View<int*, HostDevice> cnode("cnode", numElem*numip);
       
       qpt_data->findClosestPoint(qpts,cnode,distance);
       
@@ -814,7 +815,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   
   debugger->print("**** Starting AssemblyManager::importNewMicrostructure ...");
   
-  cout << "num seeds = " << seeds.extent(0) << endl;
+  //cout << "num seeds = " << seeds.extent(0) << endl;
   
   Teuchos::Time meshimporttimer("mesh import", false);
   meshimporttimer.start();
@@ -920,11 +921,26 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   // Find the closest seeds
   ////////////////////////////////////////////////////////////////////////////////
   
-  Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",totalElem);
-  Kokkos::View<int*, CompadreDevice> cnode("cnode",totalElem);
+  Kokkos::View<ScalarT*, HostDevice> distance("distance",totalElem);
+  Kokkos::View<int*, HostDevice> cnode("cnode",totalElem);
   
-  Compadre::NeighborLists<Kokkos::View<int*, CompadreDevice> > neighborlists = CompadreInterface_constructNeighborLists(seeds, centers, distance);
-  cnode = neighborlists.getNeighborLists();
+  for (size_t elem=0; elem<totalElem; ++elem) {
+    distance(elem) = 1.0e16; // Just some large number
+  }
+  for (size_t elem=0; elem<totalElem; ++elem) {
+    for (size_t seed=0; seed<num_seeds; ++seed) {
+      ScalarT dist = 0.0;
+      for (size_t dim=0; dim<centers.extent(1); dim++) {
+        dist += (centers(elem,dim) - seeds(seed,dim))*(centers(elem,dim) - seeds(seed,dim));
+      }
+      dist = std::sqrt(dist);
+      if (dist < distance(elem)) {
+        distance(elem) = dist;
+        cnode(elem) = seed;
+      }
+    }
+  }
+  
   
   ////////////////////////////////////////////////////////////////////////////////
   // Set group data
@@ -934,13 +950,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
   for (size_t block=0; block<groups.size(); ++block) {
     for (size_t grp=0; grp<groups[block].size(); ++grp) {
       int numElem = groups[block][grp]->numElem;
-      //auto centers = this->getElementCenters(nodes, groups[block][grp]->group_data->cellTopo);
       
-      //Kokkos::View<ScalarT*, AssemblyDevice> distance("distance",numElem);
-      //Kokkos::View<int*, AssemblyDevice> cnode("cnode",numElem);
-      //Compadre::NeighborLists<Kokkos::View<int*> > neighborlists = CompadreTools_constructNeighborLists(seeds, centers, distance);
-      //cnode = neighborlists.getNeighborLists();
-
       for (int c=0; c<numElem; c++) {
         
         int cpt = cnode(prog);
@@ -956,7 +966,7 @@ void AssemblyManager<Node>::importNewMicrostructure(int & randSeed, View_Sc2 see
         groups[block][grp]->data_seed[c] = cpt % 100;//cnode(c) % 100;
         groups[block][grp]->data_seedindex[c] = seedIndex(cpt); //seedIndex(cnode(c));
         groups[block][grp]->data_distance[c] = distance(cpt);//distance(c);
-        
+        //cout << cpt << "  " << distance(cpt) << endl;
       }
     }
     

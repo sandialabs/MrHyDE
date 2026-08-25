@@ -46,6 +46,7 @@
 #include "phase_elliptic.hpp"
 #include "levelSet.hpp"
 #include "maxwell_bianisotropic.hpp"
+#include "mhd.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -161,6 +162,12 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     if (modname == "navier stokes" || modname == "Navier Stokes") {
       modules.push_back(Teuchos::rcp(new navierstokes<EvalT>(settings, dimension) ) );
     }
+    
+    // MHD
+    if (modname == "MHD" || modname == "mhd") {
+      modules.push_back(Teuchos::rcp(new MHD<EvalT>(settings, dimension) ) );
+    }
+    
     // Hartmann
     if (modname == "hartmann") {
       modules.push_back(Teuchos::rcp(new hartmann<EvalT>(settings, dimension) ) );

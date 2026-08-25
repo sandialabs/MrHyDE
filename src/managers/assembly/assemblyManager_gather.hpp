@@ -256,29 +256,37 @@ void AssemblyManager<Node>::performGatherWithPhase(const size_t & set, const siz
   Kokkos::View<int**,AssemblyDevice> phase_offsets = wkset[block]->phase_set_offsets[set];
   int phase_num_elem = wkset[block]->phase_numElem;
   auto cvec = vec_dev;
-  int numtotalphase = 0;
+  int num_phase_local = 0;
   for (int pvar=0; pvar<phase_numDOF.extent(0); pvar++ ) {
-    numtotalphase += phase_numDOF(pvar);
+    num_phase_local += phase_numDOF(pvar);
   }
-  numtotalphase *= phase_num_elem;
+  int num_space_local = 0;
+  for (int var=0; var<numDOF.extent(0); var++ ) {
+    num_space_local += numDOF(var);
+  }
+  
+  //numtotalphase *= phase_num_elem;
+  LO num_phase_global = disc->getNumPhaseDOFs(set); // this function returns 1 if no phase space
+  
   parallel_for("assembly gather",
                RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
                MRHYDE_LAMBDA (const int elem ) {
-    for (size_type var=0; var<offsets.extent(0); var++) {
-      for (int dof=0; dof<numDOF(var); dof++ ) {
-        for (int pelem=0; pelem<phase_num_elem; pelem++ ) {
-          for (size_type pvar=0; pvar<phase_offsets.extent(0); pvar++) {
-            for (int pdof=0; pdof<phase_numDOF(pvar); pdof++ ) {
-              int dofind1 = dof*numtotalphase + pdof;
-              int dofind2 = LIDs(elem,offsets(var,dof))*numtotalphase + phase_LIDs(var,pdof);
-              //data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
-              data(elem,var,dofind1) = cvec(dofind2);
-            }
+    for (int pelem=0; pelem<phase_num_elem; pelem++ ) {
+      int dofstart = num_phase_local*num_space_local*pelem;
+      int dofprog = 0;
+      for (size_type var=0; var<offsets.extent(0); var++) {
+        for (int dof=0; dof<numDOF(var); dof++ ) {
+          for (int pdof=0; pdof<phase_numDOF(var); pdof++ ) {
+            int dofind = dofstart + dofprog;
+            int vecind = LIDs(elem,offsets(var,dof))*num_phase_global + phase_LIDs(pelem, phase_offsets(var,pdof));
+            data(elem,var,dofind) = cvec(vecind);
+            dofprog++;
           }
         }
       }
     }
   });
+  
 }
 
 // ========================================================================================
@@ -362,24 +370,30 @@ void AssemblyManager<Node>::performGather4D(const size_t & set, const size_t & b
     Kokkos::View<int**,AssemblyDevice> phase_offsets = wkset[block]->phase_set_offsets[set];
     int num_phase_elem = wkset[block]->phase_numElem;
     auto cvec = vec_dev;
-    int numtotalphase = 0;
+    int num_phase_local = 0;
     for (int pvar=0; pvar<phase_numDOF.extent(0); pvar++ ) {
-      numtotalphase += phase_numDOF(pvar);
+      num_phase_local += phase_numDOF(pvar);
     }
-    numtotalphase *= num_phase_elem;
+    int num_space_local = 0;
+    for (int var=0; var<numDOF.extent(0); var++ ) {
+      num_space_local += numDOF(var);
+    }
+    //numtotalphase *= num_phase_elem;
+    LO num_phase_global = disc->getNumPhaseDOFs(set); // this function returns 1 if no phase space
+    
     parallel_for("assembly gather",
                  RangePolicy<AssemblyExec>(0,LIDs.extent(0)),
                  MRHYDE_LAMBDA (const int elem ) {
-      for (size_type var=0; var<offsets.extent(0); var++) {
-        for (int dof=0; dof<numDOF(var); dof++ ) {
-          for (int pelem=0; pelem<num_phase_elem; pelem++ ) {
-            for (size_type pvar=0; pvar<phase_offsets.extent(0); pvar++) {
-              for (int pdof=0; pdof<phase_numDOF(pvar); pdof++ ) {
-                int dofind1 = dof*numtotalphase + pdof;
-                int dofind2 = LIDs(elem,offsets(var,dof))*numtotalphase + phaseLIDs(var,pdof);
-                //data(elem,var,dof) = cvec(LIDs(elem,offsets(var,dof)));
-                data(elem,var,dofind1,local_entry) = cvec(dofind2);
-              }
+      for (int pelem=0; pelem<num_phase_elem; pelem++ ) {
+        int dofstart = num_phase_local*num_space_local*pelem;
+        int dofprog = 0;
+        for (size_type var=0; var<offsets.extent(0); var++) {
+          for (int dof=0; dof<numDOF(var); dof++ ) {
+            for (int pdof=0; pdof<phase_numDOF(var); pdof++ ) {
+              int dofind = dofstart + dofprog;
+              int vecind = LIDs(elem,offsets(var,dof))*num_phase_global + phaseLIDs(var,pdof);
+              data(elem,var,dofind,local_entry) = cvec(vecind);
+              dofprog++;
             }
           }
         }
