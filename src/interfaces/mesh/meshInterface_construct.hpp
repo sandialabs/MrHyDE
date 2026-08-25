@@ -503,6 +503,9 @@ void MeshInterface::finalize(std::vector<std::vector<std::vector<string> > > var
               stk_mesh->addCellField(derivedList[set][blk][var][k]+append, block_names[blk]);
             }
           }
+          if (have_quadrature_data) {
+            stk_mesh->addCellField("quadrature data", block_names[blk]);
+          }
           
           if (have_mesh_data || compute_mesh_data) {
             stk_mesh->addCellField("mesh_data_seed", block_names[blk]);

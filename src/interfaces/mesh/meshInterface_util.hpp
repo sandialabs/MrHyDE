@@ -206,6 +206,7 @@ View_Sc2 MeshInterface::generateNewMicrostructure(int & randSeed) {
     
   }
   else {
+    
     num_seeds = settings->sublist("Mesh").get<int>("number of seeds",10);
     seeds = View_Sc2("seeds",num_seeds,3);
     auto seeds_host = create_mirror_view(seeds);
