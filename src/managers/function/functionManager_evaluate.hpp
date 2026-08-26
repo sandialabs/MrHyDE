@@ -559,6 +559,28 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
       }
     });
   }
+  else if (op == "tanh") {
+    parallel_for("funcman evaluate cosh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tanh(tdata(elem,pt));
+      }
+    });
+  }
+  else if (op == "sech") {
+    parallel_for("funcman evaluate cosh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = 1.0/cosh(tdata(elem,pt));
+      }
+    });
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -692,6 +714,28 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
       size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
         data(elem,pt) = tan(tdata(pIndex));
+      }
+    });
+  }
+  else if (op == "tanh") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tanh(tdata(pIndex));
+      }
+    });
+  }
+  else if (op == "sech") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = 1.0/cosh(tdata(pIndex));
       }
     });
   }
@@ -1026,6 +1070,28 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
       }
     });
   }
+  else if (op == "tanh") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tanh(tdata);
+      }
+    });
+  }
+  else if (op == "sech") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = 1.0/cosh(tdata);
+      }
+    });
+  }
   else if (op == "sinh") {
     parallel_for("funcman evaluate sinh",
                  TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
@@ -1270,6 +1336,12 @@ void FunctionManager<EvalT>::evaluateOpSToS(T1 & data, T2 & tdata, const string 
   }
   else if (op == "tan") {
     data = tan(tdata);
+  }
+  else if (op == "tanh") {
+    data = tanh(tdata);
+  }
+  else if (op == "sech") {
+    data = 1.0/cosh(tdata);
   }
   else if (op == "sinh") {
     data = sinh(tdata);

@@ -105,7 +105,7 @@ namespace MrHyDE {
     
   private:
     
-    int ux_num, uy_num, uz_num, rho_num, T_num, Bx_num, By_num, Bz_num;
+    int rhoux_num, rhouy_num, rhouz_num, rho_num, T_num, Bx_num, By_num, Bz_num, psi_num;
     
     bool useSUPG, usePSPG;
 

@@ -16,7 +16,7 @@ FunctionManager<EvalT>::FunctionManager() {
   num_phase_ip_ = 1;
   
   known_vars_ = {"x","y","z","u","v","w","t","pi","h"};
-  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt", "sinh", "cosh"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt", "sinh", "cosh", "tanh", "sech"};
   
   interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
   
@@ -31,7 +31,7 @@ num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(bloc
   interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
 
   known_vars_ = {"x","y","z","u","v","w","t","pi","h"};
-  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt","sinh","cosh"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt","sinh","cosh", "tanh", "sech"};
   
   forests_.push_back(Forest<EvalT>("ip",num_elem_,num_ip_));
   forests_.push_back(Forest<EvalT>("side ip",num_elem_,num_ip_side_));
