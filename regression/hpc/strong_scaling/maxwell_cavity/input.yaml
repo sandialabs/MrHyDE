@@ -1,0 +1,120 @@
+%YAML 1.1
+---
+# HPC Strong Scaling Test: 3D Maxwell Cavity with Iterative Solver
+#
+# This test is designed for strong scaling analysis. It uses:
+# - A larger mesh (40x40x20) for meaningful parallel work
+# - DIRK-1,2 with Ifpack2 Jacobi preconditioner and BiCGStab (aligned with cavity-pot-mono implicit)
+# - More time steps to increase solve time
+#
+# The problem is a TM_110 cavity mode which naturally satisfies PEC
+# boundary conditions on all walls.
+
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+
+  Mesh:
+    dimension: 3
+    shape: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 0.5
+    NX: 80
+    NY: 80
+    NZ: 80
+    blocknames: eblock-0_0_0
+
+  Physics:
+    Dirichlet conditions:
+      scalar data: false
+    eblock-0_0_0:
+      modules: maxwell
+      assemble boundary terms: false
+      Dirichlet conditions:
+        # PEC on all boundaries: tangential E = 0
+        Ex:
+          all boundaries: '0.0'
+        Ey:
+          all boundaries: '0.0'
+        Ez:
+          all boundaries: '0.0'
+      Initial conditions:
+        # TM_110 mode at t=0: Ez = sin(pi*x)*sin(pi*y), B = 0
+        'E[x]': '0.0'
+        'E[y]': '0.0'
+        'E[z]': 'sin(pi*x)*sin(pi*y)'
+        'B[x]': '0.0'
+        'B[y]': '0.0'
+        'B[z]': '0.0'
+
+  Discretization:
+    eblock-0_0_0:
+      order:
+        E: 1
+        B: 1
+      quadrature: 2
+
+  Functions:
+    current x: '0.0'
+    current y: '0.0'
+    current z: '0.0'
+    permittivity: '1.0'
+    permeability: '1.0'
+
+  Solver:
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    workset size: 100
+    final time: 0.50
+    number of steps: 20
+    initial type: L2-projection
+    assembly partitioning: sequential
+    use basis database: false
+    use mass database: false
+    database TOL: 1.0e-13
+    linear TOL: 1.0e-8
+    max linear iters: 500
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 1
+    use direct solver: false
+    use preconditioner: true
+    preconditioner type: Ifpack2
+    preconditioner variant: RELAXATION
+    right preconditioner: true
+    reuse preconditioner: true
+    reuse Jacobian: true
+    preconditioner reuse type: full
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Belos solver: BiCGStab
+    enable autotune: false
+    Preconditioner Settings:
+      "relaxation: type": "Jacobi"
+      "relaxation: damping factor": 0.5
+      "relaxation: backward mode": false
+      "relaxation: sweeps": 2
+
+  Analysis:
+    analysis type: forward
+
+  Postprocess:
+    write solution: false
+    compute errors: false
+    compute integrated quantities: true
+    eblock-0_0_0:
+      Integrated quantities:
+        electric_energy:
+          integrand: '0.5*(E[x]^2 + E[y]^2 + E[z]^2)'
+          location: 'volume'
+        magnetic_energy:
+          integrand: '0.5*(B[x]^2 + B[y]^2 + B[z]^2)'
+          location: 'volume'
+        total_energy:
+          integrand: '0.5*(E[x]^2 + E[y]^2 + E[z]^2) + 0.5*(B[x]^2 + B[y]^2 + B[z]^2)'
+          location: 'volume'
+...
