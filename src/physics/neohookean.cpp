@@ -54,7 +54,9 @@ neohookean<EvalT>::neohookean(Teuchos::ParameterList & settings, const int & dim
     mybasistypes = {"HGRAD","HGRAD","HGRAD"};
   }
   
-  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for NH",2); 
+  use_quadrature_data = settings.get<bool>("use quadrature data",false);
+    
+  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for NH",2);
   auto modelparams_host = Kokkos::create_mirror_view(modelparams); 
  
   modelparams_host(0) = settings.get<ScalarT>("form_param",1.0);
@@ -109,7 +111,12 @@ void neohookean<EvalT>::volumeResidual() {
     if (spaceDim > 2) {
       source_dz = functionManager->evaluate("source dz","ip");
     }
-    lambda = functionManager->evaluate("lambda","ip");
+    if (use_quadrature_data) {
+      lambda = Vista<EvalT>(wkset->extra_data);
+    }
+    else {
+      lambda = functionManager->evaluate("lambda","ip");
+    }
     mu = functionManager->evaluate("mu","ip");
   }
   

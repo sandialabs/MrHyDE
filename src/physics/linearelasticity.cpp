@@ -47,8 +47,9 @@ linearelasticity<EvalT>::linearelasticity(Teuchos::ParameterList & settings, con
   incplanestress = settings.get<bool>("incplanestress",false);
   useLame = settings.get<bool>("use Lame parameters",true);
   addBiot = settings.get<bool>("Biot",false);
-  
-  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for LE",5); 
+  use_quadrature_data = settings.get<bool>("use quadrature data",false);
+    
+  modelparams = Kokkos::View<ScalarT*,AssemblyDevice>("parameters for LE",5);
   auto modelparams_host = Kokkos::create_mirror_view(modelparams); 
  
   modelparams_host(0) = settings.get<ScalarT>("form_param",1.0);
@@ -103,7 +104,12 @@ void linearelasticity<EvalT>::volumeResidual() {
     if (spaceDim > 2) {
       source_dz = functionManager->evaluate("source dz","ip");
     }
-    lambda = functionManager->evaluate("lambda","ip");
+    if (use_quadrature_data) {
+      lambda = Vista<EvalT>(wkset->extra_data);
+    }
+    else {
+      lambda = functionManager->evaluate("lambda","ip");
+    }
     mu = functionManager->evaluate("mu","ip");
   }
   

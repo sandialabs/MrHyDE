@@ -112,6 +112,7 @@ namespace MrHyDE {
   private:
     
     int spaceDim, dx_num, dy_num, dz_num;
+    bool use_quadrature_data;
     
     View_EvalT4 stress_vol, stress_side;
     
