@@ -23,6 +23,8 @@
 #include "stokes.hpp"
 #include "navierstokes.hpp"
 #include "linearelasticity.hpp"
+#include "elastodynamics.hpp"
+#include "neohookean.hpp"
 #include "helmholtz.hpp"
 #include "maxwells_fp.hpp"
 #include "shallowwater.hpp"
@@ -40,7 +42,11 @@
 #include "hartmann.hpp"
 #include "vlasov_fokker_planck_0d2v.hpp"
 #include "vlasov_fokker_planck_1d2v.hpp"
+#include "vlasov_fokker_planck.hpp"
+#include "phase_elliptic.hpp"
 #include "levelSet.hpp"
+#include "maxwell_bianisotropic.hpp"
+#include "mhd.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -137,6 +143,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
       modules.push_back(Teuchos::rcp(new maxwell_control<EvalT>(settings, dimension) ) );
     }
     
+    // Maxwell with bianisotropic materials
+    if (modname == "maxwell bianisotropic") {
+      modules.push_back(Teuchos::rcp(new maxwell_bianisotropic<EvalT>(settings, dimension) ) );
+    }
+    
     // Multiple Species PhaseField
     if (modname == "msphasefield") {
       modules.push_back(Teuchos::rcp(new msphasefield<EvalT>(settings, dimension, Commptr) ) );
@@ -151,6 +162,12 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     if (modname == "navier stokes" || modname == "Navier Stokes") {
       modules.push_back(Teuchos::rcp(new navierstokes<EvalT>(settings, dimension) ) );
     }
+    
+    // MHD
+    if (modname == "MHD" || modname == "mhd") {
+      modules.push_back(Teuchos::rcp(new MHD<EvalT>(settings, dimension) ) );
+    }
+    
     // Hartmann
     if (modname == "hartmann") {
       modules.push_back(Teuchos::rcp(new hartmann<EvalT>(settings, dimension) ) );
@@ -159,6 +176,16 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // Linear Elasticity
     if (modname == "linearelasticity" || modname == "linear elasticity") {
       modules.push_back(Teuchos::rcp(new linearelasticity<EvalT>(settings, dimension) ) );
+    }
+
+    // Linear Elastodynamics
+    if (modname == "elastodynamics") {
+      modules.push_back(Teuchos::rcp(new elastodynamics<EvalT>(settings, dimension) ) );
+    }
+
+    // Neo-Hookean hyperelasticity
+    if (modname == "neohookean" || modname == "neo hookean") {
+      modules.push_back(Teuchos::rcp(new neohookean<EvalT>(settings, dimension) ) );
     }
     
     // Helmholtz
@@ -209,6 +236,16 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // VFP1d2v equations
     if (modname == "VFP1d2v" ){
       modules.push_back(Teuchos::rcp(new VFP1d2v<EvalT>(settings, dimension) ) );
+    }
+    
+    // VFP equations (arbitrary dimensions)
+    if (modname == "VFP" ){
+      modules.push_back(Teuchos::rcp(new VFP<EvalT>(settings, dimension) ) );
+    }
+    
+    // Phase equation for testing
+    if (modname == "phase elliptic" ){
+      modules.push_back(Teuchos::rcp(new PhaseElliptic<EvalT>(settings, dimension) ) );
     }
     
     // Incompressible saturation equation

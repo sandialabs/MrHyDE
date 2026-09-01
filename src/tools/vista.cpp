@@ -93,6 +93,23 @@ View_Sc2 Vista<EvalT>::getDataSc() {
   return viewdata_Sc_;
 }
     
+// ========================================================================================
+// ========================================================================================
+
+template<class EvalT>
+LO Vista<EvalT>::extent(int dimension){
+  LO ext = 0;
+  if (is_view_) {
+    ext = viewdata_.extent(dimension);
+  }
+  else {
+    if (dimension == 0) {
+      ext = 1;
+    }
+  }
+  return ext;
+}
+
 template<class EvalT>
 void Vista<EvalT>::print() {
   std::cout << "Printing Vista -------" <<std::endl;

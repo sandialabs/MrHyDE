@@ -656,9 +656,25 @@ public:
    * @param type Field type indicator.
    * @param local_entry Local entry index.
    */
+  
+  template<class ViewType>
+  void performGatherWithPhase(const size_t & set, const size_t & block, const size_t & grp,
+                              ViewType vec_dev, LIDView LIDs,
+                              Kokkos::View<LO*,AssemblyDevice> numDOF,
+                              Kokkos::View<ScalarT***,AssemblyDevice> data,
+                              Kokkos::View<int**,AssemblyDevice> offsets);
+
   template<class ViewType>
   void performGather4D(const size_t & set, const size_t & block, const size_t & grp,
                        ViewType vec_dev, const int & type, const size_t & local_entry);
+  
+  template<class ViewType>
+  void performGatherWithPhase4D(const size_t & set, const size_t & block, const size_t & grp,
+                                const size_t & local_entry, ViewType vec_dev,
+                                LIDView LIDs,
+                                Kokkos::View<LO*,AssemblyDevice> numDOF,
+                                Kokkos::View<ScalarT****,AssemblyDevice> data,
+                                Kokkos::View<int**,AssemblyDevice> offsets);
   
   /**
    * @brief Specialization of performGather for standard vector_RCP.
@@ -781,7 +797,7 @@ public:
    */
   template<class MatType, class LocalViewType, class LIDViewType>
   void scatterJac(const size_t & set, MatType J_kcrs, LocalViewType local_J,
-                  LIDViewType LIDs, LIDViewType paramLIDs,
+                  LIDViewType LIDs, LIDViewType paramLIDs, LIDViewType phaseLIDs,
                   const bool & compute_disc_sens);
   
   /**
@@ -795,7 +811,7 @@ public:
    * @param LIDs Local DOF IDs.
    */
   template<class VecViewType, class LocalViewType, class LIDViewType>
-  void scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs);
+  void scatterRes(VecViewType res_view, LocalViewType local_res, LIDViewType LIDs, LIDViewType phaseLIDs);
   
   /**
    * @brief Scatter Jacobian and residual contributions for a workset.
@@ -822,7 +838,7 @@ public:
    */
   template<class MatType, class VecViewType, class LIDViewType, class EvalT>
   void scatter(const size_t & set, MatType J_kcrs, VecViewType res_view,
-               LIDViewType LIDs, LIDViewType paramLIDs,
+               LIDViewType LIDs, LIDViewType paramLIDs, LIDViewType phaseLIDs,
                const int & block,
                const bool & compute_jacobian,
                const bool & compute_sens,
@@ -853,7 +869,7 @@ public:
   template<class MatType, class VecViewType, class LIDViewType, class EvalT>
   void scatter(Teuchos::RCP<Workset<EvalT> > & wset, const size_t & set,
                MatType J_kcrs, VecViewType res_view,
-               LIDViewType LIDs, LIDViewType paramLIDs,
+               LIDViewType LIDs, LIDViewType paramLIDs, LIDViewType phaseLIDs,
                const int & block,
                const bool & compute_jacobian,
                const bool & compute_sens,
@@ -883,7 +899,7 @@ public:
    */
   template<class VecViewType, class LIDViewType>
   void scatterRes(const size_t & set, VecViewType res_view,
-                  LIDViewType LIDs, const int & block);
+                  LIDViewType LIDs, LIDViewType phaseLIDs, const int & block);
   
   /**
    * @brief Apply the mass matrix action in a matrix-free manner.
@@ -943,6 +959,8 @@ public:
    */
   void identifyVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
   
+  void identifyPhaseVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
+  
   /**
    * @brief Identify the first user of each boundary-related data record.
    *
@@ -985,6 +1003,8 @@ public:
    * @return void
    */
   void buildVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
+  
+  void buildPhaseVolumetricDatabase(const size_t & block, vector<std::pair<size_t,size_t> > & first_users);
   
   /**
    * @brief Build the boundary database using previously identified first boundary users.

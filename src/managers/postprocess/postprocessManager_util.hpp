@@ -98,11 +98,9 @@ void PostprocessManager<Node>::report()
     }
     for (size_t obj = 0; obj < objectives.size(); ++obj)
     {
-      if (objectives[obj].type == "sensors")
-      {
+      if (objectives[obj].type == "sensors") {
         // First case: sensors just computed states (faster than other case)
-        if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln)
-        {
+        if (objectives[obj].compute_sensor_soln || objectives[obj].compute_sensor_average_soln) {
 
           Kokkos::View<ScalarT ***, HostDevice> sensor_data;
           Kokkos::View<int *, HostDevice> sensorIDs;
@@ -248,6 +246,48 @@ void PostprocessManager<Node>::report()
                 }
                 
               }
+              
+              // The above calculation provides the processor-local contribution to the integrated quantity
+              // Need to sum over all processors to get the global values
+              Teuchos::Array<ScalarT> local_data_A_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_A_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> local_data_A_ph(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_A_ph(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> local_data_F_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_F_th(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> local_data_F_ph(numtheta*numphi*numfreq, 0.0);
+              Teuchos::Array<ScalarT> global_data_F_ph(numtheta*numphi*numfreq, 0.0);
+              
+              // Just taking the real component for now
+              prog = 0;
+              for (int t=0; t<numfreq; ++t) {
+                for (int nt=0; nt<numtheta; ++nt) {
+                  for (int np=0; np<numphi; ++np) {
+                    local_data_A_th[prog] = A_th(t,nt,np).real();
+                    local_data_A_ph[prog] = A_ph(t,nt,np).real();
+                    local_data_F_th[prog] = F_th(t,nt,np).real();
+                    local_data_F_ph[prog] = F_ph(t,nt,np).real();
+                    ++prog;
+                  }
+                }
+              }
+              
+              const int numentries = numtheta*numphi*numfreq;
+              Teuchos::reduceAll(*Comm, Teuchos::REDUCE_SUM, numentries, &local_data_A_th[0], &global_data_A_th[0]);
+              
+              prog = 0;
+              for (int t=0; t<numfreq; ++t) {
+                for (int nt=0; nt<numtheta; ++nt) {
+                  for (int np=0; np<numphi; ++np) {
+                    A_th(t,nt,np) = global_data_A_th[prog];
+                    A_ph(t,nt,np) = global_data_A_ph[prog];
+                    F_th(t,nt,np) = global_data_F_th[prog];
+                    F_ph(t,nt,np) = global_data_F_ph[prog];
+                    ++prog;
+                  }
+                }
+              }
+              
               /*
               auto dft_data = objectives[obj].sensor_solution_dft;
               size_type numfreq = dft_data.extent(3);
@@ -268,7 +308,7 @@ void PostprocessManager<Node>::report()
                 }
               }
                */
-              Kokkos::View<ScalarT **, HostDevice> sdat("sensor data", numfreq*numtheta*numphi, 7);
+              Kokkos::View<std::complex<ScalarT>**, HostDevice> sdat("sensor data", numfreq*numtheta*numphi, 7);
               
               ScalarT r = 1.0; // distance into the far field
               prog = 0;
@@ -309,38 +349,39 @@ void PostprocessManager<Node>::report()
               DAT.RCStot = DAT.RCSth + DAT.RCSph;
               */
               
-              std::stringstream ss;
-              ss << Comm->getRank();
-              string respfile = "integrated_dft_calc." + ss.str() + ".csv";
-              std::ofstream respOUT;
-              
-              bool is_open = false;
-              int attempts = 0;
-              int max_attempts = 100;
-              while (!is_open && attempts < max_attempts) {
-                respOUT.open(respfile);
-                is_open = respOUT.is_open();
-                attempts++;
-              }
-              respOUT.precision(8);
-              
-              prog = 0;
-              for (size_t t=0; t<numfreq; ++t) {
-                for (int nt=0; nt<numtheta; ++nt) {
-                  for (int np=0; np<numphi; ++np) {
-                    respOUT << sdat(prog,0) << ",  ";
-                    respOUT << sdat(prog,1) << ",  ";
-                    respOUT << sdat(prog,2) << ",  ";
-                    respOUT << sdat(prog,3) << ",  ";
-                    respOUT << sdat(prog,4) << ",  ";
-                    respOUT << sdat(prog,5) << ",  ";
-                    respOUT << sdat(prog,6) << ",  ";
-                    respOUT << endl;
-                    ++prog;
+              if (Comm->getRank() == 0) {
+                string respfile = "integrated_dft_calc.csv";
+                std::ofstream respOUT;
+                
+                bool is_open = false;
+                int attempts = 0;
+                int max_attempts = 100;
+                while (!is_open && attempts < max_attempts) {
+                  respOUT.open(respfile);
+                  is_open = respOUT.is_open();
+                  attempts++;
+                }
+                respOUT.precision(8);
+                
+                // Just writing the real component for now
+                prog = 0;
+                for (size_t t=0; t<numfreq; ++t) {
+                  for (int nt=0; nt<numtheta; ++nt) {
+                    for (int np=0; np<numphi; ++np) {
+                      respOUT << sdat(prog,0).real() << ",  ";
+                      respOUT << sdat(prog,1).real() << ",  ";
+                      respOUT << sdat(prog,2).real() << ",  ";
+                      respOUT << sdat(prog,3).real() << ",  ";
+                      respOUT << sdat(prog,4).real() << ",  ";
+                      respOUT << sdat(prog,5).real() << ",  ";
+                      respOUT << sdat(prog,6).real() << ",  ";
+                      respOUT << endl;
+                      ++prog;
+                    }
                   }
                 }
+                respOUT.close();
               }
-              respOUT.close();
             }
             else
             {
@@ -525,7 +566,7 @@ void PostprocessManager<Node>::report()
 #endif // MrHyDE_USE_HDF5
         }
         else { // Second case: sensors computed response functions
-          string respfile = objectives[obj].response_file + ".out";
+          string respfile = objectives[obj].response_file + "." + blocknames[objectives[obj].block] + ".out";
           std::ofstream respOUT;
           if (Comm->getRank() == 0) {
             bool is_open = false;

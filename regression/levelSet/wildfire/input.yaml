@@ -40,8 +40,9 @@ ANONYMOUS:
     transient Butcher tableau: CN
     nonlinear solver: picard
     workset size: 50 
-    nonlinear TOL: 1.0e-07
+    nonlinear TOL: 1.0e-08
     max nonlinear iters: 10
+    use direct solver: true
     final time: 0.5
     delta t: 1e-1
   Analysis: 

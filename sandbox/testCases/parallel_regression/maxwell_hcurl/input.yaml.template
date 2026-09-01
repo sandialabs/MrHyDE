@@ -1,0 +1,82 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  debug level: 0
+  verbosity: 10
+  Mesh:
+    dimension: 3
+    mesh file: MESH_FILE_PLACEHOLDER
+    shape: MESH_SHAPE_PLACEHOLDER
+    source: Exodus
+  Physics:
+    eblock-0_0_0:
+      modules: maxwell
+      Dirichlet conditions:
+        Ex:
+          all boundaries: '0.0'
+        Ey:
+          all boundaries: '0.0'
+        Ez:
+          all boundaries: '0.0'
+      Initial conditions:
+        'E[x]': '0.0'
+        'E[y]': '0.0'
+        'E[z]': 'sin(pi*x)*sin(pi*y)*sin(pi*z)'
+        'B[x]': '0.0'
+        'B[y]': '0.0'
+        'B[z]': '0.0'
+  Discretization:
+    eblock-0_0_0:
+      order:
+        E: E_ORDER_PLACEHOLDER
+        B: E_ORDER_PLACEHOLDER
+      quadrature: QUAD_ORDER_PLACEHOLDER
+  Functions:
+    current x: '-pi*pi*cos(pi*x)*sin(pi*y)*cos(pi*z)*sin(t)'
+    current y: '-pi*pi*sin(pi*x)*cos(pi*y)*cos(pi*z)*sin(t)'
+    current z: '(1.0 - 2.0*pi*pi)*sin(pi*x)*sin(pi*y)*sin(pi*z)*sin(t)'
+    permeability: '1.0'
+    permittivity: '1.0'
+    refractive index: '1.0'
+    conductivity: '0.0'
+  Solver:
+    solver: transient
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    workset size: 100
+    max nonlinear iters: 1
+    final time: 0.5
+    number of steps: 10
+    initial type: 'L2-projection'
+    use direct solver: false
+    linear TOL: 1.0e-8
+    max linear iters: 500
+    nonlinear TOL: 1.0e-07
+    use preconditioner: true
+    preconditioner type: Ifpack2
+    preconditioner variant: RELAXATION
+    right preconditioner: true
+    reuse preconditioner: true
+    reuse Jacobian: true
+    preconditioner reuse type: full
+    Belos implicit residual scaling: Norm of Initial Residual
+    Belos solver: 'BiCGStab'
+    Preconditioner Settings:
+      "relaxation: type": "Jacobi"
+      "relaxation: damping factor": 0.5
+      "relaxation: backward mode": false
+      "relaxation: sweeps": 2
+  Analysis:
+    analysis type: forward
+  Postprocess:
+    write solution: false
+    compute errors: true
+    eblock-0_0_0:
+      True solutions:
+        'E[x]': '0.0'
+        'E[y]': '0.0'
+        'E[z]': 'sin(pi*x)*sin(pi*y)*sin(pi*z)*cos(t)'
+        'B[x]': '-pi*sin(pi*x)*cos(pi*y)*sin(pi*z)*sin(t)'
+        'B[y]': 'pi*cos(pi*x)*sin(pi*y)*sin(pi*z)*sin(t)'
+        'B[z]': '0.0'
+...

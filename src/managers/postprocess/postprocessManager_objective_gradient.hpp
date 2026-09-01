@@ -969,20 +969,20 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
   if (write_this_step)
   {
 
+#if defined(MrHyDE_ENABLE_HDSA)
+    if (hdsa_solop)
+    {
+      vector_RCP D_soln;
+      hdsa_solop_data[set]->extract(D_soln, 0, current_time);
+      grad->update(1.0, *D_soln, 1.0);
+    }
+    else
+    {
+#endif
+
     for (size_t r = 0; r < objectives.size(); ++r)
     {
       size_t block = objectives[r].block;
-
-#if defined(MrHyDE_ENABLE_HDSA)
-      if (hdsa_solop)
-      {
-        vector_RCP D_soln;
-        hdsa_solop_data[set]->extract(D_soln, 0, current_time);
-        grad->update(1.0, *D_soln, 1.0);
-      }
-      else
-      {
-#endif
 
         if (assembler->type_AD == -1)
         {
@@ -1032,10 +1032,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
                                           assembler->wkset_AD32[block],
                                           assembler->function_managers_AD32[block]);
         }
-#if defined(MrHyDE_ENABLE_HDSA)
       }
-#endif
+#if defined(MrHyDE_ENABLE_HDSA)
     }
+#endif
   }
 #endif
 
@@ -1111,10 +1111,10 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
     sol_kv.push_back(vec_dev);
   }
 
-  // Grab slices of Kokkos Views and push to AssembleDevice one time (each)
+  // paramLIDs are overlapped; pull the overlapped discretized params.
   vector<Kokkos::View<ScalarT *, AssemblyDevice>> params_kv;
 
-  auto Psol = params->getDiscretizedParams();
+  auto Psol = params->getDiscretizedParamsOver();
   auto p_kv = Psol->template getLocalView<LA_device>(Tpetra::Access::ReadWrite);
   auto pslice = Kokkos::subview(p_kv, Kokkos::ALL(), 0);
 
@@ -1185,7 +1185,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
       if (data_avail)
       {
-        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set]);
+        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set],
+                              assembler->groups[block][grp]->phase_LIDs[set]);
       }
       else
       {
@@ -1193,14 +1194,17 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
         if (use_host_LIDs)
         { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set],
+                                assembler->groups[block][grp]->phase_LIDs_host[set]);
         }
         else
         { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
           auto LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->LIDs[set]);
+          auto phase_LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->phase_LIDs[set]);
           Kokkos::deep_copy(LIDs_dev, assembler->groups[block][grp]->LIDs[set]);
-          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev);
+          Kokkos::deep_copy(phase_LIDs_dev, assembler->groups[block][grp]->phase_LIDs[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev, phase_LIDs_dev);
         }
       }
     }
@@ -1293,7 +1297,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
       if (data_avail)
       {
-        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set]);
+        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set],
+                              assembler->groups[block][grp]->phase_LIDs[set]);
       }
       else
       {
@@ -1301,14 +1306,17 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
 
         if (use_host_LIDs)
         { // LA_device = Host, AssemblyDevice = CUDA (no UVM)
-          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, assembler->groups[block][grp]->LIDs_host[set],
+                                assembler->groups[block][grp]->phase_LIDs_host[set]);
         }
         else
         { // LA_device = CUDA, AssemblyDevice = Host
           // TMW: this should be a very rare instance, so we are just being lazy and copying the data here
           auto LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->LIDs[set]);
+          auto phase_LIDs_dev = Kokkos::create_mirror(LA_exec(), assembler->groups[block][grp]->phase_LIDs[set]);
           Kokkos::deep_copy(LIDs_dev, assembler->groups[block][grp]->LIDs[set]);
-          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev);
+          Kokkos::deep_copy(phase_LIDs_dev, assembler->groups[block][grp]->phase_LIDs[set]);
+          assembler->scatterRes(grad_view, local_grad_ladev, LIDs_dev, phase_LIDs_dev);
         }
       }
     }
@@ -1490,7 +1498,8 @@ void PostprocessManager<Node>::computeObjectiveGradState(const size_t &set,
           }
         }
 
-        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set]);
+        assembler->scatterRes(grad_view, local_grad, assembler->groups[block][grp]->LIDs[set],
+                              assembler->groups[block][grp]->phase_LIDs[set]);
 
         wset->isOnSide = false;
       }

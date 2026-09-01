@@ -11,7 +11,7 @@ DOFManager Field Information:
       "q" is field ID 3
  - Processor 0 has 4 elements
  - Processor 0 has 8 boundary elements
- - Processor 0 is using 0.005736 MB to store volumetric data
+ - Processor 0 is using 0.005224 MB to store volumetric data
  - Processor 0 is using 0 MB to store face data
  - Processor 0 is using 0.00496 MB to store boundary data
 
@@ -380,6 +380,9 @@ Number of Trees: 22
         B[x]
         f14
 -----------------------------------------------------------
+Forest Name:tensor ip
+Number of Trees: 0
+-----------------------------------------------------------
 Forest Name:point
 Number of Trees: 22
     Tree: a
@@ -566,6 +569,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 T_t
 B[x]
 B[y]
@@ -589,6 +595,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -603,6 +612,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -616,20 +628,35 @@ Currently defined side scalar fields are:
 x
 y
 z
+u
+v
+w
 n[x]
 n[y]
 n[z]
+n[u]
+n[v]
+n[w]
 t[x]
 t[y]
 t[z]
+t[u]
+t[v]
+t[w]
 Currently defined point scalar fields are: 
 x
 y
 z
+u
+v
+w
 Currently defined scalar fields are: 
 x
 y
 z
+u
+v
+w
 
 ===========================================================
 Printing functions on block: eblock-0_0
@@ -996,6 +1023,9 @@ Number of Trees: 22
         B[x]
         f14
 -----------------------------------------------------------
+Forest Name:tensor ip
+Number of Trees: 0
+-----------------------------------------------------------
 Forest Name:point
 Number of Trees: 22
     Tree: a
@@ -1182,6 +1212,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 T_t
 B[x]
 B[y]
@@ -1205,6 +1238,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -1219,6 +1255,9 @@ T
 grad(T)[x]
 grad(T)[y]
 grad(T)[z]
+phasegrad(T)[u]
+phasegrad(T)[v]
+phasegrad(T)[w]
 B[x]
 B[y]
 B[z]
@@ -1232,20 +1271,35 @@ Currently defined side scalar fields are:
 x
 y
 z
+u
+v
+w
 n[x]
 n[y]
 n[z]
+n[u]
+n[v]
+n[w]
 t[x]
 t[y]
 t[z]
+t[u]
+t[v]
+t[w]
 Currently defined point scalar fields are: 
 x
 y
 z
+u
+v
+w
 Currently defined scalar fields are: 
 x
 y
 z
+u
+v
+w
 
 *********************************************
 Printing settings used by MrHyDE (ignore unused keyword):
@@ -1267,9 +1321,9 @@ Mesh ->
  use STK mesh = 1   [default]
  use simple mesh = 0   [default]
  shape = none   [default]
- dim = 0   [default]
  compute mesh data = 0   [default]
  data file = none   [default]
+ data points file = none   [default]
  numNodesPerElem = 4
  source = Internal   [default]
  Xblocks = 1   [default]
@@ -1344,6 +1398,7 @@ Solver ->
  use basis database = 0   [default]
  use mass database = 0   [default]
  use ip database = 0   [default]
+ use phase database = 1   [default]
  store mass = 1   [default]
  have multidata = 0   [default]
  fully explicit = 0   [default]

@@ -13,9 +13,10 @@ FunctionManager<EvalT>::FunctionManager() {
   num_elem_ = 1;
   num_ip_ = 1;
   num_ip_side_ = 1;
+  num_phase_ip_ = 1;
   
-  known_vars_ = {"x","y","z","t","pi","h"};
-  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt", "sinh", "cosh"};
+  known_vars_ = {"x","y","z","u","v","w","t","pi","h"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt", "sinh", "cosh", "tanh", "sech"};
   
   interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
   
@@ -23,15 +24,17 @@ FunctionManager<EvalT>::FunctionManager() {
 
 template<class EvalT>
 FunctionManager<EvalT>::FunctionManager(const string & blockname, const int & num_elem,
-                                        const int & num_ip, const int & num_ip_side) :
+                                        const int & num_ip, const int & num_ip_side,
+                                        const int & num_phase_ip) :
 num_elem_(num_elem), num_ip_(num_ip), num_ip_side_(num_ip_side), blockname_(blockname) {
   
   interpreter_ = Teuchos::rcp( new Interpreter<EvalT>());
 
-  known_vars_ = {"x","y","z","t","pi","h"};
-  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt","sinh","cosh"};
+  known_vars_ = {"x","y","z","u","v","w","t","pi","h"};
+  known_ops_ = {"sin","cos","exp","log","tan","abs","max","min","mean","emax","emin","emean","sqrt","sinh","cosh", "tanh", "sech"};
   
   forests_.push_back(Forest<EvalT>("ip",num_elem_,num_ip_));
   forests_.push_back(Forest<EvalT>("side ip",num_elem_,num_ip_side_));
+  forests_.push_back(Forest<EvalT>("tensor ip",num_elem_,num_ip_*num_phase_ip));
   forests_.push_back(Forest<EvalT>("point",1,1));
 }

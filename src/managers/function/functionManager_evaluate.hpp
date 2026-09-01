@@ -559,6 +559,28 @@ void FunctionManager<EvalT>::evaluateOpVToV(T1 data, T2 tdata, const string & op
       }
     });
   }
+  else if (op == "tanh") {
+    parallel_for("funcman evaluate cosh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tanh(tdata(elem,pt));
+      }
+    });
+  }
+  else if (op == "sech") {
+    parallel_for("funcman evaluate cosh",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = min(data.extent(1),tdata.extent(1));
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = 1.0/cosh(tdata(elem,pt));
+      }
+    });
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -692,6 +714,28 @@ void FunctionManager<EvalT>::evaluateOpParamToV(T1 data, T2 tdata, const int & p
       size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
         data(elem,pt) = tan(tdata(pIndex));
+      }
+    });
+  }
+  else if (op == "tanh") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tanh(tdata(pIndex));
+      }
+    });
+  }
+  else if (op == "sech") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = 1.0/cosh(tdata(pIndex));
       }
     });
   }
@@ -950,15 +994,48 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
     });
   }
   else if (op == "power") {
-    parallel_for("funcman evaluate power",
-                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
-                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
-      int elem = team.league_rank();
-      size_t dim1 = data.extent(1);
-      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
-        data(elem,pt) = pow(data(elem,pt),tdata);
+    // For small integer exponents (2-4), use repeated multiply. pow on tiny
+    // bases yielded junk AD derivatives; the unrolled path avoids that
+    // division-based rule while keeping the same result.
+    double pscalar = 0.0;
+    bool useUnrolled = false;
+    if constexpr (std::is_arithmetic<T2>::value) {
+      pscalar = static_cast<double>(tdata);
+      double rounded = std::round(pscalar);
+      if (rounded >= 2.0 && rounded <= 4.0
+          && std::abs(pscalar - rounded) < 1.0e-12) {
+        useUnrolled = true;
+        pscalar = rounded;
       }
-    });
+    }
+    if (useUnrolled) {
+      const int n = static_cast<int>(pscalar);
+      parallel_for("funcman evaluate power int",
+                   TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_t dim1 = data.extent(1);
+        for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+          auto base = data(elem,pt);
+          auto acc = base;
+          for (int j=1; j<n; ++j) {
+            acc = acc * base;
+          }
+          data(elem,pt) = acc;
+        }
+      });
+    }
+    else {
+      parallel_for("funcman evaluate power",
+                   TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                   MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+        int elem = team.league_rank();
+        size_t dim1 = data.extent(1);
+        for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+          data(elem,pt) = pow(data(elem,pt),tdata);
+        }
+      });
+    }
   }
   else if (op == "sin") {
     parallel_for("funcman evaluate sin",
@@ -990,6 +1067,28 @@ void FunctionManager<EvalT>::evaluateOpSToV(T1 data, T2 & tdata_, const string &
       size_t dim1 = data.extent(1);
       for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
         data(elem,pt) = tan(tdata);
+      }
+    });
+  }
+  else if (op == "tanh") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = tanh(tdata);
+      }
+    });
+  }
+  else if (op == "sech") {
+    parallel_for("funcman evaluate tan",
+                 TeamPolicy<AssemblyExec>(dim0, Kokkos::AUTO, VECTORSIZE),
+                 MRHYDE_LAMBDA (TeamPolicy<AssemblyExec>::member_type team ) {
+      int elem = team.league_rank();
+      size_t dim1 = data.extent(1);
+      for (size_type pt=team.team_rank(); pt<dim1; pt+=team.team_size() ) {
+        data(elem,pt) = 1.0/cosh(tdata);
       }
     });
   }
@@ -1237,6 +1336,12 @@ void FunctionManager<EvalT>::evaluateOpSToS(T1 & data, T2 & tdata, const string 
   }
   else if (op == "tan") {
     data = tan(tdata);
+  }
+  else if (op == "tanh") {
+    data = tanh(tdata);
+  }
+  else if (op == "sech") {
+    data = 1.0/cosh(tdata);
   }
   else if (op == "sinh") {
     data = sinh(tdata);

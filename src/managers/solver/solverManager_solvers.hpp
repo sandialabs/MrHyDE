@@ -141,7 +141,8 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
                                              zero_vec, zero_vec, zero_vec);
             }
             else {
-              status += this->nonlinearSolver(set, stage, sol, sol_stage, sol_prev[set], zero_vec, zero_vec, zero_vec);
+              status += this->nonlinearSolver(set, stage, sol, sol_stage, sol_prev[set],
+                                              zero_vec, zero_vec, zero_vec);
             }
 
             // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
@@ -159,14 +160,6 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       if (status == 0) { // NL solver converged
         current_time += deltat;
         stepProg += 1;
-        
-        // Make sure last step solution is gathered
-        // Last set of values is from a stage solution, which is potentially different
-        //assembler->performGather(sol, 0, 0);
-        //for (size_t set=0; set<u.size(); ++set) {
-        //  assembler->updatePhysicsSet(set);
-        //  assembler->performGather(set,u[set],0,0);
-        //}
         multiscale_manager->completeTimeStep();
         postproc->record(sol,current_time,stepProg);
         
@@ -406,6 +399,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       resnorm_scaled[0] = resnorm[0]/resnorm_first[0];
     }
     
+    //KokkosTools::print(current_res);
     // hard code these for adjoint solves since residual is computed below and only one iteration is needed
     if (is_adjoint) {
       resnorm[0] = 1.0;
@@ -473,6 +467,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         linalg->fillComplete(J);
       }
             
+      //KokkosTools::print(J);
       // This is where the adjoint residual is computed
       if (is_adjoint) {
         Teuchos::TimeMonitor localtimer(*transientadjointrhstimer);
@@ -611,6 +606,7 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
         else {
           sol[set]->update(alpha, *(current_du_over), 1.0);
         }
+        
       }
     }
     NLiter++; // increment number of nonlinear iterations
@@ -720,7 +716,7 @@ int SolverManager<Node>::explicitSolver(const size_t & set, const size_t & stage
     // Compute du = timewt*m*res
     // Compute u += du
     
-    ScalarT wt = deltat*butcher_b(stage);
+    ScalarT wt = deltat*butcher_b[set](stage);
     
     
     if (!assembler->lump_mass) {
