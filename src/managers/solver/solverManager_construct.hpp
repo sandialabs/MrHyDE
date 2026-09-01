@@ -81,6 +81,7 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   
   // Explicit integration mode - may disable some features
   fully_explicit = settings->sublist("Solver").get<bool>("fully explicit",false);
+  print_mass = settings->sublist("Solver").get<bool>("print mass",false);
   
   initial_type = settings->sublist("Solver").get<string>("initial type","L2-projection");
   

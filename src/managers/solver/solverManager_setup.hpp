@@ -38,6 +38,21 @@ void SolverManager<Node>::completeSetup() {
     this->setupExplicitMass();
   }
   
+  if (print_mass) {
+    if (!fully_explicit) {
+      this->setupExplicitMass();
+    }
+    
+    string mass_filename = settings->sublist("Solver").get<string>("mass file name", "mass.mm");
+    linalg->writeMatrixToFile(explicitMass[0], mass_filename);
+    
+    string lumped_mass_filename = settings->sublist("Solver").get<string>("lumped mass file name", "lumped_mass.mm");
+    linalg->writeVectorToFile(diagMass[0], lumped_mass_filename);
+    
+    explicitMass.clear();
+    diagMass.clear();
+  }
+  
   if (use_param_mass && params->num_discretized_params > 0) {
     this->setupDiscretizedParamMass();
   }

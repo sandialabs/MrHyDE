@@ -291,6 +291,7 @@ public:
   bool allowBacktracking;        // Allow Newton backtracking
   bool store_vectors;            // Store iteration histories
   bool use_param_mass;           // Use parameter mass matrix
+  bool print_mass;           // print mass matrix and lumped mass
   
   vector<vector<vector<ScalarT>>> scalarDirichletValues; // Dirichlet data per set/block/var
   vector<vector<vector<ScalarT>>> scalarInitialValues;   // Initial state per set/block/var

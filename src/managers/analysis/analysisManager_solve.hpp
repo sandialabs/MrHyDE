@@ -1466,7 +1466,7 @@ void AnalysisManager::writeOptVectorToFile(MrHyDE_OptVector & vec, string & file
         ss << filebase << ".field." << t << ".mm";
         string filename = ss.str();
         ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > currvec = currfield[t];
-        solver_->linalg->writeVectorToFile(currvec, filename);
+        solver_->linalg->writeROLVectorToFile(currvec, filename);
       }
     }
     else {
@@ -1474,7 +1474,7 @@ void AnalysisManager::writeOptVectorToFile(MrHyDE_OptVector & vec, string & file
       ss << filebase << ".field.0.mm";
       string filename = ss.str();
       ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > currvec = currfield[0];
-      solver_->linalg->writeVectorToFile(currvec, filename);
+      solver_->linalg->writeROLVectorToFile(currvec, filename);
       
     }
   }

@@ -460,7 +460,11 @@ public:
                    const std::string &res_filename="residual.mm",
                    const std::string &sol_filename="solution.mm");
   
-  void writeVectorToFile(ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > & vec, string & filename);
+  void writeROLVectorToFile(ROL::Ptr<ROL::TpetraMultiVector<ScalarT> > & vec, string & filename);
+  
+  void writeVectorToFile(vector_RCP & vec, string & filename);
+  
+  void writeMatrixToFile(matrix_RCP & mat, string & filename);
     
   void writeStateToFile(vector<vector_RCP> & soln, const std::string & filebase, const int & stepnum);
 
