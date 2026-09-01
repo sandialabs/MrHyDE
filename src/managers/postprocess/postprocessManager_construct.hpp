@@ -87,6 +87,8 @@ void PostprocessManager<Node>::setup() {
   write_optimization_solution = settings->sublist("Postprocess").get("create optimization movie", false);
   compute_objective = settings->sublist("Postprocess").get("compute objective", false);
   compute_objective_grad_param = settings->sublist("Postprocess").get("compute objective grad param", true); // only turn this off if you know what you are doing
+  magnitude_scan_active =
+    settings->sublist("Analysis").sublist("ROL2").sublist("General").get<bool>("Do magnitude scan", false);
   objective_file = settings->sublist("Postprocess").get("objective output file", "");
   objective_grad_file = settings->sublist("Postprocess").get("objective gradient output file", "");
   discrete_objective_scale_factor = settings->sublist("Postprocess").get("scale factor for discrete objective", 1.0);
@@ -133,6 +135,8 @@ void PostprocessManager<Node>::setup() {
   for (size_t set = 0; set < setnames.size(); ++set) {
     soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
     adj_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
+    incr_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
+    incr_adj_soln.push_back(Teuchos::rcp(new SolutionStorage<Node>(settings)));
   }
   string analysis_type = settings->sublist("Analysis").get<string>("analysis type", "forward");
   save_solution = false;

@@ -1,0 +1,57 @@
+%YAML 1.1
+---
+# Race deck: exact-Hv vs FD-of-gradients on the balanced LQ deck.
+# CG iter limit is capped at 100 (500 caused OOM on this machine).
+# CG rel tol 1e-10 so a healthy CG can hit residual tolerance well inside
+# the budget. Outer TR limit 25, outer gtol 1e-10 relative.
+# 'Use as Hessian: false' forces TR-CG to call obj->hessVec.
+ANONYMOUS:
+  Analysis:
+    analysis type: ROL2
+    parameter gradient preconditioner type: none
+    ROL2:
+      General:
+        Output Level: 3
+        Do magnitude scan: false
+        Do grad+hessvec check: false
+        Do exact hessvec check: false
+        Do algebraic hessvec check: false
+        Do secant identity check: false
+        Bound Optimization Variables: false
+        Inexact Objective Function: false
+        Inexact Gradient: false
+        Inexact Hessian-Times-A-Vector: false
+        Projected Gradient Criticality Measure: false
+        HessVec Precond Mode: dual
+        Secant:
+          Type: Limited-Memory BFGS
+          Use as Preconditioner: false
+          Use as Hessian: false            # force TR-CG to call obj->hessVec
+          Maximum Storage: 20
+          Barzilai-Borwein Type: 1
+          Use Default Scaling: true
+        Krylov:
+          Type: Conjugate Gradients
+          Absolute Tolerance: 1.0e-14
+          Relative Tolerance: 1.0e-10
+          Iteration Limit: 1000
+      Step:
+        Type: Trust Region
+        Trust Region:
+          Subproblem Solver: Truncated CG
+          Initial Radius: 1.0e+08
+          Maximum Radius: 5.0e+18
+          Step Acceptance Threshold: 5.0e-02
+          Radius Shrinking Threshold: 5.0e-02
+          Radius Growing Threshold: 9.0e-01
+          Radius Shrinking Rate (Negative rho): 6.25e-02
+          Radius Shrinking Rate (Positive rho): 2.50e-01
+          Radius Growing Rate: 10.0
+          Safeguard Size: 1.0e+01
+      Status Test:
+        Gradient Tolerance: 1.0e-10
+        Use Relative Tolerances: true
+        Constraint Tolerance: 1.0e-08
+        Step Tolerance: 1.0e-30
+        Iteration Limit: 5
+...

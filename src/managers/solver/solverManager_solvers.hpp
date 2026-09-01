@@ -224,8 +224,9 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
     // Just getting the number of times from first physics set should be fine
     // TODO will this be affected by having physics sets with different timesteppers?
     int store_index = 0;
-    size_t numFwdSteps = postproc->soln[set]->getTotalTimes(store_index)-1; 
-    
+    auto & soln_source = postproc->is_incremental_adjoint ? postproc->incr_soln : postproc->soln;
+    size_t numFwdSteps = soln_source[set]->getTotalTimes(store_index)-1;
+
     for (size_t timeiter = 0; timeiter<numFwdSteps; timeiter++) {
       size_t cindex = numFwdSteps-timeiter;
       phi_prev[set] = linalg->getNewOverlappedVector(set);
@@ -236,15 +237,15 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
         cout << "**** Current time is " << current_time << endl << endl;
         cout << "*******************************************************" << endl << endl << endl;
       }
-      
+
       // TMW: this is specific to implicit Euler
       // Needs to be generalized
       // Also, need to implement checkpoint/recovery
-      bool fndu = postproc->soln[set]->extract(sol[set], cindex);
+      bool fndu = soln_source[set]->extract(sol[set], cindex);
       if (!fndu) {
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to find forward solution");
       }
-      bool fndup = postproc->soln[set]->extract(sol_prev[set], cindex-1);
+      bool fndup = soln_source[set]->extract(sol_prev[set], cindex-1);
       if (!fndup) {
         TEUCHOS_TEST_FOR_EXCEPTION(true,std::runtime_error,"Error: MrHyDE was not able to find previous forward solution");
       }
@@ -252,10 +253,10 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       params->updateDynamicParams(cindex-1);
       //assembler->performGather(set,u_prev[set],0,0);
       //assembler->resetPrevSoln(set);
-      
+
       int stime_index = cindex-1;
-      
-      current_time = postproc->soln[set]->getSpecificTime(store_index, stime_index);
+
+      current_time = soln_source[set]->getSpecificTime(store_index, stime_index);
       postproc->setTimeIndex(cindex);
       assembler->updateStage(stage, current_time, deltat);
       

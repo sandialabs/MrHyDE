@@ -1,0 +1,91 @@
+%YAML 1.1
+---
+# LQ Hessian-vector identity check on a distributed-source thermal control
+# problem. FD-of-gradients HessVec path: no `src_gate` in Parameters, so
+# MrHyDE_Objective::hessVec falls back to ROL::Objective::hessVec.
+ANONYMOUS:
+  debug level: 0
+  verbosity: 0
+  Mesh:
+    dimension: 3
+    element type: hex
+    xmin: 0.0
+    xmax: 1.0
+    ymin: 0.0
+    ymax: 1.0
+    zmin: 0.0
+    zmax: 1.0
+    NX: 6
+    NY: 6
+    NZ: 6
+    Xprocs: 2
+    Yprocs: 2
+    Zprocs: 1
+  Physics:
+    modules: thermal
+    active controls: true
+    Initial conditions:
+      T: '0.0'
+    Dirichlet conditions:
+      T:
+        all boundaries: '0.0'
+  Discretization:
+    order:
+      T: 1
+    quadrature: 2
+  Parameters:
+    ctrl_source:
+      type: HGRAD
+      order: 1
+      usage: discretized
+      initial_value: 0.0
+      dynamic: false
+  Functions:
+    thermal source: '12.0*pi*pi*sin(2*pi*x)*sin(2*pi*y)*sin(2*pi*z) + ctrl_source'
+    thermal diffusion: '1.0'
+  Solver:
+    solver: steady-state
+    workset size: 100
+    linear TOL: 1.0e-14
+    max linear iters: 200
+    nonlinear TOL: 1.0e-12
+    max nonlinear iters: 3
+    use preconditioner: true
+  Analysis:
+    analysis type: ROL2
+    ROL2:
+      General:
+        Output Level: 1
+        Do grad+hessvec check: true
+        Do exact hessvec check: true
+        Do algebraic hessvec check: true
+        Do secant identity check: true
+        FD Check Seed: 3
+        FD Check Random Seed: 42
+        FD Check Random Scale: 1.0
+        Secant:
+          Type: Limited-Memory BFGS
+          Maximum Storage: 20
+        Krylov:
+          Type: Conjugate Gradients
+          Absolute Tolerance: 1.0e-6
+          Relative Tolerance: 1.0e-2
+          Iteration Limit: 20
+      Step:
+        Type: Line Search
+        Line Search:
+          Descent Method:
+            Type: Quasi-Newton
+      Status Test:
+        Gradient Tolerance: 1.0e-6
+        Step Tolerance: 1.0e-50
+        Iteration Limit: 1
+  Postprocess:
+    write solution: false
+    compute objective: true
+    Objective functions:
+      Thermal Energy:
+        type: integrated control
+        function: '0.5*T*T'
+        weight: 1.0
+...

@@ -42,6 +42,7 @@ namespace ROL {
     Teuchos::RCP<ParameterManager<SolverNode> > params;
     Teuchos::RCP<Teuchos::Time> valuetimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::value()");
     Teuchos::RCP<Teuchos::Time> gradienttimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::gradient()");
+    Teuchos::RCP<Teuchos::Time> hessvectimer = Teuchos::TimeMonitor::getNewCounter("MrHyDE::Objective::hessVec()");
     
   public:
     
@@ -113,9 +114,37 @@ namespace ROL {
       return newparams;
     }
 
-    //! Compute the Hessian-vector product of the objective function
-    void hessVec(Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &Params, Real &tol ){
-      this->ROL::Objective<Real>::hessVec(hv,v,Params,tol);
+    // Exact hessVec when src_gate is present; else ROL FD-of-gradients.
+    void hessVec(Vector<Real> &hv, const Vector<Real> &v, const Vector<Real> &Params, Real &tol) override {
+
+      if (!params->isParameter("src_gate")) {
+        this->ROL::Objective<Real>::hessVec(hv, v, Params, tol);
+        return;
+      }
+
+      Teuchos::TimeMonitor localtimer(*hessvectimer);
+
+      if (this->checkNewParams(Params)) {
+        MrHyDE_OptVector u =
+          Teuchos::dyn_cast<MrHyDE_OptVector>(const_cast<Vector<Real>&>(Params));
+        params->updateParams(u);
+        ScalarT val = 0.0;
+        solver->forwardModel(val);
+      }
+
+      MrHyDE_OptVector & v_dir =
+        Teuchos::dyn_cast<MrHyDE_OptVector>(const_cast<Vector<Real>&>(v));
+      MrHyDE_OptVector & Hv = Teuchos::dyn_cast<MrHyDE_OptVector>(hv);
+      Hv.zero();
+
+      solver->incrementalForwardModel(v_dir);
+      solver->incrementalAdjointModel(Hv);
+
+      // Tangent borrowed params for v; restore u so the next value()/gradient()
+      // does not think the control changed.
+      MrHyDE_OptVector u =
+        Teuchos::dyn_cast<MrHyDE_OptVector>(const_cast<Vector<Real>&>(Params));
+      params->updateParams(u);
     }
     
     //print out Hessian (estimated via component-wise FD; to get inverse covariance in linear-Gaussian Bayesian inverse problem)

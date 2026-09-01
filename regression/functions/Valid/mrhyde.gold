@@ -1442,6 +1442,9 @@ Analysis ->
  save sensor data = 0   [default]
  sensor prefix = sensor   [default]
  additive normal noise standard dev = 0   [default]
+ ROL2 -> 
+  General -> 
+   Do magnitude scan = 0   [default]
 Postprocess -> 
  write solution = 0
  create optimization movie = 0   [default]
