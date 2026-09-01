@@ -18,6 +18,7 @@
 #include "parameterManager.hpp"
 #include "postprocessManager.hpp"
 #include "solutionStorage.hpp"
+#include "revolve.hpp"
 #include "linearAlgebraInterface.hpp"
 #include "MrHyDE_Debugger.hpp"
 
@@ -114,6 +115,15 @@ public:
   
   /** @brief Executes adjoint solve for gradient computation */
   void adjointModel(MrHyDE_OptVector & gradient);
+
+  /**
+   * @brief Transient adjoint using Revolve (Algorithm 799) checkpointing.
+   *
+   * Same gradient as adjointModel, but stores num_checkpoints states instead of
+   * the whole trajectory and recomputes the rest, so the result is exact rather
+   * than approximate.  Costs num_steps + minExtraForwardSteps forward solves.
+   */
+  void checkpointedAdjointModel(MrHyDE_OptVector & gradient);
   
   /** @brief Incremental forward solve (for Hessian-vector products) */
   void incrementalForwardModel(ScalarT & objective);
@@ -134,7 +144,24 @@ public:
   void transientSolver(vector<vector_RCP> & initial,
                        MrHyDE_OptVector & gradient,
                        ScalarT & start_time, ScalarT & end_time);
-  
+
+  /**
+   * @brief Advance one physics set by a single forward time step.
+   * @param[in] set Physics set index
+   * @param[in,out] sol Current state; on exit holds the new step's solution
+   * @param[in,out] sol_prev Step history for this set (shifted in place)
+   * @param[in] stepProg 0-based index of the step being taken
+   * @return nonlinear solver status
+   *
+   * Leaves current_time alone and does not record to the postprocessor, so a
+   * checkpointed adjoint can recompute steps without double-counting the
+   * objective or duplicating the time integrator.
+   */
+  int takeForwardStep(const size_t & set,
+                      vector<vector_RCP> & sol,
+                      vector<vector_RCP> & sol_prev,
+                      const int & stepProg);
+
   /** @brief Nonlinear solve for a specific stage */
   int nonlinearSolver(const size_t & set, const size_t & stage,
                       vector<vector_RCP> & sol,
@@ -279,6 +306,10 @@ public:
   bool store_adjPrev;            // Whether adjoints from previous steps are stored
   bool use_meas_as_dbcs;         // Use measurements as Dirichlet conditions
   bool compute_fwd_sens;         // Whether forward sensitivities are computed
+
+  bool use_checkpointing;        // Use Revolve checkpointing for the transient adjoint
+  int num_checkpoints;           // Checkpoint budget when use_checkpointing is true
+  int num_forward_solves;        // Forward solves used by the last checkpointed gradient
   
   vector<bool> scalarDirichletData;   // True if scalar Dirichlet values exist
   vector<bool> staticDirichletData;   // True if static Dirichlet data provided

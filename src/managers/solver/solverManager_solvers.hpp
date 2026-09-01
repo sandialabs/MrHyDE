@@ -29,7 +29,83 @@ void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
   postproc->record(sol, current_time, 0);
   
   debugger->print("**** Finished SolverManager::steadySolver");
-  
+
+}
+
+// ========================================================================================
+/* advance one physics set by a single forward time step */
+// ========================================================================================
+
+template<class Node>
+int SolverManager<Node>::takeForwardStep(const size_t & set,
+                                         vector<vector_RCP> & sol,
+                                         vector<vector_RCP> & sol_prev,
+                                         const int & stepProg) {
+
+  int status = 0;
+  vector<vector_RCP> zero_vec(sol.size());
+
+  // this needs to come first now, so that updatePhysicsSet can pick out the
+  // time integration info
+  if (BDForder[set] > 1 && stepProg == startupSteps[set]) {
+    // Only overwrite the current set
+    this->setBackwardDifference(BDForder,set);
+    this->setButcherTableau(ButcherTab,set);
+  }
+
+  assembler->updatePhysicsSet(set);
+
+  // if num_stages = 1, the sol_stage = sol
+  vector<vector_RCP> sol_stage;
+  if (maxnumstages[set] == 1) {
+    sol_stage.push_back(sol[set]);
+  }
+  else {
+    for (int stage=0; stage<maxnumstages[set]; ++stage) {
+      sol_stage.push_back(linalg->getNewOverlappedVector(set));
+      sol_stage[stage]->assign(*(sol[set]));
+    }
+  }
+
+  // Increment the previous step solutions (shift history and moves u into first spot)
+  for (size_t step=1; step<sol_prev.size(); ++step) {
+    size_t ind = sol_prev.size()-step;
+    sol_prev[ind]->assign(*(sol_prev[ind-1]));
+  }
+  sol_prev[0]->assign(*(sol[set]));
+
+  // Allow the groups to change subgrid model
+  vector<vector<int> > sgmodels = assembler->identifySubgridModels();
+  multiscale_manager->update(sgmodels);
+
+  for (int stage=0; stage<numstages[set]; stage++) {
+    // Updates the current time and sets the stage number in wksets
+    assembler->updateStage(stage, current_time, deltat);
+
+    if (usestrongDBCs) {
+      this->setDirichlet(set, sol_stage[stage]);
+    }
+
+    if (fully_explicit) {
+      status += this->explicitSolver(set, stage, sol, sol_stage, sol_prev,
+                                     zero_vec, zero_vec, zero_vec);
+    }
+    else {
+      status += this->nonlinearSolver(set, stage, sol, sol_stage, sol_prev,
+                                      zero_vec, zero_vec, zero_vec);
+    }
+
+    // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
+
+    // if num_stages = 1, then we might be able to skip this
+    if (maxnumstages[set] > 1) {
+      sol[set]->update(1.0, *(sol_stage[stage]), 1.0);
+      sol[set]->update(-1.0, *(sol_prev[0]), 1.0);
+    }
+    multiscale_manager->completeStage();
+  }
+
+  return status;
 }
 
 // ========================================================================================
@@ -88,72 +164,7 @@ void SolverManager<Node>::transientSolver(vector<vector_RCP> & initial,
       
       //for (int ss=0; ss<subcycles; ++ss) {
         for (size_t set=0; set<sol.size(); ++set) {
-          // this needs to come first now, so that updatePhysicsSet can pick out the
-          // time integration info
-          if (BDForder[set] > 1 && stepProg == startupSteps[set]) {
-            // Only overwrite the current set
-            this->setBackwardDifference(BDForder,set);
-            this->setButcherTableau(ButcherTab,set);
-          }
-
-          assembler->updatePhysicsSet(set);
-    
-          // if num_stages = 1, the sol_stage = sol
-          //
-          vector<vector_RCP> sol_stage;
-          if (maxnumstages[set] == 1) {
-            sol_stage.push_back(sol[set]);
-          }
-          else {
-            for (int stage=0; stage<maxnumstages[set]; ++stage) {
-              sol_stage.push_back(linalg->getNewOverlappedVector(set));
-              sol_stage[stage]->assign(*(sol[set]));
-            }
-          }
-    
-          // Increment the previous step solutions (shift history and moves u into first spot)
-          for (size_t step=1; step<sol_prev[set].size(); ++step) {
-            size_t ind = sol_prev[set].size()-step;
-            sol_prev[set][ind]->assign(*(sol_prev[set][ind-1]));
-          }
-          sol_prev[set][0]->assign(*(sol[set]));
-      
-          ////////////////////////////////////////////////////////////////////////
-          // Allow the groups to change subgrid model
-          ////////////////////////////////////////////////////////////////////////
-          
-          vector<vector<int> > sgmodels = assembler->identifySubgridModels();
-          multiscale_manager->update(sgmodels);
-          
-          for (int stage=0; stage<numstages[set]; stage++) {
-            // Need a stage solution
-            // Set the initial guess for stage solution
-            // sol_stage[stage]->assign(*(sol_prev[0]));
-            // Updates the current time and sets the stage number in wksets
-            assembler->updateStage(stage, current_time, deltat); 
-
-            if (usestrongDBCs) {
-              this->setDirichlet(set, sol_stage[stage]);
-            }
-  
-            if (fully_explicit) {
-              status += this->explicitSolver(set, stage, sol, sol_stage, sol_prev[set], 
-                                             zero_vec, zero_vec, zero_vec);
-            }
-            else {
-              status += this->nonlinearSolver(set, stage, sol, sol_stage, sol_prev[set],
-                                              zero_vec, zero_vec, zero_vec);
-            }
-
-            // u_{n+1} = u_n + \sum_stage ( u_stage - u_n )
-            
-            // if num_stages = 1, then we might be able to skip this 
-            if (maxnumstages[set] > 1) {
-              sol[set]->update(1.0, *(sol_stage[stage]), 1.0);
-              sol[set]->update(-1.0, *(sol_prev[set][0]), 1.0);
-            }
-            multiscale_manager->completeStage();
-          }
+          status += this->takeForwardStep(set, sol, sol_prev[set], stepProg);
         }
       //}
       

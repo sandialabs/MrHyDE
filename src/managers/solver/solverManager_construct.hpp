@@ -65,6 +65,14 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   compute_fwd_sens = settings->sublist("Solver").get<bool>("compute forward sensitivities",false);
   
   maxTimeStepCuts = settings->sublist("Solver").get<int>("maximum time step cuts",5);
+
+  // Revolve checkpointing for the transient adjoint.  Selected by
+  //   Analysis: forward state recovery type: checkpointing
+  // with the storage budget given by "number of checkpoints".
+  use_checkpointing = (settings->sublist("Analysis").get<string>("forward state recovery type","file")
+                       == "checkpointing");
+  num_checkpoints = settings->sublist("Analysis").get<int>("number of checkpoints",10);
+  num_forward_solves = 0;
   amplification_factor = settings->sublist("Solver").get<double>("explicit amplification factor",10.0);
   
   use_param_mass = settings->sublist("Solver").get<bool>("use parameter mass",false);

@@ -45,9 +45,10 @@ void AnalysisManager::run(std::string &analysis_type) {
       solver_->recoverForwardStateFromFile(statefilebase);
     }
     else if (fwdrecovery == "checkpointing") {
-      // not actually implemented yet
-      // in addition, it would need to be tightly intertwined with the time integrator to avoid just recomputing and storing the full forward state
-      TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error, "Error: checkointing is not implemented yet.");
+      // The checkpointed adjoint recomputes states from its own checkpoints, but
+      // the objective still has to be evaluated along the trajectory once, so run
+      // a forward pass.  Storage is off, so nothing is kept.
+      this->forwardSolve();
     }
     else if (fwdrecovery == "recompute") {
       this->forwardSolve();

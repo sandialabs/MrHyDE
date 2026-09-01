@@ -72,16 +72,24 @@ void SolverManager<Node>::adjointModel(MrHyDE_OptVector & gradient) {
   
   Teuchos::TimeMonitor localtimer(*adjointtimer);
   
+  // Revolve checkpointing owns both the forward recomputation and the reverse
+  // sweep, so it replaces this whole routine rather than sitting inside it.
+  if (use_checkpointing && solver_type == "transient") {
+    this->checkpointedAdjointModel(gradient);
+    debugger->print("**** Finished SolverManager::adjointModel");
+    return;
+  }
+
   if (setnames.size()>1 && Comm->getRank() == 0) {
     cout << "MrHyDE WARNING: Adjoints are not yet implemented for multiple physics sets." << endl;
   }
   else {
-    
+
     is_adjoint = true;
-    
+
     params->sacadoizeParams(false);
     linalg->resetAllJacobian();
-    
+
     vector<vector_RCP> phi = setInitial();
     
     if (solver_type == "steady-state") {

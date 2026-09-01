@@ -140,6 +140,15 @@ void PostprocessManager<Node>::setup() {
   
   if (analysis_type == "forward+adjoint" || analysis_type == "ROL" || analysis_type == "ROL2" || analysis_type == "ROLStoch" || analysis_type == "ROL_SIMOPT" || analysis_type == "HDSA" || analysis_type == "HDSAStoch") {
     save_solution = true; // default is false
+
+    // Revolve checkpointing recomputes the trajectory instead of storing it.
+    // Without this the full trajectory would be allocated as well, and the
+    // memory saving -- the entire point -- would silently not happen.
+    if (settings->sublist("Analysis").get<string>("forward state recovery type","file")
+        == "checkpointing") {
+      save_solution = false;
+    }
+
     string rolVersion = "ROL";
     if (analysis_type == "ROL2") {
       rolVersion = analysis_type;
