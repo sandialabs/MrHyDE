@@ -1,0 +1,28 @@
+%YAML 1.1
+---
+ANONYMOUS:
+  Solver:
+    solver: "transient"
+    transient BDF order: 1
+    transient Butcher tableau: DIRK-1,2
+    number of steps: 10
+    final time: 4.0
+    assembly partitioning: sequential
+    use basis database: false
+    use mass database: false
+    database TOL: 1.0e-13
+    linear TOL: 1.0e-14
+    strict linear solve: true
+    max linear iters: 500
+    nonlinear TOL: 1.0e-07
+    max nonlinear iters: 1
+    reuse Jacobian: true
+    use direct solver: false
+    Belos implicit residual scaling: Norm of Initial Residual
+    storage proportion: 1.0
+    Belos solver: "BiCGStab"
+    use preconditioner: true
+    reuse preconditioner: true
+    right preconditioner: true
+    enable autotune: true
+...

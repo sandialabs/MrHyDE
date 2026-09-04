@@ -54,6 +54,8 @@ Comm(Comm_), settings(settings_), mesh(mesh_), disc(disc_), physics(physics_), a
   solver_type = settings->sublist("Solver").get<string>("solver","none"); // or "transient"
   
   use_custom_PCG = settings->sublist("Solver").get<bool>("use custom PCG",false);
+  warm_start_linear_solve = settings->sublist("Solver").get<bool>("warm start linear solve",false);
+  warm_start_type = settings->sublist("Solver").get<std::string>("warm start type","previous");
   
   NLtol = settings->sublist("Solver").get<double>("nonlinear TOL",1.0E-6);
   NLabstol = settings->sublist("Solver").get<double>("absolute nonlinear TOL",std::min((double)NLtol,(double)1.0E-6));
