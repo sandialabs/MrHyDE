@@ -519,13 +519,34 @@ int SolverManager<Node>::nonlinearSolver(const size_t & set, const size_t & stag
       //******************************************************
       // Actual linear solve
       //******************************************************
-      
-      current_du->putScalar(0.0);
+
+      // Guarded to first Newton iteration only: later iters' du values are
+      // corrections toward the solution, not predictors of the next step.
+      const bool use_warm = warm_start_linear_solve && NLiter == 0
+                            && set < du_warm_prev.size()
+                            && !du_warm_prev[set].is_null();
+      const int hist = use_warm ? du_warm_count[set] : 0;
+      if (use_warm && warm_start_type == "extrapolate" && hist >= 2) {
+        current_du->update(2.0, *du_warm_prev[set], 0.0);
+        current_du->update(-1.0, *du_warm_prev2[set], 1.0);
+      }
+      else if (use_warm && hist >= 1) {
+        current_du->update(1.0, *du_warm_prev[set], 0.0);
+      }
+      else {
+        current_du->putScalar(0.0);
+      }
       current_du_over->putScalar(0.0);
       if (set < linalg->context.size() && !linalg->context[set].is_null()) {
         linalg->context[set]->jacobian_rebuilt_this_step = build_jacobian;
       }
       linalg->linearSolver(set, J, current_res, current_du);
+
+      if (use_warm) {
+        du_warm_prev2[set]->update(1.0, *du_warm_prev[set], 0.0);
+        du_warm_prev[set]->update(1.0, *current_du, 0.0);
+        if (du_warm_count[set] < 2) du_warm_count[set]++;
+      }
       
       // doesn't always write to file - only if requested
       if (is_adjoint) {

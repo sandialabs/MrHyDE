@@ -82,6 +82,13 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   belosList->set("Maximum Iterations",    maxLinearIters); // Maximum number of iterations allowed
   belosList->set("Num Blocks", maxLinearIters);
   belosList->set("Convergence Tolerance", linearTOL);    // Relative convergence tolerance requested
+
+  if (toUpperAsciiCopy(cntxt->belos_type) == "GCRODR") {
+    Teuchos::ParameterList & solverList = settings->sublist("Solver");
+    belosList->set("Num Blocks", solverList.get<int>("Num Blocks", 30));
+    belosList->set("Num Recycled Blocks", solverList.get<int>("Num Recycled Blocks", 20));
+    belosList->set("Maximum Restarts", solverList.get<int>("Maximum Restarts", 100));
+  }
   if (cntxt->belos_type != "MINRES") {
     belosList->set("Estimate Condition Number", doCondEst); // Only implemented in Belos for Pseudo Block CG, based on AztecOO
   }

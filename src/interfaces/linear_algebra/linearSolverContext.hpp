@@ -17,6 +17,7 @@
 // Belos
 #include <BelosConfigDefs.hpp>
 #include <BelosLinearProblem.hpp>
+#include <BelosSolverManager.hpp>
 #include <BelosTpetraAdapter.hpp>
 
 // MueLu
@@ -25,6 +26,7 @@
 #include <MueLu_CreateTpetraPreconditioner.hpp>
 #include <MueLu_Utilities.hpp>
 #include <MueLu_RefMaxwell.hpp>
+#include <MueLu_Maxwell1.hpp>
 #include <Xpetra_TpetraCrsMatrix.hpp>
 #include <Xpetra_CrsMatrixWrap.hpp>
 
@@ -61,12 +63,25 @@ struct RefMaxwellData {
   Teuchos::RCP<LA_CrsMatrix> M1_matrix;   /**< Edge mass matrix for HCURL block. */
   Teuchos::RCP<LA_CrsMatrix> D1_matrix;
   Teuchos::RCP<LA_CrsMatrix> M2_matrix;
+  std::vector<Teuchos::RCP<LA_CrsMatrix> > block_mass_matrices;  /**< Mass matrix per variable block. */
+  std::vector<Teuchos::RCP<LA_CoordMultiVector> > block_dof_coords;  /**< Coordinates per variable block for MueLu. */
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
   Teuchos::RCP<LA_MultiVector> nullspace;
   Teuchos::RCP<LA_MultiVector> ads_null11;
   Teuchos::RCP<LA_MultiVector> ads_null22;
   bool strict_refmaxwell;  /**< Enforce that pivot block preconditioner is RefMaxwell when strict mode is active. */
   std::string xml_param_file = "";  /**< Path to XML parameter file for RefMaxwell configuration. If provided, XML is used. */
+};
+
+/** \brief Maxwell1 (Reitzinger-Schoberl / energy-min) configuration. Reuses
+ *  D0 and nodal_coords from RefMaxwellData; only needs its own XML.
+ *  D0_normalized is a sign-preserving normalization of D0 (each nonzero
+ *  becomes +-1). Built lazily on first Maxwell1 build. */
+template<class Node>
+struct Maxwell1Data {
+  typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node> LA_CrsMatrix;
+  std::string xml_param_file = "";
+  Teuchos::RCP<LA_CrsMatrix> D0_normalized;
 };
 
 /**
@@ -132,6 +147,10 @@ public:
     prec_block = Teuchos::null;
     refmaxwell_prec = Teuchos::null;
     schur_refmaxwell_prec = Teuchos::null;
+    maxwell1_prec = Teuchos::null;
+    schur_maxwell1_prec = Teuchos::null;
+    belos_solver_mgr = Teuchos::null;
+    belos_problem = Teuchos::null;
     jacobian_rebuilt_this_step = true;
   }
   
@@ -156,9 +175,22 @@ public:
   AMGData amg;
   /**< RefMaxwell matrices/vectors (D0, M1, coords, nullspace) and debug/strict flags. */
   RefMaxwellData<Node> refMaxwell;
+  /**< Maxwell1 (Reitzinger-Schoberl / energy-min) configuration; reuses D0 + coords from refMaxwell. */
+  Maxwell1Data<Node> maxwell1;
 
   Teuchos::ParameterList prec_sublist, belos_sublist;
   Teuchos::ParameterList pivot_block_sublist, schur_block_sublist;
+
+  // Cached across solves so GCRODR's recycled subspace and RCG's conjugate
+  // vectors survive; the LinearProblem is cached so the SolverManager's
+  // back-pointer stays valid when LHS/RHS/operator are swapped in place.
+  Teuchos::RCP<Belos::SolverManager<ScalarT,
+                                    Tpetra::MultiVector<ScalarT,LO,GO,Node>,
+                                    Tpetra::Operator<ScalarT,LO,GO,Node> > > belos_solver_mgr;
+  Teuchos::RCP<Belos::LinearProblem<ScalarT,
+                                    Tpetra::MultiVector<ScalarT,LO,GO,Node>,
+                                    Tpetra::Operator<ScalarT,LO,GO,Node> > > belos_problem;
+  bool reuse_belos_solver_mgr;
 
   Teuchos::RCP<Amesos2::Solver<LA_CrsMatrix,LA_MultiVector> > amesos_solver; /**< Reusable Amesos2 direct solver. */
   Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > prec; /**< MueLu AMG preconditioner operator. */
@@ -170,6 +202,9 @@ public:
   // Cached RefMaxwell preconditioner for reuse.
   Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > refmaxwell_prec;
   Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec; /**< Cached ADS for Schur. */
+  // Cached Maxwell1 (Reitzinger-Schoberl / energy-min) preconditioner for reuse.
+  Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > maxwell1_prec;
+  Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > schur_maxwell1_prec;
 
   size_t equation_set_index; /**< Set index when linearSolver(set,...) is used; for block prec. */
 
@@ -268,11 +303,22 @@ private:
       refMaxwell.strict_refmaxwell = pivot_block_sublist.get<bool>("strict RefMaxwell");
       strictRefMaxwellSetExplicitly = true;
     }
-    // Check for XML parameter file in AMG Settings
     if (pivot_block_sublist.isSublist("AMG Settings")) {
       Teuchos::ParameterList & amgSettings = pivot_block_sublist.sublist("AMG Settings");
       if (amgSettings.isParameter("xml param file")) {
         amg.xml_param_file = amgSettings.get<string>("xml param file");
+      }
+    }
+    if (pivot_block_sublist.isSublist("RefMaxwell Settings")) {
+      Teuchos::ParameterList & refmaxwellSettings = pivot_block_sublist.sublist("RefMaxwell Settings");
+      if (refmaxwellSettings.isParameter("xml param file")) {
+        refMaxwell.xml_param_file = refmaxwellSettings.get<string>("xml param file");
+      }
+    }
+    if (pivot_block_sublist.isSublist("Maxwell1 Settings")) {
+      Teuchos::ParameterList & maxwell1Settings = pivot_block_sublist.sublist("Maxwell1 Settings");
+      if (maxwell1Settings.isParameter("xml param file")) {
+        maxwell1.xml_param_file = maxwell1Settings.get<string>("xml param file");
       }
     }
   }
@@ -310,14 +356,18 @@ private:
       refMaxwell.strict_refmaxwell = schur_block_sublist.get<bool>("strict RefMaxwell");
       strictRefMaxwellSetExplicitly = true;
     }
-    // Check for XML parameter file in RefMaxwell Settings
     if (schur_block_sublist.isSublist("RefMaxwell Settings")) {
       Teuchos::ParameterList & refmaxwellSettings = schur_block_sublist.sublist("RefMaxwell Settings");
       if (refmaxwellSettings.isParameter("xml param file")) {
         refMaxwell.xml_param_file = refmaxwellSettings.get<string>("xml param file");
       }
     }
-    // Check for XML parameter file in AMG Settings
+    if (schur_block_sublist.isSublist("Maxwell1 Settings")) {
+      Teuchos::ParameterList & maxwell1Settings = schur_block_sublist.sublist("Maxwell1 Settings");
+      if (maxwell1Settings.isParameter("xml param file")) {
+        maxwell1.xml_param_file = maxwell1Settings.get<string>("xml param file");
+      }
+    }
     if (schur_block_sublist.isSublist("AMG Settings")) {
       Teuchos::ParameterList & amgSettings = schur_block_sublist.sublist("AMG Settings");
       if (amgSettings.isParameter("xml param file")) {
@@ -341,6 +391,10 @@ private:
     have_matrix = false;
     jacobian_rebuilt_this_step = true;
     equation_set_index = 0;
+    const std::string bu = toUpperAsciiCopy(belos_type);
+    reuse_belos_solver_mgr = (bu == "GCRODR" || bu == "RCG");
+    belos_solver_mgr = Teuchos::null;
+    belos_problem = Teuchos::null;
   }
 };
 

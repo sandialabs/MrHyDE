@@ -389,6 +389,34 @@ buildM0invIdentity(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & nodal_ma
   return M0inv;
 }
 
+template<class Node>
+Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
+snapCrsMatrixSignsInPlace(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src) {
+  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
+  using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
+  using host_vals_t = typename LA_CrsMatrix::nonconst_values_host_view_type;
+  Teuchos::RCP<LA_CrsMatrix> out = Teuchos::rcp(new LA_CrsMatrix(*src, Teuchos::Copy));
+  out->resumeFill();
+  const LO n_rows = static_cast<LO>(src->getRowMap()->getLocalNumElements());
+  for (LO lid = 0; lid < n_rows; ++lid) {
+    size_t nent = out->getNumEntriesInLocalRow(lid);
+    if (nent == 0) continue;
+    host_inds_t cols("snap_cols", nent);
+    host_vals_t vals("snap_vals", nent);
+    out->getLocalRowCopy(lid, cols, vals, nent);
+    for (size_t k = 0; k < nent; ++k) {
+      const ScalarT v = vals(k);
+      if      (v > ScalarT(0)) vals(k) = ScalarT(1);
+      else if (v < ScalarT(0)) vals(k) = ScalarT(-1);
+    }
+    out->replaceLocalValues(lid,
+      Teuchos::ArrayView<const LO>(cols.data(), nent),
+      Teuchos::ArrayView<const ScalarT>(vals.data(), nent));
+  }
+  out->fillComplete(src->getDomainMap(), src->getRangeMap());
+  return out;
+}
+
 } // namespace detail
 
 template<class Node>
@@ -491,25 +519,67 @@ void validateBackendSupport(const Teuchos::RCP<LinearSolverContext<Node> > & cnt
 
 template<class Node>
 Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
+maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
+                       const typename BlockTypes<Node>::CrsMatrixRCP & blockMat,
+                       const Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > & innerPrec,
+                       const Teuchos::ParameterList & blockList,
+                       const std::string & label) {
+  if (!blockList.isParameter("inner krylov solver")) return innerPrec;
+  using Types = BlockTypes<Node>;
+  using LA_MultiVector = typename Types::MultiVector;
+  using LA_Operator = typename Types::Operator;
+  using LA_LinearProblem = Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator>;
+  const std::string innerSolver = blockList.get<std::string>("inner krylov solver");
+  const int innerMaxIters = blockList.isParameter("inner krylov max iters")
+    ? blockList.get<int>("inner krylov max iters") : 5;
+  const double innerTol = blockList.isParameter("inner krylov tol")
+    ? blockList.get<double>("inner krylov tol") : 1.0e-2;
+  Teuchos::RCP<Teuchos::ParameterList> belosList = Teuchos::rcp(new Teuchos::ParameterList);
+  belosList->set("Maximum Iterations", innerMaxIters);
+  belosList->set("Num Blocks", innerMaxIters);
+  belosList->set("Convergence Tolerance", innerTol);
+  belosList->set("Verbosity", static_cast<int>(Belos::Errors));
+  belosList->set("Output Frequency", 0);
+  belosList->set("Output Style", static_cast<int>(Belos::Brief));
+  belosList->set("Implicit Residual Scaling", std::string("Norm of Initial Residual"));
+  Teuchos::RCP<LA_LinearProblem> problem = Teuchos::rcp(new LA_LinearProblem(
+    Teuchos::rcp_implicit_cast<LA_Operator>(blockMat), Teuchos::null, Teuchos::null));
+  problem->setRightPrec(innerPrec);
+  auto solver = interface.createBelosSolverManager(problem, belosList, innerSolver);
+  if (interface.verbosity >= 10 && interface.comm->getRank() == 0) {
+    std::cout << "[" << label << "] wrapping block preconditioner in inner Belos '"
+              << innerSolver << "' (max iters=" << innerMaxIters
+              << ", tol=" << innerTol << ")" << std::endl;
+  }
+  return Teuchos::rcp_implicit_cast<LA_Operator>(
+    Teuchos::rcp(new KrylovWrappedBlockOperator<Node>(blockMat, solver, problem)));
+}
+
+template<class Node>
+Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
 buildOrReusePivotBlock(LinearAlgebraInterface<Node> & interface,
                        const typename BlockTypes<Node>::CrsMatrixRCP & J00,
                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                        Teuchos::ParameterList & mueluParams,
                        BlockPrecType pivotType) {
   using Types = BlockTypes<Node>;
+  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > innerPrec;
   if (pivotType == BlockPrecType::RefMaxwell) {
     interface.validateRefMaxwellBlockInputs(J00, cntxt);
-    return interface.buildRefMaxwellPreconditioner(J00, cntxt, cntxt->pivot_block_sublist);
+    innerPrec = interface.buildRefMaxwellPreconditioner(J00, cntxt, cntxt->pivot_block_sublist);
+  } else if (pivotType == BlockPrecType::Maxwell1) {
+    interface.validateRefMaxwellBlockInputs(J00, cntxt);
+    innerPrec = interface.buildMaxwell1Preconditioner(J00, cntxt, cntxt->pivot_block_sublist);
+  } else if (pivotType == BlockPrecType::Direct) {
+    innerPrec = buildDirectBlockInverse<Node>(J00);
+  } else if (pivotType == BlockPrecType::Diagonal) {
+    innerPrec = buildDiagonalBlockInverse<Node>(J00, cntxt->schur.pivot_block_diag_use_lumped_diagonal,
+                                                interface.comm, interface.verbosity);
+  } else {
+    innerPrec = MueLu::CreateTpetraPreconditioner(
+      Teuchos::rcp_implicit_cast<typename Types::Operator>(J00), mueluParams);
   }
-  if (pivotType == BlockPrecType::Direct) {
-    return buildDirectBlockInverse<Node>(J00);
-  }
-  if (pivotType == BlockPrecType::Diagonal) {
-    return buildDiagonalBlockInverse<Node>(J00, cntxt->schur.pivot_block_diag_use_lumped_diagonal,
-                                           interface.comm, interface.verbosity);
-  }
-  return MueLu::CreateTpetraPreconditioner(
-    Teuchos::rcp_implicit_cast<typename Types::Operator>(J00), mueluParams);
+  return maybeWrapInInnerKrylov<Node>(interface, J00, innerPrec, cntxt->pivot_block_sublist, "BlockTri pivot");
 }
 
 template<class Node>
@@ -522,15 +592,20 @@ buildOrReuseSchurBlock(LinearAlgebraInterface<Node> & interface,
   using Types = BlockTypes<Node>;
   TEUCHOS_TEST_FOR_EXCEPTION(schurType == BlockPrecType::Diagonal, std::runtime_error,
     "Schur block does not support Diagonal.");
+  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > innerPrec;
   if (schurType == BlockPrecType::RefMaxwell) {
     interface.validateRefMaxwellBlockInputs(schurApprox, cntxt);
-    return interface.buildRefMaxwellPreconditioner(schurApprox, cntxt, cntxt->schur_block_sublist, true);
+    innerPrec = interface.buildRefMaxwellPreconditioner(schurApprox, cntxt, cntxt->schur_block_sublist, true);
+  } else if (schurType == BlockPrecType::Maxwell1) {
+    interface.validateRefMaxwellBlockInputs(schurApprox, cntxt);
+    innerPrec = interface.buildMaxwell1Preconditioner(schurApprox, cntxt, cntxt->schur_block_sublist, true);
+  } else if (schurType == BlockPrecType::Direct) {
+    innerPrec = buildDirectBlockInverse<Node>(schurApprox);
+  } else {
+    innerPrec = MueLu::CreateTpetraPreconditioner(
+      Teuchos::rcp_implicit_cast<typename Types::Operator>(schurApprox), mueluParams);
   }
-  if (schurType == BlockPrecType::Direct) {
-    return buildDirectBlockInverse<Node>(schurApprox);
-  }
-  return MueLu::CreateTpetraPreconditioner(
-    Teuchos::rcp_implicit_cast<typename Types::Operator>(schurApprox), mueluParams);
+  return maybeWrapInInnerKrylov<Node>(interface, schurApprox, innerPrec, cntxt->schur_block_sublist, "BlockTri Schur");
 }
 
 template<class Node>

@@ -83,20 +83,43 @@ void LinearAlgebraInterface<Node>::linearSolver(Teuchos::RCP<LinearSolverContext
     cntxt->amesos_solver->numericFactorization().solve();
   }
   else {
-    Teuchos::RCP<LA_LinearProblem> Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
+    // GCRODR and RCG carry state (recycled subspace, conjugate vectors) that
+    // must survive across solves; cache the SolverManager + LinearProblem.
+    Teuchos::RCP<LA_LinearProblem> Problem;
+    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver;
+    const bool reuse = cntxt->reuse_belos_solver_mgr
+                       && !cntxt->belos_solver_mgr.is_null()
+                       && !cntxt->belos_problem.is_null();
+    if (reuse) {
+      Problem = cntxt->belos_problem;
+      Problem->setOperator(J);
+      Problem->setLHS(soln);
+      Problem->setRHS(r);
+      solver = cntxt->belos_solver_mgr;
+    }
+    else {
+      Problem = Teuchos::rcp(new LA_LinearProblem(J, soln, r));
+    }
     if (cntxt->use_preconditioner) {
       Teuchos::RCP<LA_Operator> preconditioner = this->buildOrUpdatePreconditioner(cntxt, J);
       this->attachPreconditionerToProblem(cntxt, Problem, preconditioner);
     }
-    
     Problem->setProblem();
-    
-    Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList(cntxt);
-    Teuchos::RCP<Belos::SolverManager<ScalarT,LA_MultiVector,LA_Operator> > solver =
-      this->createBelosSolverManager(Problem, belosList, cntxt->belos_type);
+    if (reuse) {
+      // Explicit re-bind; some SolverManagers cache op/prec handles at setProblem
+      // and only refresh on that call.
+      solver->setProblem(Problem);
+    }
+    else {
+      Teuchos::RCP<Teuchos::ParameterList> belosList = this->getBelosParameterList(cntxt);
+      solver = this->createBelosSolverManager(Problem, belosList, cntxt->belos_type);
+      if (cntxt->reuse_belos_solver_mgr) {
+        cntxt->belos_problem = Problem;
+        cntxt->belos_solver_mgr = solver;
+      }
+    }
     this->runBelosSolveAndHandleStatus(solver, cntxt);
     this->maybeReportConditionEstimate(solver, cntxt);
-    
   }
   
 }
@@ -515,12 +538,8 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     refmaxwellParams.print(std::cout, 2, true);
   }
 
-  // Check if we can reuse an existing RefMaxwell hierarchy (pivot or Schur cache per forSchur).
   using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
-  std::string reuseType = cntxt->preconditioner_reuse_type;
-  for (size_t i = 0; i < reuseType.size(); ++i) {
-    reuseType[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(reuseType[i])));
-  }
+  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
   const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
 
   if (canReuse) {
@@ -536,6 +555,86 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
         refmaxwellParams, true));
     if (verbosity >= 10 && J->getComm()->getRank() == 0) {
       std::cout << "[RefMaxwell] Built new preconditioner hierarchy" << (forSchur ? " (Schur)" : "") << std::endl;
+    }
+  }
+
+  return Teuchos::rcp(new MueLu::TpetraOperator<ScalarT, LO, GO, Node>(
+      Teuchos::rcp_static_cast<XpetraOperator>(precCache)));
+}
+
+template<class Node>
+Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> >
+LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
+    const matrix_RCP & J,
+    const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+    const Teuchos::ParameterList & blockSublist,
+    const bool forSchur) {
+
+  Teuchos::TimeMonitor localtimer(*prectimer);
+  using Maxwell1Type = MueLu::Maxwell1<ScalarT, LO, GO, Node>;
+  Teuchos::RCP<Maxwell1Type> & precCache = forSchur ? cntxt->schur_maxwell1_prec : cntxt->maxwell1_prec;
+
+  using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
+  using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
+
+  (void)blockSublist;
+
+  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix.is_null(), std::runtime_error,
+    "Maxwell1 requires D0_matrix in context (shared with RefMaxwell setup).");
+  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords.is_null(), std::runtime_error,
+    "Maxwell1 requires nodal_coords in context.");
+
+  matrix_RCP M1_use = cntxt->refMaxwell.M1_matrix;
+  TEUCHOS_TEST_FOR_EXCEPTION(M1_use.is_null(), std::runtime_error,
+    "Maxwell1 setup path reuses the RefMaxwell auxiliary M1 matrix. It is null.");
+  const Teuchos::RCP<const LA_Map> nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
+  matrix_RCP M0inv = block_prec::detail::buildM0invIdentity<Node>(nodal_map);
+
+  // Panzer OPERATOR_GRAD emits +-0.5; MueLu's ReitzingerP requires +-1.
+  if (cntxt->maxwell1.D0_normalized.is_null()) {
+    cntxt->maxwell1.D0_normalized = block_prec::detail::snapCrsMatrixSignsInPlace<Node>(
+      cntxt->refMaxwell.D0_matrix);
+  }
+
+  block_prec::detail::RefMaxwellXpetraInputs<Node> xpetraInputs = block_prec::detail::buildRefMaxwellXpetraInputs<Node>(
+    J, cntxt->maxwell1.D0_normalized, M1_use, M0inv, cntxt->refMaxwell.nodal_coords, cntxt->refMaxwell.nullspace);
+  Teuchos::RCP<XpetraMatrix> SM_wrap = xpetraInputs.SM_wrap;
+  Teuchos::RCP<XpetraMatrix> D0_wrap = xpetraInputs.D0_wrap;
+  auto coords_xpetra = xpetraInputs.coords_xpetra;
+  auto nullspace_xpetra = xpetraInputs.nullspace_xpetra;
+
+  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->maxwell1.xml_param_file.empty(), std::runtime_error,
+    "Maxwell1 preconditioner requires 'xml param file' in 'Maxwell1 Settings'.");
+  Teuchos::ParameterList maxwell1Params;
+  try {
+    maxwell1Params = *Teuchos::getParametersFromXmlFile(cntxt->maxwell1.xml_param_file);
+    if (verbosity >= 6 && J->getComm()->getRank() == 0) {
+      std::cout << "[Maxwell1] Loaded parameters from XML file: " << cntxt->maxwell1.xml_param_file << std::endl;
+    }
+  } catch (const std::exception& e) {
+    TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+      "Failed to load Maxwell1 parameters from XML file '" << cntxt->maxwell1.xml_param_file
+      << "': " << e.what());
+  }
+
+  sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 11list"));
+  sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 22list"));
+
+  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
+  const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
+
+  if (canReuse) {
+    precCache->resetMatrix(SM_wrap);
+    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
+      std::cout << "[Maxwell1] Reusing existing hierarchy with resetMatrix()" << (forSchur ? " (Schur)" : "") << std::endl;
+    }
+  }
+  else {
+    precCache = Teuchos::rcp(new Maxwell1Type(
+        SM_wrap, D0_wrap, nullspace_xpetra, coords_xpetra,
+        maxwell1Params, true));
+    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
+      std::cout << "[Maxwell1] Built new preconditioner hierarchy" << (forSchur ? " (Schur)" : "") << std::endl;
     }
   }
 

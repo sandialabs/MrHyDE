@@ -330,6 +330,14 @@ public:
   vector<vector_RCP> du_over;            // Overlapped Newton increment
   vector<vector_RCP> restart_solution;   // Stored restart state
   vector<vector_RCP> restart_adjoint_solution; // Stored restart adjoint
+
+  // Warm-start history for the linear-solve initial guess. Single-stage
+  // schemes only (DIRK-1,1, DIRK-1,2, BDF-1). Type is "previous" or "extrapolate".
+  bool warm_start_linear_solve;
+  std::string warm_start_type;
+  vector<vector_RCP> du_warm_prev;
+  vector<vector_RCP> du_warm_prev2;
+  vector<int> du_warm_count;
   
   vector<vector_RCP> q_pcg, z_pcg, p_pcg, r_pcg; // PCG storage
   vector<vector_RCP> p_pcg_over, q_pcg_over;     // Overlapped PCG storage

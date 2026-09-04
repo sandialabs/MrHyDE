@@ -13,6 +13,8 @@
 #include "block_prec/SchurApproximation.hpp"
 
 #include <Ifpack2_Factory.hpp>
+#include <Xpetra_TripleMatrixMultiply.hpp>
+#include <Xpetra_MatrixFactory.hpp>
 #include <algorithm>
 #include <iostream>
 #include <set>
@@ -64,6 +66,22 @@ namespace MrHyDE {
 template<class Node>
 using LATypes = block_prec::BlockTypes<Node>;
 
+// Load a complete MueLu parameter list from XML when configured.
+inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
+                                  Teuchos::ParameterList & outParams,
+                                  const std::string & context) {
+  if (!amgSublist.isParameter("xml param file")) return false;
+  const std::string xmlFile = amgSublist.get<std::string>("xml param file");
+  if (xmlFile.empty()) return false;
+  try {
+    outParams = *Teuchos::getParametersFromXmlFile(xmlFile);
+  } catch (const std::exception & e) {
+    TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+      "Failed to load AMG XML file '" << xmlFile << "' for " << context << ": " << e.what());
+  }
+  return true;
+}
+
 namespace block_prec {
 namespace detail {
 
@@ -111,14 +129,112 @@ inline std::string resolveBlockMethod(Teuchos::ParameterList & blockList) {
   return method;
 }
 
+inline bool isHiptmairSmoother(const std::string & type) {
+  return toUpperAsciiCopy(type).find("HIPTMAIR") != std::string::npos;
+}
+
+inline bool mueluParamsWantCoordinates(const Teuchos::ParameterList & pl) {
+  const auto contains = [&](const std::string & key) {
+    return pl.isParameter(key) &&
+           pl.get<std::string>(key).find("distance laplacian") != std::string::npos;
+  };
+  return contains("aggregation: drop scheme") ||
+         contains("aggregation: strength-of-connection: matrix");
+}
+
+// Check top-level and per-level smoother settings.
+inline bool mueluParamsWantHiptmair(const Teuchos::ParameterList & pl) {
+  if (pl.isParameter("smoother: type") && isHiptmairSmoother(pl.get<std::string>("smoother: type"))) return true;
+  for (Teuchos::ParameterList::ConstIterator it = pl.begin(); it != pl.end(); ++it) {
+    const std::string & key = pl.name(it);
+    if (key.rfind("level ", 0) != 0 || !pl.isSublist(key)) continue;
+    const auto & sub = pl.sublist(key);
+    if (sub.isParameter("smoother: type") && isHiptmairSmoother(sub.get<std::string>("smoother: type"))) return true;
+  }
+  return false;
+}
+
+template<class Node>
+Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> >
+wrapAsXpetraMatrix(const typename LATypes<Node>::CrsMatrixRCP & A) {
+  using TpetraCrs = Tpetra::CrsMatrix<ScalarT,LO,GO,Node>;
+  using XpetraCrs = Xpetra::TpetraCrsMatrix<ScalarT,LO,GO,Node>;
+  using XpetraCrsMatrix = Xpetra::CrsMatrix<ScalarT,LO,GO,Node>;
+  using XpetraCrsWrap = Xpetra::CrsMatrixWrap<ScalarT,LO,GO,Node>;
+  return Teuchos::rcp(new XpetraCrsWrap(
+    Teuchos::rcp_implicit_cast<XpetraCrsMatrix>(
+      Teuchos::rcp(new XpetraCrs(Teuchos::rcp_const_cast<TpetraCrs>(A))))));
+}
+
+// A_n = D0^T * A_edge * D0, wrapped as Xpetra for MueLu 'user data.NodeMatrix'.
+template<class Node>
+Teuchos::RCP<Xpetra::Matrix<ScalarT,LO,GO,Node> >
+buildAuxNodalMatrix(const typename LATypes<Node>::CrsMatrixRCP & A_edge,
+                    const typename LATypes<Node>::CrsMatrixRCP & D0) {
+  using XpetraMatrix = Xpetra::Matrix<ScalarT,LO,GO,Node>;
+  Teuchos::RCP<XpetraMatrix> A_x  = wrapAsXpetraMatrix<Node>(A_edge);
+  Teuchos::RCP<XpetraMatrix> D0_x = wrapAsXpetraMatrix<Node>(D0);
+  Teuchos::RCP<XpetraMatrix> A_n = Xpetra::MatrixFactory<ScalarT,LO,GO,Node>::Build(D0_x->getDomainMap());
+  Xpetra::TripleMatrixMultiply<ScalarT,LO,GO,Node>::MultiplyRAP(
+    *D0_x, /*transposeR=*/true,
+    *A_x,  /*transposeA=*/false,
+    *D0_x, /*transposeP=*/false,
+    *A_n,
+    /*call_fillComplete=*/true, /*doOptimizeStorage=*/true);
+  return A_n;
+}
+
+inline void stripMrHyDEDispatchKeys(Teuchos::ParameterList & list) {
+  for (const auto & k : mrhydeBlockDispatchKeys()) list.remove(k, false);
+}
+
 template<class Node>
 Teuchos::RCP<typename LATypes<Node>::Operator>
 buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
-                      const Teuchos::ParameterList & blockList) {
-  Teuchos::ParameterList mueluList = defaultMueLuParams();
-  Teuchos::ParameterList filteredBlockList(blockList);
-  stripContextAndMethodKeys(filteredBlockList);
-  mueluList.setParameters(filteredBlockList);
+                      const Teuchos::ParameterList & blockList,
+                      const Teuchos::RCP<Tpetra::MultiVector<
+                          typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node> > & dofCoords,
+                      const typename LATypes<Node>::CrsMatrixRCP & D0_matrix = Teuchos::null) {
+  Teuchos::ParameterList mueluList;
+
+  if (!loadMueLuXmlIfPresent(blockList, mueluList, "block-diag AMG")) {
+    mueluList = defaultMueLuParams();
+    Teuchos::ParameterList filteredBlockList(blockList);
+    stripContextAndMethodKeys(filteredBlockList);
+    stripMrHyDEDispatchKeys(filteredBlockList);
+    // MueLu rejects the top-level relaxation parameters added by mergeBlockSettings.
+    filteredBlockList.remove("relaxation: type", false);
+    filteredBlockList.remove("relaxation: sweeps", false);
+    filteredBlockList.remove("relaxation: damping factor", false);
+    filteredBlockList.remove("relaxation: backward mode", false);
+    mueluList.setParameters(filteredBlockList);
+  }
+
+  if (mueluParamsWantCoordinates(mueluList)) {
+    TEUCHOS_TEST_FOR_EXCEPTION(dofCoords.is_null(), std::runtime_error,
+      "MueLu params request distance-laplacian aggregation but no per-DOF coordinates were "
+      "supplied for this block. Set 'hgrad basis name' and 'hcurl basis name' in the "
+      "corresponding Block N Settings so setupBlockTriangularAuxiliary can build the coords.");
+    TEUCHOS_TEST_FOR_EXCEPTION(!dofCoords->getMap()->isSameAs(*blockMat->getRowMap()), std::runtime_error,
+      "Per-DOF coordinate MultiVector map does not match block matrix row map "
+      "(coords length=" << dofCoords->getGlobalLength() << ", block rows=" << blockMat->getGlobalNumRows() << ").");
+    mueluList.sublist("user data").set("Coordinates", dofCoords);
+  }
+
+  // A_n = D0^T A D0 must be rebuilt whenever blockMat changes (mass swap, Newton rebuild).
+  if (mueluParamsWantHiptmair(mueluList)) {
+    TEUCHOS_TEST_FOR_EXCEPTION(D0_matrix.is_null(), std::runtime_error,
+      "MueLu params request HIPTMAIR smoothing but no D0 (discrete gradient) matrix was "
+      "supplied for this block. Set 'hgrad basis name' and 'hcurl basis name' in the "
+      "corresponding Block N Settings so setupBlockTriangularAuxiliary can build D0.");
+    TEUCHOS_TEST_FOR_EXCEPTION(!D0_matrix->getRangeMap()->isSameAs(*blockMat->getRowMap()), std::runtime_error,
+      "HIPTMAIR setup: D0 range map does not match block matrix row map "
+      "(D0 range=" << D0_matrix->getRangeMap()->getGlobalNumElements()
+      << ", block rows=" << blockMat->getGlobalNumRows() << ").");
+    mueluList.sublist("user data").set("NodeMatrix", buildAuxNodalMatrix<Node>(blockMat, D0_matrix));
+    mueluList.sublist("user data").set("D0", wrapAsXpetraMatrix<Node>(D0_matrix));
+  }
+
   return MueLu::CreateTpetraPreconditioner(
     Teuchos::rcp_implicit_cast<typename LATypes<Node>::Operator>(blockMat), mueluList);
 }
@@ -140,7 +256,7 @@ buildIfpack2BlockOperator(LinearAlgebraInterface<Node> & interface,
   const std::string methodUpper = toUpperAsciiCopy(method);
   Teuchos::ParameterList ifpackList(blockList);
   ifpackList.remove("AMG Settings", false);
-  ifpackList.remove("preconditioner variant", false);
+  stripMrHyDEDispatchKeys(ifpackList);
   if (methodUpper == "CHEBYSHEV") {
     ifpackList.remove("smoother: type", false);
     promoteSublistToTopLevel(ifpackList, "smoother: params");
@@ -172,16 +288,53 @@ buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
   }
 
   Teuchos::ParameterList blockList = mergeBlockSettings<Node>(interface, cntxt, blockIndex);
+
+  // 'use mass matrix' swaps the Jacobian block for its assembled mass (M1 HCURL / M2 HDIV).
+  typename LATypes<Node>::CrsMatrixRCP preconditioner_matrix = blockMat;
+  const bool useMassMatrix = blockList.isParameter("use mass matrix") &&
+                             blockList.get<bool>("use mass matrix");
+  if (useMassMatrix) {
+    TEUCHOS_TEST_FOR_EXCEPTION(cntxt.is_null() ||
+      blockIndex >= cntxt->refMaxwell.block_mass_matrices.size() ||
+      cntxt->refMaxwell.block_mass_matrices[blockIndex].is_null(),
+      std::runtime_error,
+      "'use mass matrix: true' on Block " << blockIndex << " Settings but no block mass matrix "
+      "was assembled. Check that block-diagonal preconditioning is active and that "
+      "setupBlockTriangularAuxiliary ran (needs 'use mass matrix' on at least one Block N Settings).");
+    preconditioner_matrix = cntxt->refMaxwell.block_mass_matrices[blockIndex];
+    if (interface.verbosity >= 10 && interface.comm->getRank() == 0) {
+      std::cout << "[BlockDiag] Block " << blockIndex
+                << ": substituting mass matrix for extracted Jacobian block" << std::endl;
+    }
+  }
+
   const std::string method = resolveBlockMethod(blockList);
+  Teuchos::RCP<typename LATypes<Node>::Operator> innerPrec;
   if (toUpperAsciiCopy(method) == "AMG") {
     if (interface.verbosity >= 15 && interface.comm->getRank() == 0) {
       std::cout << "Preconditioner parameters (block diagonal, block " << blockIndex
                 << ", method AMG):" << std::endl;
       blockList.print(std::cout);
     }
-    return buildAmgBlockOperator<Node>(blockMat, blockList);
+    typedef typename Teuchos::ScalarTraits<ScalarT>::coordinateType CoordScalar;
+    Teuchos::RCP<Tpetra::MultiVector<CoordScalar,LO,GO,Node> > dofCoords;
+    if (!cntxt.is_null() && blockIndex < cntxt->refMaxwell.block_dof_coords.size()) {
+      dofCoords = cntxt->refMaxwell.block_dof_coords[blockIndex];
+    }
+    // Associate D0 with the HCURL block by matching its range map.
+    typename LATypes<Node>::CrsMatrixRCP D0_for_block;
+    if (!cntxt.is_null() && !cntxt->refMaxwell.D0_matrix.is_null() &&
+        cntxt->refMaxwell.D0_matrix->getRangeMap()->isSameAs(*preconditioner_matrix->getRowMap())) {
+      D0_for_block = cntxt->refMaxwell.D0_matrix;
+    }
+    innerPrec = buildAmgBlockOperator<Node>(preconditioner_matrix, blockList, dofCoords, D0_for_block);
+  } else {
+    innerPrec = buildIfpack2BlockOperator<Node>(interface, preconditioner_matrix, blockList, method, blockIndex);
   }
-  return buildIfpack2BlockOperator<Node>(interface, blockMat, blockList, method, blockIndex);
+
+  return block_prec::maybeWrapInInnerKrylov<Node>(
+    interface, preconditioner_matrix, innerPrec, blockList,
+    "BlockDiag block " + std::to_string(blockIndex));
 }
 
 } // namespace detail
@@ -334,15 +487,22 @@ inline void normalizeMueLuVerbosity(Teuchos::ParameterList & mueluParams, const 
 template<class Node>
 Teuchos::ParameterList
 LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) {
-  Teuchos::ParameterList mueluParams = defaultMueLuParams();
+  Teuchos::ParameterList mueluParams;
   const bool hasNestedSchurAmg =
     (cntxt->schur_block_sublist.name() != "empty") &&
     cntxt->schur_block_sublist.isSublist("AMG Settings");
+  if (hasNestedSchurAmg &&
+      loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block")) {
+    normalizeMueLuVerbosity(mueluParams, verbosity);
+    return mueluParams;
+  }
+  mueluParams = defaultMueLuParams();
   if (hasNestedSchurAmg || cntxt->prec_sublist.name() != "empty") {
     Teuchos::ParameterList filteredParams = hasNestedSchurAmg
       ? Teuchos::ParameterList(cntxt->schur_block_sublist.sublist("AMG Settings"))
       : Teuchos::ParameterList(cntxt->prec_sublist);
     stripContextAndMethodKeys(filteredParams);
+    filteredParams.remove("xml param file", false);
     mueluParams.setParameters(filteredParams);
   } else {
     mueluParams.sublist("smoother: params").set("chebyshev: degree", 2);
@@ -465,13 +625,21 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   Teuchos::ParameterList schurMueLuParams = this->getBlockTriangularMueLuParams(cntxt);
   Teuchos::ParameterList pivotMueLuParams(schurMueLuParams);
   if (cntxt->pivot_block_sublist.name() != "empty" && cntxt->pivot_block_sublist.isSublist("AMG Settings")) {
-    Teuchos::ParameterList filteredPivotParams(cntxt->pivot_block_sublist.sublist("AMG Settings"));
-    stripContextAndMethodKeys(filteredPivotParams);
-    pivotMueLuParams.setParameters(filteredPivotParams);
-    if (cntxt->pivot_block_sublist.sublist("AMG Settings").isSublist("smoother: params")) {
-      pivotMueLuParams.remove("smoother: params", false);
-      pivotMueLuParams.sublist("smoother: params").setParameters(
-        cntxt->pivot_block_sublist.sublist("AMG Settings").sublist("smoother: params"));
+    const Teuchos::ParameterList & pivotAmgSublist = cntxt->pivot_block_sublist.sublist("AMG Settings");
+    Teuchos::ParameterList xmlLoaded;
+    if (loadMueLuXmlIfPresent(pivotAmgSublist, xmlLoaded, "pivot block")) {
+      pivotMueLuParams = xmlLoaded;
+      normalizeMueLuVerbosity(pivotMueLuParams, verbosity);
+    } else {
+      Teuchos::ParameterList filteredPivotParams(pivotAmgSublist);
+      stripContextAndMethodKeys(filteredPivotParams);
+      filteredPivotParams.remove("xml param file", false);
+      pivotMueLuParams.setParameters(filteredPivotParams);
+      if (pivotAmgSublist.isSublist("smoother: params")) {
+        pivotMueLuParams.remove("smoother: params", false);
+        pivotMueLuParams.sublist("smoother: params").setParameters(
+          pivotAmgSublist.sublist("smoother: params"));
+      }
     }
   }
 

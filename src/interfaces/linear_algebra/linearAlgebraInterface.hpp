@@ -617,6 +617,11 @@ public:
                                                                                           const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                                                                                           const Teuchos::ParameterList & blockSublist,
                                                                                           const bool forSchur = false);
+  /** @brief Build MueLu::Maxwell1 (Reitzinger-Schoberl / energy-min) preconditioner for an HCURL block. */
+  Teuchos::RCP<MueLu::TpetraOperator<ScalarT,LO,GO,Node> > buildMaxwell1Preconditioner(const matrix_RCP & J,
+                                                                                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
+                                                                                        const Teuchos::ParameterList & blockSublist,
+                                                                                        const bool forSchur = false);
   /** @brief Validate A-block + auxiliary context inputs before RefMaxwell build/reuse. */
   void validateRefMaxwellBlockInputs(const matrix_RCP & A00,
                                      const Teuchos::RCP<LinearSolverContext<Node> > & cntxt) const;

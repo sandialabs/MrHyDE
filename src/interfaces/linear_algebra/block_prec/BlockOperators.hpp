@@ -4,6 +4,8 @@
 #include "block_prec/BlockTypes.hpp"
 
 #include <Amesos2.hpp>
+#include <BelosLinearProblem.hpp>
+#include <BelosSolverManager.hpp>
 
 #include <algorithm>
 #include <initializer_list>
@@ -445,6 +447,49 @@ buildBlockTriangularOperator(
     Teuchos::rcp_implicit_cast<typename BlockTypes<Node>::Operator>(SchurPrec),
     J10, J01, useUpperTriangular));
 }
+
+// Variable inner iteration counts require a flexible outer solver such as FGMRES.
+template<class Node>
+class KrylovWrappedBlockOperator : public Tpetra::Operator<ScalarT, LO, GO, Node> {
+public:
+  using Types = BlockTypes<Node>;
+  using LA_Map = typename Types::Map;
+  using LA_MultiVector = typename Types::MultiVector;
+  using LA_Operator = typename Types::Operator;
+  using LA_LinearProblem = Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator>;
+  using LA_SolverManager = Belos::SolverManager<ScalarT, LA_MultiVector, LA_Operator>;
+
+  KrylovWrappedBlockOperator(const typename Types::CrsMatrixRCP & blockMat,
+                             const Teuchos::RCP<LA_SolverManager> & solver,
+                             const Teuchos::RCP<LA_LinearProblem> & problem)
+    : solver_(solver), problem_(problem),
+      map_(blockMat->getRowMap()) {}
+
+  Teuchos::RCP<const LA_Map> getDomainMap() const override { return map_; }
+  Teuchos::RCP<const LA_Map> getRangeMap()  const override { return map_; }
+  bool hasTransposeApply() const override { return false; }
+
+  void apply(const LA_MultiVector & X, LA_MultiVector & Y,
+             Teuchos::ETransp mode = Teuchos::NO_TRANS,
+             ScalarT alpha = Teuchos::ScalarTraits<ScalarT>::one(),
+             ScalarT beta = Teuchos::ScalarTraits<ScalarT>::zero()) const override {
+    detail::requireNoTranspose<Node>(mode, "KrylovWrappedBlockOperator");
+    TEUCHOS_TEST_FOR_EXCEPTION(!X.getMap()->isSameAs(*map_) || !Y.getMap()->isSameAs(*map_),
+      std::runtime_error, "KrylovWrappedBlockOperator: map mismatch.");
+    // Belos consumes/mutates rhs; copy to avoid clobbering the caller's X.
+    Teuchos::RCP<LA_MultiVector> rhs = Teuchos::rcp(new LA_MultiVector(X, Teuchos::Copy));
+    Teuchos::RCP<LA_MultiVector> sol = Teuchos::rcp(new LA_MultiVector(map_, X.getNumVectors()));
+    problem_->setProblem(sol, rhs);
+    solver_->reset(Belos::Problem);
+    solver_->solve();
+    detail::combineWithAlphaBeta<Node>(*sol, alpha, beta, Y);
+  }
+
+private:
+  Teuchos::RCP<LA_SolverManager> solver_;
+  Teuchos::RCP<LA_LinearProblem> problem_;
+  Teuchos::RCP<const LA_Map> map_;
+};
 
 } // namespace block_prec
 } // namespace MrHyDE

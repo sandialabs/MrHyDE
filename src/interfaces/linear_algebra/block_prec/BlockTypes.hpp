@@ -82,17 +82,18 @@ inline SchurVariant parseSchurVariant(const std::string & canonical, const std::
   return SchurVariant::Base;
 }
 
-enum class BlockPrecType { AMG, RefMaxwell, Direct, Diagonal };
+enum class BlockPrecType { AMG, RefMaxwell, Maxwell1, Direct, Diagonal };
 
 inline BlockPrecType parseBlockPrecType(const std::string & raw) {
   std::string u = raw.empty() ? std::string("AMG") : raw;
   toUpperAscii(u);
   if (u == "AMG" || u == "MUELU") return BlockPrecType::AMG;
   if (u == "REFMAXWELL") return BlockPrecType::RefMaxwell;
+  if (u == "MAXWELL1") return BlockPrecType::Maxwell1;
   if (u == "DIRECT") return BlockPrecType::Direct;
   if (u == "DIAG" || u == "DIAGONAL") return BlockPrecType::Diagonal;
   TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-    "Unsupported block preconditioner type '" << raw << "'. Supported: AMG, RefMaxwell, Direct, Diagonal.");
+    "Unsupported block preconditioner type '" << raw << "'. Supported: AMG, RefMaxwell, Maxwell1, Direct, Diagonal.");
   return BlockPrecType::AMG;
 }
 } // namespace MrHyDE

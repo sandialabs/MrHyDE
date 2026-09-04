@@ -79,6 +79,7 @@ inline std::string canonicalBlockPrecType(const std::string & raw) {
   const BlockPrecType t = parseBlockPrecType(raw);
   if (t == BlockPrecType::AMG) return "AMG";
   if (t == BlockPrecType::RefMaxwell) return "RefMaxwell";
+  if (t == BlockPrecType::Maxwell1) return "Maxwell1";
   if (t == BlockPrecType::Direct) return "Direct";
   return "Diagonal";
 }
@@ -172,9 +173,10 @@ inline void validateRefMaxwellSettingsSection(const Teuchos::ParameterList & lis
 inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   const char * keys[] = {
     "preconditioner type", "diag use lumped diagonal", "strict RefMaxwell", "debug RefMaxwell maps",
-    "hgrad basis name", "hcurl basis name"
+    "hgrad basis name", "hcurl basis name",
+    "inner krylov solver", "inner krylov max iters", "inner krylov tol"
   };
-  const char * subkeys[] = {"AMG Settings", "RefMaxwell Settings", "ADS Settings"};
+  const char * subkeys[] = {"AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings", "ADS Settings"};
   validateAllowedKeys(list, sectionName,
     std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0])),
     std::set<std::string>(subkeys, subkeys + sizeof(subkeys) / sizeof(subkeys[0])));
@@ -194,9 +196,10 @@ inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & lis
     "preconditioner type", "approximation type", "pivot block",
     "diag use lumped pivot diagonal", "strict RefMaxwell", "debug RefMaxwell maps",
     "hgrad basis name", "hcurl basis name",
-    "smoother: type", "diag use lumped diagonal"
+    "smoother: type", "diag use lumped diagonal",
+    "inner krylov solver", "inner krylov max iters", "inner krylov tol"
   };
-  const char * subkeys[] = {"smoother: params", "AMG Settings", "RefMaxwell Settings", "ADS Settings"};
+  const char * subkeys[] = {"smoother: params", "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings", "ADS Settings"};
   validateAllowedKeys(list, sectionName,
     std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0])),
     std::set<std::string>(subkeys, subkeys + sizeof(subkeys) / sizeof(subkeys[0])));
@@ -283,10 +286,20 @@ inline void promoteSublistToTopLevel(Teuchos::ParameterList & list, const std::s
   list.remove(sublistName, false);
 }
 
-// Strip only context and dispatch keys for block-diagonal block list. Keeps relaxation:*
-// and chebyshev:* so they reach Ifpack2; MueLu path strips those in buildAmgBlockOperator.
+// Keys consumed by MrHyDE before dispatching to MueLu/Ifpack2.
+inline const std::vector<std::string> & mrhydeBlockDispatchKeys() {
+  static const std::vector<std::string> keys = {
+    "preconditioner variant", "use mass matrix", "xml param file",
+    "hgrad basis name", "hcurl basis name", "hgrad basis order", "hcurl basis order",
+    "inner krylov solver", "inner krylov max iters", "inner krylov tol"
+  };
+  return keys;
+}
+
+// Allow-list for block-diagonal Block N Settings. Keeps Ifpack2 relaxation:* /
+// chebyshev:* and MrHyDE dispatch keys; downstream builders strip further.
 inline void stripBlockDiagonalBlockList(Teuchos::ParameterList & list) {
-  const std::set<std::string> allowedParams = {
+  std::set<std::string> allowedParams = {
     "verbosity", "print initial parameters", "number of equations", "multigrid algorithm", "max levels",
     "smoother: type", "smoother: overlap", "smoother: pre or post", "coarse: type", "coarse: max size",
     "aggregation: type", "aggregation: drop tol", "aggregation: damping factor", "aggregation: min agg size",
@@ -296,6 +309,7 @@ inline void stripBlockDiagonalBlockList(Teuchos::ParameterList & list) {
     "chebyshev: degree", "chebyshev: ratio eigenvalue", "chebyshev: min eigenvalue",
     "chebyshev: eigenvalue max iterations"
   };
+  for (const auto & k : mrhydeBlockDispatchKeys()) allowedParams.insert(k);
   const std::set<std::string> allowedSublists = {"smoother: params", "coarse: params"};
   keepAllowedKeys(list, allowedParams, allowedSublists);
 }
