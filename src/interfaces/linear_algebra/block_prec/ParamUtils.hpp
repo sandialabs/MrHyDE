@@ -99,17 +99,6 @@ inline std::string canonicalReuseType(const std::string & raw) {
   return "update";
 }
 
-inline std::string canonicalBlockPrecBackend(const std::string & raw) {
-  const std::string u = toUpperAsciiCopy(raw);
-  if (u == "MRHYDE") return "mrhyde";
-  if (u == "TEKO_HYBRID") return "teko_hybrid";
-  if (u == "TEKO_FULL") return "teko_full";
-  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-    "Unsupported block preconditioner backend '" << raw
-    << "'. Supported values: mrhyde, teko_hybrid, teko_full.");
-  return "mrhyde";
-}
-
 inline Teuchos::ParameterList defaultMueLuParams() {
   Teuchos::ParameterList mueluParams;
   mueluParams.set("verbosity", "none");
@@ -150,7 +139,11 @@ inline std::set<std::string> defaultRefMaxwellAllowedParams() {
     "use lumped M0inv",  // MrHyDE builds M0inv
     "hgrad basis name", "hcurl basis name",  // Basis function specification
     "hgrad basis order", "hcurl basis order",  // Basis order specification
-    "D0 file", "coordinates file"  // Optional: load auxiliary data from files
+    "D0 file", "coordinates file",  // Optional auxiliary data files
+    "filter SM",
+    "filter threshold",  // Relative drop threshold
+    "verify complex",
+    "verify Kn consistency"
     // Note: All MueLu RefMaxwell parameters must be specified in the XML file
   };
   return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));

@@ -157,12 +157,12 @@ public:
   // Public data members
   string amesos_type;   /**< Amesos2 solver type (e.g., KLU2). */
   string belos_type;    /**< Belos solver type (e.g., GMRES). */
+  bool flexible_gmres = false;  /**< Outer Belos uses Flexible GMRES; gates inner-Krylov wraps. */
   string prec_type;     /**< Preconditioner type (e.g., AMG). */
   bool use_direct;            /**< Use direct Amesos2 solver. */
   bool use_preconditioner;      /**< Whether to apply a preconditioner. */
   bool right_preconditioner;    /**< Whether to apply right preconditioning. */
   bool reuse_preconditioner;    /**< Whether to reuse an existing preconditioner. */
-  string block_prec_backend;    /**< Block-preconditioner backend (mrhyde, teko_hybrid, teko_full). */
   string preconditioner_reuse_type; /**< Reuse mode (none, update, or full). */
   bool reuse_matrix;          /**< Whether to reuse an existing Jacobian. */
   bool jacobian_rebuilt_this_step; /**< True when Jacobian values were rebuilt before this linear solve. */
@@ -212,6 +212,12 @@ private:
   void parseBelosAndAmesosSettings(Teuchos::ParameterList & settings) {
     amesos_type = settings.get<string>("Amesos solver","KLU2");
     belos_type = settings.get<string>("Belos solver","Block GMRES");
+    // Accept "Flexible Gmres" at top level or inside "Belos Settings".
+    bool topFlex = settings.isType<bool>("Flexible Gmres") && settings.get<bool>("Flexible Gmres");
+    bool subFlex = settings.isSublist("Belos Settings")
+                 && settings.sublist("Belos Settings").isType<bool>("Flexible Gmres")
+                 && settings.sublist("Belos Settings").get<bool>("Flexible Gmres");
+    flexible_gmres = topFlex || subFlex;
   }
 
   void parseSublists(Teuchos::ParameterList & settings) {
@@ -247,8 +253,6 @@ private:
     use_preconditioner = settings.get<bool>("use preconditioner",true);
     reuse_preconditioner = settings.get<bool>("reuse preconditioner",true);
     preconditioner_reuse_type = canonicalReuseType(settings.get<string>("preconditioner reuse type","update"));
-    const std::string blockPrecDefault = (prec_type == "block triangular") ? "teko_full" : "mrhyde";
-    block_prec_backend = canonicalBlockPrecBackend(settings.get<string>("block prec backend", blockPrecDefault));
     right_preconditioner = settings.get<bool>("right preconditioner",false);
     reuse_matrix = settings.get<bool>("reuse Jacobian",false);
     schur.approximation_type = canonicalSchurApproximationType(settings.get<string>("Schur approximation type","base"));
@@ -273,9 +277,6 @@ private:
 
   void parsePreconditionerSublist(bool & strictRefMaxwellSetExplicitly) {
     if (prec_sublist.name() == "empty") return;
-    if (prec_sublist.isParameter("block prec backend")) {
-      block_prec_backend = canonicalBlockPrecBackend(prec_sublist.get<string>("block prec backend"));
-    }
     if (prec_sublist.isParameter("strict RefMaxwell")) {
       refMaxwell.strict_refmaxwell = prec_sublist.get<bool>("strict RefMaxwell");
       strictRefMaxwellSetExplicitly = true;

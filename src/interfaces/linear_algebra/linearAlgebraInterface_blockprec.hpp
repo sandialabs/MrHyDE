@@ -11,6 +11,7 @@
 #include "block_prec/BlockOperators.hpp"
 #include "block_prec/BlockAssembly.hpp"
 #include "block_prec/SchurApproximation.hpp"
+#include "block_prec/TekoAdapter.hpp"
 
 #include <Ifpack2_Factory.hpp>
 #include <Xpetra_TripleMatrixMultiply.hpp>
@@ -334,7 +335,7 @@ buildSingleBlockPreconditioner(LinearAlgebraInterface<Node> & interface,
 
   return block_prec::maybeWrapInInnerKrylov<Node>(
     interface, preconditioner_matrix, innerPrec, blockList,
-    "BlockDiag block " + std::to_string(blockIndex));
+    "BlockDiag block " + std::to_string(blockIndex), cntxt);
 }
 
 } // namespace detail
@@ -429,8 +430,6 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
   Teuchos::TimeMonitor localtimer(*prectimer);
   using Types = LATypes<Node>;
   using LA_Map = typename Types::Map;
-  using LA_Import = typename Types::Import;
-  using LA_Export = typename Types::Export;
 
   BlockPrecType pivotType = parseBlockPrecType((cntxt != Teuchos::null) ? cntxt->schur.pivot_block_preconditioner_type : "AMG");
   const bool useRefMaxwellOnBlock0 = (pivotType == BlockPrecType::RefMaxwell);
@@ -455,18 +454,13 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
       *this, remappedBlocks[b][b], cntxt, b, useRefMaxwellOnBlock0);
   }
 
+  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
+    "Block-diagonal preconditioner supports only 2x2 systems (got "
+    << blockMaps.size() << " block maps).");
   Teuchos::RCP<const LA_Map> fullMap = J->getRowMap();
-  // Compose block solves into one full-map operator via import/export.
-  Teuchos::RCP<block_prec::BlockDiagonalOperator<Node> > blockOp =
-    Teuchos::rcp(new block_prec::BlockDiagonalOperator<Node>(fullMap, blockMaps, blockPrecs));
-  vector<Teuchos::RCP<LA_Import> > imports(blockMaps.size());
-  vector<Teuchos::RCP<LA_Export> > exports(blockMaps.size());
-  for (size_t b = 0; b < blockMaps.size(); ++b) {
-    imports[b] = Teuchos::rcp(new LA_Import(fullMap, blockMaps[b]));
-    exports[b] = Teuchos::rcp(new LA_Export(blockMaps[b], fullMap));
-  }
-  blockOp->setImportExport(imports, exports);
-  return blockOp;
+  return block_prec::buildTekoNativeBlockDiagonal<Node>(
+    fullMap, blockMaps, remappedBlocks[0][0], remappedBlocks[1][1],
+    blockPrecs[0], blockPrecs[1]);
 }
 
 // ========================================================================================
@@ -579,7 +573,7 @@ void LinearAlgebraInterface<Node>::validateRefMaxwellBlockInputs(
   }
 }
 
-// Full setup: extract blocks, build Schur approx, build/reuse pivot and Schur precs, assemble teko_full triangular operator.
+// Extract blocks, build Schur approximation, assemble the triangular operator.
 template<class Node>
 Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
 LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
@@ -591,7 +585,6 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   using LA_Map = typename Types::Map;
 
   // --- Phase 1: Reuse short-circuit and mode validation ---
-  block_prec::validateBackendSupport<Node>(cntxt);
   BlockPrecType pivotType = parseBlockPrecType(cntxt->schur.pivot_block_preconditioner_type);
   const bool strictRefMaxwell = cntxt->refMaxwell.strict_refmaxwell;
   TEUCHOS_TEST_FOR_EXCEPTION(strictRefMaxwell && pivotType != BlockPrecType::RefMaxwell, std::runtime_error,
@@ -665,10 +658,11 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
       std::cout << "Schur damping is 0; diagonal correction disabled." << std::endl;
     }
   }
-  vector<typename Types::MapRCP> triMaps = {blocks.pivotMap, blocks.targetMap};
-  return block_prec::buildBlockTriangularOperator<Node>(
-    fullMap, triMaps, pivotPrec, SchurPrec,
-    blocks.J10, blocks.J01, useUpperTriangular);
+  std::vector<Teuchos::RCP<const LA_Map> > triMaps = {blocks.pivotMap, blocks.targetMap};
+  return block_prec::buildTekoNativeBlockTriangular<Node>(
+    fullMap, triMaps,
+    blocks.J00, blocks.J01, blocks.J10, blocks.J11,
+    pivotPrec, SchurPrec, useUpperTriangular);
 }
 
 } // namespace MrHyDE

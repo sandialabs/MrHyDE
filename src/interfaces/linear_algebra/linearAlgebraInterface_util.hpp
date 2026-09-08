@@ -116,10 +116,13 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   belosList->set("Implicit Residual Scaling", belos_residual_scaling);
   
   if (cntxt->belos_sublist.name() != "empty") {
-    //Teuchos::ParameterList inputParams = settings->sublist("Solver").sublist(belosSublist);
     belosList->setParameters(cntxt->belos_sublist);
   }
-  
+  // Propagate the merged flexible-GMRES flag into Belos parameters.
+  if (cntxt->flexible_gmres) {
+    belosList->set("Flexible Gmres", true);
+  }
+
   return belosList;
 }
 
