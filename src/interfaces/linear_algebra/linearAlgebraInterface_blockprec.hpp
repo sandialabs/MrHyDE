@@ -573,7 +573,7 @@ void LinearAlgebraInterface<Node>::validateRefMaxwellBlockInputs(
   }
 }
 
-// Extract blocks, build Schur approximation, assemble the triangular operator.
+// Full setup: extract blocks, build Schur approx, build/reuse pivot and Schur precs, assemble triangular operator.
 template<class Node>
 Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
 LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(

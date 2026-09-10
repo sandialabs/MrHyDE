@@ -359,12 +359,47 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   // Restrict full mass to edge block: M1 is the H(curl) mass on the edge block for RefMaxwell.
   cntxt->refMaxwell.M1_matrix = linalg->extractDiagonalBlock(assembled_mass_matrix, edge_block_map);
 
-  // If Panzer D0 range map differs from our edge block map, reorder D0 rows to edge_block_map.
+  // The auxiliary and primary edge maps can order GIDs differently.
+  // Match D0 rows by HCURL field offset instead of local index.
   typedef typename LA_CrsMatrix::nonconst_local_inds_host_view_type host_inds_type;
   typedef typename LA_CrsMatrix::nonconst_values_host_view_type host_vals_type;
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > nodal_map = cntxt->refMaxwell.D0_matrix->getDomainMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_col_map = cntxt->refMaxwell.D0_matrix->getColMap();
   if (!aux_edge_map->isSameAs(*edge_block_map)) {
+    const int hcurl_field_num = hcurl_dof->getFieldNum(hcurl_basis);
+    std::unordered_map<GO,GO> aux2prim;
+    for (size_t b = 0; b < mesh->block_names.size(); ++b) {
+      const std::string & block_name = mesh->block_names[b];
+      const auto & block_offsets = disc->offsets[set][b];
+      TEUCHOS_TEST_FOR_EXCEPTION(edgeBlock >= block_offsets.size(), std::runtime_error,
+        "D0 remap: edge variable " + std::to_string(edgeBlock) + " is invalid for " +
+        block_name + " (" + std::to_string(block_offsets.size()) + " variables).");
+      const std::vector<int> & E_off = block_offsets[edgeBlock];
+      const std::vector<int> aux_off = hcurl_dof->getGIDFieldOffsets(block_name, hcurl_field_num);
+      TEUCHOS_TEST_FOR_EXCEPTION(aux_off.size() != E_off.size(), std::runtime_error,
+        "D0 remap: HCURL offset count mismatch on " + block_name +
+        " (auxiliary=" + std::to_string(aux_off.size()) +
+        ", primary=" + std::to_string(E_off.size()) + ").");
+      const size_t num_elem = disc->my_elements[b].extent(0);
+      for (size_t e = 0; e < num_elem; ++e) {
+        LO local_elem_id = disc->my_elements[b](e);
+        std::vector<GO> aux_gids, prim_gids;
+        hcurl_dof->getElementGIDs(local_elem_id, aux_gids, block_name);
+        prim_gids = disc->getGIDs(set, b, local_elem_id);
+        for (size_t j = 0; j < aux_off.size(); ++j) {
+          const GO aux_gid = aux_gids[aux_off[j]];
+          const GO prim_gid = prim_gids[E_off[j]];
+          auto ins = aux2prim.emplace(aux_gid, prim_gid);
+          TEUCHOS_TEST_FOR_EXCEPTION(!ins.second && ins.first->second != prim_gid,
+            std::runtime_error,
+            "D0 remap: auxiliary edge GID " +
+            std::to_string(static_cast<long long>(aux_gid)) +
+            " maps to both " + std::to_string(static_cast<long long>(ins.first->second)) +
+            " and " + std::to_string(static_cast<long long>(prim_gid)) + ".");
+        }
+      }
+    }
+
     Teuchos::RCP<LA_CrsMatrix> D0_remapped =
       Teuchos::rcp(new LA_CrsMatrix(edge_block_map, std::max<size_t>(1, cntxt->refMaxwell.D0_matrix->getLocalMaxNumRowEntries())));
     const LO n_aux_rows = aux_edge_map->getLocalNumElements();
@@ -373,7 +408,13 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
       "D0 remap: local row counts differ (aux=" + std::to_string(static_cast<long long>(n_aux_rows)) +
       ", target=" + std::to_string(static_cast<long long>(n_target_rows)) + ").");
     for (LO lid = 0; lid < n_aux_rows; ++lid) {
-      const GO row_gid = edge_block_map->getGlobalElement(lid);
+      const GO aux_row_gid = aux_edge_map->getGlobalElement(lid);
+      auto it = aux2prim.find(aux_row_gid);
+      TEUCHOS_TEST_FOR_EXCEPTION(it == aux2prim.end(), std::runtime_error,
+        "D0 remap: no primary edge GID for auxiliary GID " +
+        std::to_string(static_cast<long long>(aux_row_gid)) +
+        " (local row " + std::to_string(lid) + ").");
+      const GO row_gid = it->second;
       size_t nent = cntxt->refMaxwell.D0_matrix->getNumEntriesInLocalRow(lid);
       if (nent == 0) continue;
       host_inds_type col_lids("d0_col_lids", nent);
@@ -406,8 +447,9 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   for (size_t block = 0; block < mesh->block_names.size(); ++block) {
     const std::string block_name = mesh->block_names[block];
     const size_t num_elem = disc->my_elements[block].extent(0);
+    // STK expects all-mesh element IDs, not block-local indices.
     vector<size_t> elem_ids(num_elem);
-    for (size_t e = 0; e < num_elem; ++e) elem_ids[e] = e;
+    for (size_t e = 0; e < num_elem; ++e) elem_ids[e] = disc->my_elements[block](e);
     DRV elem_nodes = mesh->getMyNodes(block, elem_ids);
     for (size_t e = 0; e < num_elem; ++e) {
       std::vector<GO> elem_dofs;

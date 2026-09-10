@@ -11,11 +11,13 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <set>
 #include <sstream>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace MrHyDE {
@@ -393,13 +395,16 @@ buildM0invIdentity(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & nodal_ma
 template<class Node>
 struct FilterResult {
   Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> matrix;
-  std::vector<std::pair<GO,GO>> dropped;
+  std::vector<std::pair<GO,GO>> dropped;  // populated only when captureDropped=true
+  size_t nnzIn = 0;
+  size_t nnzOut = 0;
 };
 
+// Disabled by default to preserve the unfiltered setup.
 struct FilterOpts {
   bool   filterSM           = false;
   bool   verifyComplex      = false;
-  bool   verifyKnConsistency = false;
+  bool   verifyKnConsistency = false;  // Maxwell1 only
   double tol                = 1.0e-14;
 };
 
@@ -412,7 +417,7 @@ inline FilterOpts readFilterOpts(const Teuchos::ParameterList & pl) {
   return o;
 }
 
-// Drop a_ij with |a_ij| < tol * sqrt(|a_ii|*|a_jj|).
+// Drop small off-diagonals relative to their row and column diagonals.
 template<class Node>
 FilterResult<Node>
 filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src,
@@ -461,6 +466,7 @@ filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Nod
     keepGids.reserve(nent);
     keepVals.reserve(nent);
     for (size_t k = 0; k < nent; ++k) {
+      result.nnzIn++;
       const LO colLid = cols(k);
       const GO colGid = colMap->getGlobalElement(colLid);
       if (colGid == Teuchos::OrdinalTraits<GO>::invalid()) continue;
@@ -481,18 +487,19 @@ filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Nod
       }
     }
     TEUCHOS_TEST_FOR_EXCEPTION(keepGids.empty(), std::runtime_error,
-      "filterExplicitZeros: row " << rowGid << " (local " << lid << ") emptied out"
-      << " (input nnz=" << nent << ", |a_ii|=" << aii << ", tol=" << tol << ")."
-      << " Filter would erase this row's physics. Lower 'filter threshold' or"
-      << " exclude this row category.");
+      "filterExplicitZeros: filter removed all entries from row " << rowGid
+      << " (local=" << lid << ", nnz=" << nent << ", |a_ii|=" << aii
+      << ", tol=" << tol << "). Reduce 'filter threshold'.");
     out->insertGlobalValues(rowGid, keepGids, keepVals);
   }
   out->fillComplete(src->getDomainMap(), src->getRangeMap());
   result.matrix = out;
+  result.nnzOut = out->getLocalNumEntries();
   return result;
 }
 
-// O(nnz log nnz) per row; adequate for lowest-order bases.
+// Require every nonzero (i,j) to have a matching (j,i).
+// TODO: might be expensive for high-order stencils.
 template<class Node>
 void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & A,
                               const std::string & label) {
@@ -506,8 +513,8 @@ void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT
     size_t nA = A->getNumEntriesInLocalRow(lid);
     size_t nT = At->getNumEntriesInLocalRow(lid);
     TEUCHOS_TEST_FOR_EXCEPTION(nA != nT, std::runtime_error,
-      label << ": structural symmetry broken at row " << A->getRowMap()->getGlobalElement(lid)
-      << " (nnz " << nA << " vs transpose nnz " << nT << ").");
+      label << ": row " << A->getRowMap()->getGlobalElement(lid)
+      << " has " << nA << " entries; its transpose has " << nT << ".");
     if (nA == 0) continue;
     host_inds_t colsA("sym_colsA", nA), colsT("sym_colsT", nT);
     host_vals_t valsA("sym_valsA", nA), valsT("sym_valsT", nT);
@@ -517,12 +524,12 @@ void assertStructuralSymmetry(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT
     for (size_t k = 0; k < nA; ++k) gA.insert(A->getColMap()->getGlobalElement(colsA(k)));
     for (size_t k = 0; k < nT; ++k) gT.insert(At->getColMap()->getGlobalElement(colsT(k)));
     TEUCHOS_TEST_FOR_EXCEPTION(gA != gT, std::runtime_error,
-      label << ": structural symmetry broken at row " << A->getRowMap()->getGlobalElement(lid)
-      << " (column-GID sets differ).");
+      label << ": row " << A->getRowMap()->getGlobalElement(lid)
+      << " has different columns in A and A^T.");
   }
 }
 
-// Bound the filter perturbation only; SM*D0 is nonzero.
+// Check only the filter's change to SM*D0. The DIRK mass term makes SM*D0 nonzero.
 template<class Node>
 void assertKernelBound(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_filtered,
                        const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & SM_orig,
@@ -547,11 +554,14 @@ void assertKernelBound(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,
   const MagT sm_norm = SM_orig->getFrobeniusNorm();
   const MagT bound = tol * sm_norm * dx_nrm[0];
   TEUCHOS_TEST_FOR_EXCEPTION(pert_nrm[0] > bound, std::runtime_error,
-    label << ": filter perturbed SM*D0 beyond tol: |(SM - SM_filt) D0 x|_inf = " << pert_nrm[0]
-    << " > tol * |SM|_F * |D0 x|_inf = " << bound << " (tol=" << tol << ").");
+    label << ": SM filter changed SM*D0 above tolerance"
+    << " (measured=" << pert_nrm[0] << ", limit=" << bound << ", tol=" << tol << ").");
 }
 
-// D0 and nullspace mismatches throw; symmetry and Rayleigh checks warn.
+// De Rham / Maxwell operator sanity checks.
+// D0 row structure and nullspace consistency are hard assertions. The rest
+// are warn-only diagnostics on the filter's effect on symmetry, the
+// curl(grad)=0 identity, and the Rayleigh quotient.
 template<class Node>
 bool verifyMaxwellComplex(
     const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & D0,
@@ -569,6 +579,7 @@ bool verifyMaxwellComplex(
     const int rank,
     const std::string & label) {
   using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
+  using CoordT = typename Teuchos::ScalarTraits<ScalarT>::coordinateType;
   using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
   using LA_MultiVector = Tpetra::MultiVector<ScalarT,LO,GO,Node>;
   using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
@@ -587,7 +598,7 @@ bool verifyMaxwellComplex(
   bool ok_assertions = true;
   const auto comm = D0->getRowMap()->getComm();
 
-  // Row structure: allow entries in {+-1, +-0.5}.
+  // D0 row structure. Panzer OPERATOR_GRAD uses +-0.5; Reitzinger +-1. Both are valid.
   {
     const auto rowMap = D0->getRowMap();
     const LO nrows = static_cast<LO>(rowMap->getLocalNumElements());
@@ -627,12 +638,12 @@ bool verifyMaxwellComplex(
     if (gout[0] || gout[1] || gout[2]) {
       ok_assertions = false;
       TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-        "[" << label << "] D0 structure violated: bad_nnz="
-        << gout[0] << " bad_val=" << gout[1] << " bad_sum=" << gout[2]);
+        "[" << label << "] invalid D0 rows: too_many_entries=" << gout[0]
+        << ", invalid_values=" << gout[1] << ", nonzero_sums=" << gout[2] << ".");
     }
   }
 
-  // Exact only for lowest-order Whitney elements.
+  // Lowest-order Whitney elements require nullspace == D0 * coordinates.
   if (!coords.is_null() && !nullspace.is_null()) {
     const int dim = std::min<int>(coords->getNumVectors(), nullspace->getNumVectors());
     LA_MultiVector coords_S(D0->getDomainMap(), dim);
@@ -657,8 +668,8 @@ bool verifyMaxwellComplex(
     if (worst > tol_null) {
       ok_assertions = false;
       TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-        "[" << label << "] |nullspace - D0*coords|_inf = " << worst
-        << " > " << tol_null << " (expected machine zero).");
+        "[" << label << "] D0*coordinates does not match the nullspace"
+        << " (max_error=" << worst << ", tolerance=" << tol_null << ").");
     }
   } else {
     log("nullspace check skipped (coords or nullspace null)");
@@ -667,6 +678,7 @@ bool verifyMaxwellComplex(
   // Symmetry: |xTAy - yTAx| / (|x||y||A|_inf) with random x, y.
   auto sym_test = [&](const Teuchos::RCP<const LA_CrsMatrix> & A, const std::string & name) {
     const auto rowMap = A->getRowMap();
+    // Estimate |A|_inf with the maximum absolute row sum.
     MagT Ainf = MagT(0);
     {
       const LO nr = static_cast<LO>(rowMap->getLocalNumElements());
@@ -705,7 +717,7 @@ bool verifyMaxwellComplex(
   sym_test(SM_f, "SM_f");
   sym_test(M1_f, "M1_f");
 
-  // Filter must preserve the (SM - M1)*D0*v residual.
+  // Filtering should not change the small curl-curl residual on gradients.
   if (!SM.is_null() && !M1.is_null()) {
     const auto nodalMap = D0->getDomainMap();
     LA_MultiVector v(nodalMap, 1);
@@ -733,7 +745,7 @@ bool verifyMaxwellComplex(
     }
   }
 
-  // Rayleigh ratio must stay within |dropped| * tol of 1.
+  // The filtered and original Rayleigh quotients should agree within the drop bound.
   auto rayleigh = [&](const Teuchos::RCP<const LA_CrsMatrix> & A,
                       const Teuchos::RCP<const LA_CrsMatrix> & A_f,
                       const size_t nDrop,
@@ -776,63 +788,8 @@ bool verifyMaxwellComplex(
   return ok_assertions;
 }
 
-template<class Node>
-struct MaxwellMatrices {
-  typename BlockTypes<Node>::CrsMatrixRCP SM;
-  typename BlockTypes<Node>::CrsMatrixRCP M1;
-  std::vector<std::pair<GO,GO>> droppedSM;
-  std::vector<std::pair<GO,GO>> droppedM1;
-};
-
-template<class Node>
-MaxwellMatrices<Node>
-prepareMaxwellMatrices(
-    const typename BlockTypes<Node>::CrsMatrixRCP & SM,
-    const typename BlockTypes<Node>::CrsMatrixRCP & M1,
-    const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & D0,
-    const Teuchos::RCP<const Tpetra::MultiVector<
-      typename Teuchos::ScalarTraits<ScalarT>::coordinateType,LO,GO,Node>> & coords,
-    const Teuchos::RCP<const Tpetra::MultiVector<ScalarT,LO,GO,Node>> & nullspace,
-    const FilterOpts & opts,
-    const int verbosity,
-    const std::string & label) {
-  MaxwellMatrices<Node> out{SM, M1, {}, {}};
-  auto pct_dropped = [](double in, double out_) {
-    return 100.0 * (in - out_) / std::max(1.0, in);
-  };
-  if (opts.filterSM) {
-    FilterResult<Node> smResult = filterExplicitZeros<Node>(SM, opts.tol, opts.verifyComplex);
-    FilterResult<Node> m1Result = filterExplicitZeros<Node>(M1, opts.tol, opts.verifyComplex);
-    out.SM = smResult.matrix;
-    out.M1 = m1Result.matrix;
-    out.droppedSM = smResult.dropped;
-    out.droppedM1 = m1Result.dropped;
-    assertStructuralSymmetry<Node>(out.M1, label + " M1 filter");
-    assertKernelBound<Node>(out.SM, SM, D0, opts.tol, label + " SM filter");
-    if (verbosity >= 6 && SM->getComm()->getRank() == 0) {
-      const double smIn  = SM->getGlobalNumEntries();
-      const double smOut = out.SM->getGlobalNumEntries();
-      const double m1In  = M1->getGlobalNumEntries();
-      const double m1Out = out.M1->getGlobalNumEntries();
-      std::cout << "[" << label << "] filter SM tol=" << opts.tol
-                << ": SM " << smIn << " -> " << smOut
-                << " (dropped " << pct_dropped(smIn, smOut) << "%)"
-                << ", M1 " << m1In << " -> " << m1Out
-                << " (dropped " << pct_dropped(m1In, m1Out) << "%)"
-                << std::endl;
-    }
-  }
-  if (opts.verifyComplex) {
-    verifyMaxwellComplex<Node>(
-      D0, coords, nullspace,
-      SM, M1, out.SM, out.M1,
-      out.droppedSM, out.droppedM1, opts.tol, verbosity,
-      SM->getComm()->getRank(), label);
-  }
-  return out;
-}
-
-// Drop stored zeros and snap remaining values to +-1.
+// Normalize D0 to {-1, +1} and remove stored zeros. ReitzingerPFactory
+// rejects all other values; dropBCRows prevents MueLu from adding zeros back.
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
 snapCrsMatrixSignsInPlace(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src) {
@@ -840,7 +797,7 @@ snapCrsMatrixSignsInPlace(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,
   using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
   using host_vals_t = typename LA_CrsMatrix::nonconst_values_host_view_type;
   using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
-  // Tuned to O(1) D0 entries; entries in [10*eps, 100*eps] are treated as noise.
+
   const MagT zero_tol = Teuchos::ScalarTraits<MagT>::eps() * 1e2;
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node>> rowMap = src->getRowMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node>> colMap = src->getColMap();
@@ -875,83 +832,7 @@ snapCrsMatrixSignsInPlace(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,
   return out;
 }
 
-// Drop BC rows and columns from D0. bcColsDomain is indexed over the domain map.
-template<class Node>
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
-dropBCRowsAndCols(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src,
-                  const Kokkos::View<const bool*, typename Node::device_type::memory_space> & bcRows,
-                  const Kokkos::View<const bool*, typename Node::device_type::memory_space> & bcColsDomain) {
-  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
-  using LA_Vector = Tpetra::Vector<ScalarT,LO,GO,Node>;
-  using LA_Import = Tpetra::Import<LO,GO,Node>;
-  using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
-  using host_vals_t = typename LA_CrsMatrix::nonconst_values_host_view_type;
-  auto bcRowsHost = Kokkos::create_mirror_view(bcRows);
-  Kokkos::deep_copy(bcRowsHost, bcRows);
-
-  const auto rowMap    = src->getRowMap();
-  const auto colMap    = src->getColMap();
-  const auto domainMap = src->getDomainMap();
-  const LO n_rows   = static_cast<LO>(rowMap->getLocalNumElements());
-  const LO n_cols   = static_cast<LO>(colMap->getLocalNumElements());
-  const LO n_domain = static_cast<LO>(domainMap->getLocalNumElements());
-  TEUCHOS_TEST_FOR_EXCEPTION(static_cast<size_t>(bcRowsHost.extent(0)) != static_cast<size_t>(n_rows),
-    std::runtime_error, "dropBCRowsAndCols: bcRows length != row map local size.");
-  TEUCHOS_TEST_FOR_EXCEPTION(static_cast<size_t>(bcColsDomain.extent(0)) != static_cast<size_t>(n_domain),
-    std::runtime_error, "dropBCRowsAndCols: bcColsDomain length != domain map local size.");
-
-  // Promote domain-map BC flags to the ghosted column map.
-  Teuchos::RCP<LA_Vector> bcColDomainScalar = Teuchos::rcp(new LA_Vector(domainMap, false));
-  {
-    auto v = bcColDomainScalar->getLocalViewHost(Tpetra::Access::OverwriteAll);
-    auto bcDomHost = Kokkos::create_mirror_view(bcColsDomain);
-    Kokkos::deep_copy(bcDomHost, bcColsDomain);
-    for (LO i = 0; i < n_domain; ++i) v(i,0) = bcDomHost(i) ? ScalarT(1) : ScalarT(0);
-  }
-  Teuchos::RCP<LA_Vector> bcColColMapScalar = Teuchos::rcp(new LA_Vector(colMap, true));
-  if (domainMap->isSameAs(*colMap)) {
-    Tpetra::deep_copy(*bcColColMapScalar, *bcColDomainScalar);
-  } else {
-    LA_Import importer(domainMap, colMap);
-    bcColColMapScalar->doImport(*bcColDomainScalar, importer, Tpetra::INSERT);
-  }
-  std::vector<bool> bcColColMap(n_cols, false);
-  {
-    auto v = bcColColMapScalar->getLocalViewHost(Tpetra::Access::ReadOnly);
-    for (LO i = 0; i < n_cols; ++i) bcColColMap[i] = v(i,0) != ScalarT(0);
-  }
-
-  const size_t maxEnt = std::max<size_t>(1, src->getLocalMaxNumRowEntries());
-  Teuchos::RCP<LA_CrsMatrix> out = Teuchos::rcp(new LA_CrsMatrix(rowMap, maxEnt));
-  for (LO lid = 0; lid < n_rows; ++lid) {
-    if (bcRowsHost(lid)) continue;
-    size_t nent = src->getNumEntriesInLocalRow(lid);
-    if (nent == 0) continue;
-    host_inds_t cols("bcdrop_cols", nent);
-    host_vals_t vals("bcdrop_vals", nent);
-    src->getLocalRowCopy(lid, cols, vals, nent);
-    const GO rowGid = rowMap->getGlobalElement(lid);
-    std::vector<GO> keepGids;
-    std::vector<ScalarT> keepVals;
-    keepGids.reserve(nent);
-    keepVals.reserve(nent);
-    for (size_t k = 0; k < nent; ++k) {
-      const LO cLid = cols(k);
-      if (bcColColMap[cLid]) continue;
-      const GO colGid = colMap->getGlobalElement(cLid);
-      if (colGid == Teuchos::OrdinalTraits<GO>::invalid()) continue;
-      keepGids.push_back(colGid);
-      keepVals.push_back(vals(k));
-    }
-    if (!keepGids.empty()) {
-      out->insertGlobalValues(rowGid, keepGids, keepVals);
-    }
-  }
-  out->fillComplete(src->getDomainMap(), src->getRangeMap());
-  return out;
-}
-
-// Drop BC rows (retain columns).
+// Remove boundary rows so Maxwell1 cannot add stored zeros to D0.
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
 dropBCRows(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src,
@@ -967,7 +848,8 @@ dropBCRows(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src
   Teuchos::RCP<LA_CrsMatrix> out = Teuchos::rcp(new LA_CrsMatrix(rowMap, maxEnt));
   const LO n_rows = static_cast<LO>(rowMap->getLocalNumElements());
   TEUCHOS_TEST_FOR_EXCEPTION(static_cast<size_t>(bcHost.extent(0)) != static_cast<size_t>(n_rows),
-    std::runtime_error, "dropBCRows: bcRows length does not match row map local size.");
+    std::runtime_error, "dropBCRows: bcRows has " << bcHost.extent(0)
+    << " entries; expected " << n_rows << ".");
   for (LO lid = 0; lid < n_rows; ++lid) {
     if (bcHost(lid)) continue;
     size_t nent = src->getNumEntriesInLocalRow(lid);
@@ -988,91 +870,6 @@ dropBCRows(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src
     }
     if (!keepGids.empty()) {
       out->insertGlobalValues(rowGid, keepGids, keepVals);
-    }
-  }
-  out->fillComplete(src->getDomainMap(), src->getRangeMap());
-  return out;
-}
-
-// Symmetric rescale rows with |diag| > contrastRatio * min |diag| by
-// s = 1/sqrt(|diag|).
-template<class Node>
-Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
-rescalePecRows(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src,
-               const typename Teuchos::ScalarTraits<ScalarT>::magnitudeType contrastRatio = 1.0e6) {
-  using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
-  using LA_Vector = Tpetra::Vector<ScalarT,LO,GO,Node>;
-  using LA_Import = Tpetra::Import<LO,GO,Node>;
-  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
-  using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
-  using host_vals_t = typename LA_CrsMatrix::nonconst_values_host_view_type;
-
-  const auto rowMap = src->getRowMap();
-  const auto colMap = src->getColMap();
-  Teuchos::RCP<LA_Vector> rowDiag = Teuchos::rcp(new LA_Vector(rowMap, true));
-  src->getLocalDiagCopy(*rowDiag);
-
-  // Reference scale: global min of nonzero |diag|.
-  MagT localMin = std::numeric_limits<MagT>::max();
-  {
-    auto dv = rowDiag->getLocalViewHost(Tpetra::Access::ReadOnly);
-    const LO nlocal = static_cast<LO>(dv.extent(0));
-    for (LO i = 0; i < nlocal; ++i) {
-      const MagT a = Teuchos::ScalarTraits<ScalarT>::magnitude(dv(i,0));
-      if (a > MagT(0) && a < localMin) localMin = a;
-    }
-  }
-  MagT globalMin = localMin;
-  Teuchos::reduceAll<int,MagT>(*rowMap->getComm(), Teuchos::REDUCE_MIN, 1, &localMin, &globalMin);
-  if (!(globalMin > MagT(0))) globalMin = MagT(1);
-  const MagT threshold = contrastRatio * globalMin;
-
-  Teuchos::RCP<LA_Vector> rowScale = Teuchos::rcp(new LA_Vector(rowMap, false));
-  {
-    auto dv = rowDiag->getLocalViewHost(Tpetra::Access::ReadOnly);
-    auto sv = rowScale->getLocalViewHost(Tpetra::Access::OverwriteAll);
-    const LO nlocal = static_cast<LO>(dv.extent(0));
-    for (LO i = 0; i < nlocal; ++i) {
-      const MagT a = Teuchos::ScalarTraits<ScalarT>::magnitude(dv(i,0));
-      sv(i,0) = (a > threshold) ? ScalarT(MagT(1) / std::sqrt(a)) : ScalarT(1);
-    }
-  }
-
-  Teuchos::RCP<LA_Vector> colScale;
-  if (rowMap->isSameAs(*colMap)) {
-    colScale = rowScale;
-  } else {
-    colScale = Teuchos::rcp(new LA_Vector(colMap, true));
-    LA_Import importer(rowMap, colMap);
-    colScale->doImport(*rowScale, importer, Tpetra::INSERT);
-  }
-
-  const size_t maxEnt = std::max<size_t>(1, src->getLocalMaxNumRowEntries());
-  Teuchos::RCP<LA_CrsMatrix> out = Teuchos::rcp(new LA_CrsMatrix(rowMap, maxEnt));
-  auto rowScaleView = rowScale->getLocalViewHost(Tpetra::Access::ReadOnly);
-  auto colScaleView = colScale->getLocalViewHost(Tpetra::Access::ReadOnly);
-  const LO n_rows = static_cast<LO>(rowMap->getLocalNumElements());
-  for (LO lid = 0; lid < n_rows; ++lid) {
-    size_t nent = src->getNumEntriesInLocalRow(lid);
-    if (nent == 0) continue;
-    host_inds_t cols("resc_cols", nent);
-    host_vals_t vals("resc_vals", nent);
-    src->getLocalRowCopy(lid, cols, vals, nent);
-    const GO rowGid = rowMap->getGlobalElement(lid);
-    const ScalarT sr = rowScaleView(lid, 0);
-    std::vector<GO> outGids;
-    std::vector<ScalarT> outVals;
-    outGids.reserve(nent);
-    outVals.reserve(nent);
-    for (size_t k = 0; k < nent; ++k) {
-      const GO colGid = colMap->getGlobalElement(cols(k));
-      if (colGid == Teuchos::OrdinalTraits<GO>::invalid()) continue;
-      const ScalarT sc = colScaleView(cols(k), 0);
-      outGids.push_back(colGid);
-      outVals.push_back(sr * vals(k) * sc);
-    }
-    if (!outGids.empty()) {
-      out->insertGlobalValues(rowGid, outGids, outVals);
     }
   }
   out->fillComplete(src->getDomainMap(), src->getRangeMap());
@@ -1136,7 +933,7 @@ buildDiagonalBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
   Teuchos::RCP<LA_Vector> invDiag = Teuchos::rcp(new LA_Vector(J00->getRowMap()));
   invDiag->putScalar(Teuchos::ScalarTraits<ScalarT>::zero());
   const detail::InverseDiagonalResult<Node> invData =
-    detail::buildInverseDiagonal<Node>(J00, useLumpedDiagonal);
+    detail::buildInverseDiagonal<Node>(Teuchos::rcp_implicit_cast<const typename Types::CrsMatrix>(J00), useLumpedDiagonal);
   for (typename std::unordered_map<GO, ScalarT>::const_iterator it = invData.invByRow.begin();
        it != invData.invByRow.end(); ++it) {
     invDiag->replaceGlobalValue(it->first, it->second);
@@ -1186,20 +983,17 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
   using LA_MultiVector = typename Types::MultiVector;
   using LA_Operator = typename Types::Operator;
   using LA_LinearProblem = Belos::LinearProblem<ScalarT, LA_MultiVector, LA_Operator>;
-  // Variable inner solves need a flexible outer Krylov.
+  // Inner solves vary in accuracy, so the outer solver must use FGMRES.
   if (!cntxt.is_null()) {
     const std::string outerType = toUpperAsciiCopy(cntxt->belos_type);
     const bool outerIsGmres = (outerType == "BLOCK GMRES" || outerType == "PSEUDO BLOCK GMRES");
-    const bool flexibleFlag = cntxt->flexible_gmres;
+    const bool flexibleFlag = (cntxt->belos_sublist.name() != "empty") &&
+                              cntxt->belos_sublist.isParameter("Flexible Gmres") &&
+                              cntxt->belos_sublist.template get<bool>("Flexible Gmres");
     TEUCHOS_TEST_FOR_EXCEPTION(!outerIsGmres || !flexibleFlag, std::runtime_error,
-      "[" << label << "] 'inner krylov solver' is set on a block preconditioner, but the "
-      "outer Belos solver is '" << cntxt->belos_type << "'"
-      << (outerIsGmres ? "" : " (not Block/Pseudo Block GMRES)")
-      << (flexibleFlag ? "" : " and 'Flexible Gmres: true' is not set (top level or in Belos Settings)")
-      << ". Inner-Krylov wrapping produces a variable-precision preconditioner that "
-         "requires a flexible outer Krylov (FGMRES). Either remove 'inner krylov solver' "
-         "from this block, or configure the outer solver as: Belos solver: Block GMRES with "
-         "'Flexible Gmres: true' at top level or under 'Belos Settings'.");
+      "[" << label << "] inner Krylov requires Block GMRES or Pseudo Block GMRES"
+      << " with 'Flexible Gmres: true' in Belos Settings; current solver is '"
+      << cntxt->belos_type << "'.");
   }
   const std::string innerSolver = blockList.get<std::string>("inner krylov solver");
   const int innerMaxIters = blockList.isParameter("inner krylov max iters")

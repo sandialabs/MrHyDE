@@ -140,10 +140,9 @@ inline std::set<std::string> defaultRefMaxwellAllowedParams() {
     "hgrad basis name", "hcurl basis name",  // Basis function specification
     "hgrad basis order", "hcurl basis order",  // Basis order specification
     "D0 file", "coordinates file",  // Optional auxiliary data files
-    "filter SM",
-    "filter threshold",  // Relative drop threshold
-    "verify complex",
-    "verify Kn consistency"
+    "filter SM",  // Remove roundoff entries from SM
+    "filter threshold",  // Relative drop threshold; default 1e-14
+    "verify complex"  // Run Maxwell operator checks
     // Note: All MueLu RefMaxwell parameters must be specified in the XML file
   };
   return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));

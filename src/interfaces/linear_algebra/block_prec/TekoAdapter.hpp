@@ -34,7 +34,7 @@ tpetraToThyraConst(const typename BlockTypes<Node>::CrsMatrixRCP & A) {
   return Thyra::createConstLinearOp<ScalarT,LO,GO,Node>(op, range, domain);
 }
 
-// Teko applies inverses through non-const LinearOp handles.
+// Teko requires non-const handles for inverse operators.
 template<class Node>
 inline Teuchos::RCP<Thyra::LinearOpBase<ScalarT> >
 tpetraToThyra(const Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > & op,
@@ -69,7 +69,7 @@ buildThyraBlocked2x2(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
   return Teko::toBlockedLinearOp(lo);
 }
 
-// Adapt a Teko product-space preconditioner to the monolithic Tpetra map.
+// Adapt a blocked Thyra preconditioner to a monolithic Tpetra operator.
 template<class Node>
 class TekoTpetraAdapter : public Tpetra::Operator<ScalarT,LO,GO,Node> {
 public:
@@ -122,7 +122,7 @@ public:
     Teuchos::RCP<const Thyra::MultiVectorBase<ScalarT> > xProdConst = xProd_;
     Thyra::apply(*tekoPrec_, Thyra::NOTRANS, *xProdConst, yProd_.ptr());
 
-    // Stage output only when alpha and beta require it.
+    // Export directly for Y = P*X; otherwise stage the sum before scaling Y.
     const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
     const ScalarT one  = Teuchos::ScalarTraits<ScalarT>::one();
     if (beta == zero && alpha == one) {
@@ -217,7 +217,7 @@ buildTekoNativeBlockDiagonal(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > 
     });
 }
 
-// Match MrHyDE's right-preconditioner convention.
+// Map MrHyDE's right-preconditioner convention to Teko's upper triangle.
 // TODO: generalize to N-block via Teko's variadic block factories.
 template<class Node>
 Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
