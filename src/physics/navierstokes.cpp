@@ -45,6 +45,7 @@ navierstokes<EvalT>::navierstokes(Teuchos::ParameterList & settings, const int &
   
   useSUPG = settings.get<bool>("useSUPG",false);
   usePSPG = settings.get<bool>("usePSPG",false);
+    have_induction = settings.get<bool>("have induction",false);
   T_ambient = settings.get<ScalarT>("T_ambient",0.0);
   beta = settings.get<ScalarT>("beta",1.0);
   model_params = Kokkos::View<ScalarT*,AssemblyDevice>("NS params on device",2);
@@ -72,6 +73,7 @@ void navierstokes<EvalT>::defineFunctions(Teuchos::ParameterList & fs,
   functionManager->addFunction("source uz",fs.get<string>("source uz","0.0"),"ip");
   functionManager->addFunction("density",fs.get<string>("density","1.0"),"ip");
   functionManager->addFunction("viscosity",fs.get<string>("viscosity","1.0"),"ip");
+  functionManager->addFunction("mu0",fs.get<string>("mu0","1.0"),"ip");
   
 }
 
@@ -84,7 +86,7 @@ void navierstokes<EvalT>::volumeResidual() {
   int spaceDim = wkset->dimension;
   ScalarT dt = wkset->deltat;
   bool isTransient = wkset->isTransient;
-  Vista<EvalT> dens, visc, source_ux, source_pr, source_uy, source_uz;
+  Vista<EvalT> dens, visc, source_ux, source_pr, source_uy, source_uz, mu0;
   
   {
     Teuchos::TimeMonitor funceval(*volumeResidualFunc);
@@ -98,11 +100,12 @@ void navierstokes<EvalT>::volumeResidual() {
     }
     dens = functionManager->evaluate("density","ip");
     visc = functionManager->evaluate("viscosity","ip");
+    mu0 = functionManager->evaluate("mu0","ip");
   }
   
   Teuchos::TimeMonitor resideval(*volumeResidualFill);
   auto wts = wkset->wts;
-  auto res =wkset->res;
+  auto res = wkset->res;
   
   if (spaceDim == 1) {
     {
@@ -541,6 +544,27 @@ void navierstokes<EvalT>::volumeResidual() {
         });
       }
       
+      // Induction equation
+      if (have_induction) {
+        auto Bx = wkset->getSolutionField("Bx");
+        auto By = wkset->getSolutionField("By");
+        auto Bz = wkset->getSolutionField("Bz");
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     MRHYDE_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            EvalT Bs = Bx(elem,pt)*Bx(elem,pt) + By(elem,pt)*By(elem,pt) + Bz(elem,pt)*Bz(elem,pt);
+            EvalT Fx = (Bs/2.0/mu0(elem,pt) - Bx(elem,pt)*Bx(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            EvalT Fy = ( -1.0*Bx(elem,pt)*By(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            EvalT Fz = ( -1.0*Bx(elem,pt)*Bz(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+      
+      
       // SUPG contribution
       
       if (useSUPG) {
@@ -570,6 +594,37 @@ void navierstokes<EvalT>::volumeResidual() {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
+              EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+              EvalT Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
+              for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+                res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+              }
+            }
+          });
+        }
+        
+        if (have_induction) {
+          auto Bx = wkset->getSolutionField("Bx");
+          auto By = wkset->getSolutionField("By");
+          auto Bz = wkset->getSolutionField("Bz");
+          auto dBx_dx = wkset->getSolutionField("grad(Bx)[x]");
+          auto dBx_dy = wkset->getSolutionField("grad(Bx)[y]");
+          auto dBx_dz = wkset->getSolutionField("grad(Bx)[z]");
+          auto dBy_dx = wkset->getSolutionField("grad(By)[x]");
+          auto dBy_dy = wkset->getSolutionField("grad(By)[y]");
+          auto dBy_dz = wkset->getSolutionField("grad(By)[z]");
+          auto dBz_dx = wkset->getSolutionField("grad(Bz)[x]");
+          auto dBz_dy = wkset->getSolutionField("grad(Bz)[y]");
+          auto dBz_dz = wkset->getSolutionField("grad(Bz)[z]");
+          
+          parallel_for("NS uz volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       MRHYDE_LAMBDA (const int elem ) {
+            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+              EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
+              EvalT dBs_dx = 2.0*dBx_dx(elem,pt)*Bx(elem,pt) + 2.0*dBy_dx(elem,pt)*By(elem,pt) + 2.0*dBz_dx(elem,pt)*Bz(elem,pt);
+              EvalT stabres = 1.0/mu0(elem,pt)*(dBs_dx/2.0 - 2.0*dBx_dx(elem,pt)*Bx(elem,pt) - dBx_dy(elem,pt)*By(elem,pt) - Bx(elem,pt)*dBy_dy(elem,pt) - dBx_dz(elem,pt)*Bz(elem,pt) - Bx(elem,pt)*dBz_dz(elem,pt));
               EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
               EvalT Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
@@ -631,6 +686,26 @@ void navierstokes<EvalT>::volumeResidual() {
         });
       }
       
+      // Induction equation
+      if (have_induction) {
+        auto Bx = wkset->getSolutionField("Bx");
+        auto By = wkset->getSolutionField("By");
+        auto Bz = wkset->getSolutionField("Bz");
+        parallel_for("NS ux volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     MRHYDE_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            EvalT Bs = Bx(elem,pt)*Bx(elem,pt) + By(elem,pt)*By(elem,pt) + Bz(elem,pt)*Bz(elem,pt);
+            EvalT Fx = ( -1.0*Bx(elem,pt)*By(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            EvalT Fy = (Bs/2.0/mu0(elem,pt) - By(elem,pt)*By(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            EvalT Fz = ( -1.0*By(elem,pt)*Bz(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
+            }
+          }
+        });
+      }
+      
       // SUPG contribution
       
       if (useSUPG) {
@@ -669,6 +744,37 @@ void navierstokes<EvalT>::volumeResidual() {
             }
           });
         }
+        
+        if (have_induction) {
+          auto Bx = wkset->getSolutionField("Bx");
+          auto By = wkset->getSolutionField("By");
+          auto Bz = wkset->getSolutionField("Bz");
+          auto dBx_dx = wkset->getSolutionField("grad(Bx)[x]");
+          auto dBx_dy = wkset->getSolutionField("grad(Bx)[y]");
+          auto dBx_dz = wkset->getSolutionField("grad(Bx)[z]");
+          auto dBy_dx = wkset->getSolutionField("grad(By)[x]");
+          auto dBy_dy = wkset->getSolutionField("grad(By)[y]");
+          auto dBy_dz = wkset->getSolutionField("grad(By)[z]");
+          auto dBz_dx = wkset->getSolutionField("grad(Bz)[x]");
+          auto dBz_dy = wkset->getSolutionField("grad(Bz)[y]");
+          auto dBz_dz = wkset->getSolutionField("grad(Bz)[z]");
+          
+          parallel_for("NS uz volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       MRHYDE_LAMBDA (const int elem ) {
+            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+              EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
+              EvalT dBs_dy = 2.0*dBx_dy(elem,pt)*Bx(elem,pt) + 2.0*dBy_dy(elem,pt)*By(elem,pt) + 2.0*dBz_dy(elem,pt)*Bz(elem,pt);
+              EvalT stabres = 1.0/mu0(elem,pt)*(-dBy_dy(elem,pt)*Bx(elem,pt) - By(elem,pt)*dBx_dy(elem,pt) + dBs_dy/2.0 - 2.0*dBy_dy(elem,pt)*By(elem,pt) - dBy_dz(elem,pt)*Bz(elem,pt) - By(elem,pt)*dBz_dy(elem,pt) );
+              EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+              EvalT Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
+              for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+                res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+              }
+            }
+          });
+        }
       }
     }
     
@@ -685,9 +791,9 @@ void navierstokes<EvalT>::volumeResidual() {
       auto duz_dy = wkset->getSolutionField("grad(uz)[y]");
       auto duz_dz = wkset->getSolutionField("grad(uz)[z]");
       auto pr = wkset->getSolutionField("pr");
-      auto off = subview(wkset->offsets,uy_num,ALL());
+      auto off = subview(wkset->offsets,uz_num,ALL());
       
-      parallel_for("NS uy volume resid",
+      parallel_for("NS uz volume resid",
                    RangePolicy<AssemblyExec>(0,wkset->numElem),
                    MRHYDE_LAMBDA (const int elem ) {
         for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -709,13 +815,33 @@ void navierstokes<EvalT>::volumeResidual() {
       if (have_energy) {
         auto params = model_params;
         auto E = wkset->getSolutionField("e");
-        parallel_for("NS uy volume resid",
+        parallel_for("NS uz volume resid",
                      RangePolicy<AssemblyExec>(0,wkset->numElem),
                      MRHYDE_LAMBDA (const int elem ) {
           for (size_type pt=0; pt<basis.extent(2); pt++ ) {
             EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uz(elem,pt)*wts(elem,pt);
             for( size_type dof=0; dof<basis.extent(1); dof++ ) {
               res(elem,off(dof)) += F*basis(elem,dof,pt,0);
+            }
+          }
+        });
+      }
+      
+      // Induction equation
+      if (have_induction) {
+        auto Bx = wkset->getSolutionField("Bx");
+        auto By = wkset->getSolutionField("By");
+        auto Bz = wkset->getSolutionField("Bz");
+        parallel_for("NS uz volume resid",
+                     RangePolicy<AssemblyExec>(0,wkset->numElem),
+                     MRHYDE_LAMBDA (const int elem ) {
+          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+            EvalT Bs = Bx(elem,pt)*Bx(elem,pt) + By(elem,pt)*By(elem,pt) + Bz(elem,pt)*Bz(elem,pt);
+            EvalT Fx = ( -1.0*Bx(elem,pt)*Bz(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            EvalT Fy = ( -1.0*By(elem,pt)*Bz(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            EvalT Fz = (Bs/2.0/mu0(elem,pt) - Bz(elem,pt)*Bz(elem,pt)/mu0(elem,pt))*wts(elem,pt);
+            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+              res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2);
             }
           }
         });
@@ -750,6 +876,37 @@ void navierstokes<EvalT>::volumeResidual() {
             for (size_type pt=0; pt<basis.extent(2); pt++ ) {
               EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
               EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uz(elem,pt);
+              EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
+              EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
+              EvalT Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);
+              for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+                res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1) + Sz*basis_grad(elem,dof,pt,2);
+              }
+            }
+          });
+        }
+        
+        if (have_induction) {
+          auto Bx = wkset->getSolutionField("Bx");
+          auto By = wkset->getSolutionField("By");
+          auto Bz = wkset->getSolutionField("Bz");
+          auto dBx_dx = wkset->getSolutionField("grad(Bx)[x]");
+          auto dBx_dy = wkset->getSolutionField("grad(Bx)[y]");
+          auto dBx_dz = wkset->getSolutionField("grad(Bx)[z]");
+          auto dBy_dx = wkset->getSolutionField("grad(By)[x]");
+          auto dBy_dy = wkset->getSolutionField("grad(By)[y]");
+          auto dBy_dz = wkset->getSolutionField("grad(By)[z]");
+          auto dBz_dx = wkset->getSolutionField("grad(Bz)[x]");
+          auto dBz_dy = wkset->getSolutionField("grad(Bz)[y]");
+          auto dBz_dz = wkset->getSolutionField("grad(Bz)[z]");
+          
+          parallel_for("NS uz volume resid",
+                       RangePolicy<AssemblyExec>(0,wkset->numElem),
+                       MRHYDE_LAMBDA (const int elem ) {
+            for (size_type pt=0; pt<basis.extent(2); pt++ ) {
+              EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),uz(elem,pt),h(elem),spaceDim,dt,isTransient);
+              EvalT dBs_dz = 2.0*dBx_dz(elem,pt)*Bx(elem,pt) + 2.0*dBy_dz(elem,pt)*By(elem,pt) + 2.0*dBz_dz(elem,pt)*Bz(elem,pt);
+              EvalT stabres = 1.0/mu0(elem,pt)*(-dBz_dx(elem,pt)*Bx(elem,pt) - Bz(elem,pt)*dBx_dx(elem,pt) - dBz_dy(elem,pt)*By(elem,pt) - Bz(elem,pt)*dBy_dy(elem,pt) + dBs_dz/2.0 - 2.0*dBz_dz(elem,pt)*Bz(elem,pt));
               EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
               EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
               EvalT Sz = tau*stabres*uz(elem,pt)*wts(elem,pt);

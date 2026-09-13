@@ -16,6 +16,9 @@ void SolverManager<Node>::steadySolver(vector<vector_RCP> & sol) {
   
   for (int ss=0; ss<subcycles; ++ss) {
     for (size_t set=0; set<setnames.size(); ++set) {
+      if (initial_type == "previous set") {
+        this->setInitial(sol, set);
+      }
       assembler->updatePhysicsSet(set);
       vector<vector_RCP> zero_soln;
       if (usestrongDBCs) {

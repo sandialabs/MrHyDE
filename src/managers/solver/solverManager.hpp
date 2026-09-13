@@ -168,6 +168,9 @@ public:
   /** @brief Generate initial solution vector(s) */
   vector<vector_RCP> setInitial();
   
+  /** @brief Generate initial solution vector(s) */
+  void setInitial(vector<vector_RCP> & initial_solns, const size_t & set);
+  
   /** @brief Assign a batch ID for multi-sample solves */
   void setBatchID(const LO & bID);
   

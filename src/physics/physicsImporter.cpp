@@ -47,6 +47,7 @@
 #include "levelSet.hpp"
 #include "maxwell_bianisotropic.hpp"
 #include "mhd.hpp"
+#include "induction.hpp"
 
 #if defined(MrHyDE_ENABLE_MIRAGE)
 #include "mirage.hpp"
@@ -166,6 +167,11 @@ vector<Teuchos::RCP<PhysicsBase<EvalT> > > PhysicsImporter<EvalT>::import(vector
     // MHD
     if (modname == "MHD" || modname == "mhd") {
       modules.push_back(Teuchos::rcp(new MHD<EvalT>(settings, dimension) ) );
+    }
+    
+    // induction
+    if (modname == "induction") {
+      modules.push_back(Teuchos::rcp(new induction<EvalT>(settings, dimension) ) );
     }
     
     // Hartmann

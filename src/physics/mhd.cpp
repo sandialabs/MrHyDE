@@ -52,8 +52,7 @@ MHD<EvalT>::MHD(Teuchos::ParameterList & settings, const int & dimension_)
   mybasistypes.push_back("HGRAD");
   mybasistypes.push_back("HGRAD");
   
-  useSUPG = settings.get<bool>("useSUPG",false);
-  usePSPG = settings.get<bool>("usePSPG",false);
+  use_stabilization = settings.get<bool>("use stabilization",true);
   
 }
 
@@ -153,6 +152,13 @@ void MHD<EvalT>::volumeResidual() {
   auto dBz_dt = wkset->getSolutionField("Bz_t");
   
   auto psi = wkset->getSolutionField("psi");
+  auto dpsi_dx = wkset->getSolutionField("grad(psi)[x]");
+  auto dpsi_dy = wkset->getSolutionField("grad(psi)[y]");
+  auto dpsi_dz = wkset->getSolutionField("grad(psi)[z]");
+  
+  bool use_stab = use_stabilization; // seems redundant but necessary to capture properly in lambdas
+  auto hsize = wkset->getElementSize();
+  ScalarT dt = wkset->deltat;
   
   // TMW: we will frequently need spatial derivatis of u, e.g., dux_dx, which we don't have
   // AD cannot help us here because we need spatial derivatives
@@ -175,14 +181,55 @@ void MHD<EvalT>::volumeResidual() {
         EvalT Fy = rhouy(elem,pt)*wts(elem,pt);
         EvalT Fz = rhouz(elem,pt)*wts(elem,pt);
         EvalT F = drho_dt(elem,pt)*wts(elem,pt);
-        for( size_type dof=0; dof<basis.extent(1); dof++ ) {
+        for (size_type dof=0; dof<basis.extent(1); dof++) {
+          //res(elem,off(dof)) += F*basis(elem,dof,pt,0);
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+        }
+        bool localflag = true;
+        if (use_stab && localflag) {
+          EvalT ux = rhoux(elem,pt)/rho(elem,pt);
+          EvalT uy = rhouy(elem,pt)/rho(elem,pt);
+          EvalT uz = rhouz(elem,pt)/rho(elem,pt);
+          EvalT dux_dx = (drhoux_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dy = (drhouy_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dz = (drhouz_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          
+          EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
+                                         mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
+          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          
+          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          EvalT rho_prime = 0.0;//taup*srhores*wts(elem,pt);
+          
+          EvalT srhouxres = this->computeStrongResidualRhoux(drhoux_dt(elem,pt), rhoux(elem,pt), drhoux_dx(elem,pt),
+                                                             drhoux_dy(elem,pt), drhoux_dz(elem,pt), ux, uy, uz,
+                                                             dux_dx, duy_dy, duz_dz, ndens(elem,pt), dT_dx(elem,pt));
+          EvalT ux_prime = tauu*srhouxres*wts(elem,pt);
+          
+          EvalT srhouyres = this->computeStrongResidualRhouy(drhouy_dt(elem,pt), rhouy(elem,pt), drhouy_dx(elem,pt),
+                                                             drhouy_dy(elem,pt), drhouy_dz(elem,pt), ux, uy, uz,
+                                                             dux_dx, duy_dy, duz_dz, ndens(elem,pt), dT_dy(elem,pt));
+          EvalT uy_prime = tauu*srhouyres*wts(elem,pt);
+          
+          EvalT srhouzres = this->computeStrongResidualRhouz(drhouz_dt(elem,pt), rhouz(elem,pt), drhouz_dx(elem,pt),
+                                                             drhouz_dy(elem,pt), drhouz_dz(elem,pt), ux, uy, uz,
+                                                             dux_dx, duy_dy, duz_dz, ndens(elem,pt), dT_dz(elem,pt));
+          EvalT uz_prime = tauu*srhouzres*wts(elem,pt);
+          
+          EvalT s_x = -rho(elem,pt)*ux_prime - ux*rho_prime;
+          EvalT s_y = -rho(elem,pt)*uy_prime - uy*rho_prime;
+          EvalT s_z = -rho(elem,pt)*uz_prime - uz*rho_prime;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
         }
       }
     });
   }
   
   // drhou/dt + \div \cdot((\rhou x u + pI + 2/3*(1/Re)*\div(u)I - 1/Re*(grad(u) + grad(u)^T) - j x B = 0
+  // Using p = nT, but assuming n is constant in stabilization term
   {
     int rhoux_basis = wkset->usebasis[rhoux_num];
     auto basis = wkset->basis[rhoux_basis];
@@ -210,8 +257,33 @@ void MHD<EvalT>::volumeResidual() {
         EvalT Fy = (-1.0*rhoux(elem,pt)*uy + 1.0/Re(elem,pt)*(dux_dy+duy_dx))*wts(elem,pt);
         EvalT Fz = (-1.0*rhoux(elem,pt)*uz + 1.0/Re(elem,pt)*(dux_dz+duz_dx))*wts(elem,pt);
         EvalT F = (drhoux_dt(elem,pt) - (jy*Bz(elem,pt) - jz*By(elem,pt)))*wts(elem,pt);
+        
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+        }
+        
+        bool localflag = true;
+        if (use_stab && localflag) {
+          
+          EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
+                                         mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
+          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          
+          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          EvalT rho_prime = 0.0;  //taup*srhores*wts(elem,pt);
+          
+          EvalT srhouxres = this->computeStrongResidualRhoux(drhoux_dt(elem,pt), rhoux(elem,pt), drhoux_dx(elem,pt),
+                                                             drhoux_dy(elem,pt), drhoux_dz(elem,pt), ux, uy, uz,
+                                                             dux_dx, duy_dy, duz_dz, ndens(elem,pt), dT_dx(elem,pt));
+          EvalT ux_prime = tauu*srhouxres*wts(elem,pt);
+          
+          EvalT s_x = rho(elem,pt)*ux_prime*ux + rho_prime*ux*ux + rho_prime;
+          EvalT s_y = rho(elem,pt)*ux_prime*uy + rho_prime*ux*uy;
+          EvalT s_z = rho(elem,pt)*ux_prime*uz + rho_prime*ux*uz;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
         }
       }
     });
@@ -243,8 +315,33 @@ void MHD<EvalT>::volumeResidual() {
         EvalT Fy = (-1.0*rhouy(elem,pt)*uy - p - 2.0/3.0*1.0/Re(elem,pt)*(dux_dx + duy_dy + duz_dz) + 1.0/Re(elem,pt)*2.0*duy_dy)*wts(elem,pt);
         EvalT Fz = (-1.0*rhouy(elem,pt)*uz + 1.0/Re(elem,pt)*(duy_dz+duz_dy))*wts(elem,pt);
         EvalT F = (drhouy_dt(elem,pt) - (jz*Bx(elem,pt) - jx*Bz(elem,pt)))*wts(elem,pt);
+        
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+        }
+        
+        bool localflag = true;
+        if (use_stab && localflag) {
+          
+          EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
+                                         mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
+          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          
+          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          EvalT rho_prime = 0.0;//taup*srhores*wts(elem,pt);
+          
+          EvalT srhouyres = this->computeStrongResidualRhouy(drhouy_dt(elem,pt), rhouy(elem,pt), drhouy_dx(elem,pt),
+                                                             drhouy_dy(elem,pt), drhouy_dz(elem,pt), ux, uy, uz,
+                                                             dux_dx, duy_dy, duz_dz, ndens(elem,pt), dT_dy(elem,pt));
+          EvalT uy_prime = tauu*srhouyres*wts(elem,pt);
+          
+          EvalT s_x = rho(elem,pt)*uy_prime*ux + rho_prime*uy*ux;
+          EvalT s_y = rho(elem,pt)*uy_prime*uy + rho_prime*uy*uy + rho_prime;
+          EvalT s_z = rho(elem,pt)*uy_prime*uz + rho_prime*uy*uz;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
         }
       }
     });
@@ -276,8 +373,33 @@ void MHD<EvalT>::volumeResidual() {
         EvalT Fy = (-1.0*rhouz(elem,pt)*uy + 1.0/Re(elem,pt)*(duz_dy+duy_dz))*wts(elem,pt);
         EvalT Fz = (-1.0*rhouz(elem,pt)*uz - p - 2.0/3.0*1.0/Re(elem,pt)*(dux_dx + duy_dy + duz_dz) + 1.0/Re(elem,pt)*2.0*duz_dz)*wts(elem,pt);
         EvalT F = (drhouz_dt(elem,pt) - (jx*By(elem,pt) - jy*Bx(elem,pt)))*wts(elem,pt);
+        
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+        }
+        
+        bool localflag = true;
+        if (use_stab && localflag) {
+          
+          EvalT tauu = this->computeTauU(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
+                                         mu(elem,pt), ndens(elem,pt), hsize(elem), dt);
+          EvalT taup = this->computeTauP(tauu, hsize(elem));
+          
+          EvalT srhores = this->computeStrongResidualRho(drho_dt(elem,pt), drhoux_dx(elem,pt),
+                                                         drhouy_dy(elem,pt), drhouz_dz(elem,pt));
+          EvalT rho_prime = 0.0; //taup*srhores*wts(elem,pt);
+          
+          EvalT srhouzres = this->computeStrongResidualRhouz(drhouz_dt(elem,pt), rhouz(elem,pt), drhouz_dx(elem,pt),
+                                                             drhouz_dy(elem,pt), drhouz_dz(elem,pt), ux, uy, uz,
+                                                             dux_dx, duy_dy, duz_dz, ndens(elem,pt), dT_dz(elem,pt));
+          EvalT uz_prime = tauu*srhouzres*wts(elem,pt);
+          
+          EvalT s_x = rho(elem,pt)*uz_prime*ux + rho_prime*uz*ux;
+          EvalT s_y = rho(elem,pt)*uz_prime*uy + rho_prime*uz*uy;
+          EvalT s_z = rho(elem,pt)*uz_prime*uz + rho_prime*uz*uz + rho_prime;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
         }
       }
     });
@@ -336,9 +458,41 @@ void MHD<EvalT>::volumeResidual() {
         EvalT Fx = (ndens(elem,pt)/gamma_bar*ux + qx)*wts(elem,pt);
         EvalT Fy = (ndens(elem,pt)/gamma_bar*uy + qy)*wts(elem,pt);
         EvalT Fz = (ndens(elem,pt)/gamma_bar*uz + qz)*wts(elem,pt);
-        EvalT F = (ndens(elem,pt)/gamma_bar*dT_dt(elem,pt) + ndens(elem,pt)*T(elem,pt)*(dux_dx+duy_dy+duz_dz) - 1.0/S(elem,pt)*(jx*jx+jy*jy+jz*jz) - 1.0/Re(elem,pt)*viscous_stress)*wts(elem,pt);
+        EvalT F = (ndens(elem,pt)/gamma_bar*dT_dt(elem,pt))*wts(elem,pt);
+        //EvalT F = (ndens(elem,pt)/gamma_bar*dT_dt(elem,pt) + ndens(elem,pt)*T(elem,pt)*(dux_dx+duy_dy+duz_dz) - 1.0/S(elem,pt)*(jx*jx+jy*jy+jz*jz) - 1.0/Re(elem,pt)*viscous_stress)*wts(elem,pt);
+        
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
+          res(elem,off(dof)) += F*basis(elem,dof,pt,0);
+        }
+        
+        bool localflag = true;
+        if (use_stab && localflag) {
+          
+          EvalT tauT = this->computeTauT(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt),
+                                         rho(elem,pt), ndens(elem,pt), kappa(elem,pt), hsize(elem), dt);
+          
+          EvalT sTres = this->computeStrongResidualT(dT_dt(elem,pt), T(elem,pt), dT_dx(elem,pt),
+                                                     dT_dy(elem,pt), dT_dz(elem,pt),
+                                                     ux, uy, uz,
+                                                     dux_dx, dux_dy, dux_dz,
+                                                     duy_dx, duy_dy, duy_dz,
+                                                     duz_dx, duz_dy, duz_dz,
+                                                     qx, qy, qz,
+                                                     jx, jy, jz,
+                                                     pi_xx, pi_xy, pi_xz,
+                                                     pi_yx, pi_yy, pi_yz,
+                                                     pi_zx, pi_zy, pi_zz,
+                                                     ndens(elem,pt), gamma_bar, Re(elem,pt),
+                                                     S(elem,pt));
+          EvalT T_prime = tauT*sTres*wts(elem,pt);
+          
+          EvalT s_x = 1.0/gamma_bar*ux*T_prime;
+          EvalT s_y = 1.0/gamma_bar*uy*T_prime;
+          EvalT s_z = 1.0/gamma_bar*uz*T_prime;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
         }
       }
     });
@@ -378,6 +532,55 @@ void MHD<EvalT>::volumeResidual() {
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
         }
+        
+        bool localflag = true;
+        if (use_stab && localflag) {
+          
+          EvalT dux_dx = (drhoux_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dy = (drhoux_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dz = (drhoux_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dx = (drhouy_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dy = (drhouy_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dz = (drhouy_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dx = (drhouz_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dy = (drhouz_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dz = (drhouz_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          
+          EvalT tauB = this->computeTauB(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt), mu0(elem,pt),
+                                         ndens(elem,pt), hsize(elem), dt);
+          EvalT taupsi = this->computeTauPsi(tauB, hsize(elem));
+          
+          EvalT sBxres = this->computeStrongResidualBx(dBx_dt(elem,pt), Bx(elem,pt), dBx_dx(elem,pt),
+                                                       dBx_dy(elem,pt), dBx_dz(elem,pt), By(elem,pt), Bz(elem,pt),
+                                                       dBy_dy(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, dux_dy, dux_dz, duy_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dx(elem,pt));
+          EvalT sByres = this->computeStrongResidualBy(dBy_dt(elem,pt), By(elem,pt), dBy_dx(elem,pt),
+                                                       dBy_dy(elem,pt), dBy_dz(elem,pt),
+                                                       Bx(elem,pt), Bz(elem,pt),
+                                                       dBx_dx(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dx, duy_dy, duy_dz, duz_dz,
+                                                       S(elem,pt), dpsi_dy(elem,pt));
+          EvalT sBzres = this->computeStrongResidualBz(dBz_dt(elem,pt), Bz(elem,pt), dBz_dx(elem,pt),
+                                                       dBz_dy(elem,pt), dBz_dz(elem,pt),
+                                                       Bx(elem,pt), By(elem,pt),
+                                                       dBx_dx(elem,pt), dBy_dy(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dy, duz_dx, duz_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dz(elem,pt));
+          EvalT spsires = this->computeStrongResidualPsi(dBx_dx(elem,pt), dBy_dy(elem,pt), dBz_dz(elem,pt));
+          
+          EvalT Bx_prime = tauB*sBxres*wts(elem,pt);
+          EvalT By_prime = tauB*sByres*wts(elem,pt);
+          EvalT Bz_prime = tauB*sBzres*wts(elem,pt);
+          EvalT psi_prime = taupsi*spsires*wts(elem,pt);
+          
+          EvalT s_x = ux*Bx_prime - Bx_prime*ux + psi_prime;
+          EvalT s_y = ux*By_prime - Bx_prime*uy;
+          EvalT s_z = ux*Bz_prime - Bx_prime*uz;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
+        }
       }
     });
   }
@@ -387,7 +590,7 @@ void MHD<EvalT>::volumeResidual() {
     auto basis_grad = wkset->basis_grad[By_basis];
     auto off = subview(wkset->offsets,By_num,ALL());
     
-    parallel_for("MHD Bx volume resid",
+    parallel_for("MHD By volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -413,6 +616,55 @@ void MHD<EvalT>::volumeResidual() {
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
         }
+        
+        bool localflag = true;
+        if (use_stab && localflag) {
+          
+          EvalT dux_dx = (drhoux_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dy = (drhoux_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dz = (drhoux_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dx = (drhouy_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dy = (drhouy_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dz = (drhouy_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dx = (drhouz_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dy = (drhouz_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dz = (drhouz_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          
+          EvalT tauB = this->computeTauB(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt), mu0(elem,pt),
+                                         ndens(elem,pt), hsize(elem), dt);
+          EvalT taupsi = this->computeTauPsi(tauB, hsize(elem));
+          
+          EvalT sBxres = this->computeStrongResidualBx(dBx_dt(elem,pt), Bx(elem,pt), dBx_dx(elem,pt),
+                                                       dBx_dy(elem,pt), dBx_dz(elem,pt), By(elem,pt), Bz(elem,pt),
+                                                       dBy_dy(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, dux_dy, dux_dz, duy_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dx(elem,pt));
+          EvalT sByres = this->computeStrongResidualBy(dBy_dt(elem,pt), By(elem,pt), dBy_dx(elem,pt),
+                                                       dBy_dy(elem,pt), dBy_dz(elem,pt),
+                                                       Bx(elem,pt), Bz(elem,pt),
+                                                       dBx_dx(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dx, duy_dy, duy_dz, duz_dz,
+                                                       S(elem,pt), dpsi_dy(elem,pt));
+          EvalT sBzres = this->computeStrongResidualBz(dBz_dt(elem,pt), Bz(elem,pt), dBz_dx(elem,pt),
+                                                       dBz_dy(elem,pt), dBz_dz(elem,pt),
+                                                       Bx(elem,pt), By(elem,pt),
+                                                       dBx_dx(elem,pt), dBy_dy(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dy, duz_dx, duz_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dz(elem,pt));
+          EvalT spsires = this->computeStrongResidualPsi(dBx_dx(elem,pt), dBy_dy(elem,pt), dBz_dz(elem,pt));
+          
+          EvalT Bx_prime = tauB*sBxres*wts(elem,pt);
+          EvalT By_prime = tauB*sByres*wts(elem,pt);
+          EvalT Bz_prime = tauB*sBzres*wts(elem,pt);
+          EvalT psi_prime = taupsi*spsires*wts(elem,pt);
+          
+          EvalT s_x = uy*Bx_prime - By_prime*ux;
+          EvalT s_y = uy*By_prime - By_prime*uy + psi_prime;
+          EvalT s_z = uy*Bz_prime - By_prime*uz;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
+        }
       }
     });
   }
@@ -422,7 +674,7 @@ void MHD<EvalT>::volumeResidual() {
     auto basis_grad = wkset->basis_grad[Bz_basis];
     auto off = subview(wkset->offsets,Bz_num,ALL());
     
-    parallel_for("MHD Bx volume resid",
+    parallel_for("MHD Bz volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -448,6 +700,55 @@ void MHD<EvalT>::volumeResidual() {
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + Fz*basis_grad(elem,dof,pt,2) + F*basis(elem,dof,pt,0);
         }
+        
+        bool localflag = true;
+        if (use_stab && localflag) {
+          
+          EvalT dux_dx = (drhoux_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dy = (drhoux_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dz = (drhoux_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dx = (drhouy_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dy = (drhouy_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dz = (drhouy_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dx = (drhouz_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dy = (drhouz_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dz = (drhouz_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          
+          EvalT tauB = this->computeTauB(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt), mu0(elem,pt),
+                                         ndens(elem,pt), hsize(elem), dt);
+          EvalT taupsi = this->computeTauPsi(tauB, hsize(elem));
+          
+          EvalT sBxres = this->computeStrongResidualBx(dBx_dt(elem,pt), Bx(elem,pt), dBx_dx(elem,pt),
+                                                       dBx_dy(elem,pt), dBx_dz(elem,pt), By(elem,pt), Bz(elem,pt),
+                                                       dBy_dy(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, dux_dy, dux_dz, duy_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dx(elem,pt));
+          EvalT sByres = this->computeStrongResidualBy(dBy_dt(elem,pt), By(elem,pt), dBy_dx(elem,pt),
+                                                       dBy_dy(elem,pt), dBy_dz(elem,pt),
+                                                       Bx(elem,pt), Bz(elem,pt),
+                                                       dBx_dx(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dx, duy_dy, duy_dz, duz_dz,
+                                                       S(elem,pt), dpsi_dy(elem,pt));
+          EvalT sBzres = this->computeStrongResidualBz(dBz_dt(elem,pt), Bz(elem,pt), dBz_dx(elem,pt),
+                                                       dBz_dy(elem,pt), dBz_dz(elem,pt),
+                                                       Bx(elem,pt), By(elem,pt),
+                                                       dBx_dx(elem,pt), dBy_dy(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dy, duz_dx, duz_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dz(elem,pt));
+          EvalT spsires = this->computeStrongResidualPsi(dBx_dx(elem,pt), dBy_dy(elem,pt), dBz_dz(elem,pt));
+          
+          EvalT Bx_prime = tauB*sBxres*wts(elem,pt);
+          EvalT By_prime = tauB*sByres*wts(elem,pt);
+          EvalT Bz_prime = tauB*sBzres*wts(elem,pt);
+          EvalT psi_prime = taupsi*spsires*wts(elem,pt);
+          
+          EvalT s_x = uz*Bx_prime - Bz_prime*ux;
+          EvalT s_y = uz*By_prime - Bz_prime*uy;
+          EvalT s_z = uz*Bz_prime - Bz_prime*uz + psi_prime;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
+        }
       }
     });
   }
@@ -458,7 +759,7 @@ void MHD<EvalT>::volumeResidual() {
     auto basis_grad = wkset->basis_grad[psi_basis];
     auto off = subview(wkset->offsets,psi_num,ALL());
     
-    parallel_for("MHD Bx volume resid",
+    parallel_for("MHD psi volume resid",
                  RangePolicy<AssemblyExec>(0,wkset->numElem),
                  MRHYDE_LAMBDA (const int elem ) {
       for (size_type pt=0; pt<basis.extent(2); pt++ ) {
@@ -467,205 +768,59 @@ void MHD<EvalT>::volumeResidual() {
         for (size_type dof=0; dof<basis.extent(1); dof++) {
           res(elem,off(dof)) += F*basis(elem,dof,pt,0);
         }
+        
+        bool localflag = false;
+        if (use_stab && localflag) {
+          
+          EvalT ux = rhoux(elem,pt)/rho(elem,pt);
+          EvalT uy = rhouy(elem,pt)/rho(elem,pt);
+          EvalT uz = rhouz(elem,pt)/rho(elem,pt);
+          
+          EvalT dux_dx = (drhoux_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dy = (drhoux_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT dux_dz = (drhoux_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhoux(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dx = (drhouy_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dy = (drhouy_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duy_dz = (drhouy_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouy(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dx = (drhouz_dx(elem,pt)*rho(elem,pt) - drho_dx(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dy = (drhouz_dy(elem,pt)*rho(elem,pt) - drho_dy(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          EvalT duz_dz = (drhouz_dz(elem,pt)*rho(elem,pt) - drho_dz(elem,pt)*rhouz(elem,pt))/(rho(elem,pt)*rho(elem,pt));
+          
+          EvalT tauB = this->computeTauB(ux, uy, uz, Bx(elem,pt), By(elem,pt), Bz(elem,pt), mu0(elem,pt),
+                                         ndens(elem,pt), hsize(elem), dt);
+          
+          EvalT sBxres = this->computeStrongResidualBx(dBx_dt(elem,pt), Bx(elem,pt), dBx_dx(elem,pt),
+                                                       dBx_dy(elem,pt), dBx_dz(elem,pt), By(elem,pt), Bz(elem,pt),
+                                                       dBy_dy(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, dux_dy, dux_dz, duy_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dx(elem,pt));
+          EvalT sByres = this->computeStrongResidualBy(dBy_dt(elem,pt), By(elem,pt), dBy_dx(elem,pt),
+                                                       dBy_dy(elem,pt), dBy_dz(elem,pt),
+                                                       Bx(elem,pt), Bz(elem,pt),
+                                                       dBx_dx(elem,pt), dBz_dz(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dx, duy_dy, duy_dz, duz_dz,
+                                                       S(elem,pt), dpsi_dy(elem,pt));
+          EvalT sBzres = this->computeStrongResidualBz(dBz_dt(elem,pt), Bz(elem,pt), dBz_dx(elem,pt),
+                                                       dBz_dy(elem,pt), dBz_dz(elem,pt),
+                                                       Bx(elem,pt), By(elem,pt),
+                                                       dBx_dx(elem,pt), dBy_dy(elem,pt), ux, uy, uz,
+                                                       dux_dx, duy_dy, duz_dx, duz_dy, duz_dz,
+                                                       S(elem,pt), dpsi_dz(elem,pt));
+          
+          EvalT Bx_prime = tauB*sBxres*wts(elem,pt);
+          EvalT By_prime = tauB*sByres*wts(elem,pt);
+          EvalT Bz_prime = tauB*sBzres*wts(elem,pt);
+          
+          EvalT s_x = Bx_prime;
+          EvalT s_y = By_prime;
+          EvalT s_z = Bz_prime;
+          for (size_type dof=0; dof<basis.extent(1); dof++) {
+            res(elem,off(dof)) += s_x*basis_grad(elem,dof,pt,0) + s_y*basis_grad(elem,dof,pt,1) + s_z*basis_grad(elem,dof,pt,2);
+          }
+        }
       }
     });
   }
-
-  
-  /*
-  if (useSUPG) {
-    auto h = wkset->getElementSize();
-    auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
-    auto dpr_dy = wkset->getSolutionField("grad(pr)[y]"); // TODO unnecesary?
-    parallel_for("NS ux volume resid",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 MRHYDE_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
-        EvalT stabres = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
-        EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-        EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-        for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
-        }
-      }
-    });
-    
-    if (have_energy) {
-      auto params = model_params;
-      auto E = wkset->getSolutionField("e");
-      parallel_for("NS ux volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   MRHYDE_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
-          EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_ux(elem,pt);
-          EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-          EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
-          }
-        }
-      });
-    }
-  }
-  
-  
-  {
-    // Uy equation
-    int uy_basis = wkset->usebasis[uy_num];
-    auto basis = wkset->basis[uy_basis];
-    auto basis_grad = wkset->basis_grad[uy_basis];
-    auto ux = wkset->getSolutionField("ux");
-    auto uy = wkset->getSolutionField("uy");
-    auto duy_dt = wkset->getSolutionField("uy_t");
-    auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
-    auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
-    auto pr = wkset->getSolutionField("pr");
-    auto off = subview(wkset->offsets,uy_num,ALL());
-    
-    parallel_for("NS uy volume resid",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 MRHYDE_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        EvalT Fx = visc(elem,pt)*duy_dx(elem,pt);
-        Fx *= wts(elem,pt);
-        EvalT Fy = visc(elem,pt)*duy_dy(elem,pt) - pr(elem,pt);
-        Fy *= wts(elem,pt);
-        EvalT F = duy_dt(elem,pt) + ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt) - source_uy(elem,pt);
-        F *= dens(elem,pt)*wts(elem,pt);
-        for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += Fx*basis_grad(elem,dof,pt,0) + Fy*basis_grad(elem,dof,pt,1) + F*basis(elem,dof,pt,0);
-        }
-      }
-    });
-    
-    // Energy contribution
-    if (have_energy) {
-      auto params = model_params;
-      auto E = wkset->getSolutionField("e");
-      parallel_for("NS uy volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   MRHYDE_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          EvalT F = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt)*wts(elem,pt);
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += F*basis(elem,dof,pt,0);
-          }
-        }
-      });
-    }
-    
-    // SUPG contribution
-    
-    if (useSUPG) {
-      auto h = wkset->getElementSize();
-      auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
-      parallel_for("NS uy volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   MRHYDE_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
-          EvalT stabres = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
-          EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-          EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
-          }
-        }
-      });
-      
-      if (have_energy) {
-        auto params = model_params;
-        auto E = wkset->getSolutionField("e");
-        parallel_for("NS ux volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     MRHYDE_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
-            EvalT stabres = dens(elem,pt)*params(1)*(E(elem,pt) - params(0))*source_uy(elem,pt);
-            EvalT Sx = tau*stabres*ux(elem,pt)*wts(elem,pt);
-            EvalT Sy = tau*stabres*uy(elem,pt)*wts(elem,pt);
-            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
-            }
-          }
-        });
-      }
-    }
-  }
-  
-  {
-    /////////////////////////////
-    // pressure equation
-    /////////////////////////////
-    
-    int pr_basis = wkset->usebasis[pr_num];
-    auto basis = wkset->basis[pr_basis];
-    auto basis_grad = wkset->basis_grad[pr_basis];
-    auto dux_dx = wkset->getSolutionField("grad(ux)[x]");
-    auto duy_dy = wkset->getSolutionField("grad(uy)[y]");
-    auto off = subview(wkset->offsets,pr_num,ALL());
-    
-    parallel_for("NS pr volume resid",
-                 RangePolicy<AssemblyExec>(0,wkset->numElem),
-                 MRHYDE_LAMBDA (const int elem ) {
-      for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-        EvalT divu = (dux_dx(elem,pt) + duy_dy(elem,pt))*wts(elem,pt);
-        for (size_type dof=0; dof<basis.extent(1); dof++ ) {
-          res(elem,off(dof)) += divu*basis(elem,dof,pt,0);
-        }
-      }
-    });
-    
-    if (usePSPG) {
-      
-      auto h = wkset->getElementSize();
-      auto dpr_dx = wkset->getSolutionField("grad(pr)[x]");
-      auto dpr_dy = wkset->getSolutionField("grad(pr)[y]");
-      auto ux =wkset->getSolutionField("ux");
-      auto uy = wkset->getSolutionField("uy");
-      auto dux_dt = wkset->getSolutionField("ux_t");
-      auto duy_dt = wkset->getSolutionField("uy_t");
-      auto dux_dy = wkset->getSolutionField("grad(ux)[y]");
-      auto duy_dx = wkset->getSolutionField("grad(uy)[x]");
-      
-      parallel_for("NS pr volume resid",
-                   RangePolicy<AssemblyExec>(0,wkset->numElem),
-                   MRHYDE_LAMBDA (const int elem ) {
-        for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-          EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
-          EvalT Sx = dens(elem,pt)*dux_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*dux_dx(elem,pt) + uy(elem,pt)*dux_dy(elem,pt)) + dpr_dx(elem,pt) - dens(elem,pt)*source_ux(elem,pt);
-          Sx *= tau*wts(elem,pt)/dens(elem,pt);
-          EvalT Sy = dens(elem,pt)*duy_dt(elem,pt) + dens(elem,pt)*(ux(elem,pt)*duy_dx(elem,pt) + uy(elem,pt)*duy_dy(elem,pt)) + dpr_dy(elem,pt) - dens(elem,pt)*source_uy(elem,pt);
-          Sy *= tau*wts(elem,pt)/dens(elem,pt);
-          for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-            res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);
-          }
-        }
-      });
-      if (have_energy) {
-        // TODO BWR -- again not messing with this for now
-        auto params = model_params;
-        auto E = wkset->getSolutionField("e");
-        parallel_for("NS pr volume resid",
-                     RangePolicy<AssemblyExec>(0,wkset->numElem),
-                     MRHYDE_LAMBDA (const int elem ) {
-          for (size_type pt=0; pt<basis.extent(2); pt++ ) {
-            EvalT tau = this->computeTau(visc(elem,pt),ux(elem,pt),uy(elem,pt),0.0,h(elem),spaceDim,dt,isTransient);
-            EvalT Sx = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_ux(elem,pt);
-            Sx *= tau*wts(elem,pt);
-            EvalT Sy = dens(elem,pt)*params(1)*(E(elem,pt)-params(0))*source_uy(elem,pt);
-            Sy *= tau*wts(elem,pt);
-            for( size_type dof=0; dof<basis.extent(1); dof++ ) {
-              res(elem,off(dof)) += Sx*basis_grad(elem,dof,pt,0) + Sy*basis_grad(elem,dof,pt,1);;
-            }
-          }
-        });
-        //stabres += dens(e,k)*(eval-T_ambient)*source_ux(e,k);
-      }
-    }
-  }*/
 }
 
 // ========================================================================================
@@ -890,34 +1045,203 @@ void MHD<EvalT>::setWorkset(Teuchos::RCP<Workset<EvalT> > & wkset_) {
 // ========================================================================================
 
 template<class EvalT>
-KOKKOS_FUNCTION EvalT MHD<EvalT>::computeTau(const EvalT & localdiff, const EvalT & xvl, const EvalT & yvl, const EvalT & zvl, const ScalarT & h, const int & spaceDim, const ScalarT & dt, const bool & isTransient) const {
-  
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeTauU(const EvalT & xvl, const EvalT & yvl, const EvalT & zvl,
+                                              const EvalT & Bx, const EvalT & By, const EvalT & Bz,
+                                              const EvalT & mu, const EvalT & ndens,
+                                              const ScalarT & h, const ScalarT & dt) const {
   ScalarT C1 = 4.0;
-  ScalarT C2 = 2.0;
-  ScalarT C3 = isTransient ? 2.0 : 0.0; // only if transient -- TODO not sure BWR
+  ScalarT C2 = 4.0;
+  ScalarT C3 = 4.0;
+  ScalarT C4 = 4.0;
   
-  EvalT nvel = 0.0;
-  if (spaceDim == 1)
-    nvel = xvl*xvl;
-  else if (spaceDim == 2)
-    nvel = xvl*xvl + yvl*yvl;
-  else if (spaceDim == 3)
-    nvel = xvl*xvl + yvl*yvl + zvl*zvl;
-  
-  if (nvel > 1E-12)
+  EvalT nvel = xvl*xvl + yvl*yvl + zvl*zvl;
+  EvalT nB = Bx*Bx + By*By + Bz*Bz;
+  if (nvel > 1.0E-12) {
     nvel = sqrt(nvel);
+  }
+  if (nB > 1.0E-12) {
+    nB = sqrt(nB);
+  }
   
-  EvalT tau;
-  // see, e.g. wikipedia article on SUPG/PSPG
-  // coefficients can be changed/tuned for different scenarios (including order of time scheme)
-  // https://arxiv.org/pdf/1710.08898.pdf had a good, clear writeup of the final eqns
-  tau = (C1*localdiff/h/h)*(C1*localdiff/h/h) + (C2*nvel/h)*(C2*nvel/h) + (C3/dt)*(C3/dt);
+  EvalT tau = C1*(2.0/dt)*(2.0/dt) + C2*(nvel/h)*(nvel/h) + C3*(nB/h)*(nB/h) + C4*mu*mu/ndens/ndens*h*h;
+  tau = 1.0/sqrt(tau);
+  
+  return tau;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeTauT(const EvalT & xvl, const EvalT & yvl, const EvalT & zvl,
+                                              const EvalT & Bx, const EvalT & By, const EvalT & Bz,
+                                              const EvalT & rho, const EvalT & ndens,
+                                              const EvalT & kappa, const ScalarT & h, const ScalarT & dt) const {
+  ScalarT C1 = 4.0;
+  ScalarT C2 = 4.0;
+  ScalarT C3 = 4.0;
+  ScalarT C4 = 4.0;
+  
+  EvalT nvel = xvl*xvl + yvl*yvl + zvl*zvl;
+  EvalT nB = Bx*Bx + By*By + Bz*Bz;
+  if (nvel > 1.0E-12) {
+    nvel = sqrt(nvel);
+  }
+  if (nB > 1.0E-12) {
+    nB = sqrt(nB);
+  }
+  
+  EvalT tau = C1*(rho/dt)*(rho/dt) + C2*ndens*ndens*(nvel/h)*(nvel/h) + C3*(nB/h)*(nB/h) + C4*kappa*kappa*h*h;
+  tau = 1.0/sqrt(tau);
+  
+  return tau;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeTauB(const EvalT & xvl, const EvalT & yvl, const EvalT & zvl,
+                                              const EvalT & Bx, const EvalT & By, const EvalT & Bz,
+                                              const EvalT & mu0, const EvalT & ndens,
+                                              const ScalarT & h, const ScalarT & dt) const {
+  ScalarT C1 = 4.0;
+  ScalarT C2 = 4.0;
+  ScalarT C3 = 4.0;
+  ScalarT C4 = 4.0;
+  
+  EvalT nvel = xvl*xvl + yvl*yvl + zvl*zvl;
+  EvalT nB = Bx*Bx + By*By + Bz*Bz;
+  if (nvel > 1E-12) {
+    nvel = sqrt(nvel);
+  }
+  if (nB > 1E-12) {
+    nB = sqrt(nB);
+  }
+  
+  EvalT tau = C1*(2.0/dt)*(2.0/dt) + C2*(nvel/h)*(nvel/h) + C3*(nB/h)*(nB/h) + C4*ndens*ndens/mu0/mu0*h*h;
   tau = 1./sqrt(tau);
   
   return tau;
 }
 
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeTauP(const EvalT & tauu, const ScalarT & h) const {
+  return (h*h*tauu);
+}
 
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeTauPsi(const EvalT & tauB, const ScalarT & h) const {
+  return (h*h*tauB);
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualRho(const EvalT & drho_dt, const EvalT & drhoux_dx, const EvalT & drhouy_dy,
+                                                           const EvalT & drhouz_dz) const {
+  EvalT sres = drho_dt + drhoux_dx + drhouy_dy + drhouz_dz;
+  // No higher-order terms
+  return sres;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualRhoux(const EvalT & drhoux_dt, const EvalT & rhoux, const EvalT & drhoux_dx,
+                                                             const EvalT & drhoux_dy, const EvalT & drhoux_dz,
+                                                             const EvalT & ux, const EvalT & uy, const EvalT & uz,
+                                                             const EvalT & dux_dx, const EvalT & duy_dy, const EvalT & duz_dz,
+                                                             const EvalT & ndens, const EvalT & dT_dx) {
+  EvalT sres = drhoux_dt + (drhoux_dx*ux + rhoux*dux_dx + drhoux_dy*uy + rhoux*duy_dy + drhoux_dz*uz + rhoux*duz_dz) + ndens*dT_dx;
+  // Missing approximations of the high-order terms
+  return sres;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualRhouy(const EvalT & drhouy_dt, const EvalT & rhouy, const EvalT & drhouy_dx,
+                                                             const EvalT & drhouy_dy, const EvalT & drhouy_dz,
+                                                             const EvalT & ux, const EvalT & uy, const EvalT & uz,
+                                                             const EvalT & dux_dx, const EvalT & duy_dy, const EvalT & duz_dz,
+                                                             const EvalT & ndens, const EvalT & dT_dy) {
+  EvalT sres = drhouy_dt + (drhouy_dx*ux + rhouy*dux_dx + drhouy_dy*uy + rhouy*duy_dy + drhouy_dz*uz + rhouy*duz_dz) + ndens*dT_dy;
+  // Missing approximations of the high-order terms
+  return sres;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualRhouz(const EvalT & drhouz_dt, const EvalT & rhouz, const EvalT & drhouz_dx,
+                                                             const EvalT & drhouz_dy, const EvalT & drhouz_dz,
+                                                             const EvalT & ux, const EvalT & uy, const EvalT & uz,
+                                                             const EvalT & dux_dx, const EvalT & duy_dy, const EvalT & duz_dz,
+                                                             const EvalT & ndens, const EvalT & dT_dz) {
+  EvalT sres = drhouz_dt + (drhouz_dx*ux + rhouz*dux_dx + drhouz_dy*uy + rhouz*duy_dy + drhouz_dz*uz + rhouz*duz_dz) + ndens*dT_dz;
+  // Missing approximations of the high-order terms
+  return sres;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualT(const EvalT & dT_dt, const EvalT & T, const EvalT & dT_dx,
+                                                         const EvalT & dT_dy, const EvalT & dT_dz,
+                                                         const EvalT & ux, const EvalT & uy, const EvalT & uz,
+                                                         const EvalT & dux_dx, const EvalT & dux_dy, const EvalT & dux_dz,
+                                                         const EvalT & duy_dx, const EvalT & duy_dy, const EvalT & duy_dz,
+                                                         const EvalT & duz_dx, const EvalT & duz_dy, const EvalT & duz_dz,
+                                                         const EvalT & qx, const EvalT & qy, const EvalT & qz,
+                                                         const EvalT & jx, const EvalT & jy, const EvalT & jz,
+                                                         const EvalT & pi_xx, const EvalT & pi_xy, const EvalT & pi_xz,
+                                                         const EvalT & pi_yx, const EvalT & pi_yy, const EvalT & pi_yz,
+                                                         const EvalT & pi_zx, const EvalT & pi_zy, const EvalT & pi_zz,
+                                                         const EvalT & ndens, const EvalT & gamma_bar, const EvalT & Re,
+                                                         const EvalT & S) {
+  EvalT sres = ndens/gamma_bar*dT_dt + ndens/gamma_bar*(ux*dT_dx + uy*dT_dy + uz*dT_dz) + ndens*T*(dux_dx+duy_dy+duz_dz);
+  // Not using q
+  EvalT joule = 1.0/S*(jx*jx+jy*jy+jz*jz);
+  EvalT vstress = 1.0/Re*(pi_xx*dux_dx + pi_xy*dux_dy + pi_xz*dux_dz + pi_yx*duy_dx + pi_yy*duy_dy + pi_yz*duy_dz + pi_zx*duz_dx + pi_zy*duz_dy + pi_zz*duz_dz);
+  return sres-joule-vstress;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualBx(const EvalT & dBx_dt, const EvalT & Bx, const EvalT & dBx_dx,
+                                                          const EvalT & dBx_dy, const EvalT & dBx_dz,
+                                                          const EvalT & By, const EvalT & Bz,
+                                                          const EvalT & dBy_dy, const EvalT & dBz_dz,
+                                                          const EvalT & ux, const EvalT & uy, const EvalT & uz,
+                                                          const EvalT & dux_dx, const EvalT & dux_dy, const EvalT & dux_dz,
+                                                          const EvalT & duy_dy, const EvalT & duz_dz,
+                                                          const EvalT & S, const EvalT & dpsi_dx) {
+  EvalT sres = dBx_dt + dux_dx*Bx + ux*dBx_dx + dux_dy*By + ux*dBy_dy + dux_dz*Bz + ux*dBz_dz;
+  sres += -1.0*(dBx_dx*ux + Bx*dux_dx + dBx_dy*uy + Bx*duy_dy + dBx_dz*uz + Bx*duz_dz) + dpsi_dx;
+  // not using 1/S(nabla B - nabla B^T)
+  return sres;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualBy(const EvalT & dBy_dt, const EvalT & By, const EvalT & dBy_dx,
+                                                          const EvalT & dBy_dy, const EvalT & dBy_dz,
+                                                          const EvalT & Bx, const EvalT & Bz,
+                                                          const EvalT & dBx_dx, const EvalT & dBz_dz,
+                                                          const EvalT & ux, const EvalT & uy, const EvalT & uz,
+                                                          const EvalT & dux_dx,
+                                                          const EvalT & duy_dx, const EvalT & duy_dy, const EvalT & duy_dz,
+                                                          const EvalT & duz_dz,
+                                                          const EvalT & S, const EvalT & dpsi_dy) {
+  EvalT sres = dBy_dt + duy_dx*Bx + uy*dBx_dx + duy_dy*By + uy*dBy_dy + duy_dz*Bz + uy*dBz_dz;
+  sres += -1.0*(dBy_dx*ux + By*dux_dx + dBy_dy*uy + By*duy_dy + dBy_dz*uz + By*duz_dz) + dpsi_dy;
+  // not using 1/S(nabla B - nabla B^T)
+  return sres;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualBz(const EvalT & dBz_dt, const EvalT & Bz, const EvalT & dBz_dx,
+                                                          const EvalT & dBz_dy, const EvalT & dBz_dz,
+                                                          const EvalT & Bx, const EvalT & By,
+                                                          const EvalT & dBx_dx, const EvalT & dBy_dy,
+                                                          const EvalT & ux, const EvalT & uy, const EvalT & uz,
+                                                          const EvalT & dux_dx, const EvalT & duy_dy,
+                                                          const EvalT & duz_dx, const EvalT & duz_dy, const EvalT & duz_dz,
+                                                          const EvalT & S, const EvalT & dpsi_dz) {
+  EvalT sres = dBz_dt + duz_dx*Bx + uz*dBx_dx + duz_dy*By + uz*dBy_dy + duz_dz*Bz + uz*dBz_dz;
+  sres += -1.0*(dBz_dx*ux + Bz*dux_dx + dBz_dy*uy + Bz*duy_dy + dBz_dz*uz + Bz*duz_dz) + dpsi_dz;
+  // not using 1/S(nabla B - nabla B^T)
+  return sres;
+}
+
+template<class EvalT>
+KOKKOS_FUNCTION EvalT MHD<EvalT>::computeStrongResidualPsi(const EvalT & dBx_dx, const EvalT & dBy_dy, const EvalT & dBz_dz) {
+  EvalT sres = dBx_dx + dBy_dy + dBz_dz;
+  return sres;
+}
 //////////////////////////////////////////////////////////////
 // Explicit template instantiations
 //////////////////////////////////////////////////////////////
