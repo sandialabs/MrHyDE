@@ -21,7 +21,7 @@ its.opts.verbose = True
 root = 'mrhyde'
 
 #TESTING active
-#TESTING -n 11
+#TESTING -n 4
 #TESTING -k maxwell,optimization,scale,scan
 
 # ==============================================================================
@@ -30,7 +30,7 @@ status = 0
 if its.opts.preprocess:
   status += its.call('echo "  No preprocessing, yet."')
 
-status += its.call('mpiexec -n 11 ../../mrhyde >& mrhyde.log')
+status += its.call('mpiexec -n 4 ../../mrhyde >& mrhyde.log')
 status += its.clean_log()
 
 # Pull weighted column for a named scan row.
