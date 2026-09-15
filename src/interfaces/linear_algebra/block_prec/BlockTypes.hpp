@@ -82,6 +82,26 @@ inline SchurVariant parseSchurVariant(const std::string & canonical, const std::
   return SchurVariant::Base;
 }
 
+// Triangle used by the block Gauss-Seidel sweep. Auto follows right_preconditioner.
+enum class TriangleSide { Auto, Upper, Lower };
+
+inline std::string triangleSideName(const TriangleSide side) {
+  if (side == TriangleSide::Upper) return "upper";
+  if (side == TriangleSide::Lower) return "lower";
+  return "auto";
+}
+
+inline TriangleSide parseTriangleSide(const std::string & raw) {
+  std::string u = raw.empty() ? std::string("AUTO") : raw;
+  toUpperAscii(u);
+  if (u == "AUTO") return TriangleSide::Auto;
+  if (u == "UPPER") return TriangleSide::Upper;
+  if (u == "LOWER") return TriangleSide::Lower;
+  TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
+    "Unsupported Schur triangle '" << raw << "'. Supported: auto, upper, lower.");
+  return TriangleSide::Auto;
+}
+
 enum class BlockPrecType { AMG, RefMaxwell, Maxwell1, Direct, Diagonal };
 
 inline BlockPrecType parseBlockPrecType(const std::string & raw) {

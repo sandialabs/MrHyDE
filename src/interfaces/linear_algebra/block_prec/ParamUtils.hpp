@@ -88,6 +88,10 @@ inline std::string canonicalSchurApproximationType(const std::string & raw) {
   return schurVariantName(parseSchurVariant(raw, raw));
 }
 
+inline std::string canonicalSchurTriangle(const std::string & raw) {
+  return triangleSideName(parseTriangleSide(raw));
+}
+
 inline std::string canonicalReuseType(const std::string & raw) {
   const std::string u = toUpperAsciiCopy(raw);
   if (u == "NONE") return "none";
@@ -185,7 +189,7 @@ inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & lis
 
 inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   const char * keys[] = {
-    "preconditioner type", "approximation type", "pivot block",
+    "preconditioner type", "approximation type", "pivot block", "triangle",
     "diag use lumped pivot diagonal", "strict RefMaxwell", "debug RefMaxwell maps",
     "hgrad basis name", "hcurl basis name",
     "smoother: type", "diag use lumped diagonal",
@@ -201,6 +205,9 @@ inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & lis
   if (list.isParameter("approximation type")) {
     canonicalSchurApproximationType(list.get<std::string>("approximation type"));
   }
+  if (list.isParameter("triangle")) {
+    canonicalSchurTriangle(list.get<std::string>("triangle"));
+  }
   if (list.isSublist("AMG Settings")) {
     validateAmgSettingsSection(list.sublist("AMG Settings"), sectionName + ".AMG Settings");
   }
@@ -212,7 +219,7 @@ inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & lis
 inline void validatePreconditionerSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   const char * keys[] = {
     "preconditioner type", "preconditioner variant", "strict RefMaxwell", "debug RefMaxwell maps",
-    "Schur pivot block",
+    "Schur pivot block", "Schur triangle",
     "block prec backend",
     "Schur diag use lumped pivot diagonal", "Pivot block diag use lumped diagonal", "diag use lumped diagonal",
     "hgrad basis name", "hcurl basis name", "hgrad basis order", "hcurl basis order", "D0 file", "coordinates file",
@@ -220,9 +227,11 @@ inline void validatePreconditionerSettingsSection(const Teuchos::ParameterList &
     "cycle type", "sa: use filtered matrix", "sa: damping factor",
     "coarse: type", "coarse: max size", "number of equations", "aggregation: type", "aggregation: drop tol",
     "eigen-analysis: type", "relaxation: type", "relaxation: sweeps", "relaxation: damping factor",
-    "relaxation: backward mode", "chebyshev: degree", "chebyshev: ratio eigenvalue",
+    "relaxation: backward mode", "relaxation: use l1", "relaxation: l1 eta",
+    "chebyshev: degree", "chebyshev: ratio eigenvalue",
     "chebyshev: min eigenvalue", "chebyshev: eigenvalue max iterations", "use lumped M0inv", "mode",
-    "disable addon", "disable addon 22", "enable reuse", "use as preconditioner", "max coarse size"
+    "disable addon", "disable addon 22", "enable reuse", "use as preconditioner", "max coarse size",
+    "partitioner: type", "partitioner: local parts", "fact: iluk level-of-fill"
   };
   const char * subkeys[] = {"smoother: params", "AMG Settings", "RefMaxwell Settings", "11list", "22list"};
   validateAllowedKeys(list, sectionName,

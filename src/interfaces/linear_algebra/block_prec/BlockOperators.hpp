@@ -86,13 +86,17 @@ public:
     const size_t nrows = static_cast<size_t>(X.getLocalLength());
     const size_t nvec = static_cast<size_t>(X.getNumVectors());
     const bool useConjugate = (mode == Teuchos::CONJ_TRANS);
+    const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
+    // 0 * NaN = NaN in IEEE 754; Belos hands us uninitialized Y, so guard beta==0.
+    const bool overwrite = (beta == zero);
     for (size_t i = 0; i < nrows; ++i) {
       ScalarT dinv = dView(i, 0);
       if (useConjugate) {
         dinv = Teuchos::ScalarTraits<ScalarT>::conjugate(dinv);
       }
       for (size_t j = 0; j < nvec; ++j) {
-        yView(i, j) = beta * yView(i, j) + alpha * dinv * xView(i, j);
+        const ScalarT ax = alpha * dinv * xView(i, j);
+        yView(i, j) = overwrite ? ax : (beta * yView(i, j) + ax);
       }
     }
   }

@@ -217,7 +217,6 @@ buildTekoNativeBlockDiagonal(const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > 
     });
 }
 
-// Map MrHyDE's right-preconditioner convention to Teko's upper triangle.
 // TODO: generalize to N-block via Teko's variadic block factories.
 template<class Node>
 Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >

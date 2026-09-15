@@ -518,7 +518,7 @@ LinearAlgebraInterface<Node>::buildBlockTriangularSchurApproximation(
     const block_prec::BlockSystem<Node> & blocks,
     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
     matrix_RCP * diagTermOut) {
-  return block_prec::buildSchurApproximation<Node>(blocks, *cntxt, diagTermOut);
+  return block_prec::buildSchurApproximation<Node>(blocks, *cntxt, diagTermOut, this->verbosity);
 }
 
 // Check D0, M1, nodal_coords and map compatibility for RefMaxwell pivot block. Assumes J00 comes
@@ -651,7 +651,10 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
 
   // --- Phase 5: Assemble operator ---
   Teuchos::RCP<const LA_Map> fullMap = J->getRowMap();
-  const bool useUpperTriangular = cntxt->right_preconditioner;
+  const TriangleSide triangle = parseTriangleSide(cntxt->schur.triangle);
+  const bool useUpperTriangular = (triangle == TriangleSide::Auto)
+    ? cntxt->right_preconditioner
+    : (triangle == TriangleSide::Upper);
   if (this->verbosity >= 5 && this->comm->getRank() == 0) {
     const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
     if (cntxt->schur.damping == zero) {

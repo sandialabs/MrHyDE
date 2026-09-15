@@ -47,6 +47,8 @@ struct SchurConfig {
   /**< Gamma in diag Schur. E.g. pivot_block=0: S = J11 - gamma*J10*diag(J00)^{-1}*J01. */
   ScalarT damping;
   bool diag_use_lumped_pivot_diagonal;
+  /**< Canonical triangle for the block Gauss-Seidel sweep (auto, upper, lower). */
+  std::string triangle;
   std::string pivot_block_preconditioner_type;
   bool pivot_block_diag_use_lumped_diagonal;
   std::string schur_block_preconditioner_type;
@@ -261,6 +263,7 @@ private:
     schur.damping = settings.get<ScalarT>("Schur damping",Teuchos::ScalarTraits<ScalarT>::one());
     schur.diag_use_lumped_pivot_diagonal =
       settings.get<bool>("Schur diag use lumped pivot diagonal", false);
+    schur.triangle = canonicalSchurTriangle(settings.get<string>("Schur triangle","auto"));
     schur.pivot_block_preconditioner_type =
       canonicalBlockPrecType(settings.get<string>("Pivot block preconditioner type","AMG"));
     schur.pivot_block_diag_use_lumped_diagonal =
@@ -287,6 +290,9 @@ private:
     if (prec_sublist.isParameter("Schur diag use lumped pivot diagonal")) {
       schur.diag_use_lumped_pivot_diagonal =
         prec_sublist.get<bool>("Schur diag use lumped pivot diagonal");
+    }
+    if (prec_sublist.isParameter("Schur triangle")) {
+      schur.triangle = canonicalSchurTriangle(prec_sublist.get<string>("Schur triangle"));
     }
   }
 
@@ -352,6 +358,9 @@ private:
     if (schur_block_sublist.isParameter("diag use lumped pivot diagonal")) {
       schur.diag_use_lumped_pivot_diagonal =
         schur_block_sublist.get<bool>("diag use lumped pivot diagonal");
+    }
+    if (schur_block_sublist.isParameter("triangle")) {
+      schur.triangle = canonicalSchurTriangle(schur_block_sublist.get<string>("triangle"));
     }
     if (schur_block_sublist.isParameter("strict RefMaxwell")) {
       refMaxwell.strict_refmaxwell = schur_block_sublist.get<bool>("strict RefMaxwell");

@@ -316,6 +316,37 @@ buildInverseDiagonal(const ConstMatrixRCP<Node> & mat,
   return result;
 }
 
+// Scatter inv(diag) onto rowMap. Rows with no entry keep zero.
+template<class Node>
+Teuchos::RCP<typename BlockTypes<Node>::Vector>
+inverseDiagonalVector(const typename BlockTypes<Node>::MapRCP & rowMap,
+                      const InverseDiagonalResult<Node> & result) {
+  using LA_Vector = typename BlockTypes<Node>::Vector;
+  Teuchos::RCP<LA_Vector> invDiag = Teuchos::rcp(new LA_Vector(rowMap));
+  invDiag->putScalar(Teuchos::ScalarTraits<ScalarT>::zero());
+  for (typename std::unordered_map<GO, ScalarT>::const_iterator it = result.invByRow.begin();
+       it != result.invByRow.end(); ++it) {
+    invDiag->replaceGlobalValue(it->first, it->second);
+  }
+  return invDiag;
+}
+
+template<class Node>
+void reportInverseDiagonal(const InverseDiagonalResult<Node> & result,
+                           const std::string & label,
+                           const Teuchos::RCP<const Teuchos::Comm<int> > & comm,
+                           const int verbosity) {
+  if (verbosity < 5) return;
+  GO local[3] = {result.usedDiag, result.usedLumped, result.missing};
+  GO global[3] = {0, 0, 0};
+  Teuchos::reduceAll<int, GO>(*comm, Teuchos::REDUCE_SUM, 3, local, global);
+  if (comm->getRank() == 0) {
+    std::cout << label << ": used_diag=" << global[0]
+              << " used_lumped=" << global[1]
+              << " missing=" << global[2] << std::endl;
+  }
+}
+
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
 buildLumpedM0inv(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > & D0,
@@ -928,32 +959,12 @@ buildDiagonalBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & J00,
                           const Teuchos::RCP<const Teuchos::Comm<int> > & comm,
                           const int verbosity) {
   using Types = BlockTypes<Node>;
-  using LA_Vector = typename Types::Vector;
-
-  Teuchos::RCP<LA_Vector> invDiag = Teuchos::rcp(new LA_Vector(J00->getRowMap()));
-  invDiag->putScalar(Teuchos::ScalarTraits<ScalarT>::zero());
   const detail::InverseDiagonalResult<Node> invData =
-    detail::buildInverseDiagonal<Node>(Teuchos::rcp_implicit_cast<const typename Types::CrsMatrix>(J00), useLumpedDiagonal);
-  for (typename std::unordered_map<GO, ScalarT>::const_iterator it = invData.invByRow.begin();
-       it != invData.invByRow.end(); ++it) {
-    invDiag->replaceGlobalValue(it->first, it->second);
-  }
-
-  GO globalMissing = 0;
-  GO globalUsedLumped = 0;
-  GO globalUsedDiag = 0;
-  GO localMissing = invData.missing;
-  GO localUsedLumped = invData.usedLumped;
-  GO localUsedDiag = invData.usedDiag;
-  Teuchos::reduceAll<int, GO>(*comm, Teuchos::REDUCE_SUM, 1, &localMissing, &globalMissing);
-  Teuchos::reduceAll<int, GO>(*comm, Teuchos::REDUCE_SUM, 1, &localUsedLumped, &globalUsedLumped);
-  Teuchos::reduceAll<int, GO>(*comm, Teuchos::REDUCE_SUM, 1, &localUsedDiag, &globalUsedDiag);
-  if (verbosity >= 5 && comm->getRank() == 0) {
-    std::cout << "Pivot-block diag inverse: used_diag=" << globalUsedDiag
-              << " used_lumped=" << globalUsedLumped
-              << " missing=" << globalMissing << std::endl;
-  }
-  return Teuchos::rcp(new DiagonalInverseOperator<Node>(invDiag));
+    detail::buildInverseDiagonal<Node>(
+      Teuchos::rcp_implicit_cast<const typename Types::CrsMatrix>(J00), useLumpedDiagonal);
+  detail::reportInverseDiagonal<Node>(invData, "Pivot-block diag inverse", comm, verbosity);
+  return Teuchos::rcp(new DiagonalInverseOperator<Node>(
+    detail::inverseDiagonalVector<Node>(J00->getRowMap(), invData)));
 }
 
 template<class Node>
@@ -963,7 +974,12 @@ buildDirectBlockInverse(const typename BlockTypes<Node>::CrsMatrixRCP & A) {
   using LA_MultiVector = typename Types::MultiVector;
   using CrsMatrix = typename Types::CrsMatrix;
   using Solver = Amesos2::Solver<CrsMatrix, LA_MultiVector>;
-  Teuchos::RCP<Solver> solver = Amesos2::create<CrsMatrix, LA_MultiVector>("KLU2", A);
+  const std::string solverName = "KLU2";
+  Teuchos::RCP<Solver> solver = Amesos2::create<CrsMatrix, LA_MultiVector>(solverName, A);
+  Teuchos::RCP<Teuchos::ParameterList> amesosParams =
+    Teuchos::rcp(new Teuchos::ParameterList("Amesos2"));
+  amesosParams->sublist(solverName).set("IsContiguous", false);
+  solver->setParameters(amesosParams);
   solver->symbolicFactorization();
   solver->numericFactorization();
   return Teuchos::rcp(new DirectSolveOperator<Node>(solver, A->getRowMap()));
