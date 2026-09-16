@@ -12,6 +12,7 @@
 *.mem_events
 build*
 MILO.profile
+*.dat
 *.sh
 *.slurm
 *.out

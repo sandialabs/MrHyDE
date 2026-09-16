@@ -11,18 +11,19 @@ ANONYMOUS:
     use basis database: false
     use mass database: false
     database TOL: 1.0e-13
-    linear TOL: 1.0e-14
+    linear TOL: 1.0e-8
     strict linear solve: true
     max linear iters: 500
     nonlinear TOL: 1.0e-07
     max nonlinear iters: 1
     reuse Jacobian: true
     use direct solver: false
+    Belos solver: "BiCGStab"
     Belos implicit residual scaling: Norm of Initial Residual
     storage proportion: 1.0
-    Belos solver: "BiCGStab"
+    enable autotune: false
     use preconditioner: true
     reuse preconditioner: true
+    preconditioner reuse type: full
     right preconditioner: true
-    enable autotune: true
 ...
