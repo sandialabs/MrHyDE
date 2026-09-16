@@ -85,17 +85,6 @@ void SolverManager<Node>::completeSetup() {
     }
   }
 
-  if (warm_start_linear_solve) {
-    du_warm_prev.resize(setnames.size());
-    du_warm_prev2.resize(setnames.size());
-    du_warm_count.assign(setnames.size(), 0);
-    for (size_t set=0; set<setnames.size(); ++set) {
-      du_warm_prev[set]  = linalg->getNewVector(set);
-      du_warm_prev2[set] = linalg->getNewVector(set);
-      du_warm_prev[set]->putScalar(0.0);
-      du_warm_prev2[set]->putScalar(0.0);
-    }
-  }
   this->setupFixedDOFs(settings);
 
   //---------------------------------------------------

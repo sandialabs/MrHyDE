@@ -114,8 +114,6 @@ Teuchos::RCP<Teuchos::ParameterList> LinearAlgebraInterface<Node>::getBelosParam
   
   belosList->set("Output Style", Belos::Brief);
   belosList->set("Implicit Residual Scaling", belos_residual_scaling);
-  // Match explicit and implicit scaling so warm starts keep their smaller residual.
-  belosList->set("Explicit Residual Scaling", belos_residual_scaling);
   
   if (cntxt->belos_sublist.name() != "empty") {
     belosList->setParameters(cntxt->belos_sublist);

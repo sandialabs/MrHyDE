@@ -1003,9 +1003,7 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
   if (!cntxt.is_null()) {
     const std::string outerType = toUpperAsciiCopy(cntxt->belos_type);
     const bool outerIsGmres = (outerType == "BLOCK GMRES" || outerType == "PSEUDO BLOCK GMRES");
-    const bool flexibleFlag = (cntxt->belos_sublist.name() != "empty") &&
-                              cntxt->belos_sublist.isParameter("Flexible Gmres") &&
-                              cntxt->belos_sublist.template get<bool>("Flexible Gmres");
+    const bool flexibleFlag = cntxt->flexible_gmres;
     TEUCHOS_TEST_FOR_EXCEPTION(!outerIsGmres || !flexibleFlag, std::runtime_error,
       "[" << label << "] inner Krylov requires Block GMRES or Pseudo Block GMRES"
       << " with 'Flexible Gmres: true' in Belos Settings; current solver is '"
