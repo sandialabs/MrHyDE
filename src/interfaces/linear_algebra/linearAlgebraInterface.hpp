@@ -669,6 +669,9 @@ public:
   Teuchos::RCP<LinearSolverContext<Node> > context_param_L2;        //!< Solver context for L2 parameter projection solves.
   Teuchos::RCP<LinearSolverContext<Node> > context_param_BndryL2;   //!< Solver context for boundary L2 parameter solves.
   vector<Teuchos::RCP<LinearSolverContext<Node> > > context_param_state;        //!< Solver context for standard Jacobian solves.
+
+  vector<vector<Teuchos::RCP<const LA_Map> > > block_maps_cache;
+  vector<bool> block_maps_built;
   //!
   ///////////////////////////////////////////////////////////////////////////////////////////
   // (could be) Private data members

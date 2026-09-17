@@ -102,7 +102,6 @@ Teuchos::ParameterList mergeBlockSettings(LinearAlgebraInterface<Node> & interfa
       list.setParameters(solverList.sublist(blockKey));
     }
   }
-  stripBlockDiagonalBlockList(list);
   return list;
 }
 
@@ -185,10 +184,6 @@ buildAuxNodalMatrix(const typename LATypes<Node>::CrsMatrixRCP & A_edge,
   return A_n;
 }
 
-inline void stripMrHyDEDispatchKeys(Teuchos::ParameterList & list) {
-  for (const auto & k : mrhydeBlockDispatchKeys()) list.remove(k, false);
-}
-
 template<class Node>
 Teuchos::RCP<typename LATypes<Node>::Operator>
 buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
@@ -201,13 +196,9 @@ buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
   if (!loadMueLuXmlIfPresent(blockList, mueluList, "block-diag AMG")) {
     mueluList = defaultMueLuParams();
     Teuchos::ParameterList filteredBlockList(blockList);
-    stripContextAndMethodKeys(filteredBlockList);
-    stripMrHyDEDispatchKeys(filteredBlockList);
+    removeMrHyDEOwnedKeys(filteredBlockList);
     // MueLu rejects the top-level relaxation parameters added by mergeBlockSettings.
-    filteredBlockList.remove("relaxation: type", false);
-    filteredBlockList.remove("relaxation: sweeps", false);
-    filteredBlockList.remove("relaxation: damping factor", false);
-    filteredBlockList.remove("relaxation: backward mode", false);
+    removeIfpack2OnlyKeys(filteredBlockList);
     mueluList.setParameters(filteredBlockList);
   }
 
@@ -256,8 +247,7 @@ buildIfpack2BlockOperator(LinearAlgebraInterface<Node> & interface,
 
   const std::string methodUpper = toUpperAsciiCopy(method);
   Teuchos::ParameterList ifpackList(blockList);
-  ifpackList.remove("AMG Settings", false);
-  stripMrHyDEDispatchKeys(ifpackList);
+  removeMrHyDEOwnedKeys(ifpackList);
   if (methodUpper == "CHEBYSHEV") {
     ifpackList.remove("smoother: type", false);
     promoteSublistToTopLevel(ifpackList, "smoother: params");
@@ -355,6 +345,9 @@ vector<Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > >
 LinearAlgebraInterface<Node>::buildBlockMaps(const size_t & set) {
   using Types = LATypes<Node>;
   using LA_Map = typename Types::Map;
+  if (set < block_maps_built.size() && block_maps_built[set]) {
+    return block_maps_cache[set];
+  }
   vector<std::set<GO> > var_gids;
   const vector<string> & blocknames = disc->block_names;
   const size_t numblocks = blocknames.size();
@@ -390,6 +383,12 @@ LinearAlgebraInterface<Node>::buildBlockMaps(const size_t & set) {
     std::sort(gid_vec.begin(), gid_vec.end());
     blockMaps[v] = Teuchos::rcp(new LA_Map(Teuchos::OrdinalTraits<GO>::invalid(), gid_vec, 0, comm));
   }
+  if (block_maps_built.size() <= set) {
+    block_maps_cache.resize(set + 1);
+    block_maps_built.resize(set + 1, false);
+  }
+  block_maps_cache[set] = blockMaps;
+  block_maps_built[set] = true;
   return blockMaps;
 }
 
@@ -402,7 +401,8 @@ LinearAlgebraInterface<Node>::extractDiagonalBlock(
   using LA_CrsMatrix = typename LATypes<Node>::CrsMatrix;
   const Teuchos::RCP<const LA_CrsMatrix> Jconst =
     Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J);
-  return block_prec::detail::remapBlockToMaps<Node>(Jconst, blockMap, blockMap);
+  return block_prec::detail::remapBlockToMaps<Node>(Jconst, blockMap, blockMap,
+                                                    block_prec::RemapMode::GidFilter);
 }
 
 // Extract off-diagonal block by remapping J to rowMap x colMap.
@@ -415,7 +415,8 @@ LinearAlgebraInterface<Node>::extractOffDiagonalBlock(
   using LA_CrsMatrix = typename LATypes<Node>::CrsMatrix;
   const Teuchos::RCP<const LA_CrsMatrix> Jconst =
     Teuchos::rcp_implicit_cast<const LA_CrsMatrix>(J);
-  return block_prec::detail::remapBlockToMaps<Node>(Jconst, rowMap, colMap);
+  return block_prec::detail::remapBlockToMaps<Node>(Jconst, rowMap, colMap,
+                                                    block_prec::RemapMode::GidFilter);
 }
 
 // ========================================================================================
@@ -439,13 +440,13 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
 
   // Build one local map per variable block.
   vector<Teuchos::RCP<const LA_Map> > blockMaps = this->buildBlockMaps(set);
-  if (blockMaps.empty()) return Teuchos::null;
+  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
+    "Block-diagonal preconditioner supports exactly two variable blocks, but set "
+    << set << " has " << blockMaps.size()
+    << ". N-block support through Teko is not implemented.");
+
   const std::vector<std::vector<matrix_RCP> > remappedBlocks =
-    block_prec::detail::extractAndRemapBlocks<Node>(J, blockMaps);
-  if (blockMaps.size() == 1) {
-    return block_prec::detail::buildSingleBlockPreconditioner<Node>(
-      *this, remappedBlocks[0][0], cntxt, 0, useRefMaxwellOnBlock0);
-  }
+    block_prec::detail::extractAndRemapBlocks<Node>(J, blockMaps, true);
 
   // Build one diagonal-block preconditioner per block map.
   vector<Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > > blockPrecs(blockMaps.size());
@@ -454,9 +455,6 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
       *this, remappedBlocks[b][b], cntxt, b, useRefMaxwellOnBlock0);
   }
 
-  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
-    "Block-diagonal preconditioner supports only 2x2 systems (got "
-    << blockMaps.size() << " block maps).");
   Teuchos::RCP<const LA_Map> fullMap = J->getRowMap();
   return block_prec::buildTekoNativeBlockDiagonal<Node>(
     fullMap, blockMaps, remappedBlocks[0][0], remappedBlocks[1][1],
@@ -495,8 +493,8 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
     Teuchos::ParameterList filteredParams = hasNestedSchurAmg
       ? Teuchos::ParameterList(cntxt->schur_block_sublist.sublist("AMG Settings"))
       : Teuchos::ParameterList(cntxt->prec_sublist);
-    stripContextAndMethodKeys(filteredParams);
-    filteredParams.remove("xml param file", false);
+    removeMrHyDEOwnedKeys(filteredParams);
+    removeIfpack2OnlyKeys(filteredParams);
     mueluParams.setParameters(filteredParams);
   } else {
     mueluParams.sublist("smoother: params").set("chebyshev: degree", 2);
@@ -596,15 +594,11 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   //  - NONE: always rebuild
   std::string reuseType = cntxt->preconditioner_reuse_type;
   toUpperAscii(reuseType);
-  Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> > existing = cntxt->prec_block;
-  if (!existing.is_null()) {
-    if (reuseType == "FULL") return existing;
+  if (!cntxt->prec_block.is_null()) {
+    if (reuseType == "FULL") return cntxt->prec_block;
     if (reuseType == "UPDATE" && !cntxt->jacobian_rebuilt_this_step) {
-      return existing;
+      return cntxt->prec_block;
     }
-  }
-  if (reuseType == "NONE") {
-    existing = Teuchos::null;
   }
 
   // --- Phase 2: Extract block system ---
@@ -625,8 +619,8 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
       normalizeMueLuVerbosity(pivotMueLuParams, verbosity);
     } else {
       Teuchos::ParameterList filteredPivotParams(pivotAmgSublist);
-      stripContextAndMethodKeys(filteredPivotParams);
-      filteredPivotParams.remove("xml param file", false);
+      removeMrHyDEOwnedKeys(filteredPivotParams);
+      removeIfpack2OnlyKeys(filteredPivotParams);
       pivotMueLuParams.setParameters(filteredPivotParams);
       if (pivotAmgSublist.isSublist("smoother: params")) {
         pivotMueLuParams.remove("smoother: params", false);

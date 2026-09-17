@@ -45,6 +45,8 @@ struct BlockSystem {
   int pivotBlock = 0;     // Block index for the pivot block.
 };
 
+enum class RemapMode { LidRemap, GidFilter };
+
 namespace detail {
 
 template<class Node>
@@ -124,7 +126,8 @@ template<class Node>
 MatrixRCP<Node>
 remapBlockToMaps(const ConstMatrixRCP<Node> & src,
                  const MapRCP<Node> & rowMap,
-                 const MapRCP<Node> & domainMap) {
+                 const MapRCP<Node> & domainMap,
+                 const RemapMode mode) {
   using Types = BlockTypes<Node>;
   using CrsMatrix = typename Types::CrsMatrix;
   using HostInds = typename Types::HostInds;
@@ -143,13 +146,14 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > srcColMap = src->getColMap();
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > srcDomainMap = src->getDomainMap();
 
-  const bool equalRowSizes =
-    srcRowMap->getGlobalNumElements() == rowMap->getGlobalNumElements() &&
-    srcRowMap->getLocalNumElements() == rowMap->getLocalNumElements();
-  const bool equalDomainSizes =
-    srcDomainMap->getGlobalNumElements() == domainMap->getGlobalNumElements() &&
-    srcDomainMap->getLocalNumElements() == domainMap->getLocalNumElements();
-  const bool useLidRemap = equalRowSizes && equalDomainSizes;
+  const bool useLidRemap = (mode == RemapMode::LidRemap);
+  TEUCHOS_TEST_FOR_EXCEPTION(useLidRemap &&
+    (srcRowMap->getLocalNumElements() != rowMap->getLocalNumElements() ||
+     srcDomainMap->getLocalNumElements() != domainMap->getLocalNumElements()),
+    std::runtime_error,
+    "remapBlockToMaps: LidRemap requires matching local row/domain counts (source "
+    << srcRowMap->getLocalNumElements() << "x" << srcDomainMap->getLocalNumElements()
+    << ", target " << rowMap->getLocalNumElements() << "x" << domainMap->getLocalNumElements() << ").");
 
   const MatrixRCP<Node> dst = Teuchos::rcp(new CrsMatrix(rowMap, maxEnt));
 
@@ -246,7 +250,8 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
 template<class Node>
 std::vector<std::vector<MatrixRCP<Node> > >
 extractAndRemapBlocks(const MatrixRCP<Node> & J,
-                      const std::vector<MapRCP<Node> > & blockMaps) {
+                      const std::vector<MapRCP<Node> > & blockMaps,
+                      const bool diagonalOnly = false) {
   const std::vector<std::vector<ConstMatrixRCP<Node> > > rawBlocks =
     extractRawTekoBlocks<Node>(J, blockMaps);
   const size_t nBlocks = blockMaps.size();
@@ -255,7 +260,9 @@ extractAndRemapBlocks(const MatrixRCP<Node> & J,
 
   for (size_t i = 0; i < nBlocks; ++i) {
     for (size_t j = 0; j < nBlocks; ++j) {
-      remapped[i][j] = remapBlockToMaps<Node>(rawBlocks[i][j], blockMaps[i], blockMaps[j]);
+      if (diagonalOnly && i != j) continue;
+      remapped[i][j] = remapBlockToMaps<Node>(rawBlocks[i][j], blockMaps[i], blockMaps[j],
+                                              RemapMode::LidRemap);
       TEUCHOS_TEST_FOR_EXCEPTION(
         !remapped[i][j]->getRowMap()->isSameAs(*blockMaps[i]) ||
         !remapped[i][j]->getDomainMap()->isSameAs(*blockMaps[j]),
@@ -352,7 +359,8 @@ Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
 buildLumpedM0inv(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > & D0,
                  const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> > & M1,
                  const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & nodal_map,
-                 const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & edge_map) {
+                 const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > & edge_map,
+                 const int verbosity = 0) {
   using Types = BlockTypes<Node>;
   using LA_CrsMatrix = typename Types::CrsMatrix;
   using LA_MultiVector = typename Types::MultiVector;
@@ -394,18 +402,50 @@ buildLumpedM0inv(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> 
 
   Teuchos::RCP<LA_CrsMatrix> M0inv = Teuchos::rcp(new LA_CrsMatrix(nodal_map, 1));
   auto nodal_mass_2d = nodalMass->getLocalViewHost(Tpetra::Access::ReadOnly);
-  const typename Teuchos::ScalarTraits<ScalarT>::magnitudeType tiny =
-    Teuchos::ScalarTraits<typename Teuchos::ScalarTraits<ScalarT>::magnitudeType>::eps();
+  using MagT = typename Teuchos::ScalarTraits<ScalarT>::magnitudeType;
   const size_t numLocal = nodal_map->getLocalNumElements();
+
+  MagT localMax = Teuchos::ScalarTraits<MagT>::zero();
+  for (size_t i = 0; i < numLocal; ++i) {
+    const MagT a = Teuchos::ScalarTraits<ScalarT>::magnitude(nodal_mass_2d(Teuchos::as<LO>(i), 0));
+    if (a > localMax) localMax = a;
+  }
+  MagT globalMax = localMax;
+  Teuchos::reduceAll<int,MagT>(*(nodal_map->getComm()), Teuchos::REDUCE_MAX, 1, &localMax, &globalMax);
+  const MagT zeroMag = Teuchos::ScalarTraits<MagT>::zero();
+  const MagT thresh = Teuchos::ScalarTraits<MagT>::eps() * globalMax;
+  const ScalarT fallback = (globalMax > zeroMag)
+    ? (Teuchos::ScalarTraits<ScalarT>::one() / static_cast<ScalarT>(globalMax))
+    : Teuchos::ScalarTraits<ScalarT>::one();
+
+  GO localDegenerate = 0;
   for (size_t i = 0; i < numLocal; ++i) {
     const GO gid = nodal_map->getGlobalElement(Teuchos::as<LO>(i));
     const ScalarT m = nodal_mass_2d(Teuchos::as<LO>(i), 0);
-    const auto amag = Teuchos::ScalarTraits<ScalarT>::magnitude(m);
-    const ScalarT invm = (amag > tiny) ? (Teuchos::ScalarTraits<ScalarT>::one() / m)
-                                       : Teuchos::ScalarTraits<ScalarT>::one();
+    const MagT amag = Teuchos::ScalarTraits<ScalarT>::magnitude(m);
+    ScalarT invm;
+    if (amag > thresh) {
+      invm = Teuchos::ScalarTraits<ScalarT>::one() / m;
+    }
+    else {
+      invm = fallback;
+      ++localDegenerate;
+    }
     M0inv->insertGlobalValues(gid, Teuchos::tuple<GO>(gid), Teuchos::tuple<ScalarT>(invm));
   }
   M0inv->fillComplete(nodal_map, nodal_map);
+
+  if (verbosity >= 5) {
+    GO globalDegenerate = 0;
+    Teuchos::reduceAll<int,GO>(*(nodal_map->getComm()), Teuchos::REDUCE_SUM, 1,
+                               &localDegenerate, &globalDegenerate);
+    if (nodal_map->getComm()->getRank() == 0 && globalDegenerate > 0) {
+      std::cout << "Lumped M0inv: " << globalDegenerate << " of "
+                << nodal_map->getGlobalNumElements()
+                << " nodal masses below " << thresh << "; used 1/" << globalMax
+                << std::endl;
+    }
+  }
   return M0inv;
 }
 
@@ -823,7 +863,7 @@ bool verifyMaxwellComplex(
 // rejects all other values; dropBCRows prevents MueLu from adding zeros back.
 template<class Node>
 Teuchos::RCP<Tpetra::CrsMatrix<ScalarT,LO,GO,Node>>
-snapCrsMatrixSignsInPlace(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src) {
+snapCrsMatrixSigns(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node>> & src) {
   using LA_CrsMatrix = typename BlockTypes<Node>::CrsMatrix;
   using host_inds_t = typename LA_CrsMatrix::nonconst_local_inds_host_view_type;
   using host_vals_t = typename LA_CrsMatrix::nonconst_values_host_view_type;
@@ -917,8 +957,10 @@ BlockSystem<Node> buildBlockSystemForSet(LinearAlgebraInterface<Node> & interfac
   using Types = BlockTypes<Node>;
   using LA_Map = typename Types::Map;
   std::vector<Teuchos::RCP<const LA_Map> > blockMaps = interface.buildBlockMaps(set);
-  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() < 2, std::runtime_error,
-    "Block-triangular preconditioner requires at least two blocks.");
+  TEUCHOS_TEST_FOR_EXCEPTION(blockMaps.size() != 2, std::runtime_error,
+    "Block-triangular preconditioner supports exactly two variable blocks, but set "
+    << set << " has " << blockMaps.size()
+    << ". N-block support through Teko is not implemented.");
 
   const int pivotBlock = cntxt->schur.pivot_block;
   TEUCHOS_TEST_FOR_EXCEPTION(pivotBlock < 0 || static_cast<size_t>(pivotBlock) >= blockMaps.size(),
@@ -1037,7 +1079,7 @@ maybeWrapInInnerKrylov(LinearAlgebraInterface<Node> & interface,
 
 template<class Node>
 Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
-buildOrReusePivotBlock(LinearAlgebraInterface<Node> & interface,
+buildPivotBlockOperator(LinearAlgebraInterface<Node> & interface,
                        const typename BlockTypes<Node>::CrsMatrixRCP & J00,
                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                        Teuchos::ParameterList & mueluParams,
@@ -1064,7 +1106,7 @@ buildOrReusePivotBlock(LinearAlgebraInterface<Node> & interface,
 
 template<class Node>
 Teuchos::RCP<Tpetra::Operator<ScalarT,LO,GO,Node> >
-buildOrReuseSchurBlock(LinearAlgebraInterface<Node> & interface,
+buildSchurBlockOperator(LinearAlgebraInterface<Node> & interface,
                        const typename BlockTypes<Node>::CrsMatrixRCP & schurApprox,
                        const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                        Teuchos::ParameterList & mueluParams,
@@ -1095,7 +1137,7 @@ buildPivotBlockPrec(LinearAlgebraInterface<Node> & interface,
                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                     Teuchos::ParameterList & pivotMueLuParams) {
   const BlockPrecType pivotType = parseBlockPrecType(cntxt->schur.pivot_block_preconditioner_type);
-  return buildOrReusePivotBlock<Node>(interface, J00, cntxt, pivotMueLuParams, pivotType);
+  return buildPivotBlockOperator<Node>(interface, J00, cntxt, pivotMueLuParams, pivotType);
 }
 
 template<class Node>
@@ -1105,7 +1147,7 @@ buildSchurBlockPrec(LinearAlgebraInterface<Node> & interface,
                     const Teuchos::RCP<LinearSolverContext<Node> > & cntxt,
                     Teuchos::ParameterList & schurMueLuParams) {
   const BlockPrecType schurType = parseBlockPrecType(cntxt->schur.schur_block_preconditioner_type);
-  return buildOrReuseSchurBlock<Node>(interface, SchurApprox, cntxt, schurMueLuParams, schurType);
+  return buildSchurBlockOperator<Node>(interface, SchurApprox, cntxt, schurMueLuParams, schurType);
 }
 
 } // namespace block_prec

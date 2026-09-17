@@ -118,84 +118,80 @@ inline Teuchos::ParameterList defaultMueLuParams() {
   return mueluParams;
 }
 
-// AMG parameters that are valid in YAML (includes both XML control and MueLu parameters)
-inline std::set<std::string> defaultAmgAllowedParams() {
-  const char * keys[] = {
-    "xml param file",  // Optional: path to XML parameter file (takes precedence over YAML)
-    "verbosity", "print initial parameters", "number of equations", "multigrid algorithm", "max levels",
-    "smoother: type", "smoother: overlap", "smoother: pre or post", "coarse: type", "coarse: max size",
-    "aggregation: type", "aggregation: drop tol", "aggregation: damping factor", "aggregation: min agg size",
-    "aggregation: max agg size", "eigen-analysis: type", "problem: symmetric", "transpose: use implicit",
-    "repartition: enable", "repartition: start level", "coarse: params", "parameterlist: syntax"
-  };
-  return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));
-}
-
-inline std::set<std::string> defaultAmgAllowedSublists() {
-  const char * keys[] = {"smoother: params", "coarse: params"};
-  return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));
-}
-
 inline std::set<std::string> defaultRefMaxwellAllowedParams() {
   const char * keys[] = {
-    "xml param file",  // Required: path to XML parameter file
-    // MrHyDE-specific parameters (not passed to MueLu):
-    "use lumped M0inv",  // MrHyDE builds M0inv
-    "hgrad basis name", "hcurl basis name",  // Basis function specification
-    "hgrad basis order", "hcurl basis order",  // Basis order specification
-    "D0 file", "coordinates file",  // Optional auxiliary data files
-    "filter SM",  // Remove roundoff entries from SM
-    "filter threshold",  // Relative drop threshold; default 1e-14
-    "verify complex"  // Run Maxwell operator checks
-    // Note: All MueLu RefMaxwell parameters must be specified in the XML file
+    "xml param file",
+    "use lumped M0inv",
+    "hgrad basis name", "hcurl basis name",
+    "hgrad basis order", "hcurl basis order",
+    "D0 file", "coordinates file",
+    "filter SM", "filter threshold",
+    "verify complex"
   };
   return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));
 }
 
-// No sublists allowed in RefMaxwell Settings - all MueLu config goes in XML
-// There are too many refmaxwell parameters to list here, so we don't allow any sublists.
 inline std::set<std::string> defaultRefMaxwellAllowedSublists() {
-  return std::set<std::string>(); 
+  return std::set<std::string>();
 }
 
-inline void validateAmgSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  validateAllowedKeys(list, sectionName, defaultAmgAllowedParams(), defaultAmgAllowedSublists());
+inline std::set<std::string> defaultMaxwell1AllowedParams() {
+  const char * keys[] = {
+    "xml param file",
+    "hgrad basis name", "hcurl basis name",
+    "hgrad basis order", "hcurl basis order",
+    "filter SM", "filter threshold",
+    "verify complex", "verify Kn consistency"
+  };
+  return std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0]));
+}
+
+inline std::set<std::string> defaultMaxwell1AllowedSublists() {
+  return std::set<std::string>();
 }
 
 inline void validateRefMaxwellSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   validateAllowedKeys(list, sectionName, defaultRefMaxwellAllowedParams(), defaultRefMaxwellAllowedSublists());
 }
 
+inline void validateMaxwell1SettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
+  validateAllowedKeys(list, sectionName, defaultMaxwell1AllowedParams(), defaultMaxwell1AllowedSublists());
+}
+
+inline void validateNestedBlockSublists(const Teuchos::ParameterList & list, const std::string & sectionName) {
+  if (list.isSublist("RefMaxwell Settings")) {
+    validateRefMaxwellSettingsSection(list.sublist("RefMaxwell Settings"), sectionName + ".RefMaxwell Settings");
+  }
+  if (list.isSublist("Maxwell1 Settings")) {
+    validateMaxwell1SettingsSection(list.sublist("Maxwell1 Settings"), sectionName + ".Maxwell1 Settings");
+  }
+}
+
 inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   const char * keys[] = {
-    "preconditioner type", "diag use lumped diagonal", "strict RefMaxwell", "debug RefMaxwell maps",
+    "preconditioner type", "diag use lumped diagonal", "strict RefMaxwell",
     "hgrad basis name", "hcurl basis name",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol"
   };
-  const char * subkeys[] = {"AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings", "ADS Settings"};
+  const char * subkeys[] = {"AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings"};
   validateAllowedKeys(list, sectionName,
     std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0])),
     std::set<std::string>(subkeys, subkeys + sizeof(subkeys) / sizeof(subkeys[0])));
   if (list.isParameter("preconditioner type")) {
     canonicalBlockPrecType(list.get<std::string>("preconditioner type"));
   }
-  if (list.isSublist("AMG Settings")) {
-    validateAmgSettingsSection(list.sublist("AMG Settings"), sectionName + ".AMG Settings");
-  }
-  if (list.isSublist("RefMaxwell Settings")) {
-    validateRefMaxwellSettingsSection(list.sublist("RefMaxwell Settings"), sectionName + ".RefMaxwell Settings");
-  }
+  validateNestedBlockSublists(list, sectionName);
 }
 
 inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   const char * keys[] = {
     "preconditioner type", "approximation type", "pivot block", "triangle",
-    "diag use lumped pivot diagonal", "strict RefMaxwell", "debug RefMaxwell maps",
+    "diag use lumped pivot diagonal", "strict RefMaxwell",
     "hgrad basis name", "hcurl basis name",
     "smoother: type", "diag use lumped diagonal",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol"
   };
-  const char * subkeys[] = {"smoother: params", "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings", "ADS Settings"};
+  const char * subkeys[] = {"smoother: params", "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings"};
   validateAllowedKeys(list, sectionName,
     std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0])),
     std::set<std::string>(subkeys, subkeys + sizeof(subkeys) / sizeof(subkeys[0])));
@@ -208,64 +204,7 @@ inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & lis
   if (list.isParameter("triangle")) {
     canonicalSchurTriangle(list.get<std::string>("triangle"));
   }
-  if (list.isSublist("AMG Settings")) {
-    validateAmgSettingsSection(list.sublist("AMG Settings"), sectionName + ".AMG Settings");
-  }
-  if (list.isSublist("RefMaxwell Settings")) {
-    validateRefMaxwellSettingsSection(list.sublist("RefMaxwell Settings"), sectionName + ".RefMaxwell Settings");
-  }
-}
-
-inline void validatePreconditionerSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
-  const char * keys[] = {
-    "preconditioner type", "preconditioner variant", "strict RefMaxwell", "debug RefMaxwell maps",
-    "Schur pivot block", "Schur triangle",
-    "block prec backend",
-    "Schur diag use lumped pivot diagonal", "Pivot block diag use lumped diagonal", "diag use lumped diagonal",
-    "hgrad basis name", "hcurl basis name", "hgrad basis order", "hcurl basis order", "D0 file", "coordinates file",
-    "smoother: type", "verbosity", "print initial parameters", "multigrid algorithm", "max levels",
-    "cycle type", "sa: use filtered matrix", "sa: damping factor",
-    "coarse: type", "coarse: max size", "number of equations", "aggregation: type", "aggregation: drop tol",
-    "eigen-analysis: type", "relaxation: type", "relaxation: sweeps", "relaxation: damping factor",
-    "relaxation: backward mode", "relaxation: use l1", "relaxation: l1 eta",
-    "chebyshev: degree", "chebyshev: ratio eigenvalue",
-    "chebyshev: min eigenvalue", "chebyshev: eigenvalue max iterations", "use lumped M0inv", "mode",
-    "disable addon", "disable addon 22", "enable reuse", "use as preconditioner", "max coarse size",
-    "partitioner: type", "partitioner: local parts", "fact: iluk level-of-fill"
-  };
-  const char * subkeys[] = {"smoother: params", "AMG Settings", "RefMaxwell Settings", "11list", "22list"};
-  validateAllowedKeys(list, sectionName,
-    std::set<std::string>(keys, keys + sizeof(keys) / sizeof(keys[0])),
-    std::set<std::string>(subkeys, subkeys + sizeof(subkeys) / sizeof(subkeys[0])));
-  if (list.isParameter("preconditioner type")) {
-    canonicalPreconditionerType(list.get<std::string>("preconditioner type"));
-  }
-  if (list.isSublist("AMG Settings")) {
-    validateAmgSettingsSection(list.sublist("AMG Settings"), sectionName + ".AMG Settings");
-  }
-  if (list.isSublist("RefMaxwell Settings")) {
-    validateRefMaxwellSettingsSection(list.sublist("RefMaxwell Settings"), sectionName + ".RefMaxwell Settings");
-  }
-}
-
-inline void keepAllowedKeys(Teuchos::ParameterList & list,
-                            const std::set<std::string> & allowedParams,
-                            const std::set<std::string> & allowedSublists) {
-  std::vector<std::string> removeKeys;
-  for (Teuchos::ParameterList::ConstIterator it = list.begin(); it != list.end(); ++it) {
-    const std::string key = list.name(it);
-    if (list.isSublist(key)) {
-      if (!keyInSet(key, allowedSublists)) {
-        removeKeys.push_back(key);
-      }
-    }
-    else if (!keyInSet(key, allowedParams)) {
-      removeKeys.push_back(key);
-    }
-  }
-  for (size_t i = 0; i < removeKeys.size(); ++i) {
-    list.remove(removeKeys[i], false);
-  }
+  validateNestedBlockSublists(list, sectionName);
 }
 
 // Promote all params from a sublist to top level (for Ifpack2 Chebyshev: smoother: params -> top).
@@ -288,37 +227,55 @@ inline void promoteSublistToTopLevel(Teuchos::ParameterList & list, const std::s
 }
 
 // Keys consumed by MrHyDE before dispatching to MueLu/Ifpack2.
-inline const std::vector<std::string> & mrhydeBlockDispatchKeys() {
+inline const std::vector<std::string> & mrhydeOwnedKeys() {
   static const std::vector<std::string> keys = {
-    "preconditioner variant", "use mass matrix", "xml param file",
-    "hgrad basis name", "hcurl basis name", "hgrad basis order", "hcurl basis order",
-    "inner krylov solver", "inner krylov max iters", "inner krylov tol"
+    "preconditioner type", "preconditioner variant", "use mass matrix", "xml param file",
+    "hgrad basis name", "hcurl basis name", "hdiv basis name",
+    "hgrad basis order", "hcurl basis order", "hdiv basis order",
+    "inner krylov solver", "inner krylov max iters", "inner krylov tol",
+    "use lumped M0inv", "refmaxwell: use lumped M0inv",
+    "strict RefMaxwell",
+    "Schur approximation type", "Schur pivot block", "Schur triangle", "Schur damping",
+    "Schur diag use lumped pivot diagonal",
+    "Pivot block preconditioner type", "Pivot block diag use lumped diagonal",
+    "approximation type", "pivot block", "triangle",
+    "diag use lumped diagonal", "diag use lumped pivot diagonal",
+    "filter SM", "filter threshold", "verify complex", "verify Kn consistency",
+    "D0 file", "coordinates file"
   };
   return keys;
 }
 
-// Allow-list for block-diagonal Block N Settings. Keeps Ifpack2 relaxation:* /
-// chebyshev:* and MrHyDE dispatch keys; downstream builders strip further.
-inline void stripBlockDiagonalBlockList(Teuchos::ParameterList & list) {
-  std::set<std::string> allowedParams = {
-    "verbosity", "print initial parameters", "number of equations", "multigrid algorithm", "max levels",
-    "smoother: type", "smoother: overlap", "smoother: pre or post", "coarse: type", "coarse: max size",
-    "aggregation: type", "aggregation: drop tol", "aggregation: damping factor", "aggregation: min agg size",
-    "aggregation: max agg size", "eigen-analysis: type", "problem: symmetric", "transpose: use implicit",
-    "repartition: enable", "repartition: start level", "coarse: params", "parameterlist: syntax",
-    "relaxation: type", "relaxation: sweeps", "relaxation: damping factor", "relaxation: backward mode",
-    "chebyshev: degree", "chebyshev: ratio eigenvalue", "chebyshev: min eigenvalue",
-    "chebyshev: eigenvalue max iterations"
+inline const std::vector<std::string> & mrhydeOwnedSublists() {
+  static const std::vector<std::string> keys = {
+    "AMG Settings", "RefMaxwell Settings", "Maxwell1 Settings"
   };
-  for (const auto & k : mrhydeBlockDispatchKeys()) allowedParams.insert(k);
-  const std::set<std::string> allowedSublists = {"smoother: params", "coarse: params"};
-  keepAllowedKeys(list, allowedParams, allowedSublists);
+  return keys;
 }
 
-// This function is only for block diagonal code path.
-// It still uses YAML-based parameters.
-inline void stripContextAndMethodKeys(Teuchos::ParameterList & list) {
-  stripBlockDiagonalBlockList(list);
+inline void removeMrHyDEOwnedKeys(Teuchos::ParameterList & list) {
+  for (const auto & k : mrhydeOwnedKeys()) list.remove(k, false);
+  for (const auto & k : mrhydeOwnedSublists()) list.remove(k, false);
+}
+
+inline void removeIfpack2OnlyKeys(Teuchos::ParameterList & list) {
+  static const char * prefixes[] = {
+    "relaxation: ", "chebyshev: ", "partitioner: ", "fact: ", "schwarz: "
+  };
+  std::vector<std::string> removeKeys;
+  for (Teuchos::ParameterList::ConstIterator it = list.begin(); it != list.end(); ++it) {
+    const std::string key = list.name(it);
+    if (list.isSublist(key)) continue;
+    for (size_t p = 0; p < sizeof(prefixes) / sizeof(prefixes[0]); ++p) {
+      if (key.rfind(prefixes[p], 0) == 0) {
+        removeKeys.push_back(key);
+        break;
+      }
+    }
+  }
+  for (size_t i = 0; i < removeKeys.size(); ++i) {
+    list.remove(removeKeys[i], false);
+  }
 }
 
 // Remove coarse: params when coarse solver is direct (e.g. KLU).

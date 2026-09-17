@@ -72,7 +72,8 @@ struct RefMaxwellData {
   Teuchos::RCP<LA_MultiVector> ads_null11;
   Teuchos::RCP<LA_MultiVector> ads_null22;
   bool strict_refmaxwell;  /**< Enforce that pivot block preconditioner is RefMaxwell when strict mode is active. */
-  std::string xml_param_file = "";  /**< Path to XML parameter file for RefMaxwell configuration. If provided, XML is used. */
+  std::string xml_param_file_pivot = "";
+  std::string xml_param_file_schur = "";
 };
 
 /** \brief Maxwell1 (Reitzinger-Schoberl / energy-min) configuration. Reuses
@@ -82,7 +83,8 @@ struct RefMaxwellData {
 template<class Node>
 struct Maxwell1Data {
   typedef Tpetra::CrsMatrix<ScalarT,LO,GO,Node> LA_CrsMatrix;
-  std::string xml_param_file = "";
+  std::string xml_param_file_pivot = "";
+  std::string xml_param_file_schur = "";
   Teuchos::RCP<LA_CrsMatrix> D0_normalized;
 };
 
@@ -238,9 +240,6 @@ private:
   }
 
   void validateSublists() {
-    if (prec_sublist.name() != "empty") {
-      validatePreconditionerSettingsSection(prec_sublist, "Preconditioner Settings");
-    }
     if (pivot_block_sublist.name() != "empty") {
       validatePivotBlockSettingsSection(pivot_block_sublist, "Pivot Block Settings");
     }
@@ -294,6 +293,13 @@ private:
     if (prec_sublist.isParameter("Schur triangle")) {
       schur.triangle = canonicalSchurTriangle(prec_sublist.get<string>("Schur triangle"));
     }
+    if (prec_sublist.isParameter("xml param file")) {
+      amg.xml_param_file = prec_sublist.get<string>("xml param file");
+    }
+    else if (prec_sublist.isSublist("AMG Settings") &&
+             prec_sublist.sublist("AMG Settings").isParameter("xml param file")) {
+      amg.xml_param_file = prec_sublist.sublist("AMG Settings").template get<string>("xml param file");
+    }
   }
 
   void parsePivotBlockSublist(bool & strictRefMaxwellSetExplicitly) {
@@ -310,22 +316,16 @@ private:
       refMaxwell.strict_refmaxwell = pivot_block_sublist.get<bool>("strict RefMaxwell");
       strictRefMaxwellSetExplicitly = true;
     }
-    if (pivot_block_sublist.isSublist("AMG Settings")) {
-      Teuchos::ParameterList & amgSettings = pivot_block_sublist.sublist("AMG Settings");
-      if (amgSettings.isParameter("xml param file")) {
-        amg.xml_param_file = amgSettings.get<string>("xml param file");
-      }
-    }
     if (pivot_block_sublist.isSublist("RefMaxwell Settings")) {
       Teuchos::ParameterList & refmaxwellSettings = pivot_block_sublist.sublist("RefMaxwell Settings");
       if (refmaxwellSettings.isParameter("xml param file")) {
-        refMaxwell.xml_param_file = refmaxwellSettings.get<string>("xml param file");
+        refMaxwell.xml_param_file_pivot = refmaxwellSettings.get<string>("xml param file");
       }
     }
     if (pivot_block_sublist.isSublist("Maxwell1 Settings")) {
       Teuchos::ParameterList & maxwell1Settings = pivot_block_sublist.sublist("Maxwell1 Settings");
       if (maxwell1Settings.isParameter("xml param file")) {
-        maxwell1.xml_param_file = maxwell1Settings.get<string>("xml param file");
+        maxwell1.xml_param_file_pivot = maxwell1Settings.get<string>("xml param file");
       }
     }
   }
@@ -341,11 +341,6 @@ private:
       schur.schur_block_preconditioner_type =
         canonicalBlockPrecType(
           schur_block_sublist.sublist("RefMaxwell Settings").template get<string>("preconditioner type"));
-    }
-    else if (schur_block_sublist.isSublist("ADS Settings") &&
-             schur_block_sublist.sublist("ADS Settings").isParameter("preconditioner type")) {
-      schur.schur_block_preconditioner_type =
-        schur_block_sublist.sublist("ADS Settings").template get<string>("preconditioner type");
     }
     if (schur_block_sublist.isParameter("approximation type")) {
       schur.approximation_type =
@@ -369,19 +364,13 @@ private:
     if (schur_block_sublist.isSublist("RefMaxwell Settings")) {
       Teuchos::ParameterList & refmaxwellSettings = schur_block_sublist.sublist("RefMaxwell Settings");
       if (refmaxwellSettings.isParameter("xml param file")) {
-        refMaxwell.xml_param_file = refmaxwellSettings.get<string>("xml param file");
+        refMaxwell.xml_param_file_schur = refmaxwellSettings.get<string>("xml param file");
       }
     }
     if (schur_block_sublist.isSublist("Maxwell1 Settings")) {
       Teuchos::ParameterList & maxwell1Settings = schur_block_sublist.sublist("Maxwell1 Settings");
       if (maxwell1Settings.isParameter("xml param file")) {
-        maxwell1.xml_param_file = maxwell1Settings.get<string>("xml param file");
-      }
-    }
-    if (schur_block_sublist.isSublist("AMG Settings")) {
-      Teuchos::ParameterList & amgSettings = schur_block_sublist.sublist("AMG Settings");
-      if (amgSettings.isParameter("xml param file")) {
-        amg.xml_param_file = amgSettings.get<string>("xml param file");
+        maxwell1.xml_param_file_schur = maxwell1Settings.get<string>("xml param file");
       }
     }
   }

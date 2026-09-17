@@ -310,6 +310,7 @@ void LinearAlgebraInterface<Node>::linearSolver(const size_t & set, matrix_RCP &
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverL2(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+  context_L2[set]->equation_set_index = set;
   this->linearSolver(context_L2[set],J,r,soln);
 }
 
@@ -319,6 +320,7 @@ void LinearAlgebraInterface<Node>::linearSolverL2(const size_t & set, matrix_RCP
 
 template<class Node>
 void LinearAlgebraInterface<Node>::linearSolverBoundaryL2(const size_t & set, matrix_RCP & J, vector_RCP & r, vector_RCP & soln)  {
+  context_BndryL2[set]->equation_set_index = set;
   this->linearSolver(context_BndryL2[set],J,r,soln);
 }
 
@@ -377,7 +379,8 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
 
     if (cntxt->prec_sublist.name() != "empty" ) {
       Teuchos::ParameterList filteredParams(cntxt->prec_sublist);
-      stripContextAndMethodKeys(filteredParams);
+      removeMrHyDEOwnedKeys(filteredParams);
+      removeIfpack2OnlyKeys(filteredParams);
       mueluParams.setParameters(filteredParams);
     }
     if (cntxt->prec_sublist.name() == "empty" ) {
@@ -484,7 +487,7 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
   }
 
   matrix_RCP M0inv = useLumpedM0inv
-    ? block_prec::detail::buildLumpedM0inv<Node>(cntxt->refMaxwell.D0_matrix, M1_use, nodal_map, edge_map)
+    ? block_prec::detail::buildLumpedM0inv<Node>(cntxt->refMaxwell.D0_matrix, M1_use, nodal_map, edge_map, verbosity)
     : block_prec::detail::buildM0invIdentity<Node>(nodal_map);
 
   // Filtering and operator checks are disabled by default.
@@ -557,22 +560,22 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
               << " numVecs=" << cntxt->refMaxwell.nodal_coords->getNumVectors() << std::endl;
   }
 
-  // Require XML parameter file for RefMaxwell
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.xml_param_file.empty(), std::runtime_error,
-    "RefMaxwell preconditioner requires 'xml param file' to be specified in 'RefMaxwell Settings'. "
-    << "XML files provide complete MueLu RefMaxwell configuration. See regression tests for examples.");
+  const std::string & refmaxwellXmlFile = forSchur ? cntxt->refMaxwell.xml_param_file_schur
+                                                   : cntxt->refMaxwell.xml_param_file_pivot;
+  TEUCHOS_TEST_FOR_EXCEPTION(refmaxwellXmlFile.empty(), std::runtime_error,
+    "RefMaxwell requires 'xml param file' in "
+    << (forSchur ? "Schur" : "Pivot") << " Block Settings -> RefMaxwell Settings.");
 
   Teuchos::ParameterList refmaxwellParams;
 
-  // Load parameters from XML file
   try {
-    refmaxwellParams = *Teuchos::getParametersFromXmlFile(cntxt->refMaxwell.xml_param_file);
+    refmaxwellParams = *Teuchos::getParametersFromXmlFile(refmaxwellXmlFile);
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
-      std::cout << "[RefMaxwell] Loaded parameters from XML file: " << cntxt->refMaxwell.xml_param_file << std::endl;
+      std::cout << "[RefMaxwell] Loaded parameters from XML file: " << refmaxwellXmlFile << std::endl;
     }
   } catch (const std::exception& e) {
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-      "Failed to load RefMaxwell parameters from XML file '" << cntxt->refMaxwell.xml_param_file
+      "Failed to load RefMaxwell parameters from XML file '" << refmaxwellXmlFile
       << "': " << e.what());
   }
 
@@ -628,8 +631,6 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   using XpetraMatrix = Xpetra::Matrix<ScalarT, LO, GO, Node>;
   using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
 
-  (void)blockSublist;
-
   TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.D0_matrix.is_null(), std::runtime_error,
     "Maxwell1 requires D0_matrix in context (shared with RefMaxwell setup).");
   TEUCHOS_TEST_FOR_EXCEPTION(cntxt->refMaxwell.nodal_coords.is_null(), std::runtime_error,
@@ -643,7 +644,7 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
 
   // Panzer OPERATOR_GRAD emits +-0.5; MueLu's ReitzingerP requires +-1.
   if (cntxt->maxwell1.D0_normalized.is_null()) {
-    cntxt->maxwell1.D0_normalized = block_prec::detail::snapCrsMatrixSignsInPlace<Node>(
+    cntxt->maxwell1.D0_normalized = block_prec::detail::snapCrsMatrixSigns<Node>(
       cntxt->refMaxwell.D0_matrix);
   }
 
@@ -699,28 +700,37 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
   auto coords_xpetra = xpetraInputs.coords_xpetra;
   auto nullspace_xpetra = xpetraInputs.nullspace_xpetra;
 
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt->maxwell1.xml_param_file.empty(), std::runtime_error,
-    "Maxwell1 preconditioner requires 'xml param file' in 'Maxwell1 Settings'.");
+  const std::string & maxwell1XmlFile = forSchur ? cntxt->maxwell1.xml_param_file_schur
+                                                 : cntxt->maxwell1.xml_param_file_pivot;
+  TEUCHOS_TEST_FOR_EXCEPTION(maxwell1XmlFile.empty(), std::runtime_error,
+    "Maxwell1 preconditioner requires 'xml param file' in the "
+    << (forSchur ? "'Schur Block Settings'" : "'Pivot Block Settings'")
+    << " 'Maxwell1 Settings' sublist.");
   Teuchos::ParameterList maxwell1Params;
   try {
-    maxwell1Params = *Teuchos::getParametersFromXmlFile(cntxt->maxwell1.xml_param_file);
+    maxwell1Params = *Teuchos::getParametersFromXmlFile(maxwell1XmlFile);
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
-      std::cout << "[Maxwell1] Loaded parameters from XML file: " << cntxt->maxwell1.xml_param_file << std::endl;
+      std::cout << "[Maxwell1] Loaded parameters from XML file: " << maxwell1XmlFile << std::endl;
     }
   } catch (const std::exception& e) {
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
-      "Failed to load Maxwell1 parameters from XML file '" << cntxt->maxwell1.xml_param_file
+      "Failed to load Maxwell1 parameters from XML file '" << maxwell1XmlFile
       << "': " << e.what());
   }
 
   sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 11list"));
   sanitizeDirectCoarseParams(maxwell1Params.sublist("maxwell1: 22list"));
 
+  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
+  const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
+
   // Use M1 because PEC identity rows in SM create O(1)/O(h) diagonal contrast
   // that breaks aggregation in D0^T SM D0.
   Teuchos::RCP<XpetraMatrix> Kn_from_M1;
-  const bool useKnFromM1 = maxwell1Params.get<bool>("maxwell1: use Kn from M1", false);
-  if (useKnFromM1) {
+  const bool useKnFromM1 = maxwell1Params.isParameter("maxwell1: use Kn from M1") &&
+                           maxwell1Params.get<bool>("maxwell1: use Kn from M1");
+  maxwell1Params.remove("maxwell1: use Kn from M1", false);
+  if (useKnFromM1 && !canReuse) {
     Teuchos::ParameterList rapList;
     rapList.set("rap: fix zero diagonals", false);
     Kn_from_M1 = MueLu::Maxwell_Utils<ScalarT, LO, GO, Node>::PtAPWrapper(
@@ -751,7 +761,6 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
       Kokkos::View<const bool*, dev_mem_space> BCrowsK_c = BCrowsK;
       Teuchos::RCP<LA_CrsMatrix> D0_bc_pruned = block_prec::detail::dropBCRows<Node>(
           cntxt->maxwell1.D0_normalized, BCrowsK_c);
-      cntxt->maxwell1.D0_normalized = D0_bc_pruned;
       using XpetraCrs = Xpetra::TpetraCrsMatrix<ScalarT, LO, GO, Node>;
       using XpetraCrsWrap = Xpetra::CrsMatrixWrap<ScalarT, LO, GO, Node>;
       using XpetraCrsMatrix = Xpetra::CrsMatrix<ScalarT, LO, GO, Node>;
@@ -895,9 +904,6 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
       }
     }
   }
-
-  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
-  const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
 
   if (canReuse) {
     precCache->resetMatrix(SM_wrap);
