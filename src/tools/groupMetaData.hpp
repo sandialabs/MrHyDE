@@ -69,19 +69,19 @@ namespace MrHyDE {
     ///////////////////////////////////////////////////////////////////////////////////////
     
     vector<bool> assemble_face_terms;
-    bool store_basis_at_ip = true, require_basis_at_nodes = false, build_face_terms;
+    bool store_basis_at_ip = true, require_basis_at_nodes = false, build_face_terms = false;
     
-    size_t my_block, my_level, num_sets;
+    size_t my_block = 0, my_level = 0, num_sets = 0;
     int num_elem=0; // safeguard against case where a proc does not own any elem on a block
-    int phase_num_elem; // set automatically
+    int phase_num_elem = 0; // set automatically
     
     Teuchos::RCP<PhysicsInterface> physics;
     string response_type;
     vector<string> side_names;
-    bool requires_transient, requires_adjoint, matrix_free, use_sparse_mass;
+    bool requires_transient = false, requires_adjoint = false, matrix_free = false, use_sparse_mass = false;
     
     // Geometry Information
-    size_t num_nodes, num_sides, dimension, num_ip, num_side_ip, num_disc_params, current_stage=0;
+    size_t num_nodes = 0, num_sides = 0, dimension = 0, num_ip = 0, num_side_ip = 0, num_disc_params = 0, current_stage=0;
     size_t phase_num_nodes = 0, phase_num_sides = 0, phase_dimension = 0, phase_num_ip = 0;
     topo_RCP cell_topo, phase_cell_topo;
     DRV ref_nodes, phase_ref_nodes;
