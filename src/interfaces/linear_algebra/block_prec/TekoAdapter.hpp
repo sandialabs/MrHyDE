@@ -127,11 +127,11 @@ public:
     const ScalarT one  = Teuchos::ScalarTraits<ScalarT>::one();
     if (beta == zero && alpha == one) {
       for (size_t b = 0; b < nb; ++b) {
-        Y.doExport(*yBlock_[b], *exports_[b], (b == 0) ? Tpetra::REPLACE : Tpetra::ADD);
+        Y.doExport(*yBlock_[b], *exports_[b], Tpetra::REPLACE);
       }
     } else {
       for (size_t b = 0; b < nb; ++b) {
-        yFull_->doExport(*yBlock_[b], *exports_[b], (b == 0) ? Tpetra::REPLACE : Tpetra::ADD);
+        yFull_->doExport(*yBlock_[b], *exports_[b], Tpetra::REPLACE);
       }
       if (beta == zero) Y.putScalar(zero);
       else if (beta != one) Y.scale(beta);
