@@ -187,7 +187,7 @@ public:
    * @param set Index of the set for which to compute the weighted mass.
    * @param mass Reference-counted pointer to the mass matrix to be filled.
    * @param massdiag Reference-counted pointer to the vector storing the diagonal of the mass matrix.
-   * @param use_unit_weights If true, use weight 1 for all DOFs (e.g. RefMaxwell/ADS).
+   * @param use_unit_weights If true, use weight 1 for all DOFs (e.g. RefMaxwell).
    */
   void getWeightedMass(const size_t & set, matrix_RCP & mass, vector_RCP & massdiag,
                        const bool use_unit_weights = false);

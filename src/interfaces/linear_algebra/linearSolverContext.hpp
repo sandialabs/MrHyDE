@@ -205,7 +205,7 @@ public:
 
   // Cached RefMaxwell preconditioner for reuse.
   Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > refmaxwell_prec;
-  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec; /**< Cached ADS for Schur. */
+  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec; /**< Cached RefMaxwell for Schur. */
   // Cached Maxwell1 (Reitzinger-Schoberl / energy-min) preconditioner for reuse.
   Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > maxwell1_prec;
   Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > schur_maxwell1_prec;

@@ -57,7 +57,7 @@ void AssemblyManager<Node>::getWeightedMass(const size_t & set,
     auto numDOF = groupData[block]->num_dof;
     bool sparse_mass = groupData[block]->use_sparse_mass;
 
-    // When requested, assemble the mass with unit weights (used by RefMaxwell/ADS auxiliary spaces).
+    // When requested, assemble the mass with unit weights (used by RefMaxwell auxiliary spaces).
     vector<ScalarT> unit_wts(numDOF.extent(0), Teuchos::ScalarTraits<ScalarT>::one());
 
     // Create mirrors on LA_Device
