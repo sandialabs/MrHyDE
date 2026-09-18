@@ -70,12 +70,13 @@ using LATypes = block_prec::BlockTypes<Node>;
 // Load a complete MueLu parameter list from XML when configured.
 inline bool loadMueLuXmlIfPresent(const Teuchos::ParameterList & amgSublist,
                                   Teuchos::ParameterList & outParams,
-                                  const std::string & context) {
+                                  const std::string & context,
+                                  const Teuchos::RCP<const Teuchos::Comm<int> > & comm) {
   if (!amgSublist.isParameter("xml param file")) return false;
   const std::string xmlFile = amgSublist.get<std::string>("xml param file");
   if (xmlFile.empty()) return false;
   try {
-    outParams = *Teuchos::getParametersFromXmlFile(xmlFile);
+    Teuchos::updateParametersFromXmlFileAndBroadcast(xmlFile, Teuchos::ptr(&outParams), *comm);
   } catch (const std::exception & e) {
     TEUCHOS_TEST_FOR_EXCEPTION(true, std::runtime_error,
       "Failed to load AMG XML file '" << xmlFile << "' for " << context << ": " << e.what());
@@ -194,7 +195,7 @@ buildAmgBlockOperator(const typename LATypes<Node>::CrsMatrixRCP & blockMat,
                       const typename LATypes<Node>::CrsMatrixRCP & D0_matrix = Teuchos::null) {
   Teuchos::ParameterList mueluList;
 
-  if (!loadMueLuXmlIfPresent(blockList, mueluList, "block-diag AMG")) {
+  if (!loadMueLuXmlIfPresent(blockList, mueluList, "block-diag AMG", blockMat->getComm())) {
     mueluList = defaultMueLuParams();
     Teuchos::ParameterList filteredBlockList(blockList);
     removeMrHyDEOwnedKeys(filteredBlockList);
@@ -485,7 +486,7 @@ LinearAlgebraInterface<Node>::getBlockTriangularMueLuParams(const Teuchos::RCP<L
     (cntxt->schur_block_sublist.name() != "empty") &&
     cntxt->schur_block_sublist.isSublist("AMG Settings");
   if (hasNestedSchurAmg &&
-      loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block")) {
+      loadMueLuXmlIfPresent(cntxt->schur_block_sublist.sublist("AMG Settings"), mueluParams, "Schur block", comm)) {
     normalizeMueLuVerbosity(mueluParams, verbosity);
     return mueluParams;
   }
@@ -615,7 +616,7 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   if (cntxt->pivot_block_sublist.name() != "empty" && cntxt->pivot_block_sublist.isSublist("AMG Settings")) {
     const Teuchos::ParameterList & pivotAmgSublist = cntxt->pivot_block_sublist.sublist("AMG Settings");
     Teuchos::ParameterList xmlLoaded;
-    if (loadMueLuXmlIfPresent(pivotAmgSublist, xmlLoaded, "pivot block")) {
+    if (loadMueLuXmlIfPresent(pivotAmgSublist, xmlLoaded, "pivot block", J->getComm())) {
       pivotMueLuParams = xmlLoaded;
       normalizeMueLuVerbosity(pivotMueLuParams, verbosity);
     } else {
