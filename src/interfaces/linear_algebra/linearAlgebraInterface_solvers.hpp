@@ -162,7 +162,12 @@ LinearAlgebraInterface<Node>::buildOrUpdatePreconditioner(
 
   if (cntxt->prec_type == "block diagonal") {
     const size_t set = cntxt->equation_set_index;
-    if (!cntxt->reuse_preconditioner || !cntxt->have_preconditioner) {
+    std::string reuseType = cntxt->preconditioner_reuse_type;
+    toUpperAscii(reuseType);
+    const bool keepExisting = cntxt->have_preconditioner && !cntxt->prec_block.is_null() &&
+      (reuseType == "FULL" ||
+       (reuseType == "UPDATE" && !cntxt->jacobian_rebuilt_this_step));
+    if (!keepExisting) {
       cntxt->prec_block = this->buildBlockDiagonalPreconditioner(J, cntxt, set);
       cntxt->have_preconditioner = true;
     }
