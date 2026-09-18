@@ -39,29 +39,8 @@ struct SchurAssemblyInputs {
 // S = J11
 template<class Node>
 typename block_prec::BlockTypes<Node>::CrsMatrixRCP schurBase(const typename block_prec::BlockTypes<Node>::CrsMatrixRCP & J11) {
-  using Types = block_prec::BlockTypes<Node>;
-  using LA_CrsMatrix = typename Types::CrsMatrix;
-  using matrix_rcp = typename Types::CrsMatrixRCP;
-  using map_rcp = typename Types::MapRCP;
-  using host_inds_type = typename Types::HostInds;
-  using host_vals_type = typename Types::HostVals;
-
-  // Column map must be J11's col map so inserted column GIDs (from J11's rows) are valid.
-  matrix_rcp schur = Teuchos::rcp(new LA_CrsMatrix(
-    J11->getRowMap(), J11->getColMap(),
-    std::max(size_t(1), static_cast<size_t>(J11->getLocalMaxNumRowEntries()))));
-  block_prec::detail::forEachLocalRow<Node>(J11, [&](GO rowGid, const host_inds_type & colLids,
-      const host_vals_type & colVals, size_t nent, const map_rcp & colMap) {
-    std::vector<GO> gids(nent);
-    std::vector<ScalarT> vals(nent);
-    for (size_t k = 0; k < nent; ++k) {
-      gids[k] = colMap->getGlobalElement(colLids(k));
-      vals[k] = colVals(k);
-    }
-    schur->insertGlobalValues(rowGid, gids, vals);
-  });
-  schur->fillComplete(J11->getDomainMap(), J11->getRowMap());
-  return schur;
+  using LA_CrsMatrix = typename block_prec::BlockTypes<Node>::CrsMatrix;
+  return Teuchos::rcp(new LA_CrsMatrix(*J11, Teuchos::Copy));
 }
 
 template<class Node>

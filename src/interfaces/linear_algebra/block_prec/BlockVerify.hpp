@@ -6,6 +6,17 @@
 namespace MrHyDE {
 namespace block_prec {
 
+// create a deterministic vec
+template<class Node>
+void fillProbe(typename BlockTypes<Node>::Vector & v) {
+  auto vv = v.getLocalViewHost(Tpetra::Access::OverwriteAll);
+  auto map = v.getMap();
+  for (size_t i = 0; i < map->getLocalNumElements(); ++i) {
+    const GO g = map->getGlobalElement(static_cast<LO>(i));
+    vv(i, 0) = static_cast<ScalarT>(1.0 + (g % 7)) * ((g % 2) ? 1.0 : -1.0);
+  }
+}
+
 template<class Node>
 void verifyBlockSystem(const BlockSystem<Node> & blocks,
                        const typename BlockTypes<Node>::CrsMatrixRCP & J,
@@ -27,7 +38,7 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
 
   Teuchos::RCP<const typename Types::Map> fullMap = J->getRowMap();
   LA_Vector x(fullMap), Jx(fullMap), y(fullMap);
-  x.randomize();
+  fillProbe<Node>(x);
   J->apply(x, Jx);
 
   Import impP(fullMap, blocks.pivotMap), impT(fullMap, blocks.targetMap);
@@ -60,7 +71,7 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
   }
   if (!curlBlock.is_null()) {
     LA_Vector v(D0->getDomainMap()), D0v(D0->getRangeMap()), c(curlBlock->getRangeMap());
-    v.randomize();
+    fillProbe<Node>(v);
     D0->apply(v, D0v);
     curlBlock->apply(D0v, c);
     const auto nD0v = D0v.norm2();
