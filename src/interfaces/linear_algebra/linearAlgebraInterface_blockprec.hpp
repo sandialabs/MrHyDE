@@ -363,6 +363,9 @@ LinearAlgebraInterface<Node>::buildBlockMaps(const size_t & set) {
   for (size_t b = 0; b < numblocks; ++b) {
     auto EIDs = disc->my_elements[b];
     vector<vector<int> > voff = disc->getOffsets(static_cast<int>(set), static_cast<int>(b));
+    TEUCHOS_TEST_FOR_EXCEPTION(voff.size() != numvars, std::runtime_error,
+      "buildBlockMaps: element block " << b << " has " << voff.size()
+      << " variables, block 0 has " << numvars << ".");
     for (size_t e = 0; e < EIDs.extent(0); ++e) {
       size_t elemID = EIDs(e);
       vector<GO> gids = disc->getGIDs(set, b, elemID);
@@ -436,9 +439,6 @@ LinearAlgebraInterface<Node>::buildBlockDiagonalPreconditioner(const matrix_RCP 
 
   BlockPrecType pivotType = parseBlockPrecType((cntxt != Teuchos::null) ? cntxt->schur.pivot_block_preconditioner_type : "AMG");
   const bool useRefMaxwellOnBlock0 = (pivotType == BlockPrecType::RefMaxwell);
-  TEUCHOS_TEST_FOR_EXCEPTION(cntxt != Teuchos::null && cntxt->refMaxwell.strict_refmaxwell && !useRefMaxwellOnBlock0,
-    std::runtime_error,
-    "Strict RefMaxwell mode requires 'Pivot block preconditioner type = RefMaxwell' when using block diagonal preconditioning.");
 
   // Build one local map per variable block.
   vector<Teuchos::RCP<const LA_Map> > blockMaps = this->buildBlockMaps(set);
@@ -586,9 +586,6 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
 
   // --- Phase 1: Reuse short-circuit and mode validation ---
   BlockPrecType pivotType = parseBlockPrecType(cntxt->schur.pivot_block_preconditioner_type);
-  const bool strictRefMaxwell = cntxt->refMaxwell.strict_refmaxwell;
-  TEUCHOS_TEST_FOR_EXCEPTION(strictRefMaxwell && pivotType != BlockPrecType::RefMaxwell, std::runtime_error,
-    "Strict RefMaxwell mode requires 'Pivot block preconditioner type = RefMaxwell'.");
 
   // Reuse policy at operator level:
   //  - FULL: keep current operator

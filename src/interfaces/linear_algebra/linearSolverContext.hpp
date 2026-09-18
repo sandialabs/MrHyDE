@@ -67,7 +67,6 @@ struct RefMaxwellData {
   std::vector<Teuchos::RCP<LA_CoordMultiVector> > block_dof_coords;  /**< Coordinates per variable block for MueLu. */
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
   Teuchos::RCP<LA_MultiVector> nullspace;
-  bool strict_refmaxwell;  /**< Enforce that pivot block preconditioner is RefMaxwell when strict mode is active. */
   std::string xml_param_file_pivot = "";
   std::string xml_param_file_schur = "";
 };
@@ -125,17 +124,15 @@ public:
    *  \param settings  Parameter list containing all solver settings.
    */
   LinearSolverContext(Teuchos::ParameterList & settings) {
-    // Parse order is intentional: discover/validate sublists first, then root defaults,
-    // then block-specific overrides, then strict-RefMaxwell inference.
+    // Parse order is intentional: discover/validate sublists first, then root
+    // defaults, then block-specific overrides.
     parseBelosAndAmesosSettings(settings);
     parseSublists(settings);
     validateSublists();
     parseGeneralSettings(settings);
-    bool strictRefMaxwellSetExplicitly = parseStrictRefMaxwellFromRoot(settings);
-    parsePreconditionerSublist(strictRefMaxwellSetExplicitly);
-    parsePivotBlockSublist(strictRefMaxwellSetExplicitly);
-    parseSchurBlockSublist(strictRefMaxwellSetExplicitly);
-    inferStrictRefMaxwell(strictRefMaxwellSetExplicitly);
+    parsePreconditionerSublist();
+    parsePivotBlockSublist();
+    parseSchurBlockSublist();
     initializeRuntimeState();
   }
 
@@ -265,21 +262,10 @@ private:
     schur.pivot_block_diag_use_lumped_diagonal =
       settings.get<bool>("Pivot block diag use lumped diagonal", false);
     schur.schur_block_preconditioner_type = "AMG";
-    refMaxwell.strict_refmaxwell = false;
   }
 
-  bool parseStrictRefMaxwellFromRoot(Teuchos::ParameterList & settings) {
-    if (!settings.isParameter("strict RefMaxwell")) return false;
-    refMaxwell.strict_refmaxwell = settings.get<bool>("strict RefMaxwell");
-    return true;
-  }
-
-  void parsePreconditionerSublist(bool & strictRefMaxwellSetExplicitly) {
+  void parsePreconditionerSublist() {
     if (prec_sublist.name() == "empty") return;
-    if (prec_sublist.isParameter("strict RefMaxwell")) {
-      refMaxwell.strict_refmaxwell = prec_sublist.get<bool>("strict RefMaxwell");
-      strictRefMaxwellSetExplicitly = true;
-    }
     if (prec_sublist.isParameter("Schur pivot block")) {
       schur.pivot_block = prec_sublist.get<int>("Schur pivot block");
     }
@@ -299,7 +285,7 @@ private:
     }
   }
 
-  void parsePivotBlockSublist(bool & strictRefMaxwellSetExplicitly) {
+  void parsePivotBlockSublist() {
     if (pivot_block_sublist.name() == "empty") return;
     if (pivot_block_sublist.isParameter("preconditioner type")) {
       schur.pivot_block_preconditioner_type =
@@ -308,10 +294,6 @@ private:
     if (pivot_block_sublist.isParameter("diag use lumped diagonal")) {
       schur.pivot_block_diag_use_lumped_diagonal =
         pivot_block_sublist.get<bool>("diag use lumped diagonal");
-    }
-    if (pivot_block_sublist.isParameter("strict RefMaxwell")) {
-      refMaxwell.strict_refmaxwell = pivot_block_sublist.get<bool>("strict RefMaxwell");
-      strictRefMaxwellSetExplicitly = true;
     }
     if (pivot_block_sublist.isSublist("RefMaxwell Settings")) {
       Teuchos::ParameterList & refmaxwellSettings = pivot_block_sublist.sublist("RefMaxwell Settings");
@@ -327,7 +309,7 @@ private:
     }
   }
 
-  void parseSchurBlockSublist(bool & strictRefMaxwellSetExplicitly) {
+  void parseSchurBlockSublist() {
     if (schur_block_sublist.name() == "empty") return;
     if (schur_block_sublist.isParameter("preconditioner type")) {
       schur.schur_block_preconditioner_type =
@@ -354,10 +336,6 @@ private:
     if (schur_block_sublist.isParameter("triangle")) {
       schur.triangle = canonicalSchurTriangle(schur_block_sublist.get<string>("triangle"));
     }
-    if (schur_block_sublist.isParameter("strict RefMaxwell")) {
-      refMaxwell.strict_refmaxwell = schur_block_sublist.get<bool>("strict RefMaxwell");
-      strictRefMaxwellSetExplicitly = true;
-    }
     if (schur_block_sublist.isSublist("RefMaxwell Settings")) {
       Teuchos::ParameterList & refmaxwellSettings = schur_block_sublist.sublist("RefMaxwell Settings");
       if (refmaxwellSettings.isParameter("xml param file")) {
@@ -370,15 +348,6 @@ private:
         maxwell1.xml_param_file_schur = maxwell1Settings.get<string>("xml param file");
       }
     }
-  }
-
-  void inferStrictRefMaxwell(const bool strictRefMaxwellSetExplicitly) {
-    if (strictRefMaxwellSetExplicitly) return;
-    std::string pivotTypeUpper = schur.pivot_block_preconditioner_type;
-    for (size_t i = 0; i < pivotTypeUpper.size(); ++i) {
-      pivotTypeUpper[i] = static_cast<char>(std::toupper(static_cast<unsigned char>(pivotTypeUpper[i])));
-    }
-    refMaxwell.strict_refmaxwell = (pivotTypeUpper == "REFMAXWELL");
   }
 
   void initializeRuntimeState() {
