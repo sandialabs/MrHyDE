@@ -160,12 +160,24 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
   if (!useLidRemap) {
     // General path for mismatched row/domain partitions: filter source columns by target
     // domain ownership and keep original GIDs that are valid in the destination maps.
-    Teuchos::RCP<IntVector> blockMarker = Teuchos::rcp(new IntVector(domainMap));
-    blockMarker->putScalar(1);
-    Import colImport(domainMap, srcColMap);
-    Teuchos::RCP<IntVector> colMarker = Teuchos::rcp(new IntVector(srcColMap));
-    colMarker->putScalar(0);
-    colMarker->doImport(*blockMarker, colImport, Tpetra::INSERT);
+    Teuchos::RCP<IntVector> domainMarker = Teuchos::rcp(new IntVector(srcDomainMap));
+    {
+      auto markerView = domainMarker->getLocalViewHost(Tpetra::Access::OverwriteAll);
+      const LO nDomain = static_cast<LO>(srcDomainMap->getLocalNumElements());
+      for (LO lid = 0; lid < nDomain; ++lid) {
+        markerView(lid, 0) = domainMap->isNodeGlobalElement(srcDomainMap->getGlobalElement(lid)) ? 1 : 0;
+      }
+    }
+    Teuchos::RCP<IntVector> colMarker;
+    Teuchos::RCP<const Import> srcImporter = src->getGraph()->getImporter();
+    if (srcImporter.is_null()) {
+      colMarker = domainMarker;
+    }
+    else {
+      colMarker = Teuchos::rcp(new IntVector(srcColMap));
+      colMarker->putScalar(0);
+      colMarker->doImport(*domainMarker, *srcImporter, Tpetra::INSERT);
+    }
     auto markerData = colMarker->getData(0);
 
     const LO nRows = rowMap->getLocalNumElements();
@@ -199,10 +211,12 @@ remapBlockToMaps(const ConstMatrixRCP<Node> & src,
     // Fast path for equal local row/domain sizes: remap source column LIDs onto target
     // domain GIDs via a temporary GO vector imported from source domain to source columns.
     Teuchos::RCP<GoVector> tgtDomainOnSrcDomain = Teuchos::rcp(new GoVector(srcDomainMap));
-    auto tgtDomainOnSrcDomainData = tgtDomainOnSrcDomain->getLocalViewHost(Tpetra::Access::ReadWrite);
-    const LO nLocalDomain = static_cast<LO>(srcDomainMap->getLocalNumElements());
-    for (LO lid = 0; lid < nLocalDomain; ++lid) {
-      tgtDomainOnSrcDomainData(lid, 0) = domainMap->getGlobalElement(lid);
+    {
+      auto tgtDomainOnSrcDomainData = tgtDomainOnSrcDomain->getLocalViewHost(Tpetra::Access::ReadWrite);
+      const LO nLocalDomain = static_cast<LO>(srcDomainMap->getLocalNumElements());
+      for (LO lid = 0; lid < nLocalDomain; ++lid) {
+        tgtDomainOnSrcDomainData(lid, 0) = domainMap->getGlobalElement(lid);
+      }
     }
 
     Import srcDomainToColImport(srcDomainMap, srcColMap);
@@ -382,17 +396,18 @@ buildLumpedM0inv(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Node> 
   Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > d0_col_map = D0->getColMap();
   Teuchos::RCP<LA_MultiVector> nodalMassCol = Teuchos::rcp(new LA_MultiVector(d0_col_map, 1));
   nodalMassCol->putScalar(0.0);
-  auto nodal_mass_col_2d = nodalMassCol->getLocalViewHost(Tpetra::Access::ReadWrite);
-
-  forEachLocalRow<Node>(D0, [&](GO rowGid, const HostInds & col_lids, const HostVals & row_vals, size_t nent,
-                               const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > &) {
-    const LO row_lid = edge_map->getLocalElement(rowGid);
-    const ScalarT edgeWeight = m1diag_2d(row_lid, 0);
-    for (size_t k = 0; k < nent; ++k) {
-      const ScalarT d = row_vals(k);
-      nodal_mass_col_2d(col_lids(k), 0) += d * d * edgeWeight;
-    }
-  });
+  {
+    auto nodal_mass_col_2d = nodalMassCol->getLocalViewHost(Tpetra::Access::ReadWrite);
+    forEachLocalRow<Node>(D0, [&](GO rowGid, const HostInds & col_lids, const HostVals & row_vals, size_t nent,
+                                 const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > &) {
+      const LO row_lid = edge_map->getLocalElement(rowGid);
+      const ScalarT edgeWeight = m1diag_2d(row_lid, 0);
+      for (size_t k = 0; k < nent; ++k) {
+        const ScalarT d = row_vals(k);
+        nodal_mass_col_2d(col_lids(k), 0) += d * d * edgeWeight;
+      }
+    });
+  }
 
   Teuchos::RCP<LA_MultiVector> nodalMass = Teuchos::rcp(new LA_MultiVector(nodal_map, 1));
   nodalMass->putScalar(0.0);
@@ -845,10 +860,12 @@ bool verifyMaxwellComplex(
     }
     if (!nullspace.is_null() && nullspace->getMap()->isSameAs(*rowMap)) {
       for (int d = 0; d < static_cast<int>(nullspace->getNumVectors()); ++d) {
-        auto s_h = x.getLocalViewHost(Tpetra::Access::OverwriteAll);
-        auto n_h = nullspace->getLocalViewHost(Tpetra::Access::ReadOnly);
-        for (LO i = 0; i < static_cast<LO>(rowMap->getLocalNumElements()); ++i)
-          s_h(i, 0) = n_h(i, d);
+        {
+          auto s_h = x.getLocalViewHost(Tpetra::Access::OverwriteAll);
+          auto n_h = nullspace->getLocalViewHost(Tpetra::Access::ReadOnly);
+          for (LO i = 0; i < static_cast<LO>(rowMap->getLocalNumElements()); ++i)
+            s_h(i, 0) = n_h(i, d);
+        }
         one_test("null col=" + std::to_string(d));
       }
     }
