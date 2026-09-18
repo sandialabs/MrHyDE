@@ -1,6 +1,6 @@
 #!/bin/bash
-# Thermal LQ gradient + HessVec checks and solves.
-# Mode: <hv>-<gamma>[-N<nelem>] with hv in {exact,fd}; nelem defaults to 16.
+# Thermal LQ tracking checks and solves.
+# Mode: <hv>-<gamma>[-N<nelem>] with hv in {exact,fd}.
 # Env: NP (default 4), MRHYDE_BIN.
 # Usage: ./run.sh | ./run.sh check | ./run.sh exact-1e-4-N32
 
@@ -10,7 +10,6 @@ MRHYDE_BIN="${MRHYDE_BIN:-$(pwd)/mrhyde}"
 NP="${NP:-4}"
 NELEM_DEFAULT=16
 
-# Default sweep: exact and fd hessian paths on N = 4, 8, 16 meshes at gamma = 1e-4.
 DEFAULT_MODES="check \
   exact-1e-4-N4 fd-1e-4-N4 \
   exact-1e-4-N8 fd-1e-4-N8 \
@@ -22,13 +21,13 @@ for mode in $MODES; do
   logfile="logs/mrhyde_${mode}.log"
   case "$mode" in
     check)
-      echo "=== LQ check: mode=${mode} ==="
+      echo "=== LQ tracking check: mode=${mode} ==="
       mpiexec -n "${NP}" "$MRHYDE_BIN" input_base.yaml >& "$logfile" \
         || { echo "  FAILED, see ${logfile}"; continue; }
       ;;
     exact-*|fd-*)
-      hv="${mode%%-*}"                     # exact or fd
-      rest="${mode#*-}"                    # e.g., 1e-4-N32 or 1e-4
+      hv="${mode%%-*}"
+      rest="${mode#*-}"
       if [[ "$rest" =~ ^(.+)-N([0-9]+)$ ]]; then
         gamma="${BASH_REMATCH[1]}"
         nelem="${BASH_REMATCH[2]}"
@@ -43,7 +42,7 @@ for mode in $MODES; do
           -e "s|GAMMA|${gamma}|g" \
           -e "s|NELEM|${nelem}|g" \
           input_solve.yaml.template > "$run_dir/input.yaml"
-      echo "=== LQ solve: mode=${mode} (hessvec=${hv}, gamma=${gamma}, NX=${nelem}, np=${NP}) ==="
+      echo "=== LQ tracking solve: mode=${mode} (hessvec=${hv}, gamma=${gamma}, NX=${nelem}, np=${NP}) ==="
       t0=$(python3 -c 'import time; print(time.time())')
       ( cd "$run_dir" && mpiexec -n "${NP}" "$MRHYDE_BIN" input.yaml ) >& "$logfile" \
         || { echo "  FAILED, see ${logfile}"; continue; }
@@ -64,7 +63,7 @@ done
 
 if [[ $have_check -eq 1 ]]; then
   echo ""
-  echo "-- LQ operator checks (all should be at inner-solve floor for exact) --"
+  echo "-- LQ tracking operator checks --"
   printf "  %-16s %-16s %-16s %-16s\n" "GRAD-CHECK" "HESSVEC-CHECK" "SECANT-IDENTITY" "HV-BILINEARITY"
   log="logs/mrhyde_check.log"
   if [[ -f "$log" ]]; then
@@ -78,9 +77,9 @@ fi
 
 if [[ $have_solve -eq 1 ]]; then
   echo ""
-  echo "-- solves: TR-Newton convergence + native L2 error vs closed-form T* --"
-  printf "  %-18s %-13s %-13s %-13s %-13s %-8s %-8s %-10s\n" \
-    "mode" "iter0 value" "final value" "final gnorm" "||T-T*||_L2" "n_outer" "sum CG" "wall (s)"
+  echo "-- solves: TR-Newton convergence --"
+  printf "  %-18s %-13s %-13s %-13s %-8s %-8s %-10s\n" \
+    "mode" "iter0 value" "final value" "final gnorm" "n_outer" "sum CG" "wall (s)"
   for mode in $MODES; do
     [[ "$mode" == "check" ]] && continue
     log="logs/mrhyde_${mode}.log"
@@ -92,11 +91,8 @@ if [[ $have_solve -eq 1 ]]; then
     gN=$(echo "$final" | awk '{print $3}')
     nout=$(echo "$final" | awk '{print $1}')
     sumcg=$(awk '/^  [0-9]+ / && NF>=9 && $9 ~ /^[0-9]+$/ {s+=$9} END{print s+0}' "$log")
-    # Native L2 error printed by postproc report() at the post-solve forward.
-    l2err=$(grep 'L2 norm of the error for T' "$log" | tail -1 | awk '{print $(NF-3)}')
-    l2err="${l2err:-?}"
     wall=$(cat "runs/${mode}/wallclock.sec" 2>/dev/null || echo "?")
-    printf "  %-18s %-13s %-13s %-13s %-13s %-8s %-8s %-10s\n" \
-      "$mode" "$v0" "$vN" "$gN" "$l2err" "$nout" "$sumcg" "$wall"
+    printf "  %-18s %-13s %-13s %-13s %-8s %-8s %-10s\n" \
+      "$mode" "$v0" "$vN" "$gN" "$nout" "$sumcg" "$wall"
   done
 fi

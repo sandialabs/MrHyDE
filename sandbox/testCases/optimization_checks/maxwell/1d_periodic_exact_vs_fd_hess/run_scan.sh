@@ -6,7 +6,7 @@ cd "$(dirname "$0")"
 TAG="r1"
 NSTEPS=50
 NPROCS=11
-MRHYDE="./mrhyde"
+MRHYDE="${MRHYDE_BIN:-./mrhyde}"
 ROL="rol_decks/rol_scan.yaml"
 
 mkdir -p logs

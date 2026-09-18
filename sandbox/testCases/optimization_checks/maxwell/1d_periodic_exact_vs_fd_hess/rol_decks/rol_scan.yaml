@@ -6,7 +6,6 @@
 ANONYMOUS:
   Analysis:
     analysis type: ROL2
-    parameter gradient preconditioner type: none
     ROL2:
       General:
         Output Level: 2

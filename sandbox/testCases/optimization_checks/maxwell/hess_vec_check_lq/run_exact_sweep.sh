@@ -9,7 +9,7 @@ TAGS="r1"
 # seed probes at a random ctrl (healthy).
 MODES="baseline seed"
 NSTEPS=10
-MRHYDE_BIN="${MRHYDE_BIN:-/Users/abvoron/repos/ACEM/code/mrhyde/mrhyde.exe}"
+MRHYDE_BIN="${MRHYDE_BIN:-$(pwd)/mrhyde}"
 
 np_for_tag() { case "$1" in r1) echo 11 ;; *) echo "unknown tag: $1" >&2; exit 1 ;; esac; }
 

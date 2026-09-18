@@ -1,55 +1,45 @@
 # Optimization checks
 
-These sandboxes are pre-run checks for ROL optimization setups. Use them
-to answer three questions before long runs:
+Sandbox tests for the ROL gradient and Hessian-vector plumbing. Run one
+before committing to a long optimization.
 
-1. Are objective and regularization weights on sane scales?
-2. Is gradient and Hessian-vector plumbing correct on LQ problems?
-3. What cost and robustness gap should we expect from exact vs FD HessVec?
+| Test | What it does |
+| --- | --- |
+| `scale_check/` | Prints each objective and regularization term's magnitude, so you can pick weights. |
+| `maxwell/hess_vec_check_lq/` | Checks gradient and HessVec correctness on an LQ Maxwell control problem. |
+| `maxwell/1d_periodic_exact_vs_fd_hess/` | Times exact HessVec against the FD fallback on the same problem. |
+| `thermal/hess_vec_check_lq/` | Same correctness checks on thermal, plus a mesh sweep. |
+| `thermal/hess_vec_check_lq_tracking/` | Same again, with a nonzero tracking target wrapped in `trk_gate`. |
 
-## Test map
+## Running
 
-`optimization_checks/` has three active, committed test families:
+Each test has its own driver (`run.sh`, `run_scan.sh`, `run_exact_sweep.sh`),
+and each looks for the solver as `./mrhyde` in its own directory:
 
-- `scale_check/`: objective magnitude scan for weight tuning.
-- `maxwell/hess_vec_check_lq/`: LQ correctness checks for gradient and HessVec.
-- `maxwell/1d_periodic_exact_vs_fd_hess/`: runtime race, exact HessVec vs FD fallback.
-- `thermal/hess_vec_check_lq/`: thermal LQ checks and mesh sweep with exact vs FD.
-- `thermal/hess_vec_check_lq_tracking/`: same problem with a tracking target `Td != 0`; `trk_gate` keeps the exact path inside LQ.
-
-## Activation flags
-
-All options below live under `Analysis:ROL2:General:`.
-
-```yaml
-Do magnitude scan: true           # print per-term unweighted and weighted values
-Do grad+hessvec check: true       # ROL gradient and HessVec FD diagnostics
-Do exact hessvec check: true      # HessVec finite difference table
-Do algebraic hessvec check: true  # H*0, bilinearity, Rayleigh checks
-Do secant identity check: true    # compare Hv with grad(x+v)-grad(x)
-FD Check Seed: 3                  # direction seed for FD checks
-FD Check Random Seed: 42          # random probe point for diagnostics only
-FD Check Random Scale: 1.0        # probe amplitude (default 1.0)
+```bash
+cd scale_check
+ln -sf <path-to-build>/src/mrhyde mrhyde && ./run_scan.sh
+MRHYDE_BIN=<path-to-build>/src/mrhyde ./run_scan.sh   # or skip the link
 ```
 
-Use only the switches needed for the check you are running.
+## Flags
 
-## Exact vs FD HessVec switch
+All live under `Analysis:ROL2:General:`. Turn on only what you need.
 
-The exact HessVec path requires `src_gate` in the exact deck. The tangent
-sweep zeros this source gate, then restores it. If `src_gate` is missing,
-`hessVec` falls back to ROL FD-of-gradients.
+```yaml
+Do magnitude scan: true           # per-term unweighted and weighted values
+Do grad+hessvec check: true       # ROL gradient and HessVec FD diagnostics
+Do exact hessvec check: true      # HessVec finite difference table
+Do algebraic hessvec check: true  # H*0, bilinearity, Rayleigh
+Do secant identity check: true    # Hv vs grad(x+v)-grad(x)
+FD Check Seed: 3                  # FD direction seed
+FD Check Random Seed: 42          # random probe point, diagnostics only
+FD Check Random Scale: 1.0        # probe amplitude
+```
 
-In short:
+## Exact vs FD HessVec
 
-- `src_gate` present: exact HessVec path.
-- `src_gate` absent: FD HessVec fallback path.
-
-## What to expect
-
-- `scale_check`: one table with per-term scales to tune weights.
-- `hess_vec_check_lq` tests: small gradient and HessVec check residuals.
-- exact-vs-fd sweeps: same final objective trend, but exact usually needs
-  fewer inner Krylov solves and less wall time.
-
-Each subdirectory README gives run commands and local expectations.
+`hessVec` takes the exact path (tangent plus second-order adjoint) when the
+deck wraps the physical source in an inactive `src_gate` scalar. The tangent
+sweep zeros that gate, then restores it. Without `src_gate`, ROL falls back to
+finite differences of gradients.

@@ -1,10 +1,8 @@
-# thermal_hess_vec_check_lq
+# Thermal LQ gradient and HessVec checks
 
-Distributed-source thermal LQ optimal control on `[0,1]^3`. This sandbox
-does two jobs:
-
-1. check gradient and HessVec identities on an LQ problem,
-2. compare exact vs FD HessVec cost across mesh sizes.
+Distributed-source thermal LQ optimal control on `[0,1]^3`. Checks the
+gradient and HessVec identities, then compares exact vs FD HessVec cost
+across mesh sizes.
 
 ## How to run
 
@@ -17,23 +15,18 @@ NP=8 ./run.sh             # override MPI ranks (default 4)
 
 `./run.sh` writes logs to `logs/mrhyde_<mode>.log` and prints a summary.
 
-## Expected results
+## Results (`gamma=1e-4`, np=4)
 
-With current committed settings (`gamma=1e-4`, `np=4`):
+The exact path converges in one outer iteration at every mesh; FD needs
+more outer iterations and far more inner CG. Final objective values match.
 
-- check mode residuals are small (about `1e-7` for grad check and near
-  solver floor for HessVec checks),
-- exact path converges in one outer iteration for `N=4,8,16`,
-- FD path needs more outer iterations and many more inner CG iterations,
-- final objective values match between exact and FD at each mesh.
-
-### Check mode table
+### Check mode
 
 | GRAD-CHECK | HESSVEC-CHECK | SECANT-IDENTITY | HV-BILINEARITY |
 |-----------:|--------------:|----------------:|---------------:|
 | 2.24e-07   | 1.03e-14      | 9.44e-15        | 8.22e-16       |
 
-### Sweep table (`./run.sh`)
+### Sweep (`./run.sh`)
 
 | mode          | iter0 value | final value | final gnorm | native L2 err | n_outer | sum CG | wall (s) |
 | :------------ | :---------: | :---------: | :---------: | :-----------: | :-----: | :----: | :------: |
@@ -44,14 +37,7 @@ With current committed settings (`gamma=1e-4`, `np=4`):
 | exact-1e-4-N16|  6.09e-02   |  3.59e-02   |  3.02e-15   |   5.78e-04    |    1    |   57   |   6.9    |
 | fd-1e-4-N16   |  6.09e-02   |  3.59e-02   |  1.15e-19   |   5.78e-04    |    6    |  445   |   62.1   |
 
-## Local path switch
+## Which path runs
 
-- `other_decks/exact/` includes `src_gate` and uses exact HessVec.
-- `other_decks/fd/` omits `src_gate` and uses FD fallback HessVec.
-
-## Key files
-
-- `run.sh`: dispatcher and summary.
-- `input_solve.yaml.template`: solve template with mesh and gamma knobs.
-- `rol_decks/rol_solve.yaml`: trust-region solve settings.
-- `rol_decks/rol_check.yaml`: operator check settings.
+`other_decks/exact/` declares `src_gate` and gets exact HessVec.
+`other_decks/fd/` omits it and falls back to FD-of-gradients.

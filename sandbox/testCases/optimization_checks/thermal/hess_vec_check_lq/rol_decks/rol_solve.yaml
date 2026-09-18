@@ -9,7 +9,6 @@ ANONYMOUS:
         Disable source on final output: false
         Variable Objective Function: false
         Scale for Epsilon Active Sets: 1.0
-        # Pre-run diagnostics: give us the LQ operator identity table.
         Do grad+hessvec check: true
         Do exact hessvec check: true
         Do algebraic hessvec check: true

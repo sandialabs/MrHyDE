@@ -9,7 +9,7 @@ TAG=""
 LABEL=""
 NSTEPS=200
 NPROCS=8
-MRHYDE="./mrhyde"
+MRHYDE="${MRHYDE_BIN:-./mrhyde}"
 ROL="rol_decks/rol_race.yaml"
 
 usage() {

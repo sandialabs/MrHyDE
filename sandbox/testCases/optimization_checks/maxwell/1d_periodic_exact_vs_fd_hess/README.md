@@ -13,7 +13,7 @@ paths on the same LQ Maxwell problem:
     stops being small relative to signal.
 
 
-## Headline numbers (from `logs/{exact,fd}_time.log`, 22 MPI ranks combined)
+## Headline numbers (from `logs/mrhyde_r1_{exact,fd}.log`, 22 MPI ranks combined)
 
 | Quantity                     | exact     | fd         | ratio  |
 |------------------------------|-----------|------------|--------|

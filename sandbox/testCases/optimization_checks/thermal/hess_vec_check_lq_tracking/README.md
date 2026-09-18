@@ -1,4 +1,4 @@
-# thermal_hess_vec_check_lq_tracking
+# Thermal LQ checks with a tracking target
 
 Same problem as `../hess_vec_check_lq`, but with a tracking-target objective
 $\tfrac12(T - T_d)^2$, $T_d = 1$. The target is wrapped in an inactive
