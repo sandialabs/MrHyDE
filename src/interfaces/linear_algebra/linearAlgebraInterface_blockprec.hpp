@@ -12,6 +12,7 @@
 #include "block_prec/BlockAssembly.hpp"
 #include "block_prec/SchurApproximation.hpp"
 #include "block_prec/TekoAdapter.hpp"
+#include "block_prec/BlockVerify.hpp"
 
 #include <Ifpack2_Factory.hpp>
 #include <Xpetra_TripleMatrixMultiply.hpp>
@@ -606,6 +607,12 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
   // --- Phase 3: Build Schur approximation ---
   matrix_RCP SchurApprox = this->buildBlockTriangularSchurApproximation(
     blocks, cntxt, nullptr);
+
+  block_prec::verifyBlockSystem<Node>(blocks, J, SchurApprox,
+    cntxt->refMaxwell.D0_matrix, cntxt->schur.damping,
+    cntxt->schur.diag_use_lumped_pivot_diagonal,
+    parseSchurVariant(cntxt->schur.variant, cntxt->schur.approximation_type) == SchurVariant::Diag,
+    verbosity);
 
   // --- Phase 4: Build/reuse AMG for pivot and Schur blocks ---
   Teuchos::ParameterList schurMueLuParams = this->getBlockTriangularMueLuParams(cntxt);
