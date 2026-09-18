@@ -116,7 +116,8 @@ inline void ensureRelaxationDampingDouble(Teuchos::ParameterList & list) {
 
 inline std::string resolveBlockMethod(Teuchos::ParameterList & blockList) {
   std::string method = blockList.get<std::string>("preconditioner variant", "RELAXATION");
-  if (blockList.isParameter("smoother: type") &&
+  if (toUpperAsciiCopy(method) != "AMG" &&
+      blockList.isParameter("smoother: type") &&
       toUpperAsciiCopy(blockList.get<std::string>("smoother: type")) == "CHEBYSHEV") {
     method = "Chebyshev";
   }
@@ -618,6 +619,7 @@ LinearAlgebraInterface<Node>::setupBlockTriangularPreconditioner(
       pivotMueLuParams = xmlLoaded;
       normalizeMueLuVerbosity(pivotMueLuParams, verbosity);
     } else {
+      pivotMueLuParams = defaultMueLuParams();
       Teuchos::ParameterList filteredPivotParams(pivotAmgSublist);
       removeMrHyDEOwnedKeys(filteredPivotParams);
       removeIfpack2OnlyKeys(filteredPivotParams);
