@@ -540,6 +540,7 @@ filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Nod
   Teuchos::RCP<LA_CrsMatrix> out = Teuchos::rcp(new LA_CrsMatrix(rowMap, maxEnt));
 
   FilterResult<Node> result;
+  GO emptiedRow = -1;
   const LO n_rows = static_cast<LO>(rowMap->getLocalNumElements());
   for (LO lid = 0; lid < n_rows; ++lid) {
     const GO rowGid = rowMap->getGlobalElement(lid);
@@ -576,12 +577,16 @@ filterExplicitZeros(const Teuchos::RCP<const Tpetra::CrsMatrix<ScalarT,LO,GO,Nod
         result.dropped.emplace_back(rowGid, colGid);
       }
     }
-    TEUCHOS_TEST_FOR_EXCEPTION(keepGids.empty(), std::runtime_error,
-      "filterExplicitZeros: filter removed all entries from row " << rowGid
-      << " (local=" << lid << ", nnz=" << nent << ", |a_ii|=" << aii
-      << ", tol=" << tol << "). Reduce 'filter threshold'.");
+    if (keepGids.empty()) {
+      if (emptiedRow < 0) emptiedRow = rowGid;
+      continue;
+    }
     out->insertGlobalValues(rowGid, keepGids, keepVals);
   }
+  GO worstEmptied = -1;
+  Teuchos::reduceAll<int, GO>(*src->getComm(), Teuchos::REDUCE_MAX, 1, &emptiedRow, &worstEmptied);
+  TEUCHOS_TEST_FOR_EXCEPTION(worstEmptied >= 0, std::runtime_error,
+    "filterExplicitZeros: 'filter threshold' emptied row " << worstEmptied << ".");
   out->fillComplete(src->getDomainMap(), src->getRangeMap());
   result.matrix = out;
   result.nnzOut = out->getLocalNumEntries();

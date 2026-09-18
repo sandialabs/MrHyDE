@@ -353,6 +353,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   if (!aux_edge_map->isSameAs(*edge_block_map)) {
     const int hcurl_field_num = hcurl_dof->getFieldNum(hcurl_basis);
     std::unordered_map<GO,GO> aux2prim;
+    GO conflictGid = -1;
     for (size_t b = 0; b < mesh->block_names.size(); ++b) {
       const std::string & block_name = mesh->block_names[b];
       const auto & block_offsets = disc->offsets[set][b];
@@ -375,12 +376,7 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
           const GO aux_gid = aux_gids[aux_off[j]];
           const GO prim_gid = prim_gids[E_off[j]];
           auto ins = aux2prim.emplace(aux_gid, prim_gid);
-          TEUCHOS_TEST_FOR_EXCEPTION(!ins.second && ins.first->second != prim_gid,
-            std::runtime_error,
-            "D0 remap: auxiliary edge GID " +
-            std::to_string(static_cast<long long>(aux_gid)) +
-            " maps to both " + std::to_string(static_cast<long long>(ins.first->second)) +
-            " and " + std::to_string(static_cast<long long>(prim_gid)) + ".");
+          if (!ins.second && ins.first->second != prim_gid && conflictGid < 0) conflictGid = aux_gid;
         }
       }
     }
@@ -388,17 +384,14 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     Teuchos::RCP<LA_CrsMatrix> D0_remapped =
       Teuchos::rcp(new LA_CrsMatrix(edge_block_map, std::max<size_t>(1, cntxt->refMaxwell.D0_matrix->getLocalMaxNumRowEntries())));
     const LO n_aux_rows = aux_edge_map->getLocalNumElements();
-    const LO n_target_rows = edge_block_map->getLocalNumElements();
-    TEUCHOS_TEST_FOR_EXCEPTION(n_aux_rows != n_target_rows, std::runtime_error,
-      "D0 remap: local row counts differ (aux=" + std::to_string(static_cast<long long>(n_aux_rows)) +
-      ", target=" + std::to_string(static_cast<long long>(n_target_rows)) + ").");
+    GO unmappedGid = -1;
     for (LO lid = 0; lid < n_aux_rows; ++lid) {
       const GO aux_row_gid = aux_edge_map->getGlobalElement(lid);
       auto it = aux2prim.find(aux_row_gid);
-      TEUCHOS_TEST_FOR_EXCEPTION(it == aux2prim.end(), std::runtime_error,
-        "D0 remap: no primary edge GID for auxiliary GID " +
-        std::to_string(static_cast<long long>(aux_row_gid)) +
-        " (local row " + std::to_string(lid) + ").");
+      if (it == aux2prim.end()) {
+        if (unmappedGid < 0) unmappedGid = aux_row_gid;
+        continue;
+      }
       const GO row_gid = it->second;
       size_t nent = cntxt->refMaxwell.D0_matrix->getNumEntriesInLocalRow(lid);
       if (nent == 0) continue;
@@ -419,6 +412,12 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
         D0_remapped->insertGlobalValues(row_gid, col_gids, vals);
       }
     }
+    GO bad[2] = {conflictGid, unmappedGid}, worst[2] = {-1, -1};
+    Teuchos::reduceAll<int, GO>(*(aux_edge_map->getComm()), Teuchos::REDUCE_MAX, 2, bad, worst);
+    TEUCHOS_TEST_FOR_EXCEPTION(worst[0] >= 0, std::runtime_error,
+      "D0 remap: auxiliary edge GID " << worst[0] << " maps to two primary GIDs.");
+    TEUCHOS_TEST_FOR_EXCEPTION(worst[1] >= 0, std::runtime_error,
+      "D0 remap: no primary GID for auxiliary GID " << worst[1] << ".");
     D0_remapped->fillComplete(nodal_map, edge_block_map);
     cntxt->refMaxwell.D0_matrix = D0_remapped;
   }
