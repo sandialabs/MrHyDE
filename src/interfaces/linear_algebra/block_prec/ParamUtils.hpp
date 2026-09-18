@@ -169,7 +169,7 @@ inline void validateNestedBlockSublists(const Teuchos::ParameterList & list, con
 
 inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   const char * keys[] = {
-    "preconditioner type", "diag use lumped diagonal", "strict RefMaxwell",
+    "preconditioner type", "diag use lumped diagonal",
     "hgrad basis name", "hcurl basis name",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol"
   };
@@ -186,7 +186,7 @@ inline void validatePivotBlockSettingsSection(const Teuchos::ParameterList & lis
 inline void validateSchurBlockSettingsSection(const Teuchos::ParameterList & list, const std::string & sectionName) {
   const char * keys[] = {
     "preconditioner type", "approximation type", "pivot block", "triangle",
-    "diag use lumped pivot diagonal", "strict RefMaxwell",
+    "diag use lumped pivot diagonal",
     "hgrad basis name", "hcurl basis name",
     "smoother: type", "diag use lumped diagonal",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol"
@@ -234,7 +234,6 @@ inline const std::vector<std::string> & mrhydeOwnedKeys() {
     "hgrad basis order", "hcurl basis order",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol",
     "use lumped M0inv", "refmaxwell: use lumped M0inv",
-    "strict RefMaxwell",
     "Schur approximation type", "Schur pivot block", "Schur triangle", "Schur damping",
     "Schur diag use lumped pivot diagonal",
     "Pivot block preconditioner type", "Pivot block diag use lumped diagonal",
