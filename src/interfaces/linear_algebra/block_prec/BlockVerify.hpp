@@ -74,7 +74,8 @@ void verifyBlockSystem(const BlockSystem<Node> & blocks,
     fillProbe<Node>(v);
     D0->apply(v, D0v);
     curlBlock->apply(D0v, c);
-    const auto nD0v = D0v.norm2();
+    // divide by |J| as well otherwise this tracks element-size spread
+    const auto nD0v = D0v.norm2() * curlBlock->getFrobeniusNorm();
     const auto nc = c.norm2();
     if (rank == 0) {
       std::cout << "[BLOCK-VERIFY] J10*D0 rel = "
