@@ -91,6 +91,13 @@ public:
     yBlock_.resize(nb);
     xThyra_.resize(nb);
     yThyra_.resize(nb);
+    // beta==0 exports with REPLACE and never zeroes Y, so an uncovered row keeps stale data.
+    GO blockSum = 0;
+    for (size_t b = 0; b < nb; ++b) blockSum += static_cast<GO>(blockMaps[b]->getGlobalNumElements());
+    TEUCHOS_TEST_FOR_EXCEPTION(blockSum != static_cast<GO>(fullMap_->getGlobalNumElements()),
+      std::runtime_error,
+      "TekoTpetraAdapter: block maps hold " << blockSum << " rows but the full map has "
+      << fullMap_->getGlobalNumElements() << "; they must partition it.");
     Teuchos::Array<Teuchos::RCP<const ThyraVecSpace> > spacesArr(nb);
     for (size_t b = 0; b < nb; ++b) {
       imports_[b] = Teuchos::rcp(new LA_Import(fullMap_, blockMaps[b]));

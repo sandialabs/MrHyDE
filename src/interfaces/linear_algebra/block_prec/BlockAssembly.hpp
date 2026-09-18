@@ -357,10 +357,14 @@ void reportInverseDiagonal(const InverseDiagonalResult<Node> & result,
                            const std::string & label,
                            const Teuchos::RCP<const Teuchos::Comm<int> > & comm,
                            const int verbosity) {
-  if (verbosity < 5) return;
   GO local[3] = {result.usedDiag, result.usedLumped, result.missing};
   GO global[3] = {0, 0, 0};
   Teuchos::reduceAll<int, GO>(*comm, Teuchos::REDUCE_SUM, 3, local, global);
+  if (global[2] > 0 && comm->getRank() == 0) {
+    std::cout << label << ": WARNING " << global[2]
+              << " rows have no usable diagonal; their inverse is zero." << std::endl;
+  }
+  if (verbosity < 5) return;
   if (comm->getRank() == 0) {
     std::cout << label << ": used_diag=" << global[0]
               << " used_lumped=" << global[1]

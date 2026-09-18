@@ -451,13 +451,22 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
     }
   }
 
+  GO missing_coords = 0;
   for (LO lid = 0; lid < static_cast<LO>(nodal_map->getLocalNumElements()); ++lid) {
     GO gid = nodal_map->getGlobalElement(lid);
     auto it = gid_to_coords.find(gid);
-    if (it == gid_to_coords.end()) continue;
+    if (it == gid_to_coords.end()) { ++missing_coords; continue; }
     for (int d = 0; d < dimension; ++d) {
       coords_2d(lid, d) = it->second[d];
     }
+  }
+  {
+    // Nodes left at the origin would silently corrupt distance-based aggregation.
+    GO global_missing = 0;
+    Teuchos::reduceAll<int, GO>(*(nodal_map->getComm()), Teuchos::REDUCE_SUM, 1,
+                                &missing_coords, &global_missing);
+    TEUCHOS_TEST_FOR_EXCEPTION(global_missing > 0, std::runtime_error,
+      "RefMaxwell setup: " << global_missing << " nodes have no coordinates.");
   }
 
   if (cntxt->refMaxwell.block_dof_coords.size() != blockMaps.size()) {
