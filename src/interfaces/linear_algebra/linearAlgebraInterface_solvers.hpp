@@ -368,7 +368,8 @@ Teuchos::RCP<MueLu::TpetraOperator<ScalarT, LO, GO, Node> > LinearAlgebraInterfa
   if (!cntxt->amg.xml_param_file.empty()) {
     // Load parameters from XML file
     try {
-      mueluParams = *Teuchos::getParametersFromXmlFile(cntxt->amg.xml_param_file);
+      Teuchos::updateParametersFromXmlFileAndBroadcast(
+          cntxt->amg.xml_param_file, Teuchos::ptr(&mueluParams), *J->getComm());
       if (verbosity >= 6 && J->getComm()->getRank() == 0) {
         std::cout << "[AMG] Loaded parameters from XML file: "
                   << cntxt->amg.xml_param_file << std::endl;
@@ -571,10 +572,25 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
     "RefMaxwell requires 'xml param file' in "
     << (forSchur ? "Schur" : "Pivot") << " Block Settings -> RefMaxwell Settings.");
 
+  using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
+  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
+  const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
+
+  // Reuse needs none of the XML parsing or filtering below.
+  if (canReuse) {
+    precCache->resetMatrix(SM_wrap);
+    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
+      std::cout << "[RefMaxwell] Reusing existing hierarchy with resetMatrix()" << (forSchur ? " (Schur)" : "") << std::endl;
+    }
+    return Teuchos::rcp(new MueLu::TpetraOperator<ScalarT, LO, GO, Node>(
+        Teuchos::rcp_static_cast<XpetraOperator>(precCache)));
+  }
+
   Teuchos::ParameterList refmaxwellParams;
 
   try {
-    refmaxwellParams = *Teuchos::getParametersFromXmlFile(refmaxwellXmlFile);
+    Teuchos::updateParametersFromXmlFileAndBroadcast(
+        refmaxwellXmlFile, Teuchos::ptr(&refmaxwellParams), *J->getComm());
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
       std::cout << "[RefMaxwell] Loaded parameters from XML file: " << refmaxwellXmlFile << std::endl;
     }
@@ -591,30 +607,22 @@ LinearAlgebraInterface<Node>::buildRefMaxwellPreconditioner(
 
   // AMS only for this path.
   refmaxwellParams.set("refmaxwell: space number", 1);
+  // resetMatrix is a no-op unless the hierarchy was built with reuse enabled.
+  if (reuseType != "NONE") {
+    refmaxwellParams.set("refmaxwell: enable reuse", true);
+  }
 
   if (verbosity >= 10 && J->getComm()->getRank() == 0) {
     std::cout << "[RefMaxwell] Final parameter list:" << std::endl;
     refmaxwellParams.print(std::cout, 2, true);
   }
 
-  using XpetraOperator = Xpetra::Operator<ScalarT, LO, GO, Node>;
-  const std::string reuseType = toUpperAsciiCopy(cntxt->preconditioner_reuse_type);
-  const bool canReuse = !precCache.is_null() && (reuseType == "FULL" || reuseType == "UPDATE");
-
-  if (canReuse) {
-    precCache->resetMatrix(SM_wrap);
-    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
-      std::cout << "[RefMaxwell] Reusing existing hierarchy with resetMatrix()" << (forSchur ? " (Schur)" : "") << std::endl;
-    }
-  }
-  else {
-    precCache = Teuchos::rcp(new RefMaxwellType(
-        SM_wrap, D0_wrap, M1_wrap, M0inv_wrap, M1_wrap,
-        nullspace_xpetra, coords_xpetra,
-        refmaxwellParams, true));
-    if (verbosity >= 10 && J->getComm()->getRank() == 0) {
-      std::cout << "[RefMaxwell] Built new preconditioner hierarchy" << (forSchur ? " (Schur)" : "") << std::endl;
-    }
+  precCache = Teuchos::rcp(new RefMaxwellType(
+      SM_wrap, D0_wrap, M1_wrap, M0inv_wrap, M1_wrap,
+      nullspace_xpetra, coords_xpetra,
+      refmaxwellParams, true));
+  if (verbosity >= 10 && J->getComm()->getRank() == 0) {
+    std::cout << "[RefMaxwell] Built new preconditioner hierarchy" << (forSchur ? " (Schur)" : "") << std::endl;
   }
 
   return Teuchos::rcp(new MueLu::TpetraOperator<ScalarT, LO, GO, Node>(
@@ -713,7 +721,8 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
     << " 'Maxwell1 Settings' sublist.");
   Teuchos::ParameterList maxwell1Params;
   try {
-    maxwell1Params = *Teuchos::getParametersFromXmlFile(maxwell1XmlFile);
+    Teuchos::updateParametersFromXmlFileAndBroadcast(
+        maxwell1XmlFile, Teuchos::ptr(&maxwell1Params), *J->getComm());
     if (verbosity >= 6 && J->getComm()->getRank() == 0) {
       std::cout << "[Maxwell1] Loaded parameters from XML file: " << maxwell1XmlFile << std::endl;
     }
@@ -786,18 +795,41 @@ LinearAlgebraInterface<Node>::buildMaxwell1Preconditioner(
 
       auto knColMap = Kn->getColMap();
       auto knRowMap = Kn->getRowMap();
+      auto knDomMap = Kn->getDomainMap();
       const LO nColLocal = static_cast<LO>(knColMap->getLocalNumElements());
       Kokkos::View<bool*, dev_mem_space> BCcols("BCcols_kn", nColLocal);
       {
-        auto lclColMap = knColMap->getLocalMap();
-        auto lclRowMap = knRowMap->getLocalMap();
-        const LO invalidLO = Teuchos::OrdinalTraits<LO>::invalid();
+        // Dirichlet nodes owned elsewhere appear only as ghost columns, so the flags
+        // must be imported; a local row-map lookup leaves those columns unzeroed.
+        TEUCHOS_TEST_FOR_EXCEPTION(!knRowMap->isSameAs(*knDomMap), std::runtime_error,
+          "applyDirichletBCsToKn: Kn row and domain maps must agree.");
+        using XpetraVector = Xpetra::Vector<ScalarT, LO, GO, Node>;
+        const ScalarT one = Teuchos::ScalarTraits<ScalarT>::one();
+        const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
+
+        Teuchos::RCP<XpetraVector> bcDom =
+            Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knDomMap, true);
+        {
+          auto domView = bcDom->getLocalViewDevice(Tpetra::Access::OverwriteAll);
+          Kokkos::parallel_for("BCcols_mark_domain",
+              Kokkos::RangePolicy<typename Node::execution_space>(0, domView.extent(0)),
+              KOKKOS_LAMBDA(const LO i) {
+                domView(i, 0) = BCdomainNodal(i) ? one : zero;
+              });
+        }
+
+        Teuchos::RCP<XpetraVector> bcCol = bcDom;
+        auto knImporter = Kn->getCrsGraph()->getImporter();
+        if (!knImporter.is_null()) {
+          bcCol = Xpetra::VectorFactory<ScalarT, LO, GO, Node>::Build(knColMap, true);
+          bcCol->doImport(*bcDom, *knImporter, Xpetra::INSERT);
+        }
+
+        auto colView = bcCol->getLocalViewDevice(Tpetra::Access::ReadOnly);
         Kokkos::parallel_for("BCcols_fill",
             Kokkos::RangePolicy<typename Node::execution_space>(0, nColLocal),
             KOKKOS_LAMBDA(const LO cLid) {
-              const GO cGid = lclColMap.getGlobalElement(cLid);
-              const LO rLid = lclRowMap.getLocalElement(cGid);
-              BCcols(cLid) = (rLid != invalidLO) ? BCdomainNodal(rLid) : false;
+              BCcols(cLid) = (colView(cLid, 0) != zero);
             });
       }
       Kokkos::View<const bool*, dev_mem_space> BCdomain_c = BCdomainNodal;
