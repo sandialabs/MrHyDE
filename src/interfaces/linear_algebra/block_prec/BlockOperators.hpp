@@ -4,6 +4,7 @@
 #include "block_prec/BlockTypes.hpp"
 
 #include <Amesos2.hpp>
+#include <KokkosKernels_ArithTraits.hpp>
 #include <BelosLinearProblem.hpp>
 #include <BelosSolverManager.hpp>
 
@@ -80,25 +81,28 @@ public:
                                !Y.getMap()->isSameAs(*invDiag_->getMap()),
       std::runtime_error,
       "DiagonalInverseOperator map mismatch.");
-    const auto xView = X.getLocalViewHost(Tpetra::Access::ReadOnly);
-    auto yView = Y.getLocalViewHost(Tpetra::Access::ReadWrite);
-    const auto dView = invDiag_->getLocalViewHost(Tpetra::Access::ReadOnly);
+    const auto xView = X.getLocalViewDevice(Tpetra::Access::ReadOnly);
+    const auto dView = invDiag_->getLocalViewDevice(Tpetra::Access::ReadOnly);
     const size_t nrows = static_cast<size_t>(X.getLocalLength());
     const size_t nvec = static_cast<size_t>(X.getNumVectors());
     const bool useConjugate = (mode == Teuchos::CONJ_TRANS);
     const ScalarT zero = Teuchos::ScalarTraits<ScalarT>::zero();
     // 0 * NaN = NaN in IEEE 754; Belos hands us uninitialized Y, so guard beta==0.
     const bool overwrite = (beta == zero);
-    for (size_t i = 0; i < nrows; ++i) {
-      ScalarT dinv = dView(i, 0);
-      if (useConjugate) {
-        dinv = Teuchos::ScalarTraits<ScalarT>::conjugate(dinv);
-      }
-      for (size_t j = 0; j < nvec; ++j) {
-        const ScalarT ax = alpha * dinv * xView(i, j);
-        yView(i, j) = overwrite ? ax : (beta * yView(i, j) + ax);
-      }
-    }
+    // OverwriteAll skips syncing uninitialized Y from host.
+    using dev_view_t = decltype(Y.getLocalViewDevice(Tpetra::Access::ReadWrite));
+    dev_view_t yView = overwrite ? Y.getLocalViewDevice(Tpetra::Access::OverwriteAll)
+                                 : Y.getLocalViewDevice(Tpetra::Access::ReadWrite);
+    Kokkos::parallel_for("DiagonalInverseOperator::apply",
+        Kokkos::RangePolicy<typename Node::execution_space, size_t>(0, nrows),
+        KOKKOS_LAMBDA(const size_t i) {
+          const ScalarT dinv = useConjugate ? KokkosKernels::ArithTraits<ScalarT>::conj(dView(i, 0))
+                                            : dView(i, 0);
+          for (size_t j = 0; j < nvec; ++j) {
+            const ScalarT ax = alpha * dinv * xView(i, j);
+            yView(i, j) = overwrite ? ax : (beta * yView(i, j) + ax);
+          }
+        });
   }
 
 private:
