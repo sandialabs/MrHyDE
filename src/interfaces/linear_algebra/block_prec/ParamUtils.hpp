@@ -230,8 +230,8 @@ inline void promoteSublistToTopLevel(Teuchos::ParameterList & list, const std::s
 inline const std::vector<std::string> & mrhydeOwnedKeys() {
   static const std::vector<std::string> keys = {
     "preconditioner type", "preconditioner variant", "use mass matrix", "xml param file",
-    "hgrad basis name", "hcurl basis name", "hdiv basis name",
-    "hgrad basis order", "hcurl basis order", "hdiv basis order",
+    "hgrad basis name", "hcurl basis name",
+    "hgrad basis order", "hcurl basis order",
     "inner krylov solver", "inner krylov max iters", "inner krylov tol",
     "use lumped M0inv", "refmaxwell: use lumped M0inv",
     "strict RefMaxwell",

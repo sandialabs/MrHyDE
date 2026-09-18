@@ -144,14 +144,10 @@ void SolverManager<Node>::completeSetup() {
         const auto & src = source_context->refMaxwell;
         dst.D0_matrix = src.D0_matrix;
         dst.M1_matrix = src.M1_matrix;
-        dst.D1_matrix = src.D1_matrix;
-        dst.M2_matrix = src.M2_matrix;
         dst.block_mass_matrices = src.block_mass_matrices;
         dst.block_dof_coords = src.block_dof_coords;
         dst.nodal_coords = src.nodal_coords;
         dst.nullspace = src.nullspace;
-        dst.ads_null11 = src.ads_null11;
-        dst.ads_null22 = src.ads_null22;
       }
     };
     share_auxiliary_data(linalg->context);

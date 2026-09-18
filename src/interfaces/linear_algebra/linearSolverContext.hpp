@@ -63,14 +63,10 @@ struct RefMaxwellData {
   typedef Tpetra::MultiVector<CoordScalar,LO,GO,Node> LA_CoordMultiVector;
   Teuchos::RCP<LA_CrsMatrix> D0_matrix;   /**< Discrete gradient (HGRAD -> HCURL). */
   Teuchos::RCP<LA_CrsMatrix> M1_matrix;   /**< Edge mass matrix for HCURL block. */
-  Teuchos::RCP<LA_CrsMatrix> D1_matrix;
-  Teuchos::RCP<LA_CrsMatrix> M2_matrix;
   std::vector<Teuchos::RCP<LA_CrsMatrix> > block_mass_matrices;  /**< Mass matrix per variable block. */
   std::vector<Teuchos::RCP<LA_CoordMultiVector> > block_dof_coords;  /**< Coordinates per variable block for MueLu. */
   Teuchos::RCP<LA_CoordMultiVector> nodal_coords;
   Teuchos::RCP<LA_MultiVector> nullspace;
-  Teuchos::RCP<LA_MultiVector> ads_null11;
-  Teuchos::RCP<LA_MultiVector> ads_null22;
   bool strict_refmaxwell;  /**< Enforce that pivot block preconditioner is RefMaxwell when strict mode is active. */
   std::string xml_param_file_pivot = "";
   std::string xml_param_file_schur = "";
@@ -92,7 +88,8 @@ struct Maxwell1Data {
  * \struct AMGData
  * \brief Configuration data for MueLu AMG (Algebraic MultiGrid) preconditioner.
  *
- * Stores AMG-specific configuration. If xml_param_file is non-empty, parameters are loaded from XML.
+ * Stores the monolithic AMG path configuration. Block AMG reads its XML from the
+ * pivot/Schur AMG Settings sublists instead.
  */
 struct AMGData {
   std::string xml_param_file = "";  /**< Path to XML parameter file for AMG configuration. If provided, XML is used. */
@@ -205,7 +202,7 @@ public:
 
   // Cached RefMaxwell preconditioner for reuse.
   Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > refmaxwell_prec;
-  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec; /**< Cached RefMaxwell for Schur. */
+  Teuchos::RCP<MueLu::RefMaxwell<ScalarT, LO, GO, Node> > schur_refmaxwell_prec; /**< Cached RefMaxwell for the Schur block. */
   // Cached Maxwell1 (Reitzinger-Schoberl / energy-min) preconditioner for reuse.
   Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > maxwell1_prec;
   Teuchos::RCP<MueLu::Maxwell1<ScalarT, LO, GO, Node> > schur_maxwell1_prec;
