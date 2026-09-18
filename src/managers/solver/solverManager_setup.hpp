@@ -322,13 +322,15 @@ void SolverManager<Node>::setupBlockTriangularAuxiliary(const size_t & set,
   auto D0_tpetra = Thyra::TpetraOperatorVectorExtraction<ScalarT,LO,GO,Node>::getTpetraOperator(D0_thyra);
   cntxt->refMaxwell.D0_matrix = Teuchos::rcp_dynamic_cast<LA_CrsMatrix>(D0_tpetra, true);
 
-  // Which block is edge (HCURL)? Match D0 range size to a block map so M1 and D0 use the same ordering.
+  // identify edge block by basis type
   const Teuchos::RCP<const Tpetra::Map<LO,GO,Node> > aux_edge_map = cntxt->refMaxwell.D0_matrix->getRangeMap();
-  const GO d0_range_size = static_cast<GO>(aux_edge_map->getGlobalNumElements());
   size_t edgeBlock = static_cast<size_t>(pivotBlock);
-  for (size_t b = 0; b < blockMaps.size(); ++b) {
-    if (static_cast<GO>(blockMaps[b]->getGlobalNumElements()) == d0_range_size) {
-      edgeBlock = b;
+  const auto & setBasis = useBasis[set][0];
+  for (size_t v = 0; v < setBasis.size() && v < blockMaps.size(); ++v) {
+    const LO bind = setBasis[v];
+    if (bind >= 0 && static_cast<size_t>(bind) < disc->basis_types[0].size() &&
+        disc->basis_types[0][bind].substr(0,5) == "HCURL") {
+      edgeBlock = v;
       break;
     }
   }
